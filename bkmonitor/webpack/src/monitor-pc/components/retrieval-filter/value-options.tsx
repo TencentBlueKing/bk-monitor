@@ -46,6 +46,9 @@ interface IProps {
   isWildcard?: boolean;
   checkedItem?: IFilterField;
   method?: string;
+  show?: boolean;
+  isPopover?: boolean;
+  onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
@@ -57,6 +60,10 @@ export default class ValueOptions extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) checkedItem: IFilterField;
   @Prop({ type: Boolean, default: false }) isWildcard: boolean;
   @Prop({ type: String, default: '' }) method: string;
+  /* 是否通过popover组件显示 */
+  @Prop({ type: Boolean, default: false }) isPopover: boolean;
+  /* 如果荣国popover组件显示则需传入此属性 */
+  @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({
     type: Function,
     default: () =>
@@ -80,24 +87,45 @@ export default class ValueOptions extends tsc<IProps> {
     return !!this.search;
   }
 
+  @Watch('show')
+  async handleWatchShow() {
+    if (this.isPopover) {
+      if (this.show) {
+        this.dataInit();
+        const list = await this.getValueData();
+        this.localOptions = this.localOptionsFilter(list);
+        document.addEventListener('keydown', this.handleKeydownEvent);
+      } else {
+        document.removeEventListener('keydown', this.handleKeydownEvent);
+      }
+    } else {
+    }
+  }
+
   @Watch('selected')
   handleWatchSelected() {
-    this.localOptions = this.localOptionsFilter(this.localOptions);
+    if (this.isPopover ? this.show : true) {
+      this.localOptions = this.localOptionsFilter(this.localOptions);
+    }
   }
 
   @Debounce(300)
   @Watch('search')
   async handleWatch() {
-    this.dataInit();
-    const list = await this.getValueData();
-    this.localOptions = this.localOptionsFilter(list);
+    if (this.isPopover ? this.show : true) {
+      this.dataInit();
+      const list = await this.getValueData();
+      this.localOptions = this.localOptionsFilter(list);
+    }
   }
 
   async created() {
-    this.dataInit();
-    const list = await this.getValueData();
-    this.localOptions = this.localOptionsFilter(list);
-    document.addEventListener('keydown', this.handleKeydownEvent);
+    if (!this.isPopover) {
+      this.dataInit();
+      const list = await this.getValueData();
+      this.localOptions = this.localOptionsFilter(list);
+      document.addEventListener('keydown', this.handleKeydownEvent);
+    }
   }
 
   beforeDestroy() {
@@ -144,6 +172,7 @@ export default class ValueOptions extends tsc<IProps> {
    * @description 聚焦光标选项
    */
   updateSelection() {
+    this.$emit('isChecked', this.hoverActiveIndex >= 0 && this.hoverActiveIndex <= this.localOptions.length - 1);
     this.$nextTick(() => {
       const listEl = this.$el.querySelector('.options-drop-down-wrap.main__wrap');
       const el = this.hasCustomOption
@@ -235,7 +264,7 @@ export default class ValueOptions extends tsc<IProps> {
     return (
       <div class='retrieval-filter__value-options-select-component'>
         {this.loading ? (
-          <div class='options-drop-down-wrap'>
+          <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {new Array(4).fill(null).map(index => {
               return (
                 <div
@@ -248,12 +277,12 @@ export default class ValueOptions extends tsc<IProps> {
             })}
           </div>
         ) : !this.localOptions.length && !this.search ? (
-          <div class='options-drop-down-wrap'>
+          <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             <EmptyStatus type={'empty'} />
           </div>
         ) : (
           <div
-            class='options-drop-down-wrap main__wrap'
+            class={['options-drop-down-wrap main__wrap', { 'is-popover': this.isPopover }]}
             onScroll={this.handleScroll}
           >
             {!!this.search && (

@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .resident-setting__setting-kv-selector-component {
   .mb-5 {
     margin-bottom: 5px;
@@ -9,6 +10,7 @@
     align-items: center;
     align-items: flex-start;
     min-width: 180px;
+    max-width: 560px;
     height: 32px;
     max-height: 32px;
     padding: 0 0 0 6px;
@@ -51,7 +53,8 @@
           font-size: 12px;
           color: #4d4f56;
           cursor: pointer;
-
+        
+          &.active,
           &:hover {
             background: #f5f7fa;
           }
@@ -60,17 +63,23 @@
     }
 
     .value-wrap {
+      position: relative;
       z-index: 1;
       display: flex;
       flex: 1;
+      flex: 1;
+      flex-wrap: wrap;
       align-items: center;
       min-width: 160px;
+      height: 30px;
       min-height: 30px;
-      padding: 4px 16px 0 4px;
+      padding: 4px 32px 0 4px;
+      overflow: hidden;
       cursor: pointer;
       background-color: #fff;
       border: 1px solid #dcdee5;
       border-top: none;
+      border-bottom-color: transparent;
 
       &.tippy-active {
         z-index: 10;
@@ -94,10 +103,16 @@
         .icon-mc-close {
           cursor: pointer;
         }
+      }
 
-        &.hide-count {
-          width: 32px;
-        }
+      .hide-count {
+        display: inline-flex;
+        align-items: center;
+        width: 32px;
+        height: 22px;
+        padding: 0 6px;
+        margin: 0 4px 4px 0;
+        background: #f0f1f5;
       }
 
       &::after {
@@ -120,12 +135,12 @@
       position: absolute;
       top: 0;
       right: 0;
+      z-index: 1;
       display: flex;
       align-items: center;
       align-self: flex-start;
       justify-content: center;
-
-      width: 22px;
+      width: 30px;
       height: 30px;
       color: #979ba5;
 
@@ -138,28 +153,27 @@
       }
     }
 
-    &.show {
-      max-width: 560px;
-      // padding-right: 32px;
-
-      &.expand {
+    &.expand {
+      .value-wrap {
+        z-index: 2;
         height: auto;
+      }
 
-        .value-wrap {
-          flex: 1;
-          flex-wrap: wrap;
-        }
-
-        .expand-btn {
-          transition: all 0.3s;
-          transform: rotate(180deg);
-        }
+      .expand-btn {
+        transition: all 0.3s;
+        transform: rotate(180deg);
       }
     }
+  }
 
-    &.hidden {
-      position: fixed;
-      top: 9999px;
+  &.active {
+    .component-main {
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+
+      .value-wrap {
+        border-color: #3a84ff !important;
+      }
     }
   }
 }
