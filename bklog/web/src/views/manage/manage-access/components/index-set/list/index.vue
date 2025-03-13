@@ -343,7 +343,7 @@
             this.emptyType = '500';
           })
           .finally(() => {
-            // this.isTableLoading = false;
+            this.isTableLoading = false;
             if (!this.isInit)
               this.$router.replace({
                 query: {
@@ -354,7 +354,6 @@
           });
       },
       loadData() {
-        this.isTableLoading = true;
         const callbackFn = (item, key, value) => {
             this.$set(item, key, value[key]);
         };
