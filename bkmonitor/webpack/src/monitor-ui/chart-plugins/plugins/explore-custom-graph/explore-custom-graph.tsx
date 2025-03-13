@@ -98,6 +98,10 @@ export class ExploreCustomChart extends TimeSeries {
    * @description: 改变图例方法
    */
   selectLegendChange(legendName: string, shouldShow = true) {
+    const showLegends = this.legendData?.filter?.(e => e.show) || [];
+    if (!shouldShow && showLegends.length === 1) {
+      return;
+    }
     const legendItem = this.legendData?.find?.(v => v.name === legendName);
     if (!legendItem) {
       return;
