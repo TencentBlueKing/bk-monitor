@@ -128,7 +128,8 @@ export function parseQueryString(query: string): IStrItem[] {
   const tokens: IStrItem[] = [];
 
   // 增强正则表达式，支持完整括号集和运算符
-  const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:\*|:|>|<)|(".*?")|(\S+)/gi;
+  // const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:\*|:|>|<)|(".*?")|(\S+)/gi;
+  const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:|>|<)|(".*?")|(\S+)/gi;
 
   let match: null | RegExpExecArray;
   while ((match = tokenRegex.exec(query)) !== null) {
@@ -308,6 +309,8 @@ interface IOptions {
   onQuery?: (v?: string) => void;
   onInput?: (v: string) => void;
   onBlur?: () => void;
+  keyFormatter?: (field: string) => string;
+  valueFormatter?: (field: string, method: string, value: string) => string;
 }
 export class QueryStringEditor {
   /* 当前token类型 */
@@ -452,7 +455,16 @@ export class QueryStringEditor {
   handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (!this.isPopUp) {
+      const len = this.tokens.length;
+      let isLastValue = false;
+      for (let i = len - 1; i >= 0; i--) {
+        const token = this.tokens[i];
+        if (QUERY_STRING_DATA_TYPES.includes(token.type)) {
+          isLastValue = token.type === EQueryStringTokenType.value;
+          break;
+        }
+      }
+      if (!this.isPopUp || isLastValue) {
         this.options?.onQuery?.();
       }
     }
@@ -529,13 +541,40 @@ export class QueryStringEditor {
   setToken(str: string, type: EQueryStringTokenType) {
     const lastToken = this.tokens[this.tokens.length - 1];
     if (lastToken?.type === type) {
-      lastToken.value = `${str} `;
+      let value = str;
+      if (type === EQueryStringTokenType.key && this?.options?.keyFormatter) {
+        value = this.options.keyFormatter(value);
+      }
+      lastToken.value = `${value} `;
     } else {
-      this.queryString = `${this.queryString} ${str} `;
+      let value = str;
+      if (type === EQueryStringTokenType.key && this?.options?.keyFormatter) {
+        value = this.options.keyFormatter(value);
+      }
+      if (type === EQueryStringTokenType.value && this?.options?.valueFormatter) {
+        const len = this.tokens.length;
+        let field = '';
+        let method = '';
+        for (let i = len - 1; i >= 0; i--) {
+          const token = this.tokens[i];
+          if (token.type === EQueryStringTokenType.method) {
+            method = token.value.replace(/^\s+|\s+$/g, '');
+          }
+          if (token.type === EQueryStringTokenType.key) {
+            field = token.value.replace(/^\s+|\s+$/g, '');
+            break;
+          }
+        }
+        value = this.options.valueFormatter(field, method, value);
+      }
+      this.queryString = `${this.queryString} ${value} `;
       this.parseQueryString();
     }
     this.setTokensToTarget(true);
     this.popUpFn(true);
+    if (type === EQueryStringTokenType.value) {
+      this.options?.onQuery();
+    }
   }
 
   /* 将解析完的数组填入目标元素 */

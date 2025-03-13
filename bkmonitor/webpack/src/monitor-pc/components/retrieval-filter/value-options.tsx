@@ -48,6 +48,7 @@ interface IProps {
   method?: string;
   show?: boolean;
   isPopover?: boolean;
+  width?: number;
   onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
@@ -73,6 +74,7 @@ export default class ValueOptions extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ type: Number, default: 0 }) width: number;
 
   localOptions: IValue[] = [];
   loading = false;
@@ -262,7 +264,16 @@ export default class ValueOptions extends tsc<IProps> {
 
   render() {
     return (
-      <div class='retrieval-filter__value-options-select-component'>
+      <div
+        style={
+          this.width
+            ? {
+                width: `${this.width}px`,
+              }
+            : {}
+        }
+        class='retrieval-filter__value-options-select-component'
+      >
         {this.loading ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {new Array(4).fill(null).map(index => {

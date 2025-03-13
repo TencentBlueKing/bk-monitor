@@ -7,7 +7,6 @@
   .component-main {
     position: relative;
     display: flex;
-    align-items: center;
     align-items: flex-start;
     min-width: 180px;
     max-width: 560px;
@@ -42,6 +41,10 @@
       cursor: pointer;
       background: #fff;
 
+      .method-span {
+        white-space: nowrap;
+      }
+
       .method-list-wrap {
         min-width: 120px;
 
@@ -66,8 +69,6 @@
       position: relative;
       z-index: 1;
       display: flex;
-      flex: 1;
-      flex: 1;
       flex-wrap: wrap;
       align-items: center;
       min-width: 160px;
@@ -120,13 +121,6 @@
         top: 7px;
         color: #c4c6cc;
         content: attr(data-placeholder);
-      }
-
-      .placeholder-text {
-        position: relative;
-        top: -3px;
-        line-height: 12px;
-        color: #c4c6cc;
       }
     }
 

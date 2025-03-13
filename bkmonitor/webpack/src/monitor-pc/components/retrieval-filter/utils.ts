@@ -91,6 +91,7 @@ export interface IFilterField {
   alias: string;
   type: EFieldType;
   is_option_enabled: boolean; // 是否可自定选项
+  is_dimensions?: boolean;
   supported_operations: {
     alias: string;
     value: EMethod;
