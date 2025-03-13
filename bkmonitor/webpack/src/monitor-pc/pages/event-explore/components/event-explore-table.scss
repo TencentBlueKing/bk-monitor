@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .event-explore-table {
   position: relative;
   height: 100%;
@@ -144,7 +145,6 @@
       flex-basis: auto;
 
       .bk-table-empty-block {
-        /* stylelint-disable-next-line declaration-no-important */
         width: 100% !important;
       }
     }
@@ -164,25 +164,49 @@
     }
   }
 
-  .bk-table-fixed-right {
-    pointer-events: none;
-    border-bottom: 0;
-
-    .bk-table-fixed-header-wrapper {
-      pointer-events: all;
-    }
-
-    .bk-table-fixed-body-wrapper {
-      .bk-table-row {
-        pointer-events: all;
-      }
-    }
-  }
-
   .explore-table-skeleton {
     position: absolute;
     top: 0;
     padding: 10px 8px;
+  }
+
+  .bk-table {
+    overflow: inherit;
+
+    &-header-wrapper {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    &-fixed-right {
+      z-index: 100;
+      pointer-events: none;
+      border-bottom: 0;
+    }
+
+    .bk-table-fixed-header-wrapper {
+      z-index: 4;
+      pointer-events: all;
+
+      thead th:not(.is-hidden) {
+        z-index: 99;
+        height: 30px;
+
+        .scroll-fixed {
+          position: fixed;
+          height: 33px !important;
+          background: #fafbfd;
+          border-bottom: 1px solid #dfe0e5 !important;
+        }
+      }
+
+      .bk-table-fixed-body-wrapper {
+        .bk-table-row {
+          pointer-events: all;
+        }
+      }
+    }
   }
 }
 
