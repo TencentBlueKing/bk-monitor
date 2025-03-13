@@ -330,6 +330,10 @@ export default class SettingKvSelector extends tsc<IProps> {
             </bk-dropdown-menu>
           </span>
           <div
+            style={{
+              borderBottomColor: this.tagList?.length ? '#dcdee5' : 'transparent',
+              borderBottomWidth: this.tagList?.length ? '1px' : '0',
+            }}
             class='value-wrap'
             data-placeholder={this.inputValue || this.isFocus || this.tagList?.length ? '' : this.$tc('请选择')}
             onClick={this.handleClickValueWrap}
