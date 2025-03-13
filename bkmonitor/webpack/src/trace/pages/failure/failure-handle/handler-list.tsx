@@ -133,9 +133,6 @@ export default defineComponent({
           class={['list-item', { active: item.id === activeId.value }]}
           onClick={() => handleClickItem(item)}
         >
-          <span class='item-head'>
-            <i class={`icon-monitor icon-mc-${item.id === 'all' ? 'all' : 'user-one'} head-icon`} />
-          </span>
           <span
             class='item-name'
             title={item.name}
@@ -180,7 +177,7 @@ export default defineComponent({
             show-clear-only-hover
             on-clear={() => (this.searchText = '')}
           />
-          <Popover
+          {/* <Popover
             ref='sortRef'
             extCls='sort-popover'
             v-slots={{
@@ -208,7 +205,7 @@ export default defineComponent({
                 } head-btn-icon`}
               />
             </span>
-          </Popover>
+          </Popover> */}
         </div>
         <Loading loading={this.listLoading}>
           <div class='handler-list-main'>

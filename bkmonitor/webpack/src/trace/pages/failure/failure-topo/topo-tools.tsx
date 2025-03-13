@@ -294,7 +294,7 @@ export default defineComponent({
           onClick={this.handleFullscreen}
         >
           <span class='fullscreen'>
-            <i class={['icon-monitor', !this.isFullscreen ? 'icon-zhankai1' : 'icon-shouqi1']} />
+            <i class={['icon-monitor', !this.isFullscreen ? 'icon-mc-full-screen' : 'icon-shouqi1']} />
           </span>
         </div>
       </div>

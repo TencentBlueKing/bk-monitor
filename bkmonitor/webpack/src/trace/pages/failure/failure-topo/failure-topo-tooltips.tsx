@@ -729,13 +729,10 @@ export default defineComponent({
       return (
         <div class='node-tooltip'>
           <div class='node-tooltip-header'>
-            <span
-              style={{ backgroundColor: groupAttrs.fill }}
-              class='item-source'
-            >
+            <span class='item-source'>
               <i
                 style={{
-                  color: '#fff',
+                  color: '#F55555',
                 }}
                 class={[
                   'icon-monitor',
@@ -856,6 +853,7 @@ export default defineComponent({
                               {
                                 marginRight: '4px',
                                 marginLeft: '4px',
+                                color: '#699DF4',
                               },
                               false
                             ),
@@ -880,7 +878,7 @@ export default defineComponent({
                   >
                     <span>{node.entity.rca_trace_info.abnormal_message}</span>
                   </OverflowTitle>
-                  <i class={['icon-monitor', 'except-icon', 'icon-fenxiang']} />
+                  <i class='icon-monitor except-icon icon-fenxiang' />
                 </div>
               ))}
             {createCommonForm(`${this.$t('分类')}：`, () => (
