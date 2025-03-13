@@ -17,11 +17,11 @@
       }
     }
 
-    if (route.query.version === 'v3') {
-      return retrieveV3;
+    if (route.query.version === 'v2') {
+      return retrieveV2;
     }
 
-    return retrieveV2;
+    return retrieveV3;
   });
 </script>
 <template>
