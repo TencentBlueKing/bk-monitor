@@ -134,7 +134,7 @@ class QueryTimeBuilder(object):
         return None
 
     def _deal_time(self, start_time, end_time):
-        retention = self.get_storage_retention_time(self.indices, self.scenario_id)
+        retention = self.get_storage_retention_time(indices=self.indices, scenario_id=self.scenario_id)
         # retention为0或None，不做处理
         if retention:
             current_time = arrow.now(start_time.tzinfo)
