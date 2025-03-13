@@ -33,6 +33,7 @@ import ExploreCustomGraph, {
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import BackTop from '../../../components/back-top/back-top';
+import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
 import {
   type DimensionsTypeEnum,
@@ -45,7 +46,6 @@ import {
 import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
-import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-explore-view.scss';
@@ -57,6 +57,7 @@ interface IEventExploreViewProps {
   sourceEntities: ExploreEntitiesItem[];
   timeRange: TimeRangeType;
   refreshImmediate: string;
+  filterMode?: EMode;
 }
 
 interface IEventExploreViewEvents {
@@ -80,6 +81,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
   // 视图变量
@@ -351,6 +353,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
           <EventExploreTable
             ref='eventExploreTableRef'
             fieldList={this.fieldList}
+            filterMode={this.filterMode}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
             sourceEntities={this.sourceEntities}
             onClearSearch={this.clearSearch}

@@ -28,12 +28,12 @@ import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { IDimensionField } from '../typing';
 
 import './dimension-filter-panel.scss';
@@ -42,11 +42,13 @@ interface DimensionFilterPanelProps {
   list: IDimensionField[];
   listLoading: boolean;
   condition: IWhereItem[];
+  filterMode: EMode;
+  queryString: string;
 }
 
 interface DimensionFilterPanelEvents {
   onClose(): void;
-  onConditionChange(val): void;
+  onConditionChange(val: IWhereItem[] | string): void;
 }
 
 @Component
@@ -55,7 +57,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Prop({ default: () => [] }) list!: IDimensionField[];
   /** 已选择的条件 */
   @Prop({ default: () => [] }) condition!: IWhereItem[];
+  @Prop({ default: '' }) queryString!: string;
   @Prop({ default: false }) listLoading!: boolean;
+  @Prop({ default: EMode.ui }) filterMode!: EMode;
 
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
@@ -71,13 +75,18 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 搜索结果列表 */
   searchResultList: IDimensionField[] = [];
   /** 已选择的字段 */
-  selectField = '';
+  selectField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
 
   /** 条件切换后，维度count需要重新获取 */
   @Watch('condition')
   async watchConditionChange() {
+    await this.getFieldCount();
+  }
+
+  @Watch('queryString')
+  async watchQueryStringChange() {
     await this.getFieldCount();
   }
 
@@ -91,7 +100,6 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   /** 关键字搜索 */
   handleSearch(keyword: string) {
-    console.log(keyword);
     this.searchVal = keyword;
     if (!this.searchVal) {
       this.searchResultList = this.list;
@@ -103,16 +111,16 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   /** 点击维度项后展示统计弹窗 */
-  async handleDimensionItemClick(e: Event, item) {
+  async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
-    this.selectField = item.name;
-    if (!item.is_option_enabled || this.fieldListCount[item.name] === 0) return;
+    this.selectField = item;
+    if (!item.is_option_enabled) return;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
       width: 400,
       distance: -5,
-      boundary: 'window',
+      boundary: 'viewport',
       trigger: 'manul',
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
@@ -217,7 +225,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
             {this.searchResultList.map(item => (
               <div
                 key={item.name}
-                class={{ 'dimension-item': true, active: this.selectField === item.name }}
+                class={{ 'dimension-item': true, active: this.selectField?.name === item.name }}
                 onClick={e => this.handleDimensionItemClick(e, item)}
               >
                 <FieldTypeIcon type={item.type} />
@@ -251,8 +259,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
+          filterMode={this.filterMode}
+          isDimensions={this.selectField?.is_dimensions}
           popoverInstance={this.popoverInstance}
-          selectField={this.selectField}
+          selectField={this.selectField?.name}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />
