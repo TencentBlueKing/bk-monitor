@@ -186,3 +186,5 @@ export interface ExploreEntitiesItem {
  * @description 将接口中的 entities 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
  **/
 export type ExploreEntitiesMap = Record<string, ExploreEntitiesItem>;
+
+export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };

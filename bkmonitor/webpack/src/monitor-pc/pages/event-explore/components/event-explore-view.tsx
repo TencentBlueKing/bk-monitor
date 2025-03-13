@@ -33,14 +33,14 @@ import ExploreCustomGraph, {
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import BackTop from '../../../components/back-top/back-top';
-import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
 import {
+  type ConditionChangeEvent,
   type DimensionsTypeEnum,
   type EventExploreTableRequestConfigs,
-  type ExploreEntitiesItem,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
   ExploreTableLoadingEnum,
-  type IDimensionField,
   type IFormData,
 } from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
@@ -53,16 +53,15 @@ import './event-explore-view.scss';
 interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
-  fieldList: IDimensionField[];
-  sourceEntities: ExploreEntitiesItem[];
   timeRange: TimeRangeType;
   refreshImmediate: string;
-  filterMode?: EMode;
+  fieldMap: ExploreFieldMap;
+  entitiesMapList: ExploreEntitiesMap[];
 }
 
 interface IEventExploreViewEvents {
-  onConditionChange: (condition: IWhereItem[]) => void;
   onClearSearch: () => void;
+  onConditionChange(e: ConditionChangeEvent): void;
 }
 
 @Component
@@ -74,14 +73,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
   // 数据时间间隔
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
-  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
   // 视图变量
@@ -140,7 +138,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   }
 
   @Emit('conditionChange')
-  conditionChange(condition: IWhereItem[]) {
+  conditionChange(condition: ConditionChangeEvent) {
     return condition;
   }
 
@@ -195,8 +193,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    * @description 获取数据总数
    */
   async getEventTotal() {
+    this.total = 0;
     if (!this.eventQueryParams) {
-      this.total = 0;
       return;
     }
     const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
@@ -355,11 +353,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
-            fieldList={this.fieldList}
-            filterMode={this.filterMode}
+            entitiesMapList={this.entitiesMapList}
+            fieldMap={this.fieldMap}
             limit={30}
             requestConfigs={this.tableRequestConfigs}
-            sourceEntities={this.sourceEntities}
             total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}

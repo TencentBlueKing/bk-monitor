@@ -31,7 +31,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode, mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
+import {
+  ECondition,
+  EMethod,
+  EMode,
+  mergeWhereList,
+  type IGetValueFnParams,
+} from '../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
@@ -42,7 +48,7 @@ import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
-import type { IFormData } from './typing';
+import type { ConditionChangeEvent, ExploreEntitiesMap, ExploreFieldMap, IFormData } from './typing';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -166,6 +172,57 @@ export default class EventExplore extends tsc<
     };
   }
 
+  /**
+   * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
+   * @description 用于在 KV 模式下，获取 字段类型 Icon，及语句模式查询时使用
+   */
+  get fieldMapByField(): ExploreFieldMap {
+    if (!this.fieldList?.length) {
+      return { source: {}, target: {} };
+    }
+    return this.fieldList.reduce(
+      (prev, curr) => {
+        let finalName = curr.name;
+        if (curr.is_dimensions) {
+          finalName = `dimensions.${curr.name}`;
+        }
+        const item = { ...curr, finalName };
+        prev.source[curr.name] = item;
+        prev.target[finalName] = item;
+        return prev;
+      },
+      {
+        source: {},
+        target: {},
+      }
+    );
+  }
+
+  /**
+   * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
+   * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
+   */
+  get entitiesMapByField(): ExploreEntitiesMap[] {
+    if (!this.sourceEntities?.length) {
+      return [];
+    }
+    return this.sourceEntities.reduce((prev, curr) => {
+      const { fields, dependent_fields = [] } = curr || {};
+      if (!fields?.length) return prev;
+      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
+      const map = {};
+      for (const field of fields) {
+        const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
+        map[finalName] = {
+          ...curr,
+          dependent_fields: finalDependentFields,
+        };
+      }
+      prev.push(map);
+      return prev;
+    }, []);
+  }
+
   @Watch('dataId')
   async handleDataIdChange() {
     this.getViewConfig();
@@ -185,6 +242,33 @@ export default class EventExplore extends tsc<
   async handleTimeRangeChange() {
     this.getViewConfig();
   }
+
+  @Emit('whereChange')
+  handleWhereChange(where: IFormData['where']) {
+    return where;
+  }
+
+  @Emit('queryStringChange')
+  handleQueryStringChange(val: string) {
+    return val;
+  }
+
+  @Emit('queryStringInputChange')
+  handleQueryStringInputChange(val) {
+    this.queryStringInput = val;
+    return val;
+  }
+
+  @Emit('favorite')
+  handleFavorite(isEdit: boolean) {
+    return isEdit;
+  }
+
+  @Emit('filterModeChange')
+  handleModeChange(mode: EMode) {
+    return mode;
+  }
+
   mounted() {
     this.getViewConfig();
   }
@@ -266,39 +350,21 @@ export default class EventExplore extends tsc<
       });
   }
 
-  @Emit('whereChange')
-  handleWhereChange(where: IFormData['where']) {
-    return where;
-  }
-
   /** 条件变化触发 */
-  handleConditionChange(condition: IWhereItem[] | string) {
+  handleConditionChange(item: ConditionChangeEvent) {
+    const { key, method, value } = item;
     if (this.filterMode === EMode.ui) {
-      this.handleWhereChange(mergeWhereList(this.where, condition as IWhereItem[]));
-    } else {
-      this.handleQueryStringChange(this.queryString ? `${this.queryString} AND ${condition}` : `${condition}`);
+      this.handleWhereChange(
+        mergeWhereList(this.where, [{ condition: ECondition.and, key, method, value: [value || '""'] }])
+      );
+      return;
     }
-  }
-
-  @Emit('queryStringChange')
-  handleQueryStringChange(val: string) {
-    return val;
-  }
-
-  @Emit('queryStringInputChange')
-  handleQueryStringInputChange(val) {
-    this.queryStringInput = val;
-    return val;
-  }
-
-  @Emit('favorite')
-  handleFavorite(isEdit: boolean) {
-    return isEdit;
-  }
-
-  @Emit('filterModeChange')
-  handleModeChange(mode: EMode) {
-    return mode;
+    const finalKey = this.fieldMapByField.source?.[key].finalName;
+    let endStr = `NOT ${finalKey} : "${value || ''}"`;
+    if (method === EMethod.eq) {
+      endStr = `${finalKey} : "${value || ''}"`;
+    }
+    this.handleQueryStringChange(this.queryString ? `${this.queryString} AND ${endStr}` : `${endStr}`);
   }
 
   /**
@@ -342,7 +408,6 @@ export default class EventExplore extends tsc<
               >
                 <DimensionFilterPanel
                   condition={this.where}
-                  filterMode={this.filterMode}
                   list={this.fieldList}
                   listLoading={this.loading}
                   queryString={this.queryString}
@@ -352,11 +417,11 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  fieldList={this.fieldList}
+                  entitiesMapList={this.entitiesMapByField}
+                  fieldMap={this.fieldMapByField}
                   queryConfig={this.queryConfig}
                   refreshImmediate={this.refreshImmediate}
                   source={this.source}
-                  sourceEntities={this.sourceEntities}
                   timeRange={this.timeRange}
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}

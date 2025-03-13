@@ -28,20 +28,18 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import {
+  type ConditionChangeEvent,
   type DimensionsTypeEnum,
   type EventExploreTableColumn,
   type EventExploreTableRequestConfigs,
-  type ExploreEntitiesItem,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
-  type IDimensionField,
 } from '../typing';
 import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
@@ -56,13 +54,14 @@ interface EventExploreTableProps {
   total?: number;
   /** 表格单页条数 */
   limit?: number;
-  fieldList: IDimensionField[];
-  sourceEntities: ExploreEntitiesItem[];
-  filterMode?: EMode;
+  /** expand 展开 kv 面板使用 */
+  fieldMap: ExploreFieldMap;
+  /** expand 展开 kv 面板使用 */
+  entitiesMapList: ExploreEntitiesMap[];
 }
 
 interface EventExploreTableEvents {
-  onConditionChange: (condition: IWhereItem[]) => void;
+  onConditionChange: (condition: ConditionChangeEvent) => void;
   onClearSearch: () => void;
 }
 
@@ -85,10 +84,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Prop({ type: Number, default: 30 }) limit: number;
 
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
-  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
 
   /** table loading 配置*/
   tableLoading = {
@@ -138,64 +136,13 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return 'empty';
   }
 
-  /**
-   * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
-   * @description 用于在 KV 模式下，获取 字段类型 Icon
-   */
-  get fieldMapByField(): ExploreFieldMap {
-    if (!this.fieldList?.length) {
-      return { source: {}, target: {} };
-    }
-    return this.fieldList.reduce(
-      (prev, curr) => {
-        let finalName = curr.name;
-        if (curr.is_dimensions) {
-          finalName = `dimensions.${curr.name}`;
-        }
-        const item = { ...curr, finalName };
-        prev.source[curr.name] = item;
-        prev.target[finalName] = item;
-        return prev;
-      },
-      {
-        source: {},
-        target: {},
-      }
-    );
-  }
-
-  /**
-   * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
-   * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
-   */
-  get entitiesMapByField(): ExploreEntitiesMap[] {
-    if (!this.sourceEntities?.length) {
-      return [];
-    }
-    return this.sourceEntities.reduce((prev, curr) => {
-      const { fields, dependent_fields = [] } = curr || {};
-      if (!fields?.length) return prev;
-      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
-      const map = {};
-      for (const field of fields) {
-        const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
-        map[finalName] = {
-          ...curr,
-          dependent_fields: finalDependentFields,
-        };
-      }
-      prev.push(map);
-      return prev;
-    }, []);
-  }
-
   @Watch('requestConfigs')
   requestConfigsChange() {
     this.getEventLogs();
   }
 
   @Emit('conditionChange')
-  conditionChange(condition: IWhereItem[]) {
+  conditionChange(condition: ConditionChangeEvent) {
     return condition;
   }
 
@@ -406,9 +353,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
-        entitiesMapList={this.entitiesMapByField}
-        fieldMap={this.fieldMapByField}
-        filterMode={this.filterMode}
+        entitiesMapList={this.entitiesMapList}
+        fieldMap={this.fieldMap}
         onConditionChange={this.conditionChange}
       />
     );

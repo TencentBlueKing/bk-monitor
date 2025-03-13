@@ -28,13 +28,13 @@ import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { IDimensionField } from '../typing';
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+import type { ConditionChangeEvent, IDimensionField } from '../typing';
 
 import './dimension-filter-panel.scss';
 
@@ -42,13 +42,12 @@ interface DimensionFilterPanelProps {
   list: IDimensionField[];
   listLoading: boolean;
   condition: IWhereItem[];
-  filterMode: EMode;
   queryString: string;
 }
 
 interface DimensionFilterPanelEvents {
   onClose(): void;
-  onConditionChange(val: IWhereItem[] | string): void;
+  onConditionChange(val: ConditionChangeEvent): void;
 }
 
 @Component
@@ -59,7 +58,6 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Prop({ default: () => [] }) condition!: IWhereItem[];
   @Prop({ default: '' }) queryString!: string;
   @Prop({ default: false }) listLoading!: boolean;
-  @Prop({ default: EMode.ui }) filterMode!: EMode;
 
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
@@ -259,7 +257,6 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
-          filterMode={this.filterMode}
           isDimensions={this.selectField?.is_dimensions}
           popoverInstance={this.popoverInstance}
           selectField={this.selectField?.name}
