@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
-import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { DimensionType, ExploreEntitiesMap, ExploreFieldMap } from '../typing';
 
 import './explore-expand-view-wrapper.scss';
@@ -40,6 +40,7 @@ interface ExploreExpandViewWrapperProps {
   data: Record<string, any>;
   fieldMap: ExploreFieldMap;
   entitiesMapList: ExploreEntitiesMap[];
+  filterMode?: EMode;
 }
 
 interface ExploreExpandViewWrapperEvents {
@@ -62,6 +63,8 @@ export default class ExploreExpandViewWrapper extends tsc<
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** 用于判断 data 数据中 key 是否提供跳转入口 */
   @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
+  /** 判断当前是UI查询还是语句查询 */
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
@@ -174,6 +177,7 @@ export default class ExploreExpandViewWrapper extends tsc<
         >
           <ExploreKvList
             fieldList={this.kvFieldList}
+            filterMode={this.filterMode}
             onConditionChange={this.conditionChange}
           />
         </div>

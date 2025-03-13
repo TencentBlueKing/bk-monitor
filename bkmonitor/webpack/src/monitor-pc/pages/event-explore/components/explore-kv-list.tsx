@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
-import { EMethod } from '../../../components/retrieval-filter/utils';
+import { EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { type DimensionType, type ExploreEntitiesItem, ExploreEntitiesTypeEnum } from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
@@ -53,6 +53,7 @@ export interface KVFieldList {
 }
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
+  filterMode?: EMode;
 }
 
 interface IExploreKvListEvents {
@@ -62,6 +63,7 @@ interface IExploreKvListEvents {
 @Component
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
@@ -389,6 +391,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div style={{ display: 'none' }}>
         <StatisticsList
           ref='statisticsList'
+          filterMode={this.filterMode}
+          isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
           popoverInstance={this.popoverInstance}
           selectField={this.fieldTarget?.sourceName || '--'}
           onConditionChange={this.handleStatisticsConditionChange}
