@@ -122,8 +122,9 @@ export default class SettingKvSelector extends tsc<IProps> {
     this.resizeObserver.observe(wrapEl);
   }
 
-  @Debounce(300)
+  @Debounce(20)
   setHideCount(width: number, wrapEl: Element) {
+    console.info('-----------');
     let hideCount = 0;
     const maxWidth = this.maxWidth - 68;
     if (width > maxWidth) {

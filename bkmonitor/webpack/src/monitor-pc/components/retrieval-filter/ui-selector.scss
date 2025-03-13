@@ -13,9 +13,9 @@
     padding: 0 8px;
     margin: 0 4px 4px 0;
     font-size: 12px;
-    color: #3A84FF;
+    color: #3a84ff;
     cursor: pointer;
-    background: #E1ECFF;
+    background: #e1ecff;
     border-radius: 2px;
     opacity: 0.8;
 
@@ -40,14 +40,14 @@
 
     .placeholder-text {
       font-size: 12px;
-      color: #C4C6CC;
+      color: #c4c6cc;
     }
 
     .hover-btn-wrap {
       position: absolute;
       bottom: -28px;
       left: -8px;
-      z-index: 1;
+      z-index: 180;
       display: none;
       align-items: center;
 
@@ -58,10 +58,10 @@
         width: 28px;
         height: 28px;
         margin-right: 3px;
-        color: #4D4F56;
+        color: #4d4f56;
         cursor: pointer;
-        background: #FAFBFD;
-        border: 1px solid #DCDEE5;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
         border-radius: 2px;
         box-shadow: 0 1px 3px 1px #0000001f;
 
@@ -74,7 +74,7 @@
         }
 
         &:hover {
-          color: #3A84FF;
+          color: #3a84ff;
         }
       }
     }
