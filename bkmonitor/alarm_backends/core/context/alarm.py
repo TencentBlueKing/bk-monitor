@@ -891,7 +891,27 @@ class Alarm(BaseContextObject):
         return []
 
     @cached_property
+    def log_search_url(self):
+        # 日志检索前5min(可配置) 到 当前时刻，最多1h
+        alert: AlertDocument = self.parent.alert
+        if not alert.strategy:
+            return None
+        item = alert.strategy["items"][0]
+        query_configs = item["query_configs"]
+        if not query_configs:
+            return None
+
+        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+        if data_source in [
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+        ]:
+            url = self.detail_url
+            return f"{url}&type=log_search"
+        return None
+
+    @cached_property
     def query_url(self):
+        # 数据检索基于数据点的前1小时+后1小时
         alert: AlertDocument = self.parent.alert
 
         if not alert.strategy:

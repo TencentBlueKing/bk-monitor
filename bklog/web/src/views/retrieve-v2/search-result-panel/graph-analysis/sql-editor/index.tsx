@@ -103,6 +103,7 @@ export default defineComponent({
         cancelToken: requestCancelToken,
         withCredentials: true,
         baseURL: baseUrl,
+        originalResponse: true,
         data: {
           start_time,
           end_time,
@@ -115,11 +116,11 @@ export default defineComponent({
 
       return axiosInstance(params)
         .then((resp: any) => {
-          if (resp.data.result) {
+          if (resp.result) {
             isRequesting.value = false;
-            emit('change', resp.data);
+            emit('change', resp);
           } else {
-            emit('error', resp.data);
+            emit('error', resp);
           }
         })
         .finally(() => {

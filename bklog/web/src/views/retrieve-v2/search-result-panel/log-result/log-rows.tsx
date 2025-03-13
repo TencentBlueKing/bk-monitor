@@ -128,6 +128,8 @@ export default defineComponent({
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+    // 标识当前日志级别的字段。暂时使用level字段，等确定实现方案后这里进行Computed计算
+    const logLevelFieldName = ref('level');
 
     const exceptionMsg = computed(() => {
       if (indexSetQueryResult.value?.exception_msg === 'Cancel') {
@@ -939,7 +941,7 @@ export default defineComponent({
         return (
           <RowRender
             key={row[ROW_KEY]}
-            class={['bklog-row-container']}
+            class={['bklog-row-container', row[logLevelFieldName.value] ?? 'normal']}
             row-index={rowIndex}
           >
             {renderRowCells(row.item, rowIndex)}

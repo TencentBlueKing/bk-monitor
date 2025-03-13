@@ -419,6 +419,10 @@ class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
 
 
+class NotifyEsDataLinkAdaptNanoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.NotifyEsDataLinkAdaptNano)]
+
+
 class CreateVmClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateVmCluster)]
 
@@ -433,6 +437,10 @@ class QueryBcsClusterVmTableIdsViewSet(MetaViewSet):
 
 class SwitchKafkaClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.SwitchKafkaCluster)]
+
+
+class NotifyDataLinkVmChangeViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.NotifyDataLinkVmChange)]
 
 
 class QueryVmRtBySpaceViewSet(MetaViewSet):

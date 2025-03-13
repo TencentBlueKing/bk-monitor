@@ -8,7 +8,7 @@
   const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve');
   const route = useRoute();
 
-  const version = localStorage.getItem('retrieve_version') ?? 'v2';
+  const version = localStorage.getItem('retrieve_version') ?? 'v3';
 
   const RetrieveComponent = computed(() => {
     if (route.name === 'retrieve') {
@@ -17,11 +17,11 @@
       }
     }
 
-    if (route.query.version === 'v3') {
-      return retrieveV3;
+    if (route.query.version === 'v2') {
+      return retrieveV2;
     }
 
-    return retrieveV2;
+    return retrieveV3;
   });
 </script>
 <template>

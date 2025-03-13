@@ -160,8 +160,18 @@ export const setScrollLoadCell = (
     return child;
   };
 
+  /**
+   * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
+   */
+  const appendLastTag = () => {
+    const child = document.createElement('span');
+    child.classList.add('last-placeholder');
+    contentElement?.append?.(child);
+  };
+
   const appendPageItems = (size?) => {
     if (startIndex >= wordList.length) {
+      appendLastTag();
       return false;
     }
 
@@ -178,11 +188,13 @@ export const setScrollLoadCell = (
   };
 
   const handleScrollEvent = debounce(() => {
-    const { offsetHeight, scrollHeight } = rootElement;
-    const { scrollTop } = rootElement;
-    if (scrollHeight - offsetHeight - scrollTop < 60) {
-      startIndex = startIndex + pageSize;
-      appendPageItems();
+    if (rootElement) {
+      const { offsetHeight, scrollHeight } = rootElement;
+      const { scrollTop } = rootElement;
+      if (scrollHeight - offsetHeight - scrollTop < 60) {
+        startIndex = startIndex + pageSize;
+        appendPageItems();
+      }
     }
   });
 
@@ -203,13 +215,15 @@ export const setScrollLoadCell = (
   const setListItem = (size?) => {
     if (appendPageItems(size)) {
       requestAnimationFrame(() => {
-        const { offsetHeight, scrollHeight } = rootElement;
-        if (offsetHeight * 1.2 > scrollHeight) {
-          startIndex = startIndex + (size ?? pageSize);
-          setListItem();
-        } else {
-          if (!scrollEvtAdded) {
-            addScrollEvent();
+        if (rootElement) {
+          const { offsetHeight, scrollHeight } = rootElement;
+          if (offsetHeight * 1.2 > scrollHeight) {
+            startIndex = startIndex + (size ?? pageSize);
+            setListItem();
+          } else {
+            if (!scrollEvtAdded) {
+              addScrollEvent();
+            }
           }
         }
       });

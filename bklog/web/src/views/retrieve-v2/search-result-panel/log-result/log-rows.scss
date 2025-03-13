@@ -376,6 +376,48 @@
           transition: opacity 0.3s;
         }
       }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 1px;
+        bottom: 1px;
+        width: 3.09px;
+        background: #f59789;
+        border-radius: 0 1px 1px 0;
+      }
+
+      &.normal,
+      &.trace {
+        &::before {
+          background: #dcdee5;
+        }
+      }
+
+      &.debug {
+        &::before {
+          background: #92d4f1;
+        }
+      }
+
+      &.info {
+        &::before {
+          background: #6fc5bf;
+        }
+      }
+
+      &.warn {
+        &::before {
+          background: #f5c78e;
+        }
+      }
+
+      &.error {
+        &::before {
+          background: #f59789;
+        }
+      }
     }
   }
 
@@ -441,7 +483,6 @@
 
     .bklog-row-box {
       will-change: transform;
-      transform: translateZ(0); /* 强制开启GPU加速 */
       .bklog-row-container {
         content-visibility: auto;
         contain-intrinsic-size: 0 60px; /* 预估初始高度 */
