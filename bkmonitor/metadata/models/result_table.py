@@ -2792,6 +2792,15 @@ class ESFieldQueryAliasOption(BaseModel):
         existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
         existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
 
+        if not query_alias_settings:
+            logger.info(
+                "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old "
+                "records",
+                table_id,
+            )
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)
+            return
+
         # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
         incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
 

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, inject } from 'vue';
 
 import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -53,6 +53,11 @@ export default defineComponent({
   emits: ['menu-click'],
   setup(props, { emit }) {
     const refContent: Ref<HTMLDivElement> = ref();
+
+    const wheelTrigger: Ref<{ isWheeling: boolean; id: string }> = inject(
+      'wheelTrigger',
+      ref({ isWheeling: false, id: '' }),
+    );
 
     const store = useStore();
     const { $t } = useLocale();
@@ -95,11 +100,6 @@ export default defineComponent({
     let wordList: WordListItem[];
     let renderMoreItems: () => void = null;
 
-    // const pageSize = 50;
-
-    // let startIndex = 0;
-    // let scrollEvtAdded = false;
-
     const getTagName = item => {
       if (item.isMark) {
         return 'mark';
@@ -111,70 +111,6 @@ export default defineComponent({
 
       return 'span';
     };
-
-    /**
-     * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
-     */
-    // const appendLastTag = () => {
-    //   const child = document.createElement('span');
-    //   child.classList.add('last-placeholder');
-    //   refSegmentContent.value?.append?.(child);
-    // };
-
-    // const appendPageItems = (size?) => {
-    //   if (startIndex >= wordList.length) {
-    //     appendLastTag();
-    //     return false;
-    //   }
-
-    //   const fragment = document.createDocumentFragment();
-    //   const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    //   pageItems.forEach(item => {
-    //     const child = document.createElement(getTagName(item));
-    //     child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-    //     child.innerText = item.text;
-    //     fragment.appendChild(child);
-    //   });
-
-    //   refSegmentContent.value?.append?.(fragment);
-    //   return true;
-    // };
-
-    // const handleScrollEvent = debounce((e: MouseEvent) => {
-    //   if (e.target) {
-    //     const { offsetHeight, scrollHeight, scrollTop } = e.target as HTMLElement;
-    //     if (scrollHeight - offsetHeight - scrollTop < 60) {
-    //       startIndex = startIndex + pageSize;
-    //       appendPageItems();
-    //     }
-    //   }
-    // }, 120);
-
-    // const addScrollEvent = () => {
-    //   refContent.value?.addEventListener('scroll', handleScrollEvent);
-    // };
-
-    /**
-     * 初始化列表
-     * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
-     */
-    // const setListItem = (size?) => {
-    //   if (appendPageItems(size)) {
-    //     requestAnimationFrame(() => {
-    //       const { offsetHeight, scrollHeight } = refContent.value;
-    //       hasOverflowY.value = offsetHeight < scrollHeight;
-    //       if (offsetHeight * 1.2 > scrollHeight) {
-    //         startIndex = startIndex + (size ?? pageSize);
-    //         setListItem();
-    //       } else {
-    //         if (!scrollEvtAdded) {
-    //           addScrollEvent();
-    //           scrollEvtAdded = true;
-    //         }
-    //       }
-    //     });
-    //   }
-    // };
 
     const handleClickMore = e => {
       e.stopPropagation();
@@ -197,6 +133,14 @@ export default defineComponent({
       wordList = textSegmentInstance.getChildNodes(isNestedValue);
     };
 
+    const debounceUpdateWidth = debounce(() => {
+      hasOverflowY.value = false;
+      if (refContent.value) {
+        const { offsetHeight, scrollHeight } = refContent.value;
+        hasOverflowY.value = offsetHeight < scrollHeight;
+      }
+    });
+
     onBeforeMount(() => {
       setWordList();
     });
@@ -204,6 +148,7 @@ export default defineComponent({
     let removeScrollEventFn = null;
 
     onMounted(() => {
+      hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
       requestAnimationFrame(() => {
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
@@ -224,21 +169,12 @@ export default defineComponent({
         // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
         // 这里默认渲染前500跟分词 + 10 - 20行溢出
         setListItem(isLimitExpandView.value ? 550 : 300);
-
-        const { offsetHeight, scrollHeight } = refContent.value;
-        hasOverflowY.value = offsetHeight < scrollHeight;
+        debounceUpdateWidth();
       });
     });
 
     onBeforeUnmount(() => {
       removeScrollEventFn?.();
-    });
-
-    const debounceUpdateWidth = debounce(() => {
-      if (refContent.value) {
-        const { offsetHeight, scrollHeight } = refContent.value;
-        hasOverflowY.value = offsetHeight < scrollHeight;
-      }
     });
 
     useResizeObserve(refContent, debounceUpdateWidth);
@@ -285,7 +221,10 @@ export default defineComponent({
           class={[
             'btn-more-action',
             `word-text`,
-            { 'is-show': hasOverflowY.value || (showAll.value && !isLimitExpandView.value) },
+            {
+              'is-show':
+                !wheelTrigger.value.isWheeling && (hasOverflowY.value || (showAll.value && !isLimitExpandView.value)),
+            },
           ]}
           onClick={handleClickMore}
         >
