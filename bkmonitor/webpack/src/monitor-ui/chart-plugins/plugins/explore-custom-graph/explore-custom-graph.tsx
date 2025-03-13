@@ -43,6 +43,8 @@ export type IntervalType = 'auto' | number;
 interface IExploreCustomChartProps {
   /** 图表汇聚周期 */
   chartInterval: IntervalType;
+  /** 数据总数 */
+  total?: number;
 }
 
 interface IExploreCustomChartEvents {
@@ -54,12 +56,14 @@ interface IExploreCustomChartEvents {
 export class ExploreCustomChart extends TimeSeries {
   /** 图表汇聚周期 */
   @Prop({ type: [Number, String], default: 'auto' }) chartInterval: IntervalType;
+  /** 数据总数 */
+  @Prop({ type: Number, default: 0 }) total: number;
 
   containerHeight = 0;
   duration = 0;
   requestConfig = {
     /** 图表loading */
-    loading: true,
+    loading: false,
     /** 图表数据接口请求耗时 */
     duration: 0,
     lastTime: +new Date(),
@@ -69,12 +73,15 @@ export class ExploreCustomChart extends TimeSeries {
     return this.legendData?.filter?.(e => e.show) || [];
   }
 
+  panelChange() {
+    this.getPanelData();
+  }
+
   @Emit('intervalChange')
   handleIntervalChange(interval: IntervalType) {
     return interval;
   }
 
-  @Emit('loading')
   handleLoadingChange(loading: boolean) {
     const now = +new Date();
     this.requestConfig.duration = loading ? 0 : now - this.requestConfig.lastTime;
@@ -153,7 +160,7 @@ export class ExploreCustomChart extends TimeSeries {
         class='chart-header-description'
         path='(找到 {0} 条结果，用时 {1} 毫秒)'
       >
-        <span class='query-count'>{this.panel?.externalData?.total || 0}</span>
+        <span class='query-count'>{this.total || 0}</span>
         <span class='query-time'>{this.requestConfig.duration || 0}</span>
       </i18n>
     );

@@ -201,7 +201,6 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
       total: 0,
     }));
     this.total = total;
-    this.panel.externalData.total = total;
     this.tableRequestConfigs.total = total;
   }
 
@@ -233,7 +232,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     }
 
     const {
+      start_time: commonStartTime,
+      end_time: commonEndTime,
       query_configs: [commonQueryConfig],
+      ...remainParam
     } = this.eventQueryParams;
 
     if (!commonQueryConfig.table) {
@@ -262,10 +264,6 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.panel = new PanelModel({
       id: 'event-explore-chart',
       title: this.$tc('总趋势'),
-      // @ts-ignore
-      externalData: {
-        total: this.total,
-      },
       options: {
         time_series: {
           type: 'bar',
@@ -288,6 +286,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
           data: {
             expression: 'a',
             query_configs: queryConfigs,
+            ...remainParam,
           },
         },
       ],
@@ -341,6 +340,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
               chartInterval={this.chartInterval}
               panel={this.panel}
               showChartHeader={true}
+              total={this.total}
               onIntervalChange={this.handleIntervalChange}
               onSelectLegend={this.handleShowLegendChange}
               onSeriesData={this.handleChartApiResponseTransform}
