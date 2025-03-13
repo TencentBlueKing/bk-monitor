@@ -271,8 +271,13 @@ export default class EventExplore extends tsc<
     return where;
   }
 
-  handleConditionChange(condition: IWhereItem[]) {
-    this.handleWhereChange(mergeWhereList(this.where, condition));
+  /** 条件变化触发 */
+  handleConditionChange(condition: IWhereItem[] | string) {
+    if (this.filterMode === EMode.ui) {
+      this.handleWhereChange(mergeWhereList(this.where, condition as IWhereItem[]));
+    } else {
+      this.handleQueryStringChange(this.queryString ? `${this.queryString} AND ${condition}` : `${condition}`);
+    }
   }
 
   @Emit('queryStringChange')
@@ -337,8 +342,10 @@ export default class EventExplore extends tsc<
               >
                 <DimensionFilterPanel
                   condition={this.where}
+                  filterMode={this.filterMode}
                   list={this.fieldList}
                   listLoading={this.loading}
+                  queryString={this.queryString}
                   onClose={this.handleCloseDimensionPanel}
                   onConditionChange={this.handleConditionChange}
                 />
