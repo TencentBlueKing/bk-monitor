@@ -103,7 +103,7 @@ class QueryTimeBuilder(object):
         raise SearchUnKnowTimeFieldType()
 
     def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
-        if settings.DEAL_RETENTION_TIME == "on":
+        if settings.DEAL_RETENTION_TIME:
             start_time, end_time = self._deal_time(start_time, end_time)
         # 序列化接口能够识别的时间格式
         return start_time.timestamp(), end_time.timestamp()
