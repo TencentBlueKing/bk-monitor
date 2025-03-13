@@ -75,10 +75,10 @@ export default class ValueTagSelector extends tsc<IProps> {
   activeIndex = -1;
   /* 当前光标位置输入值 */
   inputValue = '';
-  /* 可选项悬停位置 */
-  hoverActiveIndex = -1;
   /* 输入框是否聚焦 */
   isFocus = false;
+  /* 是否通过上下键悬停下拉选项 */
+  isChecked = false;
 
   get hasCustomOption() {
     return !!this.inputValue;
@@ -109,6 +109,7 @@ export default class ValueTagSelector extends tsc<IProps> {
    */
   handleCheck(item: IValue) {
     this.localValue.push(item);
+    this.activeIndex += 1;
     this.handleChange();
   }
 
@@ -128,7 +129,6 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param event
    */
   handleInput(value) {
-    this.hoverActiveIndex = -1;
     this.inputValue = value;
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
@@ -146,20 +146,11 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框enter事件
    */
   handleEnter() {
-    if (!this.inputValue) {
+    if (!this.inputValue || this.isChecked) {
       return;
     }
-    if (this.hoverActiveIndex === -1) {
-      this.handleShowShowDropDown(false);
-      if (this.activeIndex >= 0) {
-        this.localValue.splice(this.activeIndex + 1, 0, { id: this.inputValue, name: this.inputValue });
-      } else {
-        this.localValue.push({ id: this.inputValue, name: this.inputValue });
-      }
-
-      this.activeIndex = this.localValue.length - 1;
-      this.handleChange();
-    }
+    this.localValue.push({ id: this.inputValue, name: this.inputValue });
+    this.activeIndex += 1;
     this.inputValue = '';
   }
 
@@ -235,37 +226,13 @@ export default class ValueTagSelector extends tsc<IProps> {
       }
       case 'Enter': {
         event.preventDefault();
-        this.handleOptionsEnter();
         break;
       }
     }
   }
 
-  /**
-   * @description 聚焦光标选项
-   */
-  updateSelection() {
-    this.$nextTick(() => {
-      const listEl = this.$el.querySelector('.options-drop-down-wrap.main__wrap');
-      const el = this.hasCustomOption
-        ? listEl?.children?.[this.hoverActiveIndex + 1]
-        : listEl?.children?.[this.hoverActiveIndex];
-      if (el) {
-        el.scrollIntoView(false);
-      }
-    });
-  }
-  /**
-   * @description enter光标选项
-   */
-  handleOptionsEnter() {
-    if (this.hoverActiveIndex !== -1) {
-      const item = this.localOptions?.[this.hoverActiveIndex];
-      if (item) {
-        this.localValue.push(item);
-        this.handleChange();
-      }
-    }
+  handleIsChecked(v: boolean) {
+    this.isChecked = v;
   }
 
   render() {
@@ -286,7 +253,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
-          class='value-tag-selector-component-wrap'
+          class={['value-tag-selector-component-wrap', { active: this.isShowDropDown || this.isFocus }]}
           onClick={this.handleClick}
         >
           {this.localValue.length
@@ -318,6 +285,7 @@ export default class ValueTagSelector extends tsc<IProps> {
             method={this.method}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
+            onIsChecked={this.handleIsChecked}
             onSelect={this.handleCheck}
           />
         )}
