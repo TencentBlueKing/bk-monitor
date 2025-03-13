@@ -33,14 +33,14 @@ import ExploreCustomGraph, {
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import BackTop from '../../../components/back-top/back-top';
-import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
 import {
+  type ConditionChangeEvent,
   type DimensionsTypeEnum,
   type EventExploreTableRequestConfigs,
-  type ExploreEntitiesItem,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
   ExploreTableLoadingEnum,
-  type IDimensionField,
   type IFormData,
 } from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
@@ -53,16 +53,15 @@ import './event-explore-view.scss';
 interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
-  fieldList: IDimensionField[];
-  sourceEntities: ExploreEntitiesItem[];
   timeRange: TimeRangeType;
   refreshImmediate: string;
-  filterMode?: EMode;
+  fieldMap: ExploreFieldMap;
+  entitiesMapList: ExploreEntitiesMap[];
 }
 
 interface IEventExploreViewEvents {
-  onConditionChange: (condition: IWhereItem[]) => void;
   onClearSearch: () => void;
+  onConditionChange(e: ConditionChangeEvent): void;
 }
 
 @Component
@@ -74,14 +73,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
   // 数据时间间隔
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
-  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
   // 视图变量
@@ -95,7 +93,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 当前显示的图例 */
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
-  panel: PanelModel = null;
+  panel: PanelModel = this.initPanelConfig();
   /** table表格请求配置 */
   tableRequestConfigs: EventExploreTableRequestConfigs = {};
   /** 是否滚动到底 */
@@ -126,6 +124,12 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.updateTableRequestConfigs();
   }
 
+  @Watch('refreshImmediate')
+  refreshImmediateChange() {
+    this.getEventTotal();
+    this.updateTableRequestConfigs();
+  }
+
   @Watch('queryConfig', { deep: true })
   queryParamsChange() {
     this.getEventTotal();
@@ -133,15 +137,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.updateTableRequestConfigs();
   }
 
-  @Watch('refreshImmediate')
-  refreshImmediateChange() {
-    this.getEventTotal();
-    this.updatePanelConfig();
-    this.updateTableRequestConfigs();
-  }
-
   @Emit('conditionChange')
-  conditionChange(condition: IWhereItem[]) {
+  conditionChange(condition: ConditionChangeEvent) {
     return condition;
   }
 
@@ -196,6 +193,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    * @description 获取数据总数
    */
   async getEventTotal() {
+    this.total = 0;
     if (!this.eventQueryParams) {
       return;
     }
@@ -203,12 +201,12 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
       total: 0,
     }));
     this.total = total;
-    this.tableRequestConfigs.total = total;
   }
 
   /** 更新 表格请求配置 */
   updateTableRequestConfigs(loadingType: ExploreTableLoadingEnum = ExploreTableLoadingEnum.REFRESH) {
     if (!this.eventQueryParams) {
+      this.tableRequestConfigs = {};
       return;
     }
 
@@ -217,19 +215,24 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.tableRequestConfigs = {
       apiModule,
       apiFunc,
-      total: this.total ?? 0,
       loadingType,
-      data: {
-        ...this.eventQueryParams,
-        /** 表格单页条数 */
-        limit: 30,
-      },
+      data: this.eventQueryParams,
     };
+  }
+
+  initPanelConfig() {
+    return new PanelModel({
+      id: 'event-explore-chart',
+      title: this.$tc('总趋势'),
+      options: {},
+      targets: [],
+    });
   }
 
   /** 更新 图表配置实例 */
   updatePanelConfig() {
     if (!this.eventQueryParams) {
+      this.panel = this.initPanelConfig();
       return;
     }
 
@@ -336,26 +339,25 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return (
       <div class='event-explore-view-wrapper'>
         <div class='event-explore-chart-wrapper'>
-          {!!this.panel && (
-            <ExploreCustomGraph
-              ref='chartRef'
-              chartInterval={this.chartInterval}
-              panel={this.panel}
-              showChartHeader={true}
-              total={this.total}
-              onIntervalChange={this.handleIntervalChange}
-              onSelectLegend={this.handleShowLegendChange}
-              onSeriesData={this.handleChartApiResponseTransform}
-            />
-          )}
+          <ExploreCustomGraph
+            ref='chartRef'
+            chartInterval={this.chartInterval}
+            panel={this.panel}
+            showChartHeader={true}
+            total={this.total}
+            onIntervalChange={this.handleIntervalChange}
+            onSelectLegend={this.handleShowLegendChange}
+            onSeriesData={this.handleChartApiResponseTransform}
+          />
         </div>
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
-            fieldList={this.fieldList}
-            filterMode={this.filterMode}
-            requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
-            sourceEntities={this.sourceEntities}
+            entitiesMapList={this.entitiesMapList}
+            fieldMap={this.fieldMap}
+            limit={30}
+            requestConfigs={this.tableRequestConfigs}
+            total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
           />
