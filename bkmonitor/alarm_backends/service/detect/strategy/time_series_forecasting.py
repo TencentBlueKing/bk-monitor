@@ -61,7 +61,7 @@ class TimeSeriesForecasting(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
     desc_tpl = "{method_desc} {threshold}{unit_suffix}"
 
-    def generate_sdk_predict_params(self, data_point: DataPoint) -> Dict:
+    def generate_sdk_predict_params(self) -> Dict:
         return {
             "predict_args": {
                 "granularity": "T",

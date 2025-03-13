@@ -93,6 +93,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 窗口宽度 */
   windowWidth = 0;
   textareaRow = MIN_ROW;
+  showKeywordEle = false;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -143,6 +144,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleWindowKeydown(e: KeyboardEvent) {
     if (e.key === '/') {
       e.preventDefault();
+      this.showKeywordEle = false;
       this.handleInputFocus();
     }
   }
@@ -161,6 +163,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.textareaRow = MIN_ROW;
       this.handleShowChange(false);
     }
+    this.showKeywordEle = !this.showPopover && !this.searchValue;
   }
   handleHiddenPopover() {
     this.handleShowChange(false);
@@ -369,6 +372,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       >
         <i class='icon-monitor icon-History item-icon' />
         <span class='history-item-name'>{item.name}</span>
+        <div
+          class='icon-delete-wrap'
+          onClick={e => this.handleDeleteHistoryItem(e, item)}
+        >
+          <i class='icon-monitor icon-mc-delete-line' />
+        </div>
       </div>
     );
   }
@@ -380,6 +389,22 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.textareaRow = this.limitRows();
     this.handleGetSearchData();
     this.handleInputFocus();
+  }
+  /** 删除历史搜索Item */
+  handleDeleteHistoryItem(e: Event, item: ISearchItem) {
+    e.stopPropagation();
+    if (item.name === this.searchValue) {
+      this.searchValue = '';
+    }
+    this.highlightedItem = null;
+    this.highlightedIndex = [-1, -1];
+    this.localHistoryList = this.localHistoryList.filter(history => history.name !== item.name);
+    localStorage.setItem(storageKey, JSON.stringify(this.localHistoryList));
+    if (!this.localHistoryList.length) {
+      this.isInput = false;
+      this.handleInputFocus();
+    }
+    
   }
   /** 初始化输入框是否要自动聚焦 */
   handleInputFocus() {
@@ -529,6 +554,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     // 初始化搜索框自动聚焦后，输入搜索内容后打开下拉框
     if (!this.isBarToolShow && !this.showPopover && this.searchValue.trim()) {
       this.showPopover = true;
+    }
+    // 输入内容后未选择，手动删空了输入内容需要取消history高亮
+    if (!this.isInput && this.highlightedItem?.name) {
+      this.highlightedIndex = [-1, -1];
+      this.highlightedItem = null;
     }
   }
   /** 弹性布局适应输入长度变化的实现 --- end */
@@ -878,7 +908,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {(!this.isBarToolShow && !this.showPopover && !this.searchValue) && (
+          {this.showKeywordEle && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>

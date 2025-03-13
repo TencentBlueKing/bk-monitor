@@ -74,6 +74,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     TIMEOUT = 60
     # 是否直接使用标准格式数据，兼容BCS非标准返回的情况
     IS_STANDARD_FORMAT = True
+    METRIC_REPORT_NOW = True
 
     @abc.abstractproperty
     def base_url(self):
@@ -314,7 +315,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 exception=exception_type,
                 user_name=getattr(self, 'bk_username', ''),
             ).inc()
-            metrics.report_all()
+            if self.METRIC_REPORT_NOW:
+                metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
             logger.exception(f"APIResource: Failed to report api_failed_requests metrics,error:{err}")
 
@@ -330,7 +332,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 code=code,
                 role=settings.ROLE,
             ).inc()
-            metrics.report_all()
+            if self.METRIC_REPORT_NOW:
+                metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
             logger.exception(f"APIResource: Failed to report api_requests metrics,error:{err}")
 

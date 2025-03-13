@@ -145,7 +145,7 @@ class ConditionOperator {
         relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: this.item.value,
+        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
       };
     }
   }
@@ -171,7 +171,7 @@ class ConditionOperator {
           relation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: this.item.value,
+          value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
         };
       }
 
@@ -183,7 +183,7 @@ class ConditionOperator {
         relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: this.item.value,
+        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
       };
     }
 
@@ -192,7 +192,7 @@ class ConditionOperator {
       relation,
       operator,
       field,
-      value,
+      value: Array.isArray(value) ? value : [value],
       isInclude,
     };
   }
@@ -204,7 +204,7 @@ class ConditionOperator {
     return {
       field: this.item.field,
       operator: this.FormatOpetatorFrontToApi(),
-      value: this.item.value,
+      value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
     };
   }
 }
