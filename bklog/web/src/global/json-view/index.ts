@@ -37,6 +37,7 @@ export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
@@ -209,6 +210,8 @@ export default class JsonView {
         copyMessage(JSON.stringify(target) || '', window.$t?.('复制成功'));
       }
     }
+
+    this.rootElClick?.(e);
   }
 
   public setValue(val: any) {
@@ -216,7 +219,8 @@ export default class JsonView {
     this.setJsonViewSchema(val);
   }
 
-  public initClickEvent() {
+  public initClickEvent(fn?: (...args) => void) {
+    this.rootElClick = fn;
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
   }
 
