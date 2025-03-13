@@ -454,6 +454,7 @@
         />
       </div>
     </li>
+    <li class="search-item-focus hidden-pointer"></li>
     <li class="search-item is-focus-input">
       <input
         ref="refSearchInput"
