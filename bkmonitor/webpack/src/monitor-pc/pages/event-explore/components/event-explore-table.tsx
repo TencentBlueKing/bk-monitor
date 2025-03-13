@@ -73,7 +73,8 @@ const SourceIconMap = {
   [ExploreSourceTypeEnum.CICD]: 'icon-landun',
   [ExploreSourceTypeEnum.HOST]: 'icon-host',
 };
-
+const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
+const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
   /** 接口请求配置项 */
@@ -102,7 +103,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   popoverInstance = null;
   /** popover 延迟打开定时器 */
   popoverDelayTimer = null;
-
+  resizeObserver: ResizeObserver;
   get tableColumns() {
     const column = this.getTableColumns();
     const columnForKeyMap = column.reduce((prev, curr) => {
@@ -150,7 +151,40 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   clearSearch() {
     return;
   }
-
+  mounted() {
+    this.$nextTick(() => {
+      const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
+      if (!scrollWrapper) return;
+      this.resizeObserver = new ResizeObserver(() => {
+        this.$nextTick(() => {
+          this.handleScroll({ target: scrollWrapper } as any);
+        });
+      });
+      this.resizeObserver.observe(scrollWrapper);
+      scrollWrapper.addEventListener('scroll', this.handleScroll);
+    });
+  }
+  beforeDestroy() {
+    const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
+    if (!scrollWrapper) return;
+    this.resizeObserver.unobserve(scrollWrapper);
+    scrollWrapper.removeEventListener('scroll', this.handleScroll);
+  }
+  handleScroll(event: Event) {
+    const scrollWrapper = event.target as HTMLElement;
+    const { top: stickyTop } = scrollWrapper.getBoundingClientRect();
+    const thNode = this.$el.querySelector(SCROLL_COLUMN_CLASS_NAME);
+    const cell: HTMLDivElement = thNode?.querySelector('.cell');
+    const { top, width } = thNode.getBoundingClientRect();
+    if (top && top <= stickyTop) {
+      cell.classList.add('scroll-fixed');
+      cell.style.width = `${width}px`;
+      cell.style.top = `${stickyTop}px`;
+    } else {
+      cell.classList.remove('scroll-fixed');
+      cell.style.top = '0px';
+    }
+  }
   /**
    * @description 事件日志table表格列配置项
    *
