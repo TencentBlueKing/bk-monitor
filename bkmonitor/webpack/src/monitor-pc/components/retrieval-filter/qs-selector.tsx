@@ -259,7 +259,6 @@ export default class QsSelector extends tsc<IProps> {
   /**
    * @description 查询
    */
-  @Debounce(200)
   handleQuery() {
     this.$emit('query');
   }

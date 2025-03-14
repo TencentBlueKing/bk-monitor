@@ -71,8 +71,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Ref('allInput') allInputRef;
   /* 搜索值 */
   searchValue = '';
-  /* 当前 */
-  localFields: IFilterField[] = [];
   searchLocalFields: IFilterField[] = [];
   /* 当前光标选中项 */
   cursorIndex = 0;
@@ -102,12 +100,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   @Watch('fields', { immediate: true })
   handleWatchFields() {
-    const ids = this.fields.map(item => item.name);
-    const localIds = this.localFields.map(item => item.name);
-    if (JSON.stringify(ids) !== JSON.stringify(localIds)) {
-      this.localFields = this.fields.slice();
-      this.handleCheck(this.localFields[0]);
-    }
     this.handleSearchChange();
   }
 
@@ -116,14 +108,18 @@ export default class UiSelectorOptions extends tsc<IProps> {
     if (!this.show) {
       this.initData();
     }
-    if (this.show && this.value) {
-      const id = this.value.key.id;
-      for (const item of this.localFields) {
-        if (item.name === id) {
-          const checkedItem = JSON.parse(JSON.stringify(item));
-          this.handleCheck(checkedItem, this.value.method.id, this.value.value);
-          break;
+    if (this.show) {
+      if (this.value) {
+        const id = this.value.key.id;
+        for (const item of this.fields) {
+          if (item.name === id) {
+            const checkedItem = JSON.parse(JSON.stringify(item));
+            this.handleCheck(checkedItem, this.value.method.id, this.value.value);
+            break;
+          }
         }
+      } else {
+        this.handleCheck(this.fields[0]);
       }
     }
   }
@@ -148,8 +144,15 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.values = value || [];
     this.method = method || item?.supported_operations?.[0]?.value || '';
     const index = this.searchLocalFields.findIndex(f => f.name === item.name) || 0;
+    if (this.checkedItem.name === '*') {
+      this.queryString = value[0]?.id || '';
+      setTimeout(() => {
+        this.allInputRef?.focus();
+      }, 50);
+    } else {
+      this.rightRefreshKey = random(8);
+    }
     this.cursorIndex = index;
-    this.rightRefreshKey = random(8);
   }
 
   /**
@@ -236,7 +239,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
     switch (event.key) {
       case 'ArrowUp': {
         // 按下上箭头键
-        console.log('xxxx');
         event.preventDefault();
         this.cursorIndex -= 1;
         if (this.cursorIndex < 0) {
@@ -293,9 +295,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
   handleSearchChange() {
     this.cursorIndex = 0;
     if (!this.searchValue) {
-      this.searchLocalFields = this.localFields.slice();
+      this.searchLocalFields = this.fields.slice();
     }
-    this.searchLocalFields = this.localFields.filter(item => {
+    this.searchLocalFields = this.fields.filter(item => {
       if (!this.searchValue) {
         return true;
       }
