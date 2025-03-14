@@ -83,23 +83,30 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
 
         cache_key = params.get("space_uid", "")
-        using_cache = cache_key or bk_biz_id > 0
+        using_cache = cache_key
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景， 非 bkcc 空间，没有预先缓存，通过api获取后再更新
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
             if space is not miss_cache:
                 return SpaceDefine.from_dict(space)
 
-        # space_info = api.metadata.get_space_detail(bk_tenant_id=DEFAULT_TENANT_ID, **params)
+        # 通过数据库直查
         filters = {}
         if "id" in params:
-            filters["id"] = [params["id"]]
+            filters["space_id"] = params["id"]
         elif "space_uid" in params:
             filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__")
         space_info = cls.list_spaces_dict(using_cache=False, filters=filters)
         if not space_info:
             return None
         space_info = space_info[0]
+
+        # 如果是非 cmdb 空间，需要通过 metadata 补全信息
+        # 由于一开始缺乏 bk_tenant_id 信息，需要先查询数据库才能继续查询 metadata
+        if space_info["space_type_id"] != SpaceTypeEnum.BKCC.value:
+            space_info = api.metadata.get_space_detail(
+                space_uid=params["space_uid"], bk_tenant_id=space_info["bk_tenant_id"]
+            )
 
         # 补充miss 的 space_uid 信息（非cmdb 空间）
         local_mem.set(f"metadata:spaces_map:{space_info['space_uid']}", space_info, timeout=3600)
@@ -171,9 +178,9 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 where_conditions = []
                 for field, value in filters.items():
                     if isinstance(value, str):
-                        where_conditions.append(f" {field} = '{value}'")
+                        where_conditions.append(f" s.{field} = '{value}'")
                     elif isinstance(value, int):
-                        where_conditions.append(f" {field} = {value}")
+                        where_conditions.append(f" s.{field} = {value}")
                 sql += " AND ".join(where_conditions)
 
             cursor.execute(sql)

@@ -88,8 +88,10 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
 
             # 在不开启租户的情况下，确保user.tenant_id不为空，确保后续处理逻辑的统一性
             if request.user:
-                if not request.user.tenant_id:
+                if not getattr(request.user, "tenant_id", None):
                     request.user.tenant_id = DEFAULT_TENANT_ID
+
+                if request.user.is_authenticated:
                     request.user.save()
             return result
 
