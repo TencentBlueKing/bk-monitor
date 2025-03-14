@@ -150,7 +150,7 @@ export default class CustomGroupingList extends tsc<any, any> {
             >
               {!this.isSearchMode && <i class='icon-monitor icon-mc-tuozhuai item-drag' />}
               <div class='group-name'>
-                <i class='icon-monitor icon-mc-full-folder' />
+                <i class='icon-monitor icon-FileFold-Close' />
                 {group.name}
               </div>
               <div class='group-count'>{this.getGroupCountByName(group.name)}</div>

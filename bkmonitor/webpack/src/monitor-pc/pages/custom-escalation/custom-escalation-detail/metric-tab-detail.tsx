@@ -62,7 +62,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   dragoverId = '';
   topGroupList: IGroup[] = [
     { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-mc-all' },
-    { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-mc-full-folder' },
+    { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-FileFold-Close' },
   ];
   isShowRightWindow = true; // 是否显示右侧帮助栏
 
@@ -117,6 +117,7 @@ export default class MetricTabDetail extends tsc<any, any> {
         if (currentGroupInfo) {
           this.currentGroupInfo.name = currentGroupInfo.name;
           this.currentGroupInfo.rules = currentGroupInfo.matchRules[0] || '';
+          this.isEdit = true;
           this.showAddGroupDialog = true;
         }
       },
@@ -141,11 +142,21 @@ export default class MetricTabDetail extends tsc<any, any> {
 
   handleCancel(v: boolean) {
     this.showAddGroupDialog = v;
+    this.currentGroupInfo = {
+      name: '',
+      rules: '',
+    };
+    this.$nextTick(() => {
+      this.isEdit = false;
+    });
   }
 
   @Emit('groupSubmit')
   submitGroup(config) {
     this.showAddGroupDialog = false;
+    this.$nextTick(() => {
+      this.isEdit = false;
+    });
     return config;
   }
 
@@ -192,7 +203,7 @@ export default class MetricTabDetail extends tsc<any, any> {
             </div>
             <div class='custom-group-set'>
               <div
-                class='add-group icon-monitor icon-a-1jiahao icon-arrow-left'
+                class='add-group icon-monitor icon-a-1jiahao'
                 onClick={this.handleAddGroup}
               />
               <bk-input
@@ -260,6 +271,7 @@ export default class MetricTabDetail extends tsc<any, any> {
             {
               <AddGroupDialog
                 groupInfo={this.currentGroupInfo}
+                isEdit={this.isEdit}
                 show={this.showAddGroupDialog}
                 onCancel={this.handleCancel}
                 onGroupSubmit={this.submitGroup}
@@ -273,7 +285,6 @@ export default class MetricTabDetail extends tsc<any, any> {
         <div class='right'>
           <IndicatorTable
             showAutoDiscover={this.selectedLabel === ALL_LABEL}
-            // onUpdateAllSelection={}
             {...{
               props: this.$attrs,
               on: {
@@ -293,4 +304,3 @@ export default class MetricTabDetail extends tsc<any, any> {
     );
   }
 }
-// deleteGroupingRule

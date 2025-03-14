@@ -37,9 +37,7 @@ export default class DimensionTabDetail extends tsc<any, any> {
   @Prop({ default: () => [] }) dimensionTable;
   allCheckValue = false;
   table = {};
-  async created() {
-
-  }
+  async created() { }
 
   updateCheckValue() { }
   handleCheckChange() { }
