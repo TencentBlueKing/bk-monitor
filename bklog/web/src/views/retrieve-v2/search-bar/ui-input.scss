@@ -9,7 +9,6 @@ ul.search-items {
   overflow: auto;
 
   li {
-
     @keyframes changeBackgroundColor {
       0% {
         background-color: #f0f1f5;
@@ -66,7 +65,7 @@ ul.search-items {
     .tag-option-focus-input {
       // width: 8px;
 
-    /* stylelint-disable-next-line declaration-no-important */
+      /* stylelint-disable-next-line declaration-no-important */
       width: auto !important;
       height: 38px;
       font-size: 12px;
@@ -112,7 +111,7 @@ ul.search-items {
 
     &.tag-item {
       position: relative;
-      background: #EAEBF0;
+      background: #eaebf0;
 
       &:hover {
         .tag-options {
@@ -136,13 +135,13 @@ ul.search-items {
           align-items: center;
           justify-content: center;
           padding: 2px;
-          color: #4D4F56;
+          color: #4d4f56;
           background-color: #ffffff;
         }
 
         .bklog-icon {
           &:hover {
-            color: #3A84FF;
+            color: #3a84ff;
           }
         }
 
@@ -151,7 +150,7 @@ ul.search-items {
           margin-left: 4px;
 
           &:hover {
-            color: #EA3636;
+            color: #ea3636;
           }
         }
       }
@@ -165,7 +164,13 @@ ul.search-items {
 
         &.match-name {
           .match-name-label {
-            font-family: Roboto, PingFang SC, Microsoft Yahei, Helvetica, Aria, sans-serif;
+            font-family:
+              Roboto,
+              PingFang SC,
+              Microsoft Yahei,
+              Helvetica,
+              Aria,
+              sans-serif;
             color: #757880;
           }
 
@@ -197,7 +202,15 @@ ul.search-items {
               display: inline-block;
               max-width: 140px;
               overflow: hidden;
-              font-family: 'Roboto Mono', Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
+              font-family:
+                'Roboto Mono',
+                Menlo,
+                Monaco,
+                Consolas,
+                Courier,
+                PingFang SC,
+                Microsoft Yahei,
+                monospace;
               line-height: 16px;
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -214,7 +227,7 @@ ul.search-items {
               font-family: 'Roboto Mono';
               font-size: 12px;
               font-weight: 500;
-              color: #F59500;
+              color: #f59500;
               border-radius: 2px;
             }
           }
@@ -224,7 +237,7 @@ ul.search-items {
       &.disabled {
         .tag-row {
           &.match-value {
-            color: #979BA5;
+            color: #979ba5;
 
             .match-value-text {
               position: relative;
@@ -246,11 +259,16 @@ ul.search-items {
         .tag-options {
           .bklog-icon,
           .tag-options-close {
-            color: #4D4F56;
+            color: #4d4f56;
           }
         }
       }
+    }
 
+    &.search-item-focus {
+      &.hidden-pointer {
+        min-width: 1px;
+      }
     }
 
     div {

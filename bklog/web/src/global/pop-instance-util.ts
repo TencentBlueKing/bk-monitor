@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, Ref } from 'vue';
+import { isRef, ref, Ref } from 'vue';
 
 import { debounce } from 'lodash';
 import tippy, { Props } from 'tippy.js';
 
 type PopInstanceUtilType = {
-  refContent: Ref<{ $el?: HTMLElement } | string>;
+  refContent: HTMLElement | Ref<{ $el?: HTMLElement } | string>;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
@@ -40,12 +40,12 @@ type PopInstanceUtilType = {
 
 export default class PopInstanceUtil {
   private tippyInstance;
-  private refContent: Ref<{ $el?: HTMLElement } | string> = ref(null);
+  private refContent: HTMLElement | Ref<{ $el?: HTMLElement } | string> = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;
   private newInstance = true;
-  private tippyOptions = {};
+  private tippyOptions: Partial<Props> = {};
   private resizeObserver: ResizeObserver | null = null;
 
   private delayShowInstance;
@@ -89,7 +89,7 @@ export default class PopInstanceUtil {
   // 初始化监听器
   onMounted() {
     // 在 onMounted 中判断 watchElement 是否存在
-    if (this.watchElement.value) {
+    if (this.watchElement?.value) {
       this.resizeObserver = new ResizeObserver(() => {
         this.repositionTippyInstance();
       });
@@ -103,6 +103,11 @@ export default class PopInstanceUtil {
 
   setContent(refContent) {
     this.refContent = refContent;
+  }
+
+  setProps(props: Partial<Props>) {
+    Object.assign(this.tippyOptions, props ?? {});
+    this.tippyInstance?.setProps(props);
   }
 
   getTippyInstance() {
@@ -126,15 +131,21 @@ export default class PopInstanceUtil {
     }
   };
 
+  getContent() {
+    if (isRef(this.refContent)) return this.refContent.value;
+    return this.refContent;
+  }
+
   initInistance(target) {
     if (this.newInstance) {
       this.uninstallInstance();
     }
 
-    if (this.tippyInstance === null && this.refContent.value) {
+    const content = this.getContent();
+    if (this.tippyInstance === null && content) {
       this.tippyInstance = tippy(target, {
         arrow: this.arrow,
-        content: ((this.refContent.value as any)?.$el ?? this.refContent.value) as HTMLElement,
+        content: ((content as any)?.$el ?? content) as HTMLElement,
         trigger: 'manual',
         theme: 'log-light',
         placement: 'bottom-start',
@@ -175,6 +186,8 @@ export default class PopInstanceUtil {
 
   hide(delay?) {
     if (delay) {
+      // 清理掉之前的隐藏定时器，保证只有一个定时器
+      this.cancelHide();
       this.hiddenTimer = setTimeout(() => {
         this.getTippyInstance()?.hide();
       }, delay);

@@ -5,7 +5,7 @@
   import useStore from '@/hooks/use-store';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import PopInstanceUtil from './pop-instance-util';
+  import PopInstanceUtil from '../../../global/pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -72,12 +72,13 @@
   const popToolInstance = new PopInstanceUtil({
     refContent: refPopContent,
     tippyOptions: {
-      placement: 'bottom-start',
+      placement: 'bottom-end',
       zIndex: 200,
       appendTo: document.body,
       interactive: true,
       theme: 'log-light transparent',
       arrow: false,
+      offset: [60, 0],
     },
   });
 
@@ -237,6 +238,7 @@
   const handleQueryTypeChange = () => {
     activeIndex.value = activeIndex.value === 0 ? 1 : 0;
     localStorage.setItem('bkLogQueryType', activeIndex.value);
+    popToolInstance?.uninstallInstance();
   };
   const sourceSQLStr = ref('');
   const sourceUISQLAddition = ref([]);
@@ -363,8 +365,40 @@
     }
   };
 
+  const getTargetElement = () => {
+    if (activeIndex.value === 0) {
+      return refRootElement.value?.querySelector('.search-item-focus.hidden-pointer');
+    }
+
+    return refRootElement.value?.querySelector('.search-sql-editor .cm-editor .cm-scroller .cm-line')?.lastElementChild;
+  };
+
+  const setPopProps = () => {
+    if (activeIndex.value === 0) {
+      popToolInstance?.setProps({
+        offset: [60, 0],
+      });
+      return;
+    }
+
+    popToolInstance?.setProps({
+      offset: [60, 20],
+    });
+  };
+
+  let isPopupShow = false;
+  const handlePopupChange = ({ isShow }) => {
+    isPopupShow = isShow;
+  };
+
   const handleMouseenterInputSection = () => {
-    const target = refRootElement.value?.querySelector('.search-item-focus.hidden-pointer');
+    if (isPopupShow) {
+      return;
+    }
+
+    const target = getTargetElement();
+    setPopProps();
+
     if (target) {
       popToolInstance.cancelHide();
       popToolInstance.show(target);
@@ -459,27 +493,19 @@
           v-if="activeIndex === 0"
           v-model="uiQueryValue"
           @change="handleQueryChange"
+          @popup-change="handlePopupChange"
         ></UiInput>
         <SqlQuery
           v-if="activeIndex === 1"
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
+          @popup-change="handlePopupChange"
         ></SqlQuery>
         <div
           ref="refPopTraget"
           class="hidden-focus-pointer"
         ></div>
         <div class="search-tool items">
-          <div
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-copy-4', { disabled: isInputLoading || !isCopyBtnActive }]"
-            @click.stop="handleCopyQueryValue"
-          ></div>
-          <div
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
-            @click.stop="handleClearBtnClick"
-          ></div>
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"

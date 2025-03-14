@@ -25,7 +25,7 @@
     },
   });
 
-  const emit = defineEmits(['input', 'change', 'height-change']);
+  const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
 
@@ -141,8 +141,11 @@
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
+      emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
+      emit('popup-change', { isShow: false });
+
       if (isDocumentMousedown.value) {
         setIsDocumentMousedown(false);
         return false;

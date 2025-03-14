@@ -13,7 +13,7 @@
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
-  import PopInstanceUtil from './pop-instance-util';
+  import PopInstanceUtil from '../../../global/pop-instance-util';
   import useFieldEgges from './use-field-egges';
   const INPUT_MIN_WIDTH = 12;
 
@@ -810,14 +810,14 @@
     }
 
     // key enter
-    if ( e.keyCode === 13 || e.code === 'NumpadEnter') {
+    if (e.keyCode === 13 || e.code === 'NumpadEnter') {
       stopEventPreventDefault(e);
       resolveConditonValueInputEnter();
       return;
     }
 
     // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
-    if((e.ctrlKey || e.metaKey) && ['Control', 'Enter'].includes(e?.key)) {
+    if ((e.ctrlKey || e.metaKey) && ['Control', 'Enter'].includes(e?.key)) {
       stopEventPreventDefault(e);
       handelSaveBtnClick();
       return;
@@ -1181,20 +1181,20 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="bklog-icon bklog-arrow-down-filled label up" />
           <span class="bklog-icon bklog-arrow-down-filled label" />
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="label">Enter</span>
           <span class="value">{{ $t('选中') }}</span>
         </div>
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="label">Esc</span>
           <span class="value">{{ $t('收起查询') }}</span>
         </div>
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="label">Ctrl+Enter</span>
           <span class="value">{{ $t('提交查询') }}</span>
         </div>

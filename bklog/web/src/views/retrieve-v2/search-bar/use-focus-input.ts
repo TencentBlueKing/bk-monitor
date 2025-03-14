@@ -28,7 +28,7 @@ import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue'
 // @ts-ignore
 import { getCharLength } from '@/common/util';
 
-import PopInstanceUtil from './pop-instance-util';
+import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
   props,

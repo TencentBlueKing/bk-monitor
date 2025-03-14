@@ -488,7 +488,7 @@
           .request('newReport/getExistReports/', {
             query: {
               scenario: 'clustering',
-              bk_biz_id: this.$route.query.bizId,
+              bk_biz_id: this.$store.state.bkBizId,
               index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           })
