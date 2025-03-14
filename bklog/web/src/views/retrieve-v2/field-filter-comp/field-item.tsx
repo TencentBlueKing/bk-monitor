@@ -39,7 +39,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: Boolean;
+  @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -55,7 +55,7 @@ export default class FieldItem extends tsc<object> {
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
-  btnLoading = false
+  btnLoading = false;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -190,7 +190,7 @@ export default class FieldItem extends tsc<object> {
   };
 
   downloadFieldStatistics() {
-    this.btnLoading = true
+    this.btnLoading = true;
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -218,30 +218,29 @@ export default class FieldItem extends tsc<object> {
         blobDownload(res, downloadName);
       })
       .finally(() => {
-        this.btnLoading = false
+        this.btnLoading = false;
       });
   }
-  getdistinctCount(val){
-    this.distinctCount = val
+  getdistinctCount(val) {
+    this.distinctCount = val;
   }
-  retuanFieldName(){
-    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
-    if(this.isFieldObject){
-      const objectName = name.split('.')
-      name = objectName[objectName.length - 1] || objectName[0]
+  retuanFieldName() {
+    let name = this.showFieldAlias
+      ? this.fieldItem.field_name || this.fieldItem.field_alias
+      : this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name;
+    if (this.isFieldObject) {
+      const objectName = name.split('.');
+      name = objectName[objectName.length - 1] || objectName[0];
     }
-    return  name
+    return name;
   }
   render() {
     return (
       <li class='filed-item'>
-        <div
-          class={{ 'filed-title': true, expanded: this.isExpand }}
-        >
+        <div class={{ 'filed-title': true, expanded: this.isExpand }}>
           <div>
             {/* 三角符号 */}
-            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }> 
-            </div>
+            <div class={this.isFieldObject ? 'filed-item-object' : 'filed-item-triangle'}></div>
 
             {/* 字段类型对应的图标 */}
             <div>
@@ -260,10 +259,8 @@ export default class FieldItem extends tsc<object> {
             </div>
 
             {/* 字段名 */}
-            <span >
-               <span class='field-name'>
-                {this.retuanFieldName()}
-              </span>
+            <span>
+              <span class='field-name'>{this.retuanFieldName()}</span>
               {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}
@@ -314,7 +311,7 @@ export default class FieldItem extends tsc<object> {
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{
-                  content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
+                  content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
                 }}
                 onClick={e => {
                   e.stopPropagation();
@@ -324,9 +321,9 @@ export default class FieldItem extends tsc<object> {
                 <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
               </div>
             }
-          
+
             {/* 拖动字段位置按钮 */}
-            <div>
+            <div style='position:absolute,left:20px'>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
             </div>
           </div>
@@ -360,8 +357,8 @@ export default class FieldItem extends tsc<object> {
               <div class='fnBtn'>
                 <bk-button
                   style='margin-right:8px'
-                  size='small'
                   loading={this.btnLoading}
+                  size='small'
                   onClick={e => {
                     e.stopPropagation();
                     this.downloadFieldStatistics();

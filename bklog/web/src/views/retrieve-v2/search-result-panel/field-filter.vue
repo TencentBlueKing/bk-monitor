@@ -124,7 +124,7 @@
         @click="handleCloseFilterTitle(false)"
       >
         <span
-          :style="{ transform: value ? 'rotate(180deg)' : '' }"
+          :style="{ transform: value ? '' : 'rotate(180deg)' }"
           class="bklog-icon bklog-collapse"
           style="font-size: 14px"
           v-bk-tooltips="{ content: value ? '收起' : '打开' }"

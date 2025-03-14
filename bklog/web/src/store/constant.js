@@ -35,7 +35,8 @@ export const fieldTypeMap = {
   number: {
     name: i18n.t('数字'),
     icon: 'bklog-icon bklog-number-2',
-    color: '#F7F0CA',
+    color: '#DDEBE6',
+    textColor: '#60A087',
   },
   integer: {
     name: i18n.t('数字'),
@@ -69,13 +70,13 @@ export const fieldTypeMap = {
   },
   date: {
     name: i18n.t('时间'),
-    icon: 'bk-icon icon-clock',
+    icon: 'bklog-icon bklog-time-2',
     color: '#EDE7DB',
     textColor: '#CDAE71',
   },
   date_nanos: {
     name: i18n.t('时间'),
-    icon: 'bk-icon icon-clock',
+    icon: 'bklog-icon bklog-time-2',
     color: '#EDE7DB',
     textColor: '#CDAE71',
   },
@@ -92,7 +93,7 @@ export const fieldTypeMap = {
     textColor: '#CDAE71',
   },
   __virtual__: {
-    name: i18n.t('该字段为平台补充 不可检索'),
+    name: i18n.t('内置字段'),
     icon: 'bklog-icon bklog-ext-2',
     color: '#F2E2FB',
   },
@@ -100,6 +101,7 @@ export const fieldTypeMap = {
     name: i18n.t('对象'),
     icon: 'bklog-icon bklog-object',
     color: '#E8EAF0',
+    textColor: '#AEB1BD',
   },
 };
 

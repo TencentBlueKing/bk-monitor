@@ -284,8 +284,8 @@ export default class CollectGroup extends tsc<IProps> {
           ref='titleDrop'
           class='dropdown-list add-new-page-container'
         >
-          {/* {this.isShowResetGroupName ? (
-            <li class='add-new-page-input new-page-input-padding '>
+          {this.isShowResetGroupName ? (
+            <li class='add-new-page-input new-page-input-padding'>
               <Form
                 ref='checkInputForm'
                 labelWidth={0}
@@ -302,7 +302,7 @@ export default class CollectGroup extends tsc<IProps> {
                 >
                   <Input
                     vModel={this.verifyData.groupEditName}
-                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入') })}
+                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                     clearable
                     onEnter={v => this.handleGroupKeyDown(v, 'reset')}
                   ></Input>
@@ -314,7 +314,6 @@ export default class CollectGroup extends tsc<IProps> {
                   onClick={this.handleResetGroupName}
                 ></span>
                 <span
-                  style='color:#E71818'
                   class='bk-icon icon-close-line-2'
                   onClick={() => {
                     this.isShowResetGroupName = false;
@@ -323,62 +322,9 @@ export default class CollectGroup extends tsc<IProps> {
                 ></span>
               </div>
             </li>
-            <li>gwiuehgiuewhbiu</li>
           ) : (
             <li onClick={() => this.handleResetGroupTitleName()}>{this.$t('重命名')}</li>
-          )} */}
-          <Popover
-            ref='popoverGroup'
-            ext-cls='new-group-popover'
-            placement='bottom-start'
-            tippy-options={this.tippyOption}
-          >
-            <li onClick={() => this.handleResetGroupTitleName()}>{this.$t('重命名')}</li>
-            <div slot='content'>
-              <Form
-                ref='checkInputForm'
-                labelWidth={0}
-                {...{
-                  props: {
-                    model: this.verifyData,
-                    rules: this.rules,
-                  },
-                }}
-              >
-                <FormItem
-                  error-display-type='normal'
-                  property='groupEditName'
-                >
-                  <span style={{ fontSize: '14px' }}>
-                    分组名称 <span style='color:red'>*</span>
-                  </span>
-                  <Input
-                    vModel={this.verifyData.groupEditName}
-                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入') })}
-                    clearable
-                    onEnter={v => this.handleGroupKeyDown(v, 'reset')}
-                  ></Input>
-                </FormItem>
-              </Form>
-              <div class='operate-button'>
-                <span
-                  class='operate-button-custom button-first'
-                  onClick={this.handleResetGroupName}
-                >
-                  {this.$t('确定')}
-                </span>
-                <span
-                  class='operate-button-custom button-second'
-                  onClick={() => {
-                    this.isShowResetGroupName = false;
-                    this.verifyData.groupEditName = '';
-                  }}
-                >
-                  {this.$t('取消')}
-                </span>
-              </div>
-            </div>
-          </Popover>
+          )}
           <li
             class='eye-catching'
             onClick={() => this.handleClickLi('dismiss-group')}
