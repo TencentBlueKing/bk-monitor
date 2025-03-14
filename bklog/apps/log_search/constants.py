@@ -1711,3 +1711,16 @@ ES_RESERVED_CHARACTERS = [
 class DataFlowResourceUsageType(object):
     online = "log_clustering_online"
     agg = "log_clustering_agg"
+
+
+class AlertStatusEnum(ChoicesEnum):
+    ALL = "ALL"
+    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
+    )
+
+
+MAX_WORKERS = 5
