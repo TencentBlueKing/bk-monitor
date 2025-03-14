@@ -124,11 +124,6 @@ class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         attrs["expression"] = "a"
-
-        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
-            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
-        )
-        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
         for query_config in attrs["query_configs"]:
             query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
             query_config["group_by"] = ["type"]
