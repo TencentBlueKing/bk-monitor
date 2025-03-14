@@ -105,7 +105,7 @@ class K8sEventProcessor(BaseEventProcessor):
         event_name_alias = K8S_EVENT_TRANSLATIONS.get(workload_info["kind"]["value"], {}).get(
             event_name_value, event_name_value
         )
-        event["event_name"] = {"value": event_name_value, "alias": f'{event_name_alias}（{event_name_value}）'}
+        event["event_name"] = {"value": event_name_value, "alias": f"{event_name_alias}（{event_name_value}）"}
 
     def set_detail_fields(
         self,
