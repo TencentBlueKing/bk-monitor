@@ -35,6 +35,7 @@ import './resident-setting-transfer.scss';
 interface IProps {
   fields: IFilterField[];
   value?: string[];
+  show?: boolean;
   onConfirm?: (value: IFilterField[]) => void;
   onCancel?: () => void;
 }
@@ -43,11 +44,11 @@ interface IProps {
 export default class ResidentSettingTransfer extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Prop({ type: Array, default: () => [] }) value: string[];
+  @Prop({ type: Boolean, default: false }) show: boolean;
 
   localFields: IFilterField[] = [];
   searchValue = '';
   selectedFields: IFilterField[] = [];
-  localValue = [];
   dragOverIndex = -1;
 
   get searchLocalFields() {
@@ -66,11 +67,11 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
     });
   }
 
-  @Watch('value', { immediate: true })
-  handleWatchValue() {
-    const str = JSON.stringify(this.value);
-    if (str !== JSON.stringify(this.localValue)) {
-      this.localValue = this.value;
+  @Watch('show', { immediate: true })
+  handleWatchShow() {
+    if (this.show) {
+      this.searchValue = '';
+      this.dragOverIndex = -1;
       const tempSet = new Set(this.value);
       const selectedFields = [];
       const localFields = [];

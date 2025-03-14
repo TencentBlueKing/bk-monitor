@@ -80,6 +80,8 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
 
   isValueChange = false;
 
+  showTransfer = false;
+
   get fieldNameMap(): Record<string, IFilterField> {
     return this.fields.reduce((pre, cur) => {
       pre[cur.name] = cur;
@@ -149,12 +151,14 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
     });
     await this.$nextTick();
     this.popoverInstance?.show();
+    this.showTransfer = true;
   }
 
   destroyPopoverInstance() {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
+    this.showTransfer = false;
   }
 
   handleShowSettingTransfer(event: MouseEvent) {
@@ -235,6 +239,7 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
           <div ref='selector'>
             <ResidentSettingTransfer
               fields={this.fields}
+              show={this.showTransfer}
               value={this.localValue.map(item => item.field.name)}
               onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
