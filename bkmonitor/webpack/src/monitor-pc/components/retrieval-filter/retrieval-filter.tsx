@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils';
 
+import { APIType } from '../../pages/event-explore/api-utils';
 import QsSelector from './qs-selector';
-import ResidentSetting, { type IResidentSetting } from './resident-setting';
+import ResidentSetting from './resident-setting';
 import UiSelector from './ui-selector';
 import {
   ECondition,
@@ -53,7 +54,8 @@ import './retrieval-filter.scss';
 
 interface IProps {
   dataId?: string;
-  source?: string;
+  source?: APIType;
+  residentSettingOnlyId?: string;
   fields: IFilterField[];
   where?: IWhereItem[];
   commonWhere?: IWhereItem[];
@@ -63,6 +65,7 @@ interface IProps {
   filterMode?: EMode;
   defaultShowResidentBtn?: boolean;
   isQsOperateWrapBottom?: boolean;
+  isShowFavorite?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
 
@@ -74,6 +77,7 @@ interface IEvent {
   onQueryStringInputChange?: (v: string) => void;
   onCommonWhereChange?: (where: IWhereItem[]) => void;
   onShowResidentBtnChange?: (v: boolean) => void;
+  onSearch: () => void;
 }
 
 @Component
@@ -94,12 +98,15 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) commonWhere: IWhereItem[];
   /* 语句模式数据 */
   @Prop({ type: String, default: '' }) queryString: string;
+  /** 常驻筛选唯一ID,用于保存常驻筛选配置*/
+  @Prop({ type: String, default: '' }) residentSettingOnlyId: string;
   @Prop({ type: String, default: '' }) dataId: string;
-  @Prop({ type: String, default: '' }) source: string;
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /* 语句模式hover显示的操作是否显示在下方 */
   @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
+  @Prop({ type: Boolean, default: false }) isShowFavorite: boolean;
   @Prop({ type: Boolean, default: false }) defaultShowResidentBtn: boolean;
 
   /* 展示常驻设置 */
@@ -108,7 +115,6 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   mode = EMode.ui;
   uiValue: IFilterItem[] = [];
   cacheWhereStr = '';
-  residentSettingValue: IResidentSetting[] = [];
   qsValue = '';
 
   /** 缓存的commonWhere */
@@ -118,6 +124,26 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   qsSelectorOptionsWidth = 0;
   resizeObserver = null;
   cacheQueryString = '';
+
+  /** 当前选择收藏的id */
+  get curFavoriteId() {
+    return this.selectFavorite?.config?.queryConfig?.result_table_id;
+  }
+
+  /** 判断是否展示默认的常驻设置 */
+  get isDefaultResidentSetting() {
+    // 如果当前dataId和收藏的dataId一致，展示收藏
+    if (this.curFavoriteId === this.dataId) {
+      return false;
+    }
+    return true;
+  }
+
+  get residentSettingValue() {
+    if (this.isDefaultResidentSetting) return this.commonWhere;
+    /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
+    return this.selectFavorite?.config?.queryConfig?.commonWhere || [];
+  }
 
   mounted() {
     this.resizeObserver = new ResizeObserver(entries => {
@@ -139,7 +165,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Emit('showResidentBtnChange')
   handleShowResidentSetting() {
     this.showResidentSetting = !this.showResidentSetting;
-    if (!this.showResidentSetting) {
+    if (!this.showResidentSetting && this.commonWhere.some(item => item.value.length)) {
       this.cacheCommonWhere = deepClone(this.commonWhere);
       this.uiValue = this.residentSettingToUiValue();
       this.handleCommonWhereChange([]);
@@ -371,6 +397,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
       this.handleQsValueChange(this.qsValue);
       this.$emit('queryStringChange', this.qsValue);
     }
+    this.$emit('search');
   }
 
   handleQuery() {
@@ -434,7 +461,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                 <span class='icon-monitor icon-tongyishezhi' />
               </div>
             )}
-            {!this.isQsOperateWrapBottom && (
+            {this.isShowFavorite && (
               <bk-popover
                 class='favorite-btn'
                 ext-cls='favorite-btn-popover'
@@ -482,12 +509,11 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
         </div>
         {this.showResidentSetting && (
           <ResidentSetting
-            curFavoriteData={this.selectFavorite}
-            dataId={this.dataId}
             fields={this.fields}
             getValueFn={this.getValueFn}
-            source={this.source}
-            value={this.commonWhere}
+            isDefaultSetting={this.isDefaultResidentSetting}
+            residentSettingOnlyId={this.residentSettingOnlyId}
+            value={this.residentSettingValue}
             onChange={this.handleCommonWhereChange}
           />
         )}

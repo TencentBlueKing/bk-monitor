@@ -71,13 +71,13 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   baseFavoriteData: ISubmitData = {
     // 用户可编辑的基础数据
     name: '',
-    group_id: '',
+    group_id: '0',
     create_user: '',
   };
   favoriteData: ISubmitData = {
     // 收藏数据
     name: '',
-    group_id: '',
+    group_id: '0',
     create_user: '',
   };
   verifyData = {
@@ -85,10 +85,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   };
   positionTop = 0;
   allGroupList = [];
-  publicGroupList = []; // 可见状态为公共的时候显示的收藏组
-  privateGroupList = []; // 个人组
   formLoading = false;
-  radioValue = 'null'; // 可见范围
   isShowJsonKeywords = false; // 是否展示json格式的查询语句
   public rules = {
     name: [
@@ -150,20 +147,10 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     return Boolean(Object.keys(this.editFavoriteData).length);
   }
 
-  get isDisableSelect() {
-    // 是否禁用分组下拉框
-    return this.favoriteData.group_id === 0;
-  }
-
   get isCannotChangeVisible() {
     // 编辑时候判断是否是本人创建 如果非本人则禁用
     if (!this.isEditFavorite) return false;
     return this.favoriteData.create_user !== (window.user_name || window.username);
-  }
-
-  get showGroupList() {
-    // 展示的组列表
-    return this.favoriteData.group_id === 0 ? this.privateGroupList : this.publicGroupList;
   }
 
   get bizId(): string {
@@ -236,9 +223,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         // 是否是编辑收藏
         const { config, ...reset } = this.editFavoriteData;
         Object.assign(this.favoriteData, reset); // 如果是编辑则合并编辑详情
-        this.radioValue = this.favoriteData.group_id === 0 ? '0' : 'null'; // 赋值可见范围
-      } else {
-        this.radioValue = 'null';
       }
     } else {
       Object.assign(this.favoriteData, this.baseFavoriteData); // 关闭弹窗 恢复基础数据
@@ -270,10 +254,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     this.isShowAddGroup = true;
     this.verifyData.groupName = '';
   }
-
-  handleClickRadio(value: string) {
-    this.favoriteData.group_id = value === 'null' ? null : 0;
-  }
   /** 新增或更新收藏 */
   handleSubmitFormData() {
     this.validateFormRef
@@ -297,8 +277,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       const res = await listFavoriteGroup(param);
       const filterGroupList = res.map(item => ({ id: `${item.id}`, name: item.name }));
       this.allGroupList = filterGroupList;
-      this.publicGroupList = filterGroupList.slice(1, filterGroupList.length);
-      this.privateGroupList = [filterGroupList[0]];
     } catch (error) {
       console.warn(error);
     } finally {
@@ -404,42 +382,26 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
           </bk-form-item>
 
           <bk-form-item
-            class='collect-radio'
-            label={this.$t('可见范围')}
-            required
-          >
-            <bk-radio-group
-              vModel={this.radioValue}
-              on-change={this.handleClickRadio}
-            >
-              <bk-radio value={'null'}>
-                {this.$t('公开')}({this.$t('本业务可见')})
-              </bk-radio>
-              <bk-radio
-                disabled={this.isCannotChangeVisible}
-                value={'0'}
-              >
-                {this.$t('私有')}
-                {this.$t('(仅个人可见)')}
-              </bk-radio>
-            </bk-radio-group>
-          </bk-form-item>
-          <bk-form-item
             class='affiliation-group'
-            label={this.$t('所属组')}
+            label={this.$t('所属分组')}
+            required
           >
             <bk-select
               vModel={this.favoriteData.group_id}
-              disabled={this.isDisableSelect}
+              clearable={false}
               ext-popover-cls='add-new-page-container'
               searchable
             >
-              {this.showGroupList.map(item => (
+              {this.allGroupList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
-                  name={item.name}
-                />
+                  disabled={item.id === '0' && this.isCannotChangeVisible}
+                  name={item.id === '0' ? `${item.name}${this.$t('（仅个人可见）')}` : item.name}
+                >
+                  <span>{item.name}</span>
+                  <span style='color: #979BA5'>{item.id === '0' && this.$t('（仅个人可见）')}</span>
+                </bk-option>
               ))}
               <div slot='extension'>
                 {this.isShowAddGroup ? (
