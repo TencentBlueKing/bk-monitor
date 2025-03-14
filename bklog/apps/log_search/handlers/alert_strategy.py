@@ -105,7 +105,7 @@ class AlertStrategyHandler(object):
                     "name": strategy_config["name"],
                     "query_string": strategy_config.get("items", [{}])[0]
                     .get("query_configs", [{}])[0]
-                    .get("query_string"),
+                    .get("query_string", "*"),
                 }
             )
         multi_execute_func = MultiExecuteFunc(max_workers=MAX_WORKERS)
