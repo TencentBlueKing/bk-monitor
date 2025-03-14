@@ -5,7 +5,7 @@
   import useStore from '@/hooks/use-store';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { useRoute, useRouter } from 'vue-router/composables';
-  // import PopInstanceUtil from './pop-instance-util';
+  import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -66,20 +66,20 @@
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
 
-  // const refPopContent = ref(null);
-  // const refPopTraget = ref(null);
+  const refPopContent = ref(null);
+  const refPopTraget = ref(null);
 
-  // const popToolInstance = new PopInstanceUtil({
-  //   refContent: refPopContent,
-  //   tippyOptions: {
-  //     placement: 'top-end',
-  //     zIndex: 200,
-  //     appendTo: document.body,
-  //     interactive: true,
-  //     theme: 'log-light transparent',
-  //     arrow: false,
-  //   },
-  // });
+  const popToolInstance = new PopInstanceUtil({
+    refContent: refPopContent,
+    tippyOptions: {
+      placement: 'bottom-start',
+      zIndex: 200,
+      appendTo: document.body,
+      interactive: true,
+      theme: 'log-light transparent',
+      arrow: false,
+    },
+  });
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
@@ -281,16 +281,8 @@
     if (matchSQLStr.value) {
       return;
     }
-    const {
-      name,
-      group_id,
-      display_fields,
-      visible_type,
-      is_enable_display_fields,
-      index_set_names,
-      index_set_type,
-      index_set_ids,
-    } = props.activeFavorite;
+    const { name, group_id, display_fields, visible_type, is_enable_display_fields, index_set_type } =
+      props.activeFavorite;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
     const searchParams =
@@ -371,12 +363,17 @@
     }
   };
 
-  // const handleMouseenterInputSection = () => {
-  //   popToolInstance.show(refPopTraget.value);
-  // };
+  const handleMouseenterInputSection = () => {
+    const target = refRootElement.value?.querySelector('.search-item-focus.hidden-pointer');
+    if (target) {
+      popToolInstance.cancelHide();
+      popToolInstance.show(target);
+    }
+  };
 
-  // const handleMouseleaveInputSection = () => {
-  // };
+  const handleMouseleaveInputSection = () => {
+    popToolInstance?.hide(300);
+  };
 
   useResizeObserve(refRootElement, () => {
     if (refRootElement.value) {
@@ -426,9 +423,17 @@
     });
   };
 
+  const handleMouseenterPopContent = () => {
+    popToolInstance.cancelHide();
+  };
+
+  const handleMouseleavePopContent = () => {
+    popToolInstance.hide(300);
+  };
+
   onBeforeUnmount(() => {
-    // popToolInstance.onBeforeUnmount();
-    // popToolInstance.uninstallInstance();
+    popToolInstance.onBeforeUnmount();
+    popToolInstance.uninstallInstance();
   });
 </script>
 <template>
@@ -447,6 +452,8 @@
       <div
         class="search-input"
         :class="{ disabled: isInputLoading }"
+        @mouseenter="handleMouseenterInputSection"
+        @mouseleave="handleMouseleaveInputSection"
       >
         <UiInput
           v-if="activeIndex === 0"
@@ -501,10 +508,12 @@
           />
         </div>
       </div>
-      <!-- <div style="display: none">
+      <div style="display: none">
         <div
           ref="refPopContent"
           class="bklog-search-input-poptool"
+          @mouseenter="handleMouseenterPopContent"
+          @mouseleave="handleMouseleavePopContent"
         >
           <div
             v-bk-tooltips="$t('复制当前查询')"
@@ -517,7 +526,7 @@
             @click.stop="handleClearBtnClick"
           ></div>
         </div>
-      </div> -->
+      </div>
     </div>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect></CommonFilterSelect>

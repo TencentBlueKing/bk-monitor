@@ -51,6 +51,7 @@ export default class PopInstanceUtil {
   private delayShowInstance;
   private watchElement = ref(null);
   private isShowing = false;
+  private hiddenTimer;
 
   constructor({
     refContent,
@@ -172,7 +173,20 @@ export default class PopInstanceUtil {
     return this.getTippyInstance()?.state.isShown;
   }
 
-  hide() {
+  hide(delay?) {
+    if (delay) {
+      this.hiddenTimer = setTimeout(() => {
+        this.getTippyInstance()?.hide();
+      }, delay);
+
+      return;
+    }
+
     this.getTippyInstance()?.hide();
+  }
+
+  cancelHide() {
+    this.hiddenTimer && clearTimeout(this.hiddenTimer);
+    this.hiddenTimer = null;
   }
 }

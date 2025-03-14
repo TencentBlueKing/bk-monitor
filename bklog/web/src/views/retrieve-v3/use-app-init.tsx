@@ -43,7 +43,7 @@ export default () => {
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
 
-  RetrieveHelper.setScrollSelector('.v3-bklog-root');
+  RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
   RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
     searchBarHeight.value = height;
