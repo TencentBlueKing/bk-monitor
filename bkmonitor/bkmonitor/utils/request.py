@@ -10,13 +10,16 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import Optional
+
+from django.http import HttpRequest
 
 from bkmonitor.utils.local import local
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.common import SourceApp
 
 
-def get_request(peaceful=False):
+def get_request(peaceful=False) -> Optional[HttpRequest]:
     if hasattr(local, "current_request"):
         return local.current_request
     elif peaceful:

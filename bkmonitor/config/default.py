@@ -15,7 +15,6 @@ import os
 import sys
 from urllib.parse import urljoin
 
-from ai_agent.conf.default import *
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
@@ -23,6 +22,7 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
+from ai_agent.conf.default import *
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -1074,6 +1074,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
@@ -1091,6 +1092,7 @@ BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 # 用户信息
 BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
+BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
@@ -1346,6 +1348,8 @@ ENABLE_INFLUXDB_STORAGE = True
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 
+BK_API_URL_TMPL = os.getenv("BK_API_URL_TMPL")
+
 # 内网collector域名
 INNER_COLLOCTOR_HOST = ""
 
@@ -1547,3 +1551,8 @@ ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_expo
 HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
 # 首页告警图图表数量限制
 HOME_PAGE_ALARM_GRAPH_LIMIT = 10
+
+# 是否启用多租户模式
+ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+IS_GLOBAL_TENANT = True
+INITIALIZED_TENANT_LIST = ["system"]
