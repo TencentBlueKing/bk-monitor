@@ -56,6 +56,8 @@ export interface KVFieldList {
   canOpenStatistics: boolean;
   /** 跳转到其他哪个页面入口list（容器/主机） */
   entities: KVEntities[];
+  /** kv 面板中的 value 部分是否可以点击打开 menu popover 操作弹窗 */
+  canClick: boolean;
 }
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
@@ -169,7 +171,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     if (this.popoverInstance) {
       this.handlePopoverHide();
     }
-    if (!item.value || currentName === item.name) {
+    if (!item.canClick || currentName === item.name) {
       return;
     }
     this.fieldTarget = item;
@@ -441,6 +443,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
                 type={item.type || ''}
               />
               <span
+                class={!item.canOpenStatistics ? 'disable-click' : ''}
                 title={item.name}
                 onClick={e => this.handleDimensionItemClick(e, item)}
               >
@@ -450,7 +453,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             <div class='item-value'>
               {this.jumpLinkRender(item)}
               <span
-                class='value-text'
+                class={`value-text ${!item.canClick ? 'disable-click' : ''}
+                }`}
                 onClick={e => this.handleValueTextClick(e, item)}
               >
                 {this.transformValue(item)}
