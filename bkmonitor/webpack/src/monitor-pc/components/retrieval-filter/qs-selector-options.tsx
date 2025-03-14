@@ -127,7 +127,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
     this.getSearchFavoriteOptions();
   }
 
-  @Debounce(1000)
+  @Debounce(100)
   getSearchFavoriteOptions() {
     const favoriteOptions = [];
     if (this.queryString && !/^\s*$/.test(this.queryString)) {
