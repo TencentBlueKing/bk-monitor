@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .retrieval-filter__value-options-select-component {
   .options-drop-down-wrap {
     position: absolute;
@@ -5,17 +6,35 @@
     left: 0;
     z-index: 9999;
     width: 100%;
-    max-height: 131px;
+    max-height: 140px !important;
     overflow-y: auto;
-    background: #FFFFFF;
-    border: 1px solid #DCDEE5;
+    background: #ffffff;
+    border: 1px solid #dcdee5;
     border-radius: 2px;
     box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1019607843);
+
+    &.no-border {
+      border: none;
+    }
 
     &.is-popover {
       position: relative;
       top: 0;
       left: 0;
+      min-height: fit-content;
+      max-height: 130px !important;
+
+      .empty-status-container {
+        padding: 20px 0;
+
+        .bk-exception {
+          top: 10px;
+
+          .bk-exception-img {
+            height: 30px;
+          }
+        }
+      }
     }
 
     .options-item {
@@ -25,18 +44,18 @@
       overflow: hidden;
       font-size: 12px;
       line-height: 32px;
-      color: #4D4F56;
+      color: #4d4f56;
       text-overflow: ellipsis;
       white-space: nowrap;
       cursor: pointer;
 
       &:hover,
       &.active-index {
-        background: #F5F7FA;
+        background: #f5f7fa;
       }
 
       .highlight {
-        color: #3A84FF;
+        color: #3a84ff;
       }
 
       &.skeleton-item {
@@ -61,13 +80,16 @@
       }
     }
 
-    .bk-exception {
-      top: 10px;
+    .empty-status-container {
+      padding: 0;
 
-      .bk-exception-img {
-        height: 30px;
+      .bk-exception {
+        top: 10px;
+
+        .bk-exception-img {
+          height: 80px;
+        }
       }
     }
-    
   }
 }
