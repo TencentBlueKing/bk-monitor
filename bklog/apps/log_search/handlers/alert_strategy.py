@@ -4,6 +4,7 @@ from apps.api import MonitorApi
 from apps.log_search.constants import MAX_WORKERS, AlertStatusEnum
 from apps.log_search.exceptions import IndexSetDoseNotExistException
 from apps.log_search.models import LogIndexSet
+from apps.utils.local import get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -32,8 +33,13 @@ class AlertStrategyHandler(object):
         """
         bk_biz_id = space_uid_to_bk_biz_id(self.log_index_set_obj.space_uid)
         alert_status = []
-        if status != AlertStatusEnum.ALL.value:
+        conditions = [{"key": "metric", "value": [f"bk_log_search.index_set.{self.index_set_id}"]}]
+        username = get_request_username()
+        if status == AlertStatusEnum.ABNORMAL.value:
             alert_status = [status]
+        elif status == AlertStatusEnum.MY_ASSIGNEE.value:
+            conditions.append({"key": "assignee", "value": [username]})
+
         current_time = arrow.now()
         start_time = int(current_time.shift(days=-self.DAYS).timestamp())
         end_time = int(current_time.timestamp())
