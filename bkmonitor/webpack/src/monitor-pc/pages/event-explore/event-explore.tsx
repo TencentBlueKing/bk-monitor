@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 // import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
@@ -133,42 +133,33 @@ export default class EventExplore extends tsc<
 
   queryStringInput = '';
 
-  get queryConfig() {
-    return {
-      data_source_label: this.dataSourceLabel || 'custom',
-      data_type_label: this.dataTypeLabel || 'event',
-      table: this.dataId,
-      query_string: this.queryString,
-      where: this.where,
-      group_by: this.group_by || [],
-      filter_dict: this.filter_dict || {},
-    };
+  cacheQueryConfig = null;
+
+  queryConfig = {
+    data_source_label: 'custom',
+    data_type_label: 'event',
+    table: '',
+    query_string: '',
+    where: [],
+    group_by: [],
+    filter_dict: {},
+  };
+
+  /** 常驻筛选唯一ID */
+  get residentSettingOnlyId() {
+    const RESIDENT_SETTING = 'RESIDENT_SETTING';
+    if (this.source === APIType.MONITOR) {
+      return `${this.source}_${this.dataId}_${RESIDENT_SETTING}`;
+    }
+    return `${this.source}_${this.commonParams.app_name}_${this.commonParams.service_name}_${RESIDENT_SETTING}`;
   }
 
   /** 公共参数 */
   @ProvideReactive('commonParams')
   get commonParams() {
     const formatTimeRange = handleTransformToTimestamp(this.timeRange);
-    let queryString = '';
-    let where = mergeWhereList(this.where || [], this.commonWhere || []);
-    if (this.filterMode === EMode.ui) {
-      // 全文检索补充到query_string里
-      const fullText = where.find(item => item.key === '*');
-      queryString = fullText?.value[0] ? `"${fullText?.value[0]}"` : '';
-      where = where.filter(item => item.key !== '*');
-    } else {
-      queryString = this.queryString;
-      where = [];
-    }
-    const queryConfigs = [
-      {
-        ...this.queryConfig,
-        query_string: queryString,
-        where,
-      },
-    ];
     return {
-      query_configs: queryConfigs,
+      query_configs: [this.queryConfig],
       app_name: this.viewOptions?.filters?.app_name,
       service_name: this.viewOptions?.filters?.service_name,
       start_time: formatTimeRange[0],
@@ -228,22 +219,40 @@ export default class EventExplore extends tsc<
   }
 
   @Watch('dataId')
-  async handleDataIdChange() {
+  handleDataIdChange() {
     this.getViewConfig();
+    this.updateQueryConfig();
   }
 
   @Watch('dataSourceLabel')
-  async handleDataSourceLabelChange() {
+  handleDataSourceLabelChange() {
     this.getViewConfig();
+    this.updateQueryConfig();
   }
 
   @Watch('dataTypeLabel')
-  async handleDataTypeLabelChange() {
+  handleDataTypeLabelChange() {
     this.getViewConfig();
+    this.updateQueryConfig();
+  }
+
+  @Watch('where')
+  handleWatchWhereChange() {
+    this.updateQueryConfig();
+  }
+
+  @Watch('commonWhere')
+  handleWatchCommonWhereChange() {
+    this.updateQueryConfig();
+  }
+
+  @Watch('queryString')
+  handleWatchQueryStringChange() {
+    this.updateQueryConfig();
   }
 
   @Watch('timeRange')
-  async handleTimeRangeChange() {
+  handleTimeRangeChange() {
     this.getViewConfig();
   }
 
@@ -268,13 +277,17 @@ export default class EventExplore extends tsc<
     return isEdit;
   }
 
-  @Emit('filterModeChange')
   handleModeChange(mode: EMode) {
-    return mode;
+    this.$emit('filterModeChange', mode);
+    if (JSON.stringify(this.cacheQueryConfig) !== JSON.stringify(this.queryConfig)) {
+      this.cacheQueryConfig = deepClone(this.queryConfig);
+      this.updateQueryConfig();
+    }
   }
 
   mounted() {
     this.getViewConfig();
+    this.updateQueryConfig();
   }
   @Debounce(100)
   async getViewConfig() {
@@ -390,6 +403,31 @@ export default class EventExplore extends tsc<
     this.handleWhereChange([]);
   }
 
+  /** 更新queryConfig */
+  @Debounce(100)
+  updateQueryConfig() {
+    let queryString = '';
+    let where = mergeWhereList(this.where || [], this.commonWhere || []);
+    if (this.filterMode === EMode.ui) {
+      // 全文检索补充到query_string里
+      const fullText = where.find(item => item.key === '*');
+      queryString = fullText?.value[0] ? `"${fullText?.value[0]}"` : '';
+      where = where.filter(item => item.key !== '*');
+    } else {
+      queryString = this.queryString;
+      where = [];
+    }
+    this.queryConfig = {
+      data_source_label: this.dataSourceLabel || 'custom',
+      data_type_label: this.dataTypeLabel || 'event',
+      table: this.dataId,
+      query_string: queryString,
+      where: where.filter(item => item.value.length),
+      group_by: this.group_by || [],
+      filter_dict: this.filter_dict || {},
+    };
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -409,7 +447,9 @@ export default class EventExplore extends tsc<
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
                 isQsOperateWrapBottom={this.source === APIType.APM}
+                isShowFavorite={this.source === APIType.MONITOR}
                 queryString={this.queryString}
+                residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={this.currentFavorite}
                 source={this.source}
                 where={this.where}
@@ -418,6 +458,7 @@ export default class EventExplore extends tsc<
                 onModeChange={this.handleModeChange}
                 onQueryStringChange={this.handleQueryStringChange}
                 onQueryStringInputChange={this.handleQueryStringInputChange}
+                onSearch={this.updateQueryConfig}
                 onShowResidentBtnChange={this.handleShowResidentBtnChange}
                 onWhereChange={this.handleWhereChange}
               />
@@ -432,10 +473,10 @@ export default class EventExplore extends tsc<
                 slot='aside'
               >
                 <DimensionFilterPanel
-                  condition={this.where}
+                  condition={this.queryConfig.where}
                   list={this.fieldList}
                   listLoading={this.loading}
-                  queryString={this.queryString}
+                  queryString={this.queryConfig.query_string}
                   onClose={this.handleCloseDimensionPanel}
                   onConditionChange={this.handleConditionChange}
                 />
