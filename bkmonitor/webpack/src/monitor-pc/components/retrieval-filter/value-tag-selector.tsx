@@ -108,6 +108,7 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
+    if (this.localValue.some(v => v.id === item.id)) return;
     this.localValue.push(item);
     this.activeIndex += 1;
     this.handleChange();
@@ -128,7 +129,7 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框输入事件
    * @param event
    */
-  handleInput(value) {
+  handleInput(value: string) {
     this.inputValue = value;
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
@@ -149,9 +150,14 @@ export default class ValueTagSelector extends tsc<IProps> {
     if (!this.inputValue || this.isChecked) {
       return;
     }
+    if (this.localValue.some(v => v.id === this.inputValue)) {
+      this.inputValue = '';
+      return;
+    }
     this.localValue.push({ id: this.inputValue, name: this.inputValue });
     this.activeIndex += 1;
     this.inputValue = '';
+    this.handleChange();
   }
 
   /**
@@ -243,6 +249,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         class='mb-4 mr-4'
         fontSize={12}
         isFocus={this.isFocus}
+        placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
         value={this.inputValue}
         onBackspace={this.handleBackspace}
         onBlur={this.handleBlur}
@@ -267,15 +274,7 @@ export default class ValueTagSelector extends tsc<IProps> {
                 />,
                 this.activeIndex === index && inputRender(),
               ])
-            : [
-                inputRender(),
-                !this.inputValue && (
-                  <span
-                    key={'no-data-placeholder'}
-                    class='placeholder-span'
-                  >{`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}</span>
-                ),
-              ]}
+            : inputRender()}
         </div>
         {this.isShowDropDown && (
           <ValueOptions
