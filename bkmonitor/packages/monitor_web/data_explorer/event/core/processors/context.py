@@ -45,21 +45,20 @@ class SystemClusterContext(BaseContext):
         clusters = {}
 
         for entity in entities:
-            bk_cloud_id = entity.get("bk_cloud_id")
+            bk_cloud_id = entity["bk_cloud_id"]
             if bk_cloud_id in self._cache:
                 # 如果已经在缓存中，使用缓存的值
                 clusters[bk_cloud_id] = self._cache[bk_cloud_id]
-            else:
-                # 查询云区域并更新缓存
-                clouds = api.cmdb.search_cloud_area()
-                self._cache.update(
-                    {
-                        cloud["bk_cloud_id"]: {"bk_cloud_id": bk_cloud_id, "bk_cloud_name": cloud["bk_cloud_name"]}
-                        for cloud in clouds
-                    }
-                )
-                # 检查当前 bk_cloud_id 是否在新缓存中
-                if bk_cloud_id in self._cache:
-                    clusters[bk_cloud_id] = self._cache.get(bk_cloud_id)
+                continue
+            # 查询云区域并更新缓存
+            self._cache.update(
+                {
+                    cloud["bk_cloud_id"]: {"bk_cloud_id": cloud["bk_cloud_id"], "bk_cloud_name": cloud["bk_cloud_name"]}
+                    for cloud in api.cmdb.search_cloud_area()
+                }
+            )
+            # 检查当前 bk_cloud_id 是否在新缓存中
+            if bk_cloud_id in self._cache:
+                clusters[bk_cloud_id] = self._cache[bk_cloud_id]
 
         return clusters

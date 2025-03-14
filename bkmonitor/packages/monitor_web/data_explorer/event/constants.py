@@ -190,6 +190,22 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "task_memcg": _("被终止内存组"),
         # 触发 OOM 的 内存控制组（Memory Cgroup），即因内存使用超限而引发 OOM 的 Cgroup 层级。
         "oom_memcg": _("触发 OOM 内存组"),
+        "dimensions.process": _("进程"),
+        "dimensions.task_memcg": _("进程所属内存 cgroup"),
+        "dimensions.fstype": _("文件系统类型"),
+        "dimensions.file_system": _("文件系统"),
+        "dimensions.fs": _("文件系统"),
+        "dimensions.position": _("磁盘位置"),
+        "dimensions.type": _("只读原因"),
+        "dimensions.bk_agent_id": _("AgentID"),
+        "dimensions.corefile": _("CoreDump 文件"),
+        "dimensions.executable": _("可执行文件"),
+        "DiskFull": _("磁盘写满"),
+        "DiskReadOnly": _("磁盘只读"),
+        "CoreFile": _("Corefile 产生"),
+        "OOM": _("OOM异常事件告警"),
+        "AgentLost": _("Agent 心跳丢失"),
+        "PingUnreachable": _("PING不可达告警"),
     },
     EventCategory.K8S_EVENT.value: {
         "bcs_cluster_id": _("集群 ID"),
@@ -462,34 +478,9 @@ class SystemEventTypeEnum(Enum):
     PingUnreachable: str = "PingUnreachable"
 
 
-class SystemFieldLabel(Enum):
-    TARGET: str = "目标"
-    PROCESS: str = "进程"
-    TASK_MEMCG: str = "进程所属内存 cgroup"
-    FSTYPE: str = "文件系统类型"
-    FILE_SYSTEM: str = "文件系统"
-    FS: str = "文件系统"
-    POSITION: str = "磁盘位置"
-    TYPE: str = "只读原因"
-    BK_AGENT_ID: str = "AgentID"
-    CORE_FILE: str = "CoreDump 文件"
-    EXECUTABLE: str = "可执行文件"
-
-
 class EventScenario(Enum):
-    CONTAINER_MONITOR = "容器监控"
-    HOST_MONITOR = "主机监控"
+    CONTAINER_MONITOR = _("容器监控")
+    HOST_MONITOR = _("主机监控")
 
 
 DIMENSION_PREFIX = "dimensions."
-
-DEFAULT_BK_TARGET_CLOUD_ID = "0"
-
-SYSTEM_EVENT_TRANSLATIONS = {
-    "DiskFull": "磁盘写满",
-    "DiskReadOnly": "磁盘只读",
-    "CoreFile": "Corefile 产生",
-    "OOM": "OOM异常事件告警",
-    "AgentLost": "Agent 心跳丢失",
-    "PingUnreachable": "PING不可达告警",
-}

@@ -58,6 +58,10 @@ def create_workload_info(origin_data, fields: []):
     return create_event_info(origin_data, fields, EventCategory.K8S_EVENT.value)
 
 
+def create_host_info(origin_data, fields: []):
+    return create_event_info(origin_data, fields, EventCategory.SYSTEM_EVENT.value)
+
+
 def create_event_info(origin_data, fields: [], event_type):
     event_info = {}
     for field in fields:
@@ -121,4 +125,3 @@ def generate_time_range(timestamp):
     start_time = timestamp - one_hour_ms
     end_time = timestamp + one_hour_ms
     return start_time, end_time
-
