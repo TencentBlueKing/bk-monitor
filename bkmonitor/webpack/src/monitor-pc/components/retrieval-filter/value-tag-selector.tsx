@@ -211,7 +211,12 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.$emit('change', this.localValue);
   }
   handleTagUpdate(v: string, index: number) {
-    this.localValue.splice(index, 1, { id: v, name: v });
+    if (v) {
+      this.localValue.splice(index, 1, { id: v, name: v });
+    } else {
+      this.localValue.splice(index, 1);
+    }
+
     this.handleChange();
   }
 
