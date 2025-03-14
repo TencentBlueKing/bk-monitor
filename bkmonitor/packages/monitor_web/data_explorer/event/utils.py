@@ -32,15 +32,14 @@ def get_q_from_query_config(query_config: Dict[str, Any]) -> QueryConfigBuilder:
     )
 
 
-def get_data_labels_map(bk_biz_id: int, tables: List[Dict[str, Any]]) -> Dict[str, str]:
+def get_data_labels_map(bk_biz_id: int, tables: List[str]) -> Dict[str, str]:
     data_labels_map = {}
-    for table in tables:
-        data_labels = (
-            ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
-            .filter(Q(table_id=table) | Q(data_label=table))
-            .values("table_id", "data_label")
-        )
-        for data_label_entry in data_labels:
-            data_labels_map[data_label_entry["table_id"]] = data_label_entry["data_label"]
-            data_labels_map[data_label_entry["data_label"]] = data_label_entry["data_label"]
+    data_labels_queryset = (
+        ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
+        .filter(Q(table_id__in=tables) | Q(data_label__in=tables))
+        .values("table_id", "data_label")
+    )
+    for item in data_labels_queryset:
+        data_labels_map[item["table_id"]] = item["data_label"]
+        data_labels_map[item["data_label"]] = item["data_label"]
     return data_labels_map
