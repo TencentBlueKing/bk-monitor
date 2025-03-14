@@ -27,6 +27,8 @@
 import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { APIType, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
@@ -97,6 +99,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   /** 关键字搜索 */
+  @Debounce(100)
   handleSearch(keyword: string) {
     this.searchVal = keyword;
     if (!this.searchVal) {
@@ -207,12 +210,16 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
         <div class='search-input'>
           <bk-input
             v-model={this.searchVal}
+            native-attributes={{
+              spellcheck: false,
+            }}
             placeholder={this.$t('搜索 维度字段')}
             right-icon='bk-icon icon-search'
             clearable
             show-clear-only-hover
             on-right-icon-click={this.handleSearch}
             onBlur={this.handleSearch}
+            onChange={this.handleSearch}
             onClear={this.handleSearch}
             onEnter={this.handleSearch}
           />

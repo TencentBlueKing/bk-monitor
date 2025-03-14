@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
 
 import CollectContainer from './collect-container';
 import SharedDialog from './component/shared-dialog';
@@ -57,7 +57,6 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   isShowSharedDialog = false;
   isSearchFilter = false; // 是否搜索过滤
   isShowAddNewFavoriteDialog = false; // 是否展示编辑收藏弹窗
-  searchLoading = false; // 搜索的容器loading
   searchVal = ''; // 搜索
   // groupName = ''; // 新增或编辑组名
   verifyData = {
@@ -206,10 +205,6 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     }
   }
 
-  handleInputSearchFavorite() {
-    if (this.searchVal === '') this.handleSearchFavorite();
-  }
-
   /** 收藏排序 */
   handleClickSortBtn(clickType: string) {
     if (clickType === 'sort') {
@@ -225,9 +220,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   }
 
   /** 收藏搜索 */
-  handleSearchFavorite(isRequest = false) {
+  @Debounce(100)
+  handleSearchFavorite() {
     if (this.emptyStatusType !== '500') this.emptyStatusType = this.searchVal ? 'search-empty' : 'empty';
-    if (isRequest) this.searchLoading = true;
     let showFavList = deepClone(this.favoritesList);
     // 当前只有未分组和个人收藏时 判断未分组是否有数据 如果没有 则不展示未分组
     if (showFavList.length === 2 && !showFavList[1].favorites.length) {
@@ -248,17 +243,14 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
       return;
     }
     this.isSearchFilter = true;
-    setTimeout(() => {
-      this.filterCollectList = showFavList
-        .map(item => ({
-          ...item,
-          favorites: item.favorites.filter(
-            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
-          ),
-        }))
-        .filter(item => item.favorites.length);
-      if (isRequest) this.searchLoading = false;
-    }, 500);
+    this.filterCollectList = showFavList
+      .map(item => ({
+        ...item,
+        favorites: item.favorites.filter(
+          fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
+        ),
+      }))
+      .filter(item => item.favorites.length);
   }
 
   handleEmptyOperation(type: EmptyStatusOperationType) {
@@ -291,7 +283,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
       <div class='retrieve-collect-index-comp'>
         <CollectContainer
           ref='collectContainer'
-          collectLoading={this.searchLoading || this.favoriteLoading}
+          collectLoading={this.favoriteLoading}
           dataList={this.filterCollectList}
           emptyStatusType={this.emptyStatusType}
           favCheckedValue={this.favCheckedValue}
@@ -321,10 +313,13 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             <bk-input
               class='search-input'
               vModel={this.searchVal}
+              native-attributes={{
+                spellcheck: false,
+              }}
               placeholder={this.$t('搜索收藏名')}
               right-icon='bk-icon icon-search'
               onEnter={this.handleSearchFavorite}
-              onKeyup={this.handleInputSearchFavorite}
+              onInput={this.handleSearchFavorite}
               onRightIconClick={this.handleSearchFavorite}
             />
             <div class='data-tool-btn fl-jcsb'>
