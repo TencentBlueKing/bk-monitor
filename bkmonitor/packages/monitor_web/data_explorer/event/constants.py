@@ -118,7 +118,7 @@ class EventOrigin:
     source: str
 
 
-EventLabelOriginMapping: Dict[EventCategory, EventOrigin] = {
+EventLabelOriginMapping: Dict[str, EventOrigin] = {
     EventCategory.SYSTEM_EVENT.value: EventOrigin(
         domain=EventDomain.SYSTEM.value,
         source=EventSource.HOST.value,

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import operator
 from functools import reduce
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -117,4 +117,14 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
+        return attrs
+
+
+class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["expression"] = "a"
+        for query_config in attrs["query_configs"]:
+            query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
+            query_config["group_by"] = ["type"]
         return attrs
