@@ -151,8 +151,8 @@ export default class ValueOptions extends tsc<IProps> {
       case 'ArrowDown': {
         event.preventDefault();
         this.hoverActiveIndex += 1;
-        if (this.hoverActiveIndex > this.localOptions.length - 1) {
-          this.hoverActiveIndex = this.localOptions.length - 1;
+        if (this.hoverActiveIndex > this.renderOptions.length - 1) {
+          this.hoverActiveIndex = this.renderOptions.length - 1;
         }
         this.updateSelection();
         break;
@@ -183,7 +183,7 @@ export default class ValueOptions extends tsc<IProps> {
 
   handleOptionsEnter() {
     if (this.hoverActiveIndex !== -1) {
-      const item = this.localOptions?.[this.hoverActiveIndex];
+      const item = this.renderOptions?.[this.hoverActiveIndex];
       if (item) {
         this.handleCheck(item);
       }
@@ -207,6 +207,7 @@ export default class ValueOptions extends tsc<IProps> {
   }
 
   handleCheck(item: IValue) {
+    console.log(item);
     this.$emit('select', item);
   }
 
