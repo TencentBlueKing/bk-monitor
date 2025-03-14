@@ -163,6 +163,7 @@ export default class ExploreExpandViewWrapper extends tsc<
           <div class='header-operation'>
             <i
               class='icon-monitor icon-mc-copy'
+              v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
               onClick={this.handleCopy}
             />
           </div>
