@@ -33,6 +33,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
@@ -54,6 +55,7 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.local import get_request_external_username, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
+from apps.utils.time_handler import timestamp_to_timeformat
 from bkm_ipchooser.constants import CommonEnum
 
 max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
@@ -728,6 +730,33 @@ class UnifyQueryHandler(object):
                 target += "{{{}}}".format(dimension_string)
             one_data = {"dimensions": dimensions, "target": target, "datapoints": datapoints}
             return_data.append(one_data)
+        return return_data
+
+    def date_histogram(self):
+        params = copy.deepcopy(self.base_dict)
+        interval = self.search_params["interval"]
+        # count聚合
+        method = "count"
+        for q in params["query_list"]:
+            q["function"] = [{"method": method, "dimensions": [], "window": interval}]
+            q["time_aggregation"] = {}
+        params["step"] = interval
+        params["order_by"] = []
+        response = UnifyQueryApi.query_ts_reference(params)
+        return_data = {"aggs": {}}
+        if not response["series"]:
+            return return_data
+
+        return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
+        datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
+        time_multiplicator = 10**3
+        values = response["series"][0]["values"]
+        for value in values:
+            key_as_string = timestamp_to_timeformat(
+                value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+            )
+            tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+            return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
