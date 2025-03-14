@@ -27,19 +27,21 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce, random } from 'monitor-common/utils';
+
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
+import { APIType, getEventLogs } from '../api-utils';
 import {
   type ConditionChangeEvent,
   type DimensionsTypeEnum,
   type EventExploreTableColumn,
-  type EventExploreTableRequestConfigs,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
-  ExploreTableLoadingEnum,
+  type ExploreTableRequestParams,
 } from '../typing';
 import { ExploreObserver, type ExploreSubject, getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
@@ -49,7 +51,10 @@ import type { EmptyStatusType } from '../../../components/empty-status/types';
 import './event-explore-table.scss';
 
 interface EventExploreTableProps {
-  requestConfigs: Omit<EventExploreTableRequestConfigs, 'limit' | 'offset'>;
+  /** 来源 */
+  source: APIType;
+  /** 接口请求配置参数 */
+  queryParams: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
   /** 数据总数 */
   total?: number;
   /** 表格单页条数 */
@@ -60,11 +65,21 @@ interface EventExploreTableProps {
   entitiesMapList: ExploreEntitiesMap[];
   /** 滚动事件被观察者实例 */
   scrollSubject: ExploreSubject;
+  /** 刷新表格 */
+  refreshTable: string;
 }
 
 interface EventExploreTableEvents {
   onConditionChange: (condition: ConditionChangeEvent) => void;
   onClearSearch: () => void;
+}
+
+/** 检索表格loading类型枚举 */
+enum ExploreTableLoadingEnum {
+  /** 刷新 -- 显示 骨架屏 效果loading */
+  REFRESH = 'refreshLoading',
+  /** 滚动 -- 显示 表格底部 loading */
+  SCROLL = 'scrollLoading',
 }
 
 /**
@@ -79,19 +94,22 @@ const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
 const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
-  /** 接口请求配置项 */
-  @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+  /** 接口请求配置参数 */
+  @Prop({ type: Object }) queryParams: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
   /** 数据总数 */
   @Prop({ type: Number, default: 0 }) total: number;
   /** 表格单页条数 */
   @Prop({ type: Number, default: 30 }) limit: number;
-
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
   /** 滚动事件被观察者实例 */
   @Prop({ type: Object }) scrollSubject: ExploreSubject;
+  /** 刷新表格 */
+  @Prop({ type: String, default: random(8) }) refreshTable: string;
 
   /** table loading 配置*/
   tableLoading = {
@@ -110,6 +128,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   resizeObserver: ResizeObserver;
   /** 容器滚动表格header固定观察者 */
   scrollHeaderFixedObserver: ExploreObserver = null;
+  /** 容器滚动到底部时触发请求观察者 */
+  scrollEndObserver: ExploreObserver = null;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -136,7 +156,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType(): EmptyStatusType {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { where, query_string } = this.requestConfigs?.data?.query_configs?.[0] || {};
+    const { where, query_string } = this.queryParams?.query_configs?.[0] || {};
     const queryString = query_string?.trim?.();
     if (where?.length || !!queryString) {
       return 'search-empty';
@@ -144,8 +164,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return 'empty';
   }
 
-  @Watch('requestConfigs')
-  requestConfigsChange() {
+  @Watch('refreshTable')
+  commonParamsChange() {
     this.getEventLogs();
   }
 
@@ -158,31 +178,41 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   clearSearch() {
     return;
   }
+
   mounted() {
     this.$nextTick(() => {
       const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
       if (!scrollWrapper) return;
       this.resizeObserver = new ResizeObserver(() => {
         this.$nextTick(() => {
-          this.handleScroll({ target: scrollWrapper } as any);
+          this.handleHeaderFixedScroll({ target: scrollWrapper } as any);
         });
       });
       this.resizeObserver.observe(scrollWrapper);
       if (this.scrollSubject) {
-        this.scrollHeaderFixedObserver = new ExploreObserver(this, this.handleScroll);
+        this.scrollHeaderFixedObserver = new ExploreObserver(this, this.handleHeaderFixedScroll);
+        this.scrollEndObserver = new ExploreObserver(this, this.handleScrollToEnd);
         this.scrollSubject.addObserver(this.scrollHeaderFixedObserver);
+        this.scrollSubject.addObserver(this.scrollEndObserver);
       }
     });
   }
+
   beforeDestroy() {
     const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
     if (!scrollWrapper) return;
     this.resizeObserver.unobserve(scrollWrapper);
     if (this.scrollSubject) {
       this.scrollSubject.deleteObserver(this.scrollHeaderFixedObserver);
+      this.scrollSubject.deleteObserver(this.scrollEndObserver);
     }
   }
-  handleScroll(event: Event) {
+
+  /**
+   * @description: 表格固定列 header 吸顶效果处理
+   *
+   */
+  handleHeaderFixedScroll(event: Event) {
     const scrollWrapper = event.target as HTMLElement;
     const { top: stickyTop } = scrollWrapper.getBoundingClientRect();
     const thNode = this.$el.querySelector(SCROLL_COLUMN_CLASS_NAME);
@@ -197,6 +227,38 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       cell.style.top = '0px';
     }
   }
+
+  /**
+   * @description: 容器滚动到底部时触发 table 请求
+   * @param {Event} event 滚动事件对象
+   * @return {*}
+   */
+  handleScrollToEnd(event: Event) {
+    if (this.$el) {
+      // @ts-ignore
+      this.updateTablePointEvents(false);
+      this.handlePopoverHide?.();
+    }
+    const target = event.target as HTMLElement;
+    const { scrollHeight } = target;
+    const { scrollTop } = target;
+    const { clientHeight } = target;
+    const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+
+    if (isEnd) {
+      this.getEventLogs(ExploreTableLoadingEnum.SCROLL);
+    }
+    this.updateTablePointEvents();
+  }
+
+  @Debounce(1000)
+  updateTablePointEvents(hasPointEvents = true) {
+    if (this.$el) {
+      // @ts-ignore
+      this.$el.style.pointEvents = hasPointEvents ? 'all' : 'none';
+    }
+  }
+
   /**
    * @description 事件日志table表格列配置项
    *
@@ -243,16 +305,15 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    * @description: 获取 table 表格数据
    *
    */
-  async getEventLogs() {
-    const { apiFunc, apiModule, data, loadingType = ExploreTableLoadingEnum.REFRESH } = this.requestConfigs;
+  async getEventLogs(loadingType = ExploreTableLoadingEnum.REFRESH) {
+    if (!this.queryParams) {
+      this.tableData = [];
+      return;
+    }
     let updateTableDataFn = list => {
       this.tableData.push(...list);
     };
 
-    if (!apiFunc || !apiModule) {
-      this.tableData = [];
-      return;
-    }
     if (loadingType === ExploreTableLoadingEnum.REFRESH) {
       this.tableData = [];
       updateTableDataFn = list => {
@@ -264,15 +325,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
 
     this.tableLoading[loadingType] = true;
     const requestParam = {
-      ...data,
+      ...this.queryParams,
       limit: this.limit,
       offset: this.tableData?.length || 0,
     };
-
-    const res = await (this as any).$api[apiModule][apiFunc](requestParam, {
-      needMessage: true,
-    }).catch(() => ({ list: [] }));
-
+    const res = await getEventLogs(requestParam, this.source);
     this.tableLoading[loadingType] = false;
 
     updateTableDataFn(res.list);

@@ -23,30 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, random } from 'monitor-common/utils';
+import { random } from 'monitor-common/utils';
 import ExploreCustomGraph, {
   type IntervalType,
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import BackTop from '../../../components/back-top/back-top';
-import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
-import {
-  type ConditionChangeEvent,
-  type DimensionsTypeEnum,
-  type EventExploreTableRequestConfigs,
-  type ExploreEntitiesMap,
-  type ExploreFieldMap,
-  ExploreTableLoadingEnum,
-  type IFormData,
-} from '../typing';
-import { eventChartMap, ExploreObserver, ExploreSubject, getEventLegendColorByType } from '../utils';
+import { APIType, getEventTimeSeries, getEventTotal } from '../api-utils';
+import { eventChartMap, ExploreSubject, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type {
+  ConditionChangeEvent,
+  DimensionsTypeEnum,
+  ExploreEntitiesMap,
+  ExploreFieldMap,
+  IFormData,
+} from '../typing';
 
 import './event-explore-view.scss';
 
@@ -66,8 +64,6 @@ interface IEventExploreViewEvents {
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps, IEventExploreViewEvents> {
-  @Ref('eventExploreTableRef') eventExploreTableRef: InstanceType<typeof EventExploreTable>;
-
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   /** 请求接口公共请求参数中的 query_configs 参数 */
@@ -94,10 +90,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
   panel: PanelModel = this.initPanelConfig();
-  /** table表格请求配置 */
-  tableRequestConfigs: EventExploreTableRequestConfigs = {};
   /** 滚动事件被观察者实例 */
   scrollSubject: ExploreSubject = null;
+  /** 刷新表格数据，重新请求 */
+  refreshTable = random(8);
 
   /** view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理 */
   get eventQueryParams() {
@@ -121,20 +117,20 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Watch('timeRange')
   commonParamsChange() {
     this.getEventTotal();
-    this.updateTableRequestConfigs();
+    this.refreshTableData();
   }
 
   @Watch('refreshImmediate')
   refreshImmediateChange() {
     this.getEventTotal();
-    this.updateTableRequestConfigs();
+    this.refreshTableData();
   }
 
   @Watch('queryConfig', { deep: true })
   queryParamsChange() {
     this.getEventTotal();
     this.updatePanelConfig();
-    this.updateTableRequestConfigs();
+    this.refreshTableData();
   }
 
   @Emit('conditionChange')
@@ -154,8 +150,6 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   mounted() {
     this.getEventTotal();
     this.updatePanelConfig();
-    this.updateTableRequestConfigs();
-    this.scrollSubject.addObserver(new ExploreObserver(this, this.handleScrollToEnd));
     this.$el.addEventListener('scroll', this.handleScroll);
   }
   beforeDestroy() {
@@ -165,41 +159,14 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   }
 
   /**
-   * @description: 监听滚动到底部
-   * @param {Event} evt 滚动事件对象
-   * @return {*}
+   * @description 滚动事件触发并通知所有观察者
+   *
    */
-  handleScrollToEnd(evt: Event) {
-    if (this.eventExploreTableRef) {
-      // @ts-ignore
-      this.eventExploreTableRef.$el.style.pointEvents = 'none';
-      this.eventExploreTableRef.handlePopoverHide?.();
-    }
-    const target = evt.target as HTMLElement;
-    const { scrollHeight } = target;
-    const { scrollTop } = target;
-    const { clientHeight } = target;
-    const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
-
-    if (isEnd) {
-      this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
-    }
-    this.updateTablePointEventsToAll();
-  }
-
   handleScroll(e) {
     if (!this.scrollSubject) {
       return;
     }
     this.scrollSubject.notifyObservers(e);
-  }
-
-  @Debounce(1000)
-  updateTablePointEventsToAll() {
-    if (this.eventExploreTableRef) {
-      // @ts-ignore
-      this.eventExploreTableRef.$el.style.pointEvents = 'all';
-    }
   }
 
   /**
@@ -210,27 +177,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     if (!this.eventQueryParams) {
       return;
     }
-    const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
-      total: 0,
-    }));
+    const { total } = await getEventTotal(this.eventQueryParams, this.source);
     this.total = total;
-  }
-
-  /** 更新 表格请求配置 */
-  updateTableRequestConfigs(loadingType: ExploreTableLoadingEnum = ExploreTableLoadingEnum.REFRESH) {
-    if (!this.eventQueryParams) {
-      this.tableRequestConfigs = {};
-      return;
-    }
-
-    const api = getEventLogs(this.source);
-    const [apiModule, apiFunc] = api.split('.');
-    this.tableRequestConfigs = {
-      apiModule,
-      apiFunc,
-      loadingType,
-      data: this.eventQueryParams,
-    };
   }
 
   initPanelConfig() {
@@ -312,6 +260,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   }
 
   /**
+   * @description 刷新表格数据
+   */
+  refreshTableData() {
+    this.refreshTable = random(8);
+  }
+
+  /**
    * @description 对图表接口响应数据进行个性处理--添加图表堆叠（stack）功能
    * @param seriesData
    */
@@ -365,12 +320,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         </div>
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
-            ref='eventExploreTableRef'
             entitiesMapList={this.entitiesMapList}
             fieldMap={this.fieldMap}
             limit={30}
-            requestConfigs={this.tableRequestConfigs}
+            queryParams={this.eventQueryParams}
+            refreshTable={this.refreshTable}
             scrollSubject={this.scrollSubject}
+            source={this.source}
             total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
