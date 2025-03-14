@@ -87,7 +87,7 @@ class EventTagsResource(Resource):
         for event_origin, value in timeseries.items():
             domain, source = event_origin
             timeseries[event_origin] = self.process_timeseries(value, domain, source)
-        return {"list": self.merge_timeseries(timeseries)}
+        return {"list": self.transform_aggregated_data(self.merge_timeseries(timeseries))}
 
     @classmethod
     def get_data_labels_map(cls, query_configs: List[Dict[str, Any]], bk_biz_id: int) -> Dict[str, str]:
@@ -172,13 +172,13 @@ class EventTagsResource(Resource):
         return processed_timeseries
 
     @classmethod
-    def merge_timeseries(cls, processed_timeseries: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def merge_timeseries(cls, processed_timeseries: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
-        转换时序数据的格式，将不同事件来源的数据合并。
+         将不同事件来源的数据合并。
         :param processed_timeseries: 不同事件源的时序数据字典
-        :return: 处理后的时序数据列表
+        :return: 合并后的时序数据字典
 
-        aggregated_data 格式示例:
+        aggregated_timeseries 格式示例:
         {
             "1741095300000": [
                 {
@@ -201,39 +201,44 @@ class EventTagsResource(Resource):
             ]
         }
         """
-        aggregated_data = defaultdict(list)
+        aggregated_timeseries = defaultdict(list)
+
+        def update_aggregated_timeseries(event_domain, event_source, event_series):
+            timestamp = event_series["time"]
+            # 获取或创建当前时间戳的项
+            item = next(
+                (
+                    item
+                    for item in aggregated_timeseries[timestamp]
+                    if item["domain"] == domain and item["source"] == source
+                ),
+                None,
+            )
+
+            if not item:
+                item = {"domain": event_domain, "source": event_source, "count": 0, "statistics": defaultdict(int)}
+                aggregated_timeseries[timestamp].append(item)
+
+            # 更新统计信息和总计数
+            item["count"] += event_series["value"]["count"]
+            for dimension_type, count in event_series["value"]["statistics"].items():
+                item["statistics"][dimension_type] += count
 
         for (domain, source), timeseries in processed_timeseries.items():
             for series in timeseries:
-                timestamp = series["time"]
+                update_aggregated_timeseries(domain, source, series)
 
-                # 获取或创建当前时间戳的项
-                item = next(
-                    (
-                        item
-                        for item in aggregated_data[timestamp]
-                        if item["domain"] == domain and item["source"] == source
-                    ),
-                    None,
-                )
+        return aggregated_timeseries
 
-                if not item:
-                    item = {"domain": domain, "source": source, "count": 0, "statistics": defaultdict(int)}
-                    aggregated_data[timestamp].append(item)
-
-                # 更新统计信息和总计数
-                item["count"] += series["value"]["count"]
-                for dimension_type, count in series["value"]["statistics"].items():
-                    item["statistics"][dimension_type] += count
-
+    @classmethod
+    def transform_aggregated_data(cls, aggregated_timeseries: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         transformed_timeseries = []
-        for timestamp, items in aggregated_data.items():
+        for timestamp, items in aggregated_timeseries.items():
             filtered_items = [item for item in items if item["count"] > 0]
             for item in filtered_items:
                 item["statistics"] = dict(item["statistics"])
             if filtered_items:
                 transformed_timeseries.append({"time": timestamp, "items": filtered_items})
-
         return transformed_timeseries
 
     @classmethod
