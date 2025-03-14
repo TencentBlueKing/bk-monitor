@@ -195,7 +195,7 @@ class EventTagsResource(Resource):
         def update_aggregated_timeseries(event_domain, event_source, event_series):
             timestamp = event_series["time"]
             # 获取或创建当前时间戳的项
-            item = next(
+            tag_item = next(
                 (
                     item
                     for item in aggregated_timeseries[timestamp]
@@ -204,13 +204,13 @@ class EventTagsResource(Resource):
                 None,
             )
 
-            if not item:
-                item = {"domain": event_domain, "source": event_source, "count": 0, "statistics": defaultdict(int)}
-                aggregated_timeseries[timestamp].append(item)
+            if not tag_item:
+                tag_item = {"domain": event_domain, "source": event_source, "count": 0, "statistics": defaultdict(int)}
+                aggregated_timeseries[timestamp].append(tag_item)
             # 更新统计信息和总计数
-            item["count"] += event_series["value"]["count"]
+            tag_item["count"] += event_series["value"]["count"]
             for dimension_type, count in event_series["value"]["statistics"].items():
-                item["statistics"][dimension_type] += count
+                tag_item["statistics"][dimension_type] += count
 
         for (domain, source), timeseries in processed_timeseries.items():
             for datapoint in timeseries:
@@ -226,7 +226,7 @@ class EventTagsResource(Resource):
                 item["statistics"] = dict(item["statistics"])
             if filtered_items:
                 try:
-                    tags.append({"time": int(timestamp) / 1000, "items": filtered_items})
+                    tags.append({"time": int(int(timestamp) / 1000), "items": filtered_items})
                 except ValueError as exc:
                     logger.warning("failed to conversion time, err -> %s", exc)
                     raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
