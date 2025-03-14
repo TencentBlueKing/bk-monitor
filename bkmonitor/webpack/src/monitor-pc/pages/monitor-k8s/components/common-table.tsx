@@ -501,8 +501,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     let urlStr = item.url;
     if (item.syncTime) {
       urlStr += urlStr.indexOf('?') === -1 ? '?' : '&';
-      const { from, to } = this.$route.query;
-      urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
+      // const { from, to } = this.$route.query;
+      // urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
+      const { start_time, end_time, from, to } = this.$route.query;
+      urlStr += `from=${start_time || from || DEFAULT_TIME_RANGE[0]}&to=${end_time || to || DEFAULT_TIME_RANGE[1]}`;
     }
 
     if (item.target === 'self') {

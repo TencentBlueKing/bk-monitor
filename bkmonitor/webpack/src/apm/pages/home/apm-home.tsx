@@ -139,6 +139,11 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
         this.appName = (val || '').toString();
       }
     }
+    // 服务或者应用内点击了apm首页，时间同步
+    if (query.start_time && query.end_time) {
+      console.log('111');
+      this.timeRange = [query.start_time as string, query.end_time as string];
+    }
   }
 
   /**
