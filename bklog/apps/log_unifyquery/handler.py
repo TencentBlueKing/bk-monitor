@@ -736,14 +736,13 @@ class UnifyQueryHandler(object):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
         # count聚合
-        method = "sum"
-        function = "count_over_time"
+        method = "count"
         for q in params["query_list"]:
-            q["function"] = [{"method": method, "dimensions": []}]
-            q["time_aggregation"] = {"function": function, "window": interval}
+            q["function"] = [{"method": method, "dimensions": [], "window": interval}]
+            q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
-        response = UnifyQueryApi.query_ts(params)
+        response = UnifyQueryApi.query_ts_reference(params)
         return_data = {"aggs": {}}
         if not response["series"]:
             return return_data
