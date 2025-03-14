@@ -310,6 +310,7 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 语句模式和UI模式切换 */
   handleFilterModeChange(mode: EMode) {
     this.filterMode = mode;
+    if (mode === EMode.queryString) this.showResidentBtn = false;
     this.setRouteParams();
   }
 
@@ -396,7 +397,7 @@ export default class MonitorEventExplore extends tsc<object> {
       filterMode: this.filterMode,
       commonWhere: JSON.stringify(this.commonWhere),
       showResidentBtn: String(this.showResidentBtn),
-      favoriteId: String(this.currentFavorite.id),
+      favoriteId: String(this.currentFavorite?.id || ''),
     };
 
     const targetRoute = this.$router.resolve({
