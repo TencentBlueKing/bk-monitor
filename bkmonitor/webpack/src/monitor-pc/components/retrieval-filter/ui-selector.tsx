@@ -71,8 +71,8 @@ export default class UiSelector extends tsc<IProps> {
   popoverInstance = null;
   /* 当亲编辑项 */
   updateActive = -1;
-  /* 是否显示输入框 */
-  showInput = false;
+  // /* 是否显示输入框 */
+  // showInput = false;
   /* 输入框的值 */
   inputValue = '';
   /* 是否聚焦 */
@@ -121,7 +121,6 @@ export default class UiSelector extends tsc<IProps> {
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
     this.showSelector = false;
-    this.handleAddKeyDownSlash();
   }
 
   handleAdd(event: MouseEvent) {
@@ -223,7 +222,7 @@ export default class UiSelector extends tsc<IProps> {
   handleClickComponent(event?: MouseEvent) {
     event?.stopPropagation();
     this.updateActive = -1;
-    this.showInput = true;
+    // this.showInput = true;
     this.inputFocus = true;
     const el = this.$el.querySelector('.kv-placeholder');
     const customEvent = {
@@ -242,7 +241,7 @@ export default class UiSelector extends tsc<IProps> {
 
   hideInput() {
     this.inputFocus = false;
-    this.showInput = false;
+    // this.showInput = false;
     this.inputValue = '';
   }
   handleInput(v: string) {
@@ -280,11 +279,8 @@ export default class UiSelector extends tsc<IProps> {
     }
   }
   handleAddKeyDownSlash() {
-    if (this.showInput) {
-      document.removeEventListener('keydown', this.handleKeyDownSlash);
-    } else {
-      document.addEventListener('keydown', this.handleKeyDownSlash);
-    }
+    document.removeEventListener('keydown', this.handleKeyDownSlash);
+    document.addEventListener('keydown', this.handleKeyDownSlash);
   }
 
   render() {
@@ -310,6 +306,16 @@ export default class UiSelector extends tsc<IProps> {
           />
         ))}
         <div class='kv-placeholder'>
+          <AutoWidthInput
+            height={40}
+            isFocus={this.inputFocus}
+            placeholder={`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}
+            value={this.inputValue}
+            onBlur={this.handleBlur}
+            onEnter={this.handleEnter}
+            onInput={this.handleInput}
+          />
+          {/* <div class='kv-placeholder'>
           {this.showInput ? (
             <AutoWidthInput
               height={40}
@@ -321,7 +327,7 @@ export default class UiSelector extends tsc<IProps> {
             />
           ) : (
             <span class='placeholder-text'>{`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}</span>
-          )}
+          )} */}
           {!!this.localValue.length && !this.showSelector && (
             <div class='hover-btn-wrap'>
               <div

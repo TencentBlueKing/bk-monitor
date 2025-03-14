@@ -34,6 +34,7 @@ interface IProps {
   isFocus?: boolean;
   height?: number;
   initWidth?: number;
+  placeholder?: string;
   onFocus?: () => void;
   onBlur?: () => void;
   onInput?: (value: string) => void;
@@ -47,6 +48,7 @@ export default class AutoWidthInput extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isFocus: boolean;
   @Prop({ type: Number, default: 22 }) height: number;
   @Prop({ type: Number, default: 12 }) initWidth: number;
+  @Prop({ type: String, default: '' }) placeholder: string;
 
   @Ref('input') inputRef: HTMLInputElement;
 
@@ -93,6 +95,8 @@ export default class AutoWidthInput extends tsc<IProps> {
       >
         <input
           ref={'input'}
+          placeholder={this.placeholder}
+          spellcheck={false}
           type='text'
           value={this.value}
           onBlur={this.handleBlur}

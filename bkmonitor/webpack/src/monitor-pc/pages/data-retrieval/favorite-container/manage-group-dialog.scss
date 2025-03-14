@@ -36,7 +36,7 @@
   .bk-table-body-wrapper {
     margin-top: 31px;
   }
-  
+
   .is-not-select {
     &.top-operate {
       margin-bottom: 16px;
@@ -54,7 +54,7 @@
       padding: 0 16px;
       border: 1px solid transparent;
       border-radius: 0;
-      transition: background .2s;
+      transition: background 0.2s;
     }
   }
 
@@ -255,7 +255,7 @@
   }
 
   .string-json {
-    display: box;
+    // display: box;
     max-width: 100%;
     overflow: hidden;
     -webkit-line-clamp: 2;
@@ -272,11 +272,11 @@
     .view-content {
       padding: 10px 30px;
       background-color: #fafbfd;
-  
+
       .vjs-tree {
         /* stylelint-disable-next-line declaration-no-important */
         font-size: 12px !important;
-  
+
         .vjs-value__string {
           tab-size: 3;
           white-space: pre-wrap;
