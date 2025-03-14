@@ -36,6 +36,7 @@ import {
   type ExploreEntitiesItem,
   ExploreEntitiesTypeEnum,
 } from '../typing';
+import { ExploreObserver, type ExploreSubject } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -58,6 +59,8 @@ export interface KVFieldList {
 }
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
+  /** 滚动事件被观察者实例 */
+  scrollSubject?: ExploreSubject;
 }
 
 interface IExploreKvListEvents {
@@ -67,6 +70,8 @@ interface IExploreKvListEvents {
 @Component
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
+  /** 滚动事件被观察者实例 */
+  @Prop({ type: Object }) scrollSubject: ExploreSubject;
 
   @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
@@ -101,10 +106,26 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   fieldTarget: KVFieldList = null;
   /** 统计面板的 抽屉页展示状态 */
   statisticsSliderShow = false;
+  /** 容器滚动 popover 弹窗关闭 观察者 */
+  scrollPopoverHideObserver: ExploreObserver;
 
   @Emit('conditionChange')
   conditionChange(condition: ConditionChangeEvent) {
     return condition;
+  }
+
+  mounted() {
+    if (this.scrollSubject) {
+      this.scrollPopoverHideObserver = new ExploreObserver(this, this.handlePopoverHide);
+      this.scrollSubject.addObserver(this.scrollPopoverHideObserver);
+    }
+  }
+
+  beforeDestroy() {
+    this.handlePopoverHide();
+    if (this.scrollSubject) {
+      this.scrollSubject.deleteObserver(this.scrollPopoverHideObserver);
+    }
   }
 
   async handlePopoverShow(e: MouseEvent) {

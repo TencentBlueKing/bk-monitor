@@ -41,7 +41,7 @@ import {
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
 } from '../typing';
-import { getEventLegendColorByType } from '../utils';
+import { ExploreObserver, type ExploreSubject, getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
@@ -58,6 +58,8 @@ interface EventExploreTableProps {
   fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
   entitiesMapList: ExploreEntitiesMap[];
+  /** 滚动事件被观察者实例 */
+  scrollSubject: ExploreSubject;
 }
 
 interface EventExploreTableEvents {
@@ -88,6 +90,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
+  /** 滚动事件被观察者实例 */
+  @Prop({ type: Object }) scrollSubject: ExploreSubject;
 
   /** table loading 配置*/
   tableLoading = {
@@ -104,6 +108,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** popover 延迟打开定时器 */
   popoverDelayTimer = null;
   resizeObserver: ResizeObserver;
+  /** 容器滚动表格header固定观察者 */
+  scrollHeaderFixedObserver: ExploreObserver = null;
+
   get tableColumns() {
     const column = this.getTableColumns();
     const columnForKeyMap = column.reduce((prev, curr) => {
@@ -161,14 +168,19 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         });
       });
       this.resizeObserver.observe(scrollWrapper);
-      scrollWrapper.addEventListener('scroll', this.handleScroll);
+      if (this.scrollSubject) {
+        this.scrollHeaderFixedObserver = new ExploreObserver(this, this.handleScroll);
+        this.scrollSubject.addObserver(this.scrollHeaderFixedObserver);
+      }
     });
   }
   beforeDestroy() {
     const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
     if (!scrollWrapper) return;
     this.resizeObserver.unobserve(scrollWrapper);
-    scrollWrapper.removeEventListener('scroll', this.handleScroll);
+    if (this.scrollSubject) {
+      this.scrollSubject.deleteObserver(this.scrollHeaderFixedObserver);
+    }
   }
   handleScroll(event: Event) {
     const scrollWrapper = event.target as HTMLElement;
@@ -389,6 +401,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         data={rowData?.origin_data || {}}
         entitiesMapList={this.entitiesMapList}
         fieldMap={this.fieldMap}
+        scrollSubject={this.scrollSubject}
         onConditionChange={this.conditionChange}
       />
     );

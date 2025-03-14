@@ -43,7 +43,7 @@ import {
   ExploreTableLoadingEnum,
   type IFormData,
 } from '../typing';
-import { eventChartMap, getEventLegendColorByType } from '../utils';
+import { eventChartMap, ExploreObserver, ExploreSubject, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
@@ -96,8 +96,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   panel: PanelModel = this.initPanelConfig();
   /** table表格请求配置 */
   tableRequestConfigs: EventExploreTableRequestConfigs = {};
-  /** 是否滚动到底 */
-  isTheEnd = false;
+  /** 滚动事件被观察者实例 */
+  scrollSubject: ExploreSubject = null;
 
   /** view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理 */
   get eventQueryParams() {
@@ -147,14 +147,21 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return;
   }
 
+  created() {
+    this.scrollSubject = new ExploreSubject('explore-view-scroll-trigger');
+  }
+
   mounted() {
     this.getEventTotal();
     this.updatePanelConfig();
     this.updateTableRequestConfigs();
-    this.$el.addEventListener('scroll', this.handleScrollToEnd);
+    this.scrollSubject.addObserver(new ExploreObserver(this, this.handleScrollToEnd));
+    this.$el.addEventListener('scroll', this.handleScroll);
   }
   beforeDestroy() {
-    this.$el.removeEventListener('scroll', this.handleScrollToEnd);
+    this.$el.removeEventListener('scroll', this.handleScroll);
+    this.scrollSubject?.destroy?.();
+    this.scrollSubject = null;
   }
 
   /**
@@ -173,12 +180,18 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     const { scrollTop } = target;
     const { clientHeight } = target;
     const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
-    this.isTheEnd = isEnd;
 
-    if (this.isTheEnd) {
+    if (isEnd) {
       this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
     }
     this.updateTablePointEventsToAll();
+  }
+
+  handleScroll(e) {
+    if (!this.scrollSubject) {
+      return;
+    }
+    this.scrollSubject.notifyObservers(e);
   }
 
   @Debounce(1000)
@@ -357,6 +370,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             fieldMap={this.fieldMap}
             limit={30}
             requestConfigs={this.tableRequestConfigs}
+            scrollSubject={this.scrollSubject}
             total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
