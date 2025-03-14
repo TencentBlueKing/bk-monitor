@@ -90,7 +90,7 @@ def get_field_alias(field, label) -> Tuple[str, str, int]:
     data_label, filed_alias_dict = get_filed_alias_dict(field, label)
     alias = filed_alias_dict.get(field)
     if alias:
-        return ("{}（{}）".format(alias, field), data_label, get_index(EVENT_FIELD_ALIAS[data_label], field))
+        return "{}（{}）".format(alias, field), data_label, get_index(EVENT_FIELD_ALIAS[data_label], field)
 
     return field, EventCategory.UNKNOWN_EVENT.value, 0
 
