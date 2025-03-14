@@ -148,7 +148,6 @@ export default class CollectIndex extends tsc<IProps> {
     interactive: true,
     theme: 'light',
   };
-  groupList: IGroupItem[] = []; // 分组列表
 
   // 收藏夹的二种类型选择
   currentCollectionType = 'origin';
@@ -243,6 +242,10 @@ export default class CollectIndex extends tsc<IProps> {
     return this.chartFavoriteList.map(mapFn).filter(item => item.favorites.length);
   }
 
+  get groupList() {
+    return this.filterCollectList;
+  }
+
   get originFavoriteCount() {
     return this.originFavoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
@@ -275,7 +278,6 @@ export default class CollectIndex extends tsc<IProps> {
       this.getFavoriteList();
     } else {
       this.activeFavorite = null;
-      this.groupList = [];
       this.searchVal = '';
     }
   }

@@ -13,7 +13,7 @@
     },
   });
 
-  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change']);
+  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change']);
   const handleHeightChange = height => {
     emit('height-change', height);
   };
@@ -59,15 +59,17 @@
       offset: [0, 15],
     },
     onShowFn: instance => {
+      emit('popup-change', { isShow: true });
+
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {
         instance.popper?.style.setProperty('width', '100%');
         refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
         return true;
       }
-
       return false;
     },
     onHiddenFn: () => {
+      emit('popup-change', { isShow: false });
       if (isDocumentMousedown.value) {
         setIsDocumentMousedown(false);
         return false;

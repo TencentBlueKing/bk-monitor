@@ -45,7 +45,7 @@ export default class PopInstanceUtil {
   private onHiddenFn;
   private arrow = true;
   private newInstance = true;
-  private tippyOptions = {};
+  private tippyOptions: Partial<Props> = {};
   private resizeObserver: ResizeObserver | null = null;
 
   private delayShowInstance;
@@ -106,6 +106,7 @@ export default class PopInstanceUtil {
   }
 
   setProps(props: Partial<Props>) {
+    Object.assign(this.tippyOptions, props ?? {});
     this.tippyInstance?.setProps(props);
   }
 
@@ -185,6 +186,8 @@ export default class PopInstanceUtil {
 
   hide(delay?) {
     if (delay) {
+      // 清理掉之前的隐藏定时器，保证只有一个定时器
+      this.cancelHide();
       this.hiddenTimer = setTimeout(() => {
         this.getTippyInstance()?.hide();
       }, delay);
