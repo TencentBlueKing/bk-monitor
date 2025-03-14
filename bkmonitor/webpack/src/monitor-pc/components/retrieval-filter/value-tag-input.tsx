@@ -139,6 +139,7 @@ export default class ValueTagInput extends tsc<IProps> {
             ref={'input'}
             class='value-span-input'
             v-model={this.localValue}
+            spellcheck={false}
             onBlur={this.handleBlur}
             onInput={this.handleInput}
             onKeydown={this.handleKeyDown}

@@ -259,13 +259,9 @@ export default class QsSelectorSelector extends tsc<IProps> {
    * @description 聚焦选中项
    */
   updateSelection() {
-    this.$nextTick(() => {
-      const listEl = this.$el.querySelector('.wrap-left .options-wrap');
-      const el = listEl?.children?.[this.cursorIndex];
-      if (el) {
-        el.scrollIntoView(false);
-      }
-    });
+    const listEl = this.$el.querySelector('.wrap-left .options-wrap');
+    const el = listEl?.children?.[this.cursorIndex] as HTMLDivElement;
+    el?.focus();
   }
 
   /**
@@ -323,66 +319,66 @@ export default class QsSelectorSelector extends tsc<IProps> {
   }
 
   getSubtitle(id: string) {
-    const descMap = {
-      ':': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('等于')}</span>
-          {window.i18n.tc('某一值')}
-        </span>
-      ),
-      ':*': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('存在')}</span>
-          {window.i18n.tc('任意形式')}
-        </span>
-      ),
-      '>': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('大于')}</span>
-          {window.i18n.tc('某一值')}
-        </span>
-      ),
-      '<': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('小于')}</span>
-          {window.i18n.tc('某一值')}
-        </span>
-      ),
-      '>=': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('大于或等于')}</span>
-          {window.i18n.tc('某一值')}
-        </span>
-      ),
-      '<=': (
-        <span class='subtitle-text'>
-          <span class='subtitle-text-tag'>{window.i18n.tc('小于或等于')}</span>
-          {window.i18n.tc('某一值')}
-        </span>
-      ),
-      AND: (
-        <span class='subtitle-text'>
-          {window.i18n.tc('需要')}
-          <span class='subtitle-text-tag'>{window.i18n.tc('两个参数都')}</span>
-          {window.i18n.tc('为真')}
-        </span>
-      ),
-      OR: (
-        <span class='subtitle-text'>
-          {window.i18n.tc('需要')}
-          <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
-          {window.i18n.tc('为真')}
-        </span>
-      ),
-      'AND NOT': (
-        <span class='subtitle-text'>
-          {window.i18n.tc('需要')}
-          <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
-          {window.i18n.tc('为真')}
-        </span>
-      ),
-    };
     if ([EQueryStringTokenType.method, EQueryStringTokenType.condition].includes(this.type)) {
+      const descMap = {
+        ':': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('等于')}</span>
+            {window.i18n.tc('某一值')}
+          </span>
+        ),
+        ':*': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('存在')}</span>
+            {window.i18n.tc('任意形式')}
+          </span>
+        ),
+        '>': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('大于')}</span>
+            {window.i18n.tc('某一值')}
+          </span>
+        ),
+        '<': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('小于')}</span>
+            {window.i18n.tc('某一值')}
+          </span>
+        ),
+        '>=': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('大于或等于')}</span>
+            {window.i18n.tc('某一值')}
+          </span>
+        ),
+        '<=': (
+          <span class='subtitle-text'>
+            <span class='subtitle-text-tag'>{window.i18n.tc('小于或等于')}</span>
+            {window.i18n.tc('某一值')}
+          </span>
+        ),
+        AND: (
+          <span class='subtitle-text'>
+            {window.i18n.tc('需要')}
+            <span class='subtitle-text-tag'>{window.i18n.tc('两个参数都')}</span>
+            {window.i18n.tc('为真')}
+          </span>
+        ),
+        OR: (
+          <span class='subtitle-text'>
+            {window.i18n.tc('需要')}
+            <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
+            {window.i18n.tc('为真')}
+          </span>
+        ),
+        'AND NOT': (
+          <span class='subtitle-text'>
+            {window.i18n.tc('需要')}
+            <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
+            {window.i18n.tc('为真')}
+          </span>
+        ),
+      };
       return descMap[id];
     }
     return undefined;
@@ -410,6 +406,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
                   <div
                     key={item.id}
                     class={['option-item main-item', { 'cursor-active': index === this.cursorIndex }]}
+                    tabindex={0}
                     onClick={e => {
                       e.stopPropagation();
                       this.handleSelect(item.id);

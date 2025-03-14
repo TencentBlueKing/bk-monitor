@@ -329,7 +329,6 @@ export default class SettingKvSelector extends tsc<IProps> {
               borderBottomWidth: this.tagList?.length ? '1px' : '0',
             }}
             class='value-wrap'
-            data-placeholder={this.inputValue || this.isFocus || this.tagList?.length ? '' : this.$tc('请选择')}
             onClick={this.handleClickValueWrap}
           >
             {this.tagList?.map((item, index) => [
@@ -354,6 +353,7 @@ export default class SettingKvSelector extends tsc<IProps> {
               <AutoWidthInput
                 height={22}
                 isFocus={this.isFocus}
+                placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
                 value={this.inputValue}
                 onBlur={this.handleBlur}
                 onEnter={this.handleEnter}
