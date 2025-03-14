@@ -28,10 +28,17 @@ import {
   eventTopK as apmEventTopK,
   eventTotal as apmEventTotal,
   eventViewConfig as apmEventViewConfig,
+  eventLogs as apmEventLogs,
 } from 'monitor-api/modules/apm_event';
-import { eventDownloadTopK, eventTopK, eventTotal, eventViewConfig } from 'monitor-api/modules/data_explorer';
+import {
+  eventDownloadTopK,
+  eventTopK,
+  eventTotal,
+  eventViewConfig,
+  eventLogs,
+} from 'monitor-api/modules/data_explorer';
 
-import type { ITopKField, ITopKRequestParams } from './typing';
+import type { ExploreTableRequestParams, ExploreTotalRequestParams, ITopKField, ITopKRequestParams } from './typing';
 export enum APIType {
   APM = 'apm', // apm
   MONITOR = 'monitor', // monitor default
@@ -45,16 +52,6 @@ export enum EventTimeSeriesApiEnum {
   APM = 'apm_event.eventTimeSeries',
   /** 事件检索获取事件图表配置数据接口 */
   MONITOR = 'data_explorer.eventTimeSeries', // monitor default
-}
-
-/**
- * @description: 获取事件表格配置数据接口枚举
- */
-export enum EventTableApiEnum {
-  /** APM 获取事件表格配置接口 */
-  APM = 'apm_event.eventLogs',
-  /** 事件检索获取事件表格配置数据接口 */
-  MONITOR = 'data_explorer.eventLogs', // monitor default
 }
 
 /**
@@ -80,13 +77,25 @@ export const getDownloadTopK = (params, type = APIType.MONITOR) => {
 
 /**
  * @description: 获取事件总数
- * @param params
+ * @param {ExploreTotalRequestParams} params
  * @param {APIType} type
  */
-export const getEventTotal = (params: any, type = APIType.MONITOR) => {
+export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.MONITOR) => {
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
   return apiFunc(params).catch(() => ({
     total: 0,
+  }));
+};
+
+/**
+ * @description: 获取table表格日志数据
+ * @param {ExploreTableRequestParams} params
+ * @param {APIType} type
+ */
+export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.MONITOR) => {
+  const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
+  return apiFunc(params).catch(() => ({
+    list: [],
   }));
 };
 
@@ -97,10 +106,5 @@ export const getEventTotal = (params: any, type = APIType.MONITOR) => {
  */
 export const getEventTimeSeries = (type = APIType.MONITOR) => {
   const api = type === APIType.APM ? EventTimeSeriesApiEnum.APM : EventTimeSeriesApiEnum.MONITOR;
-  return api;
-};
-
-export const getEventLogs = (type = APIType.MONITOR) => {
-  const api = type === APIType.APM ? EventTableApiEnum.APM : EventTableApiEnum.MONITOR;
   return api;
 };

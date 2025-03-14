@@ -42,6 +42,10 @@
         color: #4d4f56;
         cursor: pointer;
         border-top: 2px solid transparent;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
   }

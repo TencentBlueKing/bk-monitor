@@ -124,6 +124,7 @@ export class ExploreCustomChart extends TimeSeries {
     return (
       <div class='graph-header-custom'>
         <div class='graph-header-custom-tags'>
+          {/* 快速筛选标签 暂时先不需要展示
           {this.showLegendTags?.map(item => (
             <div
               key={item.name}
@@ -142,7 +143,7 @@ export class ExploreCustomChart extends TimeSeries {
                 }}
               />
             </div>
-          ))}
+          ))} */}
         </div>
         <div class='graph-header-custom-interval'>
           <ExploreIntervalSelect
