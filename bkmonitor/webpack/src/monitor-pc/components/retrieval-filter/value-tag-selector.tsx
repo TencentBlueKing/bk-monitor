@@ -108,9 +108,9 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
+    this.activeIndex = -1;
     if (this.localValue.some(v => v.id === item.id)) return;
     this.localValue.push(item);
-    this.activeIndex += 1;
     this.handleChange();
   }
 
@@ -242,9 +242,9 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   render() {
-    const inputRender = () => (
+    const inputRender = (key: string) => (
       <AutoWidthInput
-        key={'input'}
+        key={key}
         height={22}
         class='mb-4 mr-4'
         fontSize={12}
@@ -266,15 +266,15 @@ export default class ValueTagSelector extends tsc<IProps> {
           {this.localValue.length
             ? this.localValue.map((item, index) => [
                 <ValueTagInput
-                  key={index}
+                  key={item.id}
                   class='value-tag-input'
                   value={item.id}
                   onChange={v => this.handleTagUpdate(v, index)}
                   onDelete={() => this.handleDelete(index)}
                 />,
-                this.activeIndex === index && inputRender(),
+                this.activeIndex === index && inputRender(`${item.id}_input`),
               ])
-            : inputRender()}
+            : inputRender('input')}
         </div>
         {this.isShowDropDown && (
           <ValueOptions
