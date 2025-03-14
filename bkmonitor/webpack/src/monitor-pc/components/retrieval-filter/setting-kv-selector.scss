@@ -33,20 +33,32 @@
     }
 
     .method-wrap {
-      z-index: 3;
+      position: relative;
       align-self: flex-start;
       padding: 0 2px 0 2px;
-      margin-right: -1px;
+      margin-left: 2px;
       line-height: 30px;
       color: #3a84ff;
       cursor: pointer;
       background: #fff;
+
+      &::after {
+        position: absolute;
+        top: 0;
+        right: -1px;
+        z-index: 3;
+        width: 4px;
+        height: 100%;
+        content: "";
+        background: #fff;
+      }
 
       .method-span {
         white-space: nowrap;
       }
 
       .method-list-wrap {
+        z-index: 4;
         min-width: 120px;
 
         .method-list-wrap-item {
@@ -153,6 +165,8 @@
     }
 
     &.expand {
+      z-index: 9;
+
       .value-wrap {
         z-index: 2;
         height: auto;
