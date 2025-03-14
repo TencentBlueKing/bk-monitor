@@ -1723,4 +1723,4 @@ class AlertStatusEnum(ChoicesEnum):
     )
 
 
-SEVEN = 7
+MAX_WORKERS = 5

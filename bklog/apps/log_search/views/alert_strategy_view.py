@@ -41,7 +41,6 @@ class AlertStrategyViewSet(APIViewSet):
         @api {post} alert_strategy/$index_set_id/alert_records/ 查询告警
         @apiName alert_record
         @apiGroup alert_strategy
-        @apiParam {Int} bk_biz_id 业务id
         @apiParam {String} status 状态
         @apiParam {Int} page 页数
         @apiParam {Int} page_size 每页条数
@@ -51,6 +50,7 @@ class AlertStrategyViewSet(APIViewSet):
             "data": [
                 {
                     "id": "1741686571487423209",
+                    "strategy_id": 1234567,
                     "alert_name": "告警能力补齐-test1",
                     "first_anomaly_time": 1741685940,
                     "duration": "10m",
@@ -76,22 +76,23 @@ class AlertStrategyViewSet(APIViewSet):
         @api {post} alert_strategy/$index_set_id/strategy_records/ 查询策略
         @apiName alert_record
         @apiGroup alert_strategy
-        @apiParam {Int} bk_biz_id 业务id
         @apiParam {Int} page 页数
         @apiParam {Int} page_size 每页条数
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
             "data": [
-                {'strategy_id': 156827,
-                  'alart_name': '告警能力补齐-test2',
+                {
+                  'strategy_id': 156827,
+                  'name': '告警能力补齐-test2',
                   'query_string': '*',
                   'latest_time': 1741750200},
-                 {'strategy_id': 156728,
-                  'alart_name': '告警能力补齐-test',
+                 {
+                  'strategy_id': 156728,
+                  'name': '告警能力补齐-test',
                   'query_string': 'serverIp : 11.154.220',
                   'latest_time': 1741749840}
-                ],
+                ]
             "code": 0,
             "message": ""
         }

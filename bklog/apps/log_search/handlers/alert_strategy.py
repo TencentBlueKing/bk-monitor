@@ -1,21 +1,23 @@
 import arrow
 
 from apps.api import MonitorApi
-from apps.log_search.constants import SEVEN, AlertStatusEnum
+from apps.log_search.constants import MAX_WORKERS, AlertStatusEnum
+from apps.log_search.exceptions import IndexSetDoseNotExistException
 from apps.log_search.models import LogIndexSet
-from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class AlertStrategyHandler(object):
+    DAYS = 7
+
     def __init__(self, index_set_id):
         self.index_set_id = index_set_id
 
         try:
             self.log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
         except LogIndexSet.DoesNotExist:
-            logger.exception(f"LogIndexSet --> {self.index_set_id} does not exist")
+            raise IndexSetDoseNotExistException()
 
     def get_alert_records(
         self,
@@ -33,7 +35,7 @@ class AlertStrategyHandler(object):
         if status != AlertStatusEnum.ALL.value:
             alert_status = [status]
         current_time = arrow.now()
-        start_time = int(current_time.shift(days=-SEVEN).timestamp())
+        start_time = int(current_time.shift(days=-self.DAYS).timestamp())
         end_time = int(current_time.timestamp())
         request_params = {
             "bk_biz_ids": [bk_biz_id],
@@ -74,9 +76,8 @@ class AlertStrategyHandler(object):
         :param page_size: 每页条数
         """
         bk_biz_id = space_uid_to_bk_biz_id(self.log_index_set_obj.space_uid)
-        current_time = arrow.now()
-        start_time = int(current_time.shift(days=-SEVEN).timestamp())
-        end_time = int(current_time.timestamp())
+        start_time = int(arrow.now().shift(days=-self.DAYS).timestamp())
+        end_time = int(arrow.now().timestamp())
 
         # 获取策略信息
         strategy_result = MonitorApi.search_alarm_strategy_v3(
@@ -101,18 +102,23 @@ class AlertStrategyHandler(object):
             strategy_config_list.append(
                 {
                     "strategy_id": strategy_id,
-                    "alart_name": strategy_config["name"],
-                    "query_string": strategy_config["items"][0]["query_configs"][0]["query_string"],
+                    "name": strategy_config["name"],
+                    "query_string": strategy_config.get("items", [{}])[0]
+                    .get("query_configs", [{}])[0]
+                    .get("query_string"),
                 }
             )
-        multi_execute_func = MultiExecuteFunc(max_workers=6)
+        multi_execute_func = MultiExecuteFunc(max_workers=MAX_WORKERS)
         for strategy_id in strategy_id_list:
             # 获取最近告警时间
             request_params = {
                 "bk_biz_ids": [bk_biz_id],
-                "conditions": [{"key": "strategy_id", "value": strategy_id}],
+                "conditions": [{"key": "strategy_id", "value": [strategy_id]}],
                 "start_time": start_time,
                 "end_time": end_time,
+                "ordering": ["-latest_time"],
+                "page": 1,
+                "page_size": 1,
                 "show_overview": False,
                 "show_aggs": False,
             }
@@ -122,21 +128,9 @@ class AlertStrategyHandler(object):
                 params=request_params,
             )
         multi_result = multi_execute_func.run()
-        alert_config_dict = {}
-        for alert_result in multi_result.values():
-            # 筛选出latest_time最大的记录
-            for alert_config in alert_result["alerts"]:
-                id = alert_config["id"]
-                strategy_id = alert_config["strategy_id"]
-                latest_time = alert_config["latest_time"]
-                if strategy_id not in alert_config_dict or id > alert_config_dict[strategy_id]["id"]:
-                    alert_config_dict[strategy_id] = {"id": id, "latest_time": latest_time}
-
         for strategy_config in strategy_config_list:
             strategy_id = strategy_config["strategy_id"]
             strategy_config.update(
-                {
-                    "latest_time": alert_config_dict.get(strategy_id, {}).get("latest_time"),
-                }
+                {"latest_time": multi_result.get(strategy_id, {}).get("alerts", [{}])[0].get("latest_time")}
             )
         return strategy_config_list
