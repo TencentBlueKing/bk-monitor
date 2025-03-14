@@ -374,7 +374,6 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   }
 
   handleFavoriteClick() {
-    this.handleClickSearchBtn();
     if (!this.selectFavorite) {
       this.handleFavorite(false);
     }
