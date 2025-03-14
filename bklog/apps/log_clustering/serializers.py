@@ -25,7 +25,6 @@ from rest_framework import serializers
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
-    AlertStatusEnum,
     OwnerConfigEnum,
     PatternEnum,
     RegexRuleTypeEnum,
@@ -151,24 +150,6 @@ class StrategyTypeSerializer(serializers.Serializer):
     strategy_type = serializers.ChoiceField(
         label=_("告警策略"), choices=[StrategiesType.NEW_CLS_strategy, StrategiesType.NORMAL_STRATEGY]
     )
-
-
-class StrategyRecordSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
-    page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
-
-
-class AlertRecordSerializer(StrategyRecordSerializer):
-    status = serializers.ChoiceField(
-        label=_("状态"),
-        choices=AlertStatusEnum.get_choices(),
-        default=AlertStatusEnum.ALL.value,
-    )
-
-
-class LogRelatedInfoSerializer(serializers.Serializer):
-    alert_id = serializers.IntegerField(label=_("告警ID"))
 
 
 class NormalStrategySerializer(StrategySerializer):

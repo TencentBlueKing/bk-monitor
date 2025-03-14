@@ -23,8 +23,8 @@ from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
-from apps.log_clustering.handlers.alert_strategy import AlertStrategyHandler
-from apps.log_clustering.serializers import (
+from apps.log_search.handlers.alert_strategy import AlertStrategyHandler
+from apps.log_search.serializers import (
     AlertRecordSerializer,
     LogRelatedInfoSerializer,
     StrategyRecordSerializer,
@@ -64,7 +64,6 @@ class AlertStrategyViewSet(APIViewSet):
         """
         params = self.params_valid(AlertRecordSerializer)
         data = AlertStrategyHandler(index_set_id=index_set_id).get_alert_records(
-            params["bk_biz_id"],
             params["status"],
             params["page"],
             params["page_size"],
@@ -84,22 +83,21 @@ class AlertStrategyViewSet(APIViewSet):
         {
             "result": true,
             "data": [
-                {
-                    "alart_name": aaa,
-                    "latest_time": 123456,
-                },
-                {
-                    "alart_name": bbb,
-                    "latest_time": None,
-                }
-            ],
+                {'strategy_id': 156827,
+                  'alart_name': '告警能力补齐-test2',
+                  'query_string': '*',
+                  'latest_time': 1741750200},
+                 {'strategy_id': 156728,
+                  'alart_name': '告警能力补齐-test',
+                  'query_string': 'serverIp : 11.154.220',
+                  'latest_time': 1741749840}
+                ],
             "code": 0,
             "message": ""
         }
         """
         params = self.params_valid(StrategyRecordSerializer)
         data = AlertStrategyHandler(index_set_id=index_set_id).get_strategy_records(
-            params["bk_biz_id"],
             params["page"],
             params["page_size"],
         )

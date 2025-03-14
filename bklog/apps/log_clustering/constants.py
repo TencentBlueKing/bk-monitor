@@ -155,16 +155,6 @@ class StrategiesAlarmLevelEnum(ChoicesEnum):
     )
 
 
-class AlertStatusEnum(ChoicesEnum):
-    ALL = "ALL"
-    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
-
-    _choices_labels = (
-        (ALL, _lazy("全部")),
-        (NOT_SHIELDED_ABNORMAL, _lazy("未处理")),
-    )
-
-
 class YearOnYearEnum(ChoicesEnum):
     NOT = 0
     ONE_HOUR = 1
