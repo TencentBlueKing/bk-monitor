@@ -74,3 +74,45 @@ export const getEventLegendColorByType = (type: DimensionsTypeEnum) => {
   }
   return EVENT_CHART_COLORS[eventChartMap[type]];
 };
+
+/**
+ * @description 简易观察者模式
+ */
+export class ExploreSubject {
+  name: string;
+  set: Set<ExploreObserver>;
+  constructor(name: string) {
+    this.name = name;
+    this.set = new Set();
+  }
+
+  addObserver(observer: ExploreObserver) {
+    this.set.add(observer);
+  }
+
+  notifyObservers(...args) {
+    for (const observer of this.set) {
+      if (observer) {
+        observer.notify(...args);
+      }
+    }
+  }
+  deleteObserver(observer: ExploreObserver) {
+    this.set.delete(observer);
+  }
+
+  destroy() {
+    this.set.clear();
+  }
+}
+
+export class ExploreObserver {
+  constructor(
+    private $vm,
+    private fn
+  ) {}
+
+  notify(...args): void {
+    this.fn.call(this.$vm, ...args);
+  }
+}
