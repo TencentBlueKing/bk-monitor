@@ -16,15 +16,15 @@ from urllib.parse import urlencode
 import settings
 
 from ...constants import (
-    DIMENSION_PREFIX,
     K8S_EVENT_TRANSLATIONS,
     NEVER_REFRESH_INTERVAL,
     DisplayFieldType,
+    EventCategory,
     EventDomain,
     EventScenario,
     EventSource,
-    K8sFieldLabel,
 )
+from ...utils import create_workload_info, generate_time_range, get_field_label
 from .base import BaseEventProcessor
 
 
@@ -53,181 +53,116 @@ class K8sEventProcessor(BaseEventProcessor):
         return processed_events
 
     def set_fields(self, processed_event: Dict[str, Any]) -> None:
-        origin_data = processed_event["origin_data"]
-        biz_id = origin_data.get(f"{DIMENSION_PREFIX}bk_biz_id", "")
-        bcs_cluster_id = origin_data.get(f"{DIMENSION_PREFIX}bcs_cluster_id", "")
-        namespace = origin_data.get(f"{DIMENSION_PREFIX}namespace", "")
-        name = origin_data.get(f"{DIMENSION_PREFIX}name", "")
-        start_time, end_time = self.generate_time_range(int(processed_event["time"]["value"]))
-        # 设置详情字段
-        self.set_detail_fields(
-            processed_event, biz_id, bcs_cluster_id, namespace, name, origin_data, start_time, end_time
+        start_time, end_time = generate_time_range(processed_event["time"]["value"])
+        workload_info = create_workload_info(
+            processed_event["origin_data"],
+            ["bk_biz_id", "event_name", "target", "bcs_cluster_id", "namespace", "name", "kind"],
         )
+        # 设置详情字段
+        self.set_detail_fields(processed_event, workload_info, start_time, end_time)
         # 设置事件内容
         self.set_event_content(processed_event)
         # 设置目标
-        self.set_target(
-            processed_event,
-            origin_data.get("target", ""),
-            bcs_cluster_id,
-            namespace,
-            name,
-            origin_data.get(f"{DIMENSION_PREFIX}kind", ""),
-            biz_id,
-            start_time,
-            end_time,
-        )
+        self.set_target(processed_event, workload_info, start_time, end_time)
         # 设置事件名
-        self.set_event_name(processed_event)
+        self.set_event_name(processed_event, workload_info)
 
     @classmethod
     def set_event_content(cls, processed_event):
         processed_event["event.content"]["detail"]["event.content"] = {
-            "label": K8sFieldLabel.EVENT_CONTENT.value,
+            "label": get_field_label("event.content", EventCategory.K8S_EVENT.value),
             "value": processed_event["event.content"]["value"],
             "alias": processed_event["event.content"]["alias"],
         }
 
     @classmethod
-    def set_target(cls, processed_event, target, bcs_cluster_id, namespace, name, kind, biz_id, start_time, end_time):
-        target_alias = f"{bcs_cluster_id}/{namespace}/{kind}/{name}"
-        filter_by = {"namespace": [], "workload": [], "pod": [], "container": []}
-        if namespace:
-            filter_by["namespace"].append(namespace)
-        if name:
-            filter_by["workload"].append(name)
-
+    def set_target(cls, processed_event, workload_info, start_time, end_time):
+        bcs_cluster_id = workload_info["bcs_cluster_id"]["value"]
+        namespace = workload_info["namespace"]["value"]
+        name = workload_info["name"]["value"]
+        kind = workload_info["kind"]["value"]
         processed_event["target"] = {
-            "value": target,
-            "alias": target_alias,
+            "value": workload_info["target"]["value"],
+            "alias": f"{bcs_cluster_id}/{namespace}/{kind}/{name}",
             "url": cls.generate_url(
-                bcs_cluster_id,
-                biz_id,
+                workload_info,
                 start_time,
                 end_time,
-                filter_by,
+                {
+                    "namespace": [namespace] if namespace else [],
+                    "workload": [name] if name else [],
+                    "pod": [],
+                    "container": [],
+                },
                 ["namespace", "workload", "pod"],
             ),
             "scenario": EventScenario.CONTAINER_MONITOR.value,
         }
 
     @classmethod
-    def set_event_name(cls, event):
-        event_name = event["event_name"]
-        origin_data = event["origin_data"]
-        kind = origin_data.get(f'{DIMENSION_PREFIX}kind', "")
-        event_value = event_name["value"]
-        event_name_alias = K8S_EVENT_TRANSLATIONS.get(kind, {}).get(event_value, event_value)
-        event["event_name"] = {"value": event_value, "alias": f'{event_name_alias}（{event_value}）'}
+    def set_event_name(cls, event, workload_info):
+        event_name_value = workload_info["event_name"]["value"]
+        event_name_alias = K8S_EVENT_TRANSLATIONS.get(workload_info["kind"]["value"], {}).get(
+            event_name_value, event_name_value
+        )
+        event["event_name"] = {"value": event_name_value, "alias": f'{event_name_alias}（{event_name_value}）'}
 
     def set_detail_fields(
         self,
         processed_event: Dict[str, Any],
-        bk_biz_id: int,
-        bcs_cluster_id: str,
-        namespace: str,
-        name: str,
-        origin_data: Dict[str, Any],
+        workload_info,
         start_time: int,
         end_time: int,
     ) -> None:
+        def create_detail_field(field: str, alias: str, group_by: List[str]) -> Dict[str, str]:
+            field_value = workload_info[field]["value"]
+            if not field_value:
+                return {}
+            return {
+                "label": workload_info[field]["label"],
+                "value": field_value,
+                "alias": alias,
+                "type": DisplayFieldType.LINK.value,
+                "scenario": EventScenario.CONTAINER_MONITOR.value,
+                "url": self.generate_url(workload_info, start_time, end_time, filter_by, group_by),
+            }
+
         # 处理集群信息
         detail = processed_event["event.content"]["detail"]
         filter_by = {"namespace": [], "workload": [], "pod": [], "container": []}
+        bcs_cluster_id = workload_info["bcs_cluster_id"]["value"]
+        bk_biz_id = workload_info["bk_biz_id"]["value"]
+        namespace = workload_info["namespace"]["value"]
+        name = workload_info["name"]["value"]
+        kind = workload_info["kind"]["value"]
         if bcs_cluster_id:
-            group_by = ["namespace"]
-            detail["bcs_cluster_id"] = self.create_detail_field_entry(
-                K8sFieldLabel.CLUSTER.value,
-                bcs_cluster_id,
-                self.bcs_cluster_context.fetch([{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}])[
-                    f"{bk_biz_id}::{bcs_cluster_id}"
-                ]["bcs_cluster_name"],
-                bcs_cluster_id,
-                bk_biz_id,
-                start_time,
-                end_time,
-                filter_by,
-                group_by,
+            detail["bcs_cluster_id"] = create_detail_field(
+                "bcs_cluster_id",
+                self.bcs_cluster_context.fetch([{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}])
+                .get(f"{bk_biz_id}::{bcs_cluster_id}", {})
+                .get("bcs_cluster_name", bcs_cluster_id),
+                ["namespace"],
             )
         # 处理命名空间信息
         if namespace:
             filter_by["namespace"].append(namespace)
-            group_by = ["namespace", "workload"]
-            detail["namespace"] = self.create_detail_field_entry(
-                K8sFieldLabel.NAMESPACE.value,
-                namespace,
-                namespace,
-                bcs_cluster_id,
-                bk_biz_id,
-                start_time,
-                end_time,
-                filter_by,
-                group_by,
-            )
-
+            detail["namespace"] = create_detail_field("namespace", namespace, ["namespace", "workload"])
         # 处理名称信息
         if name:
-            name_alias = (
-                f"{origin_data.get(f'{DIMENSION_PREFIX}kind', '')}/{name}"
-                if origin_data.get(f'{DIMENSION_PREFIX}kind')
-                else name
-            )
             filter_by["workload"].append(name)
-            group_by = ["namespace", "workload", "pod"]
-            detail["name"] = self.create_detail_field_entry(
-                K8sFieldLabel.WORKLOAD_NAME.value,
-                name,
-                name_alias,
-                bcs_cluster_id,
-                bk_biz_id,
-                start_time,
-                end_time,
-                filter_by,
-                group_by,
+            detail["name"] = create_detail_field(
+                "name", f"{kind}/{name}" if kind else name, ["namespace", "workload", "pod"]
             )
 
     @classmethod
-    def create_detail_field_entry(
-        cls,
-        label,
-        value,
-        alias,
-        cluster_id: str,
-        biz_id: int,
-        start_time,
-        end_time,
-        filter_by: Dict[str, Any],
-        group_by: List[str],
-    ):
-        return {
-            "label": label,
-            "value": value,
-            "alias": alias,
-            "type": DisplayFieldType.LINK.value,
-            "scenario": EventScenario.CONTAINER_MONITOR.value,
-            "url": cls.generate_url(cluster_id, biz_id, start_time, end_time, filter_by, group_by),
-        }
-
-    @classmethod
-    def generate_url(
-        cls, bcs_cluster_id: str, biz_id: int, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]
-    ) -> str:
-        base_url = settings.BK_MONITOR_HOST
+    def generate_url(cls, workload_info, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]) -> str:
         params = {
             "from": start_time,
             "to": end_time,
             "refreshInterval": NEVER_REFRESH_INTERVAL,
-            "cluster": bcs_cluster_id,
+            "cluster": workload_info["bcs_cluster_id"]["value"],
             "filterBy": json.dumps(filter_by),
             "groupBy": json.dumps(group_by),
         }
-        url_params = urlencode(params)
-        return f"{base_url}?bizId={biz_id}#/k8s-new?{url_params}"
-
-    @classmethod
-    def generate_time_range(cls, timestamp):
-        # 计算前一个小时和后一个小时的时间戳（以毫秒为单位）
-        one_hour_ms = 3600 * 1000
-        start_time = timestamp - one_hour_ms
-        end_time = timestamp + one_hour_ms
-        return start_time, end_time
+        bk_biz_id = workload_info["bk_biz_id"]["value"]
+        return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s-new?{urlencode(params)}"

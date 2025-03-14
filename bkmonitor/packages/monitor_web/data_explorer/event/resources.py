@@ -12,7 +12,7 @@ import logging
 import threading
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set
 
 from django.utils.translation import gettext_lazy as _
 
@@ -31,7 +31,6 @@ from .constants import (
     DIMENSION_DISTINCT_VALUE,
     DISPLAY_FIELDS,
     ENTITIES,
-    EVENT_FIELD_ALIAS,
     INNER_FIELD_TYPE_MAPPINGS,
     QUERY_MAX_LIMIT,
     TYPE_OPERATION_MAPPINGS,
@@ -43,7 +42,6 @@ from .constants import (
 from .core.processors import BaseEventProcessor, OriginEventProcessor
 from .core.processors.context import BcsClusterContext
 from .core.processors.k8s import K8sEventProcessor
-from .utils import get_q_from_query_config
 from .mock_data import (
     API_LOGS_RESPONSE,
     API_TIME_SERIES_RESPONSE,
@@ -51,6 +49,7 @@ from .mock_data import (
     API_TOTAL_RESPONSE,
     API_VIEW_CONFIG_RESPONSE,
 )
+from .utils import get_field_alias, get_q_from_query_config
 from .utils import get_data_labels_map, get_q_from_query_config
 
 logger = logging.getLogger(__name__)
@@ -162,7 +161,12 @@ class EventViewConfigResource(Resource):
         fields = []
         for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
-            alias, field_category, index = cls.get_field_alias(name, dimension_metadata)
+            data_labels = list(dimension_metadata["data_labels"])
+            if data_labels:
+                alias, field_category, index = get_field_alias(name, data_labels[0])
+            else:
+                # 内置字段，没有 data_labels，这里直接传 common
+                alias, field_category, index = get_field_alias(name, EventCategory.COMMON.value)
             is_option_enabled = cls.is_option_enabled(field_type)
             is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
@@ -189,33 +193,6 @@ class EventViewConfigResource(Resource):
             del field["index"]
             del field["category"]
         return fields
-
-    @classmethod
-    def get_field_alias(cls, name, dimension_metadata) -> Tuple[str, str, int]:
-        """
-        获取字段别名
-        """
-
-        def get_index(_d: Dict[str, str], _name: str) -> int:
-            try:
-                return list(_d.keys()).index(_name)
-            except ValueError:
-                # 不存在则排到最后
-                return len(_d.keys())
-
-        if EVENT_FIELD_ALIAS[EventCategory.COMMON.value].get(name):
-            data_label: str = EventCategory.COMMON.value
-        else:
-            data_label: str = list(dimension_metadata["data_labels"])[0]
-
-        if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
-            return (
-                "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name),
-                data_label,
-                get_index(EVENT_FIELD_ALIAS[data_label], name),
-            )
-
-        return name, EventCategory.UNKNOWN_EVENT.value, 0
 
     @classmethod
     def is_dimensions(cls, name) -> bool:
