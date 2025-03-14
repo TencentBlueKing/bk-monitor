@@ -270,7 +270,9 @@ export default class ValueOptions extends tsc<IProps> {
         class='retrieval-filter__value-options-select-component'
       >
         {this.loading ? (
-          <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
+          <div
+            class={['options-drop-down-wrap', { 'is-popover': this.isPopover, 'no-border': !this.localOptions.length }]}
+          >
             {new Array(4).fill(null).map(index => {
               return (
                 <div
@@ -288,8 +290,10 @@ export default class ValueOptions extends tsc<IProps> {
           </div>
         ) : (
           <div
-            style={{ borderColor: this.renderOptions.length ? '#DCDEE5' : 'transparent' }}
-            class={['options-drop-down-wrap main__wrap', { 'is-popover': this.isPopover }]}
+            class={[
+              'options-drop-down-wrap main__wrap',
+              { 'is-popover': this.isPopover, 'no-border': !this.renderOptions.length },
+            ]}
             onScroll={this.handleScroll}
           >
             {!!this.search && (
