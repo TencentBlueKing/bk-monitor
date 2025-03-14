@@ -9,6 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import os
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from itertools import count
+
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
@@ -81,6 +86,7 @@ class ListServicePodsResource(Resource):
         app_name = validated_data.pop("app_name")
         service_name = validated_data.pop("service_name")
 
+        # 获取节点关系
         relations = ContainerHelper.list_pod_relations(
             bk_biz_id,
             app_name,
@@ -88,28 +94,23 @@ class ListServicePodsResource(Resource):
             validated_data.pop("start_time"),
             validated_data.pop("end_time"),
         )
+        # 批量提取所有节点
+        all_nodes = [n for r in relations for n in r.nodes]
 
-        # 三个额外的 Pod 过滤条件
-        query_values_mapping = {
-            "bcs_cluster_id__in": set(),
-            "namespace__in": set(),
-            "name__in": set(),
-        }
-        for r in relations:
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
+        # 生成ID
+        id_generator = count(1)
+        preassigned_ids = [next(id_generator) for _ in all_nodes]
 
-                bcs_cluster_id = source_info.get("bcs_cluster_id")
-                if bcs_cluster_id:
-                    query_values_mapping["bcs_cluster_id__in"].add(bcs_cluster_id)
-
-                namespace = source_info.get("namespace")
-                if namespace:
-                    query_values_mapping["namespace__in"].add(namespace)
-
-                pod = source_info.get("pod")
-                if pod:
-                    query_values_mapping["name__in"].add(pod)
+        # 构建查询条件
+        query_values_mapping = defaultdict(set)
+        for node in all_nodes:
+            source_info = node.source_info.to_source_info()
+            if bcs_cluster_id := source_info.get("bcs_cluster_id"):
+                query_values_mapping["bcs_cluster_id__in"].add(bcs_cluster_id)
+            if namespace := source_info.get("namespace"):
+                query_values_mapping["namespace__in"].add(namespace)
+            if pod := source_info.get("pod"):
+                query_values_mapping["name__in"].add(pod)
 
         from bkmonitor.models import BCSBase, BCSPod
 
@@ -120,37 +121,59 @@ class ListServicePodsResource(Resource):
             )
         }
 
-        have_data_pods = []
-        no_data_pods = []
-        index = 1
-        for i in relations:
-            for n in i.nodes:
-                source_info = n.source_info.to_source_info()
-                source_info["id"] = index
-                source_info["pod_name"] = source_info.pop("pod")
-                # 前端侧边栏需要有 name 字段 单独加上
-                source_info["name"] = source_info["pod_name"]
-                source_info["app_name"] = app_name
-                source_info["service_name"] = service_name
-                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod_name"))
-                if key in current_pods:
-                    pod_info = current_pods[key]
-                    if pod_info.get("monitor_status") == BCSBase.METRICS_STATE_STATE_SUCCESS:
-                        source_info["status"] = CollectStatus.SUCCESS
-                        have_data_pods.append(source_info)
-                    elif pod_info.get("monitor_status") == BCSBase.METRICS_STATE_FAILURE:
-                        source_info["status"] = CollectStatus.FAILED
-                        have_data_pods.append(source_info)
-                    else:
-                        source_info["status"] = CollectStatus.NODATA
-                        no_data_pods.append(source_info)
-                else:
-                    source_info["status"] = CollectStatus.NODATA
-                    no_data_pods.append(source_info)
+        batch_size = max(len(all_nodes) // (os.cpu_count() * 2), 10)
+        have_data_pods, no_data_pods = [], []
 
-                index += 1
+        def process_batch(nodes_batch, ids_batch):
+            batch_results = []
+            for node, node_id in zip(nodes_batch, ids_batch):
+                source_info = node.source_info.to_source_info()
+                source_info.update(
+                    {
+                        "id": node_id,
+                        "pod_name": source_info.get("pod"),
+                        "name": source_info.pop("pod"),
+                        "app_name": app_name,
+                        "service_name": service_name,
+                    }
+                )
+
+                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod_name"))
+
+                pod_info = current_pods.get(key)
+                if not pod_info:
+                    source_info["status"] = CollectStatus.NODATA
+                    batch_results.append(("no", source_info))
+                    continue
+
+                status_map = {
+                    BCSBase.METRICS_STATE_STATE_SUCCESS: CollectStatus.SUCCESS,
+                    BCSBase.METRICS_STATE_FAILURE: CollectStatus.FAILED,
+                }
+
+                source_info["status"] = status_map.get(pod_info["monitor_status"], CollectStatus.NODATA)
+
+                batch_results.append(("have" if pod_info["monitor_status"] in status_map else "no", source_info))
+
+            return batch_results
+
+        # 动态调整线程池
+        optimal_worker = min(32, (os.cpu_count() or 1) * 2)
+        with ThreadPoolExecutor(max_workers=optimal_worker) as executor:
+            futures = []
+            for i in range(0, len(all_nodes), batch_size):
+                batch_nodes = all_nodes[i : i + batch_size]
+                batch_ids = preassigned_ids[i : i + batch_size]
+                futures.append(executor.submit(process_batch, batch_nodes, batch_ids))
+            for future in futures:
+                for result_type, info in future.result():
+                    if result_type == "have":
+                        have_data_pods.append(info)
+                    else:
+                        no_data_pods.append(info)
 
         all_pods = have_data_pods + no_data_pods
+
         if not validated_data.get("span_id"):
             return all_pods
 
