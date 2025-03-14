@@ -26,6 +26,8 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { copyText } from 'monitor-common/utils';
+
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
@@ -217,6 +219,34 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   /**
+   * @description 复制
+   * @param event
+   */
+  handleCopy(event: MouseEvent) {
+    event.stopPropagation();
+    const str = this.localValue
+      .map(item => {
+        const value =
+          item.value.length > 1
+            ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' AND ')})`
+            : `"${item.value?.[0]?.id || '*'}"`;
+        return `${item.key.id} : ${value}`;
+      })
+      .join(' AND ');
+    copyText(str, msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
+  }
+
+  /**
    * @description 点击组件
    */
   handleClickComponent(event?: MouseEvent) {
@@ -346,6 +376,7 @@ export default class UiSelector extends tsc<IProps> {
                   content: this.$tc('复制'),
                   delay: 300,
                 }}
+                onClick={this.handleCopy}
               >
                 <span class='icon-monitor icon-mc-copy' />
               </div>

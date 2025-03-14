@@ -43,6 +43,48 @@ import {
 
 import './qs-selector-options.scss';
 
+const descMap = {
+  ':': [
+    { type: 'tag', text: window.i18n.tc('等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  ':*': [
+    { type: 'tag', text: window.i18n.tc('存在') },
+    { type: 'text', text: window.i18n.tc('任意形式') },
+  ],
+  '>': [
+    { type: 'tag', text: window.i18n.tc('大于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '<': [
+    { type: 'tag', text: window.i18n.tc('小于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '>=': [
+    { type: 'tag', text: window.i18n.tc('大于或等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '<=': [
+    { type: 'tag', text: window.i18n.tc('小于或等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  AND: [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('两个参数都') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+  OR: [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+  'AND NOT': [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+};
+
 interface IOptions {
   id: string;
   name: string;
@@ -320,66 +362,19 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   getSubtitle(id: string) {
     if ([EQueryStringTokenType.method, EQueryStringTokenType.condition].includes(this.type)) {
-      const descMap = {
-        ':': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('等于')}</span>
-            {window.i18n.tc('某一值')}
-          </span>
-        ),
-        ':*': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('存在')}</span>
-            {window.i18n.tc('任意形式')}
-          </span>
-        ),
-        '>': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('大于')}</span>
-            {window.i18n.tc('某一值')}
-          </span>
-        ),
-        '<': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('小于')}</span>
-            {window.i18n.tc('某一值')}
-          </span>
-        ),
-        '>=': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('大于或等于')}</span>
-            {window.i18n.tc('某一值')}
-          </span>
-        ),
-        '<=': (
-          <span class='subtitle-text'>
-            <span class='subtitle-text-tag'>{window.i18n.tc('小于或等于')}</span>
-            {window.i18n.tc('某一值')}
-          </span>
-        ),
-        AND: (
-          <span class='subtitle-text'>
-            {window.i18n.tc('需要')}
-            <span class='subtitle-text-tag'>{window.i18n.tc('两个参数都')}</span>
-            {window.i18n.tc('为真')}
-          </span>
-        ),
-        OR: (
-          <span class='subtitle-text'>
-            {window.i18n.tc('需要')}
-            <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
-            {window.i18n.tc('为真')}
-          </span>
-        ),
-        'AND NOT': (
-          <span class='subtitle-text'>
-            {window.i18n.tc('需要')}
-            <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
-            {window.i18n.tc('为真')}
-          </span>
-        ),
-      };
-      return descMap[id];
+      const items = descMap?.[id] || [];
+      return (
+        <span class='subtitle-text'>
+          {items.map(item => {
+            if (item.type === 'text') {
+              return item.text;
+            }
+            if (item.type === 'tag') {
+              return <span class='subtitle-text-tag'>{item.text}</span>;
+            }
+          })}
+        </span>
+      );
     }
     return undefined;
   }
