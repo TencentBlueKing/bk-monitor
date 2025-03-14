@@ -161,7 +161,7 @@ class EventTagsResource(Resource):
         return processed_timeseries
 
     @classmethod
-    def merge_timeseries(cls, processed_timeseries: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    def merge_timeseries(cls, processed_timeseries: Dict[Tuple[str, str], Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
          将不同事件来源的数据合并。
         :param processed_timeseries: 不同事件源的时序数据字典
@@ -191,30 +191,12 @@ class EventTagsResource(Resource):
         }
         """
         aggregated_timeseries = defaultdict(list)
-
-        def update_aggregated_timeseries(event_domain, event_source, event_series):
-            timestamp = event_series["time"]
-            # 获取或创建当前时间戳的项
-            tag_item = next(
-                (
-                    item
-                    for item in aggregated_timeseries[timestamp]
-                    if item["domain"] == domain and item["source"] == source
-                ),
-                None,
-            )
-
-            if not tag_item:
-                tag_item = {"domain": event_domain, "source": event_source, "count": 0, "statistics": defaultdict(int)}
-                aggregated_timeseries[timestamp].append(tag_item)
-            # 更新统计信息和总计数
-            tag_item["count"] += event_series["value"]["count"]
-            for dimension_type, count in event_series["value"]["statistics"].items():
-                tag_item["statistics"][dimension_type] += count
-
         for (domain, source), timeseries in processed_timeseries.items():
             for datapoint in timeseries:
-                update_aggregated_timeseries(domain, source, datapoint)
+                value = datapoint["value"]
+                aggregated_timeseries[datapoint["time"]].append(
+                    {"domain": domain, "source": source, "count": value["count"], "statistics": value["statistics"]}
+                )
         return aggregated_timeseries
 
     @classmethod
@@ -230,7 +212,7 @@ class EventTagsResource(Resource):
                 except ValueError as exc:
                     logger.warning("failed to conversion time, err -> %s", exc)
                     raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
-        return tags
+        return sorted(tags, key=lambda x: x["time"])
 
     @classmethod
     def multi_thread_query_timeseries(
