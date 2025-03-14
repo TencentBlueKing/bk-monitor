@@ -14,14 +14,12 @@ from collections import defaultdict
 from threading import Lock
 from typing import Any, Dict, List, Set, Tuple
 
-from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
-from metadata.models import ResultTable
 
 from . import serializers
 from .constants import (
@@ -43,7 +41,6 @@ from .constants import (
     EventType,
 )
 from .core.processors import BaseEventProcessor, OriginEventProcessor
-from .utils import get_q_from_query_config
 from .mock_data import (
     API_LOGS_RESPONSE,
     API_TIME_SERIES_RESPONSE,
@@ -51,6 +48,7 @@ from .mock_data import (
     API_TOTAL_RESPONSE,
     API_VIEW_CONFIG_RESPONSE,
 )
+from .utils import get_data_labels_map, get_q_from_query_config
 
 logger = logging.getLogger(__name__)
 
@@ -130,12 +128,7 @@ class EventViewConfigResource(Resource):
     @classmethod
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
-        data_labels_queryset = (
-            ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
-            .filter(Q(table_id__in=tables) | Q(data_label__in=tables))
-            .values("table_id", "data_label")
-        )
-        data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
+        data_labels_map = get_data_labels_map(bk_biz_id, tables)
         dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
             "dimensions", "result_table_id"
         )
@@ -215,7 +208,7 @@ class EventViewConfigResource(Resource):
             return (
                 "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name),
                 data_label,
-                get_index(EVENT_FIELD_ALIAS[data_label], name)
+                get_index(EVENT_FIELD_ALIAS[data_label], name),
             )
 
         return name, EventCategory.UNKNOWN_EVENT.value, 0
@@ -380,9 +373,7 @@ class EventTopKResource(Resource):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(
-                q.metric(field=field, method="COUNT", alias=alias)
-                .group_by(field)
-                .order_by("-_value")
+                q.metric(field=field, method="COUNT", alias=alias).group_by(field).order_by("-_value")
             )
 
         queryset.expression(alias)

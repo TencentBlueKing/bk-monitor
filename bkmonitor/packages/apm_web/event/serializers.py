@@ -20,9 +20,6 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.utils import get_q_from_query_config
-from packages.monitor_web.data_explorer.event.serializers import (
-    EventQueryConfigSerializer,
-)
 
 
 def process_query_config(
@@ -123,9 +120,7 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
         return attrs
 
 
-class EventTagsRequestSerializer(event_serializers.BaseEventRequestSerializer, BaseEventRequestSerializer):
-    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
-
+class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         attrs["expression"] = "a"
@@ -136,4 +131,5 @@ class EventTagsRequestSerializer(event_serializers.BaseEventRequestSerializer, B
         attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
         for query_config in attrs["query_configs"]:
             query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
+            query_config["group_by"] = ["type"]
         return attrs

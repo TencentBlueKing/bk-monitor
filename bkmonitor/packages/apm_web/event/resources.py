@@ -9,15 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
-from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource
-from metadata.models import ResultTable
 from monitor_web.data_explorer.event import resources as event_resources
+from monitor_web.data_explorer.event.utils import get_data_labels_map
 from packages.monitor_web.data_explorer.event.constants import (
     EventLabelOriginMapping,
     EventOriginDefaultValue,
@@ -25,6 +26,8 @@ from packages.monitor_web.data_explorer.event.constants import (
 
 from . import serializers
 from .utils import is_enabled_metric_tags
+
+logger = logging.getLogger(__name__)
 
 
 class EventTimeSeriesResource(Resource):
@@ -69,50 +72,36 @@ class EventTagsResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         if not is_enabled_metric_tags(bk_biz_id, validated_request_data["app_name"]):
             return {"list": []}
-
-        query_configs = validated_request_data["query_configs"]
         # 用于存储多线程查询出来的 timeseries 数据
-        timeseries = {}
+        origin_time_series_map = {}
         run_threads(
             [
                 InheritParentThread(
                     target=self.multi_thread_query_timeseries,
-                    args=(event_origin, timeseries_request_data, timeseries),
+                    args=(event_origin, timeseries_request_data, origin_time_series_map),
                 )
                 for event_origin, timeseries_request_data in self.generate_timeseries_requests(
-                    query_configs, validated_request_data, self.get_data_labels_map(query_configs, bk_biz_id)
+                    validated_request_data,
+                    get_data_labels_map(
+                        bk_biz_id, [query_config["table"] for query_config in validated_request_data["query_configs"]]
+                    ),
                 ).items()
             ]
         )
-        for event_origin, value in timeseries.items():
+        for event_origin, time_series in origin_time_series_map.items():
             domain, source = event_origin
-            timeseries[event_origin] = self.process_timeseries(value, domain, source)
-        return {"list": self.transform_aggregated_data(self.merge_timeseries(timeseries))}
-
-    @classmethod
-    def get_data_labels_map(cls, query_configs: List[Dict[str, Any]], bk_biz_id: int) -> Dict[str, str]:
-        data_labels_map = {}
-        for query_config in query_configs:
-            data_labels = (
-                ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
-                .filter(Q(table_id=query_config["table"]) | Q(data_label=query_config["table"]))
-                .values("table_id", "data_label")
-            )
-            for data_label_entry in data_labels:
-                data_labels_map[data_label_entry["table_id"]] = data_label_entry["data_label"]
-                data_labels_map[data_label_entry["data_label"]] = data_label_entry["data_label"]
-        return data_labels_map
+            origin_time_series_map[event_origin] = self.process_timeseries(time_series, domain, source)
+        return {"list": self.transform_aggregated_data(self.merge_timeseries(origin_time_series_map))}
 
     @classmethod
     def generate_timeseries_requests(
         cls,
-        query_configs: List[Dict[str, Any]],
         validated_request_data: Dict[str, Any],
         data_labels_map: Dict[str, str],
     ):
         event_requests = {}
-        for query_config in query_configs:
-            origin = EventLabelOriginMapping.get(data_labels_map.get(query_config["table"], ""), None)
+        for query_config in validated_request_data["query_configs"]:
+            origin = EventLabelOriginMapping.get(data_labels_map.get(query_config["table"]))
             domain = origin.domain if origin else EventOriginDefaultValue.DEFAULT_DOMAIN.value
             source = origin.source if origin else EventOriginDefaultValue.DEFAULT_SOURCE.value
             event_origin = (domain, source)
@@ -218,28 +207,30 @@ class EventTagsResource(Resource):
             if not item:
                 item = {"domain": event_domain, "source": event_source, "count": 0, "statistics": defaultdict(int)}
                 aggregated_timeseries[timestamp].append(item)
-
             # 更新统计信息和总计数
             item["count"] += event_series["value"]["count"]
             for dimension_type, count in event_series["value"]["statistics"].items():
                 item["statistics"][dimension_type] += count
 
         for (domain, source), timeseries in processed_timeseries.items():
-            for series in timeseries:
-                update_aggregated_timeseries(domain, source, series)
-
+            for datapoint in timeseries:
+                update_aggregated_timeseries(domain, source, datapoint)
         return aggregated_timeseries
 
     @classmethod
     def transform_aggregated_data(cls, aggregated_timeseries: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-        transformed_timeseries = []
+        tags = []
         for timestamp, items in aggregated_timeseries.items():
             filtered_items = [item for item in items if item["count"] > 0]
             for item in filtered_items:
                 item["statistics"] = dict(item["statistics"])
             if filtered_items:
-                transformed_timeseries.append({"time": timestamp, "items": filtered_items})
-        return transformed_timeseries
+                try:
+                    tags.append({"time": int(timestamp) / 1000, "items": filtered_items})
+                except ValueError as exc:
+                    logger.warning("failed to conversion time, err -> %s", exc)
+                    raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
+        return tags
 
     @classmethod
     def multi_thread_query_timeseries(
