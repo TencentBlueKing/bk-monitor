@@ -18,7 +18,7 @@
     .options-wrap {
       max-height: 258px;
       overflow-y: scroll;
-      border-bottom: 1px solid #DCDEE5;
+      border-bottom: 1px solid #dcdee5;
 
       .option-item {
         position: relative;
@@ -48,30 +48,29 @@
             width: 32px;
             height: 32px;
             margin-right: 6px;
-  
+
             .icon-monitor {
               width: 20px;
               height: 20px;
               font-size: 20px;
             }
-            
           }
-  
+
           .option-item-name {
             font-family: RobotoMono-Regular;
             color: #313238;
           }
-  
+
           &.cursor-active,
           &:hover {
-            background: #F5F7FA;
+            background: #f5f7fa;
 
             .option-item-icon {
               .icon-monitor {
                 color: #313238;
               }
             }
-  
+
             &::after {
               position: absolute;
               top: 0;
@@ -82,23 +81,21 @@
               background-color: rgba(0, 0, 0, 0.1); /* 半透明红色 */
             }
           }
-
         }
 
         .subtitle-text {
           position: absolute;
           top: 0;
           left: 36%;
-          font-family: "Microsoft Yahei", pingFang-SC-Regular, Helvetica, Aria, sans-serif;
           font-size: 12px;
           line-height: 30px;
           color: #979ba5;
 
           .subtitle-text-tag {
-            padding: 0 4px;
-            font-family: Roboto Mono, Consolas, Menlo, Courier, monospace;
+            padding: 2px 4px;
             color: #313238;
             background-color: #f4f6fa;
+            border-radius: 2px;
           }
         }
       }
@@ -109,7 +106,7 @@
       height: 95px;
       padding: 0 12px;
       overflow-y: scroll;
-      border-bottom: 1px solid #DCDEE5;
+      border-bottom: 1px solid #dcdee5;
 
       .favorite-wrap-title {
         margin-top: 6px;
@@ -118,7 +115,7 @@
         color: #313238;
 
         .favorite-count {
-          color: #3A84FF;
+          color: #3a84ff;
         }
       }
 
@@ -126,7 +123,7 @@
         margin-top: 10px;
         font-size: 12px;
         line-height: 18px;
-        color: #4D4F56;
+        color: #4d4f56;
         cursor: pointer;
 
         .favorite-item-name {
@@ -136,10 +133,10 @@
         }
 
         .favorite-item-content {
-          color: #4D4F56;
+          color: #4d4f56;
 
           .highlight {
-            color:#3A84FF;
+            color: #3a84ff;
           }
         }
       }
@@ -150,13 +147,13 @@
       align-items: center;
       height: 48px;
       padding-left: 16px;
-      background: #FAFBFD;
+      background: #fafbfd;
 
       .desc-item {
         display: flex;
         align-items: center;
         margin-right: 24px;
-  
+
         .desc-item-icon {
           display: flex;
           align-items: center;
@@ -166,23 +163,23 @@
           background: #a3b1cc29;
           border: 1px solid #a3b1cc4d;
           border-radius: 2px;
-  
+
           .icon-mc-arrow-down {
             font-size: 12px;
-            color: #A3B1CC;
-  
+            color: #a3b1cc;
+
             &.up {
               rotate: 180deg;
             }
           }
         }
-  
+
         .desc-item-name {
           margin-left: 4px;
           font-size: 12px;
-          color: #7A8599;
+          color: #7a8599;
         }
-  
+
         .desc-item-box {
           display: flex;
           align-items: center;
@@ -191,7 +188,7 @@
           padding: 0 4px;
           font-size: 12px;
           font-weight: 700;
-          color: #A3B1CC;
+          color: #a3b1cc;
           background: #a3b1cc29;
           border: 1px solid #a3b1cc4d;
           border-radius: 2px;
@@ -202,7 +199,7 @@
 
   .wrap-right {
     min-width: 240px;
-    background: #F5F7FA;
-    border-left: 1px solid #DCDEE5;
+    background: #f5f7fa;
+    border-left: 1px solid #dcdee5;
   }
 }

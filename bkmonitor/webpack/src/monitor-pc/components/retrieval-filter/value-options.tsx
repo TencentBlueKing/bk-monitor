@@ -88,7 +88,9 @@ export default class ValueOptions extends tsc<IProps> {
   get hasCustomOption() {
     return !!this.search;
   }
-
+  get renderOptions() {
+    return this.localOptions?.filter(item => !this.selected.includes(item.id)) || [];
+  }
   @Watch('show')
   async handleWatchShow() {
     if (this.isPopover) {
@@ -101,13 +103,6 @@ export default class ValueOptions extends tsc<IProps> {
         document.removeEventListener('keydown', this.handleKeydownEvent);
       }
     } else {
-    }
-  }
-
-  @Watch('selected')
-  handleWatchSelected() {
-    if (this.isPopover ? this.show : true) {
-      this.localOptions = this.localOptionsFilter(this.localOptions);
     }
   }
 
@@ -254,12 +249,12 @@ export default class ValueOptions extends tsc<IProps> {
   }
 
   localOptionsFilter(list: IValue[]) {
-    const sets = new Set(this.selected);
-    const result = list.filter(item => !sets.has(item.id));
-    if (!result.length) {
+    // const sets = new Set(this.selected);
+    // const result = list.filter(item => !sets.has(item.id));
+    if (!list.length) {
       this.page += 1;
     }
-    return result;
+    return list;
   }
 
   render() {
@@ -268,7 +263,7 @@ export default class ValueOptions extends tsc<IProps> {
         style={
           this.width
             ? {
-                width: `${this.width}px`,
+                width: `${Math.max(222, this.width)}px`,
               }
             : {}
         }
@@ -293,6 +288,7 @@ export default class ValueOptions extends tsc<IProps> {
           </div>
         ) : (
           <div
+            style={{ borderColor: this.renderOptions.length ? '#DCDEE5' : 'transparent' }}
             class={['options-drop-down-wrap main__wrap', { 'is-popover': this.isPopover }]}
             onScroll={this.handleScroll}
           >
@@ -310,7 +306,7 @@ export default class ValueOptions extends tsc<IProps> {
                 </i18n>
               </div>
             )}
-            {this.localOptions.map((item, index) => (
+            {this.renderOptions.map((item, index) => (
               <div
                 key={index}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
