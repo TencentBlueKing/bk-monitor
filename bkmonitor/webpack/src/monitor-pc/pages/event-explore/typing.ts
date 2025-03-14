@@ -142,27 +142,19 @@ export enum ExploreEntitiesTypeEnum {
   K8S = 'k8s',
 }
 
-/** 检索表格loading类型枚举 */
-export enum ExploreTableLoadingEnum {
-  /** 刷新 -- 显示 骨架屏 效果loading */
-  REFRESH = 'refreshLoading',
-  /** 滚动 -- 显示 表格底部 loading */
-  SCROLL = 'scrollLoading',
+interface ExploreRequestParams {
+  limit: number;
+  offset: number;
+  query_configs: IFormData[];
+  fields: string[];
+  start_time: number;
+  end_time: number;
+  app_name?: string;
+  service_name?: string;
 }
 
-type ExploreTableRequestParams = Omit<ITopKRequestParams, 'fields'> & { offset: number };
-export interface EventExploreTableRequestConfigs {
-  /** api 所在模块 */
-  apiModule?: string;
-  /** api 方法名 */
-  apiFunc?: string;
-  /** 触发的表格loading类型 */
-  loadingType?: ExploreTableLoadingEnum;
-  /** 表格请求所传的参数 */
-  data?: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
-  /** 表格记录总数 */
-  total?: number;
-}
+export type ExploreTotalRequestParams = Omit<ExploreRequestParams, 'fields' | 'limit' | 'offset'>;
+export type ExploreTableRequestParams = Omit<ExploreRequestParams, 'fields'>;
 
 type ExploreFieldTransform = Record<string, Partial<IDimensionField> & { finalName?: string }>;
 /**
