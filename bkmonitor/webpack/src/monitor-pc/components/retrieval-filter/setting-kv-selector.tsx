@@ -302,7 +302,10 @@ export default class SettingKvSelector extends tsc<IProps> {
         >
           <span class='key-wrap'>{this.value?.key}</span>
           <span class='method-wrap'>
-            <bk-dropdown-menu trigger='click'>
+            <bk-dropdown-menu
+              positionFixed={true}
+              trigger='click'
+            >
               <span
                 class='method-span'
                 slot='dropdown-trigger'
