@@ -455,18 +455,8 @@ export class QueryStringEditor {
   handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       event.preventDefault();
-      const len = this.tokens.length;
-      let isLastValue = false;
-      for (let i = len - 1; i >= 0; i--) {
-        const token = this.tokens[i];
-        if (QUERY_STRING_DATA_TYPES.includes(token.type)) {
-          isLastValue = token.type === EQueryStringTokenType.value;
-          break;
-        }
-      }
-      if (!this.isPopUp || isLastValue) {
-        this.options?.onQuery?.();
-      }
+      event.stopPropagation();
+      this.options?.onQuery?.();
     }
   }
 
@@ -572,9 +562,6 @@ export class QueryStringEditor {
     }
     this.setTokensToTarget(true);
     this.popUpFn(true);
-    if (type === EQueryStringTokenType.value) {
-      this.options?.onQuery();
-    }
   }
 
   /* 将解析完的数组填入目标元素 */
