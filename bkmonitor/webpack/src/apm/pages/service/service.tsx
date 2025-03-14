@@ -213,24 +213,25 @@ export default class Service extends tsc<object> {
 
   /** 导航栏下拉选择 */
   async handleNavSelect(item: ISelectItem, navId) {
+    const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
     // 选择应用
     if (navId === 'application') {
       const { id } = this.routeList[1];
       this.appName = item.id;
       const targetRoute = this.$router.resolve({
         name: id,
-        query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+        query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
       });
       /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
         this.$router.push({
           name: id,
-          query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+          query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
         });
       }
     } else {
       this.serviceName = item.id;
-      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      // const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
       this.$router.replace({
         name: this.$route.name,
         query: {
