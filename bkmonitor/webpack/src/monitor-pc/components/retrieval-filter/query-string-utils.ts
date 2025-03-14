@@ -449,13 +449,13 @@ export class QueryStringEditor {
     if (this.isPopUp) {
       this.popDown();
     } else {
-      this.popUpFn();
+      this.popUpFn(true);
     }
   }
   handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
-      event.preventDefault();
       event.stopPropagation();
+      event.preventDefault();
       this.options?.onQuery?.();
     }
   }

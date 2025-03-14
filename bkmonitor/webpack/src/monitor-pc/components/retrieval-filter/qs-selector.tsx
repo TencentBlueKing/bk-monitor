@@ -119,6 +119,7 @@ export default class QsSelector extends tsc<IProps> {
   @Debounce(200)
   @Watch('localValue', { immediate: true })
   handleWatchLocalValue() {
+    if (!this.lastPositionRef) return;
     const left = this.lastPositionRef.offsetLeft;
     const top = this.lastPositionRef.offsetTop < 14 && !this.isQsOperateWrapBottom ? -26 : this.$el.clientHeight - 2;
     this.operatePosition = {
@@ -260,6 +261,7 @@ export default class QsSelector extends tsc<IProps> {
    * @description 查询
    */
   handleQuery() {
+    this.popoverInstance?.hide?.();
     this.$emit('query');
   }
 
@@ -277,8 +279,11 @@ export default class QsSelector extends tsc<IProps> {
    * @description 清空
    */
   handleClear() {
+    this.inputValue = '';
+    this.localValue = '';
     this.queryStringEditor.setQueryString('');
     this.handleChange('');
+    this.handleQuery();
   }
   /**
    * @description 复制
@@ -359,7 +364,7 @@ export default class QsSelector extends tsc<IProps> {
         class='retrieval-filter__qs-selector-component-wrap'
         data-placeholder={
           !this.inputValue && !this.localValue
-            ? `/ ${this.$t('快速定位到搜索，请输入关键词，')}log:error AND"name=bklog"`
+            ? `/ ${this.$t('快速定位到搜索，请输入关键词，')}log:error AND "name=bklog"`
             : ''
         }
       >
