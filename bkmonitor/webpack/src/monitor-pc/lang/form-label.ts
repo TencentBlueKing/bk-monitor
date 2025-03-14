@@ -824,6 +824,7 @@ export default {
   新检索: 'New Explore',
   收藏查询: 'Favorite',
   '(仅个人可见)': '(personal)',
+  '（仅个人可见）': '（personal）',
   未分组: 'Default',
   收藏排序: 'Favorite Sorting',
   '按名称 A - Z 排序': 'Sort by name A - Z',
