@@ -16,6 +16,9 @@
       padding: 0;
 
       .event-tippy-content {
+        margin-top: 4px;
+        margin-bottom: 4px;
+
         &.segment-event-icons {
           flex-direction: column;
 
@@ -27,12 +30,13 @@
             justify-content: space-between;
             min-width: 240px;
             height: 32px;
-            padding: 0 10px;
+            padding: 5px 13px 7px 12px;
             font-size: 12px;
+            color: #4D4F56;
             cursor: pointer;
 
             &:hover {
-              background: #eaf3ff;
+              background: #F5F7FA;
             }
           }
 
@@ -43,9 +47,7 @@
             width: 24px;
             height: 24px;
 
-            &:hover {
-              color: #3a84ff;
-            }
+
           }
 
           .segment-event-btn {
@@ -54,9 +56,7 @@
             align-items: center;
             justify-content: space-between;
 
-            &:hover {
-              color: #3a84ff;
-            }
+
 
             .new-link {
               transform: translateY(1px);
@@ -69,14 +69,16 @@
 
           .icon {
             display: inline-block;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
           }
 
+          .bklog-copy-3,
           .icon-minus-circle,
           .bklog-trace-view,
           .icon-plus-circle {
-            margin-right: 6px;
+            margin-right: 4px;
+
           }
 
           .bklog-copy {

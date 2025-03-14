@@ -28,8 +28,8 @@ import { Ref } from 'vue';
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import UseSegmentPropInstance from './use-segment-pop';
 import { optimizedSplit, setScrollLoadCell } from './hooks-helper';
+import UseSegmentPropInstance from './use-segment-pop';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;

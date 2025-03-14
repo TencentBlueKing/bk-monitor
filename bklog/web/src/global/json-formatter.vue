@@ -1,12 +1,12 @@
 <template>
   <div
-    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
     ref="refJsonFormatterCell"
+    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
   >
     <template v-for="item in rootList">
       <span
-        :key="item.name"
         class="bklog-root-field"
+        :key="item.name"
       >
         <span class="field-name"
           ><span
@@ -26,11 +26,13 @@
 </template>
 <script setup lang="ts">
   import { computed, ref, watch, onBeforeUnmount } from 'vue';
-  import useJsonRoot from '../hooks/use-json-root';
-  import useStore from '../hooks/use-store';
-  //@ts-ignore
+
+  // @ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
+
+  import useJsonRoot from '../hooks/use-json-root';
+  import useStore from '../hooks/use-store';
   const emit = defineEmits(['menu-click']);
   const store = useStore();
 
@@ -154,32 +156,25 @@
     color: var(--table-fount-color);
     text-align: left;
 
-    &:not(.is-json) {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: auto;
-          will-change: transform;
-          transform: translateZ(0); /* 强制开启GPU加速 */
-        }
-      }
-    }
+
 
     .bklog-scroll-box {
       max-height: 50vh;
       overflow: auto;
-      will-change: transform;
       transform: translateZ(0); /* 强制开启GPU加速 */
+      will-change: transform;
     }
 
     .bklog-scroll-cell {
       word-break: break-all;
+
       span {
         content-visibility: auto;
         contain-intrinsic-size: 0 60px; /* 预估初始高度 */
       }
     }
 
+    /* stylelint-disable-next-line declaration-no-important */
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
@@ -197,8 +192,9 @@
 
         .black-mark {
           width: max-content;
-          padding: 0 2px;
-          background: #e6e6e6;
+          padding: 2px 2px;
+          color: #16171a;
+          background-color: #e6e9f0;
           border-radius: 2px;
         }
 
@@ -211,6 +207,17 @@
         :hover {
           color: #3a84ff;
           cursor: pointer;
+        }
+      }
+    }
+
+    &:not(.is-json) {
+      .bklog-root-field {
+        .field-value {
+          max-height: 50vh;
+          overflow: auto;
+          transform: translateZ(0); /* 强制开启GPU加速 */
+          will-change: transform;
         }
       }
     }
@@ -238,7 +245,10 @@
 
         &.focus-text,
         &:hover {
-          color: #3a84ff;
+          width: max-content;
+          padding: 4px 2px;
+          background-color: #cddffe;
+          border-radius: 2px;
         }
       }
 
@@ -250,8 +260,8 @@
 
     &.is-inline {
       .bklog-root-field {
-        word-break: break-all;
         display: inline-flex;
+        word-break: break-all;
 
         .segment-content {
           word-break: break-all;
@@ -295,7 +305,11 @@
 
         &.focus-text,
         &:hover {
-          color: #3a84ff;
+          width: max-content;
+          padding: 4px 2px;
+          background-color: #cddffe;
+          border-radius: 2px;
+          // color: #3a84ff;
         }
       }
     }

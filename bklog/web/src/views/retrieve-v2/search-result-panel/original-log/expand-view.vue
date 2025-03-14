@@ -28,13 +28,13 @@
   <div class="expand-view-wrapper">
     <div class="view-tab">
       <span
-        :class="{ active: activeExpandView === 'kv' }"
+        :class="{ active1: activeExpandView === 'kv' }"
         @click="activeExpandView = 'kv'"
       >
         KV
       </span>
       <span
-        :class="{ active: activeExpandView === 'json' }"
+        :class="{ active2: activeExpandView === 'json' }"
         @click="activeExpandView = 'json'"
       >
         JSON
@@ -131,39 +131,61 @@
   .expand-view-wrapper {
     width: 100%;
     color: #313238;
+    background-color: #f5f7fa;
 
     .view-tab {
       font-size: 0;
-      background-color: #fafbfd;
+      background-color: #F5F7FA;
 
       span {
         display: inline-block;
         width: 68px;
-        height: 26px;
+        height: 23px;
         font-size: 12px;
-        line-height: 26px;
-        color: var(--table-fount-color);
+        line-height: 23px;
+        color: #313238;
         text-align: center;
         cursor: pointer;
-        background-color: #f5f7fa;
-        border: 1px solid #eaebf0;
+
         border-top: 0;
 
         &:first-child {
           border-left: 0;
         }
 
-        &.active {
-          color: #3a84ff;
-          background-color: #fafbfd;
-          border: 0;
+        &.active1,
+        &.active2 {
+          position: relative;
+          font-size: 12px;
+          font-weight: 700;
         }
+
+        &.active1::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 26px;
+          width: 17px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
+
+        &.active2::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 20px;
+          width: 30px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
+
       }
     }
 
     .view-content {
-      padding: 10px 30px;
-      background-color: #fafbfd;
+      padding: 10px 15px;
+      background-color: #F5F7FA;
 
       :deep(.vjs-tree) {
         /* stylelint-disable-next-line declaration-no-important */
