@@ -20,6 +20,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 
@@ -127,8 +128,10 @@ def get_notify_roles():
         'bk_app_director': '产品负责人',
     }
     """
+    request = get_request()
+
     roles = settings.NOTIRY_MAN_DICT.copy()
-    for attr in api.cmdb.get_object_attribute(bk_obj_id="biz"):
+    for attr in api.cmdb.get_object_attribute(bk_obj_id="biz", bk_tenant_id=request.user.tenant_id):
         if (
             attr["bk_property_type"] == "objuser"
             and attr["bk_property_group"] == "role"

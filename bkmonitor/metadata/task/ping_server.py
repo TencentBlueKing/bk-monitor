@@ -17,6 +17,7 @@ from django.conf import settings
 
 from alarm_backends.management.hashring import HashRing
 from bkmonitor.commons.tools import is_ipv6_biz
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata.models.custom_report.subscription_config import get_proxy_host_ids
@@ -63,9 +64,12 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
     if not settings.ENABLE_PING_ALARM:
-        cloud_areas = api.cmdb.search_cloud_area()
-        for cloud_area in cloud_areas:
-            PingServerSubscriptionConfig.create_subscription(cloud_area["bk_cloud_id"], {}, [], plugin_name)
+        PingServerSubscriptionConfig.create_subscription(0, {}, [], plugin_name)
+        for tenant in api.bk_login.get_tenant():
+            for cloud_area in api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"]):
+                if cloud_area["bk_cloud_id"] == 0:
+                    continue
+                PingServerSubscriptionConfig.create_subscription(cloud_area["bk_cloud_id"], {}, [], plugin_name)
         return
 
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
@@ -95,7 +99,9 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     for bk_cloud_id, target_ips in cloud_to_hosts.items():
         if int(bk_cloud_id) == 0:
             bk_host_ids = []
-            hosts = api.cmdb.get_host_without_biz(ips=settings.CUSTOM_REPORT_DEFAULT_PROXY_IP)["hosts"]
+            hosts = api.cmdb.get_host_without_biz(
+                ips=settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, bk_tenant_id=DEFAULT_TENANT_ID
+            )["hosts"]
             proxies = [{"bk_host_id": host.bk_host_id} for host in hosts]
             bk_host_ids.extend([host["bk_host_id"] for host in hosts])
             target_hosts = [

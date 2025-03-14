@@ -19,6 +19,7 @@ from django.db import models
 
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
@@ -401,7 +402,7 @@ class CustomReportSubscription(models.Model):
         # 4. 通过节点管理下发直连区域配置，下发全部bk_data_id
         items = list(chain(*list(biz_id_to_data_id_config.values())))
         proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
-        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips, bk_tenant_id=DEFAULT_TENANT_ID)["hosts"]
         hosts = [host for host in hosts if host["bk_cloud_id"] == 0]
         if not hosts:
             logger.warning(
@@ -495,20 +496,22 @@ class LogSubscriptionConfig(models.Model):
             for proxy_ip in settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
         ]
 
-        cloud_infos = api.cmdb.search_cloud_area()
-        for cloud_info in cloud_infos:
-            bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
-            if int(bk_cloud_id) == 0:
-                continue
+        for tenant in api.bk_login.get_tenant():
+            for cloud_info in api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"]):
+                bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
+                if int(bk_cloud_id) == 0:
+                    continue
 
-            proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
-            for p in proxy_list:
-                if p["status"] != "RUNNING":
-                    logger.warning("proxy({}) can not be use with bk-collector, it's not running".format(p["inner_ip"]))
-                else:
-                    target_hosts.append(
-                        {"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0}
-                    )
+                proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
+                for p in proxy_list:
+                    if p["status"] != "RUNNING":
+                        logger.warning(
+                            "proxy({}) can not be use with bk-collector, it's not running".format(p["inner_ip"])
+                        )
+                    else:
+                        target_hosts.append(
+                            {"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0}
+                        )
 
         return target_hosts
 

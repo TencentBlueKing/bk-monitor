@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from monitor_web.commons.job import linux_system_info
-
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api, resource
 from metadata.models import CustomReportSubscription, TimeSeriesGroup
 from metadata.models.storage import EventGroup
+from monitor_web.commons.job import linux_system_info
 
 
 def mark(msg, ok=True, prefix="\n"):
@@ -83,7 +83,7 @@ class Command(BaseCommand):
 
         # 获取直连云区域proxy ip
         proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
-        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips, bk_tenant_id=DEFAULT_TENANT_ID)["hosts"]
         host_list.extend([{"ip": host.bk_host_innerip, "bk_cloud_id": 0} for host in hosts if host.bk_cloud_id == 0])
         bk_host_ids.extend([host.bk_host_id for host in hosts])
         proxyip_check_result = host_list != []
@@ -109,13 +109,14 @@ class Command(BaseCommand):
             for proc in proc_list:
                 current_plugin_version = proc.get("version", "")
                 mark(
-                    f"proxy_ip({proxy_ip}|{proxy_cloud_id})"
-                    f" {proc['name']}插件版本为：{current_plugin_version}", current_plugin_version, "- Description: "
+                    f"proxy_ip({proxy_ip}|{proxy_cloud_id})" f" {proc['name']}插件版本为：{current_plugin_version}",
+                    current_plugin_version,
+                    "- Description: ",
                 )
 
         # 检查proxy ip当前使用插件类型
         check_plugin_content = (
-                """#!/bin/bash
+            """#!/bin/bash
             output=$(lsof -i :10205 | grep LISTEN)
             process_name=$(echo ${output} | awk '{print $1}')
             pid=$(echo ${output} | awk '{print $2}')
@@ -132,7 +133,7 @@ class Command(BaseCommand):
                     parent_dir=$(dirname $(dirname "$path"))
                     echo "-process_path: $parent_dir"
             """
-                + f"""
+            + f"""
                      echo "-bk-collector:$(grep -r "{bk_data_id}" $parent_dir/etc/bk-collector/ | wc -l)"
                      echo "-bkmonitorproxy:$(grep -r "{bk_data_id}" $parent_dir/etc/bkmonitorproxy/ | wc -l)"
                 done
@@ -167,8 +168,7 @@ class Command(BaseCommand):
             proxy_ip = proxy_result["ip"]
             bk_cloud_id = proxy_result["bk_cloud_id"]
             errmsg = proxy_result["errmsg"]
-            mark(f"登录proxy_ip({proxy_ip}|{bk_cloud_id}) 获取当前使用插件类型失败，输出日志为：\n{errmsg}"
-                 , False, "- Description: ")
+            mark(f"登录proxy_ip({proxy_ip}|{bk_cloud_id}) 获取当前使用插件类型失败，输出日志为：\n{errmsg}", False, "- Description: ")
 
         mark("check data id exist", check_plugin_result)
         for proxy_result in result["success"]:
@@ -188,8 +188,11 @@ class Command(BaseCommand):
                         collector_dataid_exist = int(collector_dataid_count) != 0
                     except (ValueError, TypeError):
                         collector_dataid_exist = False
-                    mark(f"data id({bk_data_id}) collector配置{'成功' if collector_dataid_exist else '未成功'}下发",
-                         collector_dataid_exist, "- Description: ")
+                    mark(
+                        f"data id({bk_data_id}) collector配置{'成功' if collector_dataid_exist else '未成功'}下发",
+                        collector_dataid_exist,
+                        "- Description: ",
+                    )
 
                 if "-bkmonitorproxy" in prefix:
                     proxy_dataid_count = log.split(":")[-1].strip(" ")
@@ -197,8 +200,11 @@ class Command(BaseCommand):
                         proxy_dataid_exist = int(proxy_dataid_count) != 0
                     except (ValueError, TypeError):
                         proxy_dataid_exist = False
-                    mark(f"data id({bk_data_id}) bkmonitorproxy配置{'成功' if proxy_dataid_exist else '未成功'}下发",
-                         proxy_dataid_exist, "- Description: ")
+                    mark(
+                        f"data id({bk_data_id}) bkmonitorproxy配置{'成功' if proxy_dataid_exist else '未成功'}下发",
+                        proxy_dataid_exist,
+                        "- Description: ",
+                    )
 
         for proxy_result in result["failed"]:
             proxy_ip = proxy_result["ip"]
@@ -224,24 +230,28 @@ class Command(BaseCommand):
                     check_step_result = False
 
                 all_collector_check = check_config_exist_result and check_scope_result and check_step_result
-                mark("check bk-collector subscription config",
-                     all_collector_check)
-                mark(f"data id({bk_data_id})相关bk-collector订阅已创建, 订阅id为 {subscription_id}",
-                     check_config_exist_result, "- Description: ")
-                mark(f"订阅scope下发节点中目标porxy host id {bk_host_ids}{'已存在' if check_scope_result else '不存在'}"
-                     f"\n {scope}", check_scope_result, "- Description: ")
-                mark(f"订阅steps下发参数{'正确' if check_step_result else '错误,' + steps}"
-                     , check_step_result, "- Description: ")
+                mark("check bk-collector subscription config", all_collector_check)
+                mark(
+                    f"data id({bk_data_id})相关bk-collector订阅已创建, 订阅id为 {subscription_id}",
+                    check_config_exist_result,
+                    "- Description: ",
+                )
+                mark(
+                    f"订阅scope下发节点中目标porxy host id {bk_host_ids}{'已存在' if check_scope_result else '不存在'}" f"\n {scope}",
+                    check_scope_result,
+                    "- Description: ",
+                )
+                mark(f"订阅steps下发参数{'正确' if check_step_result else '错误,' + steps}", check_step_result, "- Description: ")
                 if all_collector_check:
-                    api.node_man.run_subscription(
-                        subscription_id=subscription_id, actions={plugin_name: "INSTALL"}
-                    )
+                    api.node_man.run_subscription(subscription_id=subscription_id, actions={plugin_name: "INSTALL"})
                     print("collector订阅配置正确，若data id仍未成功下发将重新执行相关订阅，请五分钟后再次使用命令检查相关配置，依然存在问题需联系节点管理。")
                     return
             else:
                 mark("check bk-collector subscription config", False)
-                print(f"- Description: data id({bk_data_id})相关bk-collector订阅未创建，"
-                      f"请确认周期任务refresh_custom_report_to_node_man是否成功执行")
+                print(
+                    f"- Description: data id({bk_data_id})相关bk-collector订阅未创建，"
+                    f"请确认周期任务refresh_custom_report_to_node_man是否成功执行"
+                )
 
         if proxy_qs.exists():
             check_config_exist_result = check_scope_result = True
@@ -261,21 +271,33 @@ class Command(BaseCommand):
                     check_scope_result = False
                     break
 
-            mark("check bkmonitorproxy subscription config",
-                 check_config_exist_result and check_scope_result and check_step_result)
-            mark(f"data id({bk_data_id})相关bkmonitorproxy订阅已创建, 订阅id为 {subscription_id}",
-                 check_config_exist_result, "- Description: ")
-            mark(f"订阅scope下发节点中目标porxy host id {bk_host_ids}{'已存在' if check_scope_result else '不存在'}"
-                 f"\n {scope}", check_scope_result, "- Description: ")
-            mark(f"订阅steps下发参数中data id {bk_data_id}{'已存在' if check_step_result else '不存在，请确认bkmonitorproxy是否停用'}"
-                 , check_step_result, "- Description: ")
+            mark(
+                "check bkmonitorproxy subscription config",
+                check_config_exist_result and check_scope_result and check_step_result,
+            )
+            mark(
+                f"data id({bk_data_id})相关bkmonitorproxy订阅已创建, 订阅id为 {subscription_id}",
+                check_config_exist_result,
+                "- Description: ",
+            )
+            mark(
+                f"订阅scope下发节点中目标porxy host id {bk_host_ids}{'已存在' if check_scope_result else '不存在'}" f"\n {scope}",
+                check_scope_result,
+                "- Description: ",
+            )
+            mark(
+                f"订阅steps下发参数中data id {bk_data_id}{'已存在' if check_step_result else '不存在，请确认bkmonitorproxy是否停用'}",
+                check_step_result,
+                "- Description: ",
+            )
             if check_config_exist_result and check_scope_result and check_step_result:
-                api.node_man.run_subscription(
-                    subscription_id=subscription_id, actions={plugin_name: "INSTALL"}
-                )
+                api.node_man.run_subscription(subscription_id=subscription_id, actions={plugin_name: "INSTALL"})
                 print("bkmonitorproxy订阅配置正确，若data id仍未成功下发将重新执行相关订阅，请五分钟后再次使用命令检查相关配置，依然存在问题需联系节点管理。")
                 return
         else:
             mark("check bkmonitorproxy subscription config", False)
-            mark(f"data id({bk_data_id})相关bkmonitorproxy订阅未创建，"
-                 f"请确认周期任务refresh_custom_report_to_node_man是否成功执行", False, "- Description: ")
+            mark(
+                f"data id({bk_data_id})相关bkmonitorproxy订阅未创建，" f"请确认周期任务refresh_custom_report_to_node_man是否成功执行",
+                False,
+                "- Description: ",
+            )

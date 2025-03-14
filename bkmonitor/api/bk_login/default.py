@@ -63,12 +63,14 @@ class ListTenantResource(BkUserApiResource):
     action = "/api/v3/open/tenants/"
     method = "GET"
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict):
         # 如果使用esb，则直接返回默认租户
         if not self.use_apigw():
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
-        return super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
+        result = super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
+        result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
+        return result
 
 
 class GetAllUserResource(BkUserApiResource):

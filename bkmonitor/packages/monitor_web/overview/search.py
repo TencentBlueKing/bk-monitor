@@ -20,6 +20,7 @@ from bkmonitor.iam.drf import filter_data_by_permission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from core.drf_resource import api
@@ -354,6 +355,8 @@ class HostSearchItem(SearchItem):
         """
         Search the host by host name
         """
+        request = get_request()
+
         query = query.strip()
 
         ips = []
@@ -373,7 +376,7 @@ class HostSearchItem(SearchItem):
         if not ips:
             return
 
-        result = api.cmdb.get_host_without_biz_v2(ips=ips)
+        result = api.cmdb.get_host_without_biz_v2(ips=ips, bk_tenant_id=request.user.tenant_id)
         hosts: List[Dict] = result["hosts"]
 
         items = []

@@ -15,6 +15,7 @@ from typing import List
 from django.conf import settings
 
 from bkmonitor.utils.version import get_max_version
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("metadata")
@@ -107,7 +108,7 @@ class AutoDeployProxy(object):
         if not proxy_ips:
             logger.info("no proxy host in direct area, skip it")
             return
-        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips, bk_tenant_id=DEFAULT_TENANT_ID)["hosts"]
         hosts = [h for h in hosts if h["bk_cloud_id"] == 0]
         bk_host_ids = [h.bk_host_id for h in hosts]
 
@@ -134,18 +135,19 @@ class AutoDeployProxy(object):
         logger.info("find {} version {} from bk_nodeman, start auto deploy.".format(plugin_name, plugin_latest_version))
 
         # 云区域
-        cloud_infos = api.cmdb.search_cloud_area()
-        for cloud_info in cloud_infos:
-            bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
-            if int(bk_cloud_id) == 0:
-                continue
+        for tenant in api.bk_login.get_tenant():
+            cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"])
+            for cloud_info in cloud_infos:
+                bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
+                if int(bk_cloud_id) == 0:
+                    continue
 
-            try:
-                cls.deploy_with_cloud_id(plugin_name, plugin_latest_version, bk_cloud_id)
-            except Exception as e:
-                logger.exception(
-                    "Auto deploy {} error, with bk_cloud_id({}), error({}).".format(plugin_name, bk_cloud_id, e)
-                )
+                try:
+                    cls.deploy_with_cloud_id(plugin_name, plugin_latest_version, bk_cloud_id)
+                except Exception as e:
+                    logger.exception(
+                        "Auto deploy {} error, with bk_cloud_id({}), error({}).".format(plugin_name, bk_cloud_id, e)
+                    )
 
         # 直连区域
         try:

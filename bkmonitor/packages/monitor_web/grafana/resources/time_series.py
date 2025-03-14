@@ -32,6 +32,7 @@ from bkmonitor.models import (
     MetricListCache,
 )
 from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.utils.request import get_request
 from constants.data_source import (
     DATA_CATEGORY,
     GRAPH_MAX_SLIMIT,
@@ -442,6 +443,7 @@ class GetVariableField(Resource):
     }
 
     def perform_request(self, params):
+        request = get_request()
         data = []
         scenario = params["scenario"]
         scope_type = params["type"]
@@ -452,7 +454,9 @@ class GetVariableField(Resource):
             properties = []
             if scope_type != "service_instance":
                 try:
-                    properties = api.cmdb.get_object_attribute(bk_obj_id=scope_type)
+                    properties = api.cmdb.get_object_attribute(
+                        bk_obj_id=scope_type, bk_tenant_id=request.user.tenant_id
+                    )
                 except BKAPIError:
                     pass
 

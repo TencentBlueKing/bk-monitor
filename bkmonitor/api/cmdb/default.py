@@ -13,7 +13,7 @@ import logging
 import typing
 from collections import defaultdict
 from multiprocessing.pool import ApplyResult
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -22,6 +22,7 @@ from rest_framework import serializers
 
 from api.cmdb.define import _split_member_list
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
@@ -117,7 +118,7 @@ def sort_topo_tree_by_pinyin(topo_trees):
     return topo_trees
 
 
-def _get_topo_tree(bk_biz_id):
+def _get_topo_tree(bk_biz_id: int):
     """
     获取业务拓扑树（未实例化）
     :param bk_biz_id: 业务ID
@@ -129,10 +130,9 @@ def _get_topo_tree(bk_biz_id):
     if response_data:
         response_data = response_data[0]
     else:
-        response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
-        if response_biz_data:
-            biz_data = response_biz_data[0]
-            bk_inst_name = biz_data.bk_biz_name
+        biz_space: Optional[Space] = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        if biz_space:
+            bk_inst_name = biz_space.space_name
         else:
             bk_inst_name = _("未知")
 
@@ -725,16 +725,8 @@ class GetDynamicQuery(CacheResource):
         elif dynamic_type == TargetNodeType.SET_TEMPLATE:
             response_data = batch_request(client.list_set_template, params, limit=200)
 
-        # 获取业务名称
-        response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
-        if response_biz_data:
-            biz_data = response_biz_data[0]
-            bk_inst_name = biz_data.bk_biz_name
-        else:
-            bk_inst_name = _("未知")
-
         # 结果保存变量
-        result = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_inst_name, "children": []}
+        result = {"bk_biz_id": bk_biz_id, "children": []}
 
         # 获取id和名称
         for dynamic_query in response_data:
@@ -810,7 +802,8 @@ class GetMainlineObjectTopo(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(label="租户ID")
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
     def perform_request(self, params: dict):
         return client.get_mainline_object_topo(params)
