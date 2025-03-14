@@ -43,6 +43,7 @@ class EventViewSet(ResourceViewSet):
         ResourceRoute("POST", resources.EventTotalResource, endpoint="total"),
         ResourceRoute("POST", resources.EventViewConfigResource, endpoint="view_config"),
         ResourceRoute("POST", resources.EventTimeSeriesResource, endpoint="time_series"),
+        ResourceRoute("POST", resources.EventTagsResource, endpoint="tags"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
