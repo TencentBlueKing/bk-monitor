@@ -207,7 +207,6 @@ export default class ValueOptions extends tsc<IProps> {
   }
 
   handleCheck(item: IValue) {
-    console.log(item);
     this.$emit('select', item);
   }
 

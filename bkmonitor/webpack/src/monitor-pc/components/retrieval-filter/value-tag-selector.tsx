@@ -108,11 +108,6 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
-    console.log(
-      this.localValue,
-      item,
-      this.localValue.some(v => v.id === item.id)
-    );
     if (this.localValue.some(v => v.id === item.id)) return;
     this.localValue.push(item);
     this.activeIndex += 1;
@@ -159,7 +154,6 @@ export default class ValueTagSelector extends tsc<IProps> {
       this.inputValue = '';
       return;
     }
-    console.log('xxxxxx');
     this.localValue.push({ id: this.inputValue, name: this.inputValue });
     this.activeIndex += 1;
     this.inputValue = '';
