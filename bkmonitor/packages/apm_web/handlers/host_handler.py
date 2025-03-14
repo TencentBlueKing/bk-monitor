@@ -32,8 +32,6 @@ from core.drf_resource import api
 
 logger = logging.getLogger("apm")
 
-TIME_OUT = 60
-
 
 class HostHandler:
     class SourceType:
@@ -56,7 +54,6 @@ class HostHandler:
     PAGE_LIMIT = 100
 
     @classmethod
-    @using_cache(CacheType.APM(TIME_OUT))
     def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
         """
         获取应用的主机列表
@@ -65,6 +62,11 @@ class HostHandler:
         2. 通过topo发现
         3. 通过关联查询
         """
+        cache_key = f"{bk_biz_id}-{app_name}-{service_name}-hosts"
+        hosts_cache = using_cache(CacheType.APM(60 * 1))
+        res = hosts_cache.get_value(cache_key)
+        if res:
+            return res
 
         if not start_time or not end_time:
             app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
@@ -72,10 +74,6 @@ class HostHandler:
                 logger.exception(f"[HostHandler] 业务({bk_biz_id})下的app({app_name}) 不存在.")
                 return []
             start_time, end_time = app.list_retention_time_range()
-
-        global TIME_OUT
-        # 使用end_time和start_time的时间差作为过期时间，保证在同个时间区间查询时，直接从缓存获取
-        TIME_OUT = end_time - start_time
 
         # step1: 从主机发现取出 和 拓扑关联中取出主机
         def get_hosts_from_cmdb_and_topo(bk_biz_id, app_name, service_name):
@@ -176,6 +174,7 @@ class HostHandler:
                 continue
             res.append(i)
             host_ids.append(i["bk_host_id"])
+        hosts_cache.set_value(cache_key, res)
         return res
 
     @classmethod
