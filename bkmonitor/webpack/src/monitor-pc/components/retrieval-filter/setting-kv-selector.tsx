@@ -99,11 +99,12 @@ export default class SettingKvSelector extends tsc<IProps> {
   @Watch('value', { immediate: true })
   handleWatchValue() {
     if (this.value) {
+      console.log(this.value);
       const valueStr = this.value.value.join('____');
       const localValueStr = this.localValue.join('____');
       this.localMethod = this.value.method;
       if (valueStr !== localValueStr) {
-        this.localValue = this.value.value;
+        this.localValue = this.value.value.slice();
       }
       if (this.value.method !== this.localMethod) {
         this.localMethod = this.value.method;
@@ -147,7 +148,7 @@ export default class SettingKvSelector extends tsc<IProps> {
       }
       if (hasHide && i > 1) {
         const preItem = valueWrap.children[i - 1] as any;
-        if (preItem.offsetLeft + preItem.offsetWidth > valueWrap.offsetWidth - 68) {
+        if (preItem.offsetLeft + preItem.offsetWidth + 4 > valueWrap.offsetWidth - 68) {
           this.hideIndex = i - 1;
           return;
         }
@@ -336,7 +337,14 @@ export default class SettingKvSelector extends tsc<IProps> {
                 <span
                   key={'count'}
                   class='hide-count'
-                >{`+${this.tagList.length - index}`}</span>
+                >
+                  <span
+                    v-bk-tooltips={{
+                      content: this.tagList.slice(index).join(','),
+                      delay: 300,
+                    }}
+                  >{`+${this.tagList.length - index}`}</span>
+                </span>
               ) : undefined,
               <span
                 key={index}

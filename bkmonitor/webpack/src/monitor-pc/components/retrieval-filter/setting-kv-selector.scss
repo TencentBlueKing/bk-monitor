@@ -105,6 +105,10 @@
         .icon-mc-close {
           cursor: pointer;
         }
+
+        &:hover {
+          background-color: #dcdee5;
+        }
       }
 
       .hide-count {
