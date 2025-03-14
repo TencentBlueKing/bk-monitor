@@ -321,6 +321,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             <bk-input
               class='search-input'
               vModel={this.searchVal}
+              native-attributes={{
+                spellcheck: false,
+              }}
               placeholder={this.$t('搜索收藏名')}
               right-icon='bk-icon icon-search'
               onEnter={this.handleSearchFavorite}
