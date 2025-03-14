@@ -148,7 +148,7 @@ export default class ApmEventExplore extends tsc<object> {
         queryString={this.queryString}
         source={APIType.APM}
         where={this.where}
-        onFilterModelChange={this.handleFilterModelChange}
+        onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
         onWhereChange={this.handleWhereChange}
       />

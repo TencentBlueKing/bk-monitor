@@ -37,11 +37,7 @@ import {
   type IWhereItem,
 } from './utils';
 
-import type { IFavList } from '../../pages/data-retrieval/typings';
-
 import './resident-setting.scss';
-
-const COMMON_WHERE = 'common_where';
 
 export interface IResidentSetting {
   field: IFilterField;
@@ -50,9 +46,9 @@ export interface IResidentSetting {
 interface IProps {
   fields: IFilterField[];
   value?: IWhereItem[];
-  dataId: string;
-  source?: string;
-  curFavoriteData?: IFavList.favList;
+  residentSettingOnlyId?: string;
+  /** 是否根据onlyKey请求默认配置， 否则根据value生成配置 */
+  isDefaultSetting?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IWhereItem[]) => void;
 }
@@ -70,9 +66,9 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ default: () => [], type: Array }) value: IWhereItem[];
-  @Prop({ default: '', type: String }) dataId: string;
-  @Prop({ default: '', type: String }) source: string;
-  @Prop({ default: null, type: Object }) curFavoriteData: IFavList.favList;
+  @Prop({ default: '', type: String }) residentSettingOnlyId: string;
+  /** 是否根据onlyKey请求默认配置， 否则根据value生成配置 */
+  @Prop({ default: true, type: Boolean }) isDefaultSetting: boolean;
 
   @Ref('selector') selectorRef: HTMLDivElement;
 
@@ -98,10 +94,10 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
     }, {});
   }
 
-  @Watch('dataId', { immediate: true })
-  handleWatchDataId() {
+  @Watch('residentSettingOnlyId', { immediate: true })
+  handleWatchOnlyKey() {
     const fields: IResidentSetting[] = [];
-    if (this.curFavoriteData && this.curFavoriteData.config?.queryConfig?.result_table_id === this.dataId) {
+    if (!this.isDefaultSetting) {
       for (const where of this.value) {
         if (this.fieldNameMap[where.key]) {
           fields.push({
@@ -112,7 +108,7 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
       }
     } else {
       this.userConfigLoading = true;
-      this.handleGetUserConfig(`${this.source}_${COMMON_WHERE}_${this.dataId}`).then((res: string[] = []) => {
+      this.handleGetUserConfig(this.residentSettingOnlyId).then((res: string[] = []) => {
         for (const key of res) {
           if (this.fieldNameMap[key]) {
             fields.push({
@@ -188,10 +184,7 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
     }));
     this.handleChange();
     this.destroyPopoverInstance();
-    this.handleSetUserConfig(
-      `${this.source}_${COMMON_WHERE}_${this.dataId}`,
-      JSON.stringify(fields.map(item => item.name))
-    );
+    this.handleSetUserConfig(this.residentSettingOnlyId, JSON.stringify(fields.map(item => item.name)));
   }
 
   /**
