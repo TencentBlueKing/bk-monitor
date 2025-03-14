@@ -32,7 +32,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle bklog-time ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         >
         </span>
@@ -42,12 +42,18 @@
         v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle bklog-document ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
       </span>
       <span
+        class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '智能分析', delay: 500 }"
+      >
+        <span :class="`icon bklog-icon bklog-icon bklog-ai`"> </span>
+      </span>
+      <!-- <span
         v-if="isActiveWebConsole"
         class="handle-card"
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
@@ -56,7 +62,7 @@
           :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
         ></span>
-      </span>
+      </span> -->
       <div v-show="false">
         <div id="realTimeLog-html">
           <span>
@@ -141,6 +147,7 @@
       },
       handleClick: Function,
     },
+    emits: ['handleAi'],
     data() {
       return {
         showAllHandle: false, // hove操作区域显示全部icon
@@ -220,9 +227,11 @@
 
     .handle-card {
       display: inline-block;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       margin-left: 10px;
-      width: 14px;
+      font-size: 18px;
+      color: #8b92a5;
     }
   }
 

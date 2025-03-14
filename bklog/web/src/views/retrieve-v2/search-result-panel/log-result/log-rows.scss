@@ -6,7 +6,7 @@
   width: 100%;
   min-width: 100%;
   min-height: 400px;
-  margin-top: 12px;
+  margin-top: 6px;
 
   .bklog-requsting-loading {
     text-align: center;
@@ -78,7 +78,7 @@
     box-sizing: border-box;
     width: fit-content;
     min-width: 100%;
-    min-height: 40px;
+    min-height: 34px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
 
@@ -99,10 +99,10 @@
       align-items: flex-start;
       width: var(--scroll-width);
       min-width: fit-content;
-      min-height: 40px;
+      min-height: 32px;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      line-height: 20px;
+      line-height: 32px;
       color: var(--table-fount-color);
 
       .bklog-row-cell {
@@ -161,11 +161,11 @@
         &.header-cell {
           position: relative;
           display: inline;
-          height: 42px;
-          padding: 12px;
+          height: 32px;
+
           font-family: var(--table-fount-family);
           font-size: var(--table-fount-size);
-          line-height: 20px;
+          line-height: 32px;
           color: var(--table-fount-color);
           text-align: left;
           text-overflow: ellipsis;
@@ -243,7 +243,7 @@
 
           .toggle-display {
             position: absolute;
-            top: 16px;
+            top: 12px;
             right: 12px;
             display: none;
             color: #c4c6cc;
@@ -330,8 +330,8 @@
       display: none;
       width: fit-content;
       min-width: 100%;
-      height: 44px;
-      line-height: 42px;
+      height: 32px;
+      line-height: 32px;
       visibility: visible;
       background-color: #fafbfd;
       border-top: solid 1px #dfe0e5;
@@ -378,12 +378,12 @@
       }
 
       &::before {
-        content: '';
         position: absolute;
-        left: 0;
         top: 1px;
         bottom: 1px;
+        left: 0;
         width: 3.09px;
+        content: '';
         background: #f59789;
         border-radius: 0 1px 1px 0;
       }
@@ -483,6 +483,7 @@
 
     .bklog-row-box {
       will-change: transform;
+
       .bklog-row-container {
         content-visibility: auto;
         contain-intrinsic-size: 0 60px; /* 预估初始高度 */

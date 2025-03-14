@@ -153,7 +153,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
           >
             {/* <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span> */}
             <span
-              class={`bklog-icon bklog-${this.collectItem.group_name === '个人收藏' ? 'file-personal' : this.isHiddenList ? 'file-close' : 'folder-fill'}`}
+              class={`bklog-icon bklog-${this.collectItem.group_type === 'private' ? 'file-personal' : this.isHiddenList ? 'file-close' : 'folder-fill'}`}
             ></span>
             <span class='group-str'>{this.collectItem.group_name}</span>
           </span>

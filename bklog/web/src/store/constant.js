@@ -93,7 +93,7 @@ export const fieldTypeMap = {
   },
   __virtual__: {
     name: i18n.t('该字段为平台补充 不可检索'),
-    icon: 'bklog-icon bklog-ext2',
+    icon: 'bklog-icon bklog-ext-2',
     color: '#F2E2FB',
   },
   object: {
