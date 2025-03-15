@@ -18,14 +18,14 @@ from django.utils.translation import gettext_lazy as _
 import settings
 
 from ...constants import (
+    SYSTEM_EVENT_TRANSLATIONS,
     DisplayFieldType,
-    EventCategory,
     EventDomain,
     EventScenario,
     EventSource,
     SystemEventTypeEnum,
 )
-from ...utils import create_host_info, generate_time_range, get_field_label
+from ...utils import create_host_info, generate_time_range
 from .base import BaseEventProcessor
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,8 @@ class HostEventProcessor(BaseEventProcessor):
             )
             host_info["ip"]["value"] = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
             try:
-                host_info["bk_cloud_id"]["value"] = int(
-                    host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"] or 0
+                host_info["bk_cloud_id"]["value"] = (
+                    int(host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]) or 0
                 )
             except ValueError as exc:
                 logger.warning("failed to conversion time, err -> %s", exc)
@@ -107,10 +107,9 @@ class HostEventProcessor(BaseEventProcessor):
                 "alias": handler.create_event_content_alias(host_info),
                 "detail": handler.create_detail(host_info),
             }
-
             processed_event["event_name"] = {
                 "value": event_name["value"],
-                "alias": get_field_label(event_name["value"], EventCategory.SYSTEM_EVENT.value),
+                "alias": SYSTEM_EVENT_TRANSLATIONS.get(event_name["value"], event_name),
             }
             processed_events.append(processed_event)
         return processed_events
@@ -175,14 +174,8 @@ class OOMHandler(SpecificHostEventHandler):
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
             "target": cls.create_target(host_info),
-            "process": {
-                "label": host_info["process"]["label"],
-                "value": host_info["process"]["value"],
-            },
-            "task_memcg": {
-                "label": host_info["task_memcg"]["label"],
-                "value": host_info["task_memcg"]["value"],
-            },
+            "process": host_info["process"],
+            "task_memcg": host_info["task_memcg"],
         }
 
 
@@ -201,11 +194,8 @@ class DiskFullHandler(SpecificHostEventHandler):
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
             "target": cls.create_target(host_info),
-            "fstype": {"label": host_info["fstype"]["label"], "value": host_info["fstype"]["value"]},
-            "file_system": {
-                "label": host_info["file_system"]["label"],
-                "value": host_info["file_system"]["value"],
-            },
+            "fstype": host_info["fstype"],
+            "file_system": host_info["file_system"],
         }
 
 
@@ -227,9 +217,9 @@ class DiskReadOnlyHandler(SpecificHostEventHandler):
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
             "target": cls.create_target(host_info),
-            "position": {"label": host_info["position"]["label"], "value": host_info["position"]["value"]},
-            "fs": {"label": host_info["fs"]["label"], "value": host_info["fs"]["value"]},
-            "type": {"label": host_info["type"]["label"], "value": host_info["type"]["value"]},
+            "position": host_info["position"],
+            "fs": host_info["fs"],
+            "type": host_info["type"],
         }
 
 
@@ -258,10 +248,7 @@ class AgentLostHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
-        return {
-            "target": cls.create_target(host_info),
-            "bk_agent_id": {"label": host_info["bk_agent_id"]["label"], "value": host_info["bk_agent_id"]["value"]},
-        }
+        return {"target": cls.create_target(host_info), "bk_agent_id": host_info["bk_agent_id"]}
 
 
 class CoreFileHandler(SpecificHostEventHandler):
@@ -291,6 +278,6 @@ class CoreFileHandler(SpecificHostEventHandler):
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
             "target": cls.create_target(host_info),
-            "corefile": {"label": host_info["corefile"]["label"], "value": host_info["corefile"]["value"]},
-            "executable": {"label": host_info["executable"]["label"], "value": host_info["executable"]["value"]},
+            "corefile": host_info["corefile"],
+            "executable": host_info["executable"],
         }

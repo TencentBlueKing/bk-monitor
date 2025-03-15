@@ -12,7 +12,7 @@ import logging
 import threading
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set
 
 from django.utils.translation import gettext_lazy as _
 
@@ -44,8 +44,7 @@ from .core.processors import (
     HostEventProcessor,
     OriginEventProcessor,
 )
-from .core.processors.context import SystemClusterContext
-from .core.processors.context import BcsClusterContext
+from .core.processors.context import BcsClusterContext, SystemClusterContext
 from .core.processors.k8s import K8sEventProcessor
 from .mock_data import (
     API_LOGS_RESPONSE,
@@ -111,9 +110,11 @@ class EventLogsResource(Resource):
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
             raise ValueError(_("事件拉取失败"))
 
-        bcs_cluster_context = BcsClusterContext()
-        system_cluster_context = SystemClusterContext()
-        processors: List[BaseEventProcessor] = [OriginEventProcessor(),K8sEventProcessor(bcs_cluster_context), HostEventProcessor(system_cluster_context)]
+        processors: List[BaseEventProcessor] = [
+            OriginEventProcessor(),
+            K8sEventProcessor(BcsClusterContext()),
+            HostEventProcessor(SystemClusterContext()),
+        ]
         for processor in processors:
             events = processor.process(events)
 

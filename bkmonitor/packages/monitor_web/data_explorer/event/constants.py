@@ -200,12 +200,6 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "dimensions.bk_agent_id": _("AgentID"),
         "dimensions.corefile": _("CoreDump 文件"),
         "dimensions.executable": _("可执行文件"),
-        "DiskFull": _("磁盘写满"),
-        "DiskReadOnly": _("磁盘只读"),
-        "CoreFile": _("Corefile 产生"),
-        "OOM": _("OOM异常事件告警"),
-        "AgentLost": _("Agent 心跳丢失"),
-        "PingUnreachable": _("PING不可达告警"),
     },
     EventCategory.K8S_EVENT.value: {
         "bcs_cluster_id": _("集群 ID"),
@@ -478,9 +472,11 @@ class SystemEventTypeEnum(Enum):
     PingUnreachable: str = "PingUnreachable"
 
 
-class EventScenario(Enum):
-    CONTAINER_MONITOR = _("容器监控")
-    HOST_MONITOR = _("主机监控")
-
-
-DIMENSION_PREFIX = "dimensions."
+SYSTEM_EVENT_TRANSLATIONS = {
+    "DiskFull": _("磁盘写满"),
+    "DiskReadOnly": _("磁盘只读"),
+    "CoreFile": _("Corefile 产生"),
+    "OOM": _("OOM异常事件告警"),
+    "AgentLost": _("Agent 心跳丢失"),
+    "PingUnreachable": _("PING不可达告警"),
+}

@@ -2,12 +2,13 @@ import logging
 import time
 from typing import Any, Dict, List, Tuple
 from urllib import parse
-from metadata.models import ResultTable
+
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from metadata.models import ResultTable
 from packages.monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
