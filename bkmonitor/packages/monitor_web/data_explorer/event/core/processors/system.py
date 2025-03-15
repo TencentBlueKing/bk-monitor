@@ -8,145 +8,276 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
+import logging
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
+from django.utils.translation import gettext_lazy as _
+
+import settings
+
+from ...constants import (
+    SYSTEM_EVENT_TRANSLATIONS,
+    DisplayFieldType,
+    EventDomain,
+    EventScenario,
+    EventSource,
+    SystemEventTypeEnum,
+)
+from ...utils import create_host_info, generate_time_range
 from .base import BaseEventProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class HostEventProcessor(BaseEventProcessor):
+    def __init__(self, systme_cluster_context, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.system_cluster_context = systme_cluster_context
+
     @classmethod
     def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
-        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == ("system", "host")
+        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
+            EventDomain.SYSTEM.value,
+            EventSource.HOST.value,
+        )
 
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed_events: List[Dict[str, Any]] = []
         for origin_event in origin_events:
-            if not self._need_process(origin_event):
+            handler = {
+                SystemEventTypeEnum.OOM.value: OOMHandler,
+                SystemEventTypeEnum.DiskFull.value: DiskFullHandler,
+                SystemEventTypeEnum.DiskReadOnly.value: DiskReadOnlyHandler,
+                SystemEventTypeEnum.PingUnreachable.value: PingUnreachableHandler,
+                SystemEventTypeEnum.CoreFile.value: CoreFileHandler,
+                SystemEventTypeEnum.AgentLost.value: AgentLostHandler,
+            }.get(origin_event["event_name"]["value"])
+            if handler is None:
                 processed_events.append(origin_event)
                 continue
-
-            # 1-OOM
-            oom = {
-                "value": "oom",
-                "alias": "主机（0-127.0.0.1）进程（chrome）OOM",
-                "detail": {
-                    "target": {
-                        "label": "目标",
-                        "value": "127.0.0.1",
-                        "type": "link",
-                        "scenario": "主机监控",
-                        "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-                    },
-                    "process": {"label": "进程", "value": "chrome"},
-                    "task_memcg": {
-                        "label": "进程所属内存 cgroup",
-                        "value": "/pods.slice/pods-burstable.slice/pods-burstable-pod1",
-                    },
-                },
-            }
-            # # 2-DiskFull
-            # disk_full = {
-            #     "value": "disk_full",
-            #     "alias": "主机（0-127.0.0.1）磁盘（/）已满",
-            #     "detail": {
-            #         "target": {
-            #             "label": "目标",
-            #             "value": "127.0.0.1",
-            #             "type": "link",
-            #             "scenario": "主机监控",
-            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-            #         },
-            #         "fstype": {"label": "文件系统类型", "value": "ext4"},
-            #         "file_system": {"label": "文件系统", "value": "/dev/vda1"},
-            #     },
-            # }
-            # # 3-DiskReadOnly
-            # disk_read_only = {
-            #     "value": "disk_read_only",
-            #     "alias": "主机（0-127.0.0.1）磁盘（{fs}）只读，原因：{type}",
-            #     "detail": {
-            #         "target": {
-            #             "label": "目标",
-            #             "value": "127.0.0.1",
-            #             "type": "link",
-            #             "scenario": "主机监控",
-            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-            #         },
-            #         "fs": {"label": "文件系统", "value": "ext4"},
-            #         "position": {"label": "磁盘位置", "value": "1111"},
-            #         "type": {"label": "只读原因", "value": "xxxxx"},
-            #     },
-            # }
-            # # 4-CoreFile
-            # core_file = {
-            #     "value": "process MsgServer create corefile at /data/corefile/core.1_MsgServer",
-            #     # 参考：alarm_backends/service/access/event/records/corefile.py，1/2/3 表示不同 case，正式写代码都用 alias
-            #     # case-1：executable & signal 不为空。
-            #     "alias": "主机（0-127.0.0.1）进程（MsgServer）因异常信号（{signal}）产生 corefile（/data/corefile/core.1_MsgServer）",
-            #     # case-2：executable 不为空。
-            #     "alias1": "主机（0-127.0.0.1）进程（MsgServer）产生 corefile（/data/corefile/core.1_MsgServer）",
-            #     # case-3：signal 不为空。
-            #     "alias2": "主机（0-127.0.0.1）因异常信号（{signal}）产生 corefile（/data/corefile/core.1_MsgServer）",
-            #     # case-4：executable & signal 为空。
-            #     "alias3": "主机（0-127.0.0.1）产生 corefile（/data/corefile/core.1_MsgServer）",
-            #     "detail": {
-            #         "target": {
-            #             "label": "目标",
-            #             "value": "127.0.0.1",
-            #             "type": "link",
-            #             "scenario": "主机监控",
-            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-            #         },
-            #         "corefile": {"label": "CoreDump 文件", "value": "/data/corefile/core.1_MsgServer"},
-            #         "executable": {"label": "可执行文件", "value": "MsgServer"},
-            #     },
-            # }
-            # # 5-AgentLost
-            # agent_lost = {
-            #     "value": "AgentLost",
-            #     "alias": "主机（0-127.0.0.1）Agent 失联",
-            #     "detail": {
-            #         "target": {
-            #             "label": "目标",
-            #             "value": "127.0.0.1",
-            #             "type": "link",
-            #             "scenario": "主机监控",
-            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-            #         },
-            #         "bk_agent_id": {"label": "AgentID", "value": "02000000005254001dc07917062465625198"}
-            #     },
-            # }
-            # # 6-PingUnreachable
-            # ping_unreachable = {
-            #     "value": "PingUnreachable",
-            #     "alias": "主机（0-127.0.0.1）Ping 不可达",
-            #     "detail": {
-            #         "target": {
-            #             "label": "目标",
-            #             "value": "127.0.0.1",
-            #             "type": "link",
-            #             "scenario": "主机监控",
-            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-            #         }
-            #     },
-            # }
-
-            processed_events.append(
-                {
-                    # alias - 展示值、value - 原始数据值。
-                    "time": {"value": 1736927543000, "alias": 1736927543000},
-                    "type": {"value": "Normal", "alias": "Normal"},
-                    "source": {"value": "SYSTEM", "alias": "系统/主机"},
-                    "event_name": {"value": "oom", "alias": "进程 OOM"},
-                    "event.content": oom,
-                    "target": {
-                        "value": "127.0.0.1",
-                        # TODO cloud_infos = api.cmdb.search_cloud_area()
-                        "alias": "直连区域[0] / 127.0.0.1",
-                        "scenario": "主机监控",
-                        "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
-                    },
-                    "origin_data": {},
-                }
+            origin_data = origin_event["origin_data"]
+            host_info = create_host_info(
+                origin_data,
+                [
+                    "event.content",
+                    "target",
+                    "bk_biz_id",
+                    "bk_target_cloud_id",
+                    "bk_cloud_id",
+                    "bk_target_ip",
+                    "ip",
+                    "time",
+                ],
             )
+            host_info["ip"]["value"] = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
+            try:
+                host_info["bk_cloud_id"]["value"] = (
+                    int(host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]) or 0
+                )
+            except ValueError as exc:
+                logger.warning("failed to conversion time, err -> %s", exc)
+                raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(host_info["bk_cloud_id"]))
+
+            host_info.update(handler.add_other_fields(origin_data))
+            # 生成目标
+            target = handler.create_target(host_info)
+            processed_event = copy.deepcopy(origin_event)
+
+            # 根据 cloud_id 换取 cloud_name
+            bk_cloud_id = host_info["bk_cloud_id"]["value"]
+            processed_event["target"] = {
+                "alias": "{}[{}] / {}".format(
+                    self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}])
+                    .get(bk_cloud_id, {})
+                    .get("bk_cloud_name", ""),
+                    bk_cloud_id,
+                    host_info["ip"]["value"],
+                ),
+                "value": target["value"],
+                "type": target["type"],
+                "scenario": target["scenario"],
+                "url": target["url"],
+            }
+
+            event_name = origin_event["event_name"]
+            processed_event["event.content"] = {
+                "value": origin_event["event.content"]["value"],
+                "alias": handler.create_event_content_alias(host_info),
+                "detail": handler.create_detail(host_info),
+            }
+            processed_event["event_name"] = {
+                "value": event_name["value"],
+                "alias": SYSTEM_EVENT_TRANSLATIONS.get(event_name["value"], event_name),
+            }
+            processed_events.append(processed_event)
         return processed_events
+
+
+class SpecificHostEventHandler:
+    @classmethod
+    def add_other_fields(cls, host_info: Dict[str, Any]) -> Dict[str, Any]:
+        raise NotImplementedError()
+
+    @classmethod
+    def create_event_content_alias(cls, host_info: Dict[str, Any]) -> str:
+        raise NotImplementedError()
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        raise NotImplementedError()
+
+    @classmethod
+    def create_target(cls, host_info) -> Dict[str, Any]:
+        return {
+            "label": host_info["target"]["label"],
+            "value": host_info["target"]["value"],
+            "type": DisplayFieldType.LINK.value,
+            "scenario": EventScenario.HOST_MONITOR.value,
+            "url": cls.generate_url(host_info),
+        }
+
+    @classmethod
+    def generate_url(cls, host_info):
+        start_time, end_time = generate_time_range(host_info["time"]["value"])
+        if not host_info["ip"]["value"]:
+            return ""
+        params = {
+            "from": start_time,
+            "to": end_time,
+        }
+        return "{base_url}?bizId={biz_id}#/performance/detail/{ip}-{cloud_id}?{params}".format(
+            base_url=settings.BK_MONITOR_HOST,
+            biz_id=host_info["bk_biz_id"]["value"],
+            ip=host_info["ip"]["value"],
+            cloud_id=host_info["bk_cloud_id"]["value"],
+            params=urlencode(params),
+        )
+
+
+class OOMHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, ["process", "task_memcg"])
+
+    @classmethod
+    def create_event_content_alias(
+        cls,
+        host_info: Dict[str, Any],
+    ) -> str:
+        return _("主机（{}-{}）进程（{}）OOM").format(
+            host_info["bk_cloud_id"]["value"], host_info["ip"]["value"], host_info["process"]["value"]
+        )
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {
+            "target": cls.create_target(host_info),
+            "process": host_info["process"],
+            "task_memcg": host_info["task_memcg"],
+        }
+
+
+class DiskFullHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, ["disk", "fstype", "file_system"])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info: Dict[str, Any]) -> str:
+        return _("主机（{}-{}）磁盘（{}）已满").format(
+            host_info["bk_cloud_id"]["value"], host_info["ip"]["value"], host_info["disk"]["value"]
+        )
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {
+            "target": cls.create_target(host_info),
+            "fstype": host_info["fstype"],
+            "file_system": host_info["file_system"],
+        }
+
+
+class DiskReadOnlyHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, ["fs", "position", "type"])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info) -> str:
+        return _("主机（{}-{}）磁盘（{}）只读，原因：{}").format(
+            host_info["bk_cloud_id"]["value"],
+            host_info["ip"]["value"],
+            host_info["fs"]["value"],
+            host_info["type"]["value"],
+        )
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {
+            "target": cls.create_target(host_info),
+            "position": host_info["position"],
+            "fs": host_info["fs"],
+            "type": host_info["type"],
+        }
+
+
+class PingUnreachableHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, [])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info) -> str:
+        return _("主机（{}-{}）Ping 不可达").format(host_info["bk_cloud_id"]["value"], host_info["ip"]["value"])
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {"target": cls.create_target(host_info)}
+
+
+class AgentLostHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, ["bk_agent_id"])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info) -> str:
+        return _("主机（{}-{}）Agent 失联").format(host_info["bk_cloud_id"]["value"], host_info["ip"]["value"])
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {"target": cls.create_target(host_info), "bk_agent_id": host_info["bk_agent_id"]}
+
+
+class CoreFileHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, ["executable", "signal", "corefile"])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info) -> str:
+        ip = host_info["ip"]["value"]
+        bk_cloud_id = host_info["bk_cloud_id"]["value"]
+        executable = host_info["executable"]["value"]
+        signal = host_info["signal"]["value"]
+        core_file = _("产生 corefile（{}）").format(host_info["corefile"]["value"])
+
+        if executable and signal:
+            alias = _("主机（{}-{}）进程（{}）因异常信号（{}）{}").format(bk_cloud_id, ip, executable, signal, core_file)
+        elif executable:
+            alias = _("主机（{}-{}）进程（{}）{}").format(bk_cloud_id, ip, executable, core_file)
+        elif signal:
+            alias = _("主机（{}-{}）因异常信号（{}）{}").format(bk_cloud_id, ip, signal, core_file)
+        else:
+            alias = _("主机（{}-{}）{}").format(bk_cloud_id, ip, core_file)
+        return alias
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {
+            "target": cls.create_target(host_info),
+            "corefile": host_info["corefile"],
+            "executable": host_info["executable"],
+        }
