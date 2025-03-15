@@ -98,7 +98,6 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     for (const segment of segments) {
       if (tokens.length >= MAX_TOKENS) break;
       const isMark = MARK_REGEX.test(segment);
-      processedLength += segment.length;
 
       const normalTokens = segment
         .replace(MARK_REGEX, '$1')
@@ -106,15 +105,14 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
         .filter(Boolean)
         .slice(0, MAX_TOKENS - tokens.length);
 
-      tokens.push(
-        ...normalTokens.map(t => {
-          return {
-            text: t,
-            isMark,
-            isCursorText: !DELIMITER_REGEX.test(t),
-          };
-        }),
-      );
+      normalTokens.forEach(t => {
+        processedLength += t.length;
+        tokens.push({
+          text: t,
+          isMark,
+          isCursorText: !DELIMITER_REGEX.test(t),
+        });
+      });
     }
   }
 
@@ -164,9 +162,11 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    const child = document.createElement('span');
-    child.classList.add('last-placeholder');
-    contentElement?.append?.(child);
+    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
+      const child = document.createElement('span');
+      child.classList.add('last-placeholder');
+      contentElement?.append?.(child);
+    }
   };
 
   const appendPageItems = (size?) => {
