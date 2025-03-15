@@ -414,7 +414,8 @@ class DataExplorerViewSet(ResourceViewSet):
 
         return generate_file_download_response(output_content, file_name)
 
-    def generate_topk_file_content(self, validated_data: Dict[str, Any]) -> str:
+    @classmethod
+    def generate_topk_file_content(cls, validated_data: Dict[str, Any]) -> str:
         output = StringIO()
         try:
             api_topk_response = EventTopKResource().perform_request(validated_data)

@@ -50,11 +50,11 @@ class OriginEventProcessor(BaseEventProcessor):
             event["source"] = {"value": source, "alias": source_alias}
 
             # 补充 type 字段
-            type = origin_event.get("dimensions.type")
-            if not type or type not in (EventType.Normal.value, EventType.Warning.value):
+            dimensions_type = origin_event.get("dimensions.type")
+            if not dimensions_type or dimensions_type not in (EventType.Normal.value, EventType.Warning.value):
                 # 填充默认值
-                type = EventType.Default.value
-            event["type"] = {"value": type, "alias": type}
+                dimensions_type = EventType.Default.value
+            event["type"] = {"value": dimensions_type, "alias": dimensions_type}
 
             # 加入元数据和原始数据
             event["_meta"] = _meta
@@ -72,15 +72,15 @@ class OriginEventProcessor(BaseEventProcessor):
         event = {}
         for field in DISPLAY_FIELDS:
             field_name = field["name"]
-            field_value = origin_event.get(field_name)
+            field_value = origin_event.get(field_name, "")
 
             # 初始化事件字段
             event[field_name] = {"value": field_value, "alias": field_value}
 
             # 添加类型相关的字段
-            if field.get("type") == DisplayFieldType.LINK.value:
+            if field.get("type", "") == DisplayFieldType.LINK.value:
                 event[field_name]["url"] = URL_MOCK_DATA
-            elif field.get("type") == DisplayFieldType.DESCRIPTIONS.value:
+            elif field.get("type", "") == DisplayFieldType.DESCRIPTIONS.value:
                 event[field_name]["detail"] = DETAIL_MOCK_DATA
 
         return event
