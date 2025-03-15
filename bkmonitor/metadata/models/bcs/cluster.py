@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import copy
 import logging
 from typing import Dict, Optional
 
@@ -61,6 +61,8 @@ class BCSClusterInfo(models.Model):
             "datasource_name": "K8sEventDataID",
             "is_system": True,
             "usage": "event",
+            # 背景：k8s 事件具有一致的 data_label，便于对多集群进行聚合查询
+            "data_label": DATA_TYPE_K8S_EVENT
         },
     }
 
@@ -239,7 +241,7 @@ class BCSClusterInfo(models.Model):
                 }
             else:
                 default_storage_config = {"cluster_id": settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID}
-                additional_options = {}
+                additional_options = copy.deepcopy(EventGroup.DEFAULT_RESULT_TABLE_OPTIONS)
 
             report_group = report_class.create_custom_group(
                 bk_data_id=data_source.bk_data_id,
@@ -251,6 +253,7 @@ class BCSClusterInfo(models.Model):
                 is_split_measurement=register_info.get("is_split_measurement", False),
                 default_storage_config=default_storage_config,
                 additional_options=additional_options,
+                data_label=register_info.get("data_label")
             )
 
             logger.info(

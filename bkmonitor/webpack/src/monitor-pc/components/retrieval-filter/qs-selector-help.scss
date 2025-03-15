@@ -1,0 +1,50 @@
+.retrieval-filter__qs-selector-help-component {
+  min-width: 240px;
+
+  .header-operate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #313238;
+    background: #F5F7FA;
+
+    .link-btn {
+      display: flex;
+      align-items: center;
+      color: #3A84FF;
+      cursor: pointer;
+
+      .icon-fenxiang {
+        margin-left: 4px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .content-helps {
+    padding: 0 12px;
+
+    .help-item {
+      margin-top: 12px;
+      font-size: 12px;
+
+      .item-title {
+        font-weight: 700;
+        line-height: 16px;
+        color: #313238;
+        white-space: nowrap;
+      }
+
+      .item-content {
+        margin-top: 3px;
+        font-family: RobotoMono-Regular;
+        font-weight: 400;
+        line-height: 16px;
+        color: #4D4F56;
+      }
+    }
+  }
+}

@@ -39,7 +39,7 @@ from apm_web.constants import (
     DefaultDimensionConfig,
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
-    TraceMode,
+    TraceMode, DEFAULT_APM_APP_EVENT_CONFIG,
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
@@ -75,6 +75,7 @@ class Application(AbstractRecordModel):
         ES_STORAGE_CLUSTER = "es_storage_cluster"
         ES_NUMBER_OF_REPLICAS = "es_number_of_replicas"
 
+    EVENT_CONFIG_KEY = "application_event_config"
     APDEX_CONFIG_KEY = "application_apdex_config"
     SAMPLER_CONFIG_KEY = "application_sampler_config"
     INSTANCE_NAME_CONFIG_KEY = "application_instance_name_config"
@@ -254,6 +255,13 @@ class Application(AbstractRecordModel):
                 application_id=self.application_id, relation_key=self.DEPLOYMENT_KEY
             ).values_list("relation_value", flat=True)
         )
+
+    @cached_property
+    def event_config(self):
+        config = self.get_config_by_key(self.EVENT_CONFIG_KEY)
+        if not config:
+            return DEFAULT_APM_APP_EVENT_CONFIG
+        return config.config_value
 
     @cached_property
     def apdex_config(self):
@@ -653,6 +661,9 @@ class Application(AbstractRecordModel):
             self.SamplerConfig.SAMPLER_PERCENTAGE: DefaultSamplerConfig.PERCENTAGE,
         }
         ApmMetaConfig.application_config_setup(self.application_id, self.SAMPLER_CONFIG_KEY, sampler_value)
+
+    def set_init_event_config(self):
+        ApmMetaConfig.application_config_setup(self.application_id, self.EVENT_CONFIG_KEY, DEFAULT_APM_APP_EVENT_CONFIG)
 
     def fetch_datasource_info(self, datasource_type: str, attr_name: str):
         if getattr(self, f"{datasource_type}_{attr_name}", None):

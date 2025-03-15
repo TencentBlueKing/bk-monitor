@@ -1,0 +1,10 @@
+.apm-event-explore {
+  &.event-explore {
+    overflow: initial;
+
+    .right-main-panel .event-retrieval-content {
+      height: 100%;
+      padding: 0;
+    }
+  }
+}

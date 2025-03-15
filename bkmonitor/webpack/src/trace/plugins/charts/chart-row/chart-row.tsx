@@ -46,7 +46,7 @@ export default defineComponent({
       if (!props.panel.draging) {
         emit('collapse', !props.panel.collapsed);
       }
-      props.panel.updateDraging(false);
+      props.panel.updateDragging(false);
     };
 
     const handleClickIcon = (e: MouseEvent) => {

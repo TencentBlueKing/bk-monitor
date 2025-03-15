@@ -949,7 +949,7 @@ export default defineComponent({
                 onMenuClick={this.handleMenuClick}
                 onMetricClick={this.handleMetricClick}
                 onSelectChild={({ child }) => this.handleMenuClick(child)}
-                onUpdateDragging={() => this.panel?.updateDraging(false)}
+                onUpdateDragging={() => this.panel?.updateDragging(false)}
               />
             )}
             {!this.empty ? (

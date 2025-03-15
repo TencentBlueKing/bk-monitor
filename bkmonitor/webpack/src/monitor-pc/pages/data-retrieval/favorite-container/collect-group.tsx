@@ -72,9 +72,9 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
     return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
   }
   /** 鼠标移动到名称时 获取更新信息 */
-  handleHoverFavoriteName(e, item) {
+  handleHoverFavoriteName(e: Event, item) {
     if (!this.favoriteMessageInstance) {
-      this.favoriteMessageInstance = this.$bkPopover(e.target, {
+      this.favoriteMessageInstance = this.$bkPopover(e.currentTarget, {
         content: `<div style="font-size: 12px;">
                     <div>${this.$t('创建人')}: ${item.create_user || '--'}</div>
                     <div>${this.$t('最近更新人')}: ${item.update_user || '--'}</div>
@@ -87,8 +87,12 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
           this.favoriteMessageInstance = null;
         },
       });
-      this.favoriteMessageInstance.show(500);
+      this.favoriteMessageInstance?.show(500);
     }
+  }
+
+  handleExpand(expand: boolean) {
+    this.isClickIcon = expand;
   }
 
   render() {
@@ -113,7 +117,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve-collect-group-comp'>
         <div
           class={[
             'group-title fl-jcsb',
@@ -127,9 +131,20 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
         >
           <span
             class='group-cur'
-            onClick={() => (this.isClickIcon = !this.isClickIcon)}
+            onClick={() => {
+              this.handleExpand(!this.isClickIcon);
+            }}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isClickIcon }]} />
+            <span
+              class={[
+                'icon-monitor',
+                this.collectItem.id === 0
+                  ? 'icon-file-personal'
+                  : this.isClickIcon
+                    ? 'icon-mc-file-close'
+                    : 'icon-mc-file-open',
+              ]}
+            />
             <span class='group-str'>{this.collectItem.name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}

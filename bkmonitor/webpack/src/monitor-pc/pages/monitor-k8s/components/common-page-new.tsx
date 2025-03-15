@@ -76,7 +76,7 @@ import {
   SPLIT_MIN_WIDTH,
   type SearchType,
 } from '../typings';
-import { SETTINGS_POP_ZINDEX } from '../utils';
+import { SETTINGS_POP_Z_INDEX } from '../utils';
 import AlarmTools from './alarm-tools';
 import CommonDetail, { INDEX_LIST_DEFAULT_CONFIG_KEY } from './common-detail';
 import CommonList from './common-list/common-list';
@@ -1066,7 +1066,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (this.settingsWrapRef?.hasDiff) {
       const res = await new Promise((resolve, reject) => {
         this.$bkInfo({
-          zIndex: SETTINGS_POP_ZINDEX,
+          zIndex: SETTINGS_POP_Z_INDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
           cancelFn: () => reject(false),

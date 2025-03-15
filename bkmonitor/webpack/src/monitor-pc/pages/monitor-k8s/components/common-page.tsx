@@ -83,7 +83,7 @@ import {
   SPLIT_MIN_WIDTH,
   type SearchType,
 } from '../typings';
-import { SETTINGS_POP_ZINDEX } from '../utils';
+import { SETTINGS_POP_Z_INDEX } from '../utils';
 import CommonList from './common-list/common-list';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
 import CommonSelectTable from './common-select-table/common-select-table';
@@ -941,7 +941,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     if (this.settingsWrapRef?.hasDiff) {
       const res = await new Promise((resolve, reject) => {
         this.$bkInfo({
-          zIndex: SETTINGS_POP_ZINDEX,
+          zIndex: SETTINGS_POP_Z_INDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
           cancelFn: () => reject(false),

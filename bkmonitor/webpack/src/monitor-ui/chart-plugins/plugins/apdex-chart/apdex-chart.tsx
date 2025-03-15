@@ -370,7 +370,7 @@ export class ApdexChart extends LineChart {
             showMore={false}
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           >
             {this.enableContextmenu && this.showMouseTips && (
               <div class='context-menu-info'>
