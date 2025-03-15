@@ -8,16 +8,37 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import copy
+import json
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
+import settings
+
+from ...constants import (
+    K8S_EVENT_TRANSLATIONS,
+    NEVER_REFRESH_INTERVAL,
+    DisplayFieldType,
+    EventCategory,
+    EventDomain,
+    EventScenario,
+    EventSource,
+)
+from ...utils import create_workload_info, generate_time_range, get_field_label
 from .base import BaseEventProcessor
 
 
 class K8sEventProcessor(BaseEventProcessor):
+    def __init__(self, bcs_cluster_context, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bcs_cluster_context = bcs_cluster_context
+
     @classmethod
     def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
-        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == ("kubernetes", "bcs")
+        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
+            EventDomain.K8S.value,
+            EventSource.BCS.value,
+        )
 
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed_events: List[Dict[str, Any]] = []
@@ -25,66 +46,123 @@ class K8sEventProcessor(BaseEventProcessor):
             if not self._need_process(origin_event):
                 processed_events.append(origin_event)
                 continue
-
-            processed_events.append(
-                {
-                    "time": {"value": 1736927543000, "alias": 1736927543000},
-                    "source": {"value": "BCS", "alias": "Kubernetes/BCS"},
-                    "event_name": {"value": "FailedMount", "alias": "卷挂载失效（FailedMount）"},
-                    "event.content": {
-                        "value": "MountVolume.SetUp failed for volume bk-log-main-config: "
-                        "failed to sync configmap cache: timed out waiting for the condition",
-                        "alias": "MountVolume.SetUp failed for volume bk-log-main-config: "
-                        "failed to sync configmap cache: timed out waiting for the condition",
-                        "detail": {
-                            "bcs_cluster_id": {
-                                "label": "集群",
-                                "value": "BCS-K8S-90001",
-                                # TODO 从 resource.scene_view.get_kubernetes_cluster_choices(bk_biz_id=bk_biz_id) 拿名称
-                                # 后续可能会有多业务 ID 的场景
-                                # 可以考虑维护一个 Map[Tuple(bk_biz_id, cluster_id), cluster_name] 的 map，便于扩展
-                                # 其他涉及业务的可读数据也类似，可以考虑抽象出不同类型的 EventContext 便于多个 Processor 共享。
-                                "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
-                                "type": "link",
-                                # 带集群 ID 跳转到新版容器监控页面
-                                "scenario": "容器监控",
-                                "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
-                            },
-                            "namespace": {
-                                "label": "NameSpace",
-                                "value": "127.0.0.1",
-                                "alias": "kube-system",
-                                # 带 namespace & 集群 ID 跳转到新版容器监控页面
-                                "type": "link",
-                                "scenario": "容器监控",
-                                "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
-                            },
-                            "name": {
-                                "label": "工作负载",
-                                "value": "bk-log-collector-fx97q",
-                                "alias": "Pod/bk-log-collector-fx97q",
-                                "type": "link",
-                                "scenario": "容器监控",
-                                # 带 namespace & bcs_cluster_id & workload_type & workload_name 跳转到新版容器监控页面
-                                "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
-                            },
-                            "event.content": {
-                                "label": "事件内容",
-                                "value": "MountVolume.SetUp failed for volume bk-log-main-config: "
-                                "failed to sync configmap cache: timed out waiting for the condition",
-                                "alias": "MountVolume.SetUp failed for volume bk-log-main-config: "
-                                "failed to sync configmap cache: timed out waiting for the condition",
-                            },
-                        },
-                    },
-                    "target": {
-                        "value": "kubelet",
-                        "alias": "BCS-K8S-90001/kube-system/Pod/bk-log-collector-fx97q",
-                        "scenario": "容器监控",
-                        # 带 namespace & bcs_cluster_id & workload_type & workload_name 跳转到新版容器监控页面
-                        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
-                    },
-                },
-            )
+            processed_event = copy.deepcopy(origin_event)
+            self.set_fields(processed_event)
+            processed_events.append(processed_event)
 
         return processed_events
+
+    def set_fields(self, processed_event: Dict[str, Any]) -> None:
+        start_time, end_time = generate_time_range(processed_event["time"]["value"])
+        workload_info = create_workload_info(
+            processed_event["origin_data"],
+            ["bk_biz_id", "event_name", "target", "bcs_cluster_id", "namespace", "name", "kind"],
+        )
+        # 设置详情字段
+        self.set_detail_fields(processed_event, workload_info, start_time, end_time)
+        # 设置事件内容
+        self.set_event_content(processed_event)
+        # 设置目标
+        self.set_target(processed_event, workload_info, start_time, end_time)
+        # 设置事件名
+        self.set_event_name(processed_event, workload_info)
+
+    @classmethod
+    def set_event_content(cls, processed_event):
+        processed_event["event.content"]["detail"]["event.content"] = {
+            "label": get_field_label("event.content", EventCategory.K8S_EVENT.value),
+            "value": processed_event["event.content"]["value"],
+            "alias": processed_event["event.content"]["alias"],
+        }
+
+    @classmethod
+    def set_target(cls, processed_event, workload_info, start_time, end_time):
+        bcs_cluster_id = workload_info["bcs_cluster_id"]["value"]
+        namespace = workload_info["namespace"]["value"]
+        name = workload_info["name"]["value"]
+        kind = workload_info["kind"]["value"]
+        processed_event["target"] = {
+            "value": workload_info["target"]["value"],
+            "alias": f"{bcs_cluster_id}/{namespace}/{kind}/{name}",
+            "url": cls.generate_url(
+                workload_info,
+                start_time,
+                end_time,
+                {
+                    "namespace": [namespace] if namespace else [],
+                    "workload": [name] if name else [],
+                    "pod": [],
+                    "container": [],
+                },
+                ["namespace", "workload", "pod"],
+            ),
+            "scenario": EventScenario.CONTAINER_MONITOR.value,
+        }
+
+    @classmethod
+    def set_event_name(cls, event, workload_info):
+        event_name_value = workload_info["event_name"]["value"]
+        event_name_alias = K8S_EVENT_TRANSLATIONS.get(workload_info["kind"]["value"], {}).get(
+            event_name_value, event_name_value
+        )
+        event["event_name"] = {"value": event_name_value, "alias": f"{event_name_alias}（{event_name_value}）"}
+
+    def set_detail_fields(
+        self,
+        processed_event: Dict[str, Any],
+        workload_info,
+        start_time: int,
+        end_time: int,
+    ) -> None:
+        def create_detail_field(field: str, alias: str, group_by: List[str]) -> Dict[str, str]:
+            field_value = workload_info[field]["value"]
+            if not field_value:
+                return {}
+            return {
+                "label": workload_info[field]["label"],
+                "value": field_value,
+                "alias": alias,
+                "type": DisplayFieldType.LINK.value,
+                "scenario": EventScenario.CONTAINER_MONITOR.value,
+                "url": self.generate_url(workload_info, start_time, end_time, filter_by, group_by),
+            }
+
+        # 处理集群信息
+        detail = processed_event["event.content"]["detail"]
+        filter_by = {"namespace": [], "workload": [], "pod": [], "container": []}
+        bcs_cluster_id = workload_info["bcs_cluster_id"]["value"]
+        bk_biz_id = workload_info["bk_biz_id"]["value"]
+        namespace = workload_info["namespace"]["value"]
+        name = workload_info["name"]["value"]
+        kind = workload_info["kind"]["value"]
+        if bcs_cluster_id:
+            detail["bcs_cluster_id"] = create_detail_field(
+                "bcs_cluster_id",
+                self.bcs_cluster_context.fetch([{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}])
+                .get(f"{bk_biz_id}::{bcs_cluster_id}", {})
+                .get("bcs_cluster_name", bcs_cluster_id),
+                ["namespace"],
+            )
+        # 处理命名空间信息
+        if namespace:
+            filter_by["namespace"].append(namespace)
+            detail["namespace"] = create_detail_field("namespace", namespace, ["namespace", "workload"])
+        # 处理名称信息
+        if name:
+            filter_by["workload"].append(name)
+            detail["name"] = create_detail_field(
+                "name", f"{kind}/{name}" if kind else name, ["namespace", "workload", "pod"]
+            )
+
+    @classmethod
+    def generate_url(cls, workload_info, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]) -> str:
+        params = {
+            "from": start_time,
+            "to": end_time,
+            "refreshInterval": NEVER_REFRESH_INTERVAL,
+            "cluster": workload_info["bcs_cluster_id"]["value"],
+            "filterBy": json.dumps(filter_by),
+            "groupBy": json.dumps(group_by),
+        }
+        bk_biz_id = workload_info["bk_biz_id"]["value"]
+        return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s-new?{urlencode(params)}"
