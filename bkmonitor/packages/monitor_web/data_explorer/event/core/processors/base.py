@@ -10,8 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-from typing import Any, Dict, List, Callable
-
+from typing import Any, Callable, Dict, List
 
 EntityT = Dict[str, Any]
 
@@ -35,7 +34,7 @@ class BaseContext(abc.ABC):
     """事件上下文基类"""
 
     def __init__(self, *args, **kwargs):
-        self._cache: Dict[str, Dict[str, Any]]
+        self._cache: Dict[str, Dict[str, Any]] = {}
 
     @abc.abstractmethod
     def fetch(
