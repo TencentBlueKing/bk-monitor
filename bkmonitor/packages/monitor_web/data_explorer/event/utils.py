@@ -104,7 +104,7 @@ def get_filed_alias_dict(field, label: str) -> Tuple[str, Dict[str, str]]:
 
 def get_field_label(field: str, data_label: str) -> str:
     _, filed_alias_dict = get_filed_alias_dict(field, data_label)
-    return filed_alias_dict.get(field, field)
+    return filed_alias_dict.get(f"{DIMENSION_PREFIX}{field}", field)
 
 
 def generate_time_range(timestamp):
