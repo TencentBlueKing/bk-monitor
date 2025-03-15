@@ -121,7 +121,7 @@ def generate_time_range(timestamp):
         timestamp = int(timestamp)
     except ValueError as exc:
         logger.warning("failed to conversion time, err -> %s", exc)
-        raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
+        raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(timestamp))
     start_time = timestamp - one_hour_ms
     end_time = timestamp + one_hour_ms
     return start_time, end_time

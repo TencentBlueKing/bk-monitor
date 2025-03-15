@@ -9,8 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import logging
 from typing import Any, Dict, List
 from urllib.parse import urlencode
+
+from django.utils.translation import gettext_lazy as _
 
 import settings
 
@@ -24,6 +27,8 @@ from ...constants import (
 )
 from ...utils import create_host_info, generate_time_range, get_field_label
 from .base import BaseEventProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class HostEventProcessor(BaseEventProcessor):
@@ -66,22 +71,30 @@ class HostEventProcessor(BaseEventProcessor):
                     "time",
                 ],
             )
+            host_info["ip"]["value"] = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
+            try:
+                host_info["bk_cloud_id"]["value"] = int(
+                    host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"] or 0
+                )
+            except ValueError as exc:
+                logger.warning("failed to conversion time, err -> %s", exc)
+                raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(host_info["bk_cloud_id"]))
+
             host_info.update(handler.add_other_fields(origin_data))
             # 生成目标
             target = handler.create_target(host_info)
             processed_event = copy.deepcopy(origin_event)
 
             # 根据 cloud_id 换取 cloud_name
-            bk_target_cloud_id = int(host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"] or 0)
-            bk_cloud_name = (
-                self.system_cluster_context.fetch([{"bk_cloud_id": bk_target_cloud_id}])
-                .get(bk_target_cloud_id, {})
-                .get("bk_cloud_name", "")
-            )
-            bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-
+            bk_cloud_id = host_info["bk_cloud_id"]["value"]
             processed_event["target"] = {
-                "alias": f"{bk_cloud_name}[{bk_target_cloud_id}] / {bk_target_ip}",
+                "alias": "{}[{}] / {}".format(
+                    self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}])
+                    .get(bk_cloud_id, {})
+                    .get("bk_cloud_name", ""),
+                    bk_cloud_id,
+                    host_info["ip"]["value"],
+                ),
                 "value": target["value"],
                 "type": target["type"],
                 "scenario": target["scenario"],
@@ -129,18 +142,18 @@ class SpecificHostEventHandler:
     @classmethod
     def generate_url(cls, host_info):
         start_time, end_time = generate_time_range(host_info["time"]["value"])
-        ip_param = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        if not ip_param:
+        if not host_info["ip"]["value"]:
             return ""
-        cloud_id_param = int(host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]) or 0
         params = {
             "from": start_time,
             "to": end_time,
         }
-        bk_biz_id = host_info["bk_biz_id"]["value"]
-        return (
-            f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/performance/detail/{ip_param}-"
-            f"{cloud_id_param}?{urlencode(params)}"
+        return "{base_url}?bizId={biz_id}#/performance/detail/{ip}-{cloud_id}?{params}".format(
+            base_url=settings.BK_MONITOR_HOST,
+            biz_id=host_info["bk_biz_id"]["value"],
+            ip=host_info["ip"]["value"],
+            cloud_id=host_info["bk_cloud_id"]["value"],
+            params=urlencode(params),
         )
 
 
@@ -154,10 +167,9 @@ class OOMHandler(SpecificHostEventHandler):
         cls,
         host_info: Dict[str, Any],
     ) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
-        process = host_info["process"]["value"]
-        return f"主机（{bk_target_cloud_id}-{bk_target_ip}）进程（{process}）OOM"
+        return _("主机（{}-{}）进程（{}）OOM").format(
+            host_info["bk_cloud_id"]["value"], host_info["ip"]["value"], host_info["process"]["value"]
+        )
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
@@ -181,10 +193,9 @@ class DiskFullHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_event_content_alias(cls, host_info: Dict[str, Any]) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
-        disk = host_info["disk"]["value"]
-        return f"主机（{bk_target_cloud_id}-{bk_target_ip}）磁盘（{disk}）已满"
+        return _("主机（{}-{}）磁盘（{}）已满").format(
+            host_info["bk_cloud_id"]["value"], host_info["ip"]["value"], host_info["disk"]["value"]
+        )
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
@@ -205,11 +216,12 @@ class DiskReadOnlyHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_event_content_alias(cls, host_info) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
-        fs = host_info["fs"]["value"]
-        dimension_type = host_info["type"]["value"]
-        return f"主机（{bk_target_cloud_id}-{bk_target_ip}）磁盘（{fs}）只读，原因：{dimension_type}"
+        return _("主机（{}-{}）磁盘（{}）只读，原因：{}").format(
+            host_info["bk_cloud_id"]["value"],
+            host_info["ip"]["value"],
+            host_info["fs"]["value"],
+            host_info["type"]["value"],
+        )
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
@@ -228,9 +240,7 @@ class PingUnreachableHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_event_content_alias(cls, host_info) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
-        return f"主机（{bk_target_cloud_id}-{bk_target_ip}）Ping 不可达"
+        return _("主机（{}-{}）Ping 不可达").format(host_info["bk_cloud_id"]["value"], host_info["ip"]["value"])
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
@@ -244,9 +254,7 @@ class AgentLostHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_event_content_alias(cls, host_info) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
-        return f"主机（{bk_target_cloud_id}-{bk_target_ip}）Agent 失联"
+        return _("主机（{}-{}）Agent 失联").format(host_info["bk_cloud_id"]["value"], host_info["ip"]["value"])
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
@@ -263,21 +271,20 @@ class CoreFileHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_event_content_alias(cls, host_info) -> str:
-        bk_target_ip = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
-        bk_target_cloud_id = host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]
+        ip = host_info["ip"]["value"]
+        bk_cloud_id = host_info["bk_cloud_id"]["value"]
         executable = host_info["executable"]["value"]
         signal = host_info["signal"]["value"]
-        core_file = host_info["corefile"]["value"]
-        core_file_info = f"产生 corefile（{core_file}）"
+        core_file = _("产生 corefile（{}）").format(host_info["corefile"]["value"])
 
         if executable and signal:
-            alias = f"主机（{bk_target_cloud_id}-{bk_target_ip}）进程（{executable}）因异常信号（{signal}）{core_file_info}"
+            alias = _("主机（{}-{}）进程（{}）因异常信号（{}）{}").format(bk_cloud_id, ip, executable, signal, core_file)
         elif executable:
-            alias = f"主机（{bk_target_cloud_id}-{bk_target_ip}）进程（{executable}）{core_file_info}"
+            alias = _("主机（{}-{}）进程（{}）{}").format(bk_cloud_id, ip, executable, core_file)
         elif signal:
-            alias = f"主机（{bk_target_cloud_id}-{bk_target_ip}）因异常信号（{signal}）{core_file_info}"
+            alias = _("主机（{}-{}）因异常信号（{}）{}").format(bk_cloud_id, ip, signal, core_file)
         else:
-            alias = f"主机（{bk_target_cloud_id}-{bk_target_ip}）{core_file_info}"
+            alias = _("主机（{}-{}）{}").format(bk_cloud_id, ip, core_file)
         return alias
 
     @classmethod
