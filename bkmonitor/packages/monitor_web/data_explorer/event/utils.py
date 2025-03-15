@@ -6,9 +6,9 @@ from urllib import parse
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
-
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from metadata.models import ResultTable
 from packages.monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
@@ -17,7 +17,6 @@ from packages.monitor_web.data_explorer.event.constants import (
 )
 
 logger = logging.getLogger(__name__)
-from metadata.models import ResultTable
 
 
 def generate_file_download_response(file_content: str, file_name: str) -> HttpResponse:
@@ -58,6 +57,10 @@ def get_data_labels_map(bk_biz_id: int, tables: List[str]) -> Dict[str, str]:
 
 def create_workload_info(origin_data, fields: []):
     return create_event_info(origin_data, fields, EventCategory.K8S_EVENT.value)
+
+
+def create_host_info(origin_data, fields: []):
+    return create_event_info(origin_data, fields, EventCategory.SYSTEM_EVENT.value)
 
 
 def create_event_info(origin_data, fields: [], event_type):
@@ -119,7 +122,7 @@ def generate_time_range(timestamp):
         timestamp = int(timestamp)
     except ValueError as exc:
         logger.warning("failed to conversion time, err -> %s", exc)
-        raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
+        raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(timestamp))
     start_time = timestamp - one_hour_ms
     end_time = timestamp + one_hour_ms
     return start_time, end_time

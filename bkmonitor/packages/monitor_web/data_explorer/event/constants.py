@@ -190,6 +190,16 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "task_memcg": _("被终止内存组"),
         # 触发 OOM 的 内存控制组（Memory Cgroup），即因内存使用超限而引发 OOM 的 Cgroup 层级。
         "oom_memcg": _("触发 OOM 内存组"),
+        "dimensions.process": _("进程"),
+        "dimensions.task_memcg": _("进程所属内存 cgroup"),
+        "dimensions.fstype": _("文件系统类型"),
+        "dimensions.file_system": _("文件系统"),
+        "dimensions.fs": _("文件系统"),
+        "dimensions.position": _("磁盘位置"),
+        "dimensions.type": _("只读原因"),
+        "dimensions.bk_agent_id": _("AgentID"),
+        "dimensions.corefile": _("CoreDump 文件"),
+        "dimensions.executable": _("可执行文件"),
     },
     EventCategory.K8S_EVENT.value: {
         "bcs_cluster_id": _("集群 ID"),
@@ -451,3 +461,22 @@ NEVER_REFRESH_INTERVAL = "-1"
 class EventScenario(Enum):
     CONTAINER_MONITOR = _("容器监控")
     HOST_MONITOR = _("主机监控")
+
+
+class SystemEventTypeEnum(Enum):
+    OOM: str = "OOM"
+    DiskFull: str = "DiskFull"
+    DiskReadOnly: str = "DiskReadOnly"
+    CoreFile: str = "CoreFile"
+    AgentLost: str = "AgentLost"
+    PingUnreachable: str = "PingUnreachable"
+
+
+SYSTEM_EVENT_TRANSLATIONS = {
+    "DiskFull": _("磁盘写满"),
+    "DiskReadOnly": _("磁盘只读"),
+    "CoreFile": _("Corefile 产生"),
+    "OOM": _("OOM异常事件告警"),
+    "AgentLost": _("Agent 心跳丢失"),
+    "PingUnreachable": _("PING不可达告警"),
+}
