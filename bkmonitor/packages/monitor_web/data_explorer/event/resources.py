@@ -49,8 +49,7 @@ from .mock_data import (
     API_TOTAL_RESPONSE,
     API_VIEW_CONFIG_RESPONSE,
 )
-from .utils import get_field_alias, get_q_from_query_config
-from .utils import get_data_labels_map, get_q_from_query_config
+from .utils import get_data_labels_map, get_field_alias, get_q_from_query_config
 
 logger = logging.getLogger(__name__)
 

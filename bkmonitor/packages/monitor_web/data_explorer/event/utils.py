@@ -1,7 +1,6 @@
 import logging
 import time
-from typing import Any, Dict, Tuple
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from urllib import parse
 
 from django.db.models import Q
