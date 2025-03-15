@@ -1,6 +1,6 @@
 from typing import Callable, Dict, List
 
-from core.drf_resource import resource
+from core.drf_resource import api,resource
 
 from .base import BaseContext, EntityT
 
@@ -34,3 +34,31 @@ class BcsClusterContext(BaseContext):
                     cluster_map[cluster_info_key] = cluster_info
 
         return cluster_map
+
+class SystemClusterContext(BaseContext):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(args, kwargs)
+
+    def fetch(
+        self, entities: List[EntityT], get_key: Callable[[EntityT], str] = lambda _e: _e.get("id", "")
+    ) -> Dict[str, EntityT]:
+        clusters = {}
+
+        for entity in entities:
+            bk_cloud_id = entity["bk_cloud_id"]
+            if bk_cloud_id in self._cache:
+                # 如果已经在缓存中，使用缓存的值
+                clusters[bk_cloud_id] = self._cache[bk_cloud_id]
+                continue
+            # 查询云区域并更新缓存
+            self._cache.update(
+                {
+                    cloud["bk_cloud_id"]: {"bk_cloud_id": cloud["bk_cloud_id"], "bk_cloud_name": cloud["bk_cloud_name"]}
+                    for cloud in api.cmdb.search_cloud_area()
+                }
+            )
+            # 检查当前 bk_cloud_id 是否在新缓存中
+            if bk_cloud_id in self._cache:
+                clusters[bk_cloud_id] = self._cache[bk_cloud_id]
+
+        return clusters

@@ -39,8 +39,12 @@ from .constants import (
     EventDimensionTypeEnum,
     EventType,
 )
-from .core.processors import BaseEventProcessor, OriginEventProcessor
-from .core.processors.context import BcsClusterContext
+from .core.processors import (
+    BaseEventProcessor,
+    HostEventProcessor,
+    OriginEventProcessor,
+)
+from .core.processors.context import BcsClusterContext, SystemClusterContext
 from .core.processors.k8s import K8sEventProcessor
 from .mock_data import (
     API_LOGS_RESPONSE,
@@ -106,8 +110,11 @@ class EventLogsResource(Resource):
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
             raise ValueError(_("事件拉取失败"))
 
-        bcs_cluster_context = BcsClusterContext()
-        processors: List[BaseEventProcessor] = [OriginEventProcessor(), K8sEventProcessor(bcs_cluster_context)]
+        processors: List[BaseEventProcessor] = [
+            OriginEventProcessor(),
+            K8sEventProcessor(BcsClusterContext()),
+            HostEventProcessor(SystemClusterContext()),
+        ]
         for processor in processors:
             events = processor.process(events)
 
