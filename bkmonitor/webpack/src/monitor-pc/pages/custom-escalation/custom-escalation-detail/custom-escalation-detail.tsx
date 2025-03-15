@@ -90,11 +90,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   isShow = false;
   @ProvideReactive('metricFunctions') metricFunctions = [];
 
-  /** 分割线 ============================================= */
   descName = ''; // 别名
   loading = false;
-  isCreat = ''; // 是否从创建过来
-  // type = 'customEvent' // 展示类型：customEvent 自定义事件 customTimeSeries 自定义指标
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
   copyDescribe = ''; // 修改的描述
@@ -109,7 +106,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   proxyInfo = []; // 云区域分类数据
   preData = ''; // 数据上报格式样例
   sdkData: any = {}; // sdk 接入数据
-  timer = null; // 定时器
   //  详情数据
   detailData: IDetailData = {
     bk_data_id: '',
@@ -121,6 +117,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     is_platform: false,
     protocol: '',
     last_time: '',
+    auto_discover: false,
   };
 
   //  侧滑栏内容数据 事件数据
@@ -129,9 +126,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     title: '',
     data: {}, //  原始数据
   };
-
-  //  事件列表数据 事件数据
-  eventData = [];
 
   //  指标维度数据 时序数据
   metricData = [];
@@ -143,12 +137,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     toggle: false,
   };
 
-  //  时间选择器选择项
-  shortcuts: IShortcuts = {
-    list: [],
-    value: 1,
-  };
-  refreshList: IRefreshList;
   pagination = {
     page: 1,
     pageSize: 20,
@@ -156,11 +144,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     pageList: [10, 20, 50, 100],
   };
   tableId = '';
-  metricValue = {};
-  dataLoading = false;
-
-  batchGroupValue = [];
-
   groupSelectList: any = [
     {
       id: '',
@@ -171,8 +154,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
   metricCheckList: any = [];
   groupFilterList: string[] = [];
-  metricFilterList: string[] = ['metric'];
-  unitFilterList: string[] = [];
   groupManage = {
     show: false,
   };
@@ -211,6 +192,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   allUnitList = [];
   /* 列表中已选的单位数据 */
   tableAllUnitList = [];
+
+  autoDiscover = false;
 
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
@@ -266,8 +249,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return lowerStr.includes(lowerPattern);
     };
     const leng1 = this.groupFilterList.length;
-    const leng2 = this.metricFilterList.length;
-    const leng3 = this.unitFilterList.length;
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
     const enNameLeng = this.metricSearchObj.enName.length;
@@ -280,18 +261,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           ? this.groupFilterList.some(
             g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
           ) && isMetric
-          : true) &&
-        (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
-        (leng3
-          ? this.unitFilterList.some(u => {
-            if (u === 'none') {
-              return isMetric && (item.unit === 'none' || !item.unit);
-            }
-            if (u === '--') {
-              return !isMetric;
-            }
-            return item.unit === u;
-          })
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -320,13 +289,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true)
       );
     });
-    // this.handleGroupList(fiterList);
     return filterList;
-    // this.changePageCount(filterList.length);
-    // return filterList.slice(
-    //   this.pagination.pageSize * (this.pagination.page - 1),
-    //   this.pagination.pageSize * this.pagination.page
-    // );
   }
 
   /**
@@ -353,10 +316,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   updateAllSelection(v = false) {
     this.metricTable.forEach(item => item.monitor_type === 'metric' && (item.selection = v));
-    this.updateCheckValue();
-  }
-  handleCheckChange({ value }) {
-    this.updateAllSelection(value === 2);
     this.updateCheckValue();
   }
 
@@ -395,6 +354,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData = this.detailData] = data;
+      this.autoDiscover = this.detailData.auto_discover;
       [, , metricData] = data;
       if (this.type === 'customTimeSeries') {
         [, , , this.unitList] = data; // 单位list
@@ -479,7 +439,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       }
     }
     this.scenario = `${detailData.scenario_display[0]} - ${detailData.scenario_display[1]}`;
-    this.eventData = detailData.event_info_list;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyDescribe = this.detailData.desc || '';
@@ -696,6 +655,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.describeInput.focus();
     });
   }
+  /** 保存自动发现 */
+  handleEditAutoDiscover(autoDiscover) {
+    this.handleEditFiled({
+      auto_discover: autoDiscover,
+    });
+  }
 
   async handleEditFiled(props, showMsg = true) {
     this.loading = true;
@@ -796,28 +761,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.loading = false;
   }
 
-  // /* 保存描述信息 */
-  // async handleSaveDesc() {
-  //   const params = {
-  //     bk_biz_id: this.detailData.bk_biz_id,
-  //     time_series_group_id: this.detailData.time_series_group_id,
-  //     desc: this.copyDescribe,
-  //   };
-  //   return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
-  //     this.$bkMessage({ message, theme: 'error' });
-  //   });
-  // }
-  // /* 保存描述信息 */
-  // async handleSaveDesc() {
-  //   const params = {
-  //     bk_biz_id: this.detailData.bk_biz_id,
-  //     time_series_group_id: this.detailData.time_series_group_id,
-  //     desc: this.copyDescribe,
-  //   };
-  //   return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
-  //     this.$bkMessage({ message, theme: 'error' });
-  //   });
-  // }
   // 编辑描述
   async handleEditDescribe() {
     if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
@@ -829,11 +772,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.handleEditFiled({
       desc: this.copyDescribe,
     });
-    // const data = await this.handleSaveDesc();
-    // if (data) {
-    //   this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-    //   return;
-    // }
     this.detailData.desc = this.copyDescribe;
   }
 
@@ -1184,11 +1122,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
 
   /** 批量更新 */
-  async handleSaveSliderInfo(localTable) {
+  async handleSaveSliderInfo(localTable, delArray = []) {
     this.isShow = false;
     await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
       time_series_group_id: this.$route.params.id,
       update_fields: localTable,
+      delete_fields: delArray,
     });
     this.getDetailData();
   }
@@ -1239,7 +1178,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
+                  allDataPreview={this.allDataPreview}
+                  autoDiscover={this.autoDiscover}
                   customGroups={this.groupList}
+                  cycleOption={this.cycleOption}
                   dimensionNum={this.dimensionNum}
                   dimensionTable={this.dimensions}
                   groupSelectList={this.groupSelectList}
@@ -1260,6 +1202,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   }}
                   onHandleSelectGroup={this.handleSelectGroup}
                   onHandleSelectToggle={this.saveSelectGroup}
+                  onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
               ) : undefined /* TODO[自定义事件]  */
@@ -1411,7 +1354,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         </div>
         {
           <IndicatorTableSlide
+            autoDiscover={this.autoDiscover}
             cycleOption={this.cycleOption}
+            dimensionTable={this.dimensions}
             isShow={this.isShow}
             metricTable={this.metricTable}
             unitList={this.unitList}

@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
 import { deepClone } from 'monitor-common/utils';
 
 import { METHOD_LIST } from '../../../constant/constant';
@@ -48,16 +49,16 @@ const FIELD_SETTINGS = {
   aggregateMethod: { label: '汇聚方法', width: 125 },
   interval: { label: '上报周期', width: 125 },
   func: { label: '函数', width: 125 },
+  dimension: { label: '关联维度', width: 175 },
   enabled: { label: '启/停', width: 125 },
   hidden: { label: '显示', width: 125 },
-  set: { label: '操作', width: 125 },
+  set: { label: '操作', width: 50 },
 };
 
 const ALL_OPTION = 'allOption';
 const CHECKED_OPTION = 'checkedOption';
 
 interface IMetricItem {
-  id: string;
   name: string;
   description?: string;
   unit?: string;
@@ -68,13 +69,17 @@ interface IMetricItem {
   hidden?: boolean;
   disabled?: boolean;
   [key: string]: any;
+  isNew?: boolean;
+  error?: string;
 }
 
 @Component
 export default class IndicatorTableSlide extends tsc<any> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
+  @Prop({ type: Boolean, default: false }) autoDiscover: boolean;
   @Prop({ default: () => [] }) metricTable: IMetricItem[];
   @Prop({ default: () => [] }) unitList: any[];
+  @Prop({ default: () => [] }) dimensionTable: any[];
   @Prop({ default: () => [] }) cycleOption: any[];
 
   @Ref() metricSliderPopover: any;
@@ -101,12 +106,16 @@ export default class IndicatorTableSlide extends tsc<any> {
       unit: { checked: true, disable: false },
       aggregateMethod: { checked: true, disable: false },
       interval: { checked: true, disable: false },
+      dimension: { checked: true, disable: false },
       func: { checked: true, disable: false },
       enabled: { checked: true, disable: false },
       hidden: { checked: true, disable: false },
       set: { checked: true, disable: false },
     },
   };
+
+  // 删除列表
+  delArray = [];
 
   // 生命周期钩子
   created() {
@@ -120,13 +129,29 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 事件处理
-  @Emit('saveInfo')
   handleSave() {
-    return this.localTable;
+    // 校验所有新行
+    const newRows = this.localTable.filter(row => row.isNew);
+    const isValid = newRows.every(row => {
+      const valid = this.validateName(row);
+      if (!valid) this.$bkMessage({ message: row.error, theme: 'error' });
+      return valid;
+    });
+
+    if (!isValid) return;
+
+    // 清除临时状态
+    for (const row of newRows) {
+      row.isNew = undefined;
+      row.error = undefined;
+    }
+    this.$emit('saveInfo', this.localTable, this.delArray);
   }
 
   @Emit('hidden')
   handleCancel() {
+    this.delArray = [];
+    this.localTable = deepClone(this.metricTable);
     return false;
   }
 
@@ -204,6 +229,8 @@ export default class IndicatorTableSlide extends tsc<any> {
                           return this.renderAggregateMethod(props.row);
                         case 'interval':
                           return this.renderInterval(props.row);
+                        case 'dimension':
+                          return this.renderDimension(props.row);
                         case 'func':
                           return this.renderFunction(props.row);
                         case 'set':
@@ -284,9 +311,9 @@ export default class IndicatorTableSlide extends tsc<any> {
       <div class='switch-wrap'>
         <bk-switcher
           v-model={row[field]}
+          disabled={this.autoDiscover && field === 'enabled'}
           size='small'
           theme='primary'
-          onChange={() => this.handleSwitchChange(row, field)}
         />
       </div>
     );
@@ -294,14 +321,26 @@ export default class IndicatorTableSlide extends tsc<any> {
 
   // 表格列渲染逻辑
   private renderNameColumn(props: { row: IMetricItem }) {
-    return (
-      <span
-        class='name'
-        onClick={() => this.showMetricDetail(props.row)}
-      >
-        {props.row.name || '--'}
-      </span>
-    );
+    if (props.row.isNew) {
+      return (
+        <div
+          class='name-editor'
+          v-bk-tooltips={{
+            content: props.row.error,
+            disabled: !props.row.error,
+          }}
+        >
+          <bk-input
+            class={{ 'is-error': props.row.error, 'slider-input': true }}
+            v-model={props.row.name}
+            onBlur={() => this.validateName(props.row)}
+            onInput={() => this.clearError(props.row)}
+          />
+          {/* {props.row.error && <div class='error-text'>{props.row.error}</div>} */}
+        </div>
+      );
+    }
+    return <span class='name'>{props.row.name || '--'}</span>;
   }
 
   private renderDescriptionColumn(props: { row: IMetricItem; $index: number }) {
@@ -434,11 +473,64 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
+  private renderDimension(row: IMetricItem) {
+    // if (this.autoDiscover) {
+    //   return (
+    //     <div
+    //       class='info-content'
+    //       onClick={() => this.handleShowEditDimension(metricData.dimensions)}
+    //     >
+    //       {metricData.dimensions?.length ? (
+    //         <div class='table-dimension-tags'>
+    //           {metricData.dimensions.map(item => (
+    //             <span
+    //               key={item}
+    //               class='table-dimension-tag'
+    //             >
+    //               {item}
+    //             </span>
+    //           ))}
+    //         </div>
+    //       ) : (
+    //         <div class='table-dimension-select'>{this.$t('-')}</div>
+    //       )}
+    //     </div>
+    //   );
+    // }
+
+    return (
+      <div class='dimension-select'>
+        <bk-select
+          // ref='dimensionInput'
+          v-model={row.dimensions}
+          clearable={false}
+          // disabled={this.autoDiscover}
+          // collapseTag={false}
+          displayTag
+          multiple
+          searchable
+        // onToggle={v => this.editDimension(metricData, v)}
+        >
+          {this.dimensionTable.map(dim => (
+            <bk-option
+              id={dim.name}
+              key={dim.name}
+              // class='dimension-tag'
+              name={dim.name}
+            >
+              {dim.name}
+            </bk-option>
+          ))}
+        </bk-select>
+      </div>
+    );
+  }
+
   private renderFunction(row: IMetricItem) {
     return (
       <FunctionMenu
-        // class='slider-select'
         list={this.metricFunctions}
+        onFuncSelect={v => (row.function = v)}
       >
         {row.function?.id || '-'}
       </FunctionMenu>
@@ -460,20 +552,51 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
+  private async validateName(row: IMetricItem) {
+    let error = '';
+    if (!row.name?.trim()) {
+      error = this.$t('名称不能为空') as string;
+    } else if (this.localTable.some(item => item !== row && item.name === row.name)) {
+      error = this.$t('名称已存在') as string;
+    } else if (/[\u4e00-\u9fa5]/.test(row.name?.trim())) {
+      error = this.$t('输入非中文符号') as string;
+    }
+    row.error = error;
+    if (error) {
+      return !error;
+    }
+    const existPass = await validateCustomTsGroupLabel({
+      data_label: row.name,
+    }).catch(() => false);
+    if (!existPass) {
+      row.error = this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string;
+    }
+    return !error;
+  }
+
+  private clearError(row: IMetricItem) {
+    if (row.error) row.error = '';
+  }
+
   // 行操作处理
   private handleAddRow(index: number) {
-    this.localTable.splice(index + 1, 0, {});
+    const newRow = {
+      name: '',
+      isNew: true,
+      error: '',
+      type: 'metric',
+    };
+    this.localTable.splice(index + 1, 0, newRow);
   }
 
   private handleRemoveRow(index: number) {
+    const currentDelData = this.localTable[index];
+    if (!currentDelData.isNew) {
+      this.delArray.push({
+        type: 'metric',
+        name: currentDelData.name,
+      });
+    }
     this.localTable.splice(index, 1);
-  }
-
-  private handleSwitchChange(row: IMetricItem, field: string) {
-    console.log(`Switch ${field} changed for row ${row.id}:`, row[field]);
-  }
-
-  private showMetricDetail(metric: IMetricItem) {
-    console.log('Show metric detail:', metric);
   }
 }

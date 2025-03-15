@@ -1714,16 +1714,6 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           labels: [],
         })
       );
-      const item = {
-        name: 'zs',
-        title: 'ls',
-      };
-      this.metricData = [{
-          ...item,
-          selection: false,
-          descReValue: false,
-          labels: [],
-        }];
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {

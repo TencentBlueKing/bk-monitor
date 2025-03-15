@@ -108,7 +108,7 @@ $border-color: #d9d9d9;
       }
       .indicator-table {
         transition: width .5s;
-        height: 474px;
+        height: 444px;
         .name {
           color: #3A84FF;
         }
@@ -318,12 +318,28 @@ $border-color: #d9d9d9;
                   }
                 }
               }
+              .table-dimension-tags {
+                height: 22px;
+                overflow: hidden;
+                .table-dimension-tag {
+                  line-height: 22px;
+                  color: #4D4F56;
+                  background-color: #EAEBF0;
+                  padding: 1px 8px;
+                  border-radius: 2px;
+                  margin-right: 4px;
+                }
+              }
             }
             .switcher-btn {
               margin: 8px;
             }
             .unit-content {
               width: 100%;
+            }
+            .dimension-content {
+              width: 100%;
+              background-color: #fff;
             }
           }
 
