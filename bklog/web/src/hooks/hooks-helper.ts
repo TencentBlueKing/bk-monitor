@@ -99,11 +99,16 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
       if (tokens.length >= MAX_TOKENS) break;
       const isMark = MARK_REGEX.test(segment);
 
-      const normalTokens = segment
-        .replace(MARK_REGEX, '$1')
-        .split(DELIMITER_REGEX)
-        .filter(Boolean)
-        .slice(0, MAX_TOKENS - tokens.length);
+      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
+      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
+
+      if (isMark) {
+        processedLength += '<mark>'.length;
+
+        if (normalTokens.length === segmengtSplitList.length) {
+          processedLength += '</mark>'.length;
+        }
+      }
 
       normalTokens.forEach(t => {
         processedLength += t.length;
