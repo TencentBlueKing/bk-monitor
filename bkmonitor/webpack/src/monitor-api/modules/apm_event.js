@@ -7,6 +7,7 @@ export const eventViewConfig = request('POST', 'apm/event/event/view_config/');
 export const eventTimeSeries = request('POST', 'apm/event/event/time_series/');
 export const eventDownloadTopK = request('POST', 'apm/event/event/download_topk/');
 export const eventTags = request('POST', 'apm/event/event/tags/');
+export const eventTagDetail = request('POST', 'apm/event/event/tag_detail/');
 
 export default {
   eventLogs,
@@ -15,4 +16,6 @@ export default {
   eventViewConfig,
   eventTimeSeries,
   eventTags,
+  eventDownloadTopK,
+  eventTagDetail,
 };
