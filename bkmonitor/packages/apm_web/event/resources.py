@@ -18,6 +18,8 @@ from django.utils.translation import gettext_lazy as _
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource
 from monitor_web.data_explorer.event import resources as event_resources
+from monitor_web.data_explorer.event.constants import EventDomain, EventSource, SYSTEM_EVENT_TRANSLATIONS, \
+    K8S_EVENT_TRANSLATIONS
 from monitor_web.data_explorer.event.utils import get_data_labels_map
 from packages.monitor_web.data_explorer.event.constants import (
     EventLabelOriginMapping,
@@ -222,3 +224,78 @@ class EventTagsResource(Resource):
         timeseries: Dict[Tuple[str, str], Any],
     ):
         timeseries[event_origin] = EventTimeSeriesResource().perform_request(validated_request_data).get("series", [])
+
+
+class EventTagDetailResource(Resource):
+    RequestSerializer = serializers.EventTagDetailSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        # 获取 total
+        total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
+        tag_detail: Dict[str, Any] = {"time": validated_request_data["start_time"], "total": total}
+        if total > 10:
+            topk: List[Dict[str, Any]] = self.fetch_topk(validated_request_data)
+            for item in topk:
+                item["proportions"] = round((item["count"] / total) * 100, 2)
+            tag_detail["topk"] = topk
+        else:
+            tag_detail["list"] = self.fetch_logs(validated_request_data)
+
+        return tag_detail
+
+    @classmethod
+    def fetch_topk(cls, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        data_labels_map: Dict[str, str] = get_data_labels_map(
+            validated_request_data["bk_biz_id"],
+            [query_config["table"] for query_config in validated_request_data["query_configs"]]
+        )
+        validated_request_data: Dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["fields"] = ["event_name"]
+        origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = EventTagsResource.generate_timeseries_requests(
+            validated_request_data, data_labels_map
+        )
+        event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+        run_threads([
+            InheritParentThread(target=cls.query_topk, args=(event_origin, req_data, event_origin_topk_map))
+            for event_origin, req_data in origin_req_data_map.items()
+        ])
+
+        event_tuple_count_map: Dict[Tuple[str, str, str], int] = defaultdict(int)
+        for event_origin, topk in event_origin_topk_map.items():
+            domain, source = event_origin
+            for item in topk:
+                event_tuple_count_map[(domain, source, item["value"])] += item["count"]
+
+        event_name_translations: Dict[str, Dict[str, str]] = {EventDomain.SYSTEM.value: SYSTEM_EVENT_TRANSLATIONS}
+        for k8s_event_name_translations in K8S_EVENT_TRANSLATIONS.values():
+            event_name_translations.setdefault(EventDomain.K8S.value, {}).update(k8s_event_name_translations)
+
+        processed_topk: List[Dict[str, Any]] = []
+        for event_tuple, count in event_tuple_count_map.items():
+            domain, source, event_name = event_tuple
+            processed_topk.append({
+                "domain": {"value": domain, "alias": EventDomain.from_value(domain).label},
+                "source": {"value": source, "alias": EventSource.from_value(source).label},
+                "event_name": {
+                    "value": event_name, "alias": _("{alias}（{name}）").format(
+                        alias=event_name_translations.get(domain, {}).get(event_name, event_name), name=event_name
+                    )
+                },
+                "count": count
+            })
+        return processed_topk
+
+    @classmethod
+    def query_topk(
+        cls,
+        event_origin: Tuple[str, str],
+        req_data: Dict[str, Any],
+        event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]]
+    ):
+        event_origin_topk_map[event_origin] = EventTopKResource().perform_request(req_data)[0].get("list") or []
+
+    @classmethod
+    def fetch_logs(cls, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        validated_request_data: Dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["offset"] = 0
+        return EventLogsResource().perform_request(validated_request_data).get("list") or []
