@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 
 class HostEventProcessor(BaseEventProcessor):
-    def __init__(self, systme_cluster_context, *args, **kwargs):
+    def __init__(self, system_cluster_context, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.system_cluster_context = systme_cluster_context
+        self.system_cluster_context = system_cluster_context
 
     @classmethod
     def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
@@ -42,6 +42,43 @@ class HostEventProcessor(BaseEventProcessor):
             EventDomain.SYSTEM.value,
             EventSource.HOST.value,
         )
+
+    @classmethod
+    def _generate_url(cls, host_info):
+        start_time, end_time = generate_time_range(host_info["time"]["value"])
+        if not host_info["ip"]["value"]:
+            return ""
+        params = {
+            "from": start_time,
+            "to": end_time,
+        }
+        return "{base_url}?bizId={biz_id}#/performance/detail/{ip}-{cloud_id}?{params}".format(
+            base_url=settings.BK_MONITOR_HOST,
+            biz_id=host_info["bk_biz_id"]["value"],
+            ip=host_info["ip"]["value"],
+            cloud_id=host_info["bk_cloud_id"]["value"],
+            params=urlencode(params),
+        )
+
+    def _get_target_alias(self, host_info: Dict[str, Dict[str, Any]]) -> str:
+        bk_cloud_id: int = host_info["bk_cloud_id"]["value"]
+        return "{}[{}] / {}".format(
+            self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}]).get(bk_cloud_id, {}).get(
+                "bk_cloud_name", ""
+            ),
+            bk_cloud_id,
+            host_info["ip"]["value"],
+        )
+
+    def create_target(self, host_info) -> Dict[str, Any]:
+        return {
+            "label": host_info["target"]["label"],
+            "value": host_info["target"]["value"],
+            "alias": self._get_target_alias(host_info),
+            "type": DisplayFieldType.LINK.value,
+            "scenario": EventScenario.HOST_MONITOR.value,
+            "url": self._generate_url(host_info),
+        }
 
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed_events: List[Dict[str, Any]] = []
@@ -73,43 +110,29 @@ class HostEventProcessor(BaseEventProcessor):
             )
             host_info["ip"]["value"] = host_info["bk_target_ip"]["value"] or host_info["ip"]["value"]
             try:
-                host_info["bk_cloud_id"]["value"] = (
-                    int(host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"]) or 0
+                host_info["bk_cloud_id"]["value"] = int(
+                    host_info["bk_target_cloud_id"]["value"] or host_info["bk_cloud_id"]["value"] or 0
                 )
-            except ValueError as exc:
-                logger.warning("failed to conversion time, err -> %s", exc)
-                raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(host_info["bk_cloud_id"]))
+            except ValueError:
+                # 不符合预期的事件也需要展示，以默认值的形式代替报错。
+                host_info["bk_cloud_id"]["value"] = 0
 
             host_info.update(handler.add_other_fields(origin_data))
-            # 生成目标
-            target = handler.create_target(host_info)
+
             processed_event = copy.deepcopy(origin_event)
-
-            # 根据 cloud_id 换取 cloud_name
-            bk_cloud_id = host_info["bk_cloud_id"]["value"]
-            processed_event["target"] = {
-                "alias": "{}[{}] / {}".format(
-                    self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}])
-                    .get(bk_cloud_id, {})
-                    .get("bk_cloud_name", ""),
-                    bk_cloud_id,
-                    host_info["ip"]["value"],
-                ),
-                "value": target["value"],
-                "type": target["type"],
-                "scenario": target["scenario"],
-                "url": target["url"],
-            }
-
-            event_name = origin_event["event_name"]
+            processed_event["target"] = self.create_target(host_info)
             processed_event["event.content"] = {
                 "value": origin_event["event.content"]["value"],
                 "alias": handler.create_event_content_alias(host_info),
-                "detail": handler.create_detail(host_info),
+                "detail": {**handler.create_detail(host_info), "target": processed_event["target"]},
             }
+
+            event_name = origin_event["event_name"]
             processed_event["event_name"] = {
                 "value": event_name["value"],
-                "alias": SYSTEM_EVENT_TRANSLATIONS.get(event_name["value"], event_name),
+                "alias": _("{alias}（{name}）").format(
+                    alias=SYSTEM_EVENT_TRANSLATIONS.get(event_name["value"], event_name), name=event_name["value"]
+                ),
             }
             processed_events.append(processed_event)
         return processed_events
@@ -127,33 +150,6 @@ class SpecificHostEventHandler:
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
         raise NotImplementedError()
-
-    @classmethod
-    def create_target(cls, host_info) -> Dict[str, Any]:
-        return {
-            "label": host_info["target"]["label"],
-            "value": host_info["target"]["value"],
-            "type": DisplayFieldType.LINK.value,
-            "scenario": EventScenario.HOST_MONITOR.value,
-            "url": cls.generate_url(host_info),
-        }
-
-    @classmethod
-    def generate_url(cls, host_info):
-        start_time, end_time = generate_time_range(host_info["time"]["value"])
-        if not host_info["ip"]["value"]:
-            return ""
-        params = {
-            "from": start_time,
-            "to": end_time,
-        }
-        return "{base_url}?bizId={biz_id}#/performance/detail/{ip}-{cloud_id}?{params}".format(
-            base_url=settings.BK_MONITOR_HOST,
-            biz_id=host_info["bk_biz_id"]["value"],
-            ip=host_info["ip"]["value"],
-            cloud_id=host_info["bk_cloud_id"]["value"],
-            params=urlencode(params),
-        )
 
 
 class OOMHandler(SpecificHostEventHandler):
@@ -173,7 +169,6 @@ class OOMHandler(SpecificHostEventHandler):
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
-            "target": cls.create_target(host_info),
             "process": host_info["process"],
             "task_memcg": host_info["task_memcg"],
         }
@@ -193,7 +188,6 @@ class DiskFullHandler(SpecificHostEventHandler):
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {
-            "target": cls.create_target(host_info),
             "fstype": host_info["fstype"],
             "file_system": host_info["file_system"],
         }
@@ -215,12 +209,7 @@ class DiskReadOnlyHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
-        return {
-            "target": cls.create_target(host_info),
-            "position": host_info["position"],
-            "fs": host_info["fs"],
-            "type": host_info["type"],
-        }
+        return {"position": host_info["position"], "fs": host_info["fs"], "type": host_info["type"]}
 
 
 class PingUnreachableHandler(SpecificHostEventHandler):
@@ -234,7 +223,7 @@ class PingUnreachableHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
-        return {"target": cls.create_target(host_info)}
+        return {}
 
 
 class AgentLostHandler(SpecificHostEventHandler):
@@ -248,7 +237,7 @@ class AgentLostHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
-        return {"target": cls.create_target(host_info), "bk_agent_id": host_info["bk_agent_id"]}
+        return {"bk_agent_id": host_info["bk_agent_id"]}
 
 
 class CoreFileHandler(SpecificHostEventHandler):
@@ -276,8 +265,4 @@ class CoreFileHandler(SpecificHostEventHandler):
 
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
-        return {
-            "target": cls.create_target(host_info),
-            "corefile": host_info["corefile"],
-            "executable": host_info["executable"],
-        }
+        return {"corefile": host_info["corefile"], "executable": host_info["executable"]}

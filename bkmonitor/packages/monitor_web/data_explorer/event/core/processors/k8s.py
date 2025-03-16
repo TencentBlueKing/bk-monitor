@@ -13,6 +13,7 @@ import json
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
+from django.utils.translation import gettext as _
 import settings
 
 from ...constants import (
@@ -81,21 +82,11 @@ class K8sEventProcessor(BaseEventProcessor):
         namespace = workload_info["namespace"]["value"]
         name = workload_info["name"]["value"]
         kind = workload_info["kind"]["value"]
+
         processed_event["target"] = {
             "value": workload_info["target"]["value"],
             "alias": f"{bcs_cluster_id}/{namespace}/{kind}/{name}",
-            "url": cls.generate_url(
-                workload_info,
-                start_time,
-                end_time,
-                {
-                    "namespace": [namespace] if namespace else [],
-                    "workload": [name] if name else [],
-                    "pod": [],
-                    "container": [],
-                },
-                ["namespace", "workload", "pod"],
-            ),
+            "url": cls.generate_url("workload", workload_info, start_time, end_time),
             "scenario": EventScenario.CONTAINER_MONITOR.value,
         }
 
@@ -105,7 +96,10 @@ class K8sEventProcessor(BaseEventProcessor):
         event_name_alias = K8S_EVENT_TRANSLATIONS.get(workload_info["kind"]["value"], {}).get(
             event_name_value, event_name_value
         )
-        event["event_name"] = {"value": event_name_value, "alias": f"{event_name_alias}（{event_name_value}）"}
+        event["event_name"] = {
+            "value": event_name_value,
+            "alias": _("{alias}（{name}）").format(alias=event_name_alias, name=event_name_value)
+        }
 
     def set_detail_fields(
         self,
@@ -114,7 +108,7 @@ class K8sEventProcessor(BaseEventProcessor):
         start_time: int,
         end_time: int,
     ) -> None:
-        def create_detail_field(field: str, alias: str, group_by: List[str]) -> Dict[str, str]:
+        def create_detail_field(field: str, alias: str, url: str) -> Dict[str, str]:
             field_value = workload_info[field]["value"]
             if not field_value:
                 return {}
@@ -124,12 +118,11 @@ class K8sEventProcessor(BaseEventProcessor):
                 "alias": alias,
                 "type": DisplayFieldType.LINK.value,
                 "scenario": EventScenario.CONTAINER_MONITOR.value,
-                "url": self.generate_url(workload_info, start_time, end_time, filter_by, group_by),
+                "url": url,
             }
 
         # 处理集群信息
         detail = processed_event["event.content"]["detail"]
-        filter_by = {"namespace": [], "workload": [], "pod": [], "container": []}
         bcs_cluster_id = workload_info["bcs_cluster_id"]["value"]
         bk_biz_id = workload_info["bk_biz_id"]["value"]
         namespace = workload_info["namespace"]["value"]
@@ -141,21 +134,76 @@ class K8sEventProcessor(BaseEventProcessor):
                 self.bcs_cluster_context.fetch([{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}])
                 .get(f"{bk_biz_id}::{bcs_cluster_id}", {})
                 .get("bcs_cluster_name", bcs_cluster_id),
-                ["namespace"],
+                self.generate_url("cluster", workload_info, start_time, end_time)
             )
         # 处理命名空间信息
         if namespace:
-            filter_by["namespace"].append(namespace)
-            detail["namespace"] = create_detail_field("namespace", namespace, ["namespace", "workload"])
+            detail["namespace"] = create_detail_field(
+                "namespace", namespace, self.generate_url("namespace", workload_info, start_time, end_time)
+            )
         # 处理名称信息
         if name:
-            filter_by["workload"].append(name)
             detail["name"] = create_detail_field(
-                "name", f"{kind}/{name}" if kind else name, ["namespace", "workload", "pod"]
+                "name",
+                f"{kind}/{name}" if kind else name,
+                self.generate_url("workload", workload_info, start_time, end_time)
             )
 
     @classmethod
-    def generate_url(cls, workload_info, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]) -> str:
+    def generate_url(cls, level: str, workload_info: Dict[str, Any], start_time: int, end_time: int) -> str:
+        kind: str = workload_info["kind"]["value"]
+        name: str = workload_info["name"]["value"]
+        namespace = workload_info["namespace"]["value"]
+        filter_by: Dict[str, List[str]] = {"namespace": [], "workload": [], "pod": [], "container": []}
+
+        if level == "cluster":
+            return cls._generate_url(workload_info, start_time, end_time, filter_by, ["namespace"])
+
+        if namespace:
+            filter_by["namespace"].append(namespace)
+
+        if level == "namespace":
+            return cls._generate_url(workload_info, start_time, end_time, filter_by, ["namespace", "workload"])
+
+        if not (name and kind):
+            return ""
+
+        for workload_type in [
+            "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "ReplicaSet", "HorizontalPodAutoscaler"
+        ]:
+            # 模糊匹配，从而支持更多类似 GameDeployment 的 CRD workload。
+            if workload_type not in kind:
+                continue
+
+            # ReplicaSet 是 Deployment 的版本控制器，一个 Pod 由 {DeploymentName}-{ReplicaSetId}-{PodId} 组成，其中
+            # {DeploymentName}-{ReplicaSetId} 为 ReplicaSet Name，由于 ReplicaSet 非可见资源，截断取 Deployment 生成链接。
+            if workload_type == "ReplicaSet":
+                kind = "Deployment"
+                name = "-".join(name.split("-")[:-1])
+
+            if workload_type == "HorizontalPodAutoscaler":
+                kind = "Deployment"
+
+            # case 1：workload 类型
+            filter_by["workload"].append(f"{kind}:{name}")
+            return cls._generate_url(
+                workload_info, start_time, end_time, filter_by, ["namespace", "workload", "pod"]
+            )
+
+        if kind == "Pod":
+            filter_by["pod"].append(name)
+            return cls._generate_url(
+                workload_info, start_time, end_time, filter_by, ["namespace", "workload", "pod", "container"]
+            )
+
+        if kind == "Node":
+            return cls._generate_legacy_host_url(workload_info, name, start_time, end_time)
+
+        # TODO(crayon): Service、Endpoints、Ingress 等新版容器监控支持后再完善跳转。
+        return ""
+
+    @classmethod
+    def _generate_url(cls, workload_info, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]) -> str:
         params = {
             "from": start_time,
             "to": end_time,
@@ -166,3 +214,18 @@ class K8sEventProcessor(BaseEventProcessor):
         }
         bk_biz_id = workload_info["bk_biz_id"]["value"]
         return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s-new?{urlencode(params)}"
+
+    @classmethod
+    def _generate_legacy_host_url(cls, workload_info, host: str, start_time, end_time) -> str:
+        params = {
+            "from": start_time,
+            "to": end_time,
+            "sceneId": "kubernetes",
+            "dashboardId": "node",
+            "sceneType": "detail",
+            "queryData": json.dumps({
+                "selectorSearch": [{"bcs_cluster_id": workload_info["bcs_cluster_id"]["value"]}, {"name": host}]
+            })
+        }
+        bk_biz_id = workload_info["bk_biz_id"]["value"]
+        return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s?{urlencode(params)}"
