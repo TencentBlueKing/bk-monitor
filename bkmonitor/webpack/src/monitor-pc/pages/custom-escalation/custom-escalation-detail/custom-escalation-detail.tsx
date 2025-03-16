@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import {
   customTsGroupingRuleList,
-  modifyCustomTimeSeriesDesc,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
@@ -37,18 +36,13 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 
 import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
+import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
+import DimensionTableSlide from './dimension-table-slide';
 import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
-import type {
-  IDetailData,
-  IEditParams,
-  // IParams,
-  IRefreshList,
-  IShortcuts,
-  ISideslider,
-} from '../../../types/custom-escalation/custom-escalation-detail';
+import type { IDetailData, IEditParams, ISideslider } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
@@ -87,9 +81,10 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   @Ref() readonly dataLabelInput!: HTMLInputElement;
   @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
-  isShow = false;
   @ProvideReactive('metricFunctions') metricFunctions = [];
 
+  isShowMetricSlider = false; // 展示指标抽屉
+  isShowDimensionSlider = false; // 展示维度抽屉
   descName = ''; // 别名
   loading = false;
   copyName = ''; // 修改的名字
@@ -290,6 +285,109 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       );
     });
     return filterList;
+  }
+
+  /** 处理导出 */
+  handleExportMetric(currentTab: 'dimension' | 'metric') {
+    const generateUnitString = () => {
+      if (currentTab !== 'metric') return '';
+      const allUnits = this.unitList.flatMap(group => group.formats.map(item => item.id));
+      return allUnits
+        .reduce((str, unit, index) => `${str}${unit}${(index + 1) % 5 === 0 ? '\n' : '、'}`, '')
+        .replace(/、\n/g, '\n');
+    };
+
+    // CSV安全处理
+    const escapeCSVField = (value: boolean | number | string) => {
+      if (value == null) return '';
+      const stringVal = String(value);
+      if (/[",\n]/.test(stringVal)) {
+        return `"${stringVal.replace(/"/g, '""')}"`;
+      }
+      return stringVal;
+    };
+
+    // 动态生成描述信息
+    const generateDescription = () => {
+      const baseTips = [
+        currentTab === 'metric' ? this.$t('分组分隔方式(仅;分隔)') : this.$t('布尔值请填写true/false'),
+        this.$t('导入时-表示不更新'),
+        this.$t('空单元格表示置空'),
+      ].join('. ');
+
+      const unitTip =
+        currentTab === 'metric' ? this.$t('单位可选类型: {unitStr}', { unitStr: generateUnitString() }) : '';
+
+      return [unitTip, baseTips].filter(Boolean).join('\n');
+    };
+
+    // 动态表头生成
+    const generateHeaders = () => {
+      const metricHeaders = [
+        this.$t('名称'),
+        this.$t('别名'),
+        this.$t('状态'),
+        this.$t('分组'),
+        this.$t('类型'),
+        this.$t('单位'),
+        this.$t('汇聚方法'),
+      ];
+
+      const dimensionHeaders = [
+        this.$t('名称'),
+        this.$t('别名'),
+        this.$t('状态'),
+        this.$t('是否常用维度'),
+        this.$t('类型'),
+      ];
+
+      return (currentTab === 'metric' ? metricHeaders : dimensionHeaders).map(escapeCSVField);
+    };
+
+    // 动态数据行生成
+    const generateDataRows = () => {
+      const sourceData = currentTab === 'metric' ? this.metricData : this.dimensions;
+
+      return sourceData.map(item => {
+        // 公共字段
+        const baseFields = [item.name, item.description || '-', item.disabled ? '停' : '启'];
+
+        // 类型特定字段
+        const specificFields =
+          currentTab === 'metric'
+            ? [
+              item.labels.map(l => l.name).join(';') || '-',
+              item.type || '-',
+              item.unit || '-',
+              item.aggregation_method || '-',
+            ]
+            : [item.common ? '是' : '否', currentTab];
+
+        return [...baseFields, ...specificFields].map(escapeCSVField);
+      });
+    };
+
+    // 构建CSV内容
+    const buildCSVContent = () => {
+      const csvLines = [];
+      // 描述行（带动态信息）
+      csvLines.push(escapeCSVField(generateDescription()));
+      csvLines.push(''); // 空行分隔
+      // 表头
+      csvLines.push(generateHeaders().join(','));
+      // 数据行
+      csvLines.push(...generateDataRows().map(row => row.join(',')));
+      return csvLines.join('\n');
+    };
+
+    // 生成动态文件名
+    const generateFileName = () => {
+      const prefix = currentTab === 'metric' ? this.$t('指标') : this.$t('维度');
+      return `${prefix}-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.csv`;
+    };
+
+    // 执行下载
+    downCsvFile(buildCSVContent(), generateFileName());
   }
 
   /**
@@ -1123,7 +1221,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   /** 批量更新 */
   async handleSaveSliderInfo(localTable, delArray = []) {
-    this.isShow = false;
+    this.isShowMetricSlider = false;
+    this.isShowDimensionSlider = false;
     await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
       time_series_group_id: this.$route.params.id,
       update_fields: localTable,
@@ -1198,10 +1297,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onGroupListOrder={tab => (this.groupList = tab)}
                   onGroupSubmit={this.handleSubmitGroup}
                   onHandleClickSlider={v => {
-                    this.isShow = v;
+                    this.isShowMetricSlider = v;
                   }}
+                  onHandleExport={this.handleExportMetric}
                   onHandleSelectGroup={this.handleSelectGroup}
                   onHandleSelectToggle={this.saveSelectGroup}
+                  onShowDimensionSlider={v => {
+                    this.isShowDimensionSlider = v;
+                  }}
                   onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
@@ -1352,18 +1455,26 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {
+        {this.metricTable.length > 0 && (
           <IndicatorTableSlide
             autoDiscover={this.autoDiscover}
             cycleOption={this.cycleOption}
             dimensionTable={this.dimensions}
-            isShow={this.isShow}
+            isShow={this.isShowMetricSlider}
             metricTable={this.metricTable}
             unitList={this.unitList}
-            onHidden={v => (this.isShow = v)}
+            onHidden={v => (this.isShowMetricSlider = v)}
             onSaveInfo={this.handleSaveSliderInfo}
           />
-        }
+        )}
+        {this.dimensions.length > 0 && (
+          <DimensionTableSlide
+            dimensionTable={this.dimensions}
+            isShow={this.isShowDimensionSlider}
+            onHidden={v => (this.isShowDimensionSlider = v)}
+            onSaveInfo={this.handleSaveSliderInfo}
+          />
+        )}
       </div>
     );
   }

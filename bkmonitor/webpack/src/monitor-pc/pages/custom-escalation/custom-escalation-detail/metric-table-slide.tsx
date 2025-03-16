@@ -28,7 +28,7 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
-import { deepClone } from 'monitor-common/utils';
+import { Debounce, debounce, deepClone } from 'monitor-common/utils';
 
 import { METHOD_LIST } from '../../../constant/constant';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
@@ -49,9 +49,9 @@ const FIELD_SETTINGS = {
   aggregateMethod: { label: '汇聚方法', width: 125 },
   interval: { label: '上报周期', width: 125 },
   func: { label: '函数', width: 125 },
-  dimension: { label: '关联维度', width: 175 },
-  enabled: { label: '启/停', width: 125 },
-  hidden: { label: '显示', width: 125 },
+  dimension: { label: '关联维度', width: 200 },
+  disabled: { label: '启/停', width: 115 },
+  hidden: { label: '显示', width: 115 },
   set: { label: '操作', width: 50 },
 };
 
@@ -65,13 +65,19 @@ interface IMetricItem {
   aggregate_method?: string;
   interval?: number;
   function?: any;
-  enabled?: boolean;
   hidden?: boolean;
   disabled?: boolean;
   [key: string]: any;
   isNew?: boolean;
   error?: string;
 }
+
+// 模糊匹配
+export const fuzzyMatch = (str: string, pattern: string) => {
+  const lowerStr = String(str).toLowerCase();
+  const lowerPattern = String(pattern).toLowerCase();
+  return lowerStr.includes(lowerPattern);
+};
 
 @Component
 export default class IndicatorTableSlide extends tsc<any> {
@@ -108,11 +114,14 @@ export default class IndicatorTableSlide extends tsc<any> {
       interval: { checked: true, disable: false },
       dimension: { checked: true, disable: false },
       func: { checked: true, disable: false },
-      enabled: { checked: true, disable: false },
+      disabled: { checked: true, disable: false },
       hidden: { checked: true, disable: false },
       set: { checked: true, disable: false },
     },
+    search: '',
   };
+
+  handleSearch: (() => void) | null = null;
 
   // 删除列表
   delArray = [];
@@ -120,6 +129,11 @@ export default class IndicatorTableSlide extends tsc<any> {
   // 生命周期钩子
   created() {
     this.initData();
+    // this.handleSearch = debounce(300, this.handleSearchChange);
+  }
+
+  get dimensions() {
+    return this.dimensionTable.map(({ name }) => ({ id: name, name }));
   }
 
   // 数据初始化
@@ -128,23 +142,44 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.units = this.unitList;
   }
 
-  // 事件处理
-  handleSave() {
-    // 校验所有新行
-    const newRows = this.localTable.filter(row => row.isNew);
-    const isValid = newRows.every(row => {
-      const valid = this.validateName(row);
-      if (!valid) this.$bkMessage({ message: row.error, theme: 'error' });
-      return valid;
+  /**
+   * @description: 搜索
+   * @param {*}
+   * @return {*}
+   */
+  @Debounce(300)
+  handleSearchChange() {
+    this.localTable = this.metricTable.filter(item => {
+      return fuzzyMatch(item.name, this.tableConfig.search) || fuzzyMatch(item.description, this.tableConfig.search);
     });
+  }
 
-    if (!isValid) return;
+  // 事件处理
+  async handleSave() {
+    const newRows = this.localTable.filter(row => row.isNew);
+
+    // 并行执行所有验证
+    const validationResults = await Promise.all(
+      newRows.map(async row => {
+        const isValid = await this.validateName(row);
+        if (!isValid) {
+          // TODO: 错误反馈
+          // this.$bkMessage({ message: row.error, theme: 'error' });
+        }
+        return isValid;
+      })
+    );
+
+    // 检查全局有效性
+    const allValid = validationResults.every(valid => valid);
+    if (!allValid) return;
 
     // 清除临时状态
     for (const row of newRows) {
       row.isNew = undefined;
       row.error = undefined;
     }
+    // 提交
     this.$emit('saveInfo', this.localTable, this.delArray);
   }
 
@@ -152,6 +187,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   handleCancel() {
     this.delArray = [];
     this.localTable = deepClone(this.metricTable);
+    this.tableConfig.search = '';
     return false;
   }
 
@@ -191,8 +227,10 @@ export default class IndicatorTableSlide extends tsc<any> {
         >
           <div class='slider-search'>
             <bk-input
+              v-model={this.tableConfig.search}
               placeholder={this.$t('搜索指标')}
               right-icon='bk-icon icon-search'
+              on-change={this.handleSearchChange}
             />
           </div>
 
@@ -220,7 +258,7 @@ export default class IndicatorTableSlide extends tsc<any> {
                           return this.renderDescriptionColumn(props);
                         case 'unit':
                           return this.renderUnitColumn(props);
-                        case 'enabled':
+                        case 'disabled':
                         case 'hidden':
                           return this.renderSwitch(props.row, key);
                         case 'status':
@@ -262,6 +300,7 @@ export default class IndicatorTableSlide extends tsc<any> {
 
           <div class='slider-footer'>
             <bk-button
+              disabled={!this.localTable.length}
               theme='primary'
               onClick={this.handleSave}
             >
@@ -306,14 +345,15 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderSwitch(row: IMetricItem, field: 'enabled' | 'hidden') {
+  private renderSwitch(row: IMetricItem, field: 'disabled' | 'hidden') {
     return (
       <div class='switch-wrap'>
         <bk-switcher
-          v-model={row[field]}
-          disabled={this.autoDiscover && field === 'enabled'}
+          disabled={this.autoDiscover && field === 'disabled'}
           size='small'
           theme='primary'
+          value={!row[field]}
+          onChange={v => (row[field] = !v)}
         />
       </div>
     );
@@ -474,54 +514,23 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   private renderDimension(row: IMetricItem) {
-    // if (this.autoDiscover) {
-    //   return (
-    //     <div
-    //       class='info-content'
-    //       onClick={() => this.handleShowEditDimension(metricData.dimensions)}
-    //     >
-    //       {metricData.dimensions?.length ? (
-    //         <div class='table-dimension-tags'>
-    //           {metricData.dimensions.map(item => (
-    //             <span
-    //               key={item}
-    //               class='table-dimension-tag'
-    //             >
-    //               {item}
-    //             </span>
-    //           ))}
-    //         </div>
-    //       ) : (
-    //         <div class='table-dimension-select'>{this.$t('-')}</div>
-    //       )}
-    //     </div>
-    //   );
-    // }
-
     return (
-      <div class='dimension-select'>
-        <bk-select
-          // ref='dimensionInput'
+      <div class='dimension-input'>
+        <bk-tag-input
           v-model={row.dimensions}
           clearable={false}
-          // disabled={this.autoDiscover}
-          // collapseTag={false}
-          displayTag
-          multiple
-          searchable
-        // onToggle={v => this.editDimension(metricData, v)}
-        >
-          {this.dimensionTable.map(dim => (
-            <bk-option
-              id={dim.name}
-              key={dim.name}
-              // class='dimension-tag'
-              name={dim.name}
-            >
-              {dim.name}
-            </bk-option>
-          ))}
-        </bk-select>
+          // trigger='focus'
+          disabled={this.autoDiscover}
+          list={this.dimensions}
+          placeholder={this.$t('请输入')}
+          {...{
+            props: {
+              'has-delete-icon': true,
+              'fix-height': true,
+              'collapse-tags': true,
+            },
+          }}
+        />
       </div>
     );
   }
@@ -532,7 +541,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         list={this.metricFunctions}
         onFuncSelect={v => (row.function = v)}
       >
-        {row.function?.id || '-'}
+        {row.function?.id || '--'}
       </FunctionMenu>
     );
   }
@@ -552,26 +561,46 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private async validateName(row: IMetricItem) {
-    let error = '';
+  private async validateName(row: IMetricItem): Promise<boolean> {
+    // 同步验证
+    const syncError = this.validateSync(row);
+    if (syncError) {
+      row.error = syncError;
+      return false;
+    }
+    // 异步验证
+    const asyncError = await this.validateAsync(row);
+    if (asyncError) {
+      row.error = asyncError;
+      return false;
+    }
+
+    row.error = '';
+    return true;
+  }
+
+  // 同步验证逻辑
+  private validateSync(row: IMetricItem): string {
     if (!row.name?.trim()) {
-      error = this.$t('名称不能为空') as string;
-    } else if (this.localTable.some(item => item !== row && item.name === row.name)) {
-      error = this.$t('名称已存在') as string;
-    } else if (/[\u4e00-\u9fa5]/.test(row.name?.trim())) {
-      error = this.$t('输入非中文符号') as string;
+      return this.$t('名称不能为空') as string;
     }
-    row.error = error;
-    if (error) {
-      return !error;
+    if (this.localTable.some(item => item !== row && item.name === row.name)) {
+      return this.$t('名称已存在') as string;
     }
-    const existPass = await validateCustomTsGroupLabel({
-      data_label: row.name,
-    }).catch(() => false);
-    if (!existPass) {
-      row.error = this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string;
+    if (/[\u4e00-\u9fa5]/.test(row.name.trim())) {
+      return this.$t('输入非中文符号') as string;
     }
-    return !error;
+    return '';
+  }
+
+  // 异步验证逻辑
+  private async validateAsync(row: IMetricItem): Promise<string> {
+    try {
+      const isValid = await validateCustomTsGroupLabel({ data_label: row.name });
+      return isValid ? '' : (this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string);
+    } catch {
+      return this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string;
+    }
   }
 
   private clearError(row: IMetricItem) {
@@ -585,6 +614,7 @@ export default class IndicatorTableSlide extends tsc<any> {
       isNew: true,
       error: '',
       type: 'metric',
+      dimensions: [],
     };
     this.localTable.splice(index + 1, 0, newRow);
   }

@@ -23,23 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
 
 import dayjs from 'dayjs';
-import { all } from 'deepmerge';
-import { getFunctions } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils';
 
-import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
-import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import GroupSearchMultiple from './group-search-multiple';
 
 import './metric-table.scss';
@@ -76,54 +72,6 @@ interface IMetricDetail {
   description: string;
   interval: number;
 }
-
-const StatusTag = {
-  props: {
-    status: {
-      type: String as () => 'disable' | 'enable',
-      required: true,
-    },
-  },
-  render() {
-    const statusConfig = {
-      enable: { color: '#3FC06D', text: '启用' },
-      disable: { color: '#FF9C01', text: '停用' },
-    };
-    const config = statusConfig[this.status];
-
-    return (
-      <span
-        style={{
-          color: config.color,
-          backgroundColor: `${config.color}26`,
-        }}
-        class='status-tag'
-      >
-        <span
-          style={{ backgroundColor: config.color }}
-          class='status-dot'
-        />
-        {config.text}
-      </span>
-    );
-  },
-};
-
-const DataPreview = {
-  props: {
-    value: String,
-    time: String,
-  },
-  render() {
-    return (
-      <div class='data-preview'>
-        <span class='data-value'>{this.value}</span>
-        <span class='data-time'>（数据时间：{this.time}）</span>
-      </div>
-    );
-  },
-};
-
 interface GroupLabel {
   name: string;
 }
@@ -312,8 +260,6 @@ export default class IndicatorTable extends tsc<any, any> {
     this.table.data = this.metricTableVal;
   }
 
-  mounted() { }
-
   @Watch('autoDiscover')
   updateAutoDiscover(v: boolean) {
     this.isAutoDiscover = v;
@@ -472,58 +418,6 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   getTableComponent() {
-    const overflowGroupDom = (props, type, customTip = '' /* 通用组样式 */) => (
-      <div class='col-classifiy'>
-        {props.row[type].length > 0 ? (
-          <div
-            ref={`table-${type}-${props.$index}`}
-            class='col-classifiy-wrap'
-            v-bk-tooltips={{
-              placements: ['top-start'],
-              boundary: 'window',
-              content: () => customTip || props.row[type].join('、 '),
-              delay: 200,
-              allowHTML: false,
-            }}
-          >
-            {props.row[type]?.map((item, index) => (
-              <span
-                key={`${item}-${index}`}
-                class='classifiy-label gray'
-              >
-                <span class='text-overflow'>{item}</span>
-              </span>
-            ))}
-            {props.row[`overflow${type}`] ? <span class='classifiy-overflow gray'>...</span> : undefined}
-          </div>
-        ) : (
-          <div>--</div>
-        )}
-      </div>
-    );
-
-    const enabledDom = (props, type: 'enabled' | 'hidden' /* 通用开关样式 */) => (
-      <div class='switch-wrap'>
-        <bk-switcher
-          key={props.row.id}
-          v-model={props.row[type]}
-          // pre-check={() => this.handlePreSwitchChange(props.row, type)}
-          size='small'
-          theme='primary'
-        />
-        {/* {!this.authority.MANAGE_AUTH ? (
-          <div
-            class='switch-wrap-modal'
-            v-authority={{ active: !this.authority.MANAGE_AUTH }}
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              e.preventDefault();
-              !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH);
-            }}
-          />
-        ) : undefined} */}
-      </div>
-    );
     const nameSlot = {
       /* 名称 */ default: props => (
         <span
@@ -571,93 +465,13 @@ export default class IndicatorTable extends tsc<any, any> {
         );
       },
     };
-    // const enabledSlot = {
-    //   /* 启停 */ default: props => enabledDom(props, 'enabled'),
-    // };
-    // const unitSlot = {
-    //   /* 单位 */ default: props => (
-    //     <div
-    //       class='cell-margin'
-    //       onMouseleave={this.handleMouseLeave}
-    //     >
-    //       <bk-select
-    //         v-model={props.row.unit}
-    //         clearable={false}
-    //         popover-width={180}
-    //         searchable
-    //         onToggle={this.handleToggleChange}
-    //       >
-    //         {this.unitList.map((group, index) => (
-    //           <bk-option-group
-    //             key={index}
-    //             name={group.name}
-    //           >
-    //             {group.formats.map(option => (
-    //               <bk-option
-    //                 id={option.id}
-    //                 key={option.id}
-    //                 name={option.name}
-    //               />
-    //             ))}
-    //           </bk-option-group>
-    //         ))}
-    //       </bk-select>
-    //     </div>
-    //   ),
-    // };
-    // const hiddenSlot = {
-    //   /* 显示 */ default: props => enabledDom(props, 'hidden'),
-    // };
-    // const aggregateMethodSlot = {
-    //   /* 汇聚方法 */ default: props => (
-    //     <bk-select
-    //       clearable={false}
-    //       value={props.row.name || '--'}
-    //     >
-    //       {[1, 2, 3, 4].map(item => (
-    //         <bk-option
-    //           id={item}
-    //           key={item}
-    //           name={item}
-    //         >
-    //           {item}
-    //         </bk-option>
-    //       ))}
-    //     </bk-select>
-    //   ),
-    // };
-    // const funcSlot = {
-    //   /* 函数 */ default: props => props.row.name || '--',
-    // };
-    // const intervalSlot = {
-    //   /* 上报周期 */ default: props => props.row.name || '--',
-    // };
-    // const setSlot = {
-    //   /* 操作 */ default: props => (
-    //     <div>
-    //       <i
-    //         class='icon-monitor icon-double-up'
-    //         onClick={() => this.handClickRow(props, 'add')}
-    //       />
-    //       <i
-    //         class='icon-monitor icon-double-down'
-    //         onClick={() => this.handClickRow(props, 'del')}
-    //       />
-    //     </div>
-    //   ),
-    // };
-    // const { name, enabled, unit, hidden, aggregateMethod, func, status, group, set, interval, description } =
-    //   this.fieldSettingData;
+
     const { name, status, group, description } = this.fieldSettingData;
     return (
       <bk-table
         class='indicator-table'
         v-bkloading={{ isLoading: this.table.loading }}
         empty-text={this.$t('无数据')}
-        // on={{
-        //   'hook:mounted': this.handleTableMountedOrActivated,
-        //   'hook:activated': this.handleTableMountedOrActivated,
-        // }}
         on-selection-change={this.handleCheckChange}
         {...{
           props: {
@@ -717,58 +531,6 @@ export default class IndicatorTable extends tsc<any, any> {
             scopedSlots={statusSlot}
           />
         )}
-        {/* {unit.checked && (
-          <bk-table-column
-            key='unit'
-            width='100'
-            label={this.$t('单位')}
-            prop='unit'
-            scopedSlots={unitSlot}
-          />
-        )}
-        {aggregateMethod.checked && (
-          <bk-table-column
-            key='aggregateMethod'
-            width='100'
-            class-name='ahahahah'
-            label={this.$t('汇聚方法')}
-            prop='aggregateMethod'
-            scopedSlots={aggregateMethodSlot}
-          />
-        )}
-        {interval.checked && (
-          <bk-table-column
-            key='interval'
-            width='100'
-            label={this.$t('上报周期')}
-            prop='interval'
-            scopedSlots={intervalSlot}
-          />
-        )}
-        {enabled.checked && (
-          <bk-table-column
-            key='enabled'
-            width='100'
-            label={this.$t('启/停')}
-            scopedSlots={enabledSlot}
-          />
-        )}
-        {hidden.checked && (
-          <bk-table-column
-            key='hidden'
-            width='100'
-            label={this.$t('显示')}
-            scopedSlots={hiddenSlot}
-          />
-        )}
-        {set.checked && (
-          <bk-table-column
-            key='set'
-            width='100'
-            label={this.$t('操作')}
-            scopedSlots={setSlot}
-          />
-        )} */}
       </bk-table>
     );
   }
@@ -1207,8 +969,6 @@ export default class IndicatorTable extends tsc<any, any> {
               class='header-select'
               disabled={!this.selectionLeng}
               trigger='click'
-            // on-hide={() => (this.header.dropdownShow = false)}
-            // on-show={() => (this.header.dropdownShow = true)}
             >
               <div
                 class={['header-select-btn', { 'btn-disabled': !this.selectionLeng }]}

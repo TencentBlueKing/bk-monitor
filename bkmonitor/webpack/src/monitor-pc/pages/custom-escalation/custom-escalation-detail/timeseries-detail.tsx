@@ -31,7 +31,6 @@ import MetricTabDetail from './metric-tab-detail';
 
 import './timeseries-detail.scss';
 
-
 @Component
 export default class TimeseriesDetailNew extends tsc<any, any> {
   // @Prop({ default: () => [] }) metricTable;
@@ -54,11 +53,13 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   ];
   activeTab = this.tabs[0].id;
 
-  /** 分割线 ================================ */
-  handleMenuClick(item) {
-    // TODO
+  @Emit('handleExport')
+  handleDownload() {
+    return this.activeTab;
   }
 
+  handleUpload() {
+   }
 
   getCmpByActiveTab(activeTab: string) {
     const cmpMap = {
@@ -120,8 +121,20 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
               ))}
             </div>
             <div class='tools'>
-              <span class='tool'>导入</span>
-              <span class='tool'>导出</span>
+              <span
+                class='tool'
+                onClick={this.handleUpload}
+              >
+                {' '}
+                <i class='icon-monitor icon-xiazai2' /> {this.$t('导入')}
+              </span>
+              <span
+                class='tool'
+                onClick={this.handleDownload}
+              >
+                <i class='icon-monitor icon-shangchuan' />
+                {this.$t('导出')}
+              </span>
             </div>
           </div>
         </div>
