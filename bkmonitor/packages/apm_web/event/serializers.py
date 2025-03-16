@@ -128,3 +128,19 @@ class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
             query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
             query_config["group_by"] = ["type"]
         return attrs
+
+
+class EventTagDetailSerializer(EventTimeSeriesRequestSerializer):
+    limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+    interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        attrs["expression"] = "a"
+        for query_config in attrs["query_configs"]:
+            attrs["interval"] = query_config.get("interval") or 60
+
+        attrs["end_time"] = attrs["start_time"] + attrs["interval"]
+
+        return attrs
