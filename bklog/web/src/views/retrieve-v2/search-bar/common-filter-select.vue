@@ -5,7 +5,7 @@
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey } from '@/common/util';
+  import { getOperatorKey, deepClone } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   import { debounce } from 'lodash';
@@ -25,7 +25,20 @@
 
   const commonFilterAddition = computed({
     get() {
-      const filterAddition = store.getters.common_filter_addition || [];
+      const additionValue = localStorage.getItem('commonFilterAddition');
+      // 将本地存储的JSON字符串解析为对象并创建映射
+      const parsedValueMap = additionValue
+        ? JSON.parse(additionValue).reduce((acc, item) => {
+            acc[item.field] = item.value;
+            return acc;
+          }, {})
+        : {};
+      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
+      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
+        ...commonItem,
+        value: parsedValueMap[commonItem.field] || commonItem.value,
+      }));
+
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
         return (
@@ -125,22 +138,25 @@
 
   // 新建提交逻辑
   const updateCommonFilterAddition = () => {
-    const target = commonFilterAddition.value.map(item => {
+    const Additionvalue = deepClone(commonFilterAddition.value);
+    const target = Additionvalue.map(item => {
       if (!isShowConditonValueSetting(item.operator)) {
         item.value = [];
       }
-
+      item.value = [];
       return item;
     });
 
     const param = {
       filterAddition: target,
+      isUpdate: true
     };
 
     store.dispatch('userFieldConfigChange', param);
   };
 
   const handleChange = () => {
+    localStorage.setItem('commonFilterAddition', JSON.stringify(commonFilterAddition.value));
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
