@@ -127,6 +127,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 图表的告警状态接口是否需要加入$current_target作为请求参数
   @InjectReactive('alertFilterable') readonly alertFilterable!: boolean;
+  // 立即刷新图表
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
 
   private showMenu = false;
   private menuLeft = 0;
@@ -196,6 +198,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Watch('viewOptions.current_target', { deep: true })
   currentTargetChange() {
     !this.readonly && this.inited && this.allowUpdateStatus && this.alertFilterable && this.handleFetchItemStatus();
+  }
+
+  @Watch('refleshImmediate')
+  // 立刻刷新
+  handleRefleshImmediateChange(v: string) {
+    if (v) this.handleFetchItemStatus();
   }
 
   /**
