@@ -6,9 +6,11 @@
     line-height: 14px;
 
     %kv-hover-text {
-      color: #3a84ff;
-      text-decoration: underline;
-      cursor: pointer;
+      &:not(.disable-click) {
+        color: #3a84ff;
+        text-decoration: underline;
+        cursor: pointer;
+      }
     }
 
     &:nth-child(odd) {
