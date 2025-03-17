@@ -420,7 +420,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
           ref='statisticsList'
           isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
           popoverInstance={this.popoverInstance}
-          selectField={this.fieldTarget?.sourceName || '--'}
+          selectField={this.fieldTarget?.sourceName}
           onConditionChange={this.handleStatisticsConditionChange}
           onShowMore={() => this.handlePopoverHide(false)}
           onSliderShowChange={this.handleStatisticsSliderShow}
