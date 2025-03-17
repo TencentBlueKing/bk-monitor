@@ -56,6 +56,11 @@ export default class CollectContainer extends tsc<IProps> {
   dragList: IGroupItem[] = []; // 可拖拽的收藏列表
 
   get isSearchEmpty() {
+    console.log(
+      this.isSearchFilter && !this.dataList.length,
+      this.dragList,
+      'this.isSearchFilter && !this.dataList.length',
+    );
     return this.isSearchFilter && !this.dataList.length;
   }
 
@@ -102,7 +107,22 @@ export default class CollectContainer extends tsc<IProps> {
   private handleWatchDataList() {
     this.dragList = JSON.parse(JSON.stringify(this.dataList));
   }
-
+  // 新增方法来渲染空消息
+  private renderEmptyMessage() {
+    return (
+      <div class='data-empty'>
+        <div class='empty-box'>
+          <Exception
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
+          </Exception>
+        </div>
+      </div>
+    );
+  }
   // eslint-disable-next-line @typescript-eslint/member-ordering
   render() {
     return (
@@ -116,40 +136,34 @@ export default class CollectContainer extends tsc<IProps> {
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (
-            <VueDraggable
-              vModel={this.dragList}
-              animation='150'
-              disabled={true}
-              handle='.group-title'
-              move={this.handleMoveIng}
-              on-end={this.handleMoveEnd}
-            >
-              <transition-group>
-                {this.dragList.map((item, index) => (
-                  <div key={item.group_id}>
-                    <CollectGroup
-                      ref={el => (this.collectGroupRefs[index] = el as CollectGroup | null)}
-                      activeFavoriteID={this.activeFavoriteID}
-                      collectItem={item}
-                      groupList={this.groupList}
-                      isSearchFilter={this.isSearchFilter}
-                    ></CollectGroup>
-                  </div>
-                ))}
-              </transition-group>
-            </VueDraggable>
+            this.dragList.length ? (
+              <VueDraggable
+                vModel={this.dragList}
+                animation='150'
+                disabled={true}
+                handle='.group-title'
+                move={this.handleMoveIng}
+                on-end={this.handleMoveEnd}
+              >
+                <transition-group>
+                  {this.dragList.map((item, index) => (
+                    <div key={item.group_id}>
+                      <CollectGroup
+                        ref={el => (this.collectGroupRefs[index] = el as CollectGroup | null)}
+                        activeFavoriteID={this.activeFavoriteID}
+                        collectItem={item}
+                        groupList={this.groupList}
+                        isSearchFilter={this.isSearchFilter}
+                      ></CollectGroup>
+                    </div>
+                  ))}
+                </transition-group>
+              </VueDraggable>
+            ) : (
+              this.renderEmptyMessage()
+            )
           ) : (
-            <div class='data-empty'>
-              <div class='empty-box'>
-                <Exception
-                  class='exception-wrap-item exception-part'
-                  scene='part'
-                  type='search-empty'
-                >
-                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
-                </Exception>
-              </div>
-            </div>
+            this.renderEmptyMessage()
           )}
         </div>
       </div>

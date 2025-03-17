@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Input, Popover, Form, FormItem } from 'bk-magic-vue';
 
-import { IGroupItem, IFavoriteItem } from '../collect-index';
 import PopInstanceUtil from '../../../../global/pop-instance-util';
+import { IGroupItem, IFavoriteItem } from '../collect-index';
 
 import './group-dropdown.scss';
 
@@ -93,7 +93,7 @@ export default class CollectGroup extends tsc<IProps> {
 
   popToolInstance = null;
   moreIconPopInstance = null;
-
+  isGroupNameEditShown = false;
   @Ref('groupMoveList') private readonly groupMoveListPopoverRef: Popover; // 移动到分组实例
   @Ref('titleDrop') private readonly titlePopoverRef: Popover; // 操作列表实例
   @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
@@ -295,7 +295,6 @@ export default class CollectGroup extends tsc<IProps> {
     this.titlePopoverInstance?.hide(300);
   }
 
-  isGroupNameEditShown = false;
   handleResetGroupTitleName(e: MouseEvent) {
     this.verifyData.groupEditName = this.groupName;
 
@@ -377,8 +376,8 @@ export default class CollectGroup extends tsc<IProps> {
     const collectDropList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='dropdown-list bklog-v3-favorite-group-root'
           ref='refOperateRoot'
+          class='dropdown-list bklog-v3-favorite-group-root'
           onMouseenter={this.handleMoreListMouseenter}
           onMouseleave={this.handleMouseleaveMoreIcon}
         >
@@ -448,8 +447,8 @@ export default class CollectGroup extends tsc<IProps> {
                 </Form>,
                 <div class='operate-button'>
                   <span
-                    class='bk-icon icon-check-line'
                     style='color: #299E56'
+                    class='bk-icon icon-check-line'
                     onClick={() => this.handleChangeGroupInputStatus('add')}
                   ></span>
                   <span
@@ -527,8 +526,8 @@ export default class CollectGroup extends tsc<IProps> {
         <div style='display:none;'>
           <div
             ref='refGroupNameEdit'
-            onMouseenter={this.handleHoverIcon}
             class='bklog-v3-favorite-group-edit'
+            onMouseenter={this.handleHoverIcon}
           >
             <Form
               ref='checkInputForm'

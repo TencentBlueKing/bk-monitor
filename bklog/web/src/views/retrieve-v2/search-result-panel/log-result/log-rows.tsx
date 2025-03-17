@@ -39,7 +39,6 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import aiBlueking from '@/images/ai/ai-blueking.svg';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
@@ -140,15 +139,15 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
-    const showAiAssistant = computed(() => {
-      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
-      if (ai_assistant === 'debug') {
-        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
-        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
-      }
+    // const showAiAssistant = computed(() => {
+    //   const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
+    //   if (ai_assistant === 'debug') {
+    //     const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
+    //     return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
+    //   }
 
-      return ai_assistant === 'on';
-    });
+    //   return ai_assistant === 'on';
+    // });
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -338,7 +337,10 @@ export default defineComponent({
               class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
               onClick={hanldeExpandClick}
             >
-              <i class='bk-icon icon-play-shape'></i>
+              <i
+                style={{ color: '#4D4F56', fontSize: '9px' }}
+                class='bk-icon icon-play-shape'
+              ></i>
             </span>
           );
         },
@@ -861,34 +863,34 @@ export default defineComponent({
       );
     };
 
-    const handleRowAIClcik = (e: MouseEvent, row: any) => {
-      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
-      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
-      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+    // const handleRowAIClcik = (e: MouseEvent, row: any) => {
+    //   const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+    //   const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+    //   const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
 
-      oldRow?.classList.remove('ai-active');
-      targetRow?.classList.add('ai-active');
+    //   oldRow?.classList.remove('ai-active');
+    //   targetRow?.classList.add('ai-active');
 
-      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
-    };
+    //   props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    // };
 
     const renderScrollTop = () => {
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    const handleMouseenter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.show(target);
-      }
-    };
+    // const handleMouseenter = (e: MouseEvent) => {
+    //   const target = e.target as HTMLElement;
+    //   if (target?.classList?.contains('bklog-row-ai')) {
+    //     popInstanceUtil.show(target);
+    //   }
+    // };
 
-    const handleMouseleave = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.hide();
-      }
-    };
+    // const handleMouseleave = (e: MouseEvent) => {
+    //   const target = e.target as HTMLElement;
+    //   if (target?.classList?.contains('bklog-row-ai')) {
+    //     popInstanceUtil.hide();
+    //   }
+    // };
 
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
@@ -924,16 +926,16 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        showAiAssistant.value ? (
-          <span
-            class='bklog-row-ai'
-            onClick={e => handleRowAIClcik(e, row)}
-            onMouseenter={handleMouseenter}
-            onMouseleave={handleMouseleave}
-          >
-            <img src={aiBlueking} />
-          </span>
-        ) : null,
+        // showAiAssistant.value ? (
+        //   <span
+        //     class='bklog-row-ai'
+        //     onClick={e => handleRowAIClcik(e, row)}
+        //     onMouseenter={handleMouseenter}
+        //     onMouseleave={handleMouseleave}
+        //   >
+        //     <img src={aiBlueking} />
+        //   </span>
+        // ) : null,
       ];
     };
 

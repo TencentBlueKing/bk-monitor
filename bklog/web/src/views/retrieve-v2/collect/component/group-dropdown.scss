@@ -149,18 +149,18 @@
   }
 
   .operate-button {
+    margin-top: 16px;
     font-size: 12px;
     color: #979ba5;
-    margin-top: 16px;
 
     span {
-      cursor: pointer;
-      width: 52px;
-      height: 26px;
-      border-radius: 2px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: 52px;
+      height: 26px;
+      cursor: pointer;
+      border-radius: 2px;
     }
 
     > :first-child {
@@ -179,12 +179,12 @@
 
   &.dropdown-list {
     li {
-      min-width: 118px;
-      height: 32px;
-      line-height: 32px;
       display: flex;
       align-items: center;
+      min-width: 118px;
+      height: 32px;
       font-size: 12px;
+      line-height: 32px;
 
       &:last-child {
         color: #ea3636;
@@ -196,13 +196,13 @@
     padding: 4px 0px;
 
     li {
-      height: 32px;
-      min-width: 240px;
       display: flex;
       align-items: center;
+      min-width: 240px;
+      height: 32px;
       padding: 0 12px;
-      background-color: #fff;
       margin: 0 1px;
+      background-color: #fff;
 
       &:hover {
         background: #f5f7fa;
@@ -210,21 +210,21 @@
     }
 
     .add-new-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       height: 40px;
+      font-size: 12px;
+      color: #4d4f56;
       background: #fafbfd;
       border-top: 1px solid #eaebf0;
       border-radius: 0 0 2px 2px;
-      font-size: 12px;
-      color: #4d4f56;
-      display: flex;
-      justify-content: center;
-      align-items: center;
 
       .operate-button {
         span {
+          margin-left: 8px;
           font-size: 16px;
           font-weight: 800;
-          margin-left: 8px;
         }
       }
 

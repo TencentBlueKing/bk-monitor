@@ -29,7 +29,7 @@ import { debounce } from 'lodash';
 import tippy, { Props } from 'tippy.js';
 
 type PopInstanceUtilType = {
-  refContent: Ref<{ $el?: HTMLElement } | string> | HTMLElement;
+  refContent: HTMLElement | Ref<{ $el?: HTMLElement } | string>;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
@@ -40,7 +40,7 @@ type PopInstanceUtilType = {
 
 export default class PopInstanceUtil {
   private tippyInstance;
-  private refContent: Ref<{ $el?: HTMLElement } | string> | HTMLElement = ref(null);
+  private refContent: HTMLElement | Ref<{ $el?: HTMLElement } | string> = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;

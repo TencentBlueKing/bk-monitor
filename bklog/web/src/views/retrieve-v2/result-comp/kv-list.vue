@@ -273,7 +273,9 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
-        const trace_id =  String(this.data[field]).replace(/<mark>/g, '').replace(/<\/mark>/g, '')
+        const trace_id = String(this.data[field])
+          .replace(/<mark>/g, '')
+          .replace(/<\/mark>/g, '');
         let path = '';
         switch (key) {
           // trace检索
@@ -374,10 +376,33 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
 
+    .log-item:nth-child(even) {
+      background-color: #f5f7fa;
+    }
+
+    .log-item:nth-child(odd) {
+      background-color: #ffffff;
+    }
+
     .log-item {
       display: flex;
-      align-items: start;
+      align-items: center;
+      justify-content: center;
       min-height: 24px;
+      padding-left: 24px;
+
+      &:hover {
+        cursor: pointer;
+        background-color: #f0f1f5;
+
+        .field-text,
+        .field-value {
+              /* stylelint-disable-next-line declaration-no-important */
+          color: #498eff !important;
+          text-decoration: underline; /* 悬停时添加下划线 */
+          text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+        }
+      }
 
       .field-label {
         display: flex;
@@ -404,6 +429,7 @@
           display: block;
           width: auto;
           overflow: hidden;
+          color: #313238;
           word-break: normal;
           word-wrap: break-word;
         }
@@ -417,12 +443,14 @@
 
       .field-value {
         display: flex;
+        color: #16171a;
         word-break: break-all;
       }
     }
 
     .relation-monitor-btn {
       min-width: fit-content;
+      padding-top: 1px;
       padding-right: 6px;
       // margin-left: 12px;
       font-size: 12px;

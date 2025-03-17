@@ -28,13 +28,13 @@
   <div class="expand-view-wrapper">
     <div class="view-tab">
       <span
-        :class="{ active: activeExpandView === 'kv' }"
+        :class="{ activeKv: activeExpandView === 'kv' }"
         @click="activeExpandView = 'kv'"
       >
         KV
       </span>
       <span
-        :class="{ active: activeExpandView === 'json' }"
+        :class="{ activeJson: activeExpandView === 'json' }"
         @click="activeExpandView = 'json'"
       >
         JSON
@@ -57,6 +57,7 @@
       />
     </div>
     <div
+      style="padding: 10px 12px 10px 39px"
       class="view-content json-view-content"
       v-show="activeExpandView === 'json'"
     >
@@ -70,8 +71,9 @@
 
 <script>
   import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { getFieldNameByField } from '@/hooks/use-field-name';
+  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+
   import KvList from '../../result-comp/kv-list.vue';
 
   export default {
@@ -131,39 +133,60 @@
   .expand-view-wrapper {
     width: 100%;
     color: #313238;
+    background-color: #f5f7fa;
 
     .view-tab {
       font-size: 0;
-      background-color: #fafbfd;
+      background-color: #f5f7fa;
 
       span {
         display: inline-block;
         width: 68px;
-        height: 26px;
+        height: 23px;
         font-size: 12px;
-        line-height: 26px;
-        color: var(--table-fount-color);
+        line-height: 23px;
+        color: #313238;
         text-align: center;
         cursor: pointer;
-        background-color: #f5f7fa;
-        border: 1px solid #eaebf0;
+
         border-top: 0;
 
         &:first-child {
           border-left: 0;
         }
 
-        &.active {
-          color: #3a84ff;
-          background-color: #fafbfd;
-          border: 0;
+        &.activeKv,
+        &.activeJson {
+          position: relative;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        &.activeKv::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 26px;
+          width: 17px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
+
+        &.activeJson::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 20px;
+          width: 30px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
         }
       }
     }
 
     .view-content {
-      padding: 10px 30px;
-      background-color: #fafbfd;
+      padding: 10px 15px;
+      background-color: #f5f7fa;
 
       :deep(.vjs-tree) {
         /* stylelint-disable-next-line declaration-no-important */
@@ -181,6 +204,15 @@
           }
         }
       }
+    }
+  }
+</style>
+<style lang="scss">
+  .json-view-content {
+    .vjs-tree-brackets,
+    .vjs-key {
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #9d694c !important;
     }
   }
 </style>
