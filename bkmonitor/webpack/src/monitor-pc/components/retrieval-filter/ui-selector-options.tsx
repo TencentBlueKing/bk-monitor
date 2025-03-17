@@ -43,6 +43,8 @@ import {
 } from './utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
 
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
+
 import './ui-selector-options.scss';
 
 interface IProps {
@@ -99,6 +101,19 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   get isIntegerError() {
     return this.isTypeInteger ? this.values.some(v => !isNumeric(v.id)) : false;
+  }
+
+  get valueSelectorFieldInfo(): IFieldItem {
+    return {
+      field: this.checkedItem?.name,
+      alias: this.checkedItem?.alias,
+      isEnableOptions: !!this.checkedItem?.is_option_enabled,
+      methods: this.checkedItem.supported_operations.map(item => ({
+        id: item.value,
+        name: item.alias,
+      })),
+      type: this.checkedItem?.type,
+    };
   }
 
   mounted() {
@@ -327,6 +342,35 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.isShowDropDown = v;
   }
 
+  getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+    return new Promise((resolve, _reject) => {
+      this.getValueFn({
+        where: [
+          {
+            key: params.field,
+            method: 'include',
+            value: [params.search || ''],
+            condition: ECondition.and,
+            options: {
+              is_wildcard: true,
+            },
+          },
+        ],
+        fields: [params.field],
+        limit: params.limit,
+      })
+        .then(data => {
+          resolve(data);
+        })
+        .catch(() => {
+          resolve({
+            count: 0,
+            list: [],
+          });
+        });
+    });
+  }
+
   render() {
     const rightRender = () => {
       if (this.checkedItem?.name === '*') {
@@ -395,9 +439,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-content mt-6'>
                 <ValueTagSelector
                   key={this.rightRefreshKey}
-                  checkedItem={this.checkedItem}
-                  getValueFn={this.getValueFn}
-                  isWildcard={this.isWildcard}
+                  fieldInfo={this.valueSelectorFieldInfo}
+                  getValueFn={this.getValueFnProxy}
                   method={this.method}
                   value={this.values}
                   onChange={this.handleValueChange}
