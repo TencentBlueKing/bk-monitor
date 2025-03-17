@@ -59,6 +59,7 @@ interface IEventExploreViewProps {
 
 interface IEventExploreViewEvents {
   onClearSearch: () => void;
+  onSearch: () => void;
   onConditionChange(e: ConditionChangeEvent): void;
 }
 
@@ -140,6 +141,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
 
   @Emit('clearSearch')
   clearSearch() {
+    return;
+  }
+
+  @Emit('search')
+  filterSearch() {
     return;
   }
 
@@ -330,6 +336,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
+            onSearch={this.filterSearch}
           />
         </div>
         <BackTop

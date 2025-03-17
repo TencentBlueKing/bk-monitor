@@ -150,6 +150,10 @@
 
       .bk-table-empty-block {
         width: 100% !important;
+
+        .bk-table-empty-text {
+          padding: 0;
+        }
       }
     }
 
