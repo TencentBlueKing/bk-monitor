@@ -74,16 +74,15 @@ class GetCustomTsMetricGroups(Resource):
 
         # 指标分组
         metric_groups = defaultdict(list)
-        # 未分组
-        ungrouped_metrics = []
         for metric in metrics:
-            # 未分组
-            if not metric.config.get("label", []):
-                ungrouped_metrics.append(metric)
-                continue
+            labels = metric.config.get("label", [])
+
+            # 如果 label 为空，则使用未分组
+            if not labels:
+                labels = [_("未分组")]
 
             # 分组
-            for group in metric.config.get("label", []):
+            for group in labels:
                 metric_groups[group].append(
                     {
                         "metric_name": metric.name,
@@ -94,10 +93,6 @@ class GetCustomTsMetricGroups(Resource):
                         ],
                     }
                 )
-
-        # 未分组
-        if ungrouped_metrics:
-            metric_groups[_("未分组")] = ungrouped_metrics
 
         return {
             "common_dimensions": common_dimensions,
