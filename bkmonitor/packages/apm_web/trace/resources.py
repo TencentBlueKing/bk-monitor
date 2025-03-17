@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 
+from django.forms.models import model_to_dict
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -27,6 +28,7 @@ from apm_web.handlers.trace_handler.query import (
     SpanQueryTransformer,
     TraceQueryTransformer,
 )
+from apm_web.handlers.trace_handler.view_config import TraceUserCustomConfigHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
@@ -1238,3 +1240,24 @@ class ListSpanHostInstancesResource(Resource):
 
     def perform_request(self, validated_request_data):
         return HostHandler.find_host_in_span(**validated_request_data)
+
+
+class UserCustomConfigResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        trace_config = serializers.JSONField(label="trace 自定义配置", required=False)
+        span_config = serializers.JSONField(label="span 自定义配置", required=False)
+
+    def perform_request(self, validated_request_data):
+        config_handler = TraceUserCustomConfigHandler(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
+        config_obj = config_handler.update_user_custom_config_obj(
+            trace_config=validated_request_data.get("trace_config"),
+            span_config=validated_request_data.get("span_config"),
+        )
+        return model_to_dict(
+            config_obj, fields=["id", "bk_biz_id", "app_name", "username", "trace_config", "span_config"]
+        )
