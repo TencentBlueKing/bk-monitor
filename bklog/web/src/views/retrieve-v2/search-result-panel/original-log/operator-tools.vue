@@ -51,15 +51,11 @@
         class="handle-card"
         v-bk-tooltips="{ allowHtml: true, content: '智能分析', delay: 500 }"
       >
-<<<<<<< HEAD
         <span
           :class="`icon bklog-icon bklog-icon bklog-ai`"
           @click.stop="handleClick('ai')"
         >
         </span>
-=======
-        <span :class="`icon bklog-icon bklog-icon bklog-ai`"> </span>
->>>>>>> d71c4b8d0f33b6c7cdee96ed739ad543b4aac881
       </span>
       <!-- <span
         v-if="isActiveWebConsole"
