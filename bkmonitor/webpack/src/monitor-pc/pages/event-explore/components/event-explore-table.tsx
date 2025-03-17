@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
 
-import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
+import RetrievalEmptyShow from '../../data-retrieval/data-retrieval-view/retrieval-empty-show';
 import { APIType, getEventLogs } from '../api-utils';
 import {
   type ConditionChangeEvent,
@@ -71,6 +71,7 @@ interface EventExploreTableProps {
 
 interface EventExploreTableEvents {
   onConditionChange: (condition: ConditionChangeEvent) => void;
+  onSearch: () => void;
   onClearSearch: () => void;
 }
 
@@ -167,6 +168,15 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return 'empty';
   }
 
+  get queryConfig() {
+    const query = this.queryParams?.query_configs?.[0] || {};
+    return {
+      ...query,
+      // @ts-ignore
+      result_table_id: query?.table,
+    };
+  }
+
   @Watch('refreshTable')
   commonParamsChange() {
     this.getEventLogs();
@@ -177,8 +187,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return condition;
   }
 
+  @Provide('refreshQueryFn')
   @Emit('clearSearch')
   clearSearch() {
+    return;
+  }
+
+  @Emit('search')
+  filterSearch() {
     return;
   }
 
@@ -641,13 +657,13 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             type='expand'
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
-          <EmptyStatus
+          <RetrievalEmptyShow
             slot='empty'
-            textMap={{
-              empty: this.$t('暂无数据'),
-            }}
-            type={this.tableEmptyType}
-            onOperation={this.clearSearch}
+            emptyStatus={this.tableEmptyType}
+            eventMetricParams={this.queryConfig}
+            queryLoading={false}
+            showType={'event'}
+            onClickEventBtn={this.filterSearch}
           />
           <div
             style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
