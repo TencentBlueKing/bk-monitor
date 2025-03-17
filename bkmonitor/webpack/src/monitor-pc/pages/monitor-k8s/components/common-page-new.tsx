@@ -146,12 +146,15 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
+// 事件tab的query
+export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn'];
 const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',
   'callOptions',
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
+  ...Event_EXPORT_QUERY_KEYS,
 ];
 @Component({
   components: {

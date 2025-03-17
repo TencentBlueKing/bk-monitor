@@ -27,7 +27,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EMode } from '../../components/retrieval-filter/utils';
+import { EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
 import { APIType } from './api-utils';
 import EventExplore from './event-explore';
 
@@ -46,7 +46,11 @@ export default class ApmEventExplore extends tsc<object> {
   /** 查询语句 */
   queryString = '';
   /** UI查询 */
-  where: IFormData['where'] = [];
+  where: IWhereItem[] = [];
+  /** 常驻筛选查询 */
+  commonWhere: IWhereItem[] = [];
+  /** 是否展示常驻筛选 */
+  showResidentBtn = false;
   /** 维度列表 */
   group_by: IFormData['group_by'] = [];
   /** 过滤条件 */
@@ -59,7 +63,7 @@ export default class ApmEventExplore extends tsc<object> {
   }
   /** 兼容以前的事件检索URL格式 */
   getRouteParams() {
-    const { targets, filterMode } = this.$route.query;
+    const { targets, filterMode, commonWhere, showResidentBtn } = this.$route.query;
     if (targets) {
       try {
         const targetsList = JSON.parse(decodeURIComponent(targets as string));
@@ -80,6 +84,8 @@ export default class ApmEventExplore extends tsc<object> {
         this.filterMode = (
           [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
         ) as EMode;
+        this.commonWhere = JSON.parse((commonWhere as string) || '[]');
+        this.showResidentBtn = JSON.parse(showResidentBtn as string) || false;
       } catch (error) {
         console.log('route query:', error);
       }
@@ -107,6 +113,8 @@ export default class ApmEventExplore extends tsc<object> {
         },
       ]),
       filterMode: this.filterMode,
+      commonWhere: JSON.stringify(this.commonWhere),
+      showResidentBtn: String(this.showResidentBtn),
     };
 
     const targetRoute = this.$router.resolve({
@@ -136,20 +144,35 @@ export default class ApmEventExplore extends tsc<object> {
     this.filter_dict = filter_dict;
     this.setRouteParams();
   }
+  /** 常驻筛选项修改 */
+  handleCommonWhereChange(where: IWhereItem[]) {
+    this.commonWhere = where;
+    this.setRouteParams();
+  }
+
+  /** 常驻筛选显隐 */
+  handleShowResidentBtnChange(isShow: boolean) {
+    this.showResidentBtn = isShow;
+    this.setRouteParams();
+  }
   render() {
     return (
       <EventExplore
         class={'apm-event-explore'}
+        commonWhere={this.commonWhere}
         dataId={APM_EVENT_DATA_ID}
         dataSourceLabel={'apm'}
+        defaultShowResidentBtn={this.showResidentBtn}
         filter_dict={this.filter_dict}
         filterMode={this.filterMode}
         group_by={this.group_by}
         queryString={this.queryString}
         source={APIType.APM}
         where={this.where}
+        onCommonWhereChange={this.handleCommonWhereChange}
         onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
+        onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />
     );
