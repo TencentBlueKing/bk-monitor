@@ -125,7 +125,7 @@ class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
         attrs = super().validate(attrs)
         attrs["expression"] = "a"
         for query_config in attrs["query_configs"]:
-            query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
+            query_config["metrics"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
             query_config["group_by"] = ["type"]
         return attrs
 

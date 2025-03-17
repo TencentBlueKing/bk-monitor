@@ -49,7 +49,6 @@ class Command(BaseCommand):
         to_be_updated_storages: List[models.ESStorage] = []
         table_ids: List[str] = list(table_event_group_map.keys())
         for table_id in models.ESStorage.objects.filter(table_id__in=table_ids).values_list("table_id", flat=True):
-            print(table_id)
             to_be_updated_storages.append(models.ESStorage(table_id=table_id, index_set=table_id))
 
         models.ESStorage.objects.bulk_update(to_be_updated_storages, fields=["index_set"])
@@ -71,8 +70,10 @@ class Command(BaseCommand):
             if data_label:
                 data_label_tables_map.setdefault(data_label, []).append(table_id)
 
-        for data_label, table_ids in data_label_tables_map.items():
-            effect_rows: int = models.ResultTable.objects.filter(table_id__in=table_ids).update(data_label=data_label)
+        for data_label, partial_table_ids in data_label_tables_map.items():
+            effect_rows: int = models.ResultTable.objects.filter(table_id__in=partial_table_ids).update(
+                data_label=data_label
+            )
             print(
                 f"[sync_event_es_router] sync data_label to rt: "
                 f"data_label -> {data_label}, effect_rows -> {effect_rows}"

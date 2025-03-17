@@ -210,7 +210,7 @@ class EventTagsResource(Resource):
                 item["statistics"] = dict(item["statistics"])
             if filtered_items:
                 try:
-                    tags.append({"time": int(int(timestamp) / 1000), "items": filtered_items})
+                    tags.append({"time": int(timestamp), "items": filtered_items})
                 except ValueError as exc:
                     logger.warning("failed to conversion time, err -> %s", exc)
                     raise ValueError(_(f"类型转换失败: 无法将 '{timestamp}' 转换为整数"))
