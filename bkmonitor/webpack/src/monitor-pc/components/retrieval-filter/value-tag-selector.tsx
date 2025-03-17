@@ -140,8 +140,6 @@ export default class ValueTagSelector extends tsc<IProps> {
    */
   handleBlur() {
     this.inputValue = '';
-    this.isFocus = false;
-    this.activeIndex = -1;
   }
   /**
    * @description 输入框enter事件
@@ -158,6 +156,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.activeIndex += 1;
     this.inputValue = '';
     this.handleChange();
+    this.isFocus = true;
   }
 
   /**
@@ -191,6 +190,7 @@ export default class ValueTagSelector extends tsc<IProps> {
           this.$el,
           () => {
             this.isShowDropDown = false;
+            this.isFocus = false;
           },
           { once: true }
         );
@@ -211,7 +211,13 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.$emit('change', this.localValue);
   }
   handleTagUpdate(v: string, index: number) {
-    this.localValue.splice(index, 1, { id: v, name: v });
+    if (v) {
+      this.localValue.splice(index, 1, { id: v, name: v });
+    } else {
+      this.localValue.splice(index, 1);
+    }
+
+    this.handleChange();
   }
 
   handleKeydownEvent(event: KeyboardEvent) {
