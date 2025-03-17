@@ -132,9 +132,10 @@ export default defineComponent({
     const logLevelFieldName = ref('level');
 
     const exceptionMsg = computed(() => {
-      if (indexSetQueryResult.value?.exception_msg === 'Cancel') {
+      if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
       }
+
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
 
@@ -1004,6 +1005,85 @@ export default defineComponent({
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
 
+    const getExceptionRender = () => {
+      if (tableDataSize.value === 0) {
+        if (isRequesting.value || isLoading.value) {
+          return (
+            <bk-exception
+              style='margin-top: 100px;'
+              class='exception-wrap-item exception-part'
+              scene='part'
+              type='search-empty'
+            >
+              loading...
+            </bk-exception>
+          );
+        }
+        if ($t('检索结果为空') === exceptionMsg.value) {
+          return (
+            <div class='bklog-empty-data'>
+              <h1>{$t('检索无数据')}</h1>
+              <div class='sub-title'>您可按照以下顺序调整检索方式</div>
+              <div class='empty-validate-steps'>
+                <div class='validate-step1'>
+                  <h3>1. 优化查询语句</h3>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>查询范围：</span>
+                    <span class='step1-content-value'>
+                      log: bklog*
+                      <br />
+                      包含bklog
+                      <br />= bklog 使用通配符 (*)
+                    </span>
+                  </div>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>精准匹配：</span>
+                    <span class='step1-content-value'>log: "bklog"</span>
+                  </div>
+                </div>
+                <div class='validate-step2'>
+                  <h3>2. 检查是否为分词问题</h3>
+                  <div>
+                    当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。
+                    <br />
+                    <br />
+                    若目标内容为整段蓝色，或中间存在字符粘连的情况。
+                    <br />
+                    可能是因为分词导致的问题；
+                    <br />
+                    <span class='segment-span-tag'>点击设置自定义分词</span>
+                    <br />
+                    <br />
+                    将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
+                  </div>
+                </div>
+                <div class='validate-step3'>
+                  <h3>3. 一键反馈</h3>
+                  <div>
+                    若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
+                    <span class='segment-span-tag'>问题反馈</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            {exceptionMsg.value}
+          </bk-exception>
+        );
+      }
+
+      return null;
+    };
+
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
     });
@@ -1017,6 +1097,7 @@ export default defineComponent({
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+      getExceptionRender,
       tableDataSize,
       resultContainerId,
       hasScrollX,
@@ -1040,16 +1121,7 @@ export default defineComponent({
         >
           {this.renderRowVNode()}
         </div>
-        {this.tableDataSize === 0 ? (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
-          </bk-exception>
-        ) : null}
+        {this.getExceptionRender()}
         {this.renderFixRightShadow()}
         {this.renderScrollXBar()}
         {this.renderLoader()}
