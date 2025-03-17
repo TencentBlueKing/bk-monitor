@@ -22,8 +22,14 @@
       }
     }
     .tools {
+      display: flex;
       .tool {
-        margin-left: 32px;
+        display: flex;
+        margin-left: 22px;
+        .icon-monitor {
+          font-size: 12px;
+          margin-right: 2px;
+        }
         &:hover {
           cursor: pointer;
         }

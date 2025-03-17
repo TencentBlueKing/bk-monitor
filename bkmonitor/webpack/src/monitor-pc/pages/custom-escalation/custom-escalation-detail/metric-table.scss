@@ -69,7 +69,6 @@ $border-color: #d9d9d9;
         .header-select-list {
           display: flex;
           flex-direction: column;
-          // width: 220px;
 
           .list-item {
             display: flex;
@@ -102,13 +101,14 @@ $border-color: #d9d9d9;
       min-width: 0;
       flex: 1;
       td {
+        height: 40px;
         &:hover {
           cursor: pointer;
         }
       }
       .indicator-table {
         transition: width .5s;
-        height: 474px;
+        height: 444px;
         .name {
           color: #3A84FF;
         }
@@ -141,6 +141,10 @@ $border-color: #d9d9d9;
           }
           .edit-group-manage {
             text-align: center;
+            background-color: skyblue;
+            .icon-a-1jiahao {
+              border: 1px solid skyblue;
+            }
           }
         }
       }
@@ -235,15 +239,107 @@ $border-color: #d9d9d9;
               color: $text-color;
               word-break: break-word;
               width: 100%;
-              &:hover {
+              padding: 5px 6px;
+              line-height: 22px;
+              max-height: 32px;
+              height: 32px;
+              &:hover:not(.readonly) {
                 background: #EAEBF0;
                 border-radius: 2px;
+                cursor: pointer;
               }
               .group-item {
                 &:not(:last-child) {
                   margin-bottom: 4px;
                 }
               }
+              &.group-list {
+                display: flex;
+                padding: 0;
+                line-height: auto;
+                max-height: auto;
+                .group-search-multiple-component {
+                  width: 100%;
+                  .btn-content {
+                    max-height: 32px;
+                    padding: 5px 6px;
+                    line-height: 22px;
+                  }
+                }
+              }
+              .btn-content {
+                display: flex;
+                overflow: hidden;
+                &:hover {
+                  background-color: #EAEBF0;
+                }
+                .table-group-tags {
+                  display: flex;
+                  align-items: center;
+                  .table-group-tag {
+                    height: 22px;
+                    padding: 1px 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    white-space: nowrap;
+                    margin-right: 8px;
+                    font-size: 12px;
+                    color: #4D4F56;
+                    text-align: left;
+                    line-height: 22px;
+                    background: #FAFBFD;
+                    border: 1px solid #DCDEE5;
+                    border-radius: 2px;
+                  }
+                }
+                .edit-group-manage {
+                  text-align: center;
+                  background-color: skyblue;
+                  .icon-a-1jiahao {
+                    border: 1px solid skyblue;
+                  }
+                }
+              }
+              .status-wrap {
+                display: flex;
+                align-items: center;
+                .status-point {
+                  width: 13px;
+                  height: 13px;
+                  padding: 3px 0 0 3px;
+                  margin-right: 4px;
+                  border-radius: 50%;
+
+                  .point {
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                  }
+                }
+              }
+              .table-dimension-tags {
+                height: 22px;
+                overflow: hidden;
+                .table-dimension-tag {
+                  line-height: 22px;
+                  color: #4D4F56;
+                  background-color: #EAEBF0;
+                  padding: 1px 8px;
+                  border-radius: 2px;
+                  margin-right: 4px;
+                }
+              }
+            }
+            .switcher-btn {
+              margin: 8px;
+            }
+            .unit-content {
+              width: 100%;
+            }
+            .dimension-content {
+              width: 100%;
+              background-color: #fff;
             }
           }
 

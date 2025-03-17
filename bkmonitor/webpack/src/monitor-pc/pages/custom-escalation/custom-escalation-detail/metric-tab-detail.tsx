@@ -26,7 +26,6 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import emptyImageSrc from '../../../static/images/png/empty.png';
 import AddGroupDialog from './add-group-dialog';
 import { ALL_LABEL, NULL_LABEL } from './custom-escalation-detail';
 import CustomGroupingList from './custom-grouping-list';
@@ -41,19 +40,29 @@ interface IGroup {
 }
 @Component
 export default class MetricTabDetail extends tsc<any, any> {
-  // @Prop({ default: [] }) metricTable;
-  @Prop({ default: [] }) unitList;
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: () => [] }) customGroups;
   @Prop({ default: 0 }) nonGroupNum;
   @Prop({ default: 0 }) metricNum;
+
+  searchGroupKeyword = ''; // 搜索关键词
+
+  /** 控制新增模态框 */
   showAddGroupDialog = false;
+  /** 控制删除模态框 */
+  showDelDialog = false;
+
+  currentGroupInfo = {
+    name: '',
+    rules: '',
+  };
+  isEdit = false;
   /** 当前拖拽id */
   dragId = '';
   dragoverId = '';
   topGroupList: IGroup[] = [
     { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-mc-all' },
-    { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-mc-full-folder' },
+    { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-FileFold-Close' },
   ];
   isShowRightWindow = true; // 是否显示右侧帮助栏
 
@@ -68,8 +77,23 @@ export default class MetricTabDetail extends tsc<any, any> {
     },
   ];
   activeTab = this.tabs[0].id;
+  isSearchMode: boolean;
+  delGroupName = '';
 
   created() { }
+
+  // 过滤后的自定义分组
+  get filteredCustomGroups() {
+    this.isSearchMode = Boolean(this.searchGroupKeyword);
+    if (!this.searchGroupKeyword) return this.customGroups;
+    const keyword = this.searchGroupKeyword.toLowerCase();
+    return this.customGroups.filter(group => group.name.toLowerCase().includes(keyword));
+  }
+
+  // 搜索处理函数
+  handleSearchInput(val: string) {
+    this.searchGroupKeyword = val;
+  }
 
   getCountByType(type: string) {
     const countMap = {
@@ -80,27 +104,71 @@ export default class MetricTabDetail extends tsc<any, any> {
   }
 
   /** 分割线 ================================ */
-  handleMenuClick(item) {
-    // TODO
-    console.log(item);
+  handleMenuClick(type: 'delete' | 'edit', groupName) {
+    const operationList = {
+      /** 删除操作 */
+      delete: () => {
+        this.showDelDialog = true;
+        this.delGroupName = groupName;
+      },
+      /** 编辑操作 */
+      edit: () => {
+        const currentGroupInfo = this.customGroups.filter(item => item.name === groupName)[0];
+        if (currentGroupInfo) {
+          this.currentGroupInfo.name = currentGroupInfo.name;
+          this.currentGroupInfo.rules = currentGroupInfo.matchRules[0] || '';
+          this.isEdit = true;
+          this.showAddGroupDialog = true;
+        }
+      },
+    };
+    operationList[type]();
   }
 
-  getDimensionCmp() {
-    return <div>{/* TOOD */}</div>;
+  handleClearSearch() {
+    this.searchGroupKeyword = '';
   }
 
   handleAddGroup() {
     // TODO
     this.showAddGroupDialog = true;
   }
-  @Emit('handleClickSlider')
-  handleClickSlider(v: boolean): boolean {
-    return v;
-  }
+
   // @Emit('changeGroup')
   changeSelectedLabel(id: string) {
     if (id === this.selectedLabel) return;
     this.$emit('changeGroup', id);
+  }
+
+  handleCancel(v: boolean) {
+    this.showAddGroupDialog = v;
+    this.currentGroupInfo = {
+      name: '',
+      rules: '',
+    };
+    this.$nextTick(() => {
+      this.isEdit = false;
+    });
+  }
+
+  @Emit('groupSubmit')
+  submitGroup(config) {
+    this.showAddGroupDialog = false;
+    this.$nextTick(() => {
+      this.isEdit = false;
+    });
+    return config;
+  }
+
+  async handleDelFunction() {
+    this.showDelDialog = false;
+    this.$emit('groupDelByName', this.delGroupName);
+    this.delGroupName = '';
+  }
+
+  handleCancelDel() {
+    this.delGroupName = '';
+    this.showDelDialog = false;
   }
 
   render() {
@@ -119,20 +187,6 @@ export default class MetricTabDetail extends tsc<any, any> {
           </div>
           <div class='group-list'>
             <div class='top-group'>
-              {/* <div class={{ group: true, 'group-selected': true }}>
-                <div class='group-name'>
-                  <i class='icon-monitor icon-mc-all' />
-                  所有指标
-                </div>
-                <div class='group-count'>23</div>
-              </div>
-              <div class='group'>
-                <div class='group-name'>
-                  <i class='icon-monitor icon-mc-full-folder' />
-                  未分组
-                </div>
-                <div class='group-count'>23</div>
-              </div> */}
               {this.topGroupList.map(group => (
                 <div
                   key={group.id}
@@ -149,58 +203,88 @@ export default class MetricTabDetail extends tsc<any, any> {
             </div>
             <div class='custom-group-set'>
               <div
-                class='add-group icon-monitor icon-a-1jiahao icon-arrow-left'
+                class='add-group icon-monitor icon-a-1jiahao'
                 onClick={this.handleAddGroup}
               />
               <bk-input
                 ext-cls='search-group'
                 placeholder={window.i18n.tc('搜索 自定义分组名称')}
                 right-icon='icon-monitor icon-mc-search'
+                value={this.searchGroupKeyword}
+                onInput={this.handleSearchInput} // 绑定输入事件
               />
             </div>
-            {this.customGroups.length ? (
+            {this.filteredCustomGroups.length ? ( // 过滤后的列表
               <CustomGroupingList
-                groupList={this.customGroups}
+                groupList={this.filteredCustomGroups}
+                isSearchMode={this.isSearchMode}
                 selectedLabel={this.selectedLabel}
                 onChangeGroup={this.changeSelectedLabel}
+                onMenuClick={this.handleMenuClick}
                 {...{
                   on: {
                     ...this.$listeners,
                   },
+                  props: this.$attrs,
                 }}
               />
             ) : (
-              <div class='empty-group'>
-                <div class='empty-img'>
-                  <img
-                    alt=''
-                    src={emptyImageSrc}
-                  />
-                </div>
-                <div class='empty-text'>{this.$t('暂无自定义分组')}</div>
-                <div
-                  class='add-group'
-                  onClick={this.handleAddGroup}
-                >
-                  {this.$t('新建')}
-                </div>
+              <div>
+                {this.searchGroupKeyword ? (
+                  <div class='empty-group'>
+                    <div class='empty-img'>
+                      <bk-exception
+                        scene='part'
+                        type='search-empty'
+                      >
+                        <span class='empty-text'>{this.$t('搜索结果为空')}</span>
+                      </bk-exception>
+                    </div>
+                    <div
+                      class='add-group'
+                      onClick={this.handleClearSearch}
+                    >
+                      {this.$t('清空关键词')}
+                    </div>
+                  </div>
+                ) : (
+                  <div class='empty-group'>
+                    <div class='empty-img'>
+                      <bk-exception
+                        class='exception-wrap-item exception-part'
+                        scene='part'
+                        type='empty'
+                      >
+                        <span class='empty-text'>{this.$t('暂无自定义分组')}</span>
+                      </bk-exception>
+                    </div>
+                    <div
+                      class='add-group'
+                      onClick={this.handleAddGroup}
+                    >
+                      {this.$t('新建')}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {
               <AddGroupDialog
+                groupInfo={this.currentGroupInfo}
+                isEdit={this.isEdit}
                 show={this.showAddGroupDialog}
-                onShow={v => (this.showAddGroupDialog = v)}
+                onCancel={this.handleCancel}
+                onGroupSubmit={this.submitGroup}
+                {...{
+                  props: this.$attrs,
+                }}
               />
             }
           </div>
         </div>
         <div class='right'>
           <IndicatorTable
-            // metricTable={this.metricTable}
             showAutoDiscover={this.selectedLabel === ALL_LABEL}
-            unitList={this.unitList}
-            onHandleClickSlider={this.handleClickSlider}
-            // onUpdateAllSelection={}
             {...{
               props: this.$attrs,
               on: {
@@ -209,6 +293,13 @@ export default class MetricTabDetail extends tsc<any, any> {
             }}
           />
         </div>
+        <bk-dialog
+          v-model={this.showDelDialog}
+          header-position='left'
+          title={this.$t('确认删除？')}
+          onCancel={this.handleCancelDel}
+          onConfirm={this.handleDelFunction}
+        />
       </div>
     );
   }

@@ -23,31 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import {
   customTsGroupingRuleList,
-  modifyCustomTimeSeriesDesc,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
+import { getFunctions } from 'monitor-api/modules/grafana';
 
+import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
-import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
+import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
+import DimensionTableSlide from './dimension-table-slide';
 import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
-import type {
-  IDetailData,
-  IEditParams,
-  // IParams,
-  IRefreshList,
-  IShortcuts,
-  ISideslider,
-} from '../../../types/custom-escalation/custom-escalation-detail';
+import type { IDetailData, IEditParams, ISideslider } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
@@ -73,7 +68,7 @@ interface Item {
   dimensions?: string[];
   common?: boolean;
 }
-interface IGroupListItem {
+export interface IGroupListItem {
   name: string;
   matchRules: string[];
   manualList: string[];
@@ -86,13 +81,12 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   @Ref() readonly dataLabelInput!: HTMLInputElement;
   @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
-  isShow = false;
+  @ProvideReactive('metricFunctions') metricFunctions = [];
 
-  /** 分割线 ============================================= */
+  isShowMetricSlider = false; // 展示指标抽屉
+  isShowDimensionSlider = false; // 展示维度抽屉
   descName = ''; // 别名
   loading = false;
-  isCreat = ''; // 是否从创建过来
-  // type = 'customEvent' // 展示类型：customEvent 自定义事件 customTimeSeries 自定义指标
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
   copyDescribe = ''; // 修改的描述
@@ -107,7 +101,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   proxyInfo = []; // 云区域分类数据
   preData = ''; // 数据上报格式样例
   sdkData: any = {}; // sdk 接入数据
-  timer = null; // 定时器
   //  详情数据
   detailData: IDetailData = {
     bk_data_id: '',
@@ -119,6 +112,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     is_platform: false,
     protocol: '',
     last_time: '',
+    auto_discover: false,
   };
 
   //  侧滑栏内容数据 事件数据
@@ -127,9 +121,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     title: '',
     data: {}, //  原始数据
   };
-
-  //  事件列表数据 事件数据
-  eventData = [];
 
   //  指标维度数据 时序数据
   metricData = [];
@@ -141,12 +132,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     toggle: false,
   };
 
-  //  时间选择器选择项
-  shortcuts: IShortcuts = {
-    list: [],
-    value: 1,
-  };
-  refreshList: IRefreshList;
   pagination = {
     page: 1,
     pageSize: 20,
@@ -154,11 +139,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     pageList: [10, 20, 50, 100],
   };
   tableId = '';
-  metricValue = {};
-  dataLoading = false;
-
-  batchGroupValue = [];
-
   groupSelectList: any = [
     {
       id: '',
@@ -169,8 +149,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
   metricCheckList: any = [];
   groupFilterList: string[] = [];
-  metricFilterList: string[] = ['metric'];
-  unitFilterList: string[] = [];
   groupManage = {
     show: false,
   };
@@ -210,6 +188,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   /* 列表中已选的单位数据 */
   tableAllUnitList = [];
 
+  autoDiscover = false;
+
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
   }
@@ -225,7 +205,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   //  维度数量
   get dimensionNum() {
-    return this.metricData.filter(item => item.monitor_type === 'dimension').length;
+    return this.dimensions.length;
   }
 
   // 未分组数量
@@ -236,6 +216,16 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   get selectionLeng() {
     const selectionList = this.metricTable.filter(item => item.selection);
     return selectionList.length;
+  }
+
+  // 上报周期
+  get cycleOption() {
+    return defaultCycleOptionSec.filter(({ id }) => id !== 'auto');
+  }
+
+  // 分组名称列表
+  get groupNameList() {
+    return this.groupList.map(item => item.name);
   }
 
   get metricTable() {
@@ -254,8 +244,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return lowerStr.includes(lowerPattern);
     };
     const leng1 = this.groupFilterList.length;
-    const leng2 = this.metricFilterList.length;
-    const leng3 = this.unitFilterList.length;
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
     const enNameLeng = this.metricSearchObj.enName.length;
@@ -266,20 +254,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return (
         (leng1
           ? this.groupFilterList.some(
-              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            ) && isMetric
-          : true) &&
-        (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
-        (leng3
-          ? this.unitFilterList.some(u => {
-              if (u === 'none') {
-                return isMetric && (item.unit === 'none' || !item.unit);
-              }
-              if (u === '--') {
-                return !isMetric;
-              }
-              return item.unit === u;
-            })
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          ) && isMetric
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -293,28 +269,134 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
-              const monitorType = {
-                指标: 'metric',
-                维度: 'dimension',
-              };
-              return (
-                item.monitor_type === t ||
-                monitorType?.[t] === item.monitor_type ||
-                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-                fuzzyMatch(item.name, t) ||
-                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-              );
-            })
+            const monitorType = {
+              指标: 'metric',
+              维度: 'dimension',
+            };
+            return (
+              item.monitor_type === t ||
+              monitorType?.[t] === item.monitor_type ||
+              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+              fuzzyMatch(item.name, t) ||
+              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+            );
+          })
           : true)
       );
     });
-    // this.handleGroupList(fiterList);
     return filterList;
-    // this.changePageCount(filterList.length);
-    // return filterList.slice(
-    //   this.pagination.pageSize * (this.pagination.page - 1),
-    //   this.pagination.pageSize * this.pagination.page
-    // );
+  }
+
+  /** 处理导出 */
+  handleExportMetric(currentTab: 'dimension' | 'metric') {
+    const generateUnitString = () => {
+      if (currentTab !== 'metric') return '';
+      const allUnits = this.unitList.flatMap(group => group.formats.map(item => item.id));
+      return allUnits
+        .reduce((str, unit, index) => `${str}${unit}${(index + 1) % 5 === 0 ? '\n' : '、'}`, '')
+        .replace(/、\n/g, '\n');
+    };
+
+    // CSV安全处理
+    const escapeCSVField = (value: boolean | number | string) => {
+      if (value == null) return '';
+      const stringVal = String(value);
+      if (/[",\n]/.test(stringVal)) {
+        return `"${stringVal.replace(/"/g, '""')}"`;
+      }
+      return stringVal;
+    };
+
+    // 动态生成描述信息
+    const generateDescription = () => {
+      const baseTips = [
+        currentTab === 'metric' ? this.$t('分组分隔方式(仅;分隔)') : this.$t('布尔值请填写true/false'),
+        this.$t('导入时-表示不更新'),
+        this.$t('空单元格表示置空'),
+      ].join('. ');
+
+      const unitTip =
+        currentTab === 'metric' ? this.$t('单位可选类型: {unitStr}', { unitStr: generateUnitString() }) : '';
+
+      return [unitTip, baseTips].filter(Boolean).join('\n');
+    };
+
+    // 动态表头生成
+    const generateHeaders = () => {
+      const metricHeaders = [
+        this.$t('名称'),
+        this.$t('别名'),
+        this.$t('状态'),
+        this.$t('分组'),
+        this.$t('类型'),
+        this.$t('单位'),
+        this.$t('汇聚方法'),
+      ];
+
+      const dimensionHeaders = [
+        this.$t('名称'),
+        this.$t('别名'),
+        this.$t('状态'),
+        this.$t('是否常用维度'),
+        this.$t('类型'),
+      ];
+
+      return (currentTab === 'metric' ? metricHeaders : dimensionHeaders).map(escapeCSVField);
+    };
+
+    // 动态数据行生成
+    const generateDataRows = () => {
+      const sourceData = currentTab === 'metric' ? this.metricData : this.dimensions;
+
+      return sourceData.map(item => {
+        // 公共字段
+        const baseFields = [item.name, item.description || '-', item.disabled ? '停' : '启'];
+
+        // 类型特定字段
+        const specificFields =
+          currentTab === 'metric'
+            ? [
+              item.labels.map(l => l.name).join(';') || '-',
+              item.type || '-',
+              item.unit || '-',
+              item.aggregation_method || '-',
+            ]
+            : [item.common ? '是' : '否', currentTab];
+
+        return [...baseFields, ...specificFields].map(escapeCSVField);
+      });
+    };
+
+    // 构建CSV内容
+    const buildCSVContent = () => {
+      const csvLines = [];
+      // 描述行（带动态信息）
+      csvLines.push(escapeCSVField(generateDescription()));
+      csvLines.push(''); // 空行分隔
+      // 表头
+      csvLines.push(generateHeaders().join(','));
+      // 数据行
+      csvLines.push(...generateDataRows().map(row => row.join(',')));
+      return csvLines.join('\n');
+    };
+
+    // 生成动态文件名
+    const generateFileName = () => {
+      const prefix = currentTab === 'metric' ? this.$t('指标') : this.$t('维度');
+      return `${prefix}-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.csv`;
+    };
+
+    // 执行下载
+    downCsvFile(buildCSVContent(), generateFileName());
+  }
+
+  /**
+   * @description: 获取指标函数列表
+   * @param {*}
+   * @return {*}
+   */
+  async handleGetMetricFunctions() {
+    this.metricFunctions = await getFunctions().catch(() => []);
   }
 
   changePageCount(count: number) {
@@ -327,14 +409,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   created() {
     this.getDetailData();
+    this.handleGetMetricFunctions();
   }
 
   updateAllSelection(v = false) {
     this.metricTable.forEach(item => item.monitor_type === 'metric' && (item.selection = v));
-    this.updateCheckValue();
-  }
-  handleCheckChange({ value }) {
-    this.updateAllSelection(value === 2);
     this.updateCheckValue();
   }
 
@@ -354,38 +433,27 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   async getDetailData() {
     this.loading = true;
     this.$store.commit('app/SET_NAV_TITLE', this.$t('加载中...'));
-    // this.type = this.$route.params.type === 'customEvent' ? 'customEvent' : 'customTimeSeries'
-    // this.isShowRightWindow = this.$route.params.isCreat === 'creat'; // 在第一次进来的时候展示右侧帮助栏
     const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
     let title = '';
     let metricData: ICustomTSFields;
-    if (this.type === 'customEvent') {
-      // const params: IParams = {
-      //   // 自定义事件初次进入会请求最近1小时的数据
-      //   time_range: this.getTimeParams(),
-      //   bk_event_group_id: this.$route.params.id,
-      // };
-      // promiseItem.push(this.$store.dispatch('custom-escalation/getCustomEventDetail', params));
-    } else {
-      promiseItem.push(
-        this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
-          time_series_group_id: this.$route.params.id,
-        })
-      );
-      promiseItem.push(
-        this.$store.dispatch('custom-escalation/getCustomTSFields', {
-          time_series_group_id: this.$route.params.id,
-        })
-      );
-      promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
-    }
+    promiseItem.push(
+      this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
+        time_series_group_id: this.$route.params.id,
+      })
+    );
+    promiseItem.push(
+      this.$store.dispatch('custom-escalation/getCustomTSFields', {
+        time_series_group_id: this.$route.params.id,
+      })
+    );
+    promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     try {
       const data = await Promise.all(promiseItem);
 
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData = this.detailData] = data;
+      this.autoDiscover = this.detailData.auto_discover;
       [, , metricData] = data;
-      console.log('metricData = = = >>', metricData);
       if (this.type === 'customTimeSeries') {
         [, , , this.unitList] = data; // 单位list
         const allUnitList = [];
@@ -402,9 +470,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           }
         }
         this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
-          this.detailData.time_series_group_id
-        } ${this.detailData.name}`;
+        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
+          } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
         this.dimensions = metricData?.dimensions || [];
         // this.metricList =
@@ -440,9 +507,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
-          this.detailData.name
-        }`;
+        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
+          }`;
       }
       this.$store.commit('app/SET_NAV_TITLE', title);
       this.handleDetailData(this.detailData);
@@ -457,15 +523,13 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   handleDetailData(detailData: IDetailData) {
     if (this.type === 'customTimeSeries') {
       this.tableId = detailData.table_id;
-      this.metricData = detailData.metric_json[0].fields.map(item =>
-        // item.label === undefined && this.$set(item, 'label', '');
-        ({
-          ...item,
-          selection: false,
-          descReValue: false,
-          labels: [],
-        })
-      );
+      this.metricData = this.metricList.map(item => ({
+        ...item,
+        selection: false,
+        descReValue: false,
+        // labels: [],
+        monitor_type: 'metric',
+      }));
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {
@@ -473,7 +537,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       }
     }
     this.scenario = `${detailData.scenario_display[0]} - ${detailData.scenario_display[1]}`;
-    this.eventData = detailData.event_info_list;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyDescribe = this.detailData.desc || '';
@@ -690,15 +753,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.describeInput.focus();
     });
   }
-  /** 编辑是否为平台指标、事件 */
-  async handleIsPlatformChange() {
-    if (this.type === 'customEvent') {
-      this.loading = true;
-      await this.handleSave({ is_platform: this.copyIsPlatform });
-    }
-    this.detailData.is_platform = this.copyIsPlatform;
-    this.isShowEditIsPlatform = false;
-    this.loading = false;
+  /** 保存自动发现 */
+  handleEditAutoDiscover(autoDiscover) {
+    this.handleEditFiled({
+      auto_discover: autoDiscover,
+    });
   }
 
   async handleEditFiled(props, showMsg = true) {
@@ -730,13 +789,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const ExistPass =
       this.type === 'customEvent'
         ? await validateCustomEventGroupLabel({
-            data_label: this.copyDataLabel,
-            bk_event_group_id: this.detailData.bk_event_group_id,
-          }).catch(() => false)
+          data_label: this.copyDataLabel,
+          bk_event_group_id: this.detailData.bk_event_group_id,
+        }).catch(() => false)
         : await validateCustomTsGroupLabel({
-            data_label: this.copyDataLabel,
-            time_series_group_id: this.detailData.time_series_group_id,
-          }).catch(() => false);
+          data_label: this.copyDataLabel,
+          time_series_group_id: this.detailData.time_series_group_id,
+        }).catch(() => false);
     if (!ExistPass) {
       return;
     }
@@ -760,17 +819,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const res =
       this.type === 'customEvent'
         ? await this.$store
-            .dispatch('custom-escalation/validateCustomEventName', {
-              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false)
+          .dispatch('custom-escalation/validateCustomEventName', {
+            params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
+          })
+          .then(res => res.result ?? true)
+          .catch(() => false)
         : await this.$store
-            .dispatch('custom-escalation/validateCustomTimetName', {
-              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false);
+          .dispatch('custom-escalation/validateCustomTimetName', {
+            params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+          })
+          .then(res => res.result ?? true)
+          .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -800,28 +859,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.loading = false;
   }
 
-  // /* 保存描述信息 */
-  // async handleSaveDesc() {
-  //   const params = {
-  //     bk_biz_id: this.detailData.bk_biz_id,
-  //     time_series_group_id: this.detailData.time_series_group_id,
-  //     desc: this.copyDescribe,
-  //   };
-  //   return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
-  //     this.$bkMessage({ message, theme: 'error' });
-  //   });
-  // }
-  // /* 保存描述信息 */
-  // async handleSaveDesc() {
-  //   const params = {
-  //     bk_biz_id: this.detailData.bk_biz_id,
-  //     time_series_group_id: this.detailData.time_series_group_id,
-  //     desc: this.copyDescribe,
-  //   };
-  //   return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
-  //     this.$bkMessage({ message, theme: 'error' });
-  //   });
-  // }
   // 编辑描述
   async handleEditDescribe() {
     if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
@@ -833,11 +870,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.handleEditFiled({
       desc: this.copyDescribe,
     });
-    // const data = await this.handleSaveDesc();
-    // if (data) {
-    //   this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-    //   return;
-    // }
     this.detailData.desc = this.copyDescribe;
   }
 
@@ -1063,6 +1095,89 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     );
   }
 
+  getGroupChanges(metricName, newGroups, metricMap) {
+    // 获取原有分组信息
+    const metricInfo = metricMap.get(metricName);
+    const oldGroups = metricInfo ? metricInfo.groups : [];
+
+    const oldSet = new Set(oldGroups);
+    const newSet = new Set(newGroups);
+
+    // 计算新增和删除的分组
+    const added = [...newGroups].filter(group => !oldSet.has(group));
+    const removed = [...oldGroups].filter(group => !newSet.has(group));
+
+    return { added, removed };
+  }
+
+  async updateGroupInfo(metricName, groupNames, isAdd = true) {
+    if (!groupNames?.length) return;
+
+    const updatePromises = groupNames.map(async groupName => {
+      const group = this.groupsMap.get(groupName);
+      if (!group) {
+        return;
+      }
+
+      const currentMetrics = group.manualList || [];
+      const newMetrics = isAdd
+        ? [...new Set([...currentMetrics, metricName])] // 防止重复添加
+        : currentMetrics.filter(m => m !== metricName);
+
+      try {
+        await this.submitGroupInfo({
+          name: groupName,
+          manual_list: newMetrics,
+          auto_rules: group.matchRules || [],
+        });
+      } catch (error) {
+        console.error(`Group ${groupName} update failed:`, error);
+      }
+    });
+
+    await Promise.all(updatePromises);
+  }
+
+  async saveSelectGroup(selectedGroups, metricName) {
+    try {
+      const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
+
+      await Promise.all([
+        this.updateGroupInfo(metricName, changes.added),
+        this.updateGroupInfo(metricName, changes.removed, false),
+      ]);
+    } catch (error) {
+      console.error('Group update failed:', error);
+    }
+  }
+
+  async submitGroupInfo(config) {
+    await this.$store.dispatch('custom-escalation/createOrUpdateGroupingRule', {
+      time_series_group_id: this.$route.params.id,
+      ...config,
+    });
+  }
+
+  /** 更新自定义分组 */
+  async handleSubmitGroup(config) {
+    await this.submitGroupInfo(config);
+    await this.getGroupList();
+    this.changeGroupFilterList(config.name);
+    this.getDetailData();
+  }
+
+  /** 删除自定义分组 */
+  async handleDelGroup(name) {
+    await this.$store.dispatch('custom-escalation/deleteGroupingRule', {
+      time_series_group_id: this.$route.params.id,
+      name,
+    });
+    if (this.groupFilterList[0] === name) {
+      this.changeGroupFilterList(ALL_LABEL);
+    }
+    this.getDetailData();
+  }
+
   /* 分组管理指标 */
   handleSelectGroup([value, index]) {
     const metricName = this.metricTable[index].name;
@@ -1102,6 +1217,18 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       ...item,
       manualList: this.groupsMap.get(item.name)?.manualList || [],
     }));
+  }
+
+  /** 批量更新 */
+  async handleSaveSliderInfo(localTable, delArray = []) {
+    this.isShowMetricSlider = false;
+    this.isShowDimensionSlider = false;
+    await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
+      time_series_group_id: this.$route.params.id,
+      update_fields: localTable,
+      delete_fields: delArray,
+    });
+    this.getDetailData();
   }
   render() {
     return (
@@ -1150,22 +1277,35 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
+                  allDataPreview={this.allDataPreview}
+                  autoDiscover={this.autoDiscover}
                   customGroups={this.groupList}
+                  cycleOption={this.cycleOption}
                   dimensionNum={this.dimensionNum}
                   dimensionTable={this.dimensions}
                   groupSelectList={this.groupSelectList}
                   groupsMap={this.groupsMap}
+                  metricGroupsMap={this.metricGroupsMap}
                   metricNum={this.metricNum}
                   metricTable={this.metricTable}
+                  nameList={this.groupNameList}
                   nonGroupNum={this.nonGroupNum}
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
                   onChangeGroup={this.changeGroupFilterList}
+                  onGroupDelByName={this.handleDelGroup}
                   onGroupListOrder={tab => (this.groupList = tab)}
+                  onGroupSubmit={this.handleSubmitGroup}
                   onHandleClickSlider={v => {
-                    this.isShow = v;
+                    this.isShowMetricSlider = v;
                   }}
+                  onHandleExport={this.handleExportMetric}
                   onHandleSelectGroup={this.handleSelectGroup}
+                  onHandleSelectToggle={this.saveSelectGroup}
+                  onShowDimensionSlider={v => {
+                    this.isShowDimensionSlider = v;
+                  }}
+                  onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
               ) : undefined /* TODO[自定义事件]  */
@@ -1315,7 +1455,26 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {<IndicatorTableSlide isShow={this.isShow} />}
+        {this.metricTable.length > 0 && (
+          <IndicatorTableSlide
+            autoDiscover={this.autoDiscover}
+            cycleOption={this.cycleOption}
+            dimensionTable={this.dimensions}
+            isShow={this.isShowMetricSlider}
+            metricTable={this.metricTable}
+            unitList={this.unitList}
+            onHidden={v => (this.isShowMetricSlider = v)}
+            onSaveInfo={this.handleSaveSliderInfo}
+          />
+        )}
+        {this.dimensions.length > 0 && (
+          <DimensionTableSlide
+            dimensionTable={this.dimensions}
+            isShow={this.isShowDimensionSlider}
+            onHidden={v => (this.isShowDimensionSlider = v)}
+            onSaveInfo={this.handleSaveSliderInfo}
+          />
+        )}
       </div>
     );
   }

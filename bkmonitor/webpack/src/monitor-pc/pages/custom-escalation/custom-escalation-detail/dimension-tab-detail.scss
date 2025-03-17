@@ -2,6 +2,7 @@
 .dimension-table-content {
   padding: 16px;
   border-top: 1px solid #DCDEE5;
+  height: 100%;
   .dimension-table-header {
     margin-bottom: 12px;
     display: flex;
@@ -71,5 +72,40 @@
       }
     }
   }
-}
+  .table-container {
+    height: calc(100% - 52px);
+  }
 
+  .editable-text {
+    cursor: pointer;
+    display: inline-block;
+    width: 100%;
+    height: 38px;
+    line-height: 38px;
+    border-radius: 2px;
+    &:hover {
+      background-color: #eaebf0;
+    }
+  }
+
+  .clickable {
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  .description-cell {
+    .bk-form-control {
+      width: 100%;
+    }
+  }
+
+  .status-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}

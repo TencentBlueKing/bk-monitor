@@ -23,30 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createOrUpdateGroupingRule, previewGroupingRule } from 'monitor-api/modules/custom_report';
-
 import { statusMap } from './metric-table';
+import { fuzzyMatch } from './metric-table-slide';
 
 import './dimension-tab-detail.scss';
 
+// 维度详情接口
+interface DimensionDetail {
+  name: string;
+  description: string;
+  disabled: boolean;
+  common: boolean;
+  create_time?: number;
+  update_time?: number;
+}
+
 @Component
-export default class DimensionTabDetail extends tsc<any, any> {
-  @Prop({ default: () => [] }) dimensionTable;
-  allCheckValue = false;
-  table = {};
-  async created() {
+export default class DimensionTabDetail extends tsc<any> {
+  @Prop({ default: () => [], type: Array }) dimensionTable: DimensionDetail[];
 
-  }
+  // 编辑相关状态
+  canEditName = false;
+  copyDescription = '';
+  editingIndex = -1; // 当前编辑的行索引
 
-  updateCheckValue() { }
-  handleCheckChange() { }
-  showMetricDetail() { }
-  getTableComponent() {
-    // 状态点组件
-    const statusPoint = (color1: string, color2: string) => (
+  search = ''; // 搜索
+
+  // 状态点样式生成函数
+  statusPoint(color1: string, color2: string) {
+    return (
       <div
         style={{ background: color2 }}
         class='status-point'
@@ -57,101 +65,164 @@ export default class DimensionTabDetail extends tsc<any, any> {
         />
       </div>
     );
+  }
 
-    // 表格列配置
-    const columnConfigs = [
+  get tableData() {
+    return this.dimensionTable.filter(item => {
+      return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.description, this.search);
+    });
+  }
+
+  @Emit('showDimensionSlider')
+  showDimensionSlider() {
+    return true;
+  }
+
+  // 处理点击别名
+  handleDescFocus(props) {
+    this.copyDescription = props.row.description;
+    this.editingIndex = props.$index;
+  }
+
+  // 处理别名编辑
+  handleEditDescription(row: DimensionDetail) {
+    this.canEditName = false;
+    if (this.copyDescription === row.description) return;
+    this.updateDimensionField(row.name, 'description', this.copyDescription);
+    row.description = this.copyDescription;
+  }
+
+  // 处理状态切换
+  async handleClickDisabled(row: DimensionDetail) {
+    const newStatus = !row.disabled;
+    row.disabled = newStatus;
+    await this.updateDimensionField(row.name, 'disabled', newStatus);
+  }
+
+  // 处理常用维度切换
+  async handleCommonChange(row: DimensionDetail, val: boolean) {
+    row.common = val;
+    await this.updateDimensionField(row.name, 'common', val);
+  }
+
+  // 统一更新维度字段的API调用
+  async updateDimensionField(dimensionName: string, field: string, value: any) {
+    try {
+      await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
+        time_series_group_id: this.$route.params.id,
+        update_fields: [
+          {
+            type: 'dimension',
+            [field]: value,
+            name: dimensionName,
+          },
+        ],
+      });
+    } catch (e) {
+      console.error('Update dimension failed:', e);
+      // this.$bkMessage({
+      //   message: this.$t('更新失败'),
+      //   theme: 'error',
+      // });
+    }
+  }
+
+  // 表格列配置
+  get columnConfigs() {
+    return [
       {
         id: 'name',
         width: 200,
         label: this.$t('名称'),
-        prop: 'name',
         scopedSlots: {
-          default: props => (
-            <span
-              class='name'
-              onClick={() => this.showMetricDetail(props)}
-            >
-              {props.row.name || '--'}
-            </span>
-          ),
+          default: (props: { row: DimensionDetail }) => <span class='name'>{props.row.name || '--'}</span>,
         },
       },
       {
         id: 'description',
         width: 300,
         label: this.$t('别名'),
-        prop: 'description',
         scopedSlots: {
-          default: props => props.row.description || '--',
+          default: (props: { row: DimensionDetail; $index: number }) => (
+            <div class='description-cell'>
+              {this.editingIndex === props.$index ? (
+                <bk-input
+                  v-model={this.copyDescription}
+                  onBlur={() => {
+                    this.editingIndex = -1;
+                    this.handleEditDescription(props.row);
+                  }}
+                />
+              ) : (
+                <span
+                  class='editable-text'
+                  onClick={() => this.handleDescFocus(props)}
+                >
+                  {props.row.description || '--'}
+                </span>
+              )}
+            </div>
+          ),
         },
       },
       {
-        id: 'disabled',
+        id: 'status',
         width: 200,
         label: this.$t('状态'),
         scopedSlots: {
-          default: props => (
-            <span class='status-wrap'>
-              {statusPoint(
-                statusMap.get(Boolean(props.row?.disabled)).color1,
-                statusMap.get(Boolean(props.row?.disabled)).color2
-              )}
-              <span>{statusMap.get(Boolean(props.row?.disabled)).name}</span>
-            </span>
+          default: (props: { row: DimensionDetail }) => (
+            <div
+              class='status-wrap clickable'
+              onClick={() => this.handleClickDisabled(props.row)}
+            >
+              {this.statusPoint(statusMap.get(props.row.disabled).color1, statusMap.get(props.row.disabled).color2)}
+              <span>{statusMap.get(props.row.disabled).name}</span>
+            </div>
           ),
         },
       },
       {
         id: 'common',
-        width: 75,
+        width: 150,
         label: this.$t('常用维度'),
         scopedSlots: {
-          default: props => (
-            <div class='switch-wrap'>
-              <bk-switcher
-                key={props.row.id}
-                v-model={props.row.common}
-                size='small'
-                theme='primary'
-              />
-            </div>
+          default: (props: { row: DimensionDetail }) => (
+            <bk-switcher
+              v-model={props.row.common}
+              size='small'
+              theme='primary'
+              onChange={(val: boolean) => this.handleCommonChange(props.row, val)}
+            />
           ),
         },
       },
     ];
+  }
 
+  // 表格组件
+  getTableComponent() {
     return (
       <bk-table
-        ref='strategyTable'
+        // height='100%'
         class='dimension-table'
-        v-bkloading={{ isLoading: this.table?.loading }}
-        empty-text={this.$t('无数据')}
-        max-height={474}
-        {...{ props: { data: this.dimensionTable } }}
+        data={this.tableData}
+        row-hover='auto'
       >
-        <div slot='empty'>{/* 保持空状态 */}</div>
-
-        {columnConfigs.map(config => {
-          return (
-            <bk-table-column
-              key={config.id}
-              {...{
-                props: {
-                  type: config.type,
-                  label: config.label,
-                  prop: config.prop,
-                  width: config.width,
-                  align: config.align,
-                  ...config.props,
-                },
-              }}
-              scopedSlots={config.scopedSlots}
-            />
-          );
-        })}
+        {this.columnConfigs.map(config => (
+          <bk-table-column
+            key={config.id}
+            width={config.width}
+            renderHeader={() => {
+              return <div> {this.$t(config.label as string)} </div>;
+            }}
+            label={config.label}
+            scopedSlots={config.scopedSlots}
+          />
+        ))}
       </bk-table>
     );
   }
+
   render() {
     return (
       <div class='dimension-table-content'>
@@ -159,20 +230,20 @@ export default class DimensionTabDetail extends tsc<any, any> {
           <div class='dimension-btn'>
             <bk-button
               class='header-btn'
-              // v-authority={{ active: !this.authority.MANAGE_AUTH }}
               theme='primary'
-              onClick={() => { }}
+              onClick={this.showDimensionSlider}
             >
               {this.$t('编辑')}
             </bk-button>
           </div>
           <bk-input
             ext-cls='search-table'
+            v-model={this.search}
             placeholder={this.$t('搜索')}
             right-icon='icon-monitor icon-mc-search'
           />
         </div>
-        <div class='dimension-table'>{this.getTableComponent()}</div>
+        <div class='table-container'>{this.getTableComponent()}</div>
       </div>
     );
   }

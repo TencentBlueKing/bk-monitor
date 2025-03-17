@@ -33,7 +33,7 @@
       border-radius: 50%;
       background-color: #f0f1f5;
     }
-    &.active { 
+    &.active {
       border-radius: 2px;
       background-color: #e1ecff;
       color: #3a84ff;
@@ -89,6 +89,7 @@
     scrollbar-width: none;             /* Firefox 64+ */
     -ms-overflow-style: none;          /* IE/Edge */
     flex: 1;
+    min-width: 1200px;
     .detail-information {
       padding: 12px 16px;
       border-radius: 2px;

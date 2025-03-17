@@ -26,6 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import type { IGroupListItem } from './custom-escalation-detail';
+
 import './custom-grouping-list.scss';
 
 interface IGroup {
@@ -46,6 +48,7 @@ export default class CustomGroupingList extends tsc<any, any> {
   @Prop({ default: () => [] }) groupList: IGroup[];
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: false }) isSearchMode: boolean;
+  @Prop({ default: () => new Map() }) groupsMap: Map<string, IGroupListItem>;
 
   menuList: IMenuItem[] = [
     {
@@ -64,8 +67,9 @@ export default class CustomGroupingList extends tsc<any, any> {
   dragId = '';
   dragoverId = '';
 
-  handleMenuClick(type: 'delete' | 'edit') {
+  handleMenuClick(type: 'delete' | 'edit', groupName) {
     // TODO[中等]
+    this.$emit('menuClick', type, groupName);
   }
 
   // 拖拽开始，记录当前拖拽的ID
@@ -116,6 +120,15 @@ export default class CustomGroupingList extends tsc<any, any> {
     this.$emit('changeGroup', name);
   }
 
+  getGroupCountByName(name: string) {
+    const group = this.groupsMap.get(name);
+    if (!group) return 0;
+    // 去重
+    const groupArray = Array.from(new Set([...(group?.manualList || []), ...(group?.matchRulesOfMetrics || [])]));
+    // 去除 null 和 undefined
+    return groupArray.filter(name => name).length;
+  }
+
   render() {
     return (
       <div class='custom-group'>
@@ -137,10 +150,10 @@ export default class CustomGroupingList extends tsc<any, any> {
             >
               {!this.isSearchMode && <i class='icon-monitor icon-mc-tuozhuai item-drag' />}
               <div class='group-name'>
-                <i class='icon-monitor icon-mc-full-folder' />
+                <i class='icon-monitor icon-FileFold-Close' />
                 {group.name}
               </div>
-              <div class='group-count'>{group.manualList.filter(item => item).length || 0}</div>
+              <div class='group-count'>{this.getGroupCountByName(group.name)}</div>
               <bk-popover
                 ref='menuPopover'
                 class='group-popover'
@@ -161,7 +174,7 @@ export default class CustomGroupingList extends tsc<any, any> {
                     <span
                       key={item.id}
                       class={`more-list-item ${item.id}`}
-                      onClick={() => this.handleMenuClick(item.id)}
+                      onClick={() => this.handleMenuClick(item.id, group.name)}
                     >
                       {item.name}
                     </span>
