@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { eventTags } from 'monitor-api/modules/apm_event';
 import svg from 'monitor-common/svg/base64';
 
 export enum StatisticsEventType {
@@ -31,7 +32,71 @@ export enum StatisticsEventType {
   Normal = 'Normal',
   Warning = 'Warning',
 }
-
+interface IEventTagsItem {
+  app_name: string;
+  service_name: string;
+  interval: number;
+  where?: Record<string, string | string[]>[];
+  start_time: number;
+  end_time: number;
+}
+export const getCustomEventTagsPanelParams = (params: IEventTagsItem) => {
+  return {
+    app_name: params.app_name,
+    service_name: params.service_name,
+    start_time: params.start_time,
+    end_time: params.end_time,
+    expression: 'a',
+    query_configs: [
+      {
+        data_source_label: 'bk_apm',
+        data_type_label: 'event',
+        table: 'builtin',
+        filter_dict: {},
+        interval: params.interval,
+        where: [],
+        query_string: '*',
+        group_by: [],
+        metrics: [
+          {
+            field: '_index',
+            method: 'SUM',
+            alias: 'a',
+          },
+        ],
+      },
+    ],
+  };
+};
+export const getCustomEventTagsDetailPanelParams = (params: IEventTagsItem) => {
+  return {
+    app_name: params.app_name,
+    service_name: params.service_name,
+    start_time: params.start_time,
+    end_time: params.end_time,
+    query_configs: [
+      {
+        data_source_label: 'bk_apm',
+        data_type_label: 'event',
+        table: 'builtin',
+        filter_dict: {},
+        interval: params.interval,
+        // where: [
+        //   // 选中异常 Tab 时，增加该过滤条件。
+        //   {
+        //     condition: 'and',
+        //     key: 'type',
+        //     method: 'eq',
+        //     value: ['Warning'],
+        //   },
+        // ],
+        query_string: '*',
+        group_by: [],
+      },
+    ],
+    limit: 5,
+  };
+};
 export interface ICustomEventTagsItem {
   time: number;
   items: {
@@ -69,74 +134,15 @@ export interface ICustomEventDetail {
     event_name: ILabelItem;
   }[];
 }
-
+/**
+ * 获取自定义事件标签数量聚合列表
+ */
 export const getCustomEventTags = async (params: Record<string, any>): Promise<ICustomEventTagsItem[]> => {
-  console.info('getCustomEventTags', params);
-  const baseTime = params.start_time * 1000 + 5 * 60 * 1000;
-  const data = await new Promise<ICustomEventTagsItem[]>(resolve => {
-    setTimeout(() => {
-      resolve(
-        {
-          list: [
-            {
-              time: baseTime,
-              items: [
-                {
-                  domain: 'Kubernetes',
-                  source: 'BCS',
-                  // 总数
-                  count: 30,
-                  // Warning 为异常数量
-                  statistics: { Warning: 20, Normal: 10 },
-                },
-                {
-                  domain: 'SYSTEM',
-                  source: 'HOST',
-                  count: 31,
-                  statistics: { Normal: 1, Warning: 20, Default: 10 },
-                },
-                {
-                  domain: 'SYSTEM',
-                  source: 'BKCI',
-                  count: 1,
-                  statistics: { Normal: 1, Default: 10 },
-                },
-              ],
-            },
-            {
-              time: baseTime + 25 * 60 * 1000,
-              items: [
-                {
-                  domain: 'SYSTEM',
-                  source: 'HOST',
-                  count: 10,
-                  statistics: { Default: 10 },
-                },
-                {
-                  domain: 'SYSTEM',
-                  source: 'HOST',
-                  count: 1,
-                  statistics: { Normal: 1, Default: 10 },
-                },
-              ],
-            },
-            {
-              time: baseTime + 40 * 60 * 1000,
-              items: [
-                {
-                  domain: 'CICD',
-                  source: 'BKCI',
-                  count: 120,
-                  statistics: { Normal: 100, Warning: 20 },
-                },
-              ],
-            },
-          ],
-        }.list
-      );
-    }, 1000);
-  });
-  return data;
+  return await eventTags({
+    ...params,
+  })
+    .then(data => data?.list || [])
+    .catch(() => []);
 };
 export const getCustomEventTagDetails = async (params: Record<string, any>, mockEventCount = 1, isWarning = false) => {
   console.info('getCustomEventTagDetails', params);
