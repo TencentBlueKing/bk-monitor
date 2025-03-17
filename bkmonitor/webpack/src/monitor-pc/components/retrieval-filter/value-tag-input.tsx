@@ -26,8 +26,6 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
 import { getCharLength } from './utils';
 
 import './value-tag-input.scss';
@@ -79,15 +77,14 @@ export default class ValueTagInput extends tsc<IProps> {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
       event.preventDefault();
-      this.isEdit = false;
       this.handleChangeEmit();
+      this.isEdit = false;
     }
   }
   handleKeyDown(event) {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
       event.preventDefault();
-      return false;
     }
   }
   /**
@@ -102,14 +99,12 @@ export default class ValueTagInput extends tsc<IProps> {
    * @description 失焦
    */
   handleBlur() {
-    this.isEdit = false;
-    this.handleChangeEmit();
+    if (this.isEdit) {
+      this.isEdit = false;
+      this.handleChangeEmit();
+    }
   }
 
-  @Debounce(500)
-  handleInputEmit() {
-    this.$emit('change', this.localValue);
-  }
   handleChangeEmit() {
     this.$emit('change', this.localValue);
   }
