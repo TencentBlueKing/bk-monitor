@@ -340,13 +340,12 @@ export default class SettingKvSelector extends tsc<IProps> {
                 <span
                   key={'count'}
                   class='hide-count'
+                  v-bk-tooltips={{
+                    content: this.tagList.slice(index).join(','),
+                    delay: 300,
+                  }}
                 >
-                  <span
-                    v-bk-tooltips={{
-                      content: this.tagList.slice(index).join(','),
-                      delay: 300,
-                    }}
-                  >{`+${this.tagList.length - index}`}</span>
+                  <span>{`+${this.tagList.length - index}`}</span>
                 </span>
               ) : undefined,
               <span
