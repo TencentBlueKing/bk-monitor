@@ -31,7 +31,7 @@ from apps.log_search.serializers import (
     LogRelatedInfoSerializer,
     StrategyRecordSerializer,
 )
-from apps.utils.drf import detail_route, list_route
+from apps.utils.drf import detail_route
 
 
 class AlertStrategyViewSet(APIViewSet):
@@ -109,10 +109,10 @@ class AlertStrategyViewSet(APIViewSet):
         )
         return Response(data)
 
-    @list_route(methods=["get"], url_path="log_related_info")
-    def log_related_info(self, request):
+    @detail_route(methods=["get"], url_path="log_related_info")
+    def log_related_info(self, request, index_set_id=None):
         """
-        @api {get} alert_strategy/log_related_info/ 日志平台关联信息
+        @api {get} alert_strategy/$index_set_id/log_related_info/ 日志平台关联信息
         @apiName log_related_info
         @apiGroup alert_strategy
         @apiParam {Int} alert_id 告警id
