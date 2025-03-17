@@ -530,13 +530,11 @@
           line-height: 20px;
           color: #4d4f56;
           font-size: 12px;
-
-          .segment-span-tag {
-            color: #3a84ff;
-          }
         }
 
-        &.validate-step3 {
+        .segment-span-tag {
+          color: #3a84ff;
+          cursor: pointer;
         }
       }
     }
@@ -567,7 +565,6 @@
       will-change: transform;
       .bklog-row-container {
         content-visibility: auto;
-        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
 
         .bklog-list-row {
           .bklog-row-cell {

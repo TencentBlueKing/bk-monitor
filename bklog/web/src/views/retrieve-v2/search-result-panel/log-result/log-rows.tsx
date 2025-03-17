@@ -110,7 +110,7 @@ export default defineComponent({
     const wheelTrigger = ref({ isWheeling: false, id: '' });
     provide('wheelTrigger', wheelTrigger);
 
-    const renderList = ref([]);
+    let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -127,7 +127,7 @@ export default defineComponent({
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+    const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     // 标识当前日志级别的字段。暂时使用level字段，等确定实现方案后这里进行Computed计算
     const logLevelFieldName = ref('level');
 
@@ -174,21 +174,22 @@ export default defineComponent({
       const inteval = 50;
 
       const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.value.length;
+        const appendLength = targetLength - renderList.length;
         const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.value.length - 1;
+        const startIndex = renderList.length;
 
         if (appendLength > 0) {
-          renderList.value.push(
-            ...new Array(stepLength).fill('').map((_, i) => {
-              const index = i + startIndex + 1;
-              const row = tableList.value[index];
-              return {
-                item: row,
-                [ROW_KEY]: `${row.dtEventTimeStamp}_${index}`,
-              };
-            }),
-          );
+          const arr = [];
+          const endIndex = startIndex + stepLength;
+          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+          for (let i = 0; i < lastIndex; i++) {
+            arr.push({
+              item: tableList.value[i],
+              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+            });
+          }
+
+          renderList = Object.freeze(arr);
           appendChildNodes();
           return;
         }
@@ -631,8 +632,7 @@ export default defineComponent({
           if (isLoading.value) {
             scrollToTop(0);
 
-            renderList.value.length = 0;
-            renderList.value = [];
+            renderList = [];
 
             return;
           }
@@ -731,7 +731,7 @@ export default defineComponent({
       pageIndex.value = 1;
 
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList.value = renderList.value.slice(0, maxLength);
+      renderList = renderList.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
@@ -938,7 +938,7 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return renderList.value.map((row, rowIndex) => {
+      return renderList.map((row, rowIndex) => {
         return (
           <RowRender
             key={row[ROW_KEY]}
