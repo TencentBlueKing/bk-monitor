@@ -777,6 +777,10 @@ export default class CollectIndex extends tsc<IProps> {
   handleGroupHidden() {
     this.collectContainerRef.handleGroupHidden();
   }
+
+  handleFavoriteSetttingClick() {
+    this.isShowManageDialog = true;
+  }
   render() {
     return (
       <div
@@ -805,7 +809,10 @@ export default class CollectIndex extends tsc<IProps> {
                 style={{ fontSize: '16px', cursor: 'pointer' }}
                 class='search-container-new-title-right'
               >
-                <span class='bklog-icon bklog-shezhi'></span>
+                <span
+                  class='bklog-icon bklog-shezhi'
+                  onClick={this.handleFavoriteSetttingClick}
+                ></span>
                 <span
                   class='bklog-icon bklog-collapse'
                   onClick={this.handleCollapse}
