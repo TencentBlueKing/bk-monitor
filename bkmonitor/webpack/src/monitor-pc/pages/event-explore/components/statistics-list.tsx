@@ -69,6 +69,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   statisticsList: ITopKField = { distinct_count: 0, field: '', list: [] };
   /** 侧栏维度列表 */
   sliderDimensionList: ITopKField = { distinct_count: 0, field: '', list: [] };
+  slideOverflowPopoverInstance = null;
 
   popoverLoading = true;
   downloadLoading = false;
@@ -104,7 +105,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               <div class='info-text'>
                 <span
                   class='field-name'
-                  v-bk-overflow-tips
+                  onMouseenter={e => this.topKItemMouseenter(e, item.alias)}
+                  onMouseleave={this.hiddenSliderPopover}
                 >
                   {item.alias}
                 </span>
@@ -209,6 +211,24 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       ...params,
     }).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
     return data[0];
+  }
+
+  topKItemMouseenter(e: MouseEvent, content: string) {
+    const target = e.target as HTMLElement;
+    if (target.offsetWidth < target.scrollWidth) {
+      this.slideOverflowPopoverInstance = this.$bkPopover(target, {
+        content,
+        arrow: true,
+        interactive: true,
+        theme: 'slide-dimension-filter-overflow-tips',
+      });
+      this.slideOverflowPopoverInstance?.show(50);
+    }
+  }
+
+  hiddenSliderPopover() {
+    this.slideOverflowPopoverInstance?.hide(0);
+    this.slideOverflowPopoverInstance?.destroy();
   }
 
   renderSkeleton() {
