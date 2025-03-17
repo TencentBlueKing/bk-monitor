@@ -27,7 +27,14 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import { type IFilterField, type IGetValueFnParams, type IWhereValueOptionsItem, onClickOutside } from './utils';
+import {
+  EFieldType,
+  type IFilterField,
+  type IGetValueFnParams,
+  isNumeric,
+  type IWhereValueOptionsItem,
+  onClickOutside,
+} from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -82,6 +89,15 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   get hasCustomOption() {
     return !!this.inputValue;
+  }
+
+  /* 是否只允许输入数值类型 */
+  get isTypeInteger() {
+    return this.checkedItem?.type === EFieldType.integer;
+  }
+
+  get isError() {
+    return this.isTypeInteger ? this.localValue.some(v => !isNumeric(v)) : false;
   }
 
   mounted() {
@@ -273,7 +289,7 @@ export default class ValueTagSelector extends tsc<IProps> {
             ? this.localValue.map((item, index) => [
                 <ValueTagInput
                   key={item.id}
-                  class='value-tag-input'
+                  class={['value-tag-input', { error: this.isTypeInteger ? !isNumeric(item.id) : false }]}
                   value={item.id}
                   onChange={v => this.handleTagUpdate(v, index)}
                   onDelete={() => this.handleDelete(index)}

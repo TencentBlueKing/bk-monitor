@@ -294,3 +294,7 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
+
+export function isNumeric(str) {
+  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+}
