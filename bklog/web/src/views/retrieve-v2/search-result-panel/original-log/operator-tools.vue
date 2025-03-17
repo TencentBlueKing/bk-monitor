@@ -52,9 +52,13 @@
         v-bk-tooltips="{ allowHtml: true, content: '智能分析', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-icon bklog-ai`"
+          :class="`icon bklog-icon `"
           @click.stop="handleClick('ai')"
         >
+          <img
+            style="width: 18px; height: 18px; margin-top: 8px"
+            :src="require('@/images/rowAiNew.svg')"
+          />
         </span>
       </span>
       <!-- <span
