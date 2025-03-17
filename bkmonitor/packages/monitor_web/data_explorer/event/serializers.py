@@ -48,6 +48,8 @@ class EventFilterSerializer(EventDataSource):
             query_config["group_by"] = []
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
+
         query_string: str = attrs.get("query_string", "")
         if not query_string:
             return attrs

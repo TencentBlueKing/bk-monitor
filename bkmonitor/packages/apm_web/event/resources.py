@@ -237,7 +237,7 @@ class EventTagDetailResource(Resource):
             topk: List[Dict[str, Any]] = self.fetch_topk(validated_request_data)
             for item in topk:
                 item["proportions"] = round((item["count"] / total) * 100, 2)
-            tag_detail["topk"] = topk
+            tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[:validated_request_data["limit"]]
         else:
             tag_detail["list"] = self.fetch_logs(validated_request_data)
 
