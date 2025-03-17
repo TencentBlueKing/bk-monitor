@@ -28,27 +28,23 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import {
-  type IGetValueFnParams,
-  type IWhereValueOptionsItem,
-  METHOD_MAP,
-  type IFilterField,
-  type IWhereItem,
-} from './utils';
+import { METHOD_MAP, type IWhereItem } from './utils';
 import ValueOptions from './value-options';
+
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
 import './setting-kv-selector.scss';
 
 interface IProps {
-  field?: IFilterField;
+  fieldInfo?: IFieldItem;
   value?: IWhereItem;
-  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  getValueFn?: TGetValueFn;
   onChange?: (value: IWhereItem) => void;
 }
 
 @Component
 export default class SettingKvSelector extends tsc<IProps> {
-  @Prop({ type: Object, default: () => null }) field: IFilterField;
+  @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   @Prop({ type: Object, default: () => null }) value: IWhereItem;
   @Prop({ type: Number, default: 560 }) maxWidth: number;
   @Prop({
@@ -59,7 +55,7 @@ export default class SettingKvSelector extends tsc<IProps> {
         list: [],
       }),
   })
-  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  getValueFn: TGetValueFn;
 
   @Ref('selector') selectorRef: HTMLDivElement;
 
@@ -99,7 +95,6 @@ export default class SettingKvSelector extends tsc<IProps> {
   @Watch('value', { immediate: true })
   handleWatchValue() {
     if (this.value) {
-      console.log(this.value);
       const valueStr = this.value.value.join('____');
       const localValueStr = this.localValue.join('____');
       this.localMethod = this.value.method;
@@ -273,16 +268,16 @@ export default class SettingKvSelector extends tsc<IProps> {
    * @description 切换method
    * @param item
    */
-  handleMethodChange(item: { value: string; alias: string }) {
-    this.methodMap[item.value] = item.alias;
-    this.localMethod = item.value;
+  handleMethodChange(item: { id: string; name: string }) {
+    this.methodMap[item.id] = item.name;
+    this.localMethod = item.id;
     this.handleChange();
   }
 
   handleChange() {
     this.$emit('change', {
       ...this.value,
-      key: this.field.name,
+      key: this.fieldInfo.field,
       method: this.localMethod,
       value: this.localValue,
     });
@@ -316,13 +311,13 @@ export default class SettingKvSelector extends tsc<IProps> {
                 class='method-list-wrap'
                 slot='dropdown-content'
               >
-                {this.field.supported_operations.map(item => (
+                {this.fieldInfo.methods.map(item => (
                   <li
-                    key={item.value}
-                    class={['method-list-wrap-item', { active: item.value === this.localMethod }]}
+                    key={item.id}
+                    class={['method-list-wrap-item', { active: item.id === this.localMethod }]}
                     onClick={() => this.handleMethodChange(item)}
                   >
-                    {item.alias}
+                    {item.name}
                   </li>
                 ))}
               </ul>
@@ -391,7 +386,7 @@ export default class SettingKvSelector extends tsc<IProps> {
           >
             <ValueOptions
               width={this.optionsWidth}
-              checkedItem={this.field}
+              fieldInfo={this.fieldInfo}
               getValueFn={this.getValueFn}
               isPopover={true}
               search={this.inputValue}
