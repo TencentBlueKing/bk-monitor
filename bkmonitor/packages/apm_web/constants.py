@@ -1177,7 +1177,7 @@ class DataStatusColumnEnum(CachedEnum):
 TRACE_DEFAULT_CONFIG_NAME = "全局默认配置"
 TRACE_DEFAULT_CONFIG_CONTENT = {
     "trace_config": {
-        "display_field": [
+        "display_fields": [
             {"name": PreCalculateSpecificField.TRACE_ID, "alias": ""},
         ],
         "filter_setting": [],
