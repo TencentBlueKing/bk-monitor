@@ -751,9 +751,9 @@
   }
 
   :root {
-    --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    --table-fount-family: roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
     --table-fount-size: 12px;
-    --table-fount-color: #313238;
+    --table-fount-color: #16171a;
   }
 
   .bk-log-drag {
