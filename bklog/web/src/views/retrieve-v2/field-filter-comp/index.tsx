@@ -245,10 +245,10 @@ export default class FieldFilterComp extends tsc<object> {
       !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
-      isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
+      isShowBuiltExpandBtn: visibleBuiltLength || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
       builtInShowFields:
-        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
+        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
     };
   }
   getIsShowIndexSetExpand() {
@@ -610,7 +610,7 @@ export default class FieldFilterComp extends tsc<object> {
                 </ul>
               </div>
             )}
-
+            {/* 内置字段 */}
             {!!this.builtInFields().length && (
               <div class='fields-container not-selected'>
                 <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
