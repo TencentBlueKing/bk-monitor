@@ -2605,20 +2605,16 @@ class ESStorage(models.Model, StorageResultTable):
                         table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
                     ).inc()
                     logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
-                except RetryError as e:
+                except Exception as e:  # pylint: disable=broad-except
+                    # 统一处理所有异常，区分RetryError和其他异常的错误信息
+                    error_msg = e.__cause__ if isinstance(e, RetryError) else e
                     logger.error(
-                        "create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
+                        "create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg
                     )
                     metrics.LOG_INDEX_ROTATE_TOTAL.labels(
                         table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
                     ).inc()
-                    raise e
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.error("create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
-                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
-                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
-                    ).inc()
-                    raise e
+                    raise  # 重新抛出原异常，保留堆栈信息
 
                 # 需要将对应的别名指向这个新建的index
                 # 新旧类型的alias都会创建，防止transfer未更新导致异常
@@ -2918,20 +2914,14 @@ class ESStorage(models.Model, StorageResultTable):
                 new_index_name,
                 response,
             )
-        except RetryError as e:
-            logger.error(
-                "create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
-            )
-            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
-                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
-            ).inc()
-            raise e
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
+            # 统一处理所有异常，区分RetryError和其他异常的错误信息
+            error_msg = e.__cause__ if isinstance(e, RetryError) else e
+            logger.error("create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg)
             metrics.LOG_INDEX_ROTATE_TOTAL.labels(
                 table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
             ).inc()
-            raise e
+            raise  # 重新抛出原异常，保留堆栈信息
         return True
 
     def update_index_v2(self, force_rotate: bool = False):
@@ -3065,20 +3055,15 @@ class ESStorage(models.Model, StorageResultTable):
             metrics.LOG_INDEX_ROTATE_TOTAL.labels(
                 table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
             ).inc()
-        except RetryError as e:
-            logger.error(
-                "update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
-            )
-            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
-                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
-            ).inc()
-            raise e
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
+            # 统一处理所有异常，区分RetryError和其他异常的错误信息
+            error_msg = e.__cause__ if isinstance(e, RetryError) else e
+            logger.error("update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg)
             metrics.LOG_INDEX_ROTATE_TOTAL.labels(
                 table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
             ).inc()
-            raise e
+            raise  # 重新抛出原异常，保留堆栈信息
+
         logger.info(
             "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
             self.table_id,
