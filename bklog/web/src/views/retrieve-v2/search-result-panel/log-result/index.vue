@@ -82,16 +82,6 @@
             {{ $t('转换时间字段') }}
           </span>
         </bk-checkbox>
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          :value="isAllowEmptyField"
-          theme="primary"
-          @change="handleEmptyFieldFormat"
-        >
-          <span class="switch-label">
-            {{ $t('展示空字段') }}
-          </span>
-        </bk-checkbox>
 
         <bk-input
           v-if="isJsonFormat"
@@ -102,6 +92,17 @@
           type="number"
           @change="handleJsonFormatDeepChange"
         ></bk-input>
+
+        <bk-checkbox
+          style="margin: 0 12px 0 12px"
+          :value="isAllowEmptyField"
+          theme="primary"
+          @change="handleEmptyFieldFormat"
+        >
+          <span class="switch-label">
+            {{ $t('展示空字段') }}
+          </span>
+        </bk-checkbox>
       </div>
       <div
         class="tools-more"
