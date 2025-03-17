@@ -52,7 +52,12 @@ import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-servi
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
-import { createCustomEventSeries, getCustomEventTags, type ICustomEventTagsItem } from './use-custom';
+import {
+  createCustomEventSeries,
+  getCustomEventTags,
+  getCustomEventTagsPanelParams,
+  type ICustomEventTagsItem,
+} from './use-custom';
 
 import type {
   DataQuery,
@@ -362,7 +367,15 @@ class CallerLineChart extends CommonSimpleChart {
       let customEventList = [];
       await Promise.all([
         ...promiseList,
-        getCustomEventTags({ ...newParams }).then(list => {
+        getCustomEventTags(
+          getCustomEventTagsPanelParams({
+            start_time: newParams.start_time,
+            end_time: newParams.end_time,
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+            interval: interval * 60 * 15,
+          })
+        ).then(list => {
           customEventList = list;
         }),
       ]).catch(() => false);
@@ -446,7 +459,7 @@ class CallerLineChart extends CommonSimpleChart {
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
             grid: {
-              top: 30,
+              top: customEventList?.length ? 30 : 10,
               left: 20,
               right: 20,
               bottom: 0,
@@ -477,7 +490,7 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: [...seriesList, createCustomEventSeries(customEventList)],
+            series: [...seriesList, customEventList?.length ? createCustomEventSeries(customEventList) : undefined],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
