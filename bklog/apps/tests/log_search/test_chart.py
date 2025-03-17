@@ -5,6 +5,8 @@ from apps.log_search.handlers.search.chart_handlers import ChartHandler
 
 SEARCH_PARAMS = [
     {
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
             {"field": "service", "operator": "!=", "value": ["php"]},
@@ -34,6 +36,8 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
@@ -41,6 +45,8 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
@@ -49,10 +55,17 @@ SEARCH_PARAMS = [
     },
 ]
 
+ADDITIONAL_WHERE_CLAUSE = (
+    "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+    "AND dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+)
+
 SQL_RESULT = [
     (
         f"{SQL_PREFIX} "
-        "WHERE (bk_host_id = '1' OR bk_host_id = '2')"
+        f"{ADDITIONAL_WHERE_CLAUSE}"
+        " AND "
+        "(bk_host_id = '1' OR bk_host_id = '2')"
         " AND "
         "service != 'php'"
         " AND "
@@ -103,11 +116,15 @@ SQL_RESULT = [
     ),
     (
         "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
-        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        f"{ADDITIONAL_WHERE_CLAUSE}"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
     (
         "SELECT thedate, dtEventTimeStamp, log "
-        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        f"{ADDITIONAL_WHERE_CLAUSE}"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
 ]
 
@@ -115,5 +132,14 @@ SQL_RESULT = [
 class TestChart(TestCase):
     def test_generate_sql(self):
         for search_param, sql_result in zip(SEARCH_PARAMS, SQL_RESULT):
-            sql = ChartHandler.generate_sql(search_param)
-            self.assertEqual(sql, sql_result)
+            start_time = search_param["start_time"]
+            end_time = search_param["end_time"]
+            addition = search_param["addition"]
+            sql_param = search_param.get("sql")
+            data = ChartHandler.generate_sql(
+                addition=addition,
+                start_time=start_time,
+                end_time=end_time,
+                sql_param=sql_param,
+            )
+            self.assertEqual(data["sql"], sql_result)

@@ -956,22 +956,31 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         return attrs
 
 
-class ChartSerializer(serializers.Serializer):
-    sql = serializers.CharField(label=_("sql语句"), required=True)
-    start_time = serializers.IntegerField(required=True)
-    end_time = serializers.IntegerField(required=True)
-    query_mode = serializers.ChoiceField(
-        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
-    )
-
-
 class SearchConditionSerializer(serializers.Serializer):
     field = serializers.CharField(label=_("字段名"), required=True)
     operator = serializers.CharField(label=_("操作符"), required=True)
     value = serializers.ListField(label=_("值"), required=True)
 
 
+class ChartSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql语句"), required=True)
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
+
+
 class UISearchSerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     sql = serializers.CharField(label=_("sql"), required=False, default="", allow_blank=True)
     addition = serializers.ListField(
         required=False,
