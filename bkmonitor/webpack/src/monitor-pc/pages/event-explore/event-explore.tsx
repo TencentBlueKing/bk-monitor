@@ -491,6 +491,7 @@ export default class EventExplore extends tsc<
                   timeRange={this.timeRange}
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}
+                  onSearch={this.updateQueryConfig}
                 />
               </div>
             </EventRetrievalLayout>
