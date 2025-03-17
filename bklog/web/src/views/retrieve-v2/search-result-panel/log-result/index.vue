@@ -78,6 +78,15 @@
           @change="handleJsonFormat"
           ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
         >
+        <bk-input
+          v-if="isJsonFormat"
+          class="json-depth-num"
+          :max="15"
+          :min="1"
+          :value="jsonFormatDeep"
+          type="number"
+          @change="handleJsonFormatDeepChange"
+        ></bk-input>
 
         <bk-checkbox
           style="margin: 0 12px 0 0"
@@ -90,15 +99,7 @@
           </span>
         </bk-checkbox>
 
-        <bk-input
-          v-if="isJsonFormat"
-          class="json-depth-num"
-          :max="15"
-          :min="1"
-          :value="jsonFormatDeep"
-          type="number"
-          @change="handleJsonFormatDeepChange"
-        ></bk-input>
+       
       </div>
       <div class="tools-more" v-if="!isMonitorTrace">
         <div class="operation-icons">
@@ -424,6 +425,8 @@
 </style>
 <style lang="scss">
   .json-depth-num {
+    margin-right: 10px;
+
     &.bk-form-control {
       width: 96px;
 
