@@ -38,6 +38,8 @@ import {
   ECondition,
   type IFilterItem,
   EMethod,
+  EFieldType,
+  isNumeric,
 } from './utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
 
@@ -89,6 +91,14 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
+  }
+
+  get isTypeInteger() {
+    return this.checkedItem?.type === EFieldType.integer;
+  }
+
+  get isIntegerError() {
+    return this.isTypeInteger ? this.values.some(v => !isNumeric(v.id)) : false;
   }
 
   mounted() {
@@ -230,7 +240,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
       this.handleCancel();
     } else if (event.key === 'Enter' && event.ctrlKey) {
       event.preventDefault();
-      this.handleConfirm();
+      if (!this.isIntegerError) {
+        this.handleConfirm();
+      }
       return;
     }
     if (this.isShowDropDown) {
@@ -293,7 +305,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   @Debounce(300)
   handleSearchChange() {
-    this.cursorIndex = 0;
+    this.cursorIndex = -1;
     if (!this.searchValue) {
       this.searchLocalFields = this.fields.slice();
     }
@@ -392,6 +404,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   onDropDownChange={this.handleDropDownChange}
                 />
               </div>
+              {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
             </div>,
           ]
         : undefined;
@@ -471,6 +484,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
           <div class='operate-btns'>
             <bk-button
               class='mr-8'
+              disabled={this.isIntegerError}
               theme='primary'
               onClick={() => this.handleConfirm()}
             >

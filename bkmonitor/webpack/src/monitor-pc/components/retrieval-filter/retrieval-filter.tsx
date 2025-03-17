@@ -145,6 +145,13 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
     return this.selectFavorite?.config?.queryConfig?.commonWhere || [];
   }
 
+  created() {
+    this.clearHideData();
+  }
+  beforeDestroy() {
+    this.clearHideData();
+  }
+
   mounted() {
     this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
@@ -401,6 +408,11 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
 
   handleQuery() {
     this.handleClickSearchBtn();
+  }
+
+  clearHideData() {
+    const uiValue = getCacheUIData();
+    setCacheUIData(uiValue.filter(item => !item?.hide));
   }
 
   render() {

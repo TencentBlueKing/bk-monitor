@@ -92,6 +92,9 @@ export default class UiSelector extends tsc<IProps> {
   mounted() {
     this.handleAddKeyDownSlash();
   }
+  beforeDestroy() {
+    document.removeEventListener('keydown', this.handleKeyDownSlash);
+  }
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {

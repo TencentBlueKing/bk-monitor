@@ -314,6 +314,10 @@ export default class ValueOptions extends tsc<IProps> {
               <div
                 key={index}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
+                v-bk-overflow-tips={{
+                  content: item.name,
+                  placement: 'right',
+                }}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleCheck(item);
