@@ -56,6 +56,7 @@ from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.elasticsearch.curator import IndexList
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata import config
 from metadata.models import constants
 from metadata.models.influxdb_cluster import InfluxDBTool
@@ -3067,6 +3068,9 @@ class ESStorage(models.Model, StorageResultTable):
                 index_size_in_byte,
                 self.slice_size,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_OVER_SLICE_SIZE"
+            ).inc()
             return True
 
         # 2. mapping 不一样了，也需要创建新的index
@@ -3076,6 +3080,11 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 last_index_name,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id,
+                storage_cluster_id=self.storage_cluster_id,
+                reason="INDEX_MAPPING_SETTINGS_DIFFERENT",
+            ).inc()
             return True
 
         # 3. 达到保存期限进行分裂
@@ -3086,6 +3095,9 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 last_index_name,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_EXPIRED"
+            ).inc()
             return True
 
         # 4. 若配置了归档时间，且当前索引在归档日期之前，需要创建新的index
@@ -3098,6 +3110,9 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
+                metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                    table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_NEED_ARCHIVE"
+                ).inc()
                 return True
 
         # 5. 暖数据等待天数大于0且当前索引未过期，需要创建新的index
@@ -3112,11 +3127,17 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
+                metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                    table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_NEED_WARM_PHASE"
+                ).inc()
                 return True
 
         # 6. 根据参数决定是否强制轮转
         if force_rotate:
             logger.info("_should_create_index:table_id->[%s],enable force rotate", self.table_id)
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="FORCE_ROTATE"
+            ).inc()
             return True
 
         return False
@@ -3189,6 +3210,9 @@ class ESStorage(models.Model, StorageResultTable):
                 new_index_name,
                 response,
             )
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+            ).inc()
             return response
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -3197,6 +3221,9 @@ class ESStorage(models.Model, StorageResultTable):
                 new_index_name,
                 str(e),
             )
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
             raise
 
     def clean_index(self):
