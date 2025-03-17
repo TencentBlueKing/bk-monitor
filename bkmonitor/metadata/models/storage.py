@@ -2599,8 +2599,26 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                response = self._create_index_with_retry(current_index)
-                logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
+                try:
+                    response = self._create_index_with_retry(current_index)
+                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+                    ).inc()
+                    logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
+                except RetryError as e:
+                    logger.error(
+                        "create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
+                    )
+                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+                    ).inc()
+                    raise e
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
+                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+                    ).inc()
+                    raise e
 
                 # 需要将对应的别名指向这个新建的index
                 # 新旧类型的alias都会创建，防止transfer未更新导致异常
@@ -2889,13 +2907,31 @@ class ESStorage(models.Model, StorageResultTable):
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
         logger.info("create_index_v2: table_id->[%s] start to create index->[%s]", self.table_id, new_index_name)
-        response = self._create_index_with_retry(new_index_name)
-        logger.info(
-            "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
-            self.table_id,
-            new_index_name,
-            response,
-        )
+        try:
+            response = self._create_index_with_retry(new_index_name)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+            ).inc()
+            logger.info(
+                "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
+                self.table_id,
+                new_index_name,
+                response,
+            )
+        except RetryError as e:
+            logger.error(
+                "create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
+            )
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise e
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise e
         return True
 
     def update_index_v2(self, force_rotate: bool = False):
@@ -3024,7 +3060,25 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("update_index_v2: table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
         # 8. 创建新的index,添加重试机制
-        response = self._create_index_with_retry(new_index_name)
+        try:
+            response = self._create_index_with_retry(new_index_name)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+            ).inc()
+        except RetryError as e:
+            logger.error(
+                "update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e.__cause__
+            )
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise e
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, e)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise e
         logger.info(
             "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
             self.table_id,
@@ -3210,9 +3264,6 @@ class ESStorage(models.Model, StorageResultTable):
                 new_index_name,
                 response,
             )
-            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
-                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
-            ).inc()
             return response
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -3221,9 +3272,6 @@ class ESStorage(models.Model, StorageResultTable):
                 new_index_name,
                 str(e),
             )
-            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
-                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
-            ).inc()
             raise
 
     def clean_index(self):
