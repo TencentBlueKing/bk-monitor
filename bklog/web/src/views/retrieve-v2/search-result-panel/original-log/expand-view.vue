@@ -28,13 +28,13 @@
   <div class="expand-view-wrapper">
     <div class="view-tab">
       <span
-        :class="{ active1: activeExpandView === 'kv' }"
+        :class="{ activeKv: activeExpandView === 'kv' }"
         @click="activeExpandView = 'kv'"
       >
         KV
       </span>
       <span
-        :class="{ active2: activeExpandView === 'json' }"
+        :class="{ activeJson: activeExpandView === 'json' }"
         @click="activeExpandView = 'json'"
       >
         JSON
@@ -57,6 +57,7 @@
       />
     </div>
     <div
+      style="padding: 10px 12px 10px 39px"
       class="view-content json-view-content"
       v-show="activeExpandView === 'json'"
     >
@@ -135,7 +136,7 @@
 
     .view-tab {
       font-size: 0;
-      background-color: #F5F7FA;
+      background-color: #f5f7fa;
 
       span {
         display: inline-block;
@@ -153,14 +154,14 @@
           border-left: 0;
         }
 
-        &.active1,
-        &.active2 {
+        &.activeKv,
+        &.activeJson {
           position: relative;
           font-size: 12px;
           font-weight: 700;
         }
 
-        &.active1::after {
+        &.activeKv::after {
           position: absolute;
           top: -2px; /* 确保线条在元素的上方 */
           left: 26px;
@@ -170,7 +171,7 @@
           background-color: #313238; /* 红色横线 */
         }
 
-        &.active2::after {
+        &.activeJson::after {
           position: absolute;
           top: -2px; /* 确保线条在元素的上方 */
           left: 20px;
@@ -179,13 +180,12 @@
           content: ''; /* 必须有content属性，即使为空 */
           background-color: #313238; /* 红色横线 */
         }
-
       }
     }
 
     .view-content {
       padding: 10px 15px;
-      background-color: #F5F7FA;
+      background-color: #f5f7fa;
 
       :deep(.vjs-tree) {
         /* stylelint-disable-next-line declaration-no-important */
@@ -203,6 +203,15 @@
           }
         }
       }
+    }
+  }
+</style>
+<style lang="scss">
+  .json-view-content {
+    .vjs-tree-brackets,
+    .vjs-key {
+       /* stylelint-disable-next-line declaration-no-important */
+      color: #9d694c !important;
     }
   }
 </style>
