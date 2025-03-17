@@ -86,9 +86,10 @@ enum ExploreTableLoadingEnum {
  * @description 事件来源不同类型所显示的图标 映射
  */
 const SourceIconMap = {
-  [ExploreSourceTypeEnum.BCS]: 'icon-bcs',
-  [ExploreSourceTypeEnum.CICD]: 'icon-landun',
-  [ExploreSourceTypeEnum.HOST]: 'icon-host',
+  [ExploreSourceTypeEnum.BCS]: 'icon-explore-bcs',
+  [ExploreSourceTypeEnum.CICD]: 'icon-explore-landun',
+  [ExploreSourceTypeEnum.HOST]: 'icon-explore-host',
+  [ExploreSourceTypeEnum.DEFAULT]: 'icon-explore-default',
 };
 const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
 const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
