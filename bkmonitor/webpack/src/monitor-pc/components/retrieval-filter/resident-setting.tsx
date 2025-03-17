@@ -97,8 +97,11 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
   }
 
   @Watch('residentSettingOnlyId', { immediate: true })
-  handleWatchOnlyKey() {
+  async handleWatchOnlyKey() {
     const fields: IResidentSetting[] = [];
+    this.userConfigLoading = true;
+    const defaultConfig = (await this.handleGetUserConfig<string[]>(this.residentSettingOnlyId)) || [];
+    this.userConfigLoading = false;
     if (!this.isDefaultSetting) {
       for (const where of this.value) {
         if (this.fieldNameMap[where.key]) {
@@ -109,21 +112,19 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
         }
       }
     } else {
-      this.userConfigLoading = true;
-      this.handleGetUserConfig(this.residentSettingOnlyId).then((res: string[] = []) => {
-        for (const key of res) {
-          if (this.fieldNameMap[key]) {
-            fields.push({
-              field: this.fieldNameMap[key],
-              value: defaultWhereItem({
+      for (const key of defaultConfig) {
+        if (this.fieldNameMap[key]) {
+          fields.push({
+            field: this.fieldNameMap[key],
+            value: defaultWhereItem(
+              this.valueNameMap[key] || {
                 key: this.fieldNameMap[key].name,
                 value: this.valueNameMap[key]?.value || [],
-              }),
-            });
-          }
+              }
+            ),
+          });
         }
-        this.userConfigLoading = false;
-      });
+      }
     }
     this.localValue = fields;
   }
@@ -181,10 +182,12 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
   handleConfirm(fields: IFilterField[]) {
     this.localValue = fields.map(item => ({
       field: item,
-      value: defaultWhereItem({
-        key: item.name,
-        value: [],
-      }),
+      value: defaultWhereItem(
+        this.valueNameMap[item.name] || {
+          key: item.name,
+          value: [],
+        }
+      ),
     }));
     this.handleChange();
     this.destroyPopoverInstance();
