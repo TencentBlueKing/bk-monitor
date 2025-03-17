@@ -1715,12 +1715,12 @@ class DataFlowResourceUsageType(object):
 
 class AlertStatusEnum(ChoicesEnum):
     ALL = "ALL"
-    ABNORMAL = "ABNORMAL"
+    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
     MY_ASSIGNEE = "MY_ASSIGNEE"
 
     _choices_labels = (
         (ALL, _("全部")),
-        (ABNORMAL, _("未恢复")),
+        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
         (MY_ASSIGNEE, _("我收到的")),
     )
 

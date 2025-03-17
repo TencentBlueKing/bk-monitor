@@ -23,6 +23,8 @@ from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_search.handlers.alert_strategy import AlertStrategyHandler
 from apps.log_search.serializers import (
     AlertRecordSerializer,
@@ -34,6 +36,9 @@ from apps.utils.drf import detail_route, list_route
 
 class AlertStrategyViewSet(APIViewSet):
     lookup_field = "index_set_id"
+
+    def get_permissions(self):
+        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["post"], url_path="alert_records")
     def get_alert_records(self, request, index_set_id=None):

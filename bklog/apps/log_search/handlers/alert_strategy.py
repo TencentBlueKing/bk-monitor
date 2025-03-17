@@ -35,7 +35,7 @@ class AlertStrategyHandler(object):
         alert_status = []
         conditions = [{"key": "metric", "value": [f"bk_log_search.index_set.{self.index_set_id}"]}]
         username = get_request_username()
-        if status == AlertStatusEnum.ABNORMAL.value:
+        if status == AlertStatusEnum.NOT_SHIELDED_ABNORMAL.value:
             alert_status = [status]
         elif status == AlertStatusEnum.MY_ASSIGNEE.value:
             conditions.append({"key": "assignee", "value": [username]})
