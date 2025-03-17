@@ -19,6 +19,20 @@ from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.common import SourceApp
 
 
+def get_request_tenant_id(peaceful=False) -> Optional[str]:
+    """
+    获取当前请求的租户id
+    """
+    request = get_request(peaceful)
+    if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
+        if peaceful:
+            return None
+        else:
+            raise Exception("get_request_tenant_id: cannot get tenant_id from request.")
+
+    return request.user.tenant_id
+
+
 def get_request(peaceful=False) -> Optional[HttpRequest]:
     if hasattr(local, "current_request"):
         return local.current_request
