@@ -100,13 +100,16 @@ export default class ExploreExpandViewWrapper extends tsc<
       }
 
       const fieldItem = this.fieldMap?.target?.[key] || {};
+      const sourceName = fieldItem?.name as string;
+      const canClick = value != null && value !== '' && !!sourceName;
       return {
         name: key,
         type: fieldItem?.type as DimensionType,
         value: value as string,
-        sourceName: fieldItem?.name as string,
+        sourceName,
         entities,
         canOpenStatistics: fieldItem?.is_option_enabled || false,
+        canClick,
       };
     });
   }
