@@ -1778,11 +1778,11 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        additional_where_clause = ChartHandler.get_additional_where_clause(params["start_time"], params["end_time"])
         data = ChartHandler.generate_sql(
             addition=params["addition"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
             sql_param=params["sql"],
-            additional_where_clause=additional_where_clause,
         )
         return Response(data)
 

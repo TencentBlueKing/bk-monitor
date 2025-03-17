@@ -136,8 +136,10 @@ class TestChart(TestCase):
             end_time = search_param["end_time"]
             addition = search_param["addition"]
             sql_param = search_param.get("sql")
-            additional_where_clause = ChartHandler.get_additional_where_clause(start_time, end_time)
-            sql = ChartHandler.generate_sql(
-                addition=addition, sql_param=sql_param, additional_where_clause=additional_where_clause
+            data = ChartHandler.generate_sql(
+                addition=addition,
+                start_time=start_time,
+                end_time=end_time,
+                sql_param=sql_param,
             )
-            self.assertEqual(sql, sql_result)
+            self.assertEqual(data["sql"], sql_result)
