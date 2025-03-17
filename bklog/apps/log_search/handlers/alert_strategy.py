@@ -136,7 +136,6 @@ class AlertStrategyHandler(object):
         multi_result = multi_execute_func.run()
         for strategy_config in strategy_config_list:
             strategy_id = strategy_config["strategy_id"]
-            strategy_config.update(
-                {"latest_time": multi_result.get(strategy_id, {}).get("alerts", [{}])[0].get("latest_time")}
-            )
+            alerts = multi_result.get(strategy_id, {}).get("alerts", [{}])
+            strategy_config.update({"latest_time": alerts[0].get("latest_time") if alerts else None})
         return strategy_config_list
