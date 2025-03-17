@@ -109,6 +109,8 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
         ResourceRoute("POST", resource.grafana.copy_dashboard_to_folder, endpoint="copy_dashboard_to_folder"),
         ResourceRoute("POST", resource.grafana.migrate_old_panels, endpoint="migrate_old_panels"),
+        ResourceRoute("POST", resource.grafana.migrate_old_panels_by_biz, endpoint="migrate_old_panels_by_biz"),
+        ResourceRoute("POST", resource.grafana.migrate_panels_info, endpoint="migrate_panels_info"),
         # 视图保存
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
         # 统一数据查询

@@ -739,4 +739,7 @@ export default {
   '日用量/总用量': 'Daily Usage/Total Usage',
   'JSON 字段动态新增': 'JSON field dynamically added',
   对象: 'Object',
+  待选列表: 'List to be selected:',
+  常驻筛选: 'Persistent filtering:',
+  数值: 'Number',
 };

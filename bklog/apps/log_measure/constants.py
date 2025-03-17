@@ -50,9 +50,9 @@ INDEX_FORMAT = "*_bklog_*"
 COLLECTOR_IMPORT_PATHS = [
     "apps.log_measure.handlers.metric_collectors.business",
     "apps.log_measure.handlers.metric_collectors.cluster",
-    "apps.log_measure.handlers.metric_collectors.es_stats",
-    "apps.log_measure.handlers.metric_collectors.es_pshard",
-    "apps.log_measure.handlers.metric_collectors.es_indices",
+    # "apps.log_measure.handlers.metric_collectors.es_stats",
+    # "apps.log_measure.handlers.metric_collectors.es_pshard",
+    # "apps.log_measure.handlers.metric_collectors.es_indices",
     "apps.log_measure.handlers.metric_collectors.grafana",
     "apps.log_measure.handlers.metric_collectors.log_archive",
     "apps.log_measure.handlers.metric_collectors.log_clustering",

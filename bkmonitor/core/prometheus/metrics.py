@@ -336,6 +336,12 @@ AIOPS_DETECT_DIMENSION_COUNT = Gauge(
     labelnames=("strategy_id", "strategy_name"),
 )
 
+AIOPS_DETECT_INVALID_DIMENSION_RATE = Gauge(
+    name="bkmonitor_aiops_detect_invalid_dimension_rate",
+    documentation="AIOPS SDK策略无效维度比例",
+    labelnames=("strategy_id", "strategy_name"),
+)
+
 AIOPS_PRE_DETECT_LATENCY = Gauge(
     name="bkmonitor_aiops_pre_detect_latency",
     documentation="AIOPS SDK策略预检测耗时",

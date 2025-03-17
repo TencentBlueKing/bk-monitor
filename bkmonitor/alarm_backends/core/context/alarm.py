@@ -890,8 +890,7 @@ class Alarm(BaseContextObject):
         # 模块链接，先回退
         return []
 
-    @cached_property
-    def query_url(self):
+    def generate_redirect_type(self):
         alert: AlertDocument = self.parent.alert
 
         if not alert.strategy:
@@ -903,14 +902,35 @@ class Alarm(BaseContextObject):
             return None
 
         data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
-        if data_source not in [
-            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
-            (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-            (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
-            (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
-            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
-        ]:
-            return None
 
-        url = self.detail_url
-        return f"{url}&type=query"
+        redirect_map = {
+            "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
+            "query": [
+                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+                (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+                (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+                (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+            ],
+        }
+        for _type, target in redirect_map.items():
+            if data_source in target:
+                return _type
+
+        return None
+
+    @cached_property
+    def log_search_url(self):
+        # 日志检索前5min(可配置) 到 当前时刻，最多1h
+        if self.generate_redirect_type() == "log_search":
+            url = self.detail_url
+            return f"{url}&type=log_search"
+        return None
+
+    @cached_property
+    def query_url(self):
+        # 数据检索基于数据点的前1小时+后1小时
+        if self.generate_redirect_type() == "query":
+            url = self.detail_url
+            return f"{url}&type=query"
+        return None

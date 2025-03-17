@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
@@ -58,7 +60,6 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
-// import axios from 'axios';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 
@@ -1019,7 +1020,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-        
+
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1463,7 +1464,7 @@ const store = new Vuex.Store({
         return state.visibleFields?.find(item => item.field_name === field);
       };
 
-      const getFieldType = field => {        
+      const getFieldType = field => {
         return getTargetField(field)?.field_type ?? '';
       };
 
@@ -1582,8 +1583,8 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) { 
-              newSearchValue = [value];
+            if (targetField?.is_virtual_obj_node) {
+              newSearchValue = `\"${value[0]}\"`;
             } else{
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }

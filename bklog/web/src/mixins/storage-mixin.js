@@ -58,6 +58,7 @@ export default {
       if (Number(val) > Number(max)) {
         this.$nextTick(() => {
           this.formData.allocation_min_days = max;
+          this.messageWarn(this.$t('过期时间不能大于存储天数'));
         });
       }
     },

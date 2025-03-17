@@ -490,3 +490,11 @@ class DataIdCreatedFromSystem(Enum):
 
     BKGSE = "bkgse"
     BKDATA = "bkdata"
+
+
+# 日志时间格式控制
+DT_TIME_STAMP = "dtEventTimeStamp"
+DT_TIME_STAMP_NANO = "dtEventTimeStampNanos"
+NANO_FORMAT = "date_nanos"
+STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos"
+NON_STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos||epoch_millis"

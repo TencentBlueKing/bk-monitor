@@ -279,13 +279,24 @@
         // queueStatus: true
       };
     },
+    watch: {
+      totalCount(val) {
+        if( val < 10000){
+          this.downloadType = 'sampling';
+        }else if(val < 2000000){
+          this.downloadType = 'all';
+        }else{
+          this.downloadType = 'quick';
+        }
+      }
+    },
     computed: {
       ...mapState({
         totalCount: state => {
           if (state.searchTotal > 0) {
             return state.searchTotal;
           }
-
+          
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => !state.retrieve.isTrendDataLoading,
@@ -317,7 +328,6 @@
     beforeUnmount() {
       this.popoverInstance = null;
     },
-
     methods: {
       handleShowAlarmPopover(e) {
         if (this.popoverInstance || !this.queueStatus) return;
@@ -376,7 +386,9 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data)
+          .post(downRequestUrl, data,{
+            originalResponse: true,
+          })
           .then(res => {
             if (res.result) {
               this.$bkMessage({

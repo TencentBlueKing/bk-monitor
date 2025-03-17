@@ -82,7 +82,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   // cmdb元数据
   get extra_labels() {
-    return (this.collectorData as any).extra_labels.map(item => '__ext.' + item.key);
+    return (this.collectorData as any).extra_labels?.map(item => '__ext.' + item.key);
   }
 
   operatorMap = {
@@ -361,7 +361,7 @@ export default class FieldInfo extends tsc<IProps> {
         return (
           <div>
             {row.field_name}
-            {row.metadata_type === 'path' || this.extra_labels.includes(row.field_name) ? (
+            {row.metadata_type === 'path' || this.extra_labels?.includes(row.field_name) ? (
               <bk-tag
                 radius='6px'
                 theme='info'

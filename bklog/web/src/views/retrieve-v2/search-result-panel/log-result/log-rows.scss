@@ -440,7 +440,11 @@
     }
 
     .bklog-row-box {
+      will-change: transform;
       .bklog-row-container {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+
         .bklog-list-row {
           .bklog-row-cell {
             &.right {
