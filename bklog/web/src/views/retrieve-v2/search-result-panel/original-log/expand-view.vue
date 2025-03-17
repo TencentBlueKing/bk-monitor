@@ -71,8 +71,9 @@
 
 <script>
   import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { getFieldNameByField } from '@/hooks/use-field-name';
+  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+
   import KvList from '../../result-comp/kv-list.vue';
 
   export default {
@@ -210,7 +211,7 @@
   .json-view-content {
     .vjs-tree-brackets,
     .vjs-key {
-       /* stylelint-disable-next-line declaration-no-important */
+      /* stylelint-disable-next-line declaration-no-important */
       color: #9d694c !important;
     }
   }
