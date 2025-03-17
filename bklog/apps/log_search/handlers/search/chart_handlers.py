@@ -33,6 +33,7 @@ from apps.log_search.constants import (
     SQL_PREFIX,
     SQL_SUFFIX,
     SearchMode,
+    SQLGenerateMode,
 )
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
@@ -77,14 +78,33 @@ class ChartHandler(object):
         raise NotImplementedError(_("功能暂未实现"))
 
     @staticmethod
-    def generate_sql(params: dict) -> str:
+    def get_additional_where_clause(start_time: int, end_time: int):
+        # 生成 where 条件
+        start_date = arrow.get(start_time).format("YYYYMMDD")
+        end_date = arrow.get(end_time).format("YYYYMMDD")
+        additional_where_clause = (
+            f"thedate >= {start_date} AND thedate <= {end_date} AND "
+            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
+        )
+        return additional_where_clause
+
+    @staticmethod
+    def generate_sql(
+        addition,
+        sql_param=None,
+        additional_where_clause=None,
+        action=SQLGenerateMode.COMPLETE.value,
+    ) -> dict:
         """
         根据过滤条件生成sql
-        :param params: 过滤条件
+        :param addition: 过滤条件
+        :param sql_param: SQL条件
+        :param additional_where_clause: 默认添加的where语句
+        :param action: 生成SQL的方式
         """
-        sql_param = params.get("sql")
         sql = ""
-        addition = params["addition"]
+        if additional_where_clause:
+            sql = additional_where_clause
 
         for condition in addition:
             field_name = condition["field"]
@@ -141,6 +161,9 @@ class ChartHandler(object):
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
+        if action == SQLGenerateMode.WHERE_CLAUSE.value:
+            # 返回SQL条件
+            return sql
         if sql_param:
             pattern = (
                 r"^\s*?(SELECT\s+?.+?)"
@@ -180,21 +203,18 @@ class SQLChartHandler(ChartHandler):
         if not self.data.support_doris:
             raise IndexSetDorisQueryException()
         parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-        data = self.fetch_query_data(parsed_sql)
-        return data
+        # data = self.fetch_query_data(parsed_sql)
+        return {"data": parsed_sql}
 
-    @staticmethod
-    def parse_sql_syntax(doris_table_id: str, params: dict):
+    def parse_sql_syntax(self, doris_table_id: str, params: dict):
         """
         解析sql语法
         """
-        start_time = params["start_time"]
-        end_time = params["end_time"]
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
-        time_condition = (
-            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time} AND"
-            f" thedate >= {start_date} AND thedate <= {end_date}"
+        additional_where_clause = self.get_additional_where_clause(params["start_time"], params["end_time"])
+        where_clause = self.generate_sql(
+            addition=params["addition"],
+            additional_where_clause=additional_where_clause,
+            action=SQLGenerateMode.WHERE_CLAUSE.value,
         )
         # 如果不存在FROM则添加,存在则覆盖
         pattern = (
@@ -208,9 +228,9 @@ class SQLChartHandler(ChartHandler):
             raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
         parsed_sql = matches.group(1) + f" FROM {doris_table_id}\n"
         if matches.group(2):
-            where_condition = matches.group(2) + f"AND {time_condition}\n"
+            where_condition = matches.group(2) + f"AND {where_clause}\n"
         else:
-            where_condition = f"WHERE {time_condition}\n"
+            where_condition = f"WHERE {where_clause}\n"
         parsed_sql += where_condition
 
         if matches.group(3):

@@ -1438,6 +1438,15 @@ class QueryMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class SQLGenerateMode(Enum):
+    """
+    SQL生成模式
+    """
+
+    COMPLETE = "complete"
+    WHERE_CLAUSE = "where_clause"
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
