@@ -17,7 +17,13 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import CachedEnum, OtlpKey, SpanKindKey, TelemetryDataType
+from constants.apm import (
+    CachedEnum,
+    OtlpKey,
+    PreCalculateSpecificField,
+    SpanKindKey,
+    TelemetryDataType,
+)
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -1165,3 +1171,21 @@ class DataStatusColumnEnum(CachedEnum):
         default.label = gettext("未开启")
         default.status = {"type": Status.FAILED, "text": gettext("未开启")}
         return default
+
+
+# Tracing 检索页面默认配置名称
+TRACE_DEFAULT_CONFIG_NAME = "全局默认配置"
+TRACE_DEFAULT_CONFIG_CONTENT = {
+    "trace_config": {
+        "display_field": [
+            {"name": PreCalculateSpecificField.TRACE_ID, "alias": ""},
+        ],
+        "filter_setting": [],
+    },
+    "span_config": {
+        "display_field": [
+            {"name": "span_id", "alias": ""},
+        ],
+        "filter_setting": [],
+    },
+}
