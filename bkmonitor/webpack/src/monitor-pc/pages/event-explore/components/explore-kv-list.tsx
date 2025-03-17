@@ -242,30 +242,21 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     if (!this.fieldTarget?.value) {
       return;
     }
-    const { targets, from, to, timezone, refreshInterval } = this.$route.query;
-    const targetsList = JSON.parse(decodeURIComponent(targets as string));
-    const [
-      {
-        data: {
-          query_configs: [{ data_type_label, data_source_label, result_table_id }],
-        },
-      },
-    ] = targetsList;
+    const { targets, ...rest } = this.$route.query;
+    const targetsList = targets ? JSON.parse(decodeURIComponent(targets as string)) : [];
+    const sourceTarget = targetsList?.[0] || {};
+    const queryConfig = sourceTarget?.data?.query_configs?.[0] || {};
 
     const query = {
+      ...rest,
       targets: JSON.stringify([
         {
-          from: from,
-          to: to,
-          timezone: timezone,
-          refreshInterval: String(refreshInterval),
+          ...sourceTarget,
           data: {
             query_configs: [
               {
-                data_type_label,
-                data_source_label,
-                result_table_id,
-                query_string: '*',
+                ...queryConfig,
+                query_string: '',
                 where: [
                   {
                     condition: 'and',
