@@ -69,7 +69,7 @@ class EventTimeSeriesResource(Resource):
             result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         except Exception as exc:
             logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
-            raise ValueError(_("time_series 获取失败"))
+            return {}
 
         for series in result["series"]:
             dimensions = series["dimensions"]
@@ -108,7 +108,7 @@ class EventLogsResource(Resource):
             events: List[Dict[str, Any]] = list(queryset)
         except Exception as exc:
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
-            raise ValueError(_("事件拉取失败"))
+            return {"list": []}
 
         processors: List[BaseEventProcessor] = [
             OriginEventProcessor(),
@@ -490,6 +490,6 @@ class EventTotalResource(Resource):
 
         try:
             return {"total": query_set.original_data[0]["_result_"]}
-        except (IndexError, KeyError) as exc:
+        except Exception as exc:
             logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
             return {"total": 0}

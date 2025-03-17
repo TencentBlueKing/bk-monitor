@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import re
 from typing import Dict, List, Any
 
 from django.utils.translation import gettext_lazy as _
@@ -33,6 +34,9 @@ class EventDataSource(serializers.Serializer):
 
 
 class EventFilterSerializer(EventDataSource):
+
+    NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
+
     query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True)
     filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
     where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
@@ -42,6 +46,17 @@ class EventFilterSerializer(EventDataSource):
     def drop_group_by(cls, query_configs: List[Dict[str, Any]]):
         for query_config in query_configs:
             query_config["group_by"] = []
+
+    def validate(self, attrs):
+        query_string: str = attrs.get("query_string", "")
+        if not query_string:
+            return attrs
+
+        if self.NO_KEYWORD_QUERY_PATTERN.search(query_string):
+            return attrs
+
+        attrs["query_string"] = f"*{query_string}*"
+        return attrs
 
 
 class EventQueryConfigSerializer(EventFilterSerializer):

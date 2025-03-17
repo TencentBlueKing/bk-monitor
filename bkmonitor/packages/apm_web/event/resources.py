@@ -233,7 +233,7 @@ class EventTagDetailResource(Resource):
         # 获取 total
         total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
         tag_detail: Dict[str, Any] = {"time": validated_request_data["start_time"], "total": total}
-        if total > 10:
+        if total > 20:
             topk: List[Dict[str, Any]] = self.fetch_topk(validated_request_data)
             for item in topk:
                 item["proportions"] = round((item["count"] / total) * 100, 2)
