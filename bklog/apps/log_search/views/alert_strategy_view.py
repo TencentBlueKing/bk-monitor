@@ -23,17 +23,22 @@ from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_search.handlers.alert_strategy import AlertStrategyHandler
 from apps.log_search.serializers import (
     AlertRecordSerializer,
     LogRelatedInfoSerializer,
     StrategyRecordSerializer,
 )
-from apps.utils.drf import detail_route, list_route
+from apps.utils.drf import detail_route
 
 
 class AlertStrategyViewSet(APIViewSet):
     lookup_field = "index_set_id"
+
+    def get_permissions(self):
+        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["post"], url_path="alert_records")
     def get_alert_records(self, request, index_set_id=None):
@@ -104,10 +109,10 @@ class AlertStrategyViewSet(APIViewSet):
         )
         return Response(data)
 
-    @list_route(methods=["get"], url_path="log_related_info")
-    def log_related_info(self, request):
+    @detail_route(methods=["get"], url_path="log_related_info")
+    def log_related_info(self, request, index_set_id=None):
         """
-        @api {get} alert_strategy/log_related_info/ 日志平台关联信息
+        @api {get} alert_strategy/$index_set_id/log_related_info/ 日志平台关联信息
         @apiName log_related_info
         @apiGroup alert_strategy
         @apiParam {Int} alert_id 告警id
