@@ -320,8 +320,10 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        bk_tenant_id = serializers
 
     def perform_request(self, request_data):
+        bk_tenant_id = get_request().user.tenant_id
         table_id = request_data.pop("table_id")
         query_alias_settings = request_data.pop("query_alias_settings", [])
         operator = request_data.get("operator", None)
@@ -338,6 +340,7 @@ class ModifyResultTableResource(Resource):
                     table_id=table_id,
                     query_alias_settings=query_alias_settings,
                     operator=operator,
+                    bk_tenant_id=bk_tenant_id,
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(

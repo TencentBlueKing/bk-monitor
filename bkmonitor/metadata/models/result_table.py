@@ -25,6 +25,7 @@ from django.db.transaction import atomic, on_commit
 from django.utils.translation import gettext as _
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
@@ -63,6 +64,7 @@ class ResultTable(models.Model):
         (SCHEMA_TYPE_FIXED, _("固定字段")),
     )
 
+    # TODO: 多租户 下面所有的存储实体表都需要添加 bk_tenant_id
     REAL_STORAGE_DICT = {
         ClusterInfo.TYPE_ES: ESStorage,
         ClusterInfo.TYPE_INFLUXDB: InfluxDBStorage,
@@ -75,7 +77,8 @@ class ResultTable(models.Model):
     # 结果表命名规则，应该是DB.TABLE_NAME
     # DB通常是监控范围，例如system, docker, apache等
     # TABLE_NAME是具体指标集合，例如cpu, mem等
-    table_id = models.CharField("结果表名", primary_key=True, max_length=128)
+    table_id = models.CharField("结果表名", db_index=True, max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     table_name_zh = models.CharField("结果表中文名", max_length=128)
     is_custom_table = models.BooleanField("是否自定义结果表")
     schema_type = models.CharField("schema配置方案", max_length=64, choices=SCHEMA_TYPE_CHOICES)
@@ -100,6 +103,7 @@ class ResultTable(models.Model):
     class Meta:
         verbose_name = "逻辑结果表"
         verbose_name_plural = "逻辑结果表"
+        unique_together = ('table_id', 'bk_tenant_id')
 
     def refresh_datasource(self):
         pass
@@ -184,7 +188,7 @@ class ResultTable(models.Model):
         result = []
         for storage_str, real_storage in list(self.REAL_STORAGE_DICT.items()):
             try:
-                result.append(real_storage.objects.get(table_id=self.table_id))
+                result.append(real_storage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id))
 
             except real_storage.DoesNotExist:
                 continue
@@ -199,7 +203,7 @@ class ResultTable(models.Model):
         """
         result = []
         for storage_str, real_storage in list(self.REAL_STORAGE_DICT.items()):
-            if real_storage.objects.filter(table_id=self.table_id).exists():
+            if real_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).exists():
                 result.append(storage_str)
 
         return result
@@ -210,25 +214,30 @@ class ResultTable(models.Model):
         返回一个结果表的数据源
         :return: DataSource object
         """
-        bk_data_id = DataSourceResultTable.objects.get(table_id=self.table_id).bk_data_id
-        return DataSource.objects.get(bk_data_id=bk_data_id)
+        bk_data_id = DataSourceResultTable.objects.get(
+            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+        ).bk_data_id
+        return DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=self.bk_tenant_id)
 
     @classmethod
-    def is_disable_metric_cutter(cls, table_id):
+    def is_disable_metric_cutter(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         是否 禁用指标切分模式
         """
-        data_source_map = DataSourceResultTable.objects.filter(table_id=table_id).first()
+        data_source_map = DataSourceResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
         if data_source_map:
             try:
                 data_source_option = DataSourceOption.objects.get(
-                    bk_data_id=data_source_map.bk_data_id, name=DataSourceOption.OPTION_DISABLE_METRIC_CUTTER
+                    bk_data_id=data_source_map.bk_data_id,
+                    bk_tenant_id=bk_tenant_id,
+                    name=DataSourceOption.OPTION_DISABLE_METRIC_CUTTER,
                 )
                 return json.loads(data_source_option.value)
             except (DataSourceOption.DoesNotExist, ValueError):
                 return False
         return False
 
+    # TODO： 多租户 应该只允许获取一个租户下的结果表
     @classmethod
     def get_table_id_cutter(cls, table_ids: Union[List, Set]) -> Dict:
         """获取结果表是否禁用切分模块"""
@@ -270,6 +279,7 @@ class ResultTable(models.Model):
         schema_type,
         operator,
         default_storage,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         default_storage_config=None,
         field_list=(),
         is_sync_db=True,
@@ -295,6 +305,7 @@ class ResultTable(models.Model):
         :param operator: 操作者
         :param label: 结果表标签
         :param default_storage: 默认存储，一个结果表必须存在一个存储，所以创建时需要提供默认存储
+        :param bk_tenant_id: 租户ID
         :param default_storage_config: 默认存储创建的对应参数信息, 根据每种不同的存储类型，会有不同的参数传入
         :param field_list: 字段列表，如果是无schema结果表，该参数可以为空
         :param is_sync_db: 是否需要实际创建数据库
@@ -317,6 +328,15 @@ class ResultTable(models.Model):
             table_id,
             bk_biz_id,
         )
+        logger.info(
+            "create_result_table: start to create result table for bk_tenant_id->[%s],bk_data_id->[%s],"
+            "table_id->[%s],bk_biz_id->[%s]",
+            bk_tenant_id,
+            bk_data_id,
+            table_id,
+            bk_biz_id,
+        )
+
         # 判断label是否真实存在的配置
         if not Label.exists_label(label_id=label, label_type=Label.LABEL_TYPE_RESULT_TABLE):
             logger.error(
@@ -330,7 +350,7 @@ class ResultTable(models.Model):
 
         table_id = table_id.lower()
         # 1. 判断data_source是否存在
-        datasource_qs = DataSource.objects.filter(bk_data_id=bk_data_id)
+        datasource_qs = DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
         if not datasource_qs.exists():
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
@@ -347,13 +367,13 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID不可以是%s开头，请确认后重试") % config.BCS_TABLE_ID_PREFIX)
 
-        if cls.objects.filter(table_id=table_id).exists():
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "create_result_table: table_id->[%s] or table_name_zh->[%s] is already exists, change and try again.",
+                "create_result_table: table_id->[%s] in bk_tenant_id->[%s] is already exists, change and try again.",
                 table_id,
-                table_name_zh,
+                bk_tenant_id,
             )
-            raise ValueError(_("结果表ID已经存在，请确认"))
+            raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
@@ -361,12 +381,12 @@ class ResultTable(models.Model):
             start_string = "%s_" % bk_biz_id
             if not table_id.startswith(start_string):
                 logger.error(
-                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] but table_id is not start "
-                    "with->[%s],"
-                    "maybe something go wrong?",
+                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
+                    "table_id is not start with->[%s], maybe something go wrong?",
                     operator,
                     table_id,
                     bk_biz_id,
+                    bk_tenant_id,
                     start_string,
                 )
                 raise ValueError(_("结果表[%s]不符合命名规范，请确认后重试") % table_id)
@@ -395,10 +415,11 @@ class ResultTable(models.Model):
             datasource.save()
             from .custom_report import EventGroup, TimeSeriesGroup  # noqa
 
-            if TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id).exists():
+            # TODO: 多租户 关联模型适配租户ID
+            if TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
                 # 自定义时序指标，查找所属空间
                 target_bk_biz_id = datasource.data_name.split("_")[0]
-            elif EventGroup.objects.filter(bk_data_id=bk_data_id).exists():
+            elif EventGroup.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
                 # 自定义事件，查找所属空间
                 target_bk_biz_id = datasource.data_name.split("_")[-1]
             try:
@@ -433,6 +454,7 @@ class ResultTable(models.Model):
                 space_type, space_id = space["space_type"], space["space_id"]
                 SpaceDataSource.objects.get_or_create(
                     bk_data_id=bk_data_id,
+                    bk_tenant_id=bk_tenant_id,
                     from_authorization=False,
                     defaults={"space_id": space["space_id"], "space_type_id": space["space_type"]},
                 )
@@ -448,6 +470,7 @@ class ResultTable(models.Model):
         # 2. 创建逻辑结果表内容
         result_table = cls.objects.create(
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             table_name_zh=table_name_zh,
             is_custom_table=is_custom_table,
             schema_type=schema_type,
@@ -462,7 +485,9 @@ class ResultTable(models.Model):
 
         # 创建结果表的option内容如果option为非空
         if option is not None:
-            ResultTableOption.bulk_create_options(table_id, option, operator)
+            ResultTableOption.bulk_create_options(
+                table_id=table_id, option_data=option, creator=operator, bk_tenant_id=bk_tenant_id
+            )
 
         # 3. 创建新的字段信息，同时追加默认的字段
         ResultTableField.bulk_create_default_fields(
@@ -471,6 +496,7 @@ class ResultTable(models.Model):
             is_time_field_only=is_time_field_only,
             time_alias_name=time_alias_name,
             time_option=time_option,
+            bk_tenant_id=bk_tenant_id,
         )
 
         logger.info(
@@ -488,12 +514,16 @@ class ResultTable(models.Model):
                     "is_config_by_user": new_field.get("is_config_by_user", (operator != "system")),
                 }
             )
-        result_table.bulk_create_fields(field_list, is_etl_refresh=False, is_force_add=True)
+        result_table.bulk_create_fields(field_list, is_etl_refresh=False, is_force_add=True, bk_tenant_id=bk_tenant_id)
 
         # 4. 创建data_id和该结果表的关系
-        DataSourceResultTable.objects.create(bk_data_id=bk_data_id, table_id=table_id, creator=operator)
+        DataSourceResultTable.objects.create(
+            bk_data_id=bk_data_id, table_id=table_id, creator=operator, bk_tenant_id=bk_tenant_id
+        )
         logger.info(
-            "create_result_table: result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id)
+            "create_result_table: result_table->[{}] now has relate to bk_data->[{}],bk_tenant_id->[{}]".format(
+                result_table, bk_data_id, bk_tenant_id
+            )
         )
 
         # 5. 创建实际结果表
@@ -503,7 +533,13 @@ class ResultTable(models.Model):
         # 如果实际创建数据库失败，会有异常抛出，则所有数据统一回滚
         # NOTE: 添加参数标识是否创建存储，以便于可以兼容不需要存储或者已经存在的场景
         if create_storage:
-            result_table.check_and_create_storage(is_sync_db, external_storage, option, default_storage_config)
+            result_table.check_and_create_storage(
+                is_sync_db=is_sync_db,
+                external_storage=external_storage,
+                option=option,
+                default_storage_config=default_storage_config,
+                bk_tenant_id=bk_tenant_id,
+            )
         # 6. 更新数据写入 consul
         result_table.refresh_etl_config()
 
@@ -512,11 +548,13 @@ class ResultTable(models.Model):
         # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
         # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
         try:
+            # TODO： INFLUXDB->VM
             # 仅针对 influxdb 类型进行过滤
             if default_storage == ClusterInfo.TYPE_INFLUXDB:
                 # 避免出现引包导致循环引用问题
                 from metadata.task.tasks import access_bkdata_vm
 
+                # TODO: 多租户： 等待BkBase多租户接口
                 access_bkdata_vm.delay(
                     int(target_bk_biz_id),
                     table_id,
@@ -531,7 +569,7 @@ class ResultTable(models.Model):
         # 因为多个事务嵌套，针对 ES 的操作放在最后执行
         try:
             if default_storage == ClusterInfo.TYPE_ES:
-                es_storage = ESStorage.objects.get(table_id=table_id)
+                es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
                 on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
         except Exception as e:  # pylint: disable=broad-except
             logger.error("create_result_table: create es storage index error, %s", e)
@@ -544,6 +582,7 @@ class ResultTable(models.Model):
         external_storage: Optional[Dict] = None,
         option: Optional[Dict] = None,
         default_storage_config: Optional[Dict] = None,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ) -> bool:
         """检测并创建存储
         NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
@@ -556,36 +595,39 @@ class ResultTable(models.Model):
             # 当 default_storage_config 值为 None 时，需要设置为 {}
             default_storage_config = default_storage_config or {}
             self.create_storage(
-                self.default_storage,
-                is_sync_db,
+                storage=self.default_storage,
+                is_sync_db=is_sync_db,
+                bk_tenant_id=bk_tenant_id,
                 external_storage=external_storage,
                 **default_storage_config,
             )
             logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
     @classmethod
-    def get_result_table_storage_info(cls, table_id, storage_type):
+    def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         获取结果表一个指定存储的配置信息
         :param table_id: 结果表ID
         :param storage_type: 存储集群配置
+        :param bk_tenant_id: 租户ID
         :return: consul config in dict | raise Exception
         """
         storage_class = cls.REAL_STORAGE_DICT[storage_type]
-        storage_info = storage_class.objects.get(table_id=table_id)
+        storage_info = storage_class.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
         return storage_info.consul_config
 
     @classmethod
-    def get_result_table_storage(cls, table_id, storage_type):
+    def get_result_table_storage(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         获取结果表一个指定存储
         :param table_id: 结果表ID
         :param storage_type: 存储集群配置
+        :param bk_tenant_id: 租户ID
         :return: consul config in dict | raise Exception
         """
         storage_class = cls.REAL_STORAGE_DICT[storage_type]
-        storage_info = storage_class.objects.get(table_id=table_id)
+        storage_info = storage_class.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
         return storage_info
 
@@ -602,18 +644,19 @@ class ResultTable(models.Model):
         return storage_list
 
     @classmethod
-    def get_result_table(cls, table_id: str):
+    def get_result_table(cls, table_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         可以使用已有的结果表的命名规范(2_system_cpu_summary)或
         新的命名规范(system_cpu_summary | system.cpu_summary | 2_system.cpu_summary)查询结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :return: raise Exception | ResultTable object
         """
         # 0. 尝试直接查询，如果可以命中，则认为符合新的命名规范，直接返回
         query_table_id: str = table_id
 
         try:
-            return cls.objects.get(table_id=table_id, is_deleted=False)
+            return cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id, is_deleted=False)
         except cls.DoesNotExist:
             # 命中失败，则下面继续
             pass
@@ -648,7 +691,9 @@ class ResultTable(models.Model):
         # 2. 使用业务ID及结果表ID来查询获取结果表对象
         try:
             table_id_with_biz = "{}_{}".format(bk_biz_id, table_id)
-            return cls.objects.get(bk_biz_id=bk_biz_id, table_id=table_id_with_biz, is_deleted=False)
+            return cls.objects.get(
+                bk_biz_id=bk_biz_id, table_id=table_id_with_biz, is_deleted=False, bk_tenant_id=bk_tenant_id
+            )
         except cls.DoesNotExist:
             logger.info(
                 "table_id->[{}] is search as biz->[{}] result table and found nothing, "
@@ -760,13 +805,16 @@ class ResultTable(models.Model):
 
         return result_table_list
 
-    def create_storage(self, storage, is_sync_db, external_storage=None, **storage_config):
+    def create_storage(
+        self, storage, is_sync_db, external_storage=None, bk_tenant_id=DEFAULT_TENANT_ID, **storage_config
+    ):
         """
         创建结果表的一个实际存储
         :param storage: 存储方案
         :param is_sync_db: 是否需要将配置实际同步到DB
         :param storage_config: 存储方案的配置参数
         :param external_storage: 额外存储方案配置
+        :param bk_tenant_id: 租户ID
         :return: True | raise Exception
         """
         # 1. 创建该存储方案对应的实体类并创建存储
@@ -820,6 +868,7 @@ class ResultTable(models.Model):
         field_data: List[Dict[str, Any]],
         is_etl_refresh: Optional[bool] = True,
         is_force_add: Optional[bool] = False,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ) -> True:
         """批量创建新的字段
 
@@ -832,6 +881,7 @@ class ResultTable(models.Model):
         :param field_data: 字段信息，是个列表，列表中为需要插入的每个字段的详细信息
         :param is_etl_refresh: 是否需要更新ETL配置，默认需要更新，但是考虑到部分情景需要等待事务完成，交由上一层把控
         :param is_force_add: 是否需要强制添加字段，用于初始化的时候，其他使用场景不应该使用该字段
+        :param bk_tenant_id: 租户ID
         :return: True 或者抛出异常
         """
         # 1. 判断该操作时非强制添加，而且结果表是否可以增加字段的模式
@@ -1584,6 +1634,7 @@ class ResultTableField(models.Model):
     }
 
     table_id = models.CharField("结果表名", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
     description = models.TextField("字段描述", blank=True, default="")
@@ -1604,7 +1655,7 @@ class ResultTableField(models.Model):
 
     class Meta:
         # 一个结果表的字段名不可能重复
-        unique_together = ("table_id", "field_name")
+        unique_together = ("table_id", "field_name", "bk_tenant_id")
         verbose_name = "结果表字段"
         verbose_name_plural = "结果表字段表"
 
@@ -1627,6 +1678,7 @@ class ResultTableField(models.Model):
         is_time_field_only: Optional[bool] = False,
         time_alias_name: Optional[str] = None,
         time_option: Optional[str] = None,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ) -> None:
         """批量创建默认字段， 包含 time，bk_biz_id，bk_supplier_id，bk_cloud_id，ip，bk_cmdb_level
 
@@ -1635,6 +1687,7 @@ class ResultTableField(models.Model):
         :param is_time_field_only: 是否仅包含创建时间字段，兼容ES的创建需求，默认为 False
         :param time_alias_name: 时间字段的别名配置
         :param time_option: 时间字段选项
+        :param bk_tenant_id: 租户ID
         """
         # NOTE: 公共字段直接列举到对应的字段中，减少计算
         # 组装要创建的默认字段数据
@@ -2166,23 +2219,25 @@ class ResultTableRecordFormat(models.Model):
 
     table_id = models.CharField("结果表名", max_length=128)
     metric = models.CharField("指标字段", max_length=32)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     # 维度字段列表，JSON格式数组，元素为字符串
     dimension_list = models.CharField("维度字段列表", max_length=32, db_index=True)
     is_available = models.BooleanField("是否生效")
 
     class Meta:
         # 一个结果表不可能有重复的组合信息
-        unique_together = ("table_id", "metric", "dimension_list")
+        unique_together = ("table_id", "metric", "dimension_list", "bk_tenant_id")
         verbose_name = "结果表字段"
         verbose_name_plural = "结果表字段表"
 
     @classmethod
-    def create_record_format(cls, table_id, metric, dimension_list, is_available=False):
+    def create_record_format(cls, table_id, metric, dimension_list, bk_tenant_id, is_available=False):
         """
         创建关系记录
         :param table_id: 结果表ID
         :param metric: 指标字段
         :param dimension_list: 维度字段数组，元素为字符串
+        :param bk_tenant_id: 租户ID
         :param is_available: 是否需要将该配置生效
         :return: True | raise Exception
         """
@@ -2190,7 +2245,10 @@ class ResultTableRecordFormat(models.Model):
         fields_list = copy.copy(dimension_list)
         fields_list.append(metric)
 
-        real_fields_count = ResultTableField.objects.filter(field_name__in=fields_list, table_id=table_id).count()
+        real_fields_count = ResultTableField.objects.filter(
+            field_name__in=fields_list, table_id=table_id, bk_tenant_id=bk_tenant_id
+        ).count()
+
         if real_fields_count != len(fields_list):
             logger.error(
                 "try to set metric->[%s] dimension_list->[%s] for table->[%s] but some fields are missing."
@@ -2200,7 +2258,11 @@ class ResultTableRecordFormat(models.Model):
 
         # 2. 将配置写入，但是不生效
         new_format = cls.objects.create(
-            table_id=table_id, metric=metric, dimension_list=json.dumps(dimension_list), is_available=False
+            table_id=table_id,
+            metric=metric,
+            dimension_list=json.dumps(dimension_list),
+            bk_tenant_id=bk_tenant_id,
+            is_available=False,
         )
         logger.info(
             "new format for table->[%s] metric->[%s] dimension->[%s] is now create."
@@ -2220,7 +2282,7 @@ class ResultTableRecordFormat(models.Model):
         :return: True | raise Exception
         """
         # 1. 将已有的所有dimension配置改为不可用
-        all_table_formats = self.__class__.objects.filter(table_id=self.table_id)
+        all_table_formats = self.__class__.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         all_table_formats.update(is_available=False)
         logger.info("all format for table->[%s] now is disabled." % self.table_id)
 
@@ -2503,12 +2565,15 @@ class ResultTableOption(OptionBase):
         return new_record
 
     @classmethod
-    def bulk_create_options(cls, table_id: str, option_data: Dict[str, Any], creator: str):
+    def bulk_create_options(
+        cls, table_id: str, option_data: Dict[str, Any], creator: str, bk_tenant_id=DEFAULT_TENANT_ID
+    ):
         """批量创建结果表级别的选项内容
 
         :param table_id: 结果表ID
         :param option_data: 选项内容, 格式: {name: value}
         :param creator: 创建者
+        :param bk_tenant_id: 租户ID
         """
         # 组装写入的对象
         obj_list, option_name_list = [], []
