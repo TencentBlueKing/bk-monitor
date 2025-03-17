@@ -156,8 +156,6 @@
     color: var(--table-fount-color);
     text-align: left;
 
-
-
     .bklog-scroll-box {
       max-height: 50vh;
       overflow: auto;
@@ -174,7 +172,6 @@
       }
     }
 
-    /* stylelint-disable-next-line declaration-no-important */
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
@@ -194,8 +191,9 @@
           width: max-content;
           padding: 2px 2px;
           color: #16171a;
-          background-color: #e6e9f0;
+          background-color: #ebeef5;
           border-radius: 2px;
+          font-weight: 600;
         }
 
         &::after {
@@ -204,6 +202,7 @@
       }
 
       .valid-text {
+        padding: 4px 2px;
         :hover {
           color: #3a84ff;
           cursor: pointer;
@@ -225,7 +224,7 @@
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      line-height: 20px;
+      line-height: 22px;
 
       span {
         width: max-content;
@@ -242,11 +241,10 @@
 
       .valid-text {
         cursor: pointer;
+        padding: 4px 2px;
 
         &.focus-text,
         &:hover {
-          width: max-content;
-          padding: 4px 2px;
           background-color: #cddffe;
           border-radius: 2px;
         }
@@ -298,14 +296,15 @@
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      line-height: 20px;
+      line-height: 22px;
 
       .valid-text {
         cursor: pointer;
+        padding: 4px 2px;
 
         &.focus-text,
         &:hover {
-          width: max-content;
+          // width: max-content;
           padding: 4px 2px;
           background-color: #cddffe;
           border-radius: 2px;
