@@ -103,6 +103,8 @@ export enum ExploreSourceTypeEnum {
   BCS = 'BCS',
   /** CICD/蓝盾 */
   CICD = 'CICD',
+  /** 其他类型事件来源 */
+  DEFAULT = 'DEFAULT',
   /** 系统/主机 */
   HOST = 'HOST',
 }

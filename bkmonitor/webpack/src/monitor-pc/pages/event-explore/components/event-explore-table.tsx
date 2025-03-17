@@ -86,9 +86,10 @@ enum ExploreTableLoadingEnum {
  * @description 事件来源不同类型所显示的图标 映射
  */
 const SourceIconMap = {
-  [ExploreSourceTypeEnum.BCS]: 'icon-bcs',
-  [ExploreSourceTypeEnum.CICD]: 'icon-landun',
-  [ExploreSourceTypeEnum.HOST]: 'icon-host',
+  [ExploreSourceTypeEnum.BCS]: 'icon-explore-bcs',
+  [ExploreSourceTypeEnum.CICD]: 'icon-explore-landun',
+  [ExploreSourceTypeEnum.HOST]: 'icon-explore-host',
+  [ExploreSourceTypeEnum.DEFAULT]: 'icon-explore-default',
 };
 const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
 const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
@@ -130,6 +131,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   scrollHeaderFixedObserver: ExploreObserver = null;
   /** 容器滚动到底部时触发请求观察者 */
   scrollEndObserver: ExploreObserver = null;
+  /** 表格logs数据请求中止控制器 */
+  abortController: AbortController = null;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -306,6 +309,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    *
    */
   async getEventLogs(loadingType = ExploreTableLoadingEnum.REFRESH) {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
     if (!this.queryParams) {
       this.tableData = [];
       return;
@@ -329,7 +336,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       limit: this.limit,
       offset: this.tableData?.length || 0,
     };
-    const res = await getEventLogs(requestParam, this.source);
+    this.abortController = new AbortController();
+    const res = await getEventLogs(requestParam, this.source, {
+      signal: this.abortController.signal,
+    });
+
     this.tableLoading[loadingType] = false;
 
     updateTableDataFn(res.list);
