@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod } from '../../../components/retrieval-filter/utils';
+import { APIType } from '../api-utils';
 import {
   type ConditionChangeEvent,
   type DimensionType,
@@ -63,6 +64,7 @@ interface IExploreKvListProps {
   fieldList: KVFieldList[];
   /** 滚动事件被观察者实例 */
   scrollSubject?: ExploreSubject;
+  source: APIType;
 }
 
 interface IExploreKvListEvents {
@@ -74,6 +76,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
   /** 滚动事件被观察者实例 */
   @Prop({ type: Object }) scrollSubject: ExploreSubject;
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
 
   @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
@@ -412,6 +416,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
           isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
           popoverInstance={this.popoverInstance}
           selectField={this.fieldTarget?.sourceName}
+          source={this.source}
           onConditionChange={this.handleStatisticsConditionChange}
           onShowMore={() => this.handlePopoverHide(false)}
           onSliderShowChange={this.handleStatisticsSliderShow}
