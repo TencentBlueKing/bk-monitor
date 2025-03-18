@@ -191,12 +191,7 @@ export class FilterByOptions {
   }
 
   queryStringParams(dimension: EDimensionKey, categoryDim?: string) {
-    const dimensionIndex = [
-      EDimensionKey.namespace,
-      EDimensionKey.workload,
-      EDimensionKey.pod,
-      EDimensionKey.container,
-    ];
+    const dimensionIndex = sceneDimensionMap[this.scenario];
     const filterDict = {};
     if (!this.isUpdate) {
       for (const key of dimensionIndex) {
