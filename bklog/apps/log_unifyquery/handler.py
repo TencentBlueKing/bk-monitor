@@ -52,7 +52,11 @@ from apps.log_unifyquery.utils import transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_request_external_username, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.time_handler import timestamp_to_timeformat
@@ -738,10 +742,11 @@ class UnifyQueryHandler(object):
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [{"method": method, "dimensions": [], "window": interval}]
+            q["function"] = [{"method": method}, {"method": "date_histogram", "window": interval}]
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
+        params["timezone"] = get_local_param("time_zone", settings.TIME_ZONE)
         response = UnifyQueryApi.query_ts_reference(params)
         return_data = {"aggs": {}}
         if not response["series"]:
