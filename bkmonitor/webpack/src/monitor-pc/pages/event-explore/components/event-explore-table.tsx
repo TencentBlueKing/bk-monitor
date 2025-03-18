@@ -483,6 +483,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
+        detailData={rowData?.['event.content']?.detail || {}}
         entitiesMapList={this.entitiesMapList}
         fieldMap={this.fieldMap}
         scrollSubject={this.scrollSubject}
