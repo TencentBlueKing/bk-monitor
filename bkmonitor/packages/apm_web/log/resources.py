@@ -32,7 +32,7 @@ def overwrite_with_span_addition(info, overwrite_key=None):
 
 
 def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_time=None, end_time=None):
-    cache_call = using_cache(CacheType.APM(10 * 60))
+    cache_call = using_cache(CacheType.APM(1 * 60))
     cache_key = f"{bk_biz_id}-{app_name}-{service_name}-log_relation_list"
     index_info_list = cache_call.get_value(cache_key)
     if index_info_list:
@@ -40,11 +40,11 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             yield index_info
     else:
         # 缓存增强：对 search_index_set 添加缓存
-        @using_cache(CacheType.APM(10 * 60))
+        @using_cache(CacheType.APM(1 * 60))
         def _cached_search_index_set(_bk_biz_id):
             return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
 
-        @using_cache(CacheType.APM(10 * 60))
+        @using_cache(CacheType.APM(1 * 60))
         def _cached_query_index_set(_bk_biz_id, _app_name, _span_id):
             return api.apm_api.query_span_detail(bk_biz_id=_bk_biz_id, app_name=_app_name, span_id=_span_id)
 
@@ -216,7 +216,6 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                         index_id = str(item["index_set_id"])
                         if index_id not in index_set_ids:
                             index_set_ids.add(index_id)
-                            # yield item
                             index_info_list.append(item)
                 except Exception:
                     continue
