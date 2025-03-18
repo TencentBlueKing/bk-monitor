@@ -1254,6 +1254,7 @@ class CollectorPluginUpdateSerializer(MultiAttrCheckSerializer, serializers.Mode
             "is_allow_alone_data_id",
             "is_allow_alone_etl_config",
             "is_allow_alone_storage",
+            "is_create_storage",
             "storage_cluster_id",
             "retention",
             "allocation_min_days",
