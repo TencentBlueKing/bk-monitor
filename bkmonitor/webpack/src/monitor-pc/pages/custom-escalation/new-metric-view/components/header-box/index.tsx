@@ -107,6 +107,12 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     if (!this.dimenstionParams) {
       return;
     }
+
+    if (Object.keys(this.dimenstionParams).length < 1) {
+      this.params = createDefaultParams();
+      return;
+    }
+
     Object.keys(this.params).forEach(key => {
       if (this.dimenstionParams[key]) {
         this.params[key] = Object.freeze(this.dimenstionParams[key]);

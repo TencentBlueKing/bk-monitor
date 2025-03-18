@@ -26,13 +26,14 @@
 import { Component, Watch, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+// import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { Debounce } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import LayoutChartTable from './layout-chart-table';
+import { chunkArray } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -240,7 +241,15 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   class='chart-view-collapse-item-content'
                   slot='content'
                 >
-                  {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))}
+                  {/* {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))} */}
+                  {chunkArray(item.panels, this.columnNum).map((rowItem, rowIndex) => (
+                    <div
+                      key={rowIndex}
+                      class='chart-view-row'
+                    >
+                      {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
+                    </div>
+                  ))}
                 </div>
               </bk-collapse-item>
             ))}

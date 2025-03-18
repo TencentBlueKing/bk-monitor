@@ -87,6 +87,12 @@ export default class NewMetricView extends tsc<object> {
 
   handleDimensionParamsChange(payload: any) {
     this.dimenstionParams = Object.freeze(payload);
+
+    console.log('from handleDimensionParamsChange = ', payload);
+  }
+
+  handleMetricsSelectReset() {
+    this.dimenstionParams = {};
   }
 
   created() {
@@ -117,7 +123,7 @@ export default class NewMetricView extends tsc<object> {
               initial-divide={220}
             >
               <template slot='aside'>
-                <MetricsSelect />
+                <MetricsSelect onReset={this.handleMetricsSelectReset} />
               </template>
               <template slot='main'>
                 <HeaderBox
