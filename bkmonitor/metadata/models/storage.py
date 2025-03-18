@@ -3610,7 +3610,7 @@ class ESStorage(models.Model, StorageResultTable):
             es_mappings = self.es_client.indices.get_mapping(index=index_name)[index_name]["mappings"]
             current_mapping = {}
             if es_mappings.get(self.table_id):
-                current_mapping = es_mappings[self.table_id]["properties"]
+                current_mapping = es_mappings[self.table_id]["propertcies"]
             else:
                 current_mapping = es_mappings["properties"]
 
@@ -3623,8 +3623,17 @@ class ESStorage(models.Model, StorageResultTable):
             es_properties = self.index_body["mappings"][self.table_id]["properties"]
         else:
             es_properties = self.index_body["mappings"]["properties"]
+
         database_field_list = list(es_properties.keys())
-        current_field_list = list(current_mapping.keys())
+
+        # 获取别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
+        try:
+            alias_field_list = [v["path"] for v in current_mapping.values() if v.get("type") == "alias"]
+        except KeyError:
+            alias_field_list = []  # 如果 "path" 不存在，返回空列表
+
+        current_field_list = list(current_mapping.keys()) + alias_field_list
+
         # 数据库中字段多于es的index中数据，则进行分裂
         field_diff_set = set(database_field_list) - set(current_field_list)
         if len(field_diff_set) != 0:
@@ -3637,6 +3646,8 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
+            if field_name in alias_field_list:
+                continue
             try:
                 current_config = current_mapping[field_name]
 
