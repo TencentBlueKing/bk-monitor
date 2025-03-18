@@ -13,8 +13,8 @@ import json
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.utils.translation import gettext as _
-import settings
 
 from ...constants import (
     K8S_EVENT_TRANSLATIONS,
@@ -98,7 +98,7 @@ class K8sEventProcessor(BaseEventProcessor):
         )
         event["event_name"] = {
             "value": event_name_value,
-            "alias": _("{alias}（{name}）").format(alias=event_name_alias, name=event_name_value)
+            "alias": _("{alias}（{name}）").format(alias=event_name_alias, name=event_name_value),
         }
 
     def set_detail_fields(
@@ -134,7 +134,7 @@ class K8sEventProcessor(BaseEventProcessor):
                 self.bcs_cluster_context.fetch([{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}])
                 .get(f"{bk_biz_id}::{bcs_cluster_id}", {})
                 .get("bcs_cluster_name", bcs_cluster_id),
-                self.generate_url("cluster", workload_info, start_time, end_time)
+                self.generate_url("cluster", workload_info, start_time, end_time),
             )
         # 处理命名空间信息
         if namespace:
@@ -146,7 +146,7 @@ class K8sEventProcessor(BaseEventProcessor):
             detail["name"] = create_detail_field(
                 "name",
                 f"{kind}/{name}" if kind else name,
-                self.generate_url("workload", workload_info, start_time, end_time)
+                self.generate_url("workload", workload_info, start_time, end_time),
             )
 
     @classmethod
@@ -169,7 +169,13 @@ class K8sEventProcessor(BaseEventProcessor):
             return ""
 
         for workload_type in [
-            "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "ReplicaSet", "HorizontalPodAutoscaler"
+            "Deployment",
+            "StatefulSet",
+            "DaemonSet",
+            "Job",
+            "CronJob",
+            "ReplicaSet",
+            "HorizontalPodAutoscaler",
         ]:
             # 模糊匹配，从而支持更多类似 GameDeployment 的 CRD workload。
             if workload_type not in kind:
@@ -186,9 +192,7 @@ class K8sEventProcessor(BaseEventProcessor):
 
             # case 1：workload 类型
             filter_by["workload"].append(f"{kind}:{name}")
-            return cls._generate_url(
-                workload_info, start_time, end_time, filter_by, ["namespace", "workload", "pod"]
-            )
+            return cls._generate_url(workload_info, start_time, end_time, filter_by, ["namespace", "workload", "pod"])
 
         if kind == "Pod":
             filter_by["pod"].append(name)
@@ -223,9 +227,9 @@ class K8sEventProcessor(BaseEventProcessor):
             "sceneId": "kubernetes",
             "dashboardId": "node",
             "sceneType": "detail",
-            "queryData": json.dumps({
-                "selectorSearch": [{"bcs_cluster_id": workload_info["bcs_cluster_id"]["value"]}, {"name": host}]
-            })
+            "queryData": json.dumps(
+                {"selectorSearch": [{"bcs_cluster_id": workload_info["bcs_cluster_id"]["value"]}, {"name": host}]}
+            ),
         }
         bk_biz_id = workload_info["bk_biz_id"]["value"]
         return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s?{urlencode(params)}"
