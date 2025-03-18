@@ -15,6 +15,7 @@ import re
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.commons.data_access import EventDataAccessor
@@ -136,6 +137,7 @@ class LogPluginManager(BuiltInPluginManager):
         data_id = access.create_data_id(source_label, type_label)
         group_info = access.create_result_table(data_id, event_info_list)
         CustomEventGroup.objects.create(
+            bk_tenant_id=get_request_tenant_id(),
             bk_biz_id=group_info["bk_biz_id"],
             bk_event_group_id=group_info["event_group_id"],
             scenario=group_info["label"],
