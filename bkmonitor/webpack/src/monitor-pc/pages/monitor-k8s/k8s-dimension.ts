@@ -474,13 +474,7 @@ export class K8sNetworkGroupDimension extends K8sGroupDimension {
     prop: K8sTableColumnKeysEnum.CPU_USAGE as K8sTableColumnChartKey,
     orderBy: 'desc' as K8sSortType,
   };
-  readonly dimensions = [
-    K8sTableColumnKeysEnum.CLUSTER,
-    K8sTableColumnKeysEnum.NAMESPACE,
-    K8sTableColumnKeysEnum.INGRESS,
-    K8sTableColumnKeysEnum.SERVICE,
-    K8sTableColumnKeysEnum.POD,
-  ];
+  readonly dimensions = [K8sTableColumnKeysEnum.CLUSTER, K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.POD];
   readonly groupByDimensions = [
     K8sTableColumnKeysEnum.NAMESPACE,
     K8sTableColumnKeysEnum.INGRESS,
