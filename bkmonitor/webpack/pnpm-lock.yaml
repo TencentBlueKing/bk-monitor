@@ -481,8 +481,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 1.0.1-beta.6
-        version: 1.0.1-beta.6
+        specifier: 1.0.1-beta.7
+        version: 1.0.1-beta.7
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -602,8 +602,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       '@blueking/monitor-trace-log':
-        specifier: 1.0.0-beta.10
-        version: 1.0.0-beta.10
+        specifier: 1.0.0-beta.11
+        version: 1.0.0-beta.11
       '@dagrejs/dagre':
         specifier: ^1.1.3
         version: 1.1.4
@@ -1444,8 +1444,8 @@ packages:
   '@blueking/login-modal@1.0.5':
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.6':
-    resolution: {integrity: sha512-e0yQnWE76EZO2aXCMPHN19MYuWTBAXhddmxCg1qAzMfIhHOodNJvrWwq6QPDv5yfR7HF5wDT0LxuuWdMRT60Fw==}
+  '@blueking/monitor-apm-log@1.0.1-beta.7':
+    resolution: {integrity: sha512-Ne3ElhO/0DMQRyKnymQeJvANSnGZulCi2W4m37sMdXKJZAc7qDnG/kAHdMggkKCAUxurmYpbCkzsjaAsC7FvmA==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1453,8 +1453,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@1.0.0-beta.10':
-    resolution: {integrity: sha512-vd2576AILcj8b6gK9spVWDXK1Aq5c4KfqWTYDh8KPBHqnuIzz6X6j2AR/9SXcw3JIptk7WFjz23OYbN9kgjIiA==}
+  '@blueking/monitor-trace-log@1.0.0-beta.11':
+    resolution: {integrity: sha512-oQBrst35UGt+8RYnmWUyG96QN6qimoP6MfgonnjyfKXLOFW5ygtp8NIgIqYtxj50tDIhdImr8RIvEXbfbzbWRg==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -9429,14 +9429,14 @@ snapshots:
 
   '@blueking/login-modal@1.0.5': {}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.6': {}
+  '@blueking/monitor-apm-log@1.0.1-beta.7': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@1.0.0-beta.10': {}
+  '@blueking/monitor-trace-log@1.0.0-beta.11': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:
