@@ -91,6 +91,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   // 场景
+  @ProvideReactive('scene')
   scene: SceneEnum = SceneEnum.Performance;
   // 集群
   cluster = '';
@@ -350,6 +351,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = value;
     this.initGroupBy();
     this.initFilterBy();
+    this.getScenarioMetricList();
+    this.showCancelDrill = false;
+    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
+      this.hideMetrics = res || [];
+    });
+    this.setRouteParams();
   }
 
   handleImmediateRefresh() {
@@ -409,8 +416,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param drillDownDimension 下钻维度
    */
   handleDrillDown(filterById: string, filterByDimension: string, drillDownDimension: string) {
-    this.groupByChange(drillDownDimension, true);
     this.filterByChange(filterById, filterByDimension, true);
+    this.groupByChange(drillDownDimension, true);
   }
 
   /** 清除某个维度的filterBy */
