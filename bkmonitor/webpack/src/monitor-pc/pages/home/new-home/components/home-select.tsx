@@ -908,7 +908,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {this.showKeywordEle && (
+          {!this.isBarToolShow && this.showKeywordEle && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>
