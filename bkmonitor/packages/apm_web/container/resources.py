@@ -166,11 +166,14 @@ class ListServicePodsResource(Resource):
                 batch_ids = preassigned_ids[i : i + batch_size]
                 futures.append(executor.submit(process_batch, batch_nodes, batch_ids))
             for future in futures:
-                for result_type, info in future.result():
-                    if result_type == "have":
-                        have_data_pods.append(info)
-                    else:
-                        no_data_pods.append(info)
+                try:
+                    for result_type, info in future.result():
+                        if result_type == "have":
+                            have_data_pods.append(info)
+                        else:
+                            no_data_pods.append(info)
+                except Exception:
+                    continue
 
         all_pods = have_data_pods + no_data_pods
 
