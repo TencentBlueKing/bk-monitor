@@ -742,7 +742,7 @@ class UnifyQueryHandler(object):
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [{"method": method}, {"method": "date_histogram", "window": interval}]
+            q["function"] = [{"method": method, "dimensions": [], "window": interval}]
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
