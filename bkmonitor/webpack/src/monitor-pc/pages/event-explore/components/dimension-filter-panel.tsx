@@ -45,6 +45,7 @@ interface DimensionFilterPanelProps {
   listLoading: boolean;
   condition: IWhereItem[];
   queryString: string;
+  source: APIType;
 }
 
 interface DimensionFilterPanelEvents {
@@ -60,10 +61,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Prop({ default: () => [] }) condition!: IWhereItem[];
   @Prop({ default: '' }) queryString!: string;
   @Prop({ default: false }) listLoading!: boolean;
-
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
-  @InjectReactive({ from: 'source', default: APIType.MONITOR }) source!: APIType;
   @InjectReactive('commonParams') commonParams;
 
   emptyStatus: EmptyStatusType = 'empty';
@@ -267,6 +268,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
           isDimensions={this.selectField?.is_dimensions}
           popoverInstance={this.popoverInstance}
           selectField={this.selectField?.name}
+          source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />

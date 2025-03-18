@@ -486,6 +486,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         entitiesMapList={this.entitiesMapList}
         fieldMap={this.fieldMap}
         scrollSubject={this.scrollSubject}
+        source={this.source}
         onConditionChange={this.conditionChange}
       />
     );
