@@ -283,7 +283,7 @@ export default class ValueTagSelector extends tsc<IProps> {
             ? this.localValue.map((item, index) => [
                 <ValueTagInput
                   key={item.id}
-                  class={['value-tag-input', { error: this.isTypeInteger ? !isNumeric(item.id) : false }]}
+                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
                   value={item.id}
                   onChange={v => this.handleTagUpdate(v, index)}
                   onDelete={() => this.handleDelete(index)}

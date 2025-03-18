@@ -41,28 +41,5 @@
       line-height: 30px;
       color: #c4c6cc;
     }
-
-    .value-tag-input {
-      margin: 0 4px 4px 0;
-      border: 1px solid transparent;
-
-      &.error {
-        border-color: red;
-        border-style: dashed;
-
-        .value-span {
-          line-height: 12px;
-        }
-
-        .value-span-input {
-          line-height: 12px;
-        }
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: #dcdee5;
-      }
-    }
   }
 }
