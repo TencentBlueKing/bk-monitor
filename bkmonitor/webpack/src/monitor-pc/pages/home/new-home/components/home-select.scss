@@ -339,7 +339,8 @@
 
     .history-item-name {
       display: inline-block;
-      width: 96%;
+      // width: 96%;
+      width: calc(100% - 34px);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
