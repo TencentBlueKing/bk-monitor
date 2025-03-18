@@ -1203,5 +1203,16 @@ API_REQUESTS_TOTAL = Counter(
     labelnames=("action", "module", "code", "role"),
 )
 
+LOG_INDEX_ROTATE_TOTAL = Counter(
+    name="bkmonitor_log_index_rotate_total",
+    documentation="日志索引轮转状态",
+    labelnames=("table_id", "storage_cluster_id", "status"),
+)
+
+LOG_INDEX_ROTATE_REASON_TOTAL = Counter(
+    name="bkmonitor_log_index_rotate_reason_total",
+    documentation="日志索引轮转原因",
+    labelnames=("table_id", "storage_cluster_id", "reason"),
+)
 
 TOTAL_TAG = "__total__"

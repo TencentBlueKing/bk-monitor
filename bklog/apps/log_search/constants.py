@@ -1438,6 +1438,15 @@ class QueryMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class SQLGenerateMode(Enum):
+    """
+    SQL生成模式
+    """
+
+    COMPLETE = "complete"
+    WHERE_CLAUSE = "where_clause"
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1711,3 +1720,18 @@ ES_RESERVED_CHARACTERS = [
 class DataFlowResourceUsageType(object):
     online = "log_clustering_online"
     agg = "log_clustering_agg"
+
+
+class AlertStatusEnum(ChoicesEnum):
+    ALL = "ALL"
+    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
+    MY_ASSIGNEE = "MY_ASSIGNEE"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
+        (MY_ASSIGNEE, _("我收到的")),
+    )
+
+
+MAX_WORKERS = 5
