@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 export enum ETabNames {
+  diagnosis = 'diagnosis',
   dimension = 'dimension',
   index = 'index',
 }
@@ -87,4 +88,12 @@ export interface TabConfig {
     labelKey: string;
     showComma?: boolean;
   }[];
+}
+
+export interface IIncidentDetail {
+  incident_name: string;
+  status_alias: string;
+  duration: string;
+  bk_biz_name: string;
+  current_topology: Record<string, unknown>;
 }
