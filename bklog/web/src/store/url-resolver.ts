@@ -56,7 +56,7 @@ class RouteUrlResolver {
   /**
    * 将URL参数解析为store里面缓存的数据结构
    */
-  public convertQueryToStore() {
+  public convertQueryToStore<T>(): T {
     return this.resolveFieldList.reduce((output, key) => {
       const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
       if (value !== undefined) {
@@ -64,7 +64,7 @@ class RouteUrlResolver {
       }
 
       return output;
-    }, {});
+    }, {}) as T;
   }
 
   /**
