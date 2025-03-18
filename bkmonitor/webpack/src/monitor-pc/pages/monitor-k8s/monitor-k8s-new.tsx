@@ -44,7 +44,7 @@ import K8sTableNew, {
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
-import { type K8sGroupDimension, K8sPerformanceGroupDimension, sceneDimensionMap } from './k8s-dimension';
+import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
 import {
   type IK8SMetricItem,
   type ICommonParams,
@@ -105,7 +105,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
   @ProvideReactive('groupInstance')
-  groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
+  groupInstance: K8sGroupDimension = K8sGroupDimension.createInstance(SceneEnum.Performance);
 
   // 是否展示撤回下钻
   showCancelDrill = false;
@@ -304,6 +304,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       return pre;
     }, {});
   }
+
+  /** 重新实例化 GroupBy */
+  initGroupBy() {
+    this.groupInstance = K8sGroupDimension.createInstance(this.scene);
+  }
+
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
     if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
@@ -342,6 +348,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleSceneChange(value) {
     this.scene = value;
+    this.initGroupBy();
     this.initFilterBy();
   }
 
@@ -495,6 +502,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = scene as SceneEnum;
     this.activeTab = activeTab as K8sNewTabEnum;
     if (JSON.parse(groupBy as string).length) {
+      this.initGroupBy();
       this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
     }
     if (!filterBy) {
@@ -699,7 +707,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                       slot='label'
                     >
                       <i class={['icon-monitor', panel.icon]} />
-                      <span class='panel-name'>{this.$t(panel.label)}</span>
+                      <span class='panel-name'>{panel.label}</span>
                     </div>
                   </bk-tab-panel>
                 ))}
