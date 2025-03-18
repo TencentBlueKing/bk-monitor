@@ -1698,8 +1698,15 @@ class BkMonitorLogDataSource(DataSource):
                 new_filter_dict[key] = self._add_dimension_prefix(value)
                 continue
 
+            lookup = ""
+            if "__" in key:
+                key, lookup = key.rsplit("__", 2)
+
             if self.is_dimensions_field(key):
                 key = f"dimensions.{key}"
+
+            if lookup:
+                key = f"{key}__{lookup}"
 
             new_filter_dict[key] = value
         return new_filter_dict
