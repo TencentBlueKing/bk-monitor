@@ -1073,6 +1073,22 @@ class GetFieldOptionValuesResource(Resource):
         return QueryHandler.get_file_option_values(**validated_request_data)
 
 
+class GetFieldsOptionValuesResource(Resource):
+    """获取指定字段列表的候选项值"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField()
+        end_time = serializers.IntegerField()
+        fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
+        mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices(), default="span")
+
+    @using_cache(CacheType.APM(60 * 1))
+    def perform_request(self, validated_request_data):
+        return QueryHandler.get_fields_option_values(**validated_request_data)
+
+
 class ListSpanStatisticsResource(Resource):
     """
     接口统计

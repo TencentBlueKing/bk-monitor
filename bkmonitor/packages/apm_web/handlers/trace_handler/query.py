@@ -563,6 +563,15 @@ class QueryHandler:
         return option.get_field_option_values(fields, start_time, end_time)
 
     @classmethod
+    def get_fields_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time, mode):
+        if mode == QueryMode.TRACE:
+            option = TraceOptionValues(bk_biz_id, app_name)
+        else:
+            option = SpanOptionValues(bk_biz_id, app_name)
+
+        return option.get_field_option_values(fields, start_time, end_time)
+
+    @classmethod
     def handle_trace_list(cls, trace_list):
         """对API返回的Trace列表进行额外处理"""
         for i in trace_list:
