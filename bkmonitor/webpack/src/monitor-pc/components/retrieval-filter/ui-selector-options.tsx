@@ -208,7 +208,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
             }
           : undefined,
       };
-      console.log(value);
       this.$emit('confirm', value);
     } else {
       this.$emit('confirm', null);
