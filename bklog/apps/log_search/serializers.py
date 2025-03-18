@@ -33,6 +33,7 @@ from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleS
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
+    AlertStatusEnum,
     ExportFileType,
     FavoriteListOrderType,
     FavoriteType,
@@ -1033,3 +1034,20 @@ class StorageUsageSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
+
+
+class StrategyRecordSerializer(serializers.Serializer):
+    page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
+    page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
+
+
+class AlertRecordSerializer(StrategyRecordSerializer):
+    status = serializers.ChoiceField(
+        label=_("状态"),
+        choices=AlertStatusEnum.get_choices(),
+        required=False,
+    )
+
+
+class LogRelatedInfoSerializer(serializers.Serializer):
+    alert_id = serializers.IntegerField(label=_("告警ID"))
