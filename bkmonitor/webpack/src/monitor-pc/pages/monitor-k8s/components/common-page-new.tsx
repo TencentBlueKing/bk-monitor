@@ -629,6 +629,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
   }
 
+  @Watch('$route.query')
+  handleRouteQueryChange(val = {}) {
+    for (const key in val) {
+      if (customRouterQueryKeys.includes(key)) {
+        this.customRouteQuery[key] = val[key];
+      }
+    }
+  }
+
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
