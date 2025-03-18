@@ -3610,7 +3610,7 @@ class ESStorage(models.Model, StorageResultTable):
             es_mappings = self.es_client.indices.get_mapping(index=index_name)[index_name]["mappings"]
             current_mapping = {}
             if es_mappings.get(self.table_id):
-                current_mapping = es_mappings[self.table_id]["propertcies"]
+                current_mapping = es_mappings[self.table_id]["properties"]
             else:
                 current_mapping = es_mappings["properties"]
 
