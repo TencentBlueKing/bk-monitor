@@ -64,7 +64,7 @@ export default defineComponent({
     const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
     const rootStyle = computed(() => {
       return {
-        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '60px'}`,
+        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '66px'}`,
       };
     });
 
