@@ -54,11 +54,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const refContent: Ref<HTMLDivElement> = ref();
 
-    const wheelTrigger: Ref<{ isWheeling: boolean; id: string }> = inject(
-      'wheelTrigger',
-      ref({ isWheeling: false, id: '' }),
-    );
-
     const store = useStore();
     const { $t } = useLocale();
 
@@ -203,6 +198,20 @@ export default defineComponent({
       },
     );
 
+    const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
+    const getMoreAction = () => {
+      if (showMoreAction.value) {
+        return (
+          <span
+            class={['btn-more-action', `word-text`, 'is-show']}
+            onClick={handleClickMore}
+          >
+            {btnText.value}
+          </span>
+        );
+      }
+    };
+
     return () => (
       <div
         class={[
@@ -217,19 +226,7 @@ export default defineComponent({
         ]}
       >
         {renderSegmentList()}
-        <span
-          class={[
-            'btn-more-action',
-            `word-text`,
-            {
-              'is-show':
-                !wheelTrigger.value.isWheeling && (hasOverflowY.value || (showAll.value && !isLimitExpandView.value)),
-            },
-          ]}
-          onClick={handleClickMore}
-        >
-          {btnText.value}
-        </span>
+        {getMoreAction()}
       </div>
     );
   },

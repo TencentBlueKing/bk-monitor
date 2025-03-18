@@ -98,23 +98,26 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     for (const segment of segments) {
       if (tokens.length >= MAX_TOKENS) break;
       const isMark = MARK_REGEX.test(segment);
-      processedLength += segment.length;
 
-      const normalTokens = segment
-        .replace(MARK_REGEX, '$1')
-        .split(DELIMITER_REGEX)
-        .filter(Boolean)
-        .slice(0, MAX_TOKENS - tokens.length);
+      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
+      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
 
-      tokens.push(
-        ...normalTokens.map(t => {
-          return {
-            text: t,
-            isMark,
-            isCursorText: !DELIMITER_REGEX.test(t),
-          };
-        }),
-      );
+      if (isMark) {
+        processedLength += '<mark>'.length;
+
+        if (normalTokens.length === segmengtSplitList.length) {
+          processedLength += '</mark>'.length;
+        }
+      }
+
+      normalTokens.forEach(t => {
+        processedLength += t.length;
+        tokens.push({
+          text: t,
+          isMark,
+          isCursorText: !DELIMITER_REGEX.test(t),
+        });
+      });
     }
   }
 
@@ -164,14 +167,19 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    const child = document.createElement('span');
-    child.classList.add('last-placeholder');
-    contentElement?.append?.(child);
+    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
+      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+      if (scrollHeight > offsetHeight) {
+        const child = document.createElement('span');
+        child.classList.add('last-placeholder');
+        contentElement?.append?.(child);
+      }
+    }
   };
 
   const appendPageItems = (size?) => {
     if (startIndex >= wordList.length) {
-      appendLastTag();
+      requestAnimationFrame(appendLastTag);
       return false;
     }
 
