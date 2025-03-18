@@ -28,22 +28,34 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
-import RenderMetricsGroup from './components/render-metrics-group';
+import RenderMetricsGroup, { type IMetric } from './components/render-metrics-group';
 
 import './index.scss';
 
+interface IEmit {
+  onChange: (value: IMetric[]) => void;
+}
+
 @Component
-export default class HeaderFilter extends tsc<object> {
-  @Ref('metricGroup') metricGroup: RenderMetricsGroup;
+export default class HeaderFilter extends tsc<object, IEmit> {
+  @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
   searchKey = '';
 
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
+  get currentSelectedMetricNameList() {
+    return customEscalationViewStore.currentSelectedMetricNameList;
   }
 
   handleClearChecked() {
-    this.metricGroup.resetMetricChecked();
+    this.metricGroupRef.resetMetricChecked();
+  }
+
+  handleFlodAllGround() {
+    this.metricGroupRef.flodAll();
+  }
+
+  handleChange(value: IMetric[]) {
+    this.$emit('change', value);
   }
 
   render() {
@@ -57,7 +69,7 @@ export default class HeaderFilter extends tsc<object> {
           <div class='action-box'>
             <bk-button
               style='padding: 0'
-              disabled={this.currentSelectedMetricList.length < 1}
+              disabled={this.currentSelectedMetricNameList.length < 1}
               size='small'
               theme='primary'
               text
@@ -65,7 +77,7 @@ export default class HeaderFilter extends tsc<object> {
               <i class='icon-monitor icon-mc-goto' />
               {this.$t('指标计算')}
             </bk-button>
-            {this.currentSelectedMetricList.length > 0 && (
+            {this.currentSelectedMetricNameList.length > 0 && (
               <bk-button
                 style='margin-left: 16px; padding: 0'
                 size='small'
@@ -77,14 +89,19 @@ export default class HeaderFilter extends tsc<object> {
                 {this.$t('取消选中')}
               </bk-button>
             )}
-            <div style='display: inline-block; margin-left: auto; cursor: pointer'>
+            <div
+              style='display: inline-block; margin-left: auto; cursor: pointer'
+              v-bk-tooltips={this.$t('全部收起')}
+              onClick={this.handleFlodAllGround}
+            >
               <i class='icon-monitor icon-zhankai' />
             </div>
           </div>
         </div>
         <RenderMetricsGroup
-          ref='metricGroup'
+          ref='metricGroupRef'
           searchKey={this.searchKey}
+          onChange={this.handleChange}
         />
       </div>
     );

@@ -1,4 +1,5 @@
-import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
+import { type getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
+import { makeMap } from 'monitor-common/utils/make-map';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 /*
  * Tencent is pleased to support the open source community by making
@@ -25,7 +26,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, Module, VuexModule, getModule, Mutation } from 'vuex-module-decorators';
+import { Module, VuexModule, getModule, Mutation } from 'vuex-module-decorators';
 
 import store from '../store';
 
@@ -35,26 +36,30 @@ type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 class CustomEscalationViewStore extends VuexModule {
   public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
   // 当前视图选中的指标
-  public currentSelectedMetricList: TCustomTsMetricGroups['metric_groups'][number]['metrics'] = [];
+  // public currentSelectedMetricList: Readonly<TCustomTsMetricGroups['metric_groups'][number]['metrics']> = [];
+  public currentSelectedMetricNameList: string[] = [];
   public endTime = 'now';
   public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   public startTime = 'now-1h';
   public timeSeriesGroupId = -1;
 
-  get timeRangTimestamp() {
-    return handleTransformToTimestamp([this.startTime, this.endTime]);
+  get currentSelectedMetricList() {
+    const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
+    return this.metricGroupList.reduce<TCustomTsMetricGroups['metric_groups'][number]['metrics']>(
+      (result, groupItem) => {
+        groupItem.metrics.forEach(metricsItem => {
+          if (metricKeyMap[metricsItem.metric_name]) {
+            result.push(metricsItem);
+          }
+        });
+        return result;
+      },
+      []
+    );
   }
 
-  @Action
-  public async fetchData(params: { time_series_group_id: number }) {
-    this.updateTimeSeriesGroupId(params.time_series_group_id);
-    this.updateCommonDimensionList([]);
-    this.updateMetricGroupList([]);
-
-    const result = await getCustomTsMetricGroups(params);
-
-    this.updateCommonDimensionList(result.common_dimensions);
-    this.updateMetricGroupList(result.metric_groups);
+  get timeRangTimestamp() {
+    return handleTransformToTimestamp([this.startTime, this.endTime]);
   }
 
   @Mutation
@@ -92,8 +97,8 @@ class CustomEscalationViewStore extends VuexModule {
   }
 
   @Mutation
-  public updateCurrentSelectedMetricList(payload: TCustomTsMetricGroups['metric_groups'][number]['metrics']) {
-    this.currentSelectedMetricList = payload;
+  public updateCurrentSelectedMetricNameList(payload: string[]) {
+    this.currentSelectedMetricNameList = payload;
   }
 
   @Mutation

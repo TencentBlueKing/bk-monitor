@@ -115,6 +115,12 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
       instance.show();
     });
   }
+  // 实例方法，外部通过实例调用
+  update() {
+    if (instance) {
+      instance.popperInstance.update();
+    }
+  }
 
   handleKeyChange(key: string) {
     this.localValue = genDefaultVallue({
@@ -163,6 +169,14 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
     this.$once('hook:beforeDestroy', () => {
       document.body.removeEventListener('keydown', this.handleQuickOperation);
     });
+  }
+
+  beforeDestroy() {
+    if (instance) {
+      instance.hide();
+      instance.destroy();
+      instance = undefined;
+    }
   }
 
   render() {

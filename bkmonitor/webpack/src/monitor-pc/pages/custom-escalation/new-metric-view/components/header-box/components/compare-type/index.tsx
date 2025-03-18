@@ -90,6 +90,9 @@ export default class CompareType extends tsc<IProps, IEmit> {
   }
 
   triggerChange() {
+    if (this.localType === 'time' && this.localOffset.length < 1) {
+      return;
+    }
     this.$emit('change', {
       type: this.localType,
       offset: this.localOffset,
@@ -98,10 +101,8 @@ export default class CompareType extends tsc<IProps, IEmit> {
 
   handleTypeChange(type: string) {
     this.localType = type;
-    if (type !== 'time') {
-      this.localOffset = [];
-      this.triggerChange();
-    }
+    this.localOffset = [];
+    this.triggerChange();
     this.popoverRef.hideHandler();
   }
 

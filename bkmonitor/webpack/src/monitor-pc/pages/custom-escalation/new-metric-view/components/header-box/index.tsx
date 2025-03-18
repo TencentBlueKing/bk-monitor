@@ -26,9 +26,6 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
-import _ from 'lodash';
-
 import CompareType from './components/compare-type';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
@@ -103,16 +100,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   @Ref('rootRef') rootRef: HTMLElement;
 
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
-  }
-
   params = createDefaultParams();
-
-  @Watch('currentSelectedMetricList')
-  currentSelectedMetricListChnage() {
-    this.triggerChange();
-  }
 
   @Watch('dimenstionParams', { immediate: true })
   dimenstionParamsChange() {
@@ -128,8 +116,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   triggerChange() {
     this.$emit('change', {
-      ..._.cloneDeep(this.params),
-      metrics: this.currentSelectedMetricList.map(item => item.metric_name),
+      ...this.params,
     });
   }
 
@@ -179,8 +166,6 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   }
   mounted() {
     this.calcLableWidth();
-
-    console.log('from header box mounted');
   }
 
   render() {

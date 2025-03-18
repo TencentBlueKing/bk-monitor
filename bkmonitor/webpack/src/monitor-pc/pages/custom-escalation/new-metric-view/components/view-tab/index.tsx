@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Model } from 'vue-property-decorator';
+import { Component, Prop, Ref, Model, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import _ from 'lodash';
 import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from 'monitor-api/modules/scene_view';
 
 import RemoveConfirm from './components/remove-confirm';
@@ -42,26 +44,43 @@ interface IEmit {
   onPayloadChange: (params: Record<string, any>) => void;
 }
 
+const DEFAULT_VALUE = 'default';
+
 @Component
 export default class ViewTab extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: () => ({}) }) readonly graphConfigPayload: IProps['graphConfigPayload'];
 
-  @Model('change', { type: String, required: true }) readonly value: string;
+  @Model('change', { type: String, default: DEFAULT_VALUE }) readonly value: string;
 
   @Ref('tabRef') readonly tabRef: any;
 
-  viewTab = 'default';
+  isNeedParseUrl = true;
   isListLoading = true;
   isViewDetailLoading = false;
+  viewTab = '';
   viewList: { id: string; name: string }[] = [];
   sortViewIdList: string[] = [];
+
+  get metricGroupList() {
+    return customEscalationViewStore.metricGroupList;
+  }
 
   get sceneId() {
     return `custom_metric_v2_${this.$route.params.id}`;
   }
 
   get currentSelectViewInfo() {
-    return this.viewList.find(item => item.id === this.viewTab) || { id: 'default', name: 'default' };
+    return this.viewList.find(item => item.id === this.viewTab) || { id: DEFAULT_VALUE, name: DEFAULT_VALUE };
+  }
+
+  @Watch('graphConfigPayload')
+  graphConfigPayloadChange() {
+    this.$router.replace({
+      query: {
+        viewTab: this.viewTab,
+        viewPayload: JSON.stringify(this.graphConfigPayload),
+      },
+    });
   }
 
   async fetchViewList() {
@@ -73,6 +92,9 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       });
       this.viewList = Object.freeze(result);
       this.sortViewIdList = Object.freeze(result.map(item => item.id));
+      if (!result.find(item => item.id === this.viewTab)) {
+        this.viewTab = DEFAULT_VALUE;
+      }
     } finally {
       this.isListLoading = false;
     }
@@ -80,24 +102,62 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   async fetchViewData() {
     this.isViewDetailLoading = true;
+    this.tabRef.updateActiveBarPosition(this.viewTab);
+
+    const updateCurrentSelectedMetricNameList = (metricNameList: string[]) => {
+      // 更新 Store 上的 currentSelectedMetricNameList
+      customEscalationViewStore.updateCurrentSelectedMetricNameList(metricNameList);
+    };
+
     try {
-      if (this.viewTab !== 'default') {
-        const payload = await getSceneView({
-          scene_id: this.sceneId,
-          id: this.viewTab,
-          type: 'detail',
-        });
-        this.$emit('payloadChange', payload.options);
-      } else {
-        this.$emit('payloadChange', {});
+      // url 上面附带的参数优先级高
+      const urlPayload = this.parseUrlPayload();
+      if (urlPayload) {
+        updateCurrentSelectedMetricNameList(urlPayload.metrics);
+        this.$emit('payloadChange', urlPayload);
+        return;
       }
+
+      // 默认视图选择第一个 metric
+      if (this.viewTab === DEFAULT_VALUE) {
+        updateCurrentSelectedMetricNameList(
+          this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : []
+        );
+        this.$emit('payloadChange', {});
+
+        this.isViewDetailLoading = false;
+        return;
+      }
+
+      // 获取自定义视图详情数据
+      const payload = await getSceneView({
+        scene_id: this.sceneId,
+        id: this.viewTab,
+        type: 'detail',
+      });
+
+      updateCurrentSelectedMetricNameList(payload.options.metrics);
+      this.$emit('payloadChange', payload.options);
     } finally {
       this.$emit('change', this.viewTab);
       this.isViewDetailLoading = false;
     }
   }
 
+  parseUrlPayload() {
+    if (!this.$route.query.viewPayload || !this.isNeedParseUrl) {
+      return undefined;
+    }
+    this.isNeedParseUrl = false;
+    const paylaod = JSON.parse((this.$route.query.viewPayload as string) || '') as Record<string, any>;
+    return _.isObject(paylaod) ? paylaod : undefined;
+  }
+
   handleTabChange(value: string) {
+    if (this.isListLoading) {
+      return;
+    }
+
     this.viewTab = value;
     this.fetchViewData();
   }
@@ -124,8 +184,10 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     this.fetchViewList();
   }
 
-  created() {
-    this.fetchViewList();
+  async created() {
+    this.viewTab = this.value;
+    await this.fetchViewList();
+    this.fetchViewData();
   }
 
   render() {

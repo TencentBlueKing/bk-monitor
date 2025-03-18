@@ -27,7 +27,7 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
-import { getSceneView, updateSceneView } from 'monitor-api/modules/scene_view';
+import { updateSceneView } from 'monitor-api/modules/scene_view';
 
 import './index.scss';
 
@@ -89,16 +89,6 @@ export default class ViewSave extends tsc<IProps, IEmit> {
     return this.viewId === 'default';
   }
 
-  async fetchData() {
-    if (!this.isDefaultView) {
-      getSceneView({
-        scene_id: this.sceneId,
-        id: this.viewId,
-        type: 'detail',
-      });
-    }
-  }
-
   handleShow() {
     this.isActive = true;
   }
@@ -156,10 +146,6 @@ export default class ViewSave extends tsc<IProps, IEmit> {
     this.$emit('success');
   }
 
-  created() {
-    this.fetchData();
-  }
-
   render() {
     return (
       <div
@@ -214,6 +200,7 @@ export default class ViewSave extends tsc<IProps, IEmit> {
           <bk-form
             ref='createFormRef'
             form-type='vertical'
+            model={this.createFormData}
             {...{
               props: {
                 model: this.createFormData,

@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
+import { Debounce } from 'monitor-common/utils';
 
 import RenderCommonList from './components/render-common-list/index';
 import { type IValue } from './components/render-result-list/components/edit-panel';
@@ -38,7 +39,7 @@ import './index.scss';
 interface IProps {
   value?: IValue[];
   commonConditionValue?: Omit<IValue, 'condition'>[];
-  commonDimensionEnable: boolean;
+  commonDimensionEnable?: boolean;
 }
 
 interface IEmit {
@@ -58,7 +59,7 @@ interface IEmit {
 }
 
 @Component
-export default class FilterConditions extends tsc<IProps, IEmit> {
+export default class WhereConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
   @Prop({ type: Array, default: () => [] }) readonly commonConditionValue: IProps['commonConditionValue'];
   @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
@@ -71,19 +72,17 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     return customEscalationViewStore.commonDimensionList;
   }
 
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
-  }
-
   @Watch('commonDimensionList', { immediate: true })
   commonDimensionListChange() {
-    this.localCommonConditionValueList = Object.freeze(
-      this.commonDimensionList.map(item => ({
-        key: item.name,
-        method: 'eq',
-        value: [],
-      }))
-    );
+    this.mergeCommonConditionValue();
+  }
+
+  @Watch('commonConditionValue', { immediate: true })
+  commonConditionValueChange() {
+    if (this.commonConditionValue.length > 0) {
+      this.isShowCommonlyUsedList = true;
+      this.mergeCommonConditionValue();
+    }
   }
 
   @Watch('value', { immediate: true })
@@ -91,11 +90,15 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     this.localWhereValueList = Object.freeze([...this.value]);
   }
 
-  @Watch('commonConditionValue', { immediate: true })
-  commonConditionValueChange() {
-    if (this.commonConditionValue.length < 1) {
-      return;
-    }
+  triggerChange() {
+    this.$emit('change', {
+      where: this.localWhereValueList,
+      common_conditions: _.filter(this.localCommonConditionValueList, item => item.value.length > 0),
+    });
+  }
+
+  @Debounce(100)
+  mergeCommonConditionValue() {
     const valueMap = this.commonConditionValue.reduce<Record<string, IProps['commonConditionValue'][number]>>(
       (result, item) => {
         if (item.value.length > 0) {
@@ -107,23 +110,18 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
       },
       {}
     );
-    const latestCommonConditionValueList = [...this.localCommonConditionValueList];
-    latestCommonConditionValueList.forEach(item => {
-      if (valueMap[item.key]) {
-        Object.assign(item, valueMap[item.key]);
-      }
-    });
-    this.localCommonConditionValueList = Object.freeze(latestCommonConditionValueList);
-    this.isShowCommonlyUsedList = true;
-
-    console.log('localCommonConditionValueList = ', this.localCommonConditionValueList);
-  }
-
-  triggerChange() {
-    this.$emit('change', {
-      where: this.localWhereValueList,
-      common_conditions: _.filter(this.localCommonConditionValueList, item => item.value.length > 0),
-    });
+    this.localCommonConditionValueList = Object.freeze(
+      this.commonDimensionList.map(item => {
+        if (valueMap[item.name]) {
+          return { ...valueMap[item.name] };
+        }
+        return {
+          key: item.name,
+          method: 'eq',
+          value: [],
+        };
+      })
+    );
   }
 
   handleConditionChange(value: typeof this.localWhereValueList) {

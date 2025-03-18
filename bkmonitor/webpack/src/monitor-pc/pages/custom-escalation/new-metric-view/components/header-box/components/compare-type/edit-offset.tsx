@@ -70,8 +70,9 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   isHiddePopover = true;
   isCustom = false;
   customDate = '';
+  tempCustomDate = ''; // 自定义日期编辑状态缓存值
   localValue: string[] = [];
-  tempEditValue: string[] = [];
+  tempEditValue: string[] = []; // 偏移日期编辑状态缓存值
 
   get resultList() {
     const valueMap = makeMap(this.localValue);
@@ -80,8 +81,9 @@ export default class CompareWay extends tsc<IProps, IEmit> {
 
   @Watch('value', { immediate: true })
   valueChange() {
-    this.localValue = [...this.value];
     const constValueMap = makeMap(this.offsetList.map(item => item.id));
+    this.localValue = _.filter(this.value, item => constValueMap[item]);
+    // 解析自定义日期
     const customDay = _.find(this.value, item => !constValueMap[item]);
     if (customDay) {
       this.isCustom = true;
@@ -91,7 +93,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
 
   triggerChange() {
     const result = [...this.localValue];
-    if (this.isCustom) {
+    if (this.isCustom && this.customDate) {
       result.push(`${Dayjs().diff(Dayjs(this.customDate), 'day')}d`);
     }
     this.$emit('change', result);
@@ -114,7 +116,10 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     return Dayjs(value).isAfter(Dayjs());
   }
 
-  handleHidePopover(event: Event) {
+  handleHideEdit(event: Event) {
+    if (this.isHiddePopover) {
+      return;
+    }
     if (
       _.some(
         event.composedPath(),
@@ -128,14 +133,16 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     this.popoverRef?.hideHandler();
   }
 
-  handleBeginEdit() {
+  handleShowEdit() {
     this.isHiddePopover = false;
     this.tempEditValue = [...this.localValue];
+    this.tempCustomDate = this.customDate;
   }
 
   handleSubmitEdit() {
     this.isHiddePopover = true;
     this.localValue = [...this.tempEditValue];
+    this.customDate = this.tempCustomDate;
     this.triggerChange();
   }
 
@@ -151,16 +158,16 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   }
 
   handleCustomDateChange(day: string) {
-    this.customDate = day;
+    this.tempCustomDate = day;
   }
 
   mounted() {
     if (this.value.length < 1) {
       this.popoverRef.showHandler();
     }
-    document.body.addEventListener('click', this.handleHidePopover);
+    document.body.addEventListener('click', this.handleHideEdit);
     this.$once('hook:beforeDestro', () => {
-      document.body.removeEventListener('click', this.handleHidePopover);
+      document.body.removeEventListener('click', this.handleHideEdit);
     });
   }
 
@@ -183,7 +190,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
               />
             </div>
           ))}
-          {this.isHiddePopover && this.customDate && (
+          {this.customDate && (
             <div class='offset-tag'>
               {this.customDate}
               <i
@@ -201,7 +208,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             distance: 8,
             hideOnClick: false,
             onHidden: this.handleSubmitEdit,
-            onShow: this.handleBeginEdit,
+            onShow: this.handleShowEdit,
           }}
           theme='light compare-type-time-edit-offset'
           trigger='click'
@@ -213,7 +220,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             ref='popoverMenuRef'
             class='wrapper'
             slot='content'
-            v-bk-clickoutside={this.handleHidePopover}
+            v-bk-clickoutside={this.handleHideEdit}
           >
             <bk-checkbox-group v-model={this.tempEditValue}>
               {this.offsetList.map(offsetItem => (
@@ -229,12 +236,13 @@ export default class CompareWay extends tsc<IProps, IEmit> {
               <bk-checkbox v-model={this.isCustom}>{this.$t('自定义')}</bk-checkbox>
               {this.isCustom && (
                 <bk-date-picker
-                  style='width: 128px; margin-left: 12px;'
+                  style='width: 126px; margin-left: 12px;'
                   options={{
                     disabledDate: this.disabledDateMethod,
                   }}
                   ext-popover-cls='metric-view-custom-date-picker'
                   transfer={true}
+                  value={this.tempCustomDate}
                   onChange={this.handleCustomDateChange}
                 />
               )}

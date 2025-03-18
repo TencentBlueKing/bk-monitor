@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -40,6 +39,7 @@ export interface IColumnItem {
   width?: number | undefined;
   sortable?: boolean | undefined;
   renderFn?: (row) => void;
+  fixed?: string;
 }
 export interface IDataItem {
   name?: string;
@@ -126,7 +126,7 @@ export interface IResultItem {
   common_conditions: {
     key: string;
     method: string;
-    condition: string;
+    value: string[];
   }[];
   group_by: {
     field: string;

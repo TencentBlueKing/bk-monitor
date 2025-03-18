@@ -107,7 +107,6 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   }
 
   render() {
-    console.log('from render coommon == == =', this.data.key, this.data.value);
     return (
       <div class={{ 'filter-conditions-commonly-used-edit-box': true, 'is-focused': this.isFocused }}>
         <div class='conditions-key'>{this.data.key}</div>
@@ -128,10 +127,10 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             onChange={this.handleChange}
             onToggle={this.handleToggle}
           >
-            {this.valueList.map(item => (
+            {this.valueList.map((item, index) => (
               <bk-option
                 id={item.id}
-                key={item.id}
+                key={`${item.id}#${index}`}
                 name={item.name}
               />
             ))}
