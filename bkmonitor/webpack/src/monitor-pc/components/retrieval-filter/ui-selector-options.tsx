@@ -139,7 +139,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
         for (const item of this.fields) {
           if (item.name === id) {
             const checkedItem = JSON.parse(JSON.stringify(item));
-            this.handleCheck(checkedItem, this.value.method.id, this.value.value);
+            this.handleCheck(checkedItem, this.value.method.id, this.value.value, !!this.value?.options?.is_wildcard);
             break;
           }
         }
@@ -164,10 +164,11 @@ export default class UiSelectorOptions extends tsc<IProps> {
    * @description 选中
    * @param item
    */
-  handleCheck(item: IFilterField, method = '', value = []) {
+  handleCheck(item: IFilterField, method = '', value = [], isWildcard = false) {
     this.checkedItem = JSON.parse(JSON.stringify(item));
     this.values = value || [];
     this.method = method || item?.supported_operations?.[0]?.value || '';
+    this.isWildcard = isWildcard;
     const index = this.searchLocalFields.findIndex(f => f.name === item.name) || 0;
     if (this.checkedItem.name === '*') {
       this.queryString = value[0]?.id || '';
@@ -198,10 +199,16 @@ export default class UiSelectorOptions extends tsc<IProps> {
       const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
       const value: IFilterItem = {
         key: { id: this.checkedItem.name, name: this.checkedItem.alias },
-        method: { id: this.method as any, name: methodName },
+        method: { id: this.method as any, name: methodName || '=' },
         value: this.values,
         condition: { id: ECondition.and, name: 'AND' },
+        options: this.isWildcard
+          ? {
+              is_wildcard: true,
+            }
+          : undefined,
       };
+      console.log(value);
       this.$emit('confirm', value);
     } else {
       this.$emit('confirm', null);
@@ -219,30 +226,30 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.values = v;
   }
 
-  /**
-   * @description 是否通配符
-   */
-  handleIsWildcardChange() {
-    this.handleChange();
-  }
+  // /**
+  //  * @description 是否通配符
+  //  */
+  // handleIsWildcardChange() {
+  //   this.handleChange();
+  // }
 
-  handleChange() {
-    if (this.values.length) {
-      const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
-      const value: IFilterItem = {
-        key: { id: this.checkedItem.name, name: this.checkedItem.alias },
-        method: { id: this.method as any, name: methodName },
-        value: this.values,
-        condition: { id: ECondition.and, name: 'AND' },
-        options: this.isWildcard
-          ? {
-              is_wildcard: true,
-            }
-          : undefined,
-      };
-      this.$emit('change', value);
-    }
-  }
+  // handleChange() {
+  //   if (this.values.length) {
+  //     const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
+  //     const value: IFilterItem = {
+  //       key: { id: this.checkedItem.name, name: this.checkedItem.alias },
+  //       method: { id: this.method as any, name: methodName },
+  //       value: this.values,
+  //       condition: { id: ECondition.and, name: 'AND' },
+  //       options: this.isWildcard
+  //         ? {
+  //             is_wildcard: true,
+  //           }
+  //         : undefined,
+  //     };
+  //     this.$emit('change', value);
+  //   }
+  // }
 
   /**
    * @description 监听键盘事件
@@ -429,7 +436,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   <span class='right'>
                     <bk-checkbox
                       v-model={this.isWildcard}
-                      onChange={this.handleIsWildcardChange}
+                      // onChange={this.handleIsWildcardChange}
                     >
                       {this.wildcardItem?.label || '使用通配符'}
                     </bk-checkbox>
