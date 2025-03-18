@@ -43,7 +43,8 @@
                 {{ type === 'all' ? '全部' : '未处理' }}
               </span>
             </div>
-            <div style="margin: 0 12px; color: #3a84ff; cursor: pointer">
+            <div style="margin: 0 12px; color: #3a84ff; cursor: pointer"
+            @click="handleJumpMonitor()">
               {{ t('更多')
               }}<span
                 style="margin-left: 4px"
@@ -168,8 +169,10 @@
   import useLocale from '@/hooks/use-locale';
   import {  formatDate,  } from '@/common/util';
   import {  useRoute } from 'vue-router/composables';
+  import useStore from '@/hooks/use-store';
   const { t } = useLocale();
   const route = useRoute();
+  const store = useStore();
   const panels = ref([
     { name: 'mission', label: '最近告警记录', count: 0 },
     { name: 'config', label: '策略', count: 0 },
@@ -266,6 +269,13 @@ const getLevelClass = (severity:number) => LEVEL_CLASS_MAP[severity] || LEVEL_CL
       tableKey.value += 1;
   }
   };
+  const handleJumpMonitor = ()=>{
+    const addressMap={
+      mission:'event-center',
+      config:'strategy-config',
+    }
+    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
+  }
   const getAlertDate= async(val:string)=>{
     try {
       loading.value = true;
@@ -343,7 +353,7 @@ const getLevelClass = (severity:number) => LEVEL_CLASS_MAP[severity] || LEVEL_CL
     }
   };
   onMounted(()=> {
-    console.log(route,'router')
+    console.log(route,'router', store.state.bkBizId,)
     const match = route.path.match(/\/retrieve\/(\d+)/); // 用正则表达式匹配数字
     if (match) {
       const number = match[1]; // 第一个捕获组
