@@ -1,6 +1,7 @@
 .retrieval-filter__component {
+  z-index: 2;
   width: 100%;
-  background: #FFFFFF;
+  background: #ffffff;
   box-shadow: 0 2px 4px 0 #19192914;
 
   .retrieval-filter__component-main {
@@ -20,7 +21,7 @@
       font-size: 12px;
       color: #313238;
       cursor: pointer;
-      border-right: 1px #DCDEE5 solid;
+      border-right: 1px #dcdee5 solid;
 
       .text {
         margin-right: 4px;
@@ -35,7 +36,7 @@
         height: 14px;
         font-size: 12px;
         color: #fff;
-        background: #4D4F56;
+        background: #4d4f56;
         border-radius: 50%;
 
         .icon-monitor {
@@ -45,11 +46,11 @@
 
       &:hover {
         .text {
-          color: #3A84FF;
+          color: #3a84ff;
         }
 
         .mode-icon {
-          background: #3A84FF;
+          background: #3a84ff;
         }
       }
     }
@@ -73,17 +74,17 @@
         height: 24px;
         margin-right: 12px;
         font-size: 16px;
-        color: #4D4F56;
+        color: #4d4f56;
         cursor: pointer;
         border-radius: 2px;
-  
+
         &:hover {
-          background: #EAEBF0;
+          background: #eaebf0;
         }
 
         &.btn-active {
-          color: #3A84FF;
-          background: #E1ECFF;
+          color: #3a84ff;
+          background: #e1ecff;
         }
       }
 
@@ -94,7 +95,7 @@
         justify-content: center;
         width: 48px;
         cursor: pointer;
-        background: #3A84FF;
+        background: #3a84ff;
         border-radius: 0 2px 2px 0;
 
         .icon-mc-search {
@@ -106,10 +107,9 @@
   }
 
   .retrieval-filter__resident-setting-component {
-    border-top: 1px #DCDEE5 solid;
+    border-top: 1px #dcdee5 solid;
   }
 }
-
 
 .tippy-popper.favorite-btn-popover {
   .tippy-tooltip {
@@ -126,7 +126,7 @@
     cursor: pointer;
 
     &:hover {
-      background-color: #F5F7FA;
+      background-color: #f5f7fa;
     }
   }
 }
