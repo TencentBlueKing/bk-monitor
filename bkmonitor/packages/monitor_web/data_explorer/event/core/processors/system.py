@@ -13,9 +13,8 @@ import logging
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-
-import settings
 
 from ...constants import (
     SYSTEM_EVENT_TRANSLATIONS,
@@ -63,9 +62,9 @@ class HostEventProcessor(BaseEventProcessor):
     def _get_target_alias(self, host_info: Dict[str, Dict[str, Any]]) -> str:
         bk_cloud_id: int = host_info["bk_cloud_id"]["value"]
         return "{}[{}] / {}".format(
-            self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}]).get(bk_cloud_id, {}).get(
-                "bk_cloud_name", ""
-            ),
+            self.system_cluster_context.fetch([{"bk_cloud_id": bk_cloud_id}])
+            .get(bk_cloud_id, {})
+            .get("bk_cloud_name", ""),
             bk_cloud_id,
             host_info["ip"]["value"],
         )
