@@ -45,7 +45,6 @@ interface IProps {
   search?: string;
   selected?: string[];
   fieldInfo?: IFieldItem;
-  method?: string;
   show?: boolean;
   isPopover?: boolean;
   width?: number;
@@ -59,7 +58,6 @@ export default class ValueOptions extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) selected: string[];
   @Prop({ type: String, default: '' }) search: string;
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
-  @Prop({ type: String, default: '' }) method: string;
   /* 是否通过popover组件显示 */
   @Prop({ type: Boolean, default: false }) isPopover: boolean;
   /* 如果荣国popover组件显示则需传入此属性 */
@@ -211,9 +209,8 @@ export default class ValueOptions extends tsc<IProps> {
 
   /**
    * @description 搜索接口
-   * @param item
-   * @param method
-   * @param value
+   * @param isScroll
+   * @returns
    */
   async getValueData(isScroll = false) {
     let list = [];

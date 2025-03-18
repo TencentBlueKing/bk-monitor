@@ -43,7 +43,6 @@ export interface IValue {
 interface IProps {
   value?: IValue[];
   fieldInfo?: IFieldItem;
-  method?: string;
   onChange?: (v: IValue[]) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
@@ -55,7 +54,6 @@ interface IProps {
 export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IValue[];
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
-  @Prop({ type: String, default: '' }) method: string;
   @Prop({
     type: Function,
     default: () =>
@@ -296,7 +294,6 @@ export default class ValueTagSelector extends tsc<IProps> {
           <ValueOptions
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
-            method={this.method}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
             onIsChecked={this.handleIsChecked}

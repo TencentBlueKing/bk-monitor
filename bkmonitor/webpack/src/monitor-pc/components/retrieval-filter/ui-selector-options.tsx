@@ -448,7 +448,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   key={this.rightRefreshKey}
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
-                  method={this.method}
                   value={this.values}
                   onChange={this.handleValueChange}
                   onDropDownChange={this.handleDropDownChange}
