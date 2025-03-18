@@ -78,6 +78,14 @@ export enum K8sTableColumnKeysEnum {
    */
   WORKLOAD_TYPE = 'workload_type',
   /**
+   * @description: ingress - 网络场景特有维度字段
+   */
+  INGRESS = 'ingress',
+  /**
+   * @description: service - 网络场景特有维度字段
+   */
+  SERVICE = 'service',
+  /**
    * @description: container_cpu_usage_seconds_total - CPU使用量
    */
   CPU_USAGE = 'container_cpu_usage_seconds_total',
@@ -141,6 +149,7 @@ export type K8sSortType = '' | 'asc' | 'desc';
 
 export enum SceneEnum {
   Performance = 'performance',
+  Network = 'network',
 }
 
 export interface GroupListItem<T = string> {

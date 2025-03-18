@@ -419,7 +419,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
-    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER } = K8sTableColumnKeysEnum;
+    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE } = K8sTableColumnKeysEnum;
 
     return {
       [CLUSTER]: {
@@ -472,6 +472,26 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       [CONTAINER]: {
         id: CONTAINER,
         name: this.$t('container'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: true,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
+      [INGRESS]: {
+        id: INGRESS,
+        name: this.$t('ingress'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: true,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
+      [SERVICE]: {
+        id: SERVICE,
+        name: this.$t('service'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
