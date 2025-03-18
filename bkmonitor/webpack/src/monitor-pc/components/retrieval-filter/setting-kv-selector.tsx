@@ -38,6 +38,7 @@ import './setting-kv-selector.scss';
 interface IProps {
   fieldInfo?: IFieldItem;
   value?: IWhereItem;
+  maxWidth?: number;
   getValueFn?: TGetValueFn;
   onChange?: (value: IWhereItem) => void;
 }
