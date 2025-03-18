@@ -372,7 +372,7 @@ export default class EventExplore extends tsc<
     const { key, method, value } = item;
     if (this.filterMode === EMode.ui) {
       this.handleWhereChange(
-        mergeWhereList(this.where, [{ condition: ECondition.and, key, method, value: [value || '""'] }])
+        mergeWhereList(this.where, [{ condition: ECondition.and, key, method, value: [value || ''] }])
       );
       return;
     }
