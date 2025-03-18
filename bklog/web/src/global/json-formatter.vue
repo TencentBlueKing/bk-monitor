@@ -106,10 +106,12 @@
       field,
     };
   };
+
   const getFieldName = field => {
     const { getFieldName } = useFieldNameHook({ store });
     return getFieldName(field);
   };
+
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({
