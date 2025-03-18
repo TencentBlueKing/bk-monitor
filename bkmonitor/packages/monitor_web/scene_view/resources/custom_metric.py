@@ -166,7 +166,7 @@ class GetCustomTsGraphConfig(Resource):
         where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
         common_conditions = serializers.ListField(label="常用维度过滤", default=list)
-        limit = LimitSerializer(label="限制返回的series数量", allow_null=True, default=None)
+        limit = LimitSerializer(label="限制返回的series数量", default={})
         compare = CompareSerializer(label="对比配置", default={})
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
