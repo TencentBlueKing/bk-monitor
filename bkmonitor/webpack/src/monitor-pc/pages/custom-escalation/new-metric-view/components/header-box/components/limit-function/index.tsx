@@ -30,7 +30,7 @@ import './index.scss';
 
 interface IProps {
   value: {
-    function: 'bottom' | 'top';
+    function: string;
     limit: number;
   };
 }

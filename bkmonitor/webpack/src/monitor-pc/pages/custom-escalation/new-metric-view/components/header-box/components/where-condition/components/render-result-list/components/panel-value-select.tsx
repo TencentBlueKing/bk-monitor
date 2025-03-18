@@ -64,8 +64,8 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
   isLoading = false;
   valueList: { id: string; name: string }[] = [];
 
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
+  get currentSelectedMetricNameList() {
+    return customEscalationViewStore.currentSelectedMetricNameList;
   }
 
   @Watch('keyName', { immediate: true })
@@ -88,7 +88,7 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
         dimension: this.keyName,
         start_time: startTime || 0,
         end_time: endTime || 0,
-        metrics: this.currentSelectedMetricList.map(item => item.metric_name),
+        metrics: this.currentSelectedMetricNameList,
       });
       this.valueList = result.map(item => ({
         id: item.name,
@@ -110,21 +110,21 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='edit-panel-value-select'>
-        <bk-loading is-loading={this.isLoading}>
-          <div class='value-title'>{this.$t('运算符')}</div>
-          <bk-select
-            disabled={!this.keyName}
-            value={this.method}
-            onChange={this.handleMethodChange}
-          >
-            {methodList.map(methodItem => (
-              <bk-option
-                id={methodItem.id}
-                name={methodItem.name}
-              />
-            ))}
-          </bk-select>
-          <div class='value-title'>{this.$t('筛选值')}</div>
+        <div class='value-title'>{this.$t('运算符')}</div>
+        <bk-select
+          disabled={!this.keyName}
+          value={this.method}
+          onChange={this.handleMethodChange}
+        >
+          {methodList.map(methodItem => (
+            <bk-option
+              id={methodItem.id}
+              name={methodItem.name}
+            />
+          ))}
+        </bk-select>
+        <div class='value-title'>{this.$t('筛选值')}</div>
+        <div v-bkloading={{ 'is-loading': this.isLoading }}>
           <bk-tag-input
             ref='valueTagInputRef'
             allow-create={true}
@@ -135,7 +135,7 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
             value={this.value}
             onChange={this.handleValueChange}
           />
-        </bk-loading>
+        </div>
       </div>
     );
   }

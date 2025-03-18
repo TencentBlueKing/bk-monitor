@@ -28,8 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { type getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
-import { makeMap } from 'monitor-common/utils/make-map';
+import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 
 import RenderMetric from './render-metric';
 
@@ -49,12 +48,8 @@ type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 interface IProps {
   searchKey?: string;
 }
-
 interface IEmit {
-  onChange: (value: {
-    metricsList: TCustomTsMetricGroups['metric_groups'][number]['metrics'];
-    commonDimensionList: TCustomTsMetricGroups['common_dimensions'];
-  }) => void;
+  onChange: (value: string[]) => void;
 }
 
 /**
@@ -78,6 +73,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
   isLoading = true;
+  // {[groupId]: false} 值明确是 false 才表示折叠状态
   groupFlodMap: Readonly<Record<string, boolean>> = {};
   handleSearch = () => {};
 
@@ -89,19 +85,38 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
     return customEscalationViewStore.metricGroupList;
   }
 
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
+
   @Watch('searchKey', { immediate: true })
   searchKeyChange() {
     this.handleSearch();
   }
 
+  @Watch('currentSelectedMetricList')
+  currentSelectedMetricListChange() {
+    this.localCheckedMetricNameList = this.currentSelectedMetricList.map(item => item.metric_name);
+  }
+
   async fetchData() {
+    const id = Number(this.$route.params.id);
+    const needParseUrl = Boolean(this.$route.query.viewPayload);
+    customEscalationViewStore.updateTimeSeriesGroupId(id);
     try {
-      await customEscalationViewStore.fetchData({
-        time_series_group_id: Number(this.$route.params.id),
+      const result = await getCustomTsMetricGroups({
+        time_series_group_id: id,
       });
-      if (this.metricGroupList.length > 0) {
-        this.localCheckedMetricNameList = [this.metricGroupList[0].metrics[0].metric_name];
-        this.handleMetricSelectChange(this.localCheckedMetricNameList);
+
+      customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
+      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
+
+      if (!needParseUrl) {
+        if (this.metricGroupList.length > 0) {
+          this.handleMetricSelectChange([this.metricGroupList[0].metrics[0].metric_name]);
+        } else {
+          customEscalationViewStore.updateCurrentSelectedMetricNameList([]);
+        }
       }
 
       this.renderMetricGroupList = Object.freeze(this.metricGroupList);
@@ -110,9 +125,19 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
     }
   }
 
+  // 实例方法
   resetMetricChecked() {
     this.localCheckedMetricNameList = [];
-    customEscalationViewStore.updateCurrentSelectedMetricList([]);
+    customEscalationViewStore.updateCurrentSelectedMetricNameList([]);
+    this.$emit('change');
+  }
+  // 实例方法
+  flodAll() {
+    const latestGroupFlodMap = { ...this.groupFlodMap };
+    this.renderMetricGroupList.forEach(item => {
+      latestGroupFlodMap[item.name] = false;
+    });
+    this.groupFlodMap = Object.freeze(latestGroupFlodMap);
   }
 
   handleGroupToggleFlod(metricGroupName: string) {
@@ -133,18 +158,8 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
   }
 
   handleMetricSelectChange(value: string[]) {
-    const metricKeyMap = makeMap(value);
-
-    const result = this.metricGroupList.reduce<IMetric[]>((result, groupItem) => {
-      groupItem.metrics.forEach(metricsItem => {
-        if (metricKeyMap[metricsItem.metric_name]) {
-          result.push(metricsItem);
-        }
-      });
-      return result;
-    }, []);
-
-    customEscalationViewStore.updateCurrentSelectedMetricList(result);
+    customEscalationViewStore.updateCurrentSelectedMetricNameList(value);
+    this.$emit('change', value);
   }
 
   created() {

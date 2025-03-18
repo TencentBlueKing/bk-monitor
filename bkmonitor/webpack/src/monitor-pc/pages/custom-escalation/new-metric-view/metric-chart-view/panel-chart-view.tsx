@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
+import { Debounce } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
@@ -114,13 +115,30 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     });
   }
   /** 获取图表配置 */
+  @Debounce(300)
   getGroupList() {
-    this.loading = true;
-    const { show_statistical_value, view_column, highlight_peak_value, compare, ...rest } = this.config;
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
-    const params = compare?.type ? { ...rest, compare } : rest;
+    console.log('getGroupList = ', this.config);
+    if (this.config.metrics.length < 1) {
+      this.loading = false;
+      this.groupList = [];
+      this.activeName = [];
+      return;
+    }
 
-    getCustomTsGraphConfig({ ...params, start_time: startTime, end_time: endTime })
+    this.loading = true;
+    const params = {
+      ...this.config,
+      time_series_group_id: Number(this.$route.params.id),
+    };
+    delete params.show_statistical_value;
+    delete params.view_column;
+    delete params.highlight_peak_value;
+    delete params.bk_biz_id;
+    if (!params.compare?.type) {
+      delete params.compare;
+    }
+
+    getCustomTsGraphConfig(params)
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
@@ -183,6 +201,17 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   }
 
   render() {
+    if (this.config.metrics?.length < 1) {
+      return (
+        <bk-exception
+          class='panel-metric-chart-view-empty'
+          scene='part'
+          type='empty'
+        >
+          {this.$t('没有选择任务指标')}
+        </bk-exception>
+      );
+    }
     return (
       <div class='panel-metric-chart-view'>
         {this.loading ? (
@@ -218,7 +247,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
           </bk-collapse>
         ) : (
           <EmptyStatus
-            class='panel-chart-view-empty'
+            class='panel-metric-chart-view-empty'
             textMap={{ empty: this.$t('暂无数据') }}
             type={'empty'}
           />

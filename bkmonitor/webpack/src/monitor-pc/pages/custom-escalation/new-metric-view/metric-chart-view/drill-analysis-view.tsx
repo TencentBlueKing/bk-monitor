@@ -59,6 +59,7 @@ interface IDrillAnalysisViewEvents {
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
+  @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   panelData = {
@@ -128,6 +129,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         // 观察目标元素
         this.resizeObserver.observe(this.drillMainRef);
       }
+    });
+    document.body.appendChild(this.rootRef);
+    this.$once('hook:beforeDestroy', () => {
+      this.rootRef.parentElement.removeChild(this.rootRef);
     });
   }
   beforeUnmount() {
@@ -296,10 +301,12 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   handleConditionChange(payload: { where: IResultItem['where']; common_conditions: IResultItem['common_conditions'] }) {
     this.setPanelConfigAndRefresh('where', payload.where);
   }
-
   render() {
     return (
-      <div class='drill-analysis-view'>
+      <div
+        ref='rootRef'
+        class='drill-analysis-view'
+      >
         <div class='drill-analysis-head'>
           {this.$t('下钻分析')}
           <i

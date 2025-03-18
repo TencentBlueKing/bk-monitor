@@ -37,7 +37,7 @@ interface IProps {
     field: string;
     split: boolean;
   }[];
-  splitable: boolean;
+  splitable?: boolean;
 }
 
 interface IEmit {
@@ -140,7 +140,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
                 {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
                 {item.field}
                 <i
-                  class='icon-monitor icon-mc-close'
+                  class='icon-monitor icon-mc-close remote-btn'
                   onClick={() => this.handleRemove(index)}
                 />
               </div>

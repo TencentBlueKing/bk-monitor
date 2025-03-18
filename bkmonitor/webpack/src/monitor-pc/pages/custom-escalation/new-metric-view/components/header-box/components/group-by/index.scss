@@ -31,9 +31,9 @@
       border-radius: 2px;
       background-color: #f0f1f5;
       padding: 0 2px;
-      cursor: pointer;
       margin-top: 6px;
       margin-left: 6px;
+      white-space: nowrap;
       &:hover {
         background: #dde4eb;
       }
@@ -41,6 +41,10 @@
     .split-flag {
       font-size: 12px;
       margin-right: 2px;
+    }
+    .remote-btn {
+      cursor: pointer;
+      padding-left: 4px;
     }
   }
 }

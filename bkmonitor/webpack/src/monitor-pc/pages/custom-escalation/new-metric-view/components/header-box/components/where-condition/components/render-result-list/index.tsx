@@ -67,6 +67,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   @Watch('value', { immediate: true })
   valueChange() {
     this.localValue = Object.freeze(this.value);
+    this.editPanelRef?.update();
   }
 
   calcLatestMetricsList() {

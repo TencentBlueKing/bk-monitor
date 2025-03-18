@@ -57,7 +57,6 @@ export default class PageHeader extends tsc<object> {
         id: `${id}`,
       },
     });
-    customEscalationViewStore.updateCurrentSelectedMetricList([]);
   }
 
   created() {

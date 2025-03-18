@@ -51,6 +51,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
 
   checkedMap: Readonly<Record<string, boolean>> = {};
   renderData: Readonly<IProps['data']> = [];
+  hasSelectedAll = false;
 
   handleFilterChange: (filterKey: string) => void;
 
@@ -64,6 +65,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.checkedMap = Object.freeze(
       this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
     );
+    this.hasSelectedAll = _.every(this.renderData, item => _.has(this.checkedMap, item.name));
   }
 
   handleToggleAll(checkAll: boolean) {
@@ -114,11 +116,13 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.handleFilterChange = _.throttle((filterKey: string) => {
       if (!filterKey) {
         this.renderData = Object.freeze(this.data);
-        return;
+      } else {
+        this.renderData = Object.freeze(
+          _.filter(this.data, item => item.name.toLocaleLowerCase().includes(filterKey.toLocaleLowerCase()))
+        );
       }
-      this.renderData = Object.freeze(
-        _.filter(this.data, item => item.name.toLocaleLowerCase().includes(filterKey.toLocaleLowerCase()))
-      );
+
+      this.hasSelectedAll = _.every(this.renderData, item => _.has(this.checkedMap, item.name));
     }, 300);
   }
 
@@ -201,7 +205,12 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           {this.renderData.length > 0 && (
             <div class='dimension-list'>
               <div class='item'>
-                <bk-checkbox onChange={this.handleToggleAll}>{this.$t('全部')}</bk-checkbox>
+                <bk-checkbox
+                  checked={this.hasSelectedAll}
+                  onChange={this.handleToggleAll}
+                >
+                  {this.$t('全部')}
+                </bk-checkbox>
               </div>
               {this.renderData.map(renderDimensionItem)}
             </div>

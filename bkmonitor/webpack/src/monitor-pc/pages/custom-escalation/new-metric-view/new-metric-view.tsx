@@ -41,47 +41,57 @@ import './new-metric-view.scss';
 
 @Component
 export default class NewMetricView extends tsc<object> {
-  currentView = '';
+  currentView = 'asdadas';
   dimenstionParams: Record<string, any> = {};
-  startTime = 'now-1h';
-  endTime = 'now';
 
   get timeSeriesGroupId() {
-    return this.$route.params.id;
+    return Number(this.$route.params.id);
+  }
+
+  get startTime() {
+    return customEscalationViewStore.startTime;
+  }
+
+  get endTime() {
+    return customEscalationViewStore.endTime;
   }
 
   get graphConfigParams() {
-    // const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     return {
+      limit: {
+        function: 'top', // top/bottom
+        limit: 10, // 0不限制
+      },
+      view_column: 1,
       ...this.dimenstionParams,
-      start_time: this.startTime,
-      end_time: this.endTime,
-      time_series_group_id: this.timeSeriesGroupId,
+      start_time: startTime,
+      end_time: endTime,
+      metrics: customEscalationViewStore.currentSelectedMetricNameList,
     };
   }
 
-  @Watch('$route')
-  routerChange() {
-    console.log('from rout change = ', this.$route);
-    this.dimenstionParams = {};
+  @Watch('graphConfigParams')
+  graphConfigParamsChange() {
+    this.$router.replace({
+      query: {
+        viewTab: this.currentView,
+        payload: JSON.stringify(this.graphConfigParams),
+      },
+    });
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
-    // const [startTime, endTime] = timeRange;
-    // this.startTime = startTime;
-    // this.endTime = endTime;
-    // this.$router.replace({
-    //   query: {
-    //     ...this.$route.query,
-    //     startTime,
-    //     endTime,
-    //   },
-    // });
     customEscalationViewStore.updateTimeRange(timeRange);
   }
 
   handleDimensionParamsChange(payload: any) {
     this.dimenstionParams = Object.freeze(payload);
+  }
+
+  created() {
+    const routerQuery = this.$route.query as Record<string, string>;
+    this.currentView = routerQuery.viewTab || 'default';
   }
 
   render() {
@@ -98,12 +108,12 @@ export default class NewMetricView extends tsc<object> {
         <div key={this.timeSeriesGroupId}>
           <ViewTab
             v-model={this.currentView}
-            graphConfigPayload={this.dimenstionParams}
+            graphConfigPayload={this.graphConfigParams}
             onPayloadChange={this.handleDimensionParamsChange}
           >
             <bk-resize-layout
-              key={this.currentView}
               style='height: calc(100vh - 140px - var(--notice-alert-height))'
+              collapsible={true}
               initial-divide={220}
             >
               <template slot='aside'>
@@ -111,6 +121,7 @@ export default class NewMetricView extends tsc<object> {
               </template>
               <template slot='main'>
                 <HeaderBox
+                  key={this.currentView}
                   dimenstionParams={this.dimenstionParams}
                   commonDimensionEnable
                   groupBySplitEnable

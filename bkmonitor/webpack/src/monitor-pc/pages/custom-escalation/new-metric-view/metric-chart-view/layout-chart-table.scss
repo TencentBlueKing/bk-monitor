@@ -3,10 +3,8 @@
   height: 100%;
   overflow-y: auto;
   border-radius: 2px;
-  //   margin: 12px 12px 0;
   background: #ffffff;
   position: relative;
-  padding: 12px;
   .layout-chart-table-main {
     width: 100%;
     .bk-resize-layout-aside {
@@ -55,6 +53,9 @@
         tr {
           background-color: #fafbfd;
         }
+      }
+      .bk-table-fixed {
+        border-bottom: none;
       }
     }
   }

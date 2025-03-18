@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Model, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -70,10 +70,11 @@ export default class KeySelect extends tsc<IProps, IEmit> {
   }
 
   handleMouseleave() {
-    console.log('handleMouseleave');
-    this.wrapperRef.querySelectorAll('.is-hover').forEach(ele => {
-      ele.classList.remove('is-hover');
-    });
+    setTimeout(() => {
+      this.wrapperRef.querySelectorAll('.is-hover').forEach(ele => {
+        ele.classList.remove('is-hover');
+      });
+    }, 100);
   }
 
   created() {

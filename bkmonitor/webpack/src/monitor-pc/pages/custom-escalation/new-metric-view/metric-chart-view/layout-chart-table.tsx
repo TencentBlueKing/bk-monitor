@@ -81,7 +81,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   offset = 0;
   parentHeight = 600;
   columnList = [
-    { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row) },
+    { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row), fixed: 'left' },
     { label: '最大值', prop: 'max' },
     { label: '最小值', prop: 'min' },
     { label: '最新值', prop: 'latest' },
@@ -235,6 +235,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
                 return <span title={row[item.prop]}>{row[item.prop] || '--'}</span>;
               },
             }}
+            fixed={item.fixed}
             label={this.$t(item.label)}
             prop={item.prop}
             sortable={ind === 0 ? false : true}
