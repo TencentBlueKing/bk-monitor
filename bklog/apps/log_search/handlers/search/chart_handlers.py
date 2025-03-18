@@ -206,10 +206,10 @@ class SQLChartHandler(ChartHandler):
                 span.set_attribute("index_set_id", self.index_set_id)
                 span.set_attribute("username", get_request_username())
                 span.set_attribute("space_uid", self.data.space_uid)
-                span.set_attribute("doris_table_id", self.data.doris_table_id)
 
                 if not self.data.support_doris:
                     raise IndexSetDorisQueryException()
+                span.set_attribute("doris_table_id", self.data.doris_table_id)
                 parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
                 span.set_attribute("parsed_sql", parsed_sql)
 
