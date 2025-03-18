@@ -79,9 +79,9 @@ class OriginEventProcessor(BaseEventProcessor):
 
             # 添加类型相关的字段
             if field.get("type", "") == DisplayFieldType.LINK.value:
-                event[field_name]["url"] = URL_MOCK_DATA
+                event[field_name]["url"] = ""
             elif field.get("type", "") == DisplayFieldType.DESCRIPTIONS.value:
-                event[field_name]["detail"] = DETAIL_MOCK_DATA
+                event[field_name]["detail"] = {}
 
         return event
 

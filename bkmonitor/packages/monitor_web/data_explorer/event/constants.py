@@ -266,7 +266,7 @@ ENTITIES = [
         "dependent_fields": ["bcs_cluster_id"],
     },
     # 跳转到主机监控
-    {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
+    {"type": "ip", "alias": _("主机"), "fields": ["bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
 
 DEFAULT_DIMENSION_FIELDS = ["time", "event_name", "event.count", "event.content", "target", "type"]
