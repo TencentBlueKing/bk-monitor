@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import {
   customTsGroupingRuleList,
+  importCustomTimeSeriesFields,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
@@ -42,7 +43,7 @@ import DimensionTableSlide from './dimension-table-slide';
 import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
-import type { IDetailData, IEditParams, ISideslider } from '../../../types/custom-escalation/custom-escalation-detail';
+import type { IDetailData, IEditParams } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
@@ -115,13 +116,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     auto_discover: false,
   };
 
-  //  侧滑栏内容数据 事件数据
-  sideslider: ISideslider = {
-    isShow: false,
-    title: '',
-    data: {}, //  原始数据
-  };
-
   //  指标维度数据 时序数据
   metricData = [];
   isShowData = true; // 是否展示数据预览 时序数据
@@ -147,12 +141,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   ];
 
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
-  metricCheckList: any = [];
   groupFilterList: string[] = [];
-  groupManage = {
-    show: false,
-  };
-  metricSearchValue = [];
+
   /* 筛选条件(简化) */
   metricSearchObj = {
     type: [],
@@ -173,15 +163,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   metricList = [];
   /* 维度列表 */
   dimensions = [];
-  /* 分组标签pop实例 */
-  groupTagInstance = null;
-  /* 用于判断分组下拉列表展开期间是否选择过 */
-  isUpdateGroup = false;
 
   /* 数据预览ALL */
   allDataPreview = {};
-
-  eventDataLoading = false;
 
   /* 所有单位数据 */
   allUnitList = [];
@@ -211,11 +195,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   // 未分组数量
   get nonGroupNum() {
     return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
-  }
-
-  get selectionLeng() {
-    const selectionList = this.metricTable.filter(item => item.selection);
-    return selectionList.length;
   }
 
   // 上报周期
@@ -288,106 +267,68 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   }
 
   /** 处理导出 */
-  handleExportMetric(currentTab: 'dimension' | 'metric') {
-    const generateUnitString = () => {
-      if (currentTab !== 'metric') return '';
-      const allUnits = this.unitList.flatMap(group => group.formats.map(item => item.id));
-      return allUnits
-        .reduce((str, unit, index) => `${str}${unit}${(index + 1) % 5 === 0 ? '\n' : '、'}`, '')
-        .replace(/、\n/g, '\n');
-    };
-
-    // CSV安全处理
-    const escapeCSVField = (value: boolean | number | string) => {
-      if (value == null) return '';
-      const stringVal = String(value);
-      if (/[",\n]/.test(stringVal)) {
-        return `"${stringVal.replace(/"/g, '""')}"`;
-      }
-      return stringVal;
-    };
-
-    // 动态生成描述信息
-    const generateDescription = () => {
-      const baseTips = [
-        currentTab === 'metric' ? this.$t('分组分隔方式(仅;分隔)') : this.$t('布尔值请填写true/false'),
-        this.$t('导入时-表示不更新'),
-        this.$t('空单元格表示置空'),
-      ].join('. ');
-
-      const unitTip =
-        currentTab === 'metric' ? this.$t('单位可选类型: {unitStr}', { unitStr: generateUnitString() }) : '';
-
-      return [unitTip, baseTips].filter(Boolean).join('\n');
-    };
-
-    // 动态表头生成
-    const generateHeaders = () => {
-      const metricHeaders = [
-        this.$t('名称'),
-        this.$t('别名'),
-        this.$t('状态'),
-        this.$t('分组'),
-        this.$t('类型'),
-        this.$t('单位'),
-        this.$t('汇聚方法'),
+  handleExportMetric() {
+    // 构建JSON内容
+    const dimensions = this.dimensions.length
+      ? this.dimensions
+      : [
+        {
+          name: 'dimension1',
+          type: 'dimension',
+          description: '',
+          disabled: true,
+          common: true,
+        },
       ];
-
-      const dimensionHeaders = [
-        this.$t('名称'),
-        this.$t('别名'),
-        this.$t('状态'),
-        this.$t('是否常用维度'),
-        this.$t('类型'),
+    const metrics = this.metricData.length
+      ? this.metricData
+      : [
+        {
+          name: 'metric1',
+          type: 'metric',
+          description: '',
+          disabled: false,
+          unit: '',
+          hidden: false,
+          aggregate_method: '',
+          function: {},
+          interval: 0,
+          label: [],
+          dimensions: ['dimension1'],
+        },
       ];
-
-      return (currentTab === 'metric' ? metricHeaders : dimensionHeaders).map(escapeCSVField);
+    const groupRules = this.groupList
+      ? this.groupList
+      : [
+        {
+          name: '测试分组',
+          manual_list: ['metric1'],
+          auto_rules: ['rule1'],
+        },
+      ];
+    const template = {
+      dimensions,
+      metrics,
+      group_rules: groupRules,
     };
-
-    // 动态数据行生成
-    const generateDataRows = () => {
-      const sourceData = currentTab === 'metric' ? this.metricData : this.dimensions;
-
-      return sourceData.map(item => {
-        // 公共字段
-        const baseFields = [item.name, item.description || '-', item.disabled ? '停' : '启'];
-
-        // 类型特定字段
-        const specificFields =
-          currentTab === 'metric'
-            ? [
-              item.labels.map(l => l.name).join(';') || '-',
-              item.type || '-',
-              item.unit || '-',
-              item.aggregation_method || '-',
-            ]
-            : [item.common ? '是' : '否', currentTab];
-
-        return [...baseFields, ...specificFields].map(escapeCSVField);
-      });
-    };
-
-    // 构建CSV内容
-    const buildCSVContent = () => {
-      const csvLines = [];
-      // 描述行（带动态信息）
-      csvLines.push(escapeCSVField(generateDescription()));
-      csvLines.push(''); // 空行分隔
-      // 表头
-      csvLines.push(generateHeaders().join(','));
-      // 数据行
-      csvLines.push(...generateDataRows().map(row => row.join(',')));
-      return csvLines.join('\n');
-    };
-
     // 生成动态文件名
     const generateFileName = () => {
-      const prefix = currentTab === 'metric' ? this.$t('指标') : this.$t('维度');
-      return `${prefix}-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.csv`;
+      return `自定义指标-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.json`;
     };
-
     // 执行下载
-    downCsvFile(buildCSVContent(), generateFileName());
+    downCsvFile(JSON.stringify(template, null, 2), generateFileName());
+  }
+
+  /** 处理导入 */
+  async handleUploadMetric(jsonData) {
+    if (!jsonData) {
+      return;
+    }
+    await importCustomTimeSeriesFields({
+      time_series_group_id: this.$route.params.id,
+      ...JSON.parse(jsonData),
+    });
+    await this.getDetailData();
   }
 
   /**
@@ -1110,6 +1051,27 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     return { added, removed };
   }
 
+  /** 批量添加至分组 */
+  async handleBatchAddGroup(groupName, manualList) {
+    const group = this.groupsMap.get(groupName);
+    if (!group) {
+      return;
+    }
+
+    const currentMetrics = group.manualList || [];
+    const newMetrics = [...new Set([...currentMetrics, ...manualList])];
+    try {
+      await this.submitGroupInfo({
+        name: groupName,
+        manual_list: newMetrics,
+        auto_rules: group.matchRules || [],
+      });
+      this.getDetailData();
+    } catch (error) {
+      console.error(`Batch group ${groupName} update failed:`, error);
+    }
+  }
+
   async updateGroupInfo(metricName, groupNames, isAdd = true) {
     if (!groupNames?.length) return;
 
@@ -1206,7 +1168,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       if (tempObj.match_type.length) labels.push(tempObj);
     }
-    this.isUpdateGroup = true;
     this.metricTable[index].labels = labels;
     this.updateGroupList();
   }
@@ -1296,12 +1257,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onGroupDelByName={this.handleDelGroup}
                   onGroupListOrder={tab => (this.groupList = tab)}
                   onGroupSubmit={this.handleSubmitGroup}
+                  onHandleBatchAddGroup={this.handleBatchAddGroup}
                   onHandleClickSlider={v => {
                     this.isShowMetricSlider = v;
                   }}
                   onHandleExport={this.handleExportMetric}
                   onHandleSelectGroup={this.handleSelectGroup}
                   onHandleSelectToggle={this.saveSelectGroup}
+                  onHandleUpload={this.handleUploadMetric}
                   onShowDimensionSlider={v => {
                     this.isShowDimensionSlider = v;
                   }}

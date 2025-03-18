@@ -291,12 +291,13 @@ export default class MetricTabDetail extends tsc<any, any> {
                 ...this.$listeners,
               },
             }}
+            onShowAddGroup={v => (this.showAddGroupDialog = v)}
           />
         </div>
         <bk-dialog
           v-model={this.showDelDialog}
           header-position='left'
-          title={this.$t('确认删除？')}
+          title={`${this.$t('确认删除')}？`}
           onCancel={this.handleCancelDel}
           onConfirm={this.handleDelFunction}
         />

@@ -26,6 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import infoSrc from '../../../static/images/png/dimension-guide.png';
 import { statusMap } from './metric-table';
 import { fuzzyMatch } from './metric-table-slide';
 
@@ -144,23 +145,20 @@ export default class DimensionTabDetail extends tsc<any> {
         label: this.$t('别名'),
         scopedSlots: {
           default: (props: { row: DimensionDetail; $index: number }) => (
-            <div class='description-cell'>
-              {this.editingIndex === props.$index ? (
-                <bk-input
-                  v-model={this.copyDescription}
-                  onBlur={() => {
-                    this.editingIndex = -1;
-                    this.handleEditDescription(props.row);
-                  }}
-                />
-              ) : (
-                <span
-                  class='editable-text'
-                  onClick={() => this.handleDescFocus(props)}
-                >
-                  {props.row.description || '--'}
-                </span>
-              )}
+            <div
+              class='description-cell'
+              onClick={() => this.handleDescFocus(props)}
+            >
+              <bk-input
+                ext-cls='description-input'
+                readonly={this.editingIndex !== props.$index}
+                value={props.row.description}
+                onBlur={() => {
+                  this.editingIndex = -1;
+                  this.handleEditDescription(props.row);
+                }}
+                onChange={v => (this.copyDescription = v)}
+              />
             </div>
           ),
         },
@@ -213,6 +211,30 @@ export default class DimensionTabDetail extends tsc<any> {
             key={config.id}
             width={config.width}
             renderHeader={() => {
+              if (config.id === 'common') {
+                return (
+                  <div class='common-title'>
+                    <div>{this.$t(config.label as string)}</div>
+                    <bk-popover
+                      ext-cls='common-info-popover'
+                      offset='-50, 0'
+                      placement='top-start'
+                      theme='light common-monitor'
+                    >
+                      <bk-icon type='info-circle' />
+                      <div slot='content'>
+                        <div class='info'>{this.$t('打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：')}</div>
+                        <div class='img'>
+                          <img
+                            alt=''
+                            src={infoSrc}
+                          />
+                        </div>
+                      </div>
+                    </bk-popover>
+                  </div>
+                );
+              }
               return <div> {this.$t(config.label as string)} </div>;
             }}
             label={config.label}

@@ -37,6 +37,7 @@ import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
 import GroupSearchMultiple from './group-search-multiple';
+import { fuzzyMatch } from './metric-table-slide';
 
 import './metric-table.scss';
 
@@ -76,12 +77,6 @@ interface GroupLabel {
   name: string;
 }
 
-interface IGroupListItem {
-  name: string;
-  matchRules: string[];
-  manualList: string[];
-  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标数
-}
 interface IListItem {
   id: string;
   name: string;
@@ -143,47 +138,44 @@ export default class IndicatorTable extends tsc<any, any> {
   showDetail = false;
   activeIndex = -1;
   tableInstance = {
-    total: 0,
     data: [],
-    keyword: '',
     page: 1,
     pageSize: 10,
+    total: 0,
     pageList: [10, 20, 50, 100],
-    // pageList: [1, 2, 5, 10],
   };
 
   header = {
     value: 0,
     dropdownShow: false,
     list: [{ id: 0, name: I18N.t('添加至分组') }],
-    keyword: '',
-    keywordObj: [], // 搜索框绑定值
-    condition: [], // 搜索条件接口参数
-    conditionList: [], // 搜索可选项
-    handleSearch: () => { },
   };
   unit = {
     value: true,
     index: -1,
     toggle: false,
   };
+  editingIndex = -1;
+  search = '';
 
-  // unitList = []; // 单位list
   get selectionLeng() {
     const selectionList = this.metricTableVal.filter(item => item.selection);
     return selectionList.length;
   }
 
   get metricTableVal() {
-    this.changePageCount(this.metricTable.length);
-    return this.metricTable.slice(
+    const filterTable = this.metricTable.filter(item => {
+      return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.description, this.search);
+    });
+    this.tableInstance.total = filterTable.length;
+    return filterTable.slice(
       this.tableInstance.pageSize * (this.tableInstance.page - 1),
       this.tableInstance.pageSize * this.tableInstance.page
     );
   }
 
-  get isFta() {
-    return false;
+  get groups() {
+    return Array.from(this.groupsMap.keys());
   }
 
   emptyType = 'empty'; // 空状态
@@ -258,6 +250,7 @@ export default class IndicatorTable extends tsc<any, any> {
       },
     };
     this.table.data = this.metricTableVal;
+    this.updateCheckValue();
   }
 
   @Watch('autoDiscover')
@@ -271,41 +264,11 @@ export default class IndicatorTable extends tsc<any, any> {
     return dayjs.tz(timestamp).format('YYYY-MM-DD HH:mm:ss');
   }
 
-  changePageCount(count: number) {
-    this.tableInstance.total = count;
-  }
-
-  //  指标/维度表交互
-  handleMouseenter(index) {
-    this.unit.value = true;
-    this.unit.index = index;
-  }
-
-  //  指标/维度表交互
-  handleMouseLeave() {
-    if (!this.unit.toggle) {
-      this.unit.value = false;
-      this.unit.index = -1;
-    }
-  }
-
-  //  指标/维度表交互
-  handleToggleChange(value) { }
-
   showMetricDetail(props) {
     this.activeIndex = props.$index;
     this.showDetail = true;
   }
 
-  handClickRow(row, type: 'add' | 'del') {
-    if (type === 'add') {
-      this.table.data.splice(row.$index + 1, 0, {
-        unit: [],
-      });
-      return;
-    }
-    this.table.data.splice(row.$index, 1);
-  }
   @Emit('handleSelectGroup')
   handleSelectGroup(v: string[], index: number, row) {
     // 处理分组选择逻辑
@@ -341,8 +304,9 @@ export default class IndicatorTable extends tsc<any, any> {
     this.groupTagInstance?.destroy?.();
   }
 
-  handleShowGroupManage(show: boolean) {
-    // 显示分组管理
+  @Emit('showAddGroup')
+  handleShowGroupManage(): boolean {
+    return true;
   }
 
   statusPoint(color1: string, color2: string) {
@@ -390,9 +354,9 @@ export default class IndicatorTable extends tsc<any, any> {
           <div
             class='edit-group-manage'
             slot='extension'
-            onClick={() => this.handleShowGroupManage(true)}
+            onClick={this.handleShowGroupManage}
           >
-            <span class='icon-monitor icon-a-1jiahao' />
+            <i class='icon-monitor icon-jia' />
             <span>{this.$t('新建分组')}</span>
           </div>
         )}
@@ -429,22 +393,23 @@ export default class IndicatorTable extends tsc<any, any> {
       ),
     };
     const descriptionSlot = {
-      /* 别名 */ default: props => props.row.description || '--',
-      // /* 别名 */ default: ({ row }) =>
-      //   !this.canEditName ? (
-      //     <div
-      //       class='info-content'
-      //       onClick={() => this.handleShowEditDescription(row.description)}
-      //     >
-      //       {row.description ?? '-'}
-      //     </div>
-      //   ) : (
-      //     <bk-input
-      //       ref='descriptionInput'
-      //       v-model={this.copyDescription}
-      //       onBlur={() => this.handleEditDescription(row)}
-      //     />
-      //   ),
+      /* 别名 */ default: props => (
+        <div
+          class='description-content'
+          onClick={() => this.handleDescFocus(props)}
+        >
+          <bk-input
+            ext-cls='description-input'
+            readonly={this.editingIndex !== props.$index}
+            value={props.row.description}
+            onBlur={() => {
+              this.editingIndex = -1;
+              this.handleEditDescription(props.row);
+            }}
+            onChange={v => (this.copyDescription = v)}
+          />
+        </div>
+      ),
     };
     const groupSlot = {
       /* 分组 */ default: ({ row, $index }) => this.getGroupCpm(row, $index),
@@ -535,6 +500,18 @@ export default class IndicatorTable extends tsc<any, any> {
     );
   }
 
+  /** 批量添加至分组 */
+  handleBatchAdd(groupName) {
+    if (!groupName) {
+      return;
+    }
+    this.$emit(
+      'handleBatchAddGroup',
+      groupName,
+      this.metricTableVal.filter(item => item.selection).map(metric => metric.name)
+    );
+  }
+
   handChangeSwitcher(v) {
     if (!v) {
       this.isShowDialog = true;
@@ -606,10 +583,16 @@ export default class IndicatorTable extends tsc<any, any> {
   async handleEditDescription(metricInfo) {
     this.canEditName = false;
     if (!this.copyDescription || this.copyDescription === metricInfo.description) {
+      this.copyDescription = '';
       return;
     }
     await this.updateCustomFields('description', this.copyDescription, metricInfo.name);
     metricInfo.description = this.copyDescription;
+  }
+
+  handleDescFocus(props) {
+    this.copyDescription = props.row.description;
+    this.editingIndex = props.$index;
   }
 
   handleShowEditDescription(name) {
@@ -965,33 +948,49 @@ export default class IndicatorTable extends tsc<any, any> {
             >
               {this.$t('编辑')}
             </bk-button>
-            <bk-dropdown-menu
-              class='header-select'
+            <bk-popover
+              ext-cls='header-select-btn-popover'
+              arrow={false}
               disabled={!this.selectionLeng}
+              placement='bottom-start'
+              theme='light common-monitor'
               trigger='click'
             >
-              <div
-                class={['header-select-btn', { 'btn-disabled': !this.selectionLeng }]}
-                slot='dropdown-trigger'
-              >
+              <div class={['header-select-btn', { 'btn-disabled': !this.selectionLeng }]}>
                 <span class='btn-name'> {this.$t('批量操作')} </span>
                 <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
               </div>
-              <ul
+              <div
                 class='header-select-list'
-                slot='dropdown-content'
+                slot='content'
               >
                 {this.header.list.map((option, index) => (
-                  <li
+                  <bk-popover
                     key={index}
-                    class={'list-item'}
-                    onClick={() => { }}
+                    ext-cls='header-select-popover'
+                    arrow={false}
+                    placement='right-start'
+                    theme='light common-monitor'
                   >
-                    {option.name}
-                  </li>
+                    <div class='list-item'>{option.name}</div>
+                    <div
+                      class='header-select-list'
+                      slot='content'
+                    >
+                      {Array.from(this.groupsMap.keys()).map(group => (
+                        <div
+                          key={group}
+                          class='list-item'
+                          onClick={() => this.handleBatchAdd(group)}
+                        >
+                          {group}
+                        </div>
+                      ))}
+                    </div>
+                  </bk-popover>
                 ))}
-              </ul>
-            </bk-dropdown-menu>
+              </div>
+            </bk-popover>
             {this.showAutoDiscover && (
               <div class='list-header-button'>
                 <bk-switcher
@@ -1009,6 +1008,7 @@ export default class IndicatorTable extends tsc<any, any> {
           </div>
           <bk-input
             ext-cls='search-table'
+            v-model={this.search}
             placeholder={this.$t('搜索')}
             right-icon='icon-monitor icon-mc-search'
           />
@@ -1026,7 +1026,7 @@ export default class IndicatorTable extends tsc<any, any> {
                     class='list-pagination'
                     v-show={this.metricTableVal.length}
                     align='right'
-                    count={this.metricTable.length}
+                    count={this.tableInstance.total}
                     current={this.tableInstance.page}
                     limit={this.tableInstance.pageSize}
                     limit-list={this.tableInstance.pageList}
@@ -1047,17 +1047,15 @@ export default class IndicatorTable extends tsc<any, any> {
             {this.getDetailCmp()}
           </div>
         </div>
-        {
-          <bk-dialog
-            v-model={this.isShowDialog}
-            headerPosition='left'
-            title={this.$t('确认关闭？')}
-            onCancel={() => {
-              this.isShowDialog = false;
-            }}
-            onConfirm={() => this.switcherChange(false)}
-          />
-        }
+        <bk-dialog
+          v-model={this.isShowDialog}
+          headerPosition='left'
+          title={this.$t('确认关闭？')}
+          onCancel={() => {
+            this.isShowDialog = false;
+          }}
+          onConfirm={() => this.switcherChange(false)}
+        />
       </div>
     );
   }
