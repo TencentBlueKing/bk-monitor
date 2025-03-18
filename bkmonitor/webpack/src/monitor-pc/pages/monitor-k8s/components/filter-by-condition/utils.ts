@@ -25,14 +25,8 @@
  */
 import { listK8sResources, workloadOverview } from 'monitor-api/modules/k8s';
 
+import { sceneDimensionMap } from '../../k8s-dimension';
 import { EDimensionKey } from '../../typings/k8s-new';
-export enum EGroupBy {
-  container = 'container',
-  namespace = 'namespace',
-  pod = 'pod',
-  workload = 'workload',
-}
-
 export interface IFilterByItem {
   key: string;
   value: string[];
@@ -67,9 +61,6 @@ export interface IValueItem {
   }[];
 }
 
-const sceneDimensionMap = {
-  performance: [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container],
-};
 export class FilterByOptions {
   commonParams: Record<string, any> = {}; // 通用参数
   dimensionData = []; // 维度数据

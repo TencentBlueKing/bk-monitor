@@ -30,6 +30,8 @@ export enum EDimensionKey {
   namespace = 'namespace',
   pod = 'pod',
   workload = 'workload',
+  ingress = 'ingress',
+  service = 'service',
 }
 /**
  * @description: k8s tab类型枚举
@@ -141,6 +143,7 @@ export type K8sSortType = '' | 'asc' | 'desc';
 
 export enum SceneEnum {
   Performance = 'performance',
+  Network = 'network',
 }
 
 export interface GroupListItem<T = string> {

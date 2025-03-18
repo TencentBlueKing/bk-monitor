@@ -84,7 +84,6 @@ export default class FilterByCondition extends tsc<IProps> {
   localFilterBy = [];
   oldLocalFilterBy = [];
   allOptions = [];
-  allOptionsMap = new Map();
   // 点击加号时，记录当前选择的group和value
   addValueSelected: Map<string, Set<string>> = new Map();
   // 编辑tag时缓存workload的已选值
@@ -214,15 +213,14 @@ export default class FilterByCondition extends tsc<IProps> {
   filterByToTags() {
     const tagList = [];
     for (const item of this.localFilterBy) {
-      const groupMap = this.allOptionsMap.get(item.key);
       if (item.value.length) {
         tagList.push({
           id: item.key,
-          name: groupMap?.name || item.key || '--',
+          name: item.key || '--',
           key: random(8),
           values: item.value.map(v => ({
             id: v,
-            name: groupMap?.itemsMap.get(v) || v || '--',
+            name: v || '--',
           })),
         });
       }
