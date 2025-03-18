@@ -29,16 +29,23 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import {
+  ExploreEntitiesTypeEnum,
+  type ConditionChangeEvent,
+  type DimensionType,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
+} from '../typing';
 import { APIType } from '../api-utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
-import type { ConditionChangeEvent, DimensionType, ExploreEntitiesMap, ExploreFieldMap } from '../typing';
 import type { ExploreSubject } from '../utils';
 
 import './explore-expand-view-wrapper.scss';
 
 interface ExploreExpandViewWrapperProps {
   data: Record<string, any>;
+  detailData: Record<string, any>;
   fieldMap: ExploreFieldMap;
   entitiesMapList: ExploreEntitiesMap[];
   /** 滚动事件被观察者实例 */
@@ -62,6 +69,8 @@ export default class ExploreExpandViewWrapper extends tsc<
 > {
   /** 渲染数据 */
   @Prop({ type: Object, default: () => ({}) }) data: Record<string, any>;
+  /** 用于从接口数据中获取 容器 跳转路径 */
+  @Prop({ type: Object, default: () => ({}) }) detailData: Record<string, any>;
   /** 用于获取 data 数据中 key 的字段类型 */
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** 用于判断 data 数据中 key 是否提供跳转入口 */
@@ -79,14 +88,11 @@ export default class ExploreExpandViewWrapper extends tsc<
 
   /** KV列表 */
   get kvFieldList(): KVFieldList[] {
-    const externalParams = {
-      /** 跳转 主机 时所需参数 */
-      cloudId: this.getValueBySourceName('bk_cloud_id') || this.getValueBySourceName('bk_target_cloud_id') || '0',
-      /** 跳转 容器 时所需参数 */
-      cluster: this.getValueBySourceName('bcs_cluster_id'),
-    };
     return Object.entries(this.data).map(([key, value]) => {
       const entities = [];
+      const fieldItem = this.fieldMap?.target?.[key] || {};
+      const sourceName = fieldItem?.name as string;
+      const canClick = value != null && value !== '' && !!sourceName;
 
       if (value != null && value !== '') {
         for (const entitiesMap of this.entitiesMapList) {
@@ -94,17 +100,14 @@ export default class ExploreExpandViewWrapper extends tsc<
           if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
             continue;
           }
+
           entities.push({
             alias: item.alias,
             type: item.type,
-            externalParams,
+            path: this.getEntitiesJumpLink(sourceName, value, item),
           });
         }
       }
-
-      const fieldItem = this.fieldMap?.target?.[key] || {};
-      const sourceName = fieldItem?.name as string;
-      const canClick = value != null && value !== '' && !!sourceName;
       return {
         name: key,
         type: fieldItem?.type as DimensionType,
@@ -129,6 +132,54 @@ export default class ExploreExpandViewWrapper extends tsc<
   getValueBySourceName(name: string) {
     const finalName = this.fieldMap?.source?.[name]?.finalName;
     return this.data[finalName];
+  }
+
+  /**
+   * @description 获取kv列表 容器/主机 跳转路径
+   */
+  getEntitiesJumpLink(fieldName, value, entitiesItem) {
+    let path = '';
+    switch (entitiesItem.type) {
+      case ExploreEntitiesTypeEnum.HOST:
+        {
+          const cloudId =
+            this.getValueBySourceName('bk_cloud_id') || this.getValueBySourceName('bk_target_cloud_id') || '0';
+          const endStr = `${value}${fieldName === 'bk_host_id' ? '' : `-${cloudId}`}`;
+          path = `#/performance/detail/${endStr}`;
+        }
+        break;
+      case ExploreEntitiesTypeEnum.K8S:
+        {
+          if (['namespace', 'bcs_cluster_id'].includes(fieldName)) {
+            const item = this.detailData[fieldName];
+            path = item?.url || '';
+          } else if (fieldName === 'host') {
+            const cluster = this.getValueBySourceName('bcs_cluster_id');
+            const query = {
+              sceneId: 'kubernetes',
+              dashboardId: 'node',
+              sceneType: 'detail',
+              queryData: JSON.stringify({
+                selectorSearch: [
+                  {
+                    bcs_cluster_id: cluster,
+                  },
+                  {
+                    name: value,
+                  },
+                ],
+              }),
+            };
+            const targetRoute = this.$router.resolve({
+              path: '/k8s',
+              query,
+            });
+            path = targetRoute.href;
+          }
+        }
+        break;
+    }
+    return path;
   }
 
   /**

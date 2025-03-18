@@ -27,23 +27,20 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { isHttpUrl } from 'monitor-common/regex/url';
 import { copyText } from 'monitor-common/utils';
 
-import { EMethod, EMode } from '../../../components/retrieval-filter/utils';
+import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { APIType } from '../api-utils';
-import {
-  type ConditionChangeEvent,
-  type DimensionType,
-  type ExploreEntitiesItem,
-  ExploreEntitiesTypeEnum,
-} from '../typing';
 import { ExploreObserver, type ExploreSubject } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
+import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem } from '../typing';
+
 import './explore-kv-list.scss';
 
-type KVEntities = Pick<ExploreEntitiesItem, 'alias' | 'type'> & { externalParams: Record<string, any> };
+type KVEntities = Pick<ExploreEntitiesItem, 'alias' | 'type'> & { path: string };
 export interface KVFieldList {
   /** kv 面板中的 key */
   name: string;
@@ -257,7 +254,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       queryString = `${name} : "${value || ''}"`;
     } else {
       where.push({
-        condition: 'and',
+        condition: ECondition.and,
         key: sourceName,
         method: EMethod.eq,
         value: [value || '""'],
@@ -323,29 +320,12 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /**
    * @description 主机/容器 跳转链接回调
    */
-  handleJumpLink(item: KVFieldList, entitiesItem: KVEntities) {
-    let path = '';
-    switch (entitiesItem.type) {
-      case ExploreEntitiesTypeEnum.HOST:
-        {
-          const { value, sourceName } = item;
-          const endStr = `${value}${sourceName === 'bk_host_id' ? '' : `-${entitiesItem.externalParams.cloudId}`}`;
-          path = `#/performance/detail/${endStr}`;
-        }
-        break;
-      case ExploreEntitiesTypeEnum.K8S:
-        {
-          // const { value, sourceName } = item;
-          const endStr = `cluster=${entitiesItem.externalParams.cluster}`;
-          // if (sourceName !== 'bcs_cluster_id') {
-          //   endStr += `&${sourceName}=${value}`;
-          // }
-          path = `#/k8s-new?${endStr}`;
-        }
-        break;
-    }
-    if (path) {
-      const url = `${location.origin}${location.pathname}${location.search}${path}`;
+  handleJumpLink(entitiesItem: KVEntities) {
+    if (entitiesItem.path) {
+      let url = entitiesItem.path;
+      if (!isHttpUrl(url)) {
+        url = `${location.origin}${location.pathname}${location.search}${url}`;
+      }
       window.open(url, '_blank');
     }
   }
@@ -359,7 +339,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div
         key={entitiesItem.alias}
         class='value-jump-link'
-        onClick={() => this.handleJumpLink(item, entitiesItem)}
+        onClick={() => this.handleJumpLink(entitiesItem)}
       >
         <span class='jump-link-label'>{entitiesItem.alias}</span>
         <i class='icon-monitor icon-mc-goto' />
