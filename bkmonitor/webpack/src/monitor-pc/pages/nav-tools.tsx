@@ -85,10 +85,14 @@ class NavTools extends DocumentLinkMixin {
   globalSearchShow = false;
   activeSetting = '';
   settingTitle = '';
-  defauleSearchPlaceholder = `${this.$t('全站搜索')} Ctrl + k`;
+  defauleSearchPlaceholder = `${this.$t('全站搜索')}`;
   globalSearchPlaceholder = this.defauleSearchPlaceholder;
   isShowMyApplyModal = false;
   isShowMyReportModal = false;
+
+  get isHomePage() {
+    return this.$route.name && this.$route.name === 'home';
+  }
 
   // 全局弹窗在路由变化时需要退出
   @Watch('$route.name')
@@ -167,9 +171,14 @@ class NavTools extends DocumentLinkMixin {
    */
   handleKeyupSearch(event) {
     if (this.globalSearchShow) return;
-    if (event.ctrlKey && event.keyCode === 75) {
-      event.preventDefault();
-      this.handleGlobalSearchShowChange(true);
+    if (event.key === '/') {
+      if (this.isHomePage) {
+        bus.$emit('handle-keyup-nav', event);
+      } else {
+        event.preventDefault();
+        this.handleGlobalSearch();
+        this.handleGlobalSearchShowChange(true);
+      }
     }
   }
   /**
@@ -292,7 +301,7 @@ class NavTools extends DocumentLinkMixin {
   handleGlobalSearchShowChange(v: boolean, searchKey?: string) {
     this.globalSearchShow = v;
     // 关闭弹窗时若存在已输入但未搜索的关键字
-    if (searchKey.length) {
+    if (searchKey?.length) {
       this.globalSearchPlaceholder = searchKey;
     } else {
       this.globalSearchPlaceholder = this.defauleSearchPlaceholder;
@@ -311,14 +320,15 @@ class NavTools extends DocumentLinkMixin {
         {
           // #if APP !== 'external'
           /** 新版首页无需展示右侧的全站搜索框 */
-          this.$route.name && this.$route.name !== 'home' && (
+          !this.isHomePage && (
             <div
               id='nav-search-bar'
               class='search-bar'
               onClick={this.handleGlobalSearch}
             >
               <span class='search-text'>{this.globalSearchPlaceholder}</span>
-              <span class='bk-icon icon-search' />
+              {/* <span class='bk-icon icon-search' /> */}
+              <span class='search-bar-keyword'>{this.$t('快捷键')} /</span>
             </div>
           )
           // #endif

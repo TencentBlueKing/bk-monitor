@@ -8,7 +8,7 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-
+  import WarningSetting from './warning-setting.vue';
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
@@ -151,6 +151,7 @@
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         class="border-solo"
       />
+      <WarningSetting></WarningSetting>
       <ClusterSetting
         class="border-solo"
         v-model="isShowClusterSetting"

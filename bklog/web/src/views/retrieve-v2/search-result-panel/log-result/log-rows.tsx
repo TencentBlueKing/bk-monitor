@@ -957,7 +957,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft.value = (event.target as HTMLElement).scrollLeft;
+      scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
     };
 
     const renderScrollXBar = () => {
@@ -990,8 +990,8 @@ export default defineComponent({
     const renderLoader = () => {
       return (
         <div
-          class={['bklog-requsting-loading']}
           ref={refLoadMoreElement}
+          class={['bklog-requsting-loading']}
         >
           <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>

@@ -11,6 +11,17 @@
     }
   }
 
+  .btn-alert-policy {
+    position: absolute;
+    height: 42px;
+    line-height: 42px;
+    right: -2px;
+    top: 0px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #4d4f56;
+  }
+
   .retrieve-panel {
     position: relative;
     display: inline-block;
@@ -30,17 +41,5 @@
       color: #3a84ff;
       background: #ffffff;
     }
-
-    // &.border-left {
-    //   &::after {
-    //     position: absolute; /* 绝对定位 */
-    //     top: calc(50% - 10px);
-    //     right: 100%;
-    //     width: 1px; /* 边框宽度 */
-    //     height: 20px; /* 边框高度，可以根据需要调整 */
-    //     content: ''; /* 伪元素内容为空 */
-    //     background-color: #c9cbd0; /* 边框颜色 */
-    //   }
-    // }
   }
 }

@@ -108,10 +108,12 @@
       field,
     };
   };
+
   const getFieldName = field => {
     const { getFieldName } = useFieldNameHook({ store });
     return getFieldName(field);
   };
+
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({
@@ -215,12 +217,11 @@
         .field-value {
           max-height: 50vh;
           overflow: auto;
-          transform: translateZ(0); /* 强制开启GPU加速 */
           will-change: transform;
+          transform: translateZ(0); /* 强制开启GPU加速 */
         }
       }
     }
-
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);

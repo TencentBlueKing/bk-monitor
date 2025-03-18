@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
@@ -1585,7 +1587,7 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) { 
+            if (targetField?.is_virtual_obj_node) {
               newSearchValue = `\"${value[0]}\"`;
             } else{
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
