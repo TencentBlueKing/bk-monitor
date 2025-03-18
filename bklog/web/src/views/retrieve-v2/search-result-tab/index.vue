@@ -19,6 +19,8 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+
   const chartParams = computed(() => store.state.indexItem.chart_params);
 
   const isAiopsToggle = computed(() => {
@@ -104,13 +106,48 @@
     });
   });
 
+  const handleAddAlertPolicy = () => {
+    const params = {
+      bizId: store.state.bkBizId,
+      indexSetId: indexSetId.value,
+      scenarioId: '',
+      indexStatement: retrieveParams.value.keyword, // 查询语句
+      dimension: [], // 监控维度
+      condition: [], // 监控条件
+    };
+    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+    if (indexSet) {
+      params.scenarioId = indexSet.category_id;
+    }
+    retrieveParams.value.addition.forEach(item => {
+      params.condition.push({
+        condition: 'and',
+        key: item.field,
+        method: item.operator === 'eq' ? 'is' : item.operator,
+        value: item.value,
+      });
+    });
+    const urlArr = [];
+    for (const key in params) {
+      if (key === 'dimension' || key === 'condition') {
+        urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
+      } else {
+        urlArr.push(`${key}=${params[key]}`);
+      }
+    }
+    window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+  };
+
   const handleActive = panel => {
     isUserAction.value = true;
     emit('input', panel);
   };
 </script>
 <template>
-  <div class="retrieve-tab" style="position: relative;">
+  <div
+    class="retrieve-tab"
+    style="position: relative"
+  >
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"
@@ -118,9 +155,15 @@
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
-    <div style="position: absolute;height: 42px;line-height: 42px;right: -2px;top:0px;font-size: 12px;cursor: pointer;color: #4D4F56;">
-      <span class="bklog-icon bklog--celve" style="font-size: 16px;"></span>
-      <span >添加告警策略</span>
+    <div
+      class="btn-alert-policy"
+      @click="handleAddAlertPolicy"
+    >
+      <span
+        class="bklog-icon bklog--celve"
+        style="font-size: 16px"
+      ></span>
+      <span>{{ $t('添加告警策略') }}</span>
     </div>
   </div>
 </template>
