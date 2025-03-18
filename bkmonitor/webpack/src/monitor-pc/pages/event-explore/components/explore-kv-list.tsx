@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
-import { EMethod } from '../../../components/retrieval-filter/utils';
+import { EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { APIType } from '../api-utils';
 import {
   type ConditionChangeEvent,
@@ -250,7 +250,19 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     const targetsList = targets ? JSON.parse(decodeURIComponent(targets as string)) : [];
     const sourceTarget = targetsList?.[0] || {};
     const queryConfig = sourceTarget?.data?.query_configs?.[0] || {};
-
+    const { name, sourceName, value } = this.fieldTarget;
+    let queryString = '';
+    const where = [];
+    if (rest.filterMode === EMode.queryString) {
+      queryString = `${name} : "${value || ''}"`;
+    } else {
+      where.push({
+        condition: 'and',
+        key: sourceName,
+        method: EMethod.eq,
+        value: [value || '""'],
+      });
+    }
     const query = {
       ...rest,
       targets: JSON.stringify([
@@ -260,15 +272,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             query_configs: [
               {
                 ...queryConfig,
-                query_string: '',
-                where: [
-                  {
-                    condition: 'and',
-                    key: this.fieldTarget?.sourceName,
-                    method: EMethod.eq,
-                    value: [this.fieldTarget?.value],
-                  },
-                ],
+                where,
+                query_string: queryString,
               },
             ],
           },
