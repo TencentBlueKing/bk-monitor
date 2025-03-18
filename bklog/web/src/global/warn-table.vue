@@ -6,13 +6,14 @@
       @click="isShowList()"
     >
       <span
-        style="color: red"
-        class="bklog-icon bklog-gaojing-filled"
+          :style="{ color: badgeCount !== 0 ? 'red' : '' }"
+           :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
       ></span
       >{{ t('告警') }}
       <bk-badge
+        v-if="badgeCount !== 0"
         style="margin-top: -12px; margin-left: -3px"
-        :count="2"
+        :count="badgeCount"
         theme="danger"
       />
     </div>
@@ -74,6 +75,7 @@
             :max-height="200"
             :outer-border="false"
             :row-border="false"
+            @sort-change="handleSortChange"
           >
             <bk-table-column
               :label="$t('告警名称')"
@@ -81,31 +83,52 @@
             >
               <template #default="{ row }">
                 <div style="color: #3a84ff; cursor: pointer">
-                  {{ t(row.name) }}
+                  {{ t(row.alert_name) }}
                 </div>
               </template>
             </bk-table-column>
             <bk-table-column
               :label="$t('首次发生时间')"
-              min-width="120"
-              prop="firstTime"
+              min-width="115"
               sortable="true"
             >
+            <template #default="{ row }">
+                <div>
+                  {{ formatDate(row.first_anomaly_time)}}
+                </div>
+              </template>
             </bk-table-column>
             <bk-table-column
               :label="$t('持续时间')"
               align="right"
-              prop="lastingTime"
+              prop="duration"
             >
             </bk-table-column>
-            <bk-table-column :label="$t('状态')">
+            <bk-table-column :label="$t('状态')" min-width="90">
               <template #default="{ row }">
                 <div>
                   <span
-                    :style="{ color: row.state ? '#2CAF5E' : '#EA3636', fontSize: '14px' }"
-                    :class="`bklog-icon bklog-circle-${row.state ? 'correct-filled' : 'alert-filled'}`"
+                    :style="{ color: getColor(row.status), fontSize: '14px' }"
+                    :class="getClass(row.status)"
                   />
-                  {{ t(row.state ? '已恢复' : '未恢复') }}
+                  {{ t(STATUS_NAME_MAP [row.status]) }}
+                </div>
+              </template>
+            </bk-table-column>
+            <bk-table-column :label="$t('告警级别')" min-width="90">
+              <template #default="{ row }">
+                <div :style="{ color: getLevelColor(row.severity), fontSize: '14px' }">
+                  <span :class="getLevelClass(row.severity)" />
+                  {{ t(LEVEL_NAME_MAP [row.severity]) }}
+                </div>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('操作')"
+            >
+              <template #default="{ row }">
+                <div style="color: #3a84ff; cursor: pointer">
+                  {{ $t('查看日志') }}
                 </div>
               </template>
             </bk-table-column>
@@ -128,17 +151,9 @@
                 </div>
               </template>
             </bk-table-column>
-            <bk-table-column :label="$t('告警级别')">
-              <template #default="{ row }">
-                <div :style="{ color: row.state ? '#E71818' : '#3A84FF', fontSize: '14px' }">
-                  <span :class="`bklog-icon bklog-${row.state ? 'weixian' : 'circle-alert-filled'}`" />
-                  {{ t(row.state ? '致命' : '提醒') }}
-                </div>
-              </template>
-            </bk-table-column>
             <bk-table-column
               :label="$t('最近告警时间')"
-              prop="firstTime"
+              prop="latest_time"
             >
             </bk-table-column>
           </bk-table>
@@ -148,46 +163,213 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { ref, watch } from 'vue';
-
+  import { onMounted, ref, watch } from 'vue';
+  import $http from '@/api';
   import useLocale from '@/hooks/use-locale';
+  import {  formatDate,  } from '@/common/util';
+  import {  useRoute } from 'vue-router/composables';
   const { t } = useLocale();
+  const route = useRoute();
   const panels = ref([
-    { name: 'mission', label: '最近告警记录', count: 10 },
-    { name: 'config', label: '策略', count: 7 },
+    { name: 'mission', label: '最近告警记录', count: 0 },
+    { name: 'config', label: '策略', count: 0 },
   ]);
+  const indexId = ref(0);
+  const badgeCount = ref(0);
   const activeBar = {
     position: 'top',
     height: '6px',
   };
   const loading = ref(false);
   const active = ref('mission');
+  const typeMap={
+    'all':'ALL',
+    'unHandle':'NOT_SHIELDED_ABNORMAL',
+  }
   const currentType = ref('all');
   const handleRadioGroup = (val: string) => {
     currentType.value = val;
   };
   const tableKey = ref(1);
-  const recordList = [
-    { name: '拨测任务策略', firstTime: '2021 10-10 00:00:00', lastingTime: '19m', state: false },
-    { name: '拨测任务策略2', firstTime: '2021 10-10 00:00:00', lastingTime: '12m', state: false },
-    { name: '拨测任务策略3', firstTime: '2021 10-20 00:00:00', lastingTime: '12m', state: false },
-    { name: '拨测任务策略2', firstTime: '2021 13-10 00:00:00', lastingTime: '12m', state: true },
-    { name: '拨测任务策略5', firstTime: '2021 16-10 00:00:00', lastingTime: '13m', state: true },
-    { name: '拨测任务策略7', firstTime: '2021 00-10 00:00:00', lastingTime: '3m', state: true },
-  ];
-  const strategyList = [
-    { name: '拨测任务策略', firstTime: '2021 10-10 00:00:00', state: false },
-    { name: '拨测任务策略2', firstTime: '2021 10-10 00:00:00', state: false },
-    { name: '拨测任务策略2', firstTime: '2021 13-10 00:00:00', state: true },
-    { name: '拨测任务策略5', firstTime: '2021 16-10 00:00:00', state: true },
-  ];
+  const recordList = ref([]);
+  const originRecordList = ref([]);
+  const strategyList = ref([]);
   const isShow = ref(false);
+//   未恢复：ABNORMAL
+// 已恢复：RECOVERED
+// 已失效：CLOSED
+const STATUS_COLOR_MAP = {
+  CLOSED: '#979BA5',
+  RECOVERED: '#2CAF5E',
+  ABNORMAL: '#EA3636',
+  DEFAULT: '#000000'
+};
+
+const STATUS_CLASS_MAP = {
+  CLOSED: 'bklog-icon bklog-shixiao',
+  RECOVERED: 'bklog-icon bklog-circle-correct-filled',
+  ABNORMAL: 'bklog-icon bklog-circle-alert-filled',
+  DEFAULT: 'bklog-icon bklog-circle-alert-filled'
+};
+
+const STATUS_NAME_MAP = {
+  ABNORMAL: '未恢复',
+  RECOVERED: '已恢复',
+  CLOSED: '已失效'
+};
+
+const LEVEL_COLOR_MAP = {
+  1: '#E71818',
+  2: '#F59500',
+  3: '#3A84FF',
+  DEFAULT: '#000000'
+};
+
+const LEVEL_CLASS_MAP = {
+  1: 'bklog-icon bklog-weixian',
+  2: 'bklog-icon bklog-circle-alert-filled',
+  3: 'bklog-icon bklog-info-fill',
+  DEFAULT: 'bklog-icon bklog-info-fill'
+};
+
+const LEVEL_NAME_MAP = {
+  1: '致命',
+  2: '预警',
+  3: '提醒'
+};
+// 函数优化
+const getColor = (status:string) => STATUS_COLOR_MAP[status] || STATUS_COLOR_MAP.DEFAULT;
+const getClass = (status:string) => STATUS_CLASS_MAP[status] || STATUS_CLASS_MAP.DEFAULT;
+const getLevelColor = (severity:number) => LEVEL_COLOR_MAP[severity] || LEVEL_COLOR_MAP.DEFAULT;
+const getLevelClass = (severity:number) => LEVEL_CLASS_MAP[severity] || LEVEL_CLASS_MAP.DEFAULT;
+  const handleSortChange = (	{ column  }:{ column  }) => {
+    console.log(column.order,'column.order')
+    if (!column.order) {
+      recordList.value = originRecordList.value;
+  }
+  // 对数组进行排序
+  recordList.value.sort((a, b) => {
+  // 将字符串转换为 Date 对象
+    // 返回比较结果
+    return column.order === 'ascending' ? (a.first_anomaly_time - b.first_anomaly_time) : (b.first_anomaly_time - a.first_anomaly_time);
+  });
+  };
   const isShowList = () => {
     isShow.value = !isShow.value;
+  if(isShow.value){
+      if(active.value==='mission'){
+        const type=typeMap[currentType.value];
+        getAlertDate(type)
+      }else{
+        getStrategyDate()
+      }
+      tableKey.value += 1;
+  }
   };
+  const getAlertDate= async(val:string)=>{
+    try {
+      loading.value = true;
+    // const res = await $http.request('alertStrategy/alertList',{
+    //         params: {
+    //           index_set_id:indexId.value
+    //         },
+    //         data: {
+    //           status:val,
+    //           page_size: 11,
+    //     },
+    //       });
+    const res={
+    data:[{
+            "id": "1741686571487423209",
+            "strategy_id": 1234567,
+            "alert_name": "告警能力补齐-test3",
+            "first_anomaly_time": 1741685940,
+            "duration": "10m",
+            "status": "CLOSED",
+            "severity": 2
+        },
+        {
+            "id": "1741686571487422183",
+	        "strategy_id": 1234567,
+            "alert_name": "告警能力补齐-test",
+            "first_anomaly_time": 1741685940,
+            "duration": "10m",
+            "status": "ABNORMAL",
+            "severity": 1
+        },
+        {
+            "id": "1741685606487418037",
+	        "strategy_id": 1234567,
+            "alert_name": "告警能力补齐-test1",
+            "first_anomaly_time": 1741685460,
+            "duration": "11m",
+            "status": "CLOSED",
+            "severity": 2
+        },
+    ]
+      };
+          console.log(res,'res');
+          badgeCount.value = val ==='NOT_SHIELDED_ABNORMAL'? res?.data.length||0 : 0;
+          console.log(badgeCount.value,'badgeCount.value')
+          recordList.value = res?.data||[];
+          originRecordList.value=recordList.value;
+          panels.value[0].count=res?.data.length||0;
+        } catch (e) {
+            console.warn(e);
+    }finally{
+      loading.value = false;
+    }
+  };
+  const getStrategyDate= async()=>{
+    try {
+      loading.value = true;
+    const res = await $http.request('alertStrategy/strategyList',{
+            params: {
+              index_set_id:indexId.value
+            },
+            data: {
+              page_size: 11,
+            },
+          });
+          console.log(res,'res');
+          strategyList.value = res?.data||[];
+          panels.value[1].count=res?.data.length||0;
+          // const currentTab=panels.value.findIndex(item=>item.name===active.value);
+          // panels.value[currentTab].count=res?.data.length||0;
+        } catch (e) {
+            console.warn(e);
+    }finally{
+      loading.value = false;
+    }
+  };
+  onMounted(()=> {
+    console.log(route,'router')
+    const match = route.path.match(/\/retrieve\/(\d+)/); // 用正则表达式匹配数字
+    if (match) {
+      const number = match[1]; // 第一个捕获组
+      indexId.value=Number(number);
+    }
+    getAlertDate('NOT_SHIELDED_ABNORMAL')
+  });
+
   watch(
     () => active.value,
     (val: string) => {
+      if(active.value==='mission'){
+        const type=typeMap[currentType.value];
+        getAlertDate(type)
+      }else{
+        getStrategyDate()
+      }
+      tableKey.value += 1;
+    },
+  );
+  watch(
+    () => currentType.value,
+    (val: string) => {
+
+      const type=typeMap[val];
+      getAlertDate(type);
       tableKey.value += 1;
     },
   );
