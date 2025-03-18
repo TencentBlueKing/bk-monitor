@@ -387,6 +387,8 @@
   const getStrategyDate = async () => {
     try {
       loading.value = true;
+      strategyList.value.length = 0;
+      strategyList.value = [];
       const res = await $http.request('alertStrategy/strategyList', {
         params: {
           index_set_id: indexId.value,
