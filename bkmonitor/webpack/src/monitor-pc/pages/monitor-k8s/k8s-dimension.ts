@@ -83,15 +83,16 @@ export abstract class K8sDimensionBase {
 /**
  * k8s性能场景维度列表
  */
-export class K8sPerformanceDimension extends K8sDimensionBase {
+export class K8sDimension extends K8sDimensionBase {
   commonParams: K8sDimensionParams = null;
 
   // /** 场景维度枚举 */
-  dimensionKey = sceneDimensionMap[SceneEnum.Performance];
+  dimensionKey = [];
 
   constructor(params: K8sDimensionParams) {
     super(params);
     this.commonParams = params;
+    this.dimensionKey = sceneDimensionMap[this.commonParams.scenario];
     this.originDimensionData = this.dimensionKey.map(key => ({
       id: key,
       name: key,

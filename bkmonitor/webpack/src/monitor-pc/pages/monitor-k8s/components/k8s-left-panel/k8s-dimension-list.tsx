@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { K8sPerformanceDimension } from '../../k8s-dimension';
+import { K8sDimension } from '../../k8s-dimension';
 import { EDimensionKey, type ICommonParams, type GroupListItem } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
@@ -116,7 +116,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   async init() {
     if (!this.localCommonParams.bcs_cluster_id) return;
-    const dimension = new K8sPerformanceDimension({
+    const dimension = new K8sDimension({
       ...this.localCommonParams,
       query_string: this.searchValue,
       page_size: 5,
