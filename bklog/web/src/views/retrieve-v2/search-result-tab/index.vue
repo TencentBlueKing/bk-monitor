@@ -110,7 +110,7 @@
   };
 </script>
 <template>
-  <div class="retrieve-tab">
+  <div class="retrieve-tab" style="position: relative;">
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"
@@ -118,6 +118,10 @@
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
+    <div style="position: absolute;height: 42px;line-height: 42px;right: -2px;top:0px;font-size: 12px;cursor: pointer;color: #4D4F56;">
+      <span class="bklog-icon bklog--celve" style="font-size: 16px;"></span>
+      <span >添加告警策略</span>
+    </div>
   </div>
 </template>
 <style lang="scss">
