@@ -742,4 +742,6 @@ export default {
   待选列表: 'List to be selected:',
   常驻筛选: 'Persistent filtering:',
   数值: 'Number',
+  '最多展示近50条告警，点击查看更多': 'Up to 50 most recent alerts, click to view more',
+  '最多展示近50条策略，点击查看更多': 'Up to 50 most recent strategies, click to view more',
 };

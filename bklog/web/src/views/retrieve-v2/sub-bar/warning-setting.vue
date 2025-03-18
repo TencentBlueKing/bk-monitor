@@ -69,6 +69,14 @@
                 class="active-box"
               ></div>
             </template>
+            <bk-alert type="info">
+              <span
+                slot="title"
+                style="cursor: pointer"
+                @click="handleJumpMonitor"
+                >{{ alertText }}</span
+              >
+            </bk-alert>
             <bk-table
               v-if="active === 'mission'"
               v-bkloading="{ isLoading: loading }"
@@ -215,6 +223,13 @@
     { name: 'config', label: '策略', count: 0 },
   ]);
   const indexId = computed(() => store.state.indexId);
+  const alertText = computed(() => {
+    if (active.value === 'mission') {
+      return t('最多展示近50条告警，点击查看更多');
+    }
+
+    return t('最多展示近50条策略，点击查看更多');
+  });
 
   const badgeCount = ref(0);
   const activeBar = {
@@ -239,7 +254,7 @@
   const originRecordList = ref([]);
   const strategyList = ref([]);
 
-  const pageSize = 10;
+  const pageSize = 50;
 
   // 未恢复：ABNORMAL
   // 已恢复：RECOVERED
