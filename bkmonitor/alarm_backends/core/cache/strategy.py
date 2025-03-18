@@ -1096,7 +1096,9 @@ class StrategyCacheManager(CacheManager):
         strategies = list(strategies_map.values())
         for processor in processors:
             try:
+                start = time.time()
                 processor(strategies)
+                logger.info(f"refresh strategy {processor.__name__} cost: {time.time() - start}")
             except Exception as e:
                 logger.exception(f"refresh strategy error when {processor.__name__}")
                 exc = e
