@@ -1,0 +1,300 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+export enum EMode {
+  queryString = 'queryString',
+  ui = 'ui',
+}
+export enum ECondition {
+  and = 'and',
+}
+export enum EMethod {
+  eq = 'eq',
+  exclude = 'exclude',
+  include = 'include',
+  ne = 'ne',
+}
+export enum EFieldType {
+  all = 'all',
+  date = 'date',
+  integer = 'integer',
+  keyword = 'keyword',
+  text = 'text',
+}
+
+export const METHOD_MAP = {
+  [EMethod.eq]: '=',
+  [EMethod.exclude]: window.i18n.tc('不包含'),
+  [EMethod.include]: window.i18n.tc('包含'),
+  [EMethod.ne]: '!=',
+};
+
+export const fieldTypeMap = {
+  all: {
+    name: window.i18n.tc('数字'),
+    icon: '*',
+    color: '#979BA5',
+    bgColor: '#E8EAF0',
+  },
+  integer: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  keyword: {
+    name: window.i18n.tc('字符串'),
+    icon: 'icon-monitor icon-string',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
+  },
+  text: {
+    name: window.i18n.tc('文本'),
+    icon: 'icon-monitor icon-text',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
+  date: {
+    name: window.i18n.tc('时间'),
+    icon: 'icon-monitor icon-mc-time',
+    color: '#CDAE71',
+    bgColor: '#EDE7DB',
+  },
+};
+
+/* 可选数据格式 */
+export interface IFilterField {
+  name: string;
+  alias: string;
+  type: EFieldType;
+  is_option_enabled: boolean; // 是否可自定选项
+  is_dimensions?: boolean;
+  supported_operations: {
+    alias: string;
+    value: EMethod;
+    options?: {
+      label: string;
+      name: string;
+    };
+  }[]; // 支持的操作
+}
+/* 接口where参数格式 */
+export interface IWhereItem {
+  key: string;
+  condition: ECondition;
+  method: EMethod | string;
+  value: string[];
+  options?: {
+    is_wildcard: boolean;
+  };
+}
+/* 条件结果数据格式 */
+export interface IFilterItem {
+  key: { id: string; name: string };
+  condition: { id: ECondition; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: string; name: string }[];
+  options?: {
+    is_wildcard: boolean;
+  };
+  hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
+}
+export const MODE_LIST = [
+  { id: EMode.ui, name: window.i18n.tc('UI 模式') },
+  { id: EMode.queryString, name: window.i18n.tc('语句模式') },
+];
+
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+export interface IGetValueFnParams {
+  limit?: number;
+  where?: IWhereItem[];
+  fields?: string[];
+  queryString?: string;
+}
+
+export interface IFavoriteListItem {
+  id: string;
+  name: string;
+  favorites: {
+    name: string;
+    config: {
+      queryConfig: {
+        query_string: string;
+        where: IWhereItem[];
+      };
+    };
+  }[];
+}
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export function getCharLength(str) {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+  return bitLen;
+}
+
+export function getTitleAndSubtitle(str) {
+  const regex = /^(.*?)（(.*?)）$/;
+  const match = str.match(regex);
+  return {
+    title: match?.[1] || str,
+    subtitle: match?.[2],
+  };
+}
+
+export function defaultWhereItem(params = {}): IWhereItem {
+  return {
+    condition: ECondition.and,
+    key: '',
+    method: EMethod.eq,
+    value: [],
+    ...params,
+  };
+}
+
+export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
+/**
+ * @description 缓存ui数据
+ * @param v
+ */
+export function setCacheUIData(v: IFilterItem[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
+}
+export function getCacheUIData(): IFilterItem[] {
+  const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
+  try {
+    return JSON.parse(uiDataSrt) || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+}
+
+interface IResidentSetting {
+  field: IFilterField;
+  value: IWhereItem;
+}
+export const RETRIEVAL_FILTER_RESIDENT_SETTING_KEY = 'RETRIEVAL_FILTER_RESIDENT_SETTING_KEY';
+export function setResidentSettingData(v: IResidentSetting[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY, JSON.stringify(v));
+}
+export function getResidentSettingData(): IResidentSetting[] {
+  const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY);
+  try {
+    return JSON.parse(uiDataSrt) || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+}
+
+/**
+ * @description 关闭模态框事件
+ * @param element
+ * @param callback
+ * @param param2
+ * @returns
+ */
+export function onClickOutside(element, callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => el.contains(event.target));
+    } else {
+      isInside = element.contains(event.target);
+    }
+    if (!isInside) {
+      callback(event);
+      if (once) document.removeEventListener('click', handler);
+    }
+  };
+  document.addEventListener('click', handler);
+  return () => document.removeEventListener('click', handler);
+}
+// 单次触发示例
+// const removeListener = onClickOutside(targetElement, closeModal, { once: true });
+
+/**
+ * @description 合并where条件 （不相同的条件往后添加）
+ * @param source
+ * @param target
+ * @returns
+ */
+export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
+  let result: IWhereItem[] = [];
+  const sourceMap: Map<string, IWhereItem> = new Map();
+  for (const item of source) {
+    sourceMap.set(item.key, item);
+  }
+  const localTarget = [];
+  for (const item of target) {
+    const sourceItem = sourceMap.get(item.key);
+    if (
+      !(
+        sourceItem &&
+        sourceItem.key === item.key &&
+        sourceItem.method === item.method &&
+        JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+        sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+      )
+    ) {
+      localTarget.push(item);
+    }
+  }
+  result = [...source, ...localTarget];
+  return result;
+}
+export enum EQueryStringTokenType {
+  bracket = 'bracket',
+  condition = 'condition',
+  key = 'key',
+  method = 'method',
+  split = 'split',
+  value = 'value',
+  valueCondition = 'value-condition',
+}
+
+export function isNumeric(str) {
+  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+}
