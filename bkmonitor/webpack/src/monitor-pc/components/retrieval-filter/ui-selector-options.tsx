@@ -43,6 +43,8 @@ import {
 } from './utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
 
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
+
 import './ui-selector-options.scss';
 
 interface IProps {
@@ -101,6 +103,19 @@ export default class UiSelectorOptions extends tsc<IProps> {
     return this.isTypeInteger ? this.values.some(v => !isNumeric(v.id)) : false;
   }
 
+  get valueSelectorFieldInfo(): IFieldItem {
+    return {
+      field: this.checkedItem?.name,
+      alias: this.checkedItem?.alias,
+      isEnableOptions: !!this.checkedItem?.is_option_enabled,
+      methods: this.checkedItem.supported_operations.map(item => ({
+        id: item.value,
+        name: item.alias,
+      })),
+      type: this.checkedItem?.type,
+    };
+  }
+
   mounted() {
     document.addEventListener('keydown', this.handleKeydownEvent);
   }
@@ -124,7 +139,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
         for (const item of this.fields) {
           if (item.name === id) {
             const checkedItem = JSON.parse(JSON.stringify(item));
-            this.handleCheck(checkedItem, this.value.method.id, this.value.value);
+            this.handleCheck(checkedItem, this.value.method.id, this.value.value, !!this.value?.options?.is_wildcard);
             break;
           }
         }
@@ -149,10 +164,11 @@ export default class UiSelectorOptions extends tsc<IProps> {
    * @description 选中
    * @param item
    */
-  handleCheck(item: IFilterField, method = '', value = []) {
+  handleCheck(item: IFilterField, method = '', value = [], isWildcard = false) {
     this.checkedItem = JSON.parse(JSON.stringify(item));
     this.values = value || [];
     this.method = method || item?.supported_operations?.[0]?.value || '';
+    this.isWildcard = isWildcard;
     const index = this.searchLocalFields.findIndex(f => f.name === item.name) || 0;
     if (this.checkedItem.name === '*') {
       this.queryString = value[0]?.id || '';
@@ -183,9 +199,14 @@ export default class UiSelectorOptions extends tsc<IProps> {
       const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
       const value: IFilterItem = {
         key: { id: this.checkedItem.name, name: this.checkedItem.alias },
-        method: { id: this.method as any, name: methodName },
+        method: { id: this.method as any, name: methodName || '=' },
         value: this.values,
         condition: { id: ECondition.and, name: 'AND' },
+        options: this.isWildcard
+          ? {
+              is_wildcard: true,
+            }
+          : undefined,
       };
       this.$emit('confirm', value);
     } else {
@@ -204,30 +225,30 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.values = v;
   }
 
-  /**
-   * @description 是否通配符
-   */
-  handleIsWildcardChange() {
-    this.handleChange();
-  }
+  // /**
+  //  * @description 是否通配符
+  //  */
+  // handleIsWildcardChange() {
+  //   this.handleChange();
+  // }
 
-  handleChange() {
-    if (this.values.length) {
-      const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
-      const value: IFilterItem = {
-        key: { id: this.checkedItem.name, name: this.checkedItem.alias },
-        method: { id: this.method as any, name: methodName },
-        value: this.values,
-        condition: { id: ECondition.and, name: 'AND' },
-        options: this.isWildcard
-          ? {
-              is_wildcard: true,
-            }
-          : undefined,
-      };
-      this.$emit('change', value);
-    }
-  }
+  // handleChange() {
+  //   if (this.values.length) {
+  //     const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
+  //     const value: IFilterItem = {
+  //       key: { id: this.checkedItem.name, name: this.checkedItem.alias },
+  //       method: { id: this.method as any, name: methodName },
+  //       value: this.values,
+  //       condition: { id: ECondition.and, name: 'AND' },
+  //       options: this.isWildcard
+  //         ? {
+  //             is_wildcard: true,
+  //           }
+  //         : undefined,
+  //     };
+  //     this.$emit('change', value);
+  //   }
+  // }
 
   /**
    * @description 监听键盘事件
@@ -327,6 +348,35 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.isShowDropDown = v;
   }
 
+  getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+    return new Promise((resolve, _reject) => {
+      this.getValueFn({
+        where: [
+          {
+            key: params.field,
+            method: 'include',
+            value: [params.search || ''],
+            condition: ECondition.and,
+            options: {
+              is_wildcard: true,
+            },
+          },
+        ],
+        fields: [params.field],
+        limit: params.limit,
+      })
+        .then(data => {
+          resolve(data);
+        })
+        .catch(() => {
+          resolve({
+            count: 0,
+            list: [],
+          });
+        });
+    });
+  }
+
   render() {
     const rightRender = () => {
       if (this.checkedItem?.name === '*') {
@@ -385,7 +435,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   <span class='right'>
                     <bk-checkbox
                       v-model={this.isWildcard}
-                      onChange={this.handleIsWildcardChange}
+                      // onChange={this.handleIsWildcardChange}
                     >
                       {this.wildcardItem?.label || '使用通配符'}
                     </bk-checkbox>
@@ -395,10 +445,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-content mt-6'>
                 <ValueTagSelector
                   key={this.rightRefreshKey}
-                  checkedItem={this.checkedItem}
-                  getValueFn={this.getValueFn}
-                  isWildcard={this.isWildcard}
-                  method={this.method}
+                  fieldInfo={this.valueSelectorFieldInfo}
+                  getValueFn={this.getValueFnProxy}
                   value={this.values}
                   onChange={this.handleValueChange}
                   onDropDownChange={this.handleDropDownChange}

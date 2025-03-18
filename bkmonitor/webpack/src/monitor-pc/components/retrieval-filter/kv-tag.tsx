@@ -149,7 +149,7 @@ export default class KvTag extends tsc<IProps> {
                 key={`${index}_key`}
                 class='value-name'
               >
-                {item.name}
+                {item.name || '""'}
               </span>,
             ])}
             {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
