@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
-import RenderMetricsGroup, { type IMetric } from './components/render-metrics-group';
+import RenderMetricsGroup from './components/render-metrics-group';
 
 import './index.scss';
 
 interface IEmit {
-  onChange: (value: IMetric[]) => void;
+  onReset: () => void;
 }
 
 @Component
@@ -48,14 +48,11 @@ export default class HeaderFilter extends tsc<object, IEmit> {
 
   handleClearChecked() {
     this.metricGroupRef.resetMetricChecked();
+    this.$emit('reset');
   }
 
   handleFlodAllGround() {
     this.metricGroupRef.flodAll();
-  }
-
-  handleChange(value: IMetric[]) {
-    this.$emit('change', value);
   }
 
   render() {
@@ -101,7 +98,6 @@ export default class HeaderFilter extends tsc<object, IEmit> {
         <RenderMetricsGroup
           ref='metricGroupRef'
           searchKey={this.searchKey}
-          onChange={this.handleChange}
         />
       </div>
     );

@@ -81,8 +81,8 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   commonConditionValueChange() {
     if (this.commonConditionValue.length > 0) {
       this.isShowCommonlyUsedList = true;
-      this.mergeCommonConditionValue();
     }
+    this.mergeCommonConditionValue();
   }
 
   @Watch('value', { immediate: true })
@@ -97,7 +97,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
     });
   }
 
-  @Debounce(100)
+  @Debounce(300)
   mergeCommonConditionValue() {
     const valueMap = this.commonConditionValue.reduce<Record<string, IProps['commonConditionValue'][number]>>(
       (result, item) => {

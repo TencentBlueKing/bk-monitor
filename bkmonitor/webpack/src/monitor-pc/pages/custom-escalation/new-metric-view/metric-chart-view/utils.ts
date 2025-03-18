@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -175,3 +174,16 @@ export function handleTimeOffset(timeOffset: string) {
   }
   return timeOffset;
 }
+
+export const chunkArray = <T extends any[]>(array: T, chunkSize: number): T[] => {
+  const result = []; // 存储结果的二维数组
+
+  // 循环处理每个分块
+  for (let i = 0; i < array.length; i += chunkSize) {
+    // 使用slice截取当前分块
+    const chunk = array.slice(i, i + chunkSize);
+    result.push(chunk);
+  }
+
+  return result;
+};

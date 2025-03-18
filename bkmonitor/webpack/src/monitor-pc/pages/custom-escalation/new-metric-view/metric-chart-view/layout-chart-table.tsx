@@ -33,7 +33,7 @@ import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
-import type { IColumnItem, IDataItem, IMetricAnalysisConfig } from '../type';
+import type { IMetricAnalysisConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
@@ -67,27 +67,16 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: true }) isShowStatisticalValue: boolean;
-  @Prop({ default: 600 }) height: number;
-  @Prop({ default: 500 }) minHeight: number;
+  // @Prop({ default: 600 }) height: number;
+  @Prop({ default: 372 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   /* 主动刷新图表 */
   chartKey = random(8);
-  divHeight = 0;
-  resizeObserver = null;
   isDragging = false;
   mouseDownY = 0;
   offset = 0;
-  parentHeight = 600;
-  columnList = [
-    { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row), fixed: 'left' },
-    { label: '最大值', prop: 'max' },
-    { label: '最小值', prop: 'min' },
-    { label: '最新值', prop: 'latest' },
-    { label: '平均值', prop: 'avg' },
-    { label: '累计值', prop: 'total' },
-  ];
   tableList: ILegendItem[] = [];
   loading = true;
   /** 是否展示维度下钻view */
@@ -112,44 +101,15 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     };
   }
   mounted() {
-    this.$nextTick(() => {
-      if (this.layoutMainRef) {
-        // 初始化 ResizeObserver
-        this.resizeObserver = new ResizeObserver(entries => {
-          for (const entry of entries) {
-            this.divHeight = entry.contentRect.height;
-          }
-        });
-        // 观察目标元素
-        this.resizeObserver.observe(this.layoutMainRef);
-      }
-    });
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('mouseup', this.stopDragging);
-  }
-  beforeDestroy() {
-    document.removeEventListener('mousemove', this.handleMouseMove);
-    document.removeEventListener('mouseup', this.stopDragging);
+
+    this.$once('hook:beforeDestroy', () => {
+      document.removeEventListener('mousemove', this.handleMouseMove);
+      document.removeEventListener('mouseup', this.stopDragging);
+    });
   }
 
-  beforeUnmount() {
-    // 销毁观察器
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-  }
-  renderLegend(row: IDataItem) {
-    return (
-      <span>
-        <span
-          style={{ backgroundColor: row.color }}
-          class='color-box'
-          title={row.name}
-        />
-        {row.name}
-      </span>
-    );
-  }
   //  支持上下拖拽
   handleResizing(height: number) {
     this.drag.height = height;
@@ -158,16 +118,15 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   startDragging(e: MouseEvent) {
     this.isDragging = true;
     this.mouseDownY = e.clientY;
-    this.offset = this.parentHeight;
+    this.offset = this.layoutMainRef.getBoundingClientRect().height;
   }
   handleMouseMove(e: MouseEvent) {
     if (!this.isDragging) return;
-    const newHeight = e.clientY - this.mouseDownY + this.offset;
-    if (newHeight > 0 && newHeight > this.minHeight) {
-      // 设置高度的最小值
-      this.parentHeight = newHeight;
-      this.$emit('resize', newHeight);
-    }
+    const newHeight = Math.max(e.clientY - this.mouseDownY + this.offset, this.minHeight);
+
+    Array.from(this.layoutMainRef.parentElement.parentElement.children).forEach((itemEl: HTMLElement) => {
+      itemEl.style.height = `${newHeight}px`;
+    });
   }
   /** 停止拉伸 */
   stopDragging() {
@@ -222,25 +181,72 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         outer-border={false}
         stripe={true}
       >
-        {this.columnList.map((item: IColumnItem, ind: number) => (
-          <bk-table-column
-            key={`${item.prop}_${ind}`}
-            width={item.width}
-            scopedSlots={{
-              default: ({ row }) => {
-                /** 自定义 */
-                if (item?.renderFn) {
-                  return item?.renderFn(row);
-                }
-                return <span title={row[item.prop]}>{row[item.prop] || '--'}</span>;
-              },
-            }}
-            fixed={item.fixed}
-            label={this.$t(item.label)}
-            prop={item.prop}
-            sortable={ind === 0 ? false : true}
-          ></bk-table-column>
-        ))}
+        <bk-table-column
+          scopedSlots={{
+            default: ({ row }) => (
+              <span>
+                <span
+                  style={{ backgroundColor: row.color }}
+                  class='color-box'
+                  title={row.name}
+                />
+                {row.name}
+              </span>
+            ),
+          }}
+          class-name='indicator-name-column'
+          fixed='left'
+          label=''
+          min-width={150}
+          prop='name'
+          show-overflow-tooltip={true}
+        />
+        <bk-table-column
+          width={80}
+          scopedSlots={{
+            default: ({ row }) => row.max || '--',
+          }}
+          label={this.$t('最大值')}
+          prop='max'
+          sortable
+        />
+        <bk-table-column
+          width={80}
+          scopedSlots={{
+            default: ({ row }) => row.min || '--',
+          }}
+          label={this.$t('最小值')}
+          prop='min'
+          sortable
+        />
+        <bk-table-column
+          width={80}
+          scopedSlots={{
+            default: ({ row }) => row.latest || '--',
+          }}
+          label={this.$t('最新值')}
+          prop='latest'
+          sortable
+        />
+        <bk-table-column
+          width={80}
+          scopedSlots={{
+            default: ({ row }) => row.avg || '--',
+          }}
+          label={this.$t('平均值')}
+          prop='avg'
+          sortable
+        />
+        <bk-table-column
+          width={80}
+          scopedSlots={{
+            default: ({ row }) => row.total || '--',
+          }}
+          label={this.$t('累计值')}
+          prop='total'
+          sortable
+        />
+        <div slot='empty'>{this.$t('暂无数据')}</div>
       </bk-table>
     );
   }
@@ -249,7 +255,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     const renderChart = () => (
       <NewMetricChart
         key={this.chartKey}
-        style={{ height: `${this.drag.height - 30}px` }}
+        style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
@@ -261,7 +267,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     return (
       <div
         ref='layoutMain'
-        style={{ height: `${this.height}px` }}
+        style={{ 'user-select': this.isDragging ? 'none' : 'auto' }}
         class='layout-chart-table'
       >
         {this.isShowStatisticalValue ? (
@@ -275,14 +281,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             placement='top'
             onResizing={this.handleResizing}
           >
+            <div slot='aside'>{renderChart()}</div>
             <div
-              class='main-chart'
-              slot='aside'
-            >
-              {renderChart()}
-            </div>
-            <div
-              style={{ height: `${this.divHeight - this.drag.height}px` }}
               class='main-table'
               slot='main'
             >

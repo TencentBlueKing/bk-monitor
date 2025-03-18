@@ -103,6 +103,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   async fetchViewData() {
     this.isViewDetailLoading = true;
     this.tabRef.updateActiveBarPosition(this.viewTab);
+    this.tabRef.checkActiveName();
 
     const updateCurrentSelectedMetricNameList = (metricNameList: string[]) => {
       // 更新 Store 上的 currentSelectedMetricNameList
