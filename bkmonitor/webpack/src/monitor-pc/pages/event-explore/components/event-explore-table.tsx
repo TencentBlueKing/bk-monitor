@@ -159,10 +159,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType(): EmptyStatusType {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { where, query_string } = this.queryParams?.query_configs?.[0] || {};
-    const queryString = query_string?.trim?.();
-    if (where?.length || !!queryString) {
+    if (this.queryParams) {
       return 'search-empty';
     }
     return 'empty';
