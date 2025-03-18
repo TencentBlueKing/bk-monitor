@@ -168,15 +168,18 @@ export const setScrollLoadCell = (
    */
   const appendLastTag = () => {
     if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
-      const child = document.createElement('span');
-      child.classList.add('last-placeholder');
-      contentElement?.append?.(child);
+      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+      if (scrollHeight > offsetHeight) {
+        const child = document.createElement('span');
+        child.classList.add('last-placeholder');
+        contentElement?.append?.(child);
+      }
     }
   };
 
   const appendPageItems = (size?) => {
     if (startIndex >= wordList.length) {
-      appendLastTag();
+      requestAnimationFrame(appendLastTag);
       return false;
     }
 
