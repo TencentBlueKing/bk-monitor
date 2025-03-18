@@ -225,10 +225,10 @@
   const indexId = computed(() => store.state.indexId);
   const alertText = computed(() => {
     if (active.value === 'mission') {
-      return t('最多展示近50条告警，点击查看更多');
+      return t('最多展示近10条告警，点击查看更多');
     }
 
-    return t('最多展示近50条策略，点击查看更多');
+    return t('最多展示近10条策略，点击查看更多');
   });
 
   const badgeCount = ref(0);
@@ -254,7 +254,7 @@
   const originRecordList = ref([]);
   const strategyList = ref([]);
 
-  const pageSize = 50;
+  const pageSize = 10;
 
   // 未恢复：ABNORMAL
   // 已恢复：RECOVERED
