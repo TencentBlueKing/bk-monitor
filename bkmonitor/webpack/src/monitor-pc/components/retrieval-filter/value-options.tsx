@@ -31,7 +31,8 @@ import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
-import { ECondition, type IFilterField, type IGetValueFnParams, type IWhereValueOptionsItem } from './utils';
+
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
 import './value-options.scss';
 
@@ -43,24 +44,20 @@ interface IValue {
 interface IProps {
   search?: string;
   selected?: string[];
-  isWildcard?: boolean;
-  checkedItem?: IFilterField;
-  method?: string;
+  fieldInfo?: IFieldItem;
   show?: boolean;
   isPopover?: boolean;
   width?: number;
   onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
-  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  getValueFn?: TGetValueFn;
 }
 
 @Component
 export default class ValueOptions extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) selected: string[];
   @Prop({ type: String, default: '' }) search: string;
-  @Prop({ type: Object, default: () => null }) checkedItem: IFilterField;
-  @Prop({ type: Boolean, default: false }) isWildcard: boolean;
-  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   /* 是否通过popover组件显示 */
   @Prop({ type: Boolean, default: false }) isPopover: boolean;
   /* 如果荣国popover组件显示则需传入此属性 */
@@ -73,7 +70,7 @@ export default class ValueOptions extends tsc<IProps> {
         list: [],
       }),
   })
-  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  getValueFn: TGetValueFn;
   @Prop({ type: Number, default: 0 }) width: number;
 
   localOptions: IValue[] = [];
@@ -212,9 +209,8 @@ export default class ValueOptions extends tsc<IProps> {
 
   /**
    * @description 搜索接口
-   * @param item
-   * @param method
-   * @param value
+   * @param isScroll
+   * @returns
    */
   async getValueData(isScroll = false) {
     let list = [];
@@ -223,22 +219,12 @@ export default class ValueOptions extends tsc<IProps> {
     } else {
       this.loading = true;
     }
-    if (this.checkedItem?.is_option_enabled) {
+    if (this.fieldInfo?.isEnableOptions) {
       const limit = this.pageSize * this.page;
       const data = await this.getValueFn({
-        where: [
-          {
-            key: this.checkedItem.name,
-            method: 'include',
-            value: [this.search || ''],
-            condition: ECondition.and,
-            options: {
-              is_wildcard: true,
-            },
-          },
-        ],
-        fields: [this.checkedItem.name],
-        limit: this.pageSize * this.page,
+        search: this.search,
+        limit,
+        field: this.fieldInfo.field,
       });
       list = data.list;
       this.isEnd = limit >= data.count;

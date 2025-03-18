@@ -27,16 +27,11 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import {
-  EFieldType,
-  type IFilterField,
-  type IGetValueFnParams,
-  isNumeric,
-  type IWhereValueOptionsItem,
-  onClickOutside,
-} from './utils';
+import { EFieldType, isNumeric, onClickOutside } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
+
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
 import './value-tag-selector.scss';
 
@@ -47,21 +42,18 @@ export interface IValue {
 
 interface IProps {
   value?: IValue[];
-  checkedItem?: IFilterField;
-  method?: string;
-  isWildcard?: boolean;
+  fieldInfo?: IFieldItem;
   onChange?: (v: IValue[]) => void;
+  /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
-  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  /* 获取数据 */
+  getValueFn?: TGetValueFn;
 }
 
 @Component
 export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IValue[];
-  @Prop({ type: Boolean, default: false }) scrollLoading: boolean;
-  @Prop({ type: Object, default: () => null }) checkedItem: IFilterField;
-  @Prop({ type: String, default: '' }) method: string;
-  @Prop({ type: Boolean, default: false }) isWildcard: boolean;
+  @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   @Prop({
     type: Function,
     default: () =>
@@ -70,7 +62,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         list: [],
       }),
   })
-  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  getValueFn: TGetValueFn;
 
   /* tag列表 */
   localValue: IValue[] = [];
@@ -93,7 +85,7 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   /* 是否只允许输入数值类型 */
   get isTypeInteger() {
-    return this.checkedItem?.type === EFieldType.integer;
+    return this.fieldInfo?.type === EFieldType.integer;
   }
 
   get isError() {
@@ -289,7 +281,7 @@ export default class ValueTagSelector extends tsc<IProps> {
             ? this.localValue.map((item, index) => [
                 <ValueTagInput
                   key={item.id}
-                  class={['value-tag-input', { error: this.isTypeInteger ? !isNumeric(item.id) : false }]}
+                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
                   value={item.id}
                   onChange={v => this.handleTagUpdate(v, index)}
                   onDelete={() => this.handleDelete(index)}
@@ -300,10 +292,8 @@ export default class ValueTagSelector extends tsc<IProps> {
         </div>
         {this.isShowDropDown && (
           <ValueOptions
-            checkedItem={this.checkedItem}
+            fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
-            isWildcard={this.isWildcard}
-            method={this.method}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
             onIsChecked={this.handleIsChecked}

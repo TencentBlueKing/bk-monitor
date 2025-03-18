@@ -35,7 +35,10 @@ import {
   type IWhereValueOptionsItem,
   type IFilterField,
   type IWhereItem,
+  ECondition,
 } from './utils';
+
+import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
 import './resident-setting.scss';
 
@@ -212,6 +215,49 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
     );
   }
 
+  getFieldInfo(item: IFilterField): IFieldItem {
+    return {
+      field: item.name,
+      alias: item.alias,
+      isEnableOptions: !!item?.is_option_enabled,
+      methods:
+        item?.supported_operations.map(o => ({
+          id: o.value,
+          name: o.alias,
+        })) || [],
+      type: item.type,
+    };
+  }
+
+  getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+    return new Promise((resolve, _reject) => {
+      this.getValueFn({
+        where: [
+          {
+            key: params.field,
+            method: 'include',
+            value: [params.search || ''],
+            condition: ECondition.and,
+            options: {
+              is_wildcard: true,
+            },
+          },
+        ],
+        fields: [params.field],
+        limit: params.limit,
+      })
+        .then(data => {
+          resolve(data);
+        })
+        .catch(() => {
+          resolve({
+            count: 0,
+            list: [],
+          });
+        });
+    });
+  }
+
   render() {
     return (
       <div class='retrieval-filter__resident-setting-component'>
@@ -228,8 +274,8 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
               <SettingKvSelector
                 key={index}
                 class='mb-4 mr-4'
-                field={item.field}
-                getValueFn={this.getValueFn}
+                fieldInfo={this.getFieldInfo(item.field)}
+                getValueFn={this.getValueFnProxy}
                 value={item.value}
                 onChange={v => this.handleValueChange(v, index)}
               />
