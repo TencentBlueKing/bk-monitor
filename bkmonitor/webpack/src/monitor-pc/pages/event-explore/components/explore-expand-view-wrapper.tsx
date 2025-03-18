@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { APIType } from '../api-utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import type { ConditionChangeEvent, DimensionType, ExploreEntitiesMap, ExploreFieldMap } from '../typing';
@@ -42,6 +43,7 @@ interface ExploreExpandViewWrapperProps {
   entitiesMapList: ExploreEntitiesMap[];
   /** 滚动事件被观察者实例 */
   scrollSubject: ExploreSubject;
+  source: APIType;
 }
 
 interface ExploreExpandViewWrapperEvents {
@@ -66,7 +68,8 @@ export default class ExploreExpandViewWrapper extends tsc<
   @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
   /** 滚动事件被观察者实例 */
   @Prop({ type: Object }) scrollSubject?: ExploreSubject;
-
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
 
@@ -183,6 +186,7 @@ export default class ExploreExpandViewWrapper extends tsc<
           <ExploreKvList
             fieldList={this.kvFieldList}
             scrollSubject={this.scrollSubject}
+            source={this.source}
             onConditionChange={this.conditionChange}
           />
         </div>

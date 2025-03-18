@@ -40,6 +40,7 @@ interface StatisticsListProps {
   selectField: string;
   popoverInstance?: any;
   isDimensions?: boolean;
+  source: APIType;
 }
 
 interface StatisticsListEvents {
@@ -53,13 +54,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Prop({ type: String, default: '' }) selectField: string;
   @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
-
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   @InjectReactive('commonParams') commonParams;
-  @InjectReactive({
-    from: 'source',
-    default: APIType.MONITOR,
-  })
-  source!: APIType;
 
   sliderShow = false;
   sliderLoading = false;
@@ -206,10 +203,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   async getFieldTopK(params) {
-    const data = await getEventTopK({
-      ...this.commonParams,
-      ...params,
-    }).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+    const data = await getEventTopK(
+      {
+        ...this.commonParams,
+        ...params,
+      },
+      this.source
+    ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
     return data[0];
   }
 

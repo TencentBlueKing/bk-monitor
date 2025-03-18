@@ -477,6 +477,7 @@ export default class EventExplore extends tsc<
                   list={this.fieldList}
                   listLoading={this.loading}
                   queryString={this.queryConfig.query_string}
+                  source={this.source}
                   onClose={this.handleCloseDimensionPanel}
                   onConditionChange={this.handleConditionChange}
                 />
