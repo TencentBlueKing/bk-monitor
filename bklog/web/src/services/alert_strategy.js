@@ -36,4 +36,12 @@ const strategyList = {
   url: '/alert_strategy/:index_set_id/strategy_records/',
   method: 'post',
 };
-export { alertList, strategyList };
+
+/**
+ * 获取日志查询条件
+ */
+const getLogRelatedInfo = {
+  url: '/alert_strategy/:index_set_id/log_related_info/',
+  method: 'get',
+}
+export { alertList, strategyList, getLogRelatedInfo };
