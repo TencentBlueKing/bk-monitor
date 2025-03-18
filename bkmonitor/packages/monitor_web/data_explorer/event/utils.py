@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 import logging
 import time
 from typing import Any, Dict, List, Tuple
@@ -6,6 +16,7 @@ from urllib import parse
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
+
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from metadata.models import ResultTable
@@ -113,7 +124,7 @@ def get_filed_alias_dict(field, label: str) -> Tuple[str, Dict[str, str]]:
 def get_field_label(field: str, data_label: str) -> str:
     # 去掉可能存在 dimensions 前缀
     if field.startswith(DIMENSION_PREFIX):
-        field = field[len(DIMENSION_PREFIX):]
+        field = field[len(DIMENSION_PREFIX) :]
 
     _, filed_alias_dict = get_filed_alias_dict(field, data_label)
     return filed_alias_dict.get(field, field)
