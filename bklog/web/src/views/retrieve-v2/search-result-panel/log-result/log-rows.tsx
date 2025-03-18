@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, onBeforeMount } from 'vue';
 
 import {
   parseTableRowData,
@@ -90,6 +90,7 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
+    const refLoadMoreElement: Ref<HTMLElement> = ref();
     const popInstanceUtil = new PopInstanceUtil({
       refContent: ref('智能分析'),
       tippyOptions: {
@@ -109,7 +110,7 @@ export default defineComponent({
     const wheelTrigger = ref({ isWheeling: false, id: '' });
     provide('wheelTrigger', wheelTrigger);
 
-    const renderList = ref([]);
+    let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -126,14 +127,15 @@ export default defineComponent({
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+    const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     // 标识当前日志级别的字段。暂时使用level字段，等确定实现方案后这里进行Computed计算
     const logLevelFieldName = ref('level');
 
     const exceptionMsg = computed(() => {
-      if (indexSetQueryResult.value?.exception_msg === 'Cancel') {
+      if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
       }
+
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
 
@@ -172,21 +174,22 @@ export default defineComponent({
       const inteval = 50;
 
       const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.value.length;
+        const appendLength = targetLength - renderList.length;
         const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.value.length - 1;
+        const startIndex = renderList.length;
 
         if (appendLength > 0) {
-          renderList.value.push(
-            ...new Array(stepLength).fill('').map((_, i) => {
-              const index = i + startIndex + 1;
-              const row = tableList.value[index];
-              return {
-                item: row,
-                [ROW_KEY]: `${row.dtEventTimeStamp}_${index}`,
-              };
-            }),
-          );
+          const arr = [];
+          const endIndex = startIndex + stepLength;
+          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+          for (let i = 0; i < lastIndex; i++) {
+            arr.push({
+              item: tableList.value[i],
+              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+            });
+          }
+
+          renderList = Object.freeze(arr);
           appendChildNodes();
           return;
         }
@@ -632,8 +635,7 @@ export default defineComponent({
           if (isLoading.value) {
             scrollToTop(0);
 
-            renderList.value.length = 0;
-            renderList.value = [];
+            renderList = [];
 
             return;
           }
@@ -696,7 +698,8 @@ export default defineComponent({
     };
 
     const loadMoreTableData = () => {
-      if (isRequesting.value) {
+      // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
+      if (isRequesting.value && tableDataSize.value === 0) {
         return;
       }
 
@@ -732,7 +735,7 @@ export default defineComponent({
       pageIndex.value = 1;
 
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList.value = renderList.value.slice(0, maxLength);
+      renderList = renderList.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
@@ -741,6 +744,7 @@ export default defineComponent({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
+      refLoadMoreElement,
     });
 
     const scrollWidth = computed(() => {
@@ -939,7 +943,7 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return renderList.value.map((row, rowIndex) => {
+      return renderList.map((row, rowIndex) => {
         return (
           <RowRender
             key={row[ROW_KEY]}
@@ -985,7 +989,10 @@ export default defineComponent({
 
     const renderLoader = () => {
       return (
-        <div class={['bklog-requsting-loading']}>
+        <div
+          class={['bklog-requsting-loading']}
+          ref={refLoadMoreElement}
+        >
           <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>
       );
@@ -1006,6 +1013,85 @@ export default defineComponent({
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
 
+    const getExceptionRender = () => {
+      if (tableDataSize.value === 0) {
+        if (isRequesting.value || isLoading.value) {
+          return (
+            <bk-exception
+              style='margin-top: 100px;'
+              class='exception-wrap-item exception-part'
+              scene='part'
+              type='search-empty'
+            >
+              loading...
+            </bk-exception>
+          );
+        }
+        if ($t('检索结果为空') === exceptionMsg.value) {
+          return (
+            <div class='bklog-empty-data'>
+              <h1>{$t('检索无数据')}</h1>
+              <div class='sub-title'>您可按照以下顺序调整检索方式</div>
+              <div class='empty-validate-steps'>
+                <div class='validate-step1'>
+                  <h3>1. 优化查询语句</h3>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>查询范围：</span>
+                    <span class='step1-content-value'>
+                      log: bklog*
+                      <br />
+                      包含bklog
+                      <br />= bklog 使用通配符 (*)
+                    </span>
+                  </div>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>精准匹配：</span>
+                    <span class='step1-content-value'>log: "bklog"</span>
+                  </div>
+                </div>
+                <div class='validate-step2'>
+                  <h3>2. 检查是否为分词问题</h3>
+                  <div>
+                    当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。
+                    <br />
+                    <br />
+                    若目标内容为整段蓝色，或中间存在字符粘连的情况。
+                    <br />
+                    可能是因为分词导致的问题；
+                    <br />
+                    <span class='segment-span-tag'>点击设置自定义分词</span>
+                    <br />
+                    <br />
+                    将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
+                  </div>
+                </div>
+                <div class='validate-step3'>
+                  <h3>3. 一键反馈</h3>
+                  <div>
+                    若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
+                    <span class='segment-span-tag'>问题反馈</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            {exceptionMsg.value}
+          </bk-exception>
+        );
+      }
+
+      return null;
+    };
+
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
     });
@@ -1019,6 +1105,7 @@ export default defineComponent({
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+      getExceptionRender,
       tableDataSize,
       resultContainerId,
       hasScrollX,
@@ -1042,16 +1129,7 @@ export default defineComponent({
         >
           {this.renderRowVNode()}
         </div>
-        {this.tableDataSize === 0 ? (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
-          </bk-exception>
-        ) : null}
+        {this.getExceptionRender()}
         {this.renderFixRightShadow()}
         {this.renderScrollXBar()}
         {this.renderLoader()}

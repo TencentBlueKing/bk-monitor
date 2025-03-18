@@ -140,6 +140,13 @@ ul.search-items {
         }
 
         .bklog-icon {
+          width: 18px;
+          height: 18px;
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 #00000014;
+          border-radius: 2px;
+          font-size: 12px;
+
           &:hover {
             color: #3a84ff;
           }
@@ -148,6 +155,7 @@ ul.search-items {
         .tag-options-close {
           margin-right: 4px;
           margin-left: 4px;
+          font-size: 14px;
 
           &:hover {
             color: #ea3636;

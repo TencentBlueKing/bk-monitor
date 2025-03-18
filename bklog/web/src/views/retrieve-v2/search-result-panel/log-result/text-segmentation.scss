@@ -42,7 +42,7 @@
   }
 
   span {
-    line-height: 20px;
+    line-height: 22px;
 
     &.segment-content {
       span {
@@ -56,7 +56,6 @@
           monospace;
 
         content-visibility: auto;
-        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
       }
 
       .last-placeholder {

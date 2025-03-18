@@ -58,6 +58,9 @@ class DeepflowInstaller:
 
         # 获取Deployment 使用线程池获取的目的是便于处理超时 因为 K8S SDK 没有提供超时的参数 会导致任务长时间在这里卡主
         deployments = self.list_deployments(namespace)
+        if deployments is None:
+            return
+
         for deployment in deployments.items:
             content = WorkloadContent.deployment_to(deployment)
             if self._check_deployment(content):
@@ -65,6 +68,9 @@ class DeepflowInstaller:
                 WorkloadHandler.upsert(self.cluster_id, namespace, content)
 
         services = self.list_services(namespace)
+        if services is None:
+            return
+
         for service in services.items:
             content = WorkloadContent.service_to(service)
             if self._check_service(content):
