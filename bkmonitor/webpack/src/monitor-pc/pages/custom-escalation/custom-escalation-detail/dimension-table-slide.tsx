@@ -43,19 +43,18 @@ interface IDimensionItem {
   common?: boolean;
 }
 
+// 表格配置
+const FIELD_SETTINGS = {
+  name: { label: '名称', width: 200 },
+  description: { label: '别名', width: 200 },
+  disabled: { label: '启/停', width: 120 },
+  common: { label: '是否常用', width: 140 },
+  set: { label: '操作', width: 80 },
+};
 @Component
 export default class DimensionTableSlide extends tsc<any> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ default: () => [] }) dimensionTable: any[];
-
-  // 表格配置
-  FIELD_SETTINGS = {
-    name: { label: '名称', width: 200 },
-    description: { label: '别名', width: 200 },
-    disabled: { label: '启/停', width: 120 },
-    common: { label: '是否常用', width: 140 },
-    set: { label: '操作', width: 80 },
-  };
 
   search = '';
 
@@ -83,7 +82,7 @@ export default class DimensionTableSlide extends tsc<any> {
       <bk-sideslider
         {...{ on: { 'update:isShow': this.handleCancel } }}
         width={this.width}
-        ext-cls='metric-slider-box'
+        ext-cls='dimension-slider-box'
         isShow={this.isShow}
         quickClose
         onHidden={this.handleCancel}
@@ -95,7 +94,7 @@ export default class DimensionTableSlide extends tsc<any> {
           {this.$t('批量编辑维度')}
         </div>
         <div
-          class='metric-slider-content'
+          class='dimension-slider-content'
           slot='content'
         >
           <div class='slider-search'>
@@ -113,7 +112,7 @@ export default class DimensionTableSlide extends tsc<any> {
             empty-text={this.$t('无数据')}
             colBorder
           >
-            {Object.entries(this.FIELD_SETTINGS).map(([key, config]) => (
+            {Object.entries(FIELD_SETTINGS).map(([key, config]) => (
               <bk-table-column
                 key={key}
                 width={config.width}
@@ -135,12 +134,13 @@ export default class DimensionTableSlide extends tsc<any> {
                   },
                 }}
                 label={this.$t(config.label)}
+                prop={key}
               />
             ))}
           </bk-table>
           <div class='slider-footer'>
             <bk-button
-              disabled={!this.localTable.length}
+              // disabled={!this.localTable.length}
               theme='primary'
               onClick={this.handleSave}
             >
@@ -265,13 +265,13 @@ export default class DimensionTableSlide extends tsc<any> {
     // 同步验证
     const syncError = this.validateSync(row);
     if (syncError) {
-      row.error = syncError;
+      this.$set(row, 'error', syncError);
       return false;
     }
     // 异步验证
     const asyncError = await this.validateAsync(row);
     if (asyncError) {
-      row.error = asyncError;
+      this.$set(row, 'error', asyncError);
       return false;
     }
 
