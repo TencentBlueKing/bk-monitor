@@ -162,6 +162,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   async showMore() {
     this.sliderShow = true;
     this.sliderLoading = true;
+    this.sliderShowChange();
     this.$emit('showMore');
     await this.loadMore();
     this.sliderLoading = false;
