@@ -244,7 +244,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
-
+  import { builtInInitHiddenList } from '@/const/index.js';
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
@@ -276,6 +276,7 @@
       original_text_is_case_sensitive: '',
     },
     etl_config: '',
+    fields: [],
   });
   const isEdit = ref(false);
   const isEditConfigName = ref(false);
@@ -310,7 +311,6 @@
   });
   const alias_settings = ref([]);
   const batchAddField = () => {
-    console.log(collectorConfigId.value, 'collectorConfigId');
     if (!collectorConfigId.value) return;
     // router.replace({
     //   name: 'clean-edit',
@@ -455,7 +455,11 @@
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
-        indexBuiltField.value = collectData?.fields.filter(item => item.is_built_in && item.field_name !== 'data');
+        indexBuiltField.value = collectData?.fields.filter(
+          item =>
+            builtInInitHiddenList.includes(item.field_name) ||
+            (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data'),
+        );
         originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
       });
 
@@ -467,7 +471,22 @@
       })
       .then(res => {
         const etlFields = res?.data?.etl_fields || [];
-        etlFields.forEach(field => {
+        const existingFields = formData.value.fields || [];
+        const existingFieldsMap = new Map(existingFields.map(field => [field.field_name, field]));
+        const mergedFields = [];
+
+        // 遍历 etlFields，将其添加到结果数组中
+        etlFields.forEach(etlField => {
+          mergedFields.push(etlField);
+          // 从 existingFieldsMap 中删除已经处理过的 field_name
+          existingFieldsMap.delete(etlField.field_name);
+        });
+
+        // 遍历 existingFieldsMap 中剩余的项（即那些在 etlFields 中未出现的项），将其添加到结果数组中
+        existingFieldsMap.forEach(existingField => {
+          mergedFields.push(existingField);
+        });
+        mergedFields.forEach(field => {
           const matchingAlias = alias_settings.value.find(
             alias => field.field_name === alias.field_name || field.alias_name === alias.field_name,
           );
@@ -475,7 +494,13 @@
             field.query_alias = matchingAlias.query_alias;
           }
         });
-        tableField.value = etlFields.filter(item => !item.is_built_in && !item.is_delete);
+
+        tableField.value = mergedFields.filter(
+          item =>
+            !builtInInitHiddenList.includes(item.field_name) &&
+            !builtInInitHiddenList.includes(item.alias_name) &&
+            !item.is_delete,
+        );
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;

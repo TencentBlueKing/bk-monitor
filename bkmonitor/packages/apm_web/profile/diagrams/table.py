@@ -61,7 +61,7 @@ class TableDiagrammer:
         table_data = []
         handler = get_handler_by_mapping(options)
 
-        miss_value = {"id": 0, "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
+        miss_value = {"id": "", "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
         for node in diff_table.diff_node_map.values():
             table_data.append(
                 {

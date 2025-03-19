@@ -62,6 +62,7 @@ import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
 import { axiosInstance } from '@/api';
 import http from '@/api';
+import {isAiAssistantActive} from './helper';
 
 Vue.use(Vuex);
 const stateTpl = {
@@ -170,6 +171,9 @@ const stateTpl = {
   // 存放接口报错信息的对象
   apiErrorInfo: {},
   clusterParams: null,
+  features: {
+    isAiAssistantActive: false,
+  }
 };
 
 const store = new Vuex.Store({
@@ -290,6 +294,7 @@ const store = new Vuex.Store({
     resultTableStaticWidth: state => {
       return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
     },
+    isAiAssistantActive: state => state.features.isAiAssistantActive
   },
   // 公共 mutations
   mutations: {
@@ -505,6 +510,7 @@ const store = new Vuex.Store({
       state.bkBizId = state.space.bk_biz_id;
       state.spaceUid = spaceUid;
       state.isSetDefaultTableColumn = false;
+      state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {
@@ -986,6 +992,7 @@ const store = new Vuex.Store({
 
       if (route.query?.bizId) {
         state.bkBizId = route.query?.bizId;
+        state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
       }
 
       if (result.ip_chooser) {
