@@ -15,11 +15,13 @@ from typing import List
 
 from django.conf import settings
 from django.core.cache import caches
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request, get_request_username
@@ -130,9 +132,18 @@ class ListSpacesResource(Resource):
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> List[dict]:
+        request = get_request(peaceful=True)
         username = get_request_username()
 
-        if validated_request_data["show_all"]:
+        if request and getattr(request, "external_user", None):
+            spaces: List[dict] = SpaceApi.list_spaces_dict()
+            external_biz_ids = (
+                ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
+                .values_list("bk_biz_id", flat=True)
+                .distinct()
+            )
+            spaces = [space for space in spaces if space["bk_biz_id"] in external_biz_ids]
+        elif validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
                 spaces: List[dict] = self.get_space_by_user(username)
