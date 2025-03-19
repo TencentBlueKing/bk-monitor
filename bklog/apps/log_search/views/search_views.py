@@ -1783,6 +1783,7 @@ class SearchViewSet(APIViewSet):
             start_time=params["start_time"],
             end_time=params["end_time"],
             sql_param=params["sql"],
+            keyword=params["keyword"],
         )
         return Response(data)
 
