@@ -152,7 +152,7 @@
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         class="custom-border-right"
       />
-      <WarningSetting></WarningSetting>
+      <WarningSetting class="custom-border-right"></WarningSetting>
       <ClusterSetting
         class="custom-border-right"
         v-model="isShowClusterSetting"

@@ -83,7 +83,7 @@
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
     .bklog-list-row {
-      .left{
+      .bklog-row-cell:nth-child(1){
          /* stylelint-disable-next-line declaration-no-important */
         width:12px !important;
          /* stylelint-disable-next-line declaration-no-important */
@@ -92,6 +92,11 @@
         margin-left: 8px !important;
          /* stylelint-disable-next-line declaration-no-important */
         padding: 0px 0px 0px 0px !important;
+      }
+      .bklog-row-cell:nth-child(2){
+         width:50px ;
+         min-width: 50px ;
+         padding: 0px 12px ;
       }
     }
     .bklog-row-observe {
