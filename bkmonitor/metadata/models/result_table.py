@@ -1242,9 +1242,7 @@ class ResultTable(models.Model):
 
         # 4. 判断标签是否需要修改
         if label is not None:
-            if not Label.exists_label(
-                label_id=label, bk_tenant_id=self.bk_tenant_id, label_type=Label.LABEL_TYPE_RESULT_TABLE
-            ):
+            if not Label.exists_label(label_id=label, label_type=Label.LABEL_TYPE_RESULT_TABLE):
                 logger.error(
                     "user->[%s] try to update rt->[%s] of bk_tenant_id->[%s] to label->[%s] but is not exists, "
                     "nothing will do.",
