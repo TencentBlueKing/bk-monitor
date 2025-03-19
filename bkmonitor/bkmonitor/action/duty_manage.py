@@ -717,6 +717,8 @@ class GroupDutyRuleManager:
 
         duty_plans = []
         for duty_plan in duty_manager.get_duty_plan():
+            if not duty_plan["work_times"]:
+                continue
             duty_end_times = [f'{work_time["end_time"]}:59' for work_time in duty_plan["work_times"]]
             duty_start_times = [f'{work_time["start_time"]}:00' for work_time in duty_plan["work_times"]]
             # 结束时间获取当前有效的排班时间最后一天即可，不能大于结束时间

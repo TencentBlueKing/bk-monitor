@@ -317,17 +317,20 @@
         border-radius: 50%;
       }
 
+
+
       .node-name {
         margin: 0 4px;
         overflow: hidden;
-        color: rgba(105, 157, 244, 1);
+        color: #c4c6cc;
         text-overflow: ellipsis;
         white-space: nowrap;
-
-        &:hover {
-          cursor: pointer;
-        }
       }
+
+      .node-link-name {
+        color: rgba(105, 157, 244, 1);
+        cursor: pointer;
+      } 
     }
 
     .node-source-anomaly {
@@ -571,10 +574,18 @@
     margin-right: 6px;
     font-size: 16px;
     border-radius: 100%;
+
+    .icon-fuwumokuai {
+      font-size: 12px;
+    }
   }
 
   .edge-item-source {
     font-size: 28px;
+  }
+
+  .edge-item-source.icon-fuwumokuai {
+    font-size: 24px;
   }
 
   .item-source-normal {
@@ -721,6 +732,10 @@
       justify-content: center;
       width: 16px;
       height: 16px;
+    }
+
+    .icon-fenxiang {
+      font-size: 12px;
     }
 
     .btn-text {

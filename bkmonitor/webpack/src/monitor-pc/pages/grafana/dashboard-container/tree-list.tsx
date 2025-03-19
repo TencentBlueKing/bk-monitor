@@ -64,8 +64,11 @@ export default class TreeList extends tsc<IProps, IEvents> {
   @Prop({ type: Boolean, default: true }) needMore: boolean;
   @Inject('authority') authority;
   @Inject('authorityMap') authorityMap;
+  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   /** 当前聚焦的数据项id */
   focusId = null;
+
+  actionId = 'view_single_dashboard';
 
   get moreOptions() {
     return [
@@ -148,6 +151,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
         icon: 'icon-mc-copy',
         hasAuth: true,
       },
+      {
+        id: MoreType.migrate,
+        name: window.i18n.tc('更新'),
+        icon: 'icon-mc-migrate-tool',
+        hasAuth: true,
+      },
     ];
   }
   /**
@@ -176,8 +185,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
     if (item.isGroup) {
       item.expend = !item.expend;
     } else {
-      this.handleSelected(item);
+      item.hasPermission ? this.handleSelected(item) : this.handleShowAuthorityDialog();
     }
+  }
+
+  handleShowAuthorityDialog() {
+    this.handleShowAuthorityDetail(this.actionId || this.$route.meta.authority?.MANAGE_AUTH);
   }
 
   handleMouseenter(item?: TreeMenuItem) {
@@ -274,8 +287,10 @@ export default class TreeList extends tsc<IProps, IEvents> {
                 {
                   checked: item.uid === this.checked,
                   edit: item.edit,
+                  disabled: !item.hasPermission,
                 },
               ]}
+              v-authority={{ active: !(item.hasPermission || item.isGroup) }}
               onClick={e => this.handleClickRow(e, item)}
               onMouseenter={() => this.handleMouseenter(item)}
               onMouseleave={() => this.handleMouseenter()}
@@ -301,7 +316,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                   {item.title}
                 </span>
               )}
-              {process.env.APP !== 'external' && item.uid !== GRAFANA_HOME_ID && (
+              {item.hasPermission && process.env.APP !== 'external' && item.uid !== GRAFANA_HOME_ID && (
                 <span class='list-item-handle'>
                   {item.isFolder && this.checkedGroupItemFocus(this.needAdd, item) && (
                     <IconBtn

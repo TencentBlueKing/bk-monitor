@@ -195,6 +195,19 @@ class ApplicationViewSet(ResourceViewSet):
         ),
         ResourceRoute(
             "GET",
+            ApplicationInfoResource,
+            endpoint="application_info_by_id",
+            decorators=[
+                insert_permission_field(
+                    actions=[ActionEnum.MANAGE_APM_APPLICATION, ActionEnum.VIEW_APM_APPLICATION],
+                    resource_meta=ResourceEnum.APM_APPLICATION,
+                    id_field=lambda d: d["application_id"],
+                    many=False,
+                )
+            ],
+        ),
+        ResourceRoute(
+            "GET",
             ApplicationInfoByAppNameResource,
             endpoint="application_info_by_app_name",
             decorators=[

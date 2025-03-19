@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 from typing import Any, Dict, List, Union
 
+import arrow
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
@@ -113,7 +114,9 @@ class UnifyQueryHandler(object):
         if not self.start_time or not self.end_time:
             # 兼容查询时间段为默认近十五分钟的情况
             return "1m"
-        hour_interval = (int(self.end_time) - int(self.start_time)) / 3600
+
+        # 兼容毫秒查询
+        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds() / 3600
         if hour_interval <= 1:
             return "1m"
         elif hour_interval <= 6:
@@ -204,7 +207,7 @@ class UnifyQueryHandler(object):
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": get_local_param("time_zone", settings.TIME_ZONE),
+            "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -486,11 +489,14 @@ class UnifyQueryHandler(object):
             query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
             reference_list.append(query["reference_name"])
-        search_dict.update({"metric_merge": " or ".join(reference_list)})
+        search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        for s in series[:limit]:
-            yield s["group_values"][0]
+        total_count = self.get_total_count()
+        return sorted(
+            [[s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)] for s in
+             series[:limit]], key=lambda x: x[1], reverse=True
+        )
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
         # 浮点数分桶区间精度默认为两位小数

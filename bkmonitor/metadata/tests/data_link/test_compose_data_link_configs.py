@@ -185,24 +185,9 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
 
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010_fed"
-
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'value': 'testns1'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns2'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns3'}],
+            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
             'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
             'sinks': [
                 {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
@@ -221,29 +206,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{"name": "namespace", "value": "testns1"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50001",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns2"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50001",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns3"}],
+                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -281,42 +244,14 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
 
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'value': 'testns1'}],
+            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
             'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
             'sinks': [
                 {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
             ],
         },
         {
-            'match_labels': [{'name': 'namespace', 'value': 'testns2'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns3'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns4'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns5'}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
-            ],
-        },
-        {
-            'match_labels': [{'name': 'namespace', 'value': 'testns6'}],
+            'match_labels': [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
             'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
             'sinks': [
                 {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
@@ -335,7 +270,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{"name": "namespace", "value": "testns1"}],
+                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -346,51 +281,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
                         ],
                     },
                     {
-                        "match_labels": [{"name": "namespace", "value": "testns2"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50001",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns3"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50001",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns4"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50002",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns5"}],
-                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
-                        "sinks": [
-                            {
-                                "kind": "VmStorageBinding",
-                                "name": "bkm_1001_bkmonitor_time_series_50002",
-                                "namespace": "bkmonitor",
-                            }
-                        ],
-                    },
-                    {
-                        "match_labels": [{"name": "namespace", "value": "testns6"}],
+                        "match_labels": [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
                         "sinks": [
                             {

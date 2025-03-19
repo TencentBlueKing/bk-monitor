@@ -279,19 +279,30 @@
         // queueStatus: true
       };
     },
+    watch: {
+      totalCount(val) {
+        if( val < 10000){
+          this.downloadType = 'sampling';
+        }else if(val < 2000000){
+          this.downloadType = 'all';
+        }else{
+          this.downloadType = 'quick';
+        }
+      }
+    },
     computed: {
       ...mapState({
         totalCount: state => {
           if (state.searchTotal > 0) {
             return state.searchTotal;
           }
-
+          
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.showFieldAlias ?? false
+        showFieldAlias: state => state.showFieldAlias ?? false,
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -317,7 +328,6 @@
     beforeUnmount() {
       this.popoverInstance = null;
     },
-
     methods: {
       handleShowAlarmPopover(e) {
         if (this.popoverInstance || !this.queueStatus) return;
@@ -376,7 +386,9 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data)
+          .post(downRequestUrl, data,{
+            originalResponse: true,
+          })
           .then(res => {
             if (res.result) {
               this.$bkMessage({
@@ -384,13 +396,16 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
-            }else{
+            } else {
               this.$bkMessage({
                 theme: 'error',
                 ellipsisLine: 2,
                 message: res.message,
               });
             }
+          })
+          .catch(err => {
+            console.log(err);
           })
           .finally(() => {
             this.isShowExportDialog = false;
@@ -460,6 +475,9 @@
               });
             }
           })
+          .catch(err => {
+            console.log(err);
+          })
           .finally(() => {
             this.exportLoading = false;
             this.isShowExportDialog = false;
@@ -477,10 +495,10 @@
       handleCloseDialog() {
         this.showHistoryExport = false;
       },
-      getFieldName(field){
+      getFieldName(field) {
         const { getQueryAlias } = useFieldNameHook({ store: this.$store });
         return getQueryAlias(field);
-      }
+      },
     },
   };
 </script>

@@ -339,8 +339,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 0.3.17
-        version: 0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: 0.3.25-beta.0
+        version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.29-beta.3
         version: 0.0.29-beta.3
@@ -481,8 +481,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 1.0.1-beta.5
-        version: 1.0.1-beta.5
+        specifier: 1.0.1-beta.7
+        version: 1.0.1-beta.7
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -538,8 +538,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       echarts:
-        specifier: ^5.5.1
-        version: 5.5.1
+        specifier: ^5.6.0
+        version: 5.6.0
       html-to-image:
         specifier: ^1.11.11
         version: 1.11.11
@@ -602,8 +602,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       '@blueking/monitor-trace-log':
-        specifier: 1.0.0-beta.4
-        version: 1.0.0-beta.4
+        specifier: 1.0.0-beta.11
+        version: 1.0.0-beta.11
       '@dagrejs/dagre':
         specifier: ^1.1.3
         version: 1.1.4
@@ -1396,8 +1396,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@0.3.17':
-    resolution: {integrity: sha512-kepg+5L/3LwUlbem5sChmNybSFI3wV3HiKDwOghDIfUN09zSA15OxVHNLAsb7W8GLQfKVvOSVDjnU+Ogfg78iA==}
+  '@blueking/ai-blueking@0.3.25-beta.0':
+    resolution: {integrity: sha512-7Gd5Rb7ORyWrqR48I2sMNIsby4HIQRkOLsOVDRZrYpPFi1LfOAgxAgV3EvDe4Is3VoDhgG4CzeQyNwWqpPHCmw==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -1444,8 +1444,8 @@ packages:
   '@blueking/login-modal@1.0.5':
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.5':
-    resolution: {integrity: sha512-XguRphdrw+EXs+GSeD+Ul5TkiTZloXq1qvxUJ/DSvVFaEDneYUPqFMgGJYtiIWfH9VXw4F31JGWEdssektMbEg==}
+  '@blueking/monitor-apm-log@1.0.1-beta.7':
+    resolution: {integrity: sha512-Ne3ElhO/0DMQRyKnymQeJvANSnGZulCi2W4m37sMdXKJZAc7qDnG/kAHdMggkKCAUxurmYpbCkzsjaAsC7FvmA==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1453,8 +1453,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@1.0.0-beta.4':
-    resolution: {integrity: sha512-tntWM7XVjnx9Es/nQfPAtEAskSU/WENQkL96Fw39qt3Jtc69+ifGQZYoAKNcAWcKQjPOFXDMtIPFwkLZvUnuOg==}
+  '@blueking/monitor-trace-log@1.0.0-beta.11':
+    resolution: {integrity: sha512-oQBrst35UGt+8RYnmWUyG96QN6qimoP6MfgonnjyfKXLOFW5ygtp8NIgIqYtxj50tDIhdImr8RIvEXbfbzbWRg==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -4049,8 +4049,8 @@ packages:
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
-  echarts@5.5.1:
-    resolution: {integrity: sha512-Fce8upazaAXUVUVsjgV6mBnGuqgO+JNDlcgF79Dksy4+wgGpQB2lmYoO4TSweFg/mZITdpGHomw/cNBJZj1icA==}
+  echarts@5.6.0:
+    resolution: {integrity: sha512-oTbVTsXfKuEhxftHqL5xprgLoc0k7uScAwtryCgWF6hPYFLRwOUHiFmHGCBKP5NPFNkDVopOieyUqYGH8Fa3kA==}
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -8262,8 +8262,8 @@ packages:
     resolution: {integrity: sha512-b4JR1PFR10y1mKjhHY9LaGo6tmrgjit7hxVIeAmyMw3jegXR4dhYqLaQF5zMXZxY7tLpMyJeLjr1C4rLmkVe8g==}
     engines: {node: '>=12.20'}
 
-  zrender@5.6.0:
-    resolution: {integrity: sha512-uzgraf4njmmHAbEUxMJ8Oxg+P3fT04O+9p7gY+wJRVxo8Ge+KmYv0WJev945EH4wFuc4OY2NLXz46FZrWS9xJg==}
+  zrender@5.6.1:
+    resolution: {integrity: sha512-OFXkDJKcrlx5su2XbzJvj/34Q3m6PvyCZkVPHGYpcCJ52ek4U/ymZyfuV1nKE23AyBJ51E/6Yr0mhZ7xGTO4ag==}
 
   zwitch@1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
@@ -9216,7 +9216,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
+  '@blueking/ai-blueking@0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
     dependencies:
       dayjs: 1.11.13
       highlight.js: 11.5.1
@@ -9429,14 +9429,14 @@ snapshots:
 
   '@blueking/login-modal@1.0.5': {}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.5': {}
+  '@blueking/monitor-apm-log@1.0.1-beta.7': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@1.0.0-beta.4': {}
+  '@blueking/monitor-trace-log@1.0.0-beta.11': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:
@@ -12264,10 +12264,10 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  echarts@5.5.1:
+  echarts@5.6.0:
     dependencies:
       tslib: 2.3.0
-      zrender: 5.6.0
+      zrender: 5.6.1
 
   ee-first@1.1.1: {}
 
@@ -17037,7 +17037,7 @@ snapshots:
 
   yocto-queue@1.1.1: {}
 
-  zrender@5.6.0:
+  zrender@5.6.1:
     dependencies:
       tslib: 2.3.0
 

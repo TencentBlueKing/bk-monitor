@@ -33,6 +33,13 @@ export const PanelTargetMap = {
   manualInput: 'INSTANCE',
   dynamicGroup: 'DYNAMIC_GROUP',
 };
+export const NodeTypeByMonitorKeyMap = {
+  host_list: 'INSTANCE',
+  node_list: 'TOPO',
+  service_template_list: 'SERVICE_TEMPLATE',
+  set_template_list: 'SET_TEMPLATE',
+  dynamic_group_list: 'DYNAMIC_GROUP',
+};
 
 export function transformMonitorToValue(data: any[], nodeType: INodeType): any | IIpV6Value {
   if (!nodeType) return {};
@@ -113,6 +120,33 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
       }));
     default:
       return [];
+  }
+}
+
+export function transformCacheMapToOriginData(
+  data: any[],
+  key: keyof typeof NodeTypeByMonitorKeyMap,
+  cacheMap = {}
+): any | IIpV6Value {
+  const nodeType = NodeTypeByMonitorKeyMap[key];
+  if (!nodeType) return data;
+  switch (nodeType) {
+    case 'DYNAMIC_GROUP':
+      return data.map(item => cacheMap?.[nodeType]?.[item.id] || item);
+    default:
+      return data;
+  }
+}
+export function transformOriginDataToCacheMap(value: any[], nodeType: INodeType) {
+  if (!nodeType) return [];
+  switch (nodeType) {
+    case 'DYNAMIC_GROUP':
+      return value.reduce((prev, curr) => {
+        prev[curr.id] = curr;
+        return prev;
+      }, {});
+    default:
+      return {};
   }
 }
 export function getPanelListByObjectType(objectType: TargetObjectType) {

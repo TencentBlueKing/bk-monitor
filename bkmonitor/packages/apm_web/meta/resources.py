@@ -1382,7 +1382,7 @@ class MetaInstrumentGuides(Resource):
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
                     "enabled": app.is_enabled_profiling,
-                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
+                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope/ingest",
                 },
             }
             return attrs
@@ -1626,7 +1626,7 @@ class QueryBkDataToken(Resource):
         application_id = serializers.IntegerField(label="应用id")
 
     def perform_request(self, validated_request_data):
-        return api.apm_api.detail_application(validated_request_data)["token"]
+        return api.apm_api.query_bk_data_token_info(validated_request_data)
 
 
 class DataViewConfigResource(Resource):

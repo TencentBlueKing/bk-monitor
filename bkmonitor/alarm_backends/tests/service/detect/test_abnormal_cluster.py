@@ -1,13 +1,27 @@
 # -*- coding: utf-8 -*-
+import copy
+from unittest import TestCase
+
+import pytest
+
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.abnormal_cluster import (
     AbnormalCluster,
     parse_cluster,
 )
 from alarm_backends.tests.service.detect.mocked_data import mocked_item
+from bkmonitor.models import CacheNode
 
 
-class TestAbnormalCluster:
+@pytest.mark.django_db
+class TestAbnormalCluster(TestCase):
+    def setUp(self):
+        # 重置测试用例的Item防止ID超过用例上限
+        CacheNode.refresh_from_settings()
+
+        self.mocked_aiops_item = copy.deepcopy(mocked_item)
+        self.mocked_aiops_item.query_configs[0]["intelligent_detect"] = {"use_sdk": False, "status": "running"}
+
     def test_value_0_message(self):
         datapoint_0 = DataPoint(
             {
@@ -20,7 +34,7 @@ class TestAbnormalCluster:
                 },
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = AbnormalCluster(config={})
@@ -39,7 +53,7 @@ class TestAbnormalCluster:
                 },
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = AbnormalCluster(config={})
@@ -60,7 +74,7 @@ class TestAbnormalCluster:
                 },
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = AbnormalCluster(config={})

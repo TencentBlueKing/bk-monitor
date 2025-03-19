@@ -23,7 +23,7 @@ the project delivered to anyone in the future.
 """
 MONITOR 模块，调用接口汇总
 """
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
@@ -143,6 +143,22 @@ class _MonitorApi(object):
             url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_report_variables/",
             module=self.MODULE,
             description="获取订阅报表的变量列表",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+        )
+        self.search_alert = DataAPI(
+            method="POST",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "search_alert/",
+            module=self.MODULE,
+            description="查询告警",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+        )
+        self.get_alert_detail = DataAPI(
+            method="GET",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_alert_detail/",
+            module=self.MODULE,
+            description="获取告警详情",
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )

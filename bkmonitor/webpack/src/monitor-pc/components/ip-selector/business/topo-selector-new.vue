@@ -26,41 +26,45 @@
 -->
 <template>
   <ip-selector
-    v-bkloading="{ isLoading }"
     ref="selector"
     class="ip-selector"
-    :key="selectorKey"
-    :panels="panels"
-    :height="height"
-    :tree-height="treeHeight"
+    v-bkloading="{ isLoading }"
     :active.sync="active"
-    :preview-data="previewData"
-    :get-default-data="handleGetDefaultData"
-    :get-search-table-data="handleGetSearchTableData"
+    :cluster-table-config="templateTableConfig"
+    :cluster-template-placeholder="$t('搜索集群名')"
+    :custom-input-table-config="staticTableConfig"
+    :default-active-name="defaultActiveName"
+    :default-checked-nodes="defaultCheckedNodes"
+    :dynamic-group-placeholder="$t('搜索动态分组名称')"
+    :dynamic-group-table-config="dynamicGroupTableConfig"
     :dynamic-table-config="dynamicTableConfig"
+    :get-default-data="handleGetDefaultData"
+    :get-default-selections="getDefaultSelections"
+    :get-search-result-selections="getSearchResultSelections"
+    :get-search-table-data="handleGetSearchTableData"
+    :height="height"
+    :key="selectorKey"
+    :left-panel-width="leftPanelWidth"
+    :panels="panels"
+    :preview-data="previewData"
+    :preview-operate-list="previewOperateList"
+    :preview-range="previewRange"
+    :preview-width="previewWidth"
+    :result-width="380"
+    :service-template-placeholder="$t('搜索模块名')"
+    :show-table-tab="showTableTab"
     :static-table-config="staticTableConfig"
     :template-table-config="templateTableConfig"
-    :cluster-table-config="templateTableConfig"
-    :custom-input-table-config="staticTableConfig"
-    :get-default-selections="getDefaultSelections"
-    :preview-operate-list="previewOperateList"
-    :service-template-placeholder="$t('搜索模块名')"
-    :cluster-template-placeholder="$t('搜索集群名')"
-    :result-width="380"
-    :preview-width="previewWidth"
-    :preview-range="previewRange"
-    :left-panel-width="leftPanelWidth"
-    :default-checked-nodes="defaultCheckedNodes"
-    :default-active-name="defaultActiveName"
-    :show-table-tab="showTableTab"
-    :get-search-result-selections="getSearchResultSelections"
+    :tree-height="treeHeight"
     @check-change="handleCheckChange"
-    @remove-node="handleRemoveNode"
     @menu-click="handleMenuClick"
+    @remove-node="handleRemoveNode"
     @search-selection-change="handleSearchSelectionChange"
   />
 </template>
 <script lang="ts">
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import {
   getHostInstanceByIp,
   getHostInstanceByNode,
@@ -69,13 +73,13 @@ import {
   getTemplate,
   getTopoTree,
 } from 'monitor-api/modules/commons';
+import { executeIpChooserDynamicGroup, groupsIpChooserDynamicGroup } from 'monitor-api/modules/model';
 import { copyText } from 'monitor-common/utils/utils';
-/* eslint-disable camelcase */
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { defaultSearch } from '../common/util';
 import AgentStatus from '../components/agent-status.vue';
 import IpSelector from '../index.vue';
+
 import type { IMenu, IPanel, IPreviewData, ITableCheckData, ITableConfig, IpType } from '../types/selector-type';
 
 @Component({
@@ -91,6 +95,7 @@ export default class TopoSelector extends Vue {
   @Prop({ default: 280, type: [Number, String] }) private readonly previewWidth!: number | string;
   @Prop({ default: () => [150, 600], type: Array }) private readonly previewRange!: number[];
   @Prop({ default: false }) private readonly hiddenTopo!: boolean;
+  @Prop({ default: true }) private readonly hiddenDynamicGroup!: boolean;
   @Prop({ default: 460, type: [Number, String] }) private readonly height!: number | string;
   @Prop({ default: false, type: Boolean }) private readonly withExternalIps!: boolean;
   @Prop({ default: false, type: Boolean }) private readonly hiddenTemplate!: boolean;
@@ -110,13 +115,15 @@ export default class TopoSelector extends Vue {
   // 动态拓扑表格数据
   private topoTableData: any[] = [];
   // 动态TOPO树默认勾选数据
-  private defaultCheckedNodes: (string | number)[] = [];
+  private defaultCheckedNodes: (number | string)[] = [];
   // 静态表格数据
   private staticTableData: any[] = [];
   // 动态拓扑表格配置
   private dynamicTableConfig: ITableConfig[] = [];
   // 静态拓扑表格配置
   private staticTableConfig: ITableConfig[] = [];
+  // 动态分组表格配置
+  private dynamicGroupTableConfig: ITableConfig[] = [];
   // 模板拓扑配置
   private templateTableConfig: ITableConfig[] = [];
   // 预览数据
@@ -129,9 +136,10 @@ export default class TopoSelector extends Vue {
     INSTANCE: 'static-topo',
     SERVICE_TEMPLATE: 'service-template',
     SET_TEMPLATE: 'cluster',
+    DYNAMIC_GROUP: 'dynamic-group',
   };
   // 默认激活预览面板
-  private defaultActiveName = ['TOPO', 'INSTANCE', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'];
+  private defaultActiveName = ['TOPO', 'INSTANCE', 'SERVICE_TEMPLATE', 'SET_TEMPLATE', 'DYNAMIC_GROUP'];
   private setTemplateData = [];
   private serviceTemplateData = [];
 
@@ -182,8 +190,16 @@ export default class TopoSelector extends Vue {
         disabled: false,
         type: 'INSTANCE',
       },
+      {
+        name: 'dynamic-group',
+        label: this.$t('动态分组'),
+        hidden: this.hiddenDynamicGroup || this.isInstance,
+        tips: this.$t('不能混用'),
+        disabled: false,
+        type: 'DYNAMIC_GROUP',
+      },
     ];
-    const dynamicType = ['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'];
+    const dynamicType = ['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE', 'DYNAMIC_GROUP'];
     const isDynamic = this.previewData.some(item => dynamicType.includes(item.id) && item.data.length);
     const isStatic = this.previewData.some(item => item.id === 'INSTANCE' && item.data.length);
     return panels.map(item => {
@@ -214,6 +230,7 @@ export default class TopoSelector extends Vue {
       'service-template': 'SERVICE_TEMPLATE',
       cluster: 'SET_TEMPLATE',
       'custom-input': 'INSTANCE',
+      'dynamic-group': 'DYNAMIC_GROUP',
     };
     this.currentTargetNodeType = activeToNodeTypeMap[this.active];
     this.staticTableData = [];
@@ -246,12 +263,14 @@ export default class TopoSelector extends Vue {
       INSTANCE: 'IP',
       SERVICE_TEMPLATE: this.$t('服务模板'),
       SET_TEMPLATE: this.$t('集群模板'),
+      DYNAMIC_GROUP: this.$t('动态分组'),
     };
     const nodeTypeNameMap = {
       TOPO: 'node_path',
       INSTANCE: 'ip',
       SERVICE_TEMPLATE: 'bk_inst_name',
       SET_TEMPLATE: 'bk_inst_name',
+      DYNAMIC_GROUP: 'name',
     };
     this.previewData = [];
     this.previewData.push({
@@ -329,6 +348,25 @@ export default class TopoSelector extends Vue {
         label: this.$t('操作系统'),
       },
     ];
+    this.dynamicGroupTableConfig = [
+      {
+        prop: 'ip',
+        label: 'IP',
+      },
+      {
+        prop: 'ipv6',
+        label: 'ipv6',
+      },
+      {
+        prop: 'cloud_area',
+        label: this.$t('管控区域'),
+        render: this.renderCloudAreaForDynamicGroup,
+      },
+      {
+        prop: 'os_name',
+        label: this.$t('操作系统'),
+      },
+    ];
   }
   private renderLabels(row: any) {
     const { labels = [] } = row;
@@ -377,6 +415,13 @@ export default class TopoSelector extends Vue {
         }),
     });
   }
+
+  private renderCloudAreaForDynamicGroup(row: any) {
+    return Vue.extend({
+      render: h => h('span', row?.cloud_area?.name || '--'),
+    });
+  }
+
   private renderAgentCountStatus(row: any) {
     return Vue.extend({
       render: h =>
@@ -420,6 +465,17 @@ export default class TopoSelector extends Vue {
       this.handleAddNameProperty(data.children);
       return data.children;
     }
+    if (['dynamic-group'].includes(this.active)) {
+      const data = await groupsIpChooserDynamicGroup({
+        scope_list: [
+          {
+            scope_type: 'biz',
+            scope_id: this.$store.getters.bizId,
+          },
+        ],
+      });
+      return data;
+    }
   }
   private handleSetDefaultCheckedNodes() {
     // todo 待优化，多处调用，性能问题
@@ -429,7 +485,7 @@ export default class TopoSelector extends Vue {
   // 获取选中节点的ID集合
   private getCheckedNodesIds(nodes: any[], checkedData: any[] = []) {
     if (!checkedData.length) return [];
-    return nodes.reduce<(string | number)[]>((pre, item) => {
+    return nodes.reduce<(number | string)[]>((pre, item) => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { children = [], bk_inst_id = '', bk_obj_id = '', id } = item;
       const exist = checkedData.some(
@@ -506,6 +562,9 @@ export default class TopoSelector extends Vue {
     }
     if (this.active === 'custom-input') {
       return await this.getCustomInputTableData(params);
+    }
+    if (this.active === 'dynamic-group') {
+      return await this.getDynamicGroupTableData(params);
     }
     return {
       total: 0,
@@ -604,6 +663,22 @@ export default class TopoSelector extends Vue {
       data,
     };
   }
+  // 获取动态分组表格数据
+  private async getDynamicGroupTableData(params: any) {
+    const result = await executeIpChooserDynamicGroup({
+      scope_list: [
+        {
+          scope_type: 'biz',
+          scope_id: this.$store.getters.bizId,
+        },
+      ],
+      ...params,
+    }).catch(() => []);
+    return {
+      total: result.total,
+      data: result.data,
+    };
+  }
 
   // topo树数据
   private async getTopoTree() {
@@ -625,8 +700,29 @@ export default class TopoSelector extends Vue {
     if (['static-topo', 'custom-input'].includes(this.active)) {
       this.staticIpTableCheckChange(selectionsData);
     }
+    if (this.active === 'dynamic-group') {
+      this.dynamicGroupCheckChange(selectionsData);
+    }
     return this.getCheckedData();
   }
+
+  // 动态分组check事件
+  private dynamicGroupCheckChange(selectionsData: ITableCheckData) {
+    const { selections = [] } = selectionsData;
+    const index = this.previewData.findIndex(item => item.id === 'DYNAMIC_GROUP');
+    if (index > -1) {
+      this.previewData[index].data = [...selections];
+    } else {
+      // 初始化分组信息(模板类型都属于动态拓扑)
+      this.previewData.push({
+        id: 'DYNAMIC_GROUP',
+        name: this.$t('动态分组'),
+        data: [...selections],
+        dataNameKey: 'name',
+      });
+    }
+  }
+
   // 模板类型check事件
   private templateCheckChange(selectionsData: ITableCheckData) {
     const { selections = [] } = selectionsData;
@@ -789,6 +885,9 @@ export default class TopoSelector extends Vue {
         if (group.id === 'INSTANCE') {
           return this.identityIp(data, child);
         }
+        if (group.id === 'DYNAMIC_GROUP') {
+          return data.id === child.id;
+        }
         return data.bk_inst_id === child.bk_inst_id;
       });
       index > -1 && group.data.splice(index, 1);
@@ -811,6 +910,10 @@ export default class TopoSelector extends Vue {
       const type = this.active === 'service-template' ? 'SERVICE_TEMPLATE' : 'SET_TEMPLATE';
       const group = this.previewData.find(data => data.id === type);
       return group?.data.some(data => data.bk_inst_id === row.bk_inst_id);
+    }
+    if (['dynamic-group'].includes(this.active)) {
+      const group = this.previewData.find(data => data.id === 'DYNAMIC_GROUP');
+      return group?.data.some(data => data.id === row.id);
     }
     return false;
   }

@@ -25,6 +25,7 @@ from bkmonitor.models import (
     BCSBase,
     BCSCluster,
     BCSContainer,
+    BCSIngress,
     BCSNode,
     BCSPod,
     BCSPodMonitor,
@@ -213,6 +214,65 @@ def run_sub_task(task_name: str, wrapper: Callable, bcs_cluster_id: str):
             queue=queue_name,
         ).inc()
         metrics.report_all()
+
+
+@share_lock(identify="sync_bcs_ingress_to_db")
+def sync_bcs_ingress_to_db():
+    clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+    for cluster in clusters:
+        bcs_cluster_id = cluster["bcs_cluster_id"]
+        sync_bcs_ingress_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
+
+
+@shared_task(ignore_result=True, queue="celery_cron")
+def sync_bcs_ingress_to_db_sub_task(bcs_cluster_id):
+    task_name = "sync_bcs_ingress_to_db_sub_task"
+    run_sub_task(task_name, sync_bcs_ingress, bcs_cluster_id)
+
+
+def sync_bcs_ingress(bcs_cluster_id):
+    """同步bcs ingress元数据到数据库 ."""
+    sync_unique_field = "unique_hash"
+    # 同步更新的字段
+    sync_fields = [
+        "bk_biz_id",
+        "bcs_cluster_id",
+        "name",
+        "namespace",
+        "class_name",
+        "service_list",
+        "created_at",
+        "unique_hash",
+    ]
+    datetime_fields = ["created_at"]
+
+    if bcs_cluster_id:
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+    else:
+        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+    if not clusters:
+        return None
+    ingress_models = None
+
+    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
+        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        try:
+            ingress_models = BCSIngress.load_list_from_api(params)
+        except Exception as exc_info:
+            logger.exception(f"sync_bcs_ingress error[{bcs_cluster_id}]: {exc_info}")
+            continue
+        bcs_cluster_id_list = list({model.bcs_cluster_id for model in ingress_models})
+        if not bcs_cluster_id_list:
+            continue
+
+        sync_filter = {
+            "bcs_cluster_id__in": bcs_cluster_id_list,
+        }
+        bulk_save_resources(BCSIngress, ingress_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
+        # 同步标签
+        patch_exists_resource_id(ingress_models)
+        BCSIngress.bulk_save_labels(ingress_models)
+    return ingress_models
 
 
 @share_lock(identify="sync_bcs_workload_to_db")

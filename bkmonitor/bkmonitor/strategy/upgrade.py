@@ -58,7 +58,7 @@ UPDATE_METRICS = [
     {"table_id": "system.netstat", "field_name": "cur_tcp_estab", "unit": "short", "description": "estab连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_finwait1", "unit": "short", "description": "finwait1连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_finwait2", "unit": "short", "description": "finwait2连接数"},
-    {"table_id": "system.netstat", "field_name": "cur_tcp_lastack", "unit": "short", "description": "lastact连接数"},
+    {"table_id": "system.netstat", "field_name": "cur_tcp_lastack", "unit": "short", "description": "lastack连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_listen", "unit": "short", "description": "listen连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_syn_recv", "unit": "short", "description": "synrecv连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_syn_sent", "unit": "short", "description": "synsent连接数"},

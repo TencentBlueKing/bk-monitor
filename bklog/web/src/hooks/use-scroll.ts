@@ -41,7 +41,7 @@ export default (target, callback: (e: MouseEvent) => void) => {
   });
 
   const scrollToTop = (smooth = true) => {
-    getScrollElement().scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
+    getScrollElement()?.scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = () => {

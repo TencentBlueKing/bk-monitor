@@ -38,7 +38,7 @@ import './failure-tags.scss';
 
 export default defineComponent({
   name: 'FailureTags',
-  emits: ['chooseTag', 'chooseNode'],
+  emits: ['chooseTag', 'chooseNode', 'toSpan'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const styleOptions = {
@@ -75,7 +75,10 @@ export default defineComponent({
     const handleCheckChange = (checked, tag) => {
       emit('chooseTag', tag, checked);
     };
-
+    // 点击跳转到span
+    const handleToSpan = () => {
+      emit('toSpan');
+    };
     const renderList = [
       {
         label: t('影响空间'),
@@ -87,6 +90,7 @@ export default defineComponent({
             [
               ...snapshots.map((item, index) => (
                 <Tag
+                  key={`${item.bk_biz_id}-${index}`}
                   ref={el => (tagsRefs.value[index] = el)}
                   style={{
                     display:
@@ -100,6 +104,7 @@ export default defineComponent({
                 </Tag>
               )),
               <Tag
+                key='businessTag'
                 ref='collapseTagRef'
                 style={{
                   display: !!canShowIndex.value && selectCollapseTagsStatus.value ? '' : 'none',
@@ -114,6 +119,8 @@ export default defineComponent({
       },
       {
         label: t('故障根因'),
+        class: 'failure-root-tag',
+        tag: true,
         renderFn: () => {
           const snapshots: ICurrentISnapshot = incidentDetailData.value?.current_snapshot;
           const { incident_name_template, incident_propagation_graph } = snapshots?.content || {};
@@ -123,7 +130,7 @@ export default defineComponent({
             const parts: Array<JSX.Element | string> = [];
             const regex = /{(.*?)}/g;
             let lastIndex = 0;
-            let match;
+            let match: any;
 
             while ((match = regex.exec(template)) !== null) {
               const [placeholder, key] = match;
@@ -147,15 +154,15 @@ export default defineComponent({
             // 替换内容对象
             const replacements = {
               0: (
-                <label
-                  v-bk-tooltips={{ content: t('在拓扑图中高亮该节点') }}
+                <span
+                  v-bk-tooltips={{ content: t('点击可在拓扑图中高亮该节点') }}
                   onClick={() => {
                     const node = entities.filter(item => item.is_root) || [];
                     node.length > 0 && emit('chooseNode', [node[0].entity_id]);
                   }}
                 >
-                  (<label class='name-target'>{elements[0][1]}</label>)
-                </label>
+                  (<span class='name-target'>{elements[0][1]}</span>)
+                </span>
               ),
               1: elements[1],
             };
@@ -166,7 +173,17 @@ export default defineComponent({
                 class={['item-info']}
                 title={tips.join('')}
               >
+                {/* biome-ignore lint/correctness/useJsxKeyInIterable: <explanation> */}
                 {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
+                {incidentDetailData.value.incident_root?.rca_trace_info?.abnormal_traces_query && (
+                  <span
+                    class='link-span'
+                    onClick={handleToSpan}
+                  >
+                    <i class='icon-monitor icon-fenxiang' />
+                    {t('查看 Span')}
+                  </span>
+                )}
               </span>
             );
           }
@@ -273,8 +290,11 @@ export default defineComponent({
           >
             {this.playLoading && <div class='failure-tags-loading' />}
             {this.renderList.map((item, index) => (
-              <div class='failure-tags-item'>
-                <span class='item-label'>{item.label}：</span>
+              <div
+                key={`${item.label}-${index}`}
+                class='failure-tags-item'
+              >
+                <span class='item-label'>{item.tag ? <Tag class={item.class}>{item.label}</Tag> : item.label}：</span>
                 <div
                   ref={el => (this.itemMainRefs[index] = el)}
                   class='item-main'
@@ -288,7 +308,7 @@ export default defineComponent({
             <i
               class='icon-monitor icon-double-down'
               onClick={this.expandCollapseHandleDebounced}
-            ></i>
+            />
           </div>
         </div>
       </div>

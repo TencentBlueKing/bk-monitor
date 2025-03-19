@@ -9,6 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import arrow
+
+from bkmonitor.models import StatisticsMetric
+from core.statistics.metric import Metric
 from monitor_web.statistics.v2.action_config import ActionConfigCollector
 from monitor_web.statistics.v2.alert_action import AlertActionCollector
 from monitor_web.statistics.v2.apm import APMCollector
@@ -19,6 +22,7 @@ from monitor_web.statistics.v2.collect_plugin import CollectPluginCollector
 from monitor_web.statistics.v2.custom_report import CustomReportCollector
 from monitor_web.statistics.v2.event_plugin import EventPluginCollector
 from monitor_web.statistics.v2.grafana import GrafanaCollector
+from monitor_web.statistics.v2.home import HomeCollector
 from monitor_web.statistics.v2.host import HostCollector
 from monitor_web.statistics.v2.k8s import K8SCollector
 from monitor_web.statistics.v2.mail_report import MailReportCollector
@@ -33,9 +37,6 @@ from monitor_web.statistics.v2.strategy import StrategyCollector
 from monitor_web.statistics.v2.uptimecheck import UptimeCheckCollector
 from monitor_web.statistics.v2.user_group import UserGroupCollector
 
-from bkmonitor.models import StatisticsMetric
-from core.statistics.metric import Metric
-
 INSTALLED_COLLECTORS = [
     UserGroupCollector,
     AlertActionCollector,
@@ -49,6 +50,7 @@ INSTALLED_COLLECTORS = [
     ShieldCollector,
     StrategyCollector,
     UptimeCheckCollector,
+    HomeCollector,
     HostCollector,
     CollectConfigCollector,
     CollectPluginCollector,

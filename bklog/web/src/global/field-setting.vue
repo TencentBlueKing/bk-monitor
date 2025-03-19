@@ -391,7 +391,7 @@
           }
         },
         message: function () {
-          return t(`超出集群最大可保存天数，当前最大可保存${maxRetention.value}天`);
+          return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
         },
         trigger: 'blur',
       },
@@ -466,14 +466,16 @@
         },
       })
       .then(res => {
-        res.data.etl_fields.forEach(item => {
-          alias_settings.value.forEach(item2 => {
-            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
-              item.query_alias = item2.query_alias
-            }
-          })
-        })
-        tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        const etlFields = res?.data?.etl_fields || [];
+        etlFields.forEach(field => {
+          const matchingAlias = alias_settings.value.find(alias =>
+            field.field_name === alias.field_name || field.alias_name === alias.field_name
+          );
+          if (matchingAlias) {
+            field.query_alias = matchingAlias.query_alias;
+          }
+        });
+        tableField.value = etlFields.filter(item => !item.is_built_in && !item.is_delete);
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;
@@ -536,7 +538,7 @@
           async () => {
             confirmLoading.value = true;
             sliderLoading.value = true;
-            const originfieldTableData = originfieldTable.value.getData();
+            const originfieldTableData = originfieldTable.value?.getData();
             const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {
               collector_config_name: formData.value.collector_config_name,
@@ -546,7 +548,7 @@
                 ...formData.value.etl_params,
                 original_text_is_case_sensitive: originfieldTableData?.length
                   ? originfieldTableData[0].is_case_sensitive
-                  : '',
+                  : false,
                 original_text_tokenize_on_chars: originfieldTableData?.length
                   ? originfieldTableData[0].tokenize_on_chars
                   : '',
@@ -577,8 +579,9 @@
                     isEdit.value = false;
                   });
                 }
-                //请求成功后更新field
-                store.dispatch('requestIndexSetFieldInfo',)
+                //请求成功后刷新页面
+                location.reload();
+                // store.dispatch('requestIndexSetFieldInfo',)
               })
               .finally(() => {
                 confirmLoading.value = false;

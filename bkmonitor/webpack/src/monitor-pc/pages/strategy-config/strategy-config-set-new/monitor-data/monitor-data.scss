@@ -125,7 +125,7 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
             height: 100%;
             font-size: 12px;
 
-            .icon-hint {
+            .icon-AI {
               margin-left: 8px;
             }
           }
@@ -292,6 +292,11 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         }
       }
     }
+  }
+
+  .ai-whale-icon {
+    margin-right: 8px;
+    color: #3a84ff;
   }
 
   .info-url {

@@ -20,14 +20,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.utils.translation import gettext_lazy as _
+
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import BK_PAAS_APIGATEWAY_ROOT, BK_PAAS_V3_APIGATEWAY_ROOT
-from django.utils.translation import ugettext_lazy as _
 
 
 class _BKPAASApi:
-
     MODULE = _("PaaS平台")
 
     def __init__(self):

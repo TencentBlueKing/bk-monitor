@@ -18,7 +18,7 @@
       min-width: 360px;
       height: 332px;
       background: #fff;
-      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+      box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
       border-radius: 2px;
       cursor: pointer;
 
@@ -78,7 +78,7 @@
     .description {
       text-align: left;
       line-height: 20px;
-      
+
       .sub-description {
         // margin-left: 10px;
         margin-left: 15px;
@@ -105,6 +105,11 @@
 
     .search-empty-content {
       top: -36px;
+    }
+  }
+  .create-app-guide {
+    .empty-text-content {
+      margin-top: 90px;
     }
   }
 }

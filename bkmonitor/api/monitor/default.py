@@ -19,8 +19,9 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 class MonitorAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
-    base_url = settings.MONITOR_API_BASE_URL or "%s/api/c/compapi/v2/monitor_v3/" % settings.BK_COMPONENT_API_URL
-
+    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
+        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    )
     # 模块名
     module_name = "mointor_v3"
 
@@ -34,7 +35,7 @@ class CollectConfigListResource(MonitorAPIGWResource):
     获取采集配置
     """
 
-    action = "/get_collect_config_list/"
+    action = "/app/collect_config/list/"
     method = "GET"
 
 
@@ -43,7 +44,7 @@ class UptimeCheckTaskListResource(MonitorAPIGWResource):
     获取拨测任务
     """
 
-    action = "/get_uptime_check_task_list/"
+    action = "/app/uptime_check/task/list/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -55,7 +56,7 @@ class UptimeCheckNodeListResource(MonitorAPIGWResource):
     获取拨测节点
     """
 
-    action = "/get_uptime_check_node_list/"
+    action = "/app/uptime_check/node/list/"
     method = "GET"
 
 
@@ -64,7 +65,7 @@ class GetStatisticsByJsonResource(MonitorAPIGWResource):
     查询运营数据
     """
 
-    action = "/get_statistics_by_json/"
+    action = "/app/mail_report/get_statistics_by_json/"
     method = "GET"
 
 
@@ -73,7 +74,7 @@ class GetSettingAndNotifyGroupResource(MonitorAPIGWResource):
     获取配置管理员及其业务、告警接收人及其业务
     """
 
-    action = "/get_setting_and_notify_group/"
+    action = "/app/mail_report/get_setting_and_notify_group/"
     method = "GET"
 
 
@@ -82,7 +83,7 @@ class TestReportMailResource(MonitorAPIGWResource):
     订阅报表测试
     """
 
-    action = "/test_report_mail/"
+    action = "/app/mail_report/test/"
     method = "POST"
 
 
@@ -91,7 +92,7 @@ class SendReportResource(MonitorAPIGWResource):
     发送订阅报表
     """
 
-    action = "/send_report/"
+    action = "/app/new_report/send_report/"
     method = "POST"
 
 
@@ -100,7 +101,7 @@ class GroupListResource(MonitorAPIGWResource):
     获取组内人员信息
     """
 
-    action = "/group_list/"
+    action = "/app/mail_report/group_list/"
     method = "GET"
 
 
@@ -109,17 +110,17 @@ class CreateCustomTimeSeriesResource(MonitorAPIGWResource):
     创建自定义上报
     """
 
-    action = "/create_custom_time_series/"
+    action = "/app/custom_metric/create/"
     method = "POST"
 
 
-class IsSuperuser(MonitorAPIGWResource):
+class CustomTimeSeriesDetailResource(MonitorAPIGWResource):
     """
-    判断用户是否超级管理员
+    获取自定义指标上报详情
     """
 
-    action = "/is_superuser/"
-    method = "POST"
+    action = "/app/custom_metric/detail/"
+    method = "GET"
 
 
 class BatchCreateActionBackendResource(MonitorAPIGWResource):
@@ -127,7 +128,7 @@ class BatchCreateActionBackendResource(MonitorAPIGWResource):
     批量创建处理任务
     """
 
-    action = "/batch_create_action/"
+    action = "/app/action/batch_create_action/"
     method = "POST"
 
 
@@ -136,7 +137,7 @@ class GetActionParamsBackendResource(MonitorAPIGWResource):
     批量获取处理任务参数
     """
 
-    action = "/get_action_params_by_config/"
+    action = "/app/action/get_action_params_by_config/"
     method = "POST"
 
 
@@ -155,5 +156,5 @@ class GetExperienceResource(MonitorAPIGWResource):
                 raise ValidationError("alert_id and metric_id cannot be empty at the same time")
             return attrs
 
-    action = "/get_experience/"
+    action = "/app/alert/get_experience/"
     method = "GET"

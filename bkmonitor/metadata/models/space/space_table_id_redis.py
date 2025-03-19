@@ -47,7 +47,11 @@ from metadata.models.space.ds_rt import (
     get_table_id_cluster_id,
     get_table_info_for_influxdb_and_vm,
 )
-from metadata.models.space.utils import get_biz_ids_by_space_ids, get_related_spaces
+from metadata.models.space.utils import (
+    get_biz_ids_by_space_ids,
+    get_related_spaces,
+    reformat_table_id,
+)
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
 
@@ -105,7 +109,10 @@ class SpaceTableIDRedis:
             rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
 
         if rt_dl_map:
-            redis_values = {data_label: json.dumps(table_ids) for data_label, table_ids in rt_dl_map.items()}
+            redis_values = {
+                data_label: json.dumps([reformat_table_id(table_id) for table_id in table_ids])
+                for data_label, table_ids in rt_dl_map.items()
+            }
             RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
 
             if is_publish:
@@ -372,9 +379,16 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加关联的BKCI的ES结果表，适配ES多空间功能
         _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
+
+        # 二段式校验&补充
+        values_to_redis = {}
+        for key, value in _values.items():
+            key = reformat_table_id(key)
+            values_to_redis[key] = value
+
         # 推送数据
-        if _values and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
+        if values_to_redis and can_push_data:
+            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
             "push redis space_to_result_table, space_type: %s, space_id: %s",
@@ -401,9 +415,15 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
+
+        # 二段式校验&补充
+        values_to_redis = {}
+        for key, value in _values.items():
+            key = reformat_table_id(key)
+            values_to_redis[key] = value
         # 推送数据
         if _values and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
+            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
             "push redis space_to_result_table, space_type: %s, space_id:%s",
@@ -428,8 +448,15 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
+
+        # 二段式校验&补充
+        values_to_redis = {}
+        for key, value in _values.items():
+            key = reformat_table_id(key)
+            values_to_redis[key] = value
+
         if _values and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
+            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
             "push redis space_to_result_table, space_type: %s, space_id: %s",

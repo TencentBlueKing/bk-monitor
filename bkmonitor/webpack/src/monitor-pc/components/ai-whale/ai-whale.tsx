@@ -27,9 +27,9 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, { RoleType, type ChatHelper } from '@blueking/ai-blueking/vue2';
+import AiBlueking, { RoleType, type AIBluekingExpose } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
-import { copyText, random } from 'monitor-common/utils/utils';
+import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
@@ -73,6 +73,11 @@ interface IWhaleHelperListItem {
 
 type ThemeType = 'blue' | 'red' | 'yellow';
 
+export type AIQuickActionData = {
+  type: 'explanation' | 'translate';
+  content: string;
+};
+
 interface IData {
   alert: {
     abnormal_count: number; // 空间告警
@@ -112,6 +117,7 @@ export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
 }> {
   @Ref('robot') robotRef: HTMLDivElement;
+  @Ref('aiAssistant') aiAssistantRef: AIBluekingExpose;
   @Prop({ default: false }) enableAiAssistant: boolean;
   type: ThemeType = 'blue';
   /* 机器人位置 */
@@ -159,8 +165,6 @@ export default class AiWhale extends tsc<{
     bottom: 20,
     top: window.innerHeight - 600 - 20,
   };
-  chatHelper: ChatHelper = null;
-  chartId = random(10);
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
@@ -182,6 +186,14 @@ export default class AiWhale extends tsc<{
   @Watch('enableAiAssistant', { immediate: true })
   enableAiAssistantChange() {
     this.enableAiAssistant && aiWhaleStore.initStreamChatHelper();
+  }
+
+  @Watch('$store.state.aiWhale.aiQuickActionData')
+  handleIsTypeChange(newVal: AIQuickActionData, oldVal: AIQuickActionData) {
+    // 检查新值是否有 type 和 content
+    if (newVal.type && newVal.content && (newVal.type !== oldVal.type || newVal.content !== oldVal.content)) {
+      this.aiAssistantRef.quickActions(newVal.type, newVal.content);
+    }
   }
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
@@ -449,7 +461,7 @@ export default class AiWhale extends tsc<{
     aiWhaleStore.setDefaultMessage();
   }
   handleAiBluekingStop() {
-    this.chatHelper.stop(this.chartId);
+    aiWhaleStore.stopChatHelper();
   }
   handleAiBluekingClose() {
     aiWhaleStore.setShowAIBlueking(false);
@@ -703,6 +715,7 @@ export default class AiWhale extends tsc<{
   createAiBlueking() {
     return (
       <AiBlueking
+        ref='aiAssistant'
         class='ai-blueking'
         background={this.background}
         head-background={this.headBackground}

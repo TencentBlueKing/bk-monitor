@@ -20,6 +20,9 @@ class Where(Sql):
         value = self._value
         if isinstance(self._value, str):
             value = f"'{self._value}'"
+        elif isinstance(self._value, list):
+            value = ", ".join([f"'{v}'" for v in self._value])
+            value = f"({value})"
 
         return f"{self._key} {self._op} {value}"
 

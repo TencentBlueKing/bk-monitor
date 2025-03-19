@@ -13,7 +13,6 @@ specific language governing permissions and limitations under the License.
 
 from django.db import migrations, models
 
-
 UPDATE_METRICS = [
     {"table_id": "system.cpu_summary", "field_name": "usage", "unit": "percent", "description": "CPU使用率"},
     {"table_id": "system.cpu_summary", "field_name": "idle", "unit": "percentunit", "description": "CPU空闲率"},
@@ -55,7 +54,7 @@ UPDATE_METRICS = [
     {"table_id": "system.netstat", "field_name": "cur_tcp_estab", "unit": "none", "description": "estab连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_finwait1", "unit": "none", "description": "finwait1连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_finwait2", "unit": "none", "description": "finwait2连接数"},
-    {"table_id": "system.netstat", "field_name": "cur_tcp_lastack", "unit": "none", "description": "lastact连接数"},
+    {"table_id": "system.netstat", "field_name": "cur_tcp_lastack", "unit": "none", "description": "lastack连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_listen", "unit": "none", "description": "listen连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_syn_recv", "unit": "none", "description": "synrecv连接数"},
     {"table_id": "system.netstat", "field_name": "cur_tcp_syn_sent", "unit": "none", "description": "synsent连接数"},
@@ -143,7 +142,6 @@ def fix_metric_unit_and_name(apps, *args, **kwargs):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("metadata", "0067_datasource_consul_prefix"),
     ]

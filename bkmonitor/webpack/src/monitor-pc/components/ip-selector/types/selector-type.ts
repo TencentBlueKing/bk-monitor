@@ -27,16 +27,16 @@ import type Vue from 'vue';
 import type { VNode } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
-export type IpType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+export type IpType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 
 // tab数据源
 export interface IPanel {
   name: string; // tab唯一标识（要和components目录的文件名保持一致，作为后面动态组件的name）
-  label: TranslateResult | string; // tab默认显示文本
+  label: string | TranslateResult; // tab默认显示文本
   hidden?: boolean; // tab是否显示
   disabled?: boolean; // tab是否禁用
   keepAlive?: boolean; // 是否缓存
-  tips?: TranslateResult | string;
+  tips?: string | TranslateResult;
   component?: Vue; // 组件对象（默认根据name从layout里面获取）
   type?: IpType; // 当前tab对于的类型（目前对于后端来说只有两种，只是前端选择方式不一样）
 }
@@ -47,7 +47,7 @@ export interface IEventsMap {
 
 export interface IMenu {
   id: number | string;
-  label: TranslateResult | string;
+  label: string | TranslateResult;
   readonly?: boolean;
   disabled?: boolean;
   hidden?: boolean;
@@ -60,7 +60,7 @@ export interface INodeData extends IMenu {
 
 export interface IPreviewData {
   id: IpType;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   data: any[];
   dataNameKey?: string;
 }
@@ -96,8 +96,8 @@ export interface ITreeNode {
 
 export interface ITableConfig {
   prop: string;
-  label: TranslateResult | string;
-  render?: (row: any, column: any, $index: number) => VNode | any;
+  label: string | TranslateResult;
+  render?: (row: any, column: any, $index: number) => any | VNode;
   hidden?: boolean;
   minWidth?: number;
 }
@@ -105,7 +105,7 @@ export interface ITableConfig {
 export interface IAgentStatusData {
   count?: number;
   status: string;
-  display: TranslateResult | string;
+  display: string | TranslateResult;
   errorCount?: number;
 }
 // 0 未选 1 半选 2 全选

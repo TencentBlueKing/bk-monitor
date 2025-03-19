@@ -19,40 +19,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import datetime
-
-import pytz
-from dateutil.parser import parse
-from django.conf import settings
 from rest_framework import serializers
 
 from apps.generic import DataModelSerializer
 from apps.log_audit.models import UserOperationRecord
-from apps.utils.local import get_local_param
+from apps.utils.drf import DateTimeFieldWithEpoch
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
-    start_time = serializers.CharField(required=True)
-    end_time = serializers.CharField(required=True)
+    start_time = DateTimeFieldWithEpoch(required=True)
+    end_time = DateTimeFieldWithEpoch(required=True)
     page = serializers.IntegerField(required=True)
     pagesize = serializers.IntegerField(required=True)
-
-    @classmethod
-    def parse_datetime_with_epoch(cls, t):
-        t = t.replace("&nbsp;", " ")
-        try:
-            datetime_obj = datetime.datetime.fromtimestamp(
-                int(t), pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-            )
-        except Exception:  # pylint: disable=broad-except
-            datetime_obj = parse(t)
-        return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        attrs["start_time"] = self.parse_datetime_with_epoch(attrs["start_time"])
-        attrs["end_time"] = self.parse_datetime_with_epoch(attrs["end_time"])
-        return attrs
 
 
 class CustomReportConfSerializer(serializers.Serializer):
@@ -67,14 +45,8 @@ class CustomReportSettingSerializer(serializers.Serializer):
 
 
 class UserSearchHistoryOperationStatisticSerializer(serializers.Serializer):
-    start_time = serializers.CharField(required=True)
-    end_time = serializers.CharField(required=True)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        attrs["start_time"] = attrs["start_time"].replace("&nbsp;", " ")
-        attrs["end_time"] = attrs["end_time"].replace("&nbsp;", " ")
-        return attrs
+    start_time = DateTimeFieldWithEpoch(required=True)
+    end_time = DateTimeFieldWithEpoch(required=True)
 
 
 class AuditRecordSerializer(DataModelSerializer):

@@ -124,7 +124,7 @@ class FieldViewSet(APIViewSet):
 
         output = StringIO()
         for item in value_list:
-            output.write(f"{item}\n")
+            output.write(f"{item[0]},{item[1]},{item[2]*100:.2f}%\n")
         response = HttpResponse(output.getvalue())
         response["Content-Type"] = "application/x-msdownload"
         field_name = params["agg_field"]

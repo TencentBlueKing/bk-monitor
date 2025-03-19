@@ -42,6 +42,7 @@ interface IRecentAlarmTabProps {
   tabs: IRecentAlarmTab[];
   activeTabId: number;
   showTabLoading: boolean;
+  bizLimit: number;
 }
 @Component({
   name: 'RecentAlarmTab',
@@ -51,6 +52,8 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   @Prop({ default: () => [], type: Array }) tabs: IRecentAlarmTabProps['tabs'];
   /** 当前业务ID */
   @Prop({ default: 0, type: Number }) activeTabId: IRecentAlarmTabProps['activeTabId'];
+  /** 当前业务ID */
+  @Prop({ default: 5, type: Number }) bizLimit: IRecentAlarmTabProps['bizLimit'];
   /** loading */
   @Prop({ default: false, type: Boolean }) showTabLoading: IRecentAlarmTabProps['showTabLoading'];
 
@@ -61,13 +64,15 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   /** 删除业务ID */
   currentDelId = null;
 
+  /** 选择器text */
+  selectedText: string;
   /** 时间选择器 */
   timeRange = JSON.stringify(shortcuts[5].value as TimeRangeType);
 
   // 可以添加业务flag
   get canAddBusiness() {
-    // 仅支持添加 10 个业务
-    return this.tabs.length < 10;
+    // 仅支持添加 n 个业务
+    return this.tabs.length < this.bizLimit;
   }
 
   /** 业务列表 */
@@ -82,6 +87,10 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
       reject403: true,
     });
     this.timeRange = JSON.stringify(timeRange || (shortcuts[5].value as TimeRangeType));
+    const selectedOption = shortcuts.find(option => JSON.stringify(option.value) === this.timeRange);
+    if (selectedOption) {
+      this.selectedText = selectedOption.text as string;
+    }
   }
 
   // 设置存储的首页时间选择器并同步到用户配置
@@ -124,6 +133,7 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
       });
       this.$emit('handleDropTab', tab);
     }
+    this.dragoverId = '';
   }
   // 拖拽 end
 
@@ -147,7 +157,12 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
 
   // 改变时间选择器
   @Emit('changeTime')
-  handleChangeTime() {
+  handleChangeTime(value) {
+    // 基于选择的值更新显示文本
+    const selectedOption = shortcuts.find(option => JSON.stringify(option.value) === value);
+    if (selectedOption) {
+      this.selectedText = selectedOption.text;
+    }
     return JSON.parse(this.timeRange);
   }
 
@@ -197,7 +212,9 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
               <span
                 class='add-task task-disabled'
                 v-bk-tooltips={{
-                  content: this.$t('仅支持添加 10 个业务'),
+                  content: this.$t('仅支持添加 {0} 个业务', {
+                    0: this.bizLimit,
+                  }),
                   trigger: 'mouseenter',
                   zIndex: 9999,
                   boundary: document.body,
@@ -209,8 +226,8 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
               </span>
             ) : (
               <HomeBizSelect
+                ref='homeBizSelect'
                 bizList={this.bizIdList}
-                canAddBusiness={this.canAddBusiness}
                 minWidth={380}
                 stickyList={[]}
                 theme='light'
@@ -222,12 +239,25 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
         {/* 时间选择器 */}
         <div class='alarm-time-filter'>
           <bk-select
+            ext-cls='alarm-time'
             v-model={this.timeRange}
             clearable={false}
+            ext-popover-cls='alarm-time-popover'
             popover-width={70}
             onChange={this.handleChangeTime}
             onSelected={this.setStoreSelectedTimeRange}
           >
+            <div
+              class='select-trigger'
+              slot='trigger'
+            >
+              <span>
+                <span class='item-name-text'>{this.selectedText}</span>
+              </span>
+              <div class='arrow-wrap'>
+                <i class='icon-monitor icon-mc-arrow-down' />
+              </div>
+            </div>
             {shortcuts.map(option => (
               <bk-option
                 id={JSON.stringify(option.value)}

@@ -1,6 +1,8 @@
 .k8s-new___group-item {
-  & + .k8s-new___group-item {
-    margin-top: 8px;
+  margin-bottom: 8px;
+
+  &.expand {
+    margin-bottom: 5px;
   }
 
   .group-count {
@@ -8,13 +10,13 @@
     padding: 0 8px;
     margin: 0 4px;
     line-height: 16px;
-    color: #979ba5;
+    color: #A3B1CC;
     background: #ffffff;
     border-radius: 2px;
   }
 
   .arrow-icon {
-    font-size: 18px;
+    font-size: 10px;
     transition: transform 0.1s;
 
     &.expand {
@@ -27,12 +29,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 32px;
-    padding: 0 12px 0 24px;
-    margin-bottom: 8px;
+    height: 28px;
+    padding: 0 12px 0 22px;
+    margin-bottom: 4px;
     cursor: pointer;
-    background: #f0f1f5;
+    background: #f0f2f7;
     border-radius: 2px;
+
+    &:hover {
+      background-color: #E9EBF0;
+    }
 
     &-left {
       display: flex;
@@ -40,8 +46,8 @@
 
       .arrow-icon {
         position: absolute;
-        top: 7px;
-        left: 4px;
+        top: 9px;
+        left: 8px;
       }
 
       .group-name {
@@ -65,7 +71,7 @@
 
     .group-select {
       font-size: 12px;
-      line-height: 32px;
+      line-height: 28px;
       color: #3a84ff;
     }
   }
@@ -75,17 +81,16 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 32px;
+      height: 28px;
 
       &:hover {
         background-color: #F5F7FA;
 
-        .content-name {
+        .tools {
           .search-tools {
             display: block;
           }
         }
-
       }
 
       &.active {
@@ -115,17 +120,12 @@
         display: flex;
         flex: 1;
         overflow: hidden;
-        line-height: 20px;
         color: #4d4f56;
         cursor: pointer;
 
-        &.select {
-          justify-content: space-between;
-        }
-
         .name {
           max-width: calc(100% - 20px);
-          padding-left: 24px;
+          padding-left: 22px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -134,6 +134,14 @@
         .pick-name {
           color: #3a84ff;
         }
+      }
+
+      .tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 28px;
+        font-size: 14px;
 
         .search-tools {
           display: none;
@@ -142,36 +150,25 @@
 
           
           &.icon-a-sousuo {
-            margin-left: 6px;
+            width: 21px;
+            height: 21px;
+            line-height: 21px;
             color: #63656E;
+            text-align: center;
 
             &:hover {
               color: #3A84FF;;
             }
           }
 
-          &.icon-sousuo- {
+          &.selected {
             display: block;
-            width: 20px;
-            height: 20px;
-            color: #fff;
-            text-align: center;
-            background: #65C389;
-            border-radius: 2px;
-
-            &:hover {
-              background-color: #2CAF5E;
-            }
+            width: 21px;
+            height: 21px;
+            background: url('../../../../static/images/svg/cancel-search.svg');
+            background-size: cover;
           }
         }
-      }
-
-      .tools {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 32px;
-        font-size: 14px;
 
         .icon-monitor:hover {
           color: #3a84ff;
@@ -181,10 +178,14 @@
         .k8s-dimension-drillDown {
           width: 40px;
           height: 100%;
-          padding: 4px 8px;
+          padding: 2px 8px;
 
           .drill-down-icon {
             margin: 0;
+          }
+
+          .icon-xiazuan {
+            font-size: 14px;
           }
         }
       }
@@ -203,18 +204,44 @@
     }
 
     .show-more {
-      padding-bottom: 4px;
       font-size: 12px;
-      line-height: 20px;
+      line-height: 28px;
       color: #979ba5;
       text-align: center;
 
-      .text {
+      .content {
+        display: flex;
+        align-items: center;
+        height: 28px;
+        padding: 0 22px;
         cursor: pointer;
-
+        
         &:hover {
-          color: #3a84ff;
+          background: #F0F5FF;
+          border-radius: 2px;
+
+          .text {
+            display: block;
+            margin-left: 6px;
+          }
         }
+
+        .dot {
+          width: 3px;
+          height: 3px;
+          background: #3A84FF;
+          border-radius: 50%;
+
+          & + .dot {
+            margin-left: 3px;
+          }
+        }
+        
+        .text {
+          display: none;
+          color: #3A84FF;
+        }
+
       }
     }
   }
@@ -224,7 +251,7 @@
       position: relative;
       display: flex;
       align-items: center;
-      height: 32px;
+      height: 28px;
       padding-left: 40px;
       cursor: pointer;
 
@@ -238,8 +265,8 @@
 
       .arrow-icon {
         position: absolute;
-        top: 7px;
-        left: 18px;
+        top: 10px;
+        left: 22px;
       }
     }
 
@@ -262,6 +289,12 @@
         width: calc(100% - 31px);
         height: 20px;
         margin: 0 7px 12px 24px;
+      }
+    }
+
+    .show-more {
+      .content {
+        padding-left: 40px;
       }
     }
   }

@@ -36,6 +36,7 @@ interface IChartTitleProps {
   activeMode: ViewModeType;
   textDirection: TextDirectionType;
   isCompared: boolean;
+  keyword: string;
 }
 interface IChartTitleEvent {
   onModeChange: ViewModeType;
@@ -48,9 +49,8 @@ interface IChartTitleEvent {
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ required: true, type: String }) activeMode: string;
   @Prop({ required: true, type: String }) textDirection: string;
+  @Prop({ required: true, default: '' }) keyword: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
-
-  keyword = '';
 
   get viewModeList() {
     const list = [
@@ -113,6 +113,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <bk-input
           v-model={this.keyword}
           right-icon='bk-icon icon-search'
+          clearable
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>

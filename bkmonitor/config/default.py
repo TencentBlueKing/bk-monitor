@@ -15,6 +15,7 @@ import os
 import sys
 from urllib.parse import urljoin
 
+from ai_agent.conf.default import *
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
@@ -58,6 +59,7 @@ INSTALLED_APPS = (
     "django.contrib.staticfiles",
     # account app
     "blueapps.account",
+    "apigw_manager.apigw",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1074,6 +1076,7 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
+NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
@@ -1383,6 +1386,12 @@ AIDEV_KNOWLEDGE_BASE_IDS = []
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
+# API地址
+BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkmonitorv3.service.consul:10204")
+
+# 网关管理员
+APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
 ENABLE_V2_BKDATA_GSE_RESOURCE = False
@@ -1392,7 +1401,12 @@ ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
 # 是否启用计算平台Kafka采样接口
 ENABLE_BKDATA_KAFKA_TAIL_API = False
-
+# Kafka采样接口重试次数
+KAFKA_TAIL_API_RETRY_TIMES = 3
+# Kafka Consumer超时时间(秒)
+KAFKA_TAIL_API_TIMEOUT_SECONDS = 1000
+# Kafka采样接口重试间隔(秒)
+KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS = 2
 # 计算平台&监控平台数据一致性Redis相关配置
 # 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"
@@ -1460,8 +1474,10 @@ CHECK_RESULT_TTL_HOURS = 1
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
-# 监控平台apigw代码
-BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+# 支持来源 APIGW 列表
+FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
+# 网关环境，prod 表示生产环境，stage 表示测试环境
+APIGW_STAGE = os.getenv("APIGW_STAGE", "prod")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {
@@ -1469,6 +1485,13 @@ BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 #     "BCS-K8S-00001": "bkmonitor-operator",
 # }
 K8S_OPERATOR_DEPLOY_NAMESPACE = {}
+
+# 集群内 collector 接收端特殊配置，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": {"cache": {"interval": "10s"}},
+#     "BCS-K8S-00001": {"cache": {"interval": "1s"}},
+# }
+K8S_COLLECTOR_CONFIG = {}
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""

@@ -47,7 +47,7 @@ import {
   agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
-import { PanelTargetMap } from './utils';
+import { PanelTargetMap, transformCacheMapToOriginData, transformOriginDataToCacheMap } from './utils';
 
 import type {
   CommomParams,
@@ -107,6 +107,7 @@ export interface IMonitorIpSelectorProps {
   outputFieldList?: string[];
   outputFieldOptionalHostTableColumn?: string[];
   countInstanceType?: CoutIntanceName;
+  enableOriginData?: boolean;
 }
 export interface IMonitorIpSelectorEvents {
   onChange: (v: Record<string, INode[]>) => void;
@@ -175,6 +176,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   @Prop({ type: Array }) outputFieldOptionalHostTableColumn: string[];
   // 配置主机输出字段（如果要开启该功能则值不能为空）
   @Prop({ type: Array }) outputFieldList: string[];
+  // 配置 change 事件回调参数是否为原始数据
+  @Prop({ type: Boolean, default: false }) enableOriginData;
 
   scopeList: IScopeItme[] = [
     {
@@ -184,6 +187,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   ];
   ipSelectorServices: IpSelectorService = {};
   ipSelectorConfig: IpSelectorConfig = {};
+  // 初始的数据源缓存(未经 ip 选择器处理的原始数据)
+  serverOriginDataMapForChange: any = {};
   created() {
     this.ipSelectorServices = {
       fetchTopologyHostCount: this.fetchTopologyHostCount, // 拉取topology
@@ -252,6 +257,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         ...p,
       })
     );
+    const nodeType = 'DYNAMIC_GROUP';
+    this.serverOriginDataMapForChange[nodeType] = transformOriginDataToCacheMap(data, nodeType);
     return data;
   }
   async fetchHostsDynamicGroup(p) {
@@ -522,7 +529,16 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   }
   @Emit('change')
   change(value: Record<string, INode[]>) {
-    return value;
+    if (!this.enableOriginData) {
+      return value;
+    }
+    return Object.fromEntries(
+      Object.entries(value).map(([key, value]) => [
+        key,
+        // @ts-ignore
+        transformCacheMapToOriginData(value, key, this.serverOriginDataMapForChange),
+      ])
+    );
   }
   @Emit('targetTypeChange')
   panelChange(v: string) {

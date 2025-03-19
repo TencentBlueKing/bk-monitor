@@ -763,8 +763,6 @@
         });
       },
       checkFieldNameItem(row) {
-        console.log(row);
-        
         const { field_name, is_delete, field_index } = row;
         let result = '';
 
@@ -880,7 +878,7 @@
             return false;
           }
         } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          if(row.query_alias || row.is_built_in){
+          if(row.alias_name || row.is_built_in){
             row.aliasErr = '';
             return true
           }

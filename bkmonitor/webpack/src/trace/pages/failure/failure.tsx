@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onMounted, provide, ref, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -84,6 +85,8 @@ export default defineComponent({
   },
   setup(props) {
     useIncidentProvider(computed(() => props.id));
+    const route = useRoute();
+    const router = useRouter();
     const operations = ref([]);
     const bkzIds = ref([]);
     const { t } = useI18n();
@@ -99,8 +102,8 @@ export default defineComponent({
     const operationTypeMap = ref({});
     const playLoading = ref(false);
     const operationTypes = ref([]);
-    const refContent = ref<HTMLDivElement>();
-    const failureNavRef = ref<HTMLDivElement>();
+    const refContent = ref<InstanceType<typeof FailureContent>>();
+    const failureNavRef = ref<InstanceType<typeof FailureNav>>();
     const topoNodeId = ref<string>();
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
@@ -275,10 +278,21 @@ export default defineComponent({
           getIncidentOperations();
           getIncidentOperationTypes();
           handleGetSearchTopNList();
+          /** 判断路由里是否带了activeTab，需要调整到指定tab，由于其他tab的接口请求依赖详情数据，所以要在跳转前确保已经正确获取到详情数据 */
+          if (route.query?.activeTab) {
+            changeTab();
+            nextTick(() => {
+              router.replace({ query: {} });
+            });
+          }
         })
         .catch(err => {
           console.log(err);
         });
+    };
+    // 出发拓扑的跳转span事件
+    const handleToSpan = () => {
+      refContent.value.handleRootToSpan();
     };
     const handleChooseTag = (tag: ITagInfoType, isCheck: boolean) => {
       tagInfo.value = Object.assign({ isCheck }, tag);
@@ -309,8 +323,8 @@ export default defineComponent({
       getIncidentOperations();
       failureNavRef.value.handleRefNavRefresh();
     };
-    const chooseOperation = (id, data) => {
-      refContent.value.goFailureTiming(id, data);
+    const chooseOperation = () => {
+      // refContent.value.goFailureTiming(id, data);
     };
     const handleChangeSelectNode = (nodeId: string) => {
       topoNodeId.value = nodeId;
@@ -325,6 +339,7 @@ export default defineComponent({
       incidentDetailData,
       getIncidentDetail,
       handleChooseTag,
+      handleToSpan,
       tagInfo,
       nodeClick,
       valueMap,
@@ -356,6 +371,7 @@ export default defineComponent({
         <FailureTags
           onChooseNode={this.nodeClick}
           onChooseTag={this.handleChooseTag}
+          onToSpan={this.handleToSpan}
         />
         <ResizeLayout
           class='failure-content-layout'

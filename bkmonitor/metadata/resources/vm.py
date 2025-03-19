@@ -8,11 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import logging
 from collections import OrderedDict
 from typing import Dict
 
 from django.conf import settings
+from django.db import transaction
 from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -26,6 +27,8 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink,
 )
+
+logger = logging.getLogger("metadata")
 
 
 class CreateVmCluster(Resource):
@@ -159,3 +162,35 @@ class SwitchKafkaCluster(Resource):
             raise ValidationError(f"not found data source by bk_data_id: {bk_data_id}")
         # 刷新数据源对应的 consul 记录
         ds.refresh_consul_config()
+
+
+class NotifyDataLinkVmChange(Resource):
+    """
+    TODO：临时接口，待全量切换至V4后，统一使用V4数据一致性方案
+    通知监控平台,某条链路发生了存储VM集群变更,只适用于V3链路
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_name = serializers.CharField(required=True, label="集群名称")
+        vmrt = serializers.CharField(required=True, label="VM结果表ID")
+
+    def perform_request(self, validated_request_data):
+        cluster_name = validated_request_data.get("cluster_name")
+        vmrt = validated_request_data.get("vmrt")
+        logger.info("NotifyDataLinkChangeStorageCluster: vmrt->[%s] will change to cluster->[%s]", vmrt, cluster_name)
+
+        try:
+            vm_cluster = models.ClusterInfo.objects.get(cluster_name=cluster_name)
+        except models.ClusterInfo.DoesNotExist:
+            logger.error("NotifyDataLinkChangeStorageCluster: can't find vm cluster name [%s]", cluster_name)
+            raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
+
+        vm_records = models.AccessVMRecord.objects.filter(vm_result_table_id=vmrt)
+        if not vm_records.exists():
+            logger.warning("NotifyDataLinkChangeStorageCluster: no record for vm result table [%s]", vmrt)
+            raise ValidationError(f"no record for vm result table [{vmrt}]")
+
+        with transaction.atomic():
+            vm_records.update(vm_cluster_id=vm_cluster.cluster_id)
+
+        logger.info("NotifyDataLinkChangeStorageCluster: vmrt->[%s] has changed to cluster->[%s]", vmrt, cluster_name)

@@ -150,6 +150,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
 
   // 渲染所有可用路由部分
   contentRoutes() {
+    /** 根据当前bizId区分是要展示新版的k8s还是旧版的k8s, 当isEnableK8sV2为true时，不展示旧版 */
+    const filterKey = this.$store.getters.isEnableK8sV2 ? 'k8s' : 'k8s-new';
     return (
       <div class='content-routes'>
         {this.flatRoutes.map(item => (
@@ -161,19 +163,19 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
               {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
             </span>
             <ul class='route-list'>
-              {item.children?.map(child => (
-                <li
-                  key={child.id}
-                  class={`route-item ${this.isStoredRoute(child.id) ? 'is-stored' : ''}`}
-                  onClick={() => this.handleStoreRoute(child)}
-                >
-                  {this.$t(child.name.startsWith('route-') ? child.name : `route-${child.name}`)}
-                  <i
-                    class={`icon-monitor route-check ${this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
-                      }`}
-                  />
-                </li>
-              ))}
+              {(item.children || [])
+                .filter(item => item.id !== filterKey)
+                .map(child => (
+                  <li
+                    key={child.id}
+                    class={`route-item ${this.isStoredRoute(child.id) ? 'is-stored' : ''}`}
+                    onClick={() => this.handleStoreRoute(child)}
+                  >
+                    <i class={`${child.icon} item-icon`} />
+                    {this.$t(child.name.startsWith('route-') ? child.name : `route-${child.name}`)}
+                    <i class={'icon-monitor route-check icon-mc-check-small'} />
+                  </li>
+                ))}
             </ul>
           </div>
         ))}

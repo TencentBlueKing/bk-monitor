@@ -314,4 +314,6 @@ export default {
   清空整组筛选项: 'Clear all filter options in the group',
   请先删除子级维度: 'Please delete the child dimension first',
   '该指标在当前级别({0})不可用': 'This indicator is not available at the current level ({0})',
+  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
+    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
 };

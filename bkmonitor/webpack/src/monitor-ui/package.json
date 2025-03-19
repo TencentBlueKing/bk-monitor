@@ -16,7 +16,7 @@
   "dependencies": {
     "@antv/g6": "^4.8.24",
     "@blueking/fork-resize-detector": "^0.0.2",
-    "@blueking/monitor-apm-log": "1.0.1-beta.5",
+    "@blueking/monitor-apm-log": "1.0.1-beta.7",
     "@blueking/monitor-resource-topo": "0.0.1-beta.36",
     "@blueking/search-select-v3": "0.0.1-beta.10",
     "@toast-ui/editor": "^3.2.2",
@@ -35,7 +35,7 @@
     "d3-transition": "^3.0.1",
     "dayjs": "^1.11.11",
     "deepmerge": "^4.3.1",
-    "echarts": "^5.5.1",
+    "echarts": "^5.6.0",
     "html-to-image": "^1.11.11",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",

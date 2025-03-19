@@ -309,7 +309,7 @@ export default class App extends tsc<object> {
           navigation-type='top-bottom'
           need-menu={!!this.menuList && this.needMenu}
           side-title={this.$t('故障自愈')}
-          themeColor='#2c354d'
+          themeColor='#242b3b'
           on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >

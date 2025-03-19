@@ -315,7 +315,7 @@ class ImportAlertRule(ImportBaseResource):
                 }
             )
             try:
-                user_group_serializer.is_valid(True)
+                user_group_serializer.is_valid(raise_exception=True)
                 user_group_serializer.save()
             except ValidationError as e:
                 logger.exception("创建告警组失败: %s" % e)

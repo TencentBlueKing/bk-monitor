@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, ref } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Dropdown, Input } from 'bkui-vue';
@@ -50,12 +50,14 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    keyword: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
+  emits: ['modeChange', 'textDirectionChange', 'update:keyword', 'download'],
   setup(props, { emit }) {
     const { t } = useI18n();
-
-    const keyword = ref('');
 
     const viewModeList = computed<ViewModeItem[]>(() => {
       const list = [
@@ -87,15 +89,14 @@ export default defineComponent({
     const handleEllipsisDirectionChange = (val: DirectionType) => {
       emit('textDirectionChange', val);
     };
-    const handleKeywordChange = debounce(300, async () => {
-      emit('keywordChange', keyword.value);
+    const handleKeywordChange = debounce(300, async v => {
+      emit('update:keyword', v);
     });
     const menuClick = (type: string) => {
       emit('download', type);
     };
 
     return {
-      keyword,
       downloadTypeMaps,
       viewModeList,
       handleModeChange,
@@ -124,8 +125,10 @@ export default defineComponent({
           ))}
         </div>
         <Input
-          v-model={this.keyword}
+          clearable={true}
+          modelValue={this.keyword}
           type='search'
+          onClear={() => this.handleKeywordChange('')}
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>

@@ -116,7 +116,6 @@
     height: 52px;
     padding: 6px 16px;
     font-size: 12px;
-    cursor: pointer;
     background: #f5f7fa;
 
     .header-status-icon {
@@ -235,5 +234,10 @@
         margin-right: 4px;
       }
     }
+  }
+}
+.header-status-popover {
+  .bk-pop2-arrow {
+    left: 16px !important;
   }
 }

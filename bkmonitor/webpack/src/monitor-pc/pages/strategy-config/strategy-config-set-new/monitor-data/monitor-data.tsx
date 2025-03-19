@@ -36,6 +36,7 @@ import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
 import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
+import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
@@ -549,8 +550,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         class='monitor-data'
         v-bkloading={{ isLoading: this.loading }}
       >
-        <bk-alert type='info'>
+        <bk-alert
+          show-icon={false}
+          type='info'
+        >
           <div slot='title'>
+            <AIWhaleIcon
+              class='ai-whale-icon'
+              content={this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series'].toString()}
+              type='translate'
+            />
             {this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series']}
             <a
               class='info-url'
@@ -726,12 +735,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     slot='prepend'
                   >
                     <span>{'Step'}</span>
-                    <span
-                      class='icon-monitor icon-hint'
-                      v-bk-tooltips={{
-                        content: this.$t('数据步长'),
-                        placements: ['top'],
-                      }}
+                    <AIWhaleIcon
+                      content='Step'
+                      tip={this.$t('数据步长').toString()}
+                      type='explanation'
                     />
                   </div>
                 </bk-input>

@@ -4,7 +4,7 @@
   align-items: center;
 
   .filter-by-condition-tag {
-    height: 22px;
+    height: 40px;
     margin-right: 4px;
     margin-bottom: 4px;
     font-size: 12px;
@@ -15,6 +15,7 @@
       align-items: center;
       justify-content: center;
       width: 22px;
+      height: 22px;
       font-size: 16px;
       color: #3A84FF;
       cursor: pointer;
@@ -29,8 +30,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0 8px;
-      color: #E38B02;
+      padding: 0 1px;
+      font-family: RobotoMono-Medium;
+      font-weight: 500;
+      color: #F59500;
       background: #FDEED8;
     }
 
@@ -38,6 +41,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      height: 22px;
       padding: 0 4px 0 6px;
       color: #4D4F56;
       cursor: pointer;
@@ -60,6 +64,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      height: 22px;
       padding: 0 4px 0 6px;
       color: #3A84FF;
       cursor: pointer;
@@ -77,6 +82,23 @@
         background: #DCDEE5;
       }
     }
+
+    &.clear-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+
+      cursor: pointer;
+      background: #F0F1F5;
+      border-radius: 2px;
+
+      .icon-monitor {
+        font-size: 14px;
+        color: #4D4F56;
+      }
+    }
   }
 
 }
@@ -85,8 +107,13 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding: 12px 16px 10px 14px;
+  // padding: 12px 16px 10px 14px;
+  padding: 4px 4px 0 4px;
   overflow: hidden;
+
+  .mt-9 {
+    margin-top: 9px;
+  }
 
   .tags-wrap-loading {
     width: 100%;
@@ -108,6 +135,14 @@
   &.expand-tags {
     .tag-list-wrap {
       flex-wrap: wrap;
+    }
+  }
+
+  &:hover {
+    .filter-by-condition-tag {
+      &.clear-btn {
+        display: inline-flex;
+      }
     }
   }
   

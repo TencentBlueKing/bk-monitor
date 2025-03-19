@@ -87,6 +87,11 @@ export const fieldTypeMap = {
     icon: 'bklog-icon bklog-ext',
     color: '#F2E2FB'
   },
+  object: {
+    name: i18n.t('对象'),
+    icon: 'bklog-icon bklog-object',
+    color: '#E8EAF0;'
+  }
 };
 
 export const SPACE_TYPE_MAP = {

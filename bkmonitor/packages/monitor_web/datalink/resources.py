@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
+import re
 import time
-from collections import OrderedDict
-from datetime import datetime
+from collections import OrderedDict, deque
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Tuple
 
@@ -513,50 +514,131 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, time_range: int = 600) -> List[str]:
-        """查询一个指标最近10分钟的最新数据"""
-        start_time, end_time = int(time.time() - time_range), int(time.time())
-        query_params = {
-            "bk_biz_id": self.collect_config.bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": "prometheus",
-                    "data_type_label": "time_series",
-                    "promql": """
-                    topk(10, {{__name__=~"bkmonitor:{table_id}:.*",
-                     bk_collect_config_id="{bk_collect_config_id}"}})""".format(
-                        table_id=table_id.replace('.', ':'), bk_collect_config_id=self.collect_config_id
-                    ),
-                    "interval": 60,
-                    "alias": "a",
-                }
-            ],
-            "expression": "",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
-            "slimit": 500,
-            "down_sample_range": "",
-        }
-        series = resource.grafana.graph_unify_query(query_params)["series"]
+    def find_timestamps(self, series: dict) -> str:
+        """
+        基于广度优先搜索 (BFS) 快速提取时间值
+        支持任意嵌套层级的 dict/list/tuple 结构
+        返回去重后的时间值列表（保持原始顺序）
+        """
+        logger.info(f"kafka tail series: {series}")
+
+        # 目标键名集合
+        target_keys = {"utctime", "timestamp", "@timestamp"}
+        # 预编译正则提高效率
+        iso8601_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z?$")
+        # 结果集（有序且去重）
+        result = []
+        seen = set()
+        # BFS队列初始化
+        queue = deque([series])
+
+        def _is_valid_time_value(value, iso_pattern) -> bool:
+            """
+            校验时间值是否符合以下格式
+            ```python
+            [
+                # int类型 时间戳
+                1640995200,
+                1640995200000,
+                # str类型 时间戳
+                "1640995200",
+                "1640995200000",
+                # str类型 ISO 8601格式
+                "2023-01-01T00:00:00Z",
+                "2023-01-01 00:00:00",
+                '2025-02-26T09:59:39.407Z',
+            ]
+            ```
+            """
+            if isinstance(value, int):
+                return 1_000_000_000 <= value < 10_000_000_000_000  # 10位 ~ 13位
+            if isinstance(value, str):
+                if value.isdigit():
+                    length = len(value)
+                    if length not in (10, 13):
+                        return False
+                    try:
+                        num = int(value)
+                        return 1_000_000_000 <= num < 10_000_000_000_000
+                    except ValueError:
+                        return False
+                return bool(iso_pattern.match(value))
+
+            return False
+
+        def _add_unique_value(value: str | int, result: list, seen: set):
+            """去重并保持顺序"""
+            if isinstance(value, int):
+                key = ("int", value)
+            else:
+                key = ("str", value.strip().lower())  # 字符串忽略大小写和空格
+            if key not in seen:
+                seen.add(key)
+                result.append(value)
+
+        def convert_to_string(ts):
+            """
+            格式化时间戳
+            示例: 2022-01-01 00:00:00
+            """
+            if isinstance(ts, str):
+                if len(ts) == 10:  # 10位字符串时间戳（秒）
+                    dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                elif len(ts) == 13:  # 13位字符串时间戳（毫秒）
+                    dt = datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
+                else:
+                    if re.match(
+                        r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$', ts
+                    ):  # ISO 8601 格式: %Y-%m-%dT%H:%M:%SZ
+                        dt = datetime.fromisoformat(ts[:-1])  # 去掉最后的 'Z'
+                    else:
+                        dt = datetime.fromisoformat(ts)
+            elif isinstance(ts, int):
+                if len(str(ts)) == 10:  # 10位整数时间戳（秒）
+                    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                elif len(str(ts)) == 13:  # 13位整数时间戳（毫秒）
+                    dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        """
+        广度优先搜索，遍历数据结构，找出符合以下时间戳格式的值, 并保存到 result 中
+        ```
+        [
+            1640995200, 1640995200000,
+            "1640995200","1640995200000",
+            "2023-01-01T00:00:00Z","2023-01-01 00:00:00", "2025-02-26T09:59:39.407Z"
+        ]
+        ```
+        """
+        while queue:
+            current = queue.popleft()
+
+            if isinstance(current, dict):
+                for k, v in current.items():
+                    if k in target_keys:
+                        if _is_valid_time_value(v, iso8601_pattern):
+                            _add_unique_value(v, result, seen)
+                    queue.append(v)
+            elif isinstance(current, (list, tuple)):
+                queue.extend(current)
+
+        logger.info(f"find_timestamps: {result}")
+        return convert_to_string(result[0]) if result else ""
+
+    def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
+        """查询一个指标的最新数据"""
+
+        series: List[Dict] = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         msgs = []
         for s in series:
-            metric_name = s["dimensions"]["__name__"]
-            val = s["datapoints"][-1][0]
-            ts = s["datapoints"][-1][1]
-            target = s["target"]
-            # 组装消息
-            msg = "{metric}{target} {val}".format(metric=metric_name, target=target, val=val)
-            # 原始数据拼接
-            raw = s["dimensions"]
-            raw[metric_name] = val
-            raw["time"] = ts
+            time = self.find_timestamps(s)
 
             msgs.append(
                 {
-                    "message": msg,
-                    "time": datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                    "raw": raw,
+                    "message": json.dumps(s),
+                    "time": time,
+                    "raw": s,
                 }
             )
         return msgs

@@ -12,6 +12,8 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+import tempfile
+import time
 import uuid
 from itertools import chain
 from typing import Dict, List
@@ -21,6 +23,7 @@ from confluent_kafka import Consumer as ConfluentConsumer
 from confluent_kafka import KafkaError, KafkaException
 from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.utils.translation import gettext as _
@@ -48,7 +51,12 @@ from metadata.models.bcs import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
-from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.constants import (
+    DT_TIME_STAMP_NANO,
+    NANO_FORMAT,
+    NON_STRICT_NANO_ES_FORMAT,
+    DataIdCreatedFromSystem,
+)
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -1917,34 +1925,37 @@ class KafkaTailResource(Resource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
-        bk_data_id = validated_request_data["bk_data_id"]
+        bk_data_id = validated_request_data.get("bk_data_id")
+        result_table = None
+
+        # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
+            datasource = models.DataSource.objects.get(bk_data_id=bk_data_id)
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
-                raise ValidationError(_("数据源关联的结果表不存在"))
+                logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
+
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
-
-        try:
             result_table = models.ResultTable.objects.get(table_id=table_id)
-        except models.ResultTable.DoesNotExist:
-            raise ValidationError(_("结果表不存在"))
+            datasource = result_table.data_source
 
-        datasource = result_table.data_source
         size = validated_request_data["size"]
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
-        # 若Kafka集群注册自计算平台，说明使用2.4+鉴权，使用confluent_kafka库
-        if mq_ins.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM:
+        # Kafka是否需要进行鉴权,如SCRAM-SHA-512协议
+        if mq_ins.is_auth:
             result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
-        # 查询 ds 判断是否是v4协议接入
+        # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
-            if settings.ENABLE_BKDATA_KAFKA_TAIL_API:  # 若开启特性开关，则V4数据源使用BkBase侧的Kafka采样接口拉取数据
-                logger.info("KafkaTailResource: using bkdata kafka tail api,table_id->[%s]", result_table.table_id)
-
+            # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
+            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != 'bk_flat_batch':
+                logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
+                # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
                 data_id_name = vm_record.bk_base_data_name
                 namespace = validated_request_data["namespace"]
@@ -1960,8 +1971,8 @@ class KafkaTailResource(Resource):
                 result = [json.loads(data) for data in res]
             else:
                 result = self._consume_with_gse_config(datasource, size)
-        else:
-            result = self._consume_with_kafka_python(datasource, size)
+        else:  # 其他情况使用kafka-python库,适配边缘存查链路等带证书鉴权的Kafka集群
+            result = self._consume_with_kafka_python(datasource=datasource, mq_ins=mq_ins, size=size)
 
         result.reverse()
         return result
@@ -1975,8 +1986,8 @@ class KafkaTailResource(Resource):
             'group.id': f'bkmonitor-{uuid.uuid4()}',
             'session.timeout.ms': 6000,
             'auto.offset.reset': 'latest',
-            'security.protocol': mq_ins.schema,
-            'sasl.mechanisms': mq_ins.ssl_verification_mode,
+            'security.protocol': mq_ins.security_protocol,
+            'sasl.mechanisms': mq_ins.sasl_mechanisms,
             'sasl.username': datasource.mq_cluster.username,
             'sasl.password': datasource.mq_cluster.password,
         }
@@ -2038,25 +2049,90 @@ class KafkaTailResource(Resource):
 
         return result
 
-    def _consume_with_kafka_python(self, datasource, size):
+    def _consume_with_kafka_python(self, datasource, mq_ins, size):
         """
-        使用kafka-python库消费kafka数据，针对PLAIN认证的集群
+        使用kafka-python库消费kafka数据，针对PLAIN认证的集群，适用于边缘存查联路等证书鉴权Kafka
+        @param datasource: 数据源实例
+        @param mq_ins: 集群实例
+        @param size: 拉取条数
         """
-        param = {
-            "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-            "request_timeout_ms": 1000,
-            "consumer_timeout_ms": 1000,
-        }
-        if datasource.mq_cluster.username:
-            param["sasl_plain_username"] = datasource.mq_cluster.username
-            param["sasl_plain_password"] = datasource.mq_cluster.password
-            param["security_protocol"] = "SASL_PLAINTEXT"
-            param["sasl_mechanism"] = "PLAIN"
-        consumer = KafkaConsumer(datasource.mq_config.topic, **param)
-        consumer.poll(size)
-        topic_partitions = consumer.partitions_for_topic(datasource.mq_config.topic)
-        if not topic_partitions:
-            raise ValueError(_("partition获取失败"))
+        logger.info("KafkaTailResource: using kafka-python to tail,bk_data_id->[%s]", datasource.bk_data_id)
+
+        mq_config = models.KafkaTopicInfo.objects.get(id=datasource.mq_config_id)
+        topic = mq_config.topic
+        logger.info(
+            "KafkaTailResource: using kafka-python to tail,bk_data_id->[%s],topic->[%s]", datasource.bk_data_id, topic
+        )
+
+        if mq_ins.is_ssl_verify:  # SSL验证是否强验证
+            server = mq_ins.extranet_domain_name if mq_ins.extranet_domain_name else mq_ins.domain_name
+            port = mq_ins.port
+            kafka_server = server + ":" + str(port)
+
+            security_protocol = "SASL_SSL" if mq_ins.username else "SSL"
+            sasl_mechanism = mq_ins.consul_config.get("sasl_mechanisms") or ("PLAIN" if mq_ins.username else None)
+
+            # SSL认证证书相关，需要保存到临时文件以获取Consumer
+            ssl_cafile = mq_ins.ssl_certificate_authorities
+            ssl_certfile = mq_ins.ssl_certificate
+            ssl_keyfile = mq_ins.ssl_certificate_key
+
+            if ssl_cafile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_cafile)
+                    ssl_cafile = fd.name
+
+            if ssl_certfile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_certfile)
+                    ssl_certfile = fd.name
+
+            if ssl_keyfile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_keyfile)
+                    ssl_keyfile = fd.name
+
+            # 创建Consumer消费实例
+            consumer = KafkaConsumer(
+                topic,
+                bootstrap_servers=kafka_server,
+                security_protocol=security_protocol,
+                sasl_mechanism=sasl_mechanism,
+                sasl_plain_username=mq_ins.username,
+                sasl_plain_password=mq_ins.password,
+                request_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                consumer_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                ssl_cafile=ssl_cafile,
+                ssl_certfile=ssl_certfile,
+                ssl_keyfile=ssl_keyfile,
+                ssl_check_hostname=not mq_ins.ssl_insecure_skip_verify,
+            )
+        else:
+            param = {
+                "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
+                "request_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                "consumer_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+            }
+            if datasource.mq_cluster.username:
+                param["sasl_plain_username"] = datasource.mq_cluster.username
+                param["sasl_plain_password"] = datasource.mq_cluster.password
+                param["security_protocol"] = "SASL_PLAINTEXT"
+                param["sasl_mechanism"] = "PLAIN"
+            consumer = KafkaConsumer(topic, **param)
+
+        max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+        retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+        for attempt in range(max_retries):  # 边缘存查集群存在首次连接拉取时异常问题，添加重试机制
+            consumer.poll(size)
+            topic_partitions = consumer.partitions_for_topic(topic)
+            if topic_partitions:
+                break
+            logger.warning(
+                "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s],retrying.", topic, attempt
+            )
+            time.sleep(retry_delay)
+        else:
+            raise ValueError("failed to get partitions")
         result = []
         for partition in topic_partitions:
             # 获取该分区最大偏移量
@@ -2214,3 +2290,98 @@ class QueryResultTableStorageDetailResource(Resource):
             bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
         )
         return source.get_detail()
+
+
+class NotifyEsDataLinkAdaptNano(Resource):
+    """
+    通知监控平台，V4日志链路变更为纳秒，需要进行特殊适配操作
+    新增dtEventTimeStampNanos，且其为 strict_date_optional_time_nanos||epoch_millis
+    调整原有的dtEventTimeStamp,其es_format变为 strict_date_optional_time_nanos||epoch_millis
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        force_rotate = serializers.BooleanField(required=False, default=False, label="是否强制轮转索引")
+
+    def perform_request(self, validated_request_data):
+        table_id = validated_request_data.get("table_id", None)
+        bk_data_id = validated_request_data.get("bk_data_id", None)
+        force_rotate = validated_request_data.get("force_rotate", False)
+
+        if not table_id and not bk_data_id:
+            raise ValidationError(_("table_id和bk_data_id不能同时为空"))
+
+        if table_id:
+            pass
+        elif bk_data_id:
+            table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+
+        logger.info("NotifyEsDataLinkAdaptNano: table_id->[%s] changes to date_nanos,will adapt metadata", table_id)
+
+        result_table = models.ResultTable.objects.filter(table_id=table_id).first()
+        if not result_table:
+            raise ValidationError(_("结果表不存在"))
+
+        # 更改元数据
+        try:
+            with transaction.atomic():
+                # ResultTableField新增 dtEventTimestampNanos
+                models.ResultTableField.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    field_type='timestamp',
+                    description='数据时间',
+                    tag='dimension',
+                    is_config_by_user=True,
+                )
+
+                # 为dtEventTimestampNanos配置对应的Option
+                models.ResultTableFieldOption.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    name='es_type',
+                    value=NANO_FORMAT,
+                    value_type='string',
+                )
+
+                models.ResultTableFieldOption.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    name='es_format',
+                    value=NON_STRICT_NANO_ES_FORMAT,
+                    value_type='string',
+                )
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='time', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
+                table_id,
+                e,
+            )
+            raise e
+
+        # 索引轮转
+        logger.info(
+            "NotifyEsDataLinkAdaptNano: table_id->[%s] now try to rotate index,force_rotate->[%s]",
+            table_id,
+            force_rotate,
+        )
+
+        try:
+            es_storage = models.ESStorage.objects.get(table_id=table_id)
+            es_storage.update_index_v2(force_rotate=force_rotate)
+            es_storage.create_or_update_aliases(force_rotate=force_rotate)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]', table_id, e
+            )
+            raise e
+
+        return result_table.to_json().get('field_list')

@@ -39,6 +39,7 @@ from bkmonitor.utils.kubernetes import (
     BcsClusterType,
     KubernetesContainerJsonParser,
     KubernetesEndpointJsonParser,
+    KubernetesIngressJsonParser,
     KubernetesNodeJsonParser,
     KubernetesPodJsonParser,
     KubernetesPodMonitorJsonParser,
@@ -769,6 +770,57 @@ class FetchK8sClusterListResource(CacheResource):
         if settings.BCS_CLUSTER_SOURCE == "bcs-cc":
             return self.get_clusters_from_bcs_cc(params)
         return self.get_clusters_from_bcs_cluster_manager(params)
+
+
+class FetchK8sIngressListByClusterResource(CacheResource):
+    cache_type = CacheType.BCS
+
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+
+    @staticmethod
+    def get_ingress_field():
+        field = [
+            "data.metadata.name",
+            "data.metadata.namespace",
+            "data.metadata.resourceVersion",
+            "data.metadata.creationTimestamp",
+            "data.metadata.labels",
+            "data.spec.rules",
+            "data.spec.tls",
+            "data.spec.ingressClassName",
+            "data.status",
+        ]
+        return ",".join(field)
+
+    def perform_request(self, params):
+        bcs_cluster_id = params["bcs_cluster_id"]
+        data = []
+        ingress_field = self.get_ingress_field()
+        ingress_list = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field})
+        for ingress in ingress_list:
+            ingress_parser = KubernetesIngressJsonParser(ingress)
+            ingress_name = ingress_parser.name
+            ingress_labels = ingress_parser.labels
+            namespace = ingress_parser.namespace
+            creation_timestamp = ingress_parser.creation_timestamp
+            service_list = ingress_parser.service_list
+            age = ingress_parser.age
+            class_name = ingress_parser.class_name
+            data.append(
+                {
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "name": ingress_name,
+                    "labels": ingress_labels,
+                    "cluster": bcs_cluster_id,
+                    "namespace": namespace,
+                    "service_list": service_list,
+                    "class_name": class_name,
+                    "created_at": creation_timestamp,
+                    "age": age,
+                }
+            )
+        return data
 
 
 class FetchK8sServiceListByClusterResource(CacheResource):

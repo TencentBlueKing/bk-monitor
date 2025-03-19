@@ -27,13 +27,14 @@
         padding-left: 8px;
         margin: 0 8px;
         // background-color: #2b354d;
-        background-color: #404663;
+        // background-color: #404663;
+        background-color: #31394f;
         border-radius: 2px;
 
         .biz-name-text {
           display: inline-block;
           overflow: hidden;
-          color: #acb2c6;
+          color: #dcdee5;
           text-overflow: ellipsis;
           white-space: nowrap;
 
@@ -109,7 +110,7 @@
         flex-shrink: 0;
         font-size: 20px;
         color: #96a2b9;
-        transition: transform .2s;
+        transition: transform 0.2s;
       }
     }
   }
@@ -125,7 +126,7 @@
     // border-bottom: 1px solid #434e68;
     border-bottom: 1px solid #2c354d;
 
-    -ms-overflow-style: none;  /* IE 和 Edge */
+    -ms-overflow-style: none; /* IE 和 Edge */
     scrollbar-width: none; /* Firefox */
     &::-webkit-scrollbar {
       display: none;
@@ -144,7 +145,6 @@
       border: 1px solid transparent;
       border-radius: 2px;
     }
-
   }
 
   .space-type-list-wrap {
@@ -227,7 +227,7 @@
     // background-color: #39455f;
     border: 0;
     border-radius: 2px;
-    box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);
+    box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
     .biz-list-mian {
       .biz-search {
@@ -237,12 +237,12 @@
           background-color: #192133;
           border: 0;
           // border-bottom: 1px solid #434e68!important;
-          border-bottom: 1px solid #2c354d!important;
+          border-bottom: 1px solid #2c354d !important;
           border-radius: 0;
 
           /* stylelint-disable-next-line selector-no-vendor-prefix */
           &::placeholder {
-            color: #66768e!important;
+            color: #66768e !important;
             // background-color: #39455f;
             background-color: #192133;
           }
@@ -252,11 +252,10 @@
             background-color: #192133 !important;
 
             // border-bottom-color: #434e68 !important;
-            border-bottom-color: #2c354d!important;
+            border-bottom-color: #2c354d !important;
           }
         }
       }
-
     }
 
     .biz-btn-groups {
@@ -348,7 +347,7 @@
   .tippy-tooltip {
     &.list-dark-theme {
       border-radius: 2px;
-      box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);
+      box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
       .tippy-content {
         background-color: #39455f;

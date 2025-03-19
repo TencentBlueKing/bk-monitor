@@ -43,9 +43,9 @@ export default {
     catchFieldCustomConfig: {
       fieldsWidth: {},
       displayFields: [],
-      filterSetting: {
-        filterFields: [],
-      },
+      filterSetting: [],
+      filterAddition: [],
+      fixedFilterAddition: false
     },
     activeVersion: 'v2',
   },
@@ -85,9 +85,8 @@ export default {
         {
           fieldsWidth: {},
           displayFields: [],
-          filterSetting: {
-            filterFields: [],
-          },
+          filterSetting: [],
+          filterAddition: []
         },
         payload ?? {},
       );

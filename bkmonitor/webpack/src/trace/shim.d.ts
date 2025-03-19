@@ -59,6 +59,7 @@ declare global {
     graph_watermark: boolean;
     // 以下为日志全局变量配置
     mainComponent: any;
+    traceLogComponent: any;
     AJAX_URL_PREFIX: string;
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;

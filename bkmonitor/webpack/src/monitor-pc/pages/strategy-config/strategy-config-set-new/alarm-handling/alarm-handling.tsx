@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import { deepClone } from 'monitor-common/utils/utils';
 
+import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import * as ruleAuth from '../../authority-map';
 import CommonItem from '../components/common-form-item';
 import GroupSelect, { type IGroupItem } from '../components/group-select';
@@ -323,7 +324,14 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         </CommonItem>
         {this.data.options.converge_config.is_enabled && (
           <div class='tips-key1'>
-            <i class='icon-monitor icon-hint' />{' '}
+            <AIWhaleIcon
+              content={
+                this.defenseTips[this.data.options.converge_config.converge_func] ||
+                this.allDefense[0]?.description ||
+                ''
+              }
+              type='translate'
+            />{' '}
             <span class='tip-text'>
               {this.defenseTips[this.data.options.converge_config.converge_func] ||
                 this.allDefense[0]?.description ||

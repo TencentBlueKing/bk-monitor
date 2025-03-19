@@ -241,6 +241,7 @@ export default class AlarmDispatch extends tsc<object> {
     this.loading = false;
     this.getAlarmAssignGroupsRules(list?.map(item => item.id));
     this.$nextTick(() => {
+      this.renderGroups = [];
       this.observerTableGroup();
     });
   }
@@ -550,7 +551,12 @@ export default class AlarmDispatch extends tsc<object> {
       this.ruleGroups = this.cacheRuleGroups;
     }
     this.renderGroups = [];
-    this.handleTriggerObserver();
+    this.$nextTick(() => {
+      if (this.itemFooterRef) {
+        this.intersectionObserver.observe(this.itemFooterRef);
+        this.handleTriggerObserver();
+      }
+    })
   }
 
   handleShowChange(v: boolean) {

@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.log_clustering.constants import (
@@ -39,8 +39,8 @@ from bkm_space.serializers import SpaceUIDField
 class PatternSearchSerlaizer(serializers.Serializer):
     host_scopes = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default=[])
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default="customized")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     size = serializers.IntegerField(required=False, default=10000)

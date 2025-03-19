@@ -22,11 +22,12 @@ the project delivered to anyone in the future.
 
 from typing import Dict, List
 
+from blueapps.contrib.celery_tools.periodic import periodic_task
+from celery.schedules import crontab
+
 from apps.api import BkDataMetaApi, TransferApi
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils.log import logger
-from celery.schedules import crontab
-from celery.task import periodic_task
 
 
 class IndexSetPreCheckIns(object):

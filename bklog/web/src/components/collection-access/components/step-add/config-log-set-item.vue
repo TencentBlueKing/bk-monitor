@@ -158,7 +158,15 @@
               </div>
               <div class="black-title-tips">
                 <i class="bk-icon icon-info-circle"></i>
-                <span>{{ $t('若需要排除指定路径，请展开添加路径') }}</span>
+                <span>
+                  {{ $t('可通过正则语法排除符合条件的匹配项') }}   
+                  <!-- <a
+                    href="javascript:;"
+                    @click.stop="()=>{}"
+                  >
+                    {{ $t('正则语法说明') }}
+                  </a> -->
+                  {{ $t('。如：匹配任意字符：.*')}}</span>
               </div>
             </div>
             <template v-if="isShowBlackList">
@@ -232,6 +240,18 @@
             :conditions-change.sync="subFormData.params.conditions"
             :is-clone-or-update="isCloneOrUpdate"
           />
+        </bk-form-item>
+        <bk-form-item
+          v-if="currentEnvironment == 'linux' || currentEnvironment == 'windows'"
+          class="mt"
+          :label="$t('设备元数据')"
+          required
+        >
+          <device-metadata
+            :metadata="configData.extra_labels"
+            @extra-labels-change="extraLabelsChange"
+          >
+          </device-metadata>
         </bk-form-item>
       </div>
     </bk-form>
@@ -346,10 +366,12 @@
   import { deepClone } from '../../../monitor-echarts/utils';
   import LogFilter from '../log-filter';
   import MultilineRegDialog from './multiline-reg-dialog';
+  import DeviceMetadata from './device-metadata.vue';
   export default {
     components: {
       MultilineRegDialog,
       LogFilter,
+      DeviceMetadata,
     },
     props: {
       showType: {
@@ -458,6 +480,7 @@
             winlog_name: [], // windows事件名称
             winlog_level: [], // windows事件等级
             winlog_event_id: [], // windows事件id
+            extra_labels: [], // 补充元数据
           },
         },
         type: 'and',
@@ -700,6 +723,9 @@
         this.$nextTick(() => {
           this.$refs.logFilterRef?.initContainerData();
         });
+      },
+      extraLabelsChange(val) {
+        this.$set(this.subFormData.params, 'extra_labels', val);
       },
     },
   };

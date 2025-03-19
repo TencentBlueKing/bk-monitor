@@ -5,12 +5,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   margin-right: 4px;
   overflow: hidden;
   font-size: 12px;
-  color: #979BA5;
+  color: #A3B1CC;
 }
 
 .quick-access-modal {
@@ -36,28 +36,27 @@
       flex: 0 0 246px;
       flex: 0 0 200px;
       width: 400px;
-      background: #FAFBFD;
+      background: #F5F7FA;
 
       .right-route {
         position: absolute;
         top: 24px;
-        right: 16px;
+        right: 0;
         bottom: 15px;
         display: flex;
         flex-direction: column;
-        width: 170px;
+        width: 100%;
 
         &-title {
           display: flex;
           align-items: center;
           width: 100%;
           margin-bottom: 16px;
-          margin-left: 18px;
+          margin-left: 24px;
           font-size: 16px;
-          font-weight: bold;
           line-height: 24px;
           color: #313238;
-
+          font-family: MicrosoftYaHei;
           .route-count {
             display: flex;
             align-items: center;
@@ -67,9 +66,10 @@
             padding: 4px 8px;
             margin-left: 8px;
             font-size: 12px;
-            font-weight: normal;
-            color: #979ba5;
-            background-color: #eaebf0;
+            font-family: Arial-BoldMT;
+            font-weight: 600;
+            color: #979BA5;
+            background: #FFFFFF;
             border-radius: 2px;
           }
         }
@@ -85,16 +85,17 @@
             position: relative;
             flex: 0 0 32px;
             width: 100%;
-            padding-left: 18px;
+            padding: 6px 0;
+            padding-left: 24px;
             margin-bottom: 4px;
             border: 1px solid transparent;
 
             &-main {
               display: flex;
               align-items: center;
-              padding: 6px 0;
+              line-height: 20px;
               font-size: 12px;
-              color: #4D4F56;
+              color: #313238;
               border-radius: 2px;
 
               &.is-dragover {
@@ -124,14 +125,11 @@
                 }
               }
 
-              &:hover {
-                background-color: #eaebf0;
-                border-color: transparent;
-              }
-
             }
 
             &:hover {
+              background-color: #eaebf0;
+              border-color: transparent;
               .item-drag {
                 cursor: move;
                 visibility: inherit;
@@ -143,10 +141,11 @@
             }
 
             .item-drag {
-              @include common-route-icon;
               position: absolute;
-              top: 8px;
-              left: 0;
+              color: #979BA5;
+              top: 10.9px;
+              left: 10px;
+              font-size: 10px;
               visibility: hidden;
             }
           }
@@ -200,15 +199,17 @@
           flex: 0 0 160px;
           flex-direction: column;
           margin-right: 40px;
-          margin-bottom: 40px;
+          margin-bottom: 24px;
           font-size: 12px;
 
           .route-title {
-            padding-bottom: 8px;
+            padding: 6px 0;
             padding-left: 12px;
-            font-weight: bold;
+            font-family: MicrosoftYaHei;
             line-height: 20px;
-            border-bottom: 1px solid #dcdee5;
+            background: #EBEEF5;
+            border-radius: 2px;
+            color: #000000;
           }
 
           .route-list {
@@ -225,11 +226,17 @@
               padding-left: 12px;
               color: #313238;
 
+              .item-icon {
+                color: #A3B1CC;
+                margin-right: 7px;
+                font-size: 14px;
+              }
+
               &:hover {
                 cursor: pointer;
 
                 &:not(.is-stored) {
-                  background-color: #f0f1f5;
+                  background-color: #EAEBF0;
                   border-radius: 2px;
 
                   .route-check {
@@ -240,11 +247,14 @@
 
               &.is-stored {
                 color: #3a84ff;
-                background-color: #e1ecff;
+                background-color: #F0F5FF;
 
                 .route-check {
                   color: #3a84ff;
                   visibility: visible !important;
+                }
+                .item-icon {
+                  color: #3a84ff;
                 }
               }
 
@@ -257,7 +267,7 @@
                 margin-right: 12px;
                 margin-left: auto;
                 overflow: hidden;
-                font-size: 14px;
+                font-size: 24px;
                 color: #979ba5;
                 visibility: hidden;
               }

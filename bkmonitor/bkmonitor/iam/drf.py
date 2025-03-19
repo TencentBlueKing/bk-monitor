@@ -18,7 +18,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 DRF 插件
 """
 from functools import wraps
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
 from iam import Resource
 from rest_framework import permissions
@@ -273,24 +273,38 @@ def extract_attribute(item):
 
 
 def filter_data_by_permission(
-    data: List[dict],
+    data: Union[List[dict], Dict],
     actions: List[ActionMeta],
     resource_meta: ResourceMeta,
     id_field: Callable[[dict], str] = lambda item: item["id"],
     always_allowed: Callable[[dict], bool] = lambda item: False,
     instance_create_func: Optional[Callable[[dict], Resource]] = None,
     mode: Literal["any", "all", "insert"] = "any",
+    username: Optional[str] = None,
 ) -> List[dict]:
     """
     根据权限过滤数据
     :param mode: 过滤模式，"any" 表示只要有一个权限通过就返回，"all" 表示所有权限通过才返回, "insert" 表示插入权限信息，但不过滤数据
     """
-    resources = batch_create_instance(data, resource_meta, id_field, instance_create_func)
+    if isinstance(data, dict):
+        data = [data]
+
+    resources = []
+    for item in data:
+        if not id_field(item):
+            continue
+        attribute = extract_attribute(item)
+
+        if instance_create_func:
+            resources.append([instance_create_func(item)])
+        else:
+            resources.append([resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)])
+
     if not resources:
         return []
 
     # 批量鉴权
-    permission_result = Permission().batch_is_allowed(actions, resources)
+    permission_result = Permission(username=username).batch_is_allowed(actions, resources)
 
     allowed_data = []
     for item in data:

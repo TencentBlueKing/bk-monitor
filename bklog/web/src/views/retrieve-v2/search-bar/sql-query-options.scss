@@ -1,10 +1,14 @@
 .sql-query-options {
   position: relative;
   width: 100%;
-  min-height: 140px;
+  // min-height: 140px;
   max-height: 260px;
   overflow: auto;
   background: #fff;
+
+  &.is-loading {
+    min-height: 40px;
+  }
 
   .list-item {
     display: flex;

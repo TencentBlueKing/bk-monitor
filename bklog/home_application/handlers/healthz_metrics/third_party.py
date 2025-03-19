@@ -21,10 +21,14 @@ the project delivered to anyone in the future.
 """
 import logging
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
-from home_application.handlers.metrics import register_healthz_metric, HealthzMetric, NamespaceData
-from home_application.utils.third_party import ThirdParty, THIRD_PARTY_CHECK_API
+from home_application.handlers.metrics import (
+    HealthzMetric,
+    NamespaceData,
+    register_healthz_metric,
+)
+from home_application.utils.third_party import THIRD_PARTY_CHECK_API, ThirdParty
 
 logger = logging.getLogger()
 

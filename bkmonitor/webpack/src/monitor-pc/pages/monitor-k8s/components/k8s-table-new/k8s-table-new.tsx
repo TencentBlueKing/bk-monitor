@@ -65,8 +65,10 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   type: K8sTableColumnTypeEnum;
   /** 字段id */
   id: T;
-  /** 字段名称 */
+  /** 字段名称（渲染指标列时为指标名称） */
   name: TranslateResult;
+  /** 小类目名称（选择指标列时使用） */
+  category_name?: string;
   /** 是否伸缩大小 */
   resizable?: boolean;
   /** 是否可以排序 */
@@ -76,11 +78,13 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   /** 最小列宽 */
   min_width?: number;
   /** label 是否可以点击 */
-  canClick?: boolean;
+  can_click?: boolean;
   /** 是否需要异步加载 */
   asyncable?: boolean;
   /** 是否固定列 */
   fixed?: boolean;
+  /** 表头对齐方式 */
+  header_align?: 'center' | 'left' | 'right';
   /** 是否开启 添加/移除 筛选项 icon */
   k8s_filter?: boolean;
   /** 是否开启 下钻 icon */
@@ -148,6 +152,12 @@ export enum K8sTableColumnTypeEnum {
 
 /** 是否开启前端分页功能 */
 const enabledFrontendLimit = false;
+/** 指标数据分类name - table小类目指标名映射表（table渲染指标列使用） */
+const tableMetricCategoryForNameMap = {
+  CPU: 'CPU',
+  内存: '内存',
+  流量: '网络',
+};
 
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
@@ -246,14 +256,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       if (item?.children?.length) {
         for (const child of item.children) {
           if (!hodeMetricsSet.has(child.id)) {
+            const regex = new RegExp(`(${tableMetricCategoryForNameMap[item.name]}\\s*)(.*)`);
+            const founds = child.name.match(regex);
+            let name = child.name;
+            let categoryName = item.name;
+            if (founds?.length && founds?.length === 3) {
+              name = founds[2];
+              categoryName = founds[1]?.trim?.();
+            }
             ids.push(child.id as K8sTableColumnChartKey);
             columns.push({
               id: child.id as K8sTableColumnKeysEnum,
-              name: child.name,
+              name: name,
+              category_name: categoryName,
               sortable: 'custom',
               type: K8sTableColumnTypeEnum.DATA_CHART,
-              min_width: 190,
+              min_width: 140,
               asyncable: true,
+              header_align: 'right',
               renderHeader: this.metricsColumnHeaderRender,
             });
           }
@@ -272,11 +292,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     // 处理表格维度展示列
     const resourceMap = this.getKeyToTableResourceColumnsMap();
     let iterationTarget = this.groupInstance.dimensions;
+    let resourceColumnFixed = false;
     if (this.isListTab) {
       iterationTarget = [...this.groupInstance.groupFilters].reverse();
+      resourceColumnFixed = true;
     }
     for (const key of iterationTarget) {
       const column = resourceMap[key];
+      column.fixed = resourceColumnFixed;
       if (column) {
         columns.push(column);
       }
@@ -295,9 +318,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (enabledFrontendLimit) {
       /** 接口返回全量数据时执行方案 */
       const { page, pageSize } = this.pagination;
-      return this.tableData.slice(0, page * pageSize);
+      return this.tableData.slice(0, page * pageSize) || [];
     }
-    return this.tableData;
+    return this.tableData || [];
+  }
+
+  get tableHasScrollLoading() {
+    return this.tableViewData?.length !== this.tableDataTotal;
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -401,8 +428,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 120,
-        fixed: true,
-        canClick: true,
+        can_click: true,
         getValue: () => this.filterCommonParams.bcs_cluster_id,
       },
       [POD]: {
@@ -411,8 +437,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
-        fixed: true,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -422,7 +447,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 140,
-        fixed: true,
         getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 0),
       },
       [WORKLOAD]: {
@@ -431,8 +455,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
-        fixed: true,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
         getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
@@ -443,7 +466,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        fixed: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -453,8 +475,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
-        fixed: true,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -712,7 +733,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param chartData
    * @param columnKey
    */
-  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey) {
+  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey, unitDecimal = 2) {
     if (this.metricsForConvergeMap?.[columnKey] === K8sConvergeTypeEnum.COUNT) {
       chartData.unit = '';
       return;
@@ -722,10 +743,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!chartData?.datapoints) {
       chartData.datapoints = [];
     } else if (![undefined, null].includes(chartVal)) {
-      const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
-        ? getValueFormat(chartData.unit || '')
-        : (v: any) => ({ text: v });
-      const set = unitFormatter(chartVal, chartData.unitDecimal || 1);
+      const unitFormatter = (value, decimal) => {
+        let set = { text: value };
+        if (!['', 'none', undefined, null].includes(chartData.unit)) {
+          const valueFormatter = getValueFormat(chartData.unit || '');
+          set = valueFormatter(value, decimal);
+          if (Number(set.text) !== 0) {
+            set.text = Number.parseFloat(set.text).toFixed(decimal);
+          }
+        }
+        return set;
+      };
+
+      const set = unitFormatter(chartVal, chartData.unitDecimal || unitDecimal);
       chartData.datapoints[0][0] = set.text;
       // @ts-ignore
       chartData.unit = set.suffix;
@@ -830,7 +860,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 表格列 header 渲染配置方法
    */
   metricsColumnHeaderRender(column: K8sTableColumn<K8sTableColumnChartKey>) {
-    const { id, name } = column;
+    const { id, name, category_name } = column;
     return (
       <div
         class='k8s-metrics-header'
@@ -838,16 +868,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           e.stopPropagation();
         }}
       >
-        <K8sConvergeSelect
-          method={this.metricsForConvergeMap[id]}
-          onMethodChange={v => this.handleConvergeChange(id, v)}
-        />
-        <span
-          class='header-label'
-          v-bk-overflow-tips
-        >
-          {name}
-        </span>
+        <div class='header-category'>
+          <K8sConvergeSelect
+            method={this.metricsForConvergeMap[id]}
+            onMethodChange={v => this.handleConvergeChange(id, v)}
+          />
+          <span
+            class='label'
+            v-bk-overflow-tips
+          >
+            {category_name}
+          </span>
+        </div>
+        <div class='header-metrics'>
+          <span>{name}</span>
+        </div>
       </div>
     );
   }
@@ -866,11 +901,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const groupItem = this.filterBy?.[column.id];
       const hasFilter = groupItem?.includes(resourceValue);
       const elAttr = hasFilter
-        ? { className: ['icon-sousuo-', 'is-active'], text: '移除该筛选项' }
-        : { className: ['icon-a-sousuo'], text: '添加为筛选项' };
+        ? { className: ['selected'], text: '移除该筛选项' }
+        : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
       return (
         <i
-          class={['icon-monitor', ...elAttr.className]}
+          class={elAttr.className}
           v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
           onClick={() => this.onFilterChange(resourceValue, column.id, !hasFilter)}
         />
@@ -907,7 +942,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
         <div class='k8s-table-col-item'>
-          {column.canClick ? (
+          {column.can_click ? (
             <span
               class='col-item-label can-click'
               onClick={() => this.handleLabelClick({ column, row, index })}
@@ -936,15 +971,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const chartData = row[columnKey];
       if (!chartData?.datapoints) {
         return (
-          <img
-            class='loading-svg'
-            alt=''
-            src={loadingIcon}
-          />
+          <div class='k8s-metric-column'>
+            <img
+              class='loading-svg'
+              alt=''
+              src={loadingIcon}
+            />
+          </div>
         );
       }
       if ([undefined, null].includes(chartData?.datapoints?.[0]?.[0])) {
-        return '--';
+        return (
+          <div class='k8s-metric-column'>
+            <span class='value'>--</span>
+          </div>
+        );
       }
       const { datapoints, unit = '', valueTitle = this.$t('用量') } = chartData;
       const value = `${datapoints?.[0]?.[0]} ${unit}`;
@@ -977,6 +1018,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         column-key={column.id}
         fixed={column.fixed}
         formatter={this.handleSetFormatter(column)}
+        header-align={column.header_align}
         label={column.name}
         min-width={column.min_width}
         prop={column.id}
@@ -1013,15 +1055,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             class='k8s-table-loading'
             slot='append'
           >
-            <bk-spin
-              style={{
-                display: this.tableLoading.scrollLoading ? 'flex' : 'none',
-              }}
-              placement='right'
-              size='mini'
-            >
-              {this.$t('加载中')}
-            </bk-spin>
+            {this.tableHasScrollLoading ? (
+              <bk-spin
+                style={{
+                  display: 'flex',
+                }}
+                placement='right'
+                size='mini'
+              >
+                {this.$t('加载中')}
+              </bk-spin>
+            ) : null}
           </div>
           <EmptyStatus
             slot='empty'

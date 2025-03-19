@@ -152,6 +152,11 @@ export interface ISnapshot {
 
 export type ICurrentISnapshot = ISnapshot;
 
+interface IncidentRoot {
+  rca_trace_info: {
+    abnormal_traces_query: Record<string, string>;
+  };
+}
 export interface IIncident {
   id: string;
   incident_id: number;
@@ -173,6 +178,7 @@ export interface IIncident {
   alert_count: number;
   duration: string;
   snapshots: ISnapshot[];
+  incident_root: IncidentRoot;
   bk_biz_name: string;
   current_snapshot: ICurrentISnapshot;
 }

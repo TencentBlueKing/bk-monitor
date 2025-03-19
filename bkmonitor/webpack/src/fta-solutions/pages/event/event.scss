@@ -290,6 +290,11 @@
     flex-direction: column;
     height: 100%;
 
+    .bk-assistant-link {
+      color: #3a84ff;;
+      cursor: pointer;
+    }
+
     .content-header {
       z-index: 9;
       display: flex;

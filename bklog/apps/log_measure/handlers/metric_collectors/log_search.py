@@ -19,24 +19,28 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List, Dict, Any
-from collections import defaultdict
-
 import datetime
+from collections import defaultdict
+from typing import Any, Dict, List
 
 import arrow
-
-from django.db.models import Count
-from django.utils.translation import ugettext as _
 from django.conf import settings
+from django.db.models import Count
+from django.utils.translation import gettext as _
 
-from apps.log_search.constants import InnerTag
-from apps.utils.db import array_group
-from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory, AsyncTask, Favorite, IndexSetTag
 from apps.log_measure.constants import TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
+from apps.log_search.constants import InnerTag
+from apps.log_search.models import (
+    AsyncTask,
+    Favorite,
+    IndexSetTag,
+    LogIndexSet,
+    UserIndexSetSearchHistory,
+)
+from apps.utils.db import array_group
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 
 
 class LogSearchMetricCollector(object):

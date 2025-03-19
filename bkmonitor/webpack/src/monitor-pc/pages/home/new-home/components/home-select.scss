@@ -1,8 +1,8 @@
 .new-home-select {
-  position: fixed;
+  position: absolute;
   width: 100%;
   min-height: 52px;
-  z-index: 2000;
+  z-index: 10;
   .loading-view {
     width: 170px;
     height: 24px;
@@ -10,7 +10,6 @@
     margin: 0 auto;
     line-height: 24px;
     text-align: center;
-    // background: #eaebf0;
     border-radius: 12px;
 
     .icon-loading1 {
@@ -26,25 +25,23 @@
     position: relative;
     width: 100%;
     min-height: 52px;
-    padding: 0 14px 0 66px;
-    background: #333c5d;
-    background-image: linear-gradient(to right, #333c5d, #333c5d), linear-gradient(90deg, #74b9ff, #64dcd7);
+    padding: 0 14px 0 58px;
+    background-image: linear-gradient(to right, #2b3547, #2b3547), linear-gradient(90deg, #57a8fa, #58c2be);
     background-clip: padding-box, border-box;
     background-origin: padding-box, border-box;
     border: 2px solid transparent;
-    border-radius: 8px;
+    border-radius: 4px;
     margin: 0 auto;
 
     .clear-btn {
       position: absolute;
-      top: 18px;
-      right: 18px;
+      top: 16px;
+      right: 12px;
       z-index: 1;
       font-size: 18px;
-      color: #c4c6cc;
+      color: #979ba5;
       cursor: pointer;
       border-radius: 50%;
-      // display: none;
     }
   }
 
@@ -61,6 +58,14 @@
 
   .ip-sub {
     color: #979ba5;
+  }
+  .host-compare {
+    color: #4d4f56;
+    font-size: 14px;
+    .host-compare-num {
+      color: #f59500;
+      margin-right: 8px;
+    }
   }
 
   .host-show-view {
@@ -90,32 +95,30 @@
 
   .new-home-select-icon {
     position: absolute;
-    top: 3px;
-    left: 12px;
-    display: inline-block;
-    width: 50px;
-    height: 50px;
-    margin-right: 2px;
-    background: url('../../../../static/images/png/new-page/search-icon.png');
-    background-size: 100% 100%;
+    top: 8px;
+    left: 15px;
+    color: #dcdee5;
+    font-size: 28px;
   }
 
   .home-select-input {
     box-sizing: border-box;
-    width: 97%;
-    padding: 16px 0 12px;
-    overflow: hidden;
-    font-size: 16px;
+    width: 98%;
+    margin: 12px 0 4px;
+    font-size: 14px;
     line-height: 22px;
-    color: #f5f7fa;
+    color: #f0f1f5;
     caret-color: #fff;
     resize: none;
     background: transparent;
     border: none;
+    &.is-hidden {
+      overflow: hidden;
+    }
 
     &::placeholder {
-      font-size: 16px;
-      line-height: 24px;
+      font-size: 15px;
+      line-height: 21px;
       color: #7a8199;
     }
 
@@ -128,6 +131,23 @@
       background-color: transparent !important;
     }
   }
+
+  .search-keyboard {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    min-width: 56px;
+    height: 24px;
+    margin-top: -12px;
+    line-height: 24px;
+    color: #c4c6cc;
+    text-align: center;
+    cursor: default;
+    background: #53617a66;
+    border: 1px solid #495A7A;
+    border-radius: 2px;
+    
+  }
 }
 
 .select-empty {
@@ -135,7 +155,7 @@
   width: 100%;
   height: 250px;
   padding-top: 30px;
-  border-radius: 8px;
+  border-radius: 2px;
   box-shadow: 0 4px 10px 10px rgba(0, 0, 0, 0.15);
 
   .bk-exception-img.part-img .exception-image {
@@ -165,7 +185,7 @@
   max-height: 405px;
   margin-top: 8px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 2px;
 }
 
 .new-home-select-popover-content {
@@ -176,14 +196,28 @@
   overflow: auto;
   font-size: 12px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 2px;
   box-shadow: 0 4px 10px 10px rgba(0, 0, 0, 0.15);
 
   .item-list {
     min-height: 100px;
     padding-top: 12px;
   }
-
+  .skeleton-loading {
+    padding: 5px 12px 0;
+    .skeleton-element {
+      margin-bottom: 13px;
+      height: 24px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #f5f7fa, #eaebf0);
+      &:nth-child(3n + 1) {
+        width: 65%;
+      }
+      &:nth-child(3n) {
+        width: 80%;
+      }
+    }
+  }
   .is-history {
     padding-top: 0;
   }
@@ -196,12 +230,14 @@
 
     .item-list-clear {
       position: absolute;
-      right: 24px;
+      right: 14px;
       cursor: pointer;
+      color: #4d4f56;
     }
 
-    .icon-mc-clear {
-      margin-right: 5px;
+    .history-clear-icon {
+      font-size: 13px;
+      margin-right: 3px;
     }
   }
 
@@ -217,43 +253,64 @@
   }
 
   .new-home-select-router-list {
+    margin-top: 5px;
     padding: 0 24px;
 
     .new-home-select-router-item {
       display: inline-block;
-      width: 80px;
-      height: 80px;
-      padding: 12px 0;
-      margin-top: 8px;
+      width: 140px;
       margin-right: 16px;
       color: #4d4f56;
-      text-align: center;
-      vertical-align: middle;
-      background: #f0f5ff;
+      background: #ebeef5;
       border-radius: 2px;
+      padding: 4px 0;
 
       &:hover {
         cursor: pointer;
         background: #e1ecff;
+        color: #3a84ff;
+        .router-item-icon {
+          color: #3a84ff;
+        }
       }
 
       .router-item-icon {
-        font-size: 34px;
-        color: #a3c5fd;
+        display: inline-block;
+        margin: 0 4px;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 1px;
+        font-size: 14px;
+        color: #a3b1cc;
+        vertical-align: inherit;
       }
 
       .item-txt {
         display: inline-block;
-        width: 100%;
-        margin-top: 6px;
-        font-size: 10px;
+        font-size: 12px;
+        margin-left: 3px;
       }
     }
   }
 
   .item-icon {
-    margin-right: 8px;
+    font-size: 13px;
+    margin-right: 5px;
+    color: #a3b1cc;
+  }
+
+  .icon-delete-wrap {    
+    display: none;
+    font-size: 13px;
     color: #4d4f56;
+    vertical-align: middle;
+
+    &:hover {
+      color: #3a84ff;
+    }
   }
 
   .new-home-select-history-item,
@@ -268,7 +325,7 @@
 
     &.active,
     &:hover {
-      background: #f0f1f5;
+      background: #f5f7fa;
 
       .ip-tag {
         background: #dcdee5;
@@ -282,13 +339,18 @@
 
     .history-item-name {
       display: inline-block;
-      width: 96%;
+      // width: 96%;
+      width: calc(100% - 34px);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: top;
       cursor: pointer;
     }
+  }
+
+  .new-home-select-history-item:hover .icon-delete-wrap{
+    display: inline-block;
   }
 
   .new-home-select-item-title {
@@ -305,6 +367,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0 8px 0 24px;
 
     .item-label {
       flex: 1;
@@ -319,13 +382,23 @@
 
     .item-business {
       width: 130px;
-      color: #979ba5;
+      color: #a3b1cc;
       text-align: right;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
+    .list-item-tag {
+      display: inline-block;
+      font-size: 12px;
+      height: 22px;
+      padding: 0 8px;
+      line-height: 22px;
+      border-radius: 2px;
+      margin-left: 8px;
+      background: #f0f1f5;
+      color: #979ba5;
+    }
     .item-operator {
       margin-right: 20px;
       color: #3a84ff;
@@ -344,20 +417,22 @@
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
   top: 10px;
-  right: 262px;
+  // right: 262px;
+  right: 235px;
   width: 720px !important;
   min-height: 32px;
+  z-index: 100; // 数据探索→指标检索容器.data-retrieval-main: z-index: 9; tracing探索.inquire-right-header: z-index: 99;
   .icon-search {
     font-size: 14px;
     position: absolute;
-    right: 10px;
-    top: 9px;
+    right: 8px;
+    top: 8px;
     color: #979ba5;
   }
   .new-home-select-input {
     background: #252f43;
     border: 1px solid #394561 !important;
-    min-height: 33px;
+    min-height: 32px;
     border-radius: 2px;
     padding: 0;
     .clear-btn {
@@ -367,19 +442,20 @@
     }
   }
   .home-select-input {
-    padding: 5px 10px 6px 16px;
+    // margin: 3px 0 1px;
+    margin: 0;
+    padding: 5px 0 0 16px;
     font-size: 12px;
-    height: 28px;
     width: 93%;
     line-height: 22px;
     &::placeholder {
       font-size: 12px;
-      line-height: 22px;
+      line-height: 23px;
       color: #7a8199;
     }
   }
   .new-home-select-popover {
-    margin-top: 2px;
+    margin-top: 6px;
     border-radius: 2px;
     .new-home-select-popover-content {
       border-radius: 2px;

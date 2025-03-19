@@ -16,6 +16,8 @@ from bkm_space.define import Space
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum, ActionMeta
+from bkmonitor.iam.drf import filter_data_by_permission
+from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -68,7 +70,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the query in the search item.
         数据格式:
@@ -101,7 +103,7 @@ class AlertSearchItem(SearchItem):
         return bool(cls.RE_ALERT_ID.match(query))
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the alert by alert id
         extended fields: alert_id, start_time, end_time
@@ -127,20 +129,22 @@ class AlertSearchItem(SearchItem):
         start_time = alert_time - 3600
         end_time = alert_time + 3600
 
-        yield {
-            "type": "alert",
-            "name": _("告警事件"),
-            "items": [
-                {
-                    "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": cls._get_biz_name(bk_biz_id),
-                    "name": alert.alert_name,
-                    "alert_id": alert_id,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                },
-            ],
-        }
+        return [
+            {
+                "type": "alert",
+                "name": _("告警事件"),
+                "items": [
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "bk_biz_name": cls._get_biz_name(bk_biz_id),
+                        "name": alert.alert_name,
+                        "alert_id": alert_id,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                    },
+                ],
+            }
+        ]
 
 
 class StrategySearchItem(SearchItem):
@@ -156,7 +160,7 @@ class StrategySearchItem(SearchItem):
         return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the strategy by strategy id
         extended fields: strategy_id
@@ -197,7 +201,7 @@ class StrategySearchItem(SearchItem):
         if not items:
             return
 
-        yield {"type": "strategy", "name": _("告警策略"), "items": items}
+        return [{"type": "strategy", "name": _("告警策略"), "items": items}]
 
 
 class TraceSearchItem(SearchItem):
@@ -212,15 +216,11 @@ class TraceSearchItem(SearchItem):
         return bool(cls.RE_TRACE_ID.match(query))
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the trace by trace id
         extended fields: trace_id, app_name, app_alias
         """
-        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_APM_APPLICATION)
-        if not bk_biz_ids:
-            return
-
         trace_id = query
         query_body = {"query": {"bool": {"filter": [{"term": {"trace_id": trace_id}}]}}, "size": limit}
 
@@ -252,10 +252,6 @@ class TraceSearchItem(SearchItem):
         items = []
         for trace in traces:
             bk_biz_id = int(trace["_source"]["bk_biz_id"])
-
-            if bk_biz_id not in bk_biz_ids:
-                continue
-
             app_name = trace["_source"]["app_name"]
 
             # 获取apm应用信息
@@ -266,7 +262,7 @@ class TraceSearchItem(SearchItem):
             items.append(
                 {
                     "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": trace["_source"]["biz_name"],
+                    "bk_biz_name": cls._get_biz_name(bk_biz_id),
                     "name": trace_id,
                     "trace_id": trace_id,
                     "app_name": app_name,
@@ -278,7 +274,7 @@ class TraceSearchItem(SearchItem):
         if not items:
             return
 
-        yield {"type": "trace", "name": "Trace", "items": items}
+        return [{"type": "trace", "name": "Trace", "items": items}]
 
 
 class ApmApplicationSearchItem(SearchItem):
@@ -296,24 +292,16 @@ class ApmApplicationSearchItem(SearchItem):
         return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the application by application name
         """
-        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_APM_APPLICATION)
-        if not bk_biz_ids:
-            return
-
-        q = Q(app_alias__icontains=query)
+        query_filter = Q(app_alias__icontains=query)
         if cls.RE_APP_NAME.match(query):
-            q |= Q(app_name__icontains=query)
+            query_filter |= Q(app_name__icontains=query)
 
         # 业务过滤
-        if len(bk_biz_ids) <= 20:
-            applications = Application.objects.filter(q, bk_biz_id__in=bk_biz_ids)[:limit]
-        else:
-            applications = [a for a in Application.objects.filter(q) if a.bk_biz_id in bk_biz_ids][:limit]
-
+        applications = Application.objects.filter(query_filter)
         if not applications:
             return
 
@@ -330,10 +318,21 @@ class ApmApplicationSearchItem(SearchItem):
                 }
             )
 
+        # 过滤无权限的应用
+        items = filter_data_by_permission(
+            data=items,
+            actions=[ActionEnum.VIEW_APM_APPLICATION],
+            resource_meta=ResourceEnum.APM_APPLICATION,
+            id_field=lambda d: d["application_id"],
+            instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+            mode="any",
+            username=username,
+        )[:limit]
+
         if not items:
             return
 
-        yield {"type": "apm_application", "name": _("APM应用"), "items": items}
+        return [{"type": "apm_application", "name": _("APM应用"), "items": items}]
 
 
 class HostSearchItem(SearchItem):
@@ -348,10 +347,10 @@ class HostSearchItem(SearchItem):
         """
         ipv4或ipv6，不要用正则匹配
         """
-        return cls.RE_IP.match(query) or ":" in query
+        return bool(cls.RE_IP.findall(query)) or ":" in query
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the host by host name
         """
@@ -374,7 +373,7 @@ class HostSearchItem(SearchItem):
         if not ips:
             return
 
-        result = api.cmdb.get_host_without_biz_v2(ips=ips, limit=limit)
+        result = api.cmdb.get_host_without_biz_v2(ips=ips)
         hosts: List[Dict] = result["hosts"]
 
         items = []
@@ -389,6 +388,7 @@ class HostSearchItem(SearchItem):
                 else:
                     biz_hosts[host["bk_biz_id"]].append(
                         {
+                            "bk_host_id": host["bk_host_id"],
                             "bk_target_ip": host["bk_host_innerip"],
                             "bk_target_cloud_id": host["bk_cloud_id"],
                         }
@@ -412,7 +412,7 @@ class HostSearchItem(SearchItem):
         if not items:
             return
 
-        yield {"type": "host", "name": _("主机监控"), "items": items}
+        return [{"type": "host", "name": _("主机监控"), "items": items[:limit]}]
 
 
 class BCSClusterSearchItem(SearchItem):
@@ -425,7 +425,7 @@ class BCSClusterSearchItem(SearchItem):
         return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
         """
         Search the bcs cluster by cluster name
         """
@@ -469,7 +469,7 @@ class BCSClusterSearchItem(SearchItem):
         if not items:
             return
 
-        yield {"type": "bcs_cluster", "name": _("BCS集群"), "items": items}
+        return [{"type": "bcs_cluster", "name": _("BCS集群"), "items": items}]
 
 
 class Searcher:
@@ -504,7 +504,7 @@ class Searcher:
             start_time = time.time()
             for __ in range(len(search_items)):
                 try:
-                    result: Generator = results.next(timeout=5)
+                    result: Optional[List[Dict]] = results.next(timeout=5)
                 except StopIteration:
                     break
                 except TimeoutError:
@@ -514,7 +514,8 @@ class Searcher:
                     logger.exception(f"Searcher search error, query: {query}, error: {e}")
                     continue
 
-                yield from result
-
                 if time.time() - start_time > timeout:
                     break
+
+                if result:
+                    yield from result

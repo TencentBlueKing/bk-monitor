@@ -14,6 +14,7 @@ from .base import *  # noqa
 from .bcs_base import *  # noqa
 from .bcs_cluster import *  # noqa
 from .bcs_container import *  # noqa
+from .bcs_ingress import *  # noqa
 from .bcs_label import *  # noqa
 from .bcs_monitor import *  # noqa
 from .bcs_node import *  # noqa

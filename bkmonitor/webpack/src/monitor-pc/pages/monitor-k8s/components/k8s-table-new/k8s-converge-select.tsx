@@ -42,7 +42,7 @@ interface K8sConvergeSelectEvents {
 export default class K8sConvergeSelect extends tsc<K8sConvergeSelectProps, K8sConvergeSelectEvents> {
   /** 汇聚方法 */
   @Prop({ type: String, default: K8sConvergeTypeEnum.SUM }) method: string;
-  /** 是否下转 tip 提示 */
+  /** 是否展示  汇聚方法tip 提示 */
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @Ref('menu')
@@ -69,7 +69,7 @@ export default class K8sConvergeSelect extends tsc<K8sConvergeSelectProps, K8sCo
     return Object.entries(K8sConvergeTypeEnum).map(([key, value]) => ({ id: value, name: key }));
   }
 
-  /** 下钻 */
+  /** 汇聚方法值改变后回调 */
   @Emit('methodChange')
   handleConvergeChange(method: K8sConvergeTypeEnum) {
     if (this.method === method) return;
@@ -98,13 +98,12 @@ export default class K8sConvergeSelect extends tsc<K8sConvergeSelectProps, K8sCo
   render() {
     return (
       <div class='k8s-converge-select'>
-        <div v-bk-tooltips={{ content: this.$t('汇聚方法'), disabled: !this.enableTip }}>
-          <div
-            class={{ 'popover-trigger': true, active: !!this.popoverInstance }}
-            onClick={e => this.handleConvergeListShow(e)}
-          >
-            {this.$slots?.trigger || <i class={['icon-monitor', this.IconNameByConverge]} />}
-          </div>
+        <div
+          class={{ 'popover-trigger': true, active: !!this.popoverInstance }}
+          v-bk-tooltips={{ content: this.$t('汇聚方法'), disabled: !this.enableTip }}
+          onClick={e => this.handleConvergeListShow(e)}
+        >
+          {this.$slots?.trigger || <i class={['icon-monitor', this.IconNameByConverge]} />}
         </div>
         <div style='display: none'>
           <ul

@@ -49,8 +49,6 @@ export default class AiWhaleInput extends tsc<IAiWhaleInputProps, IAiWhaleInputE
   showPlaceholder = true;
   /* AI小鲸 placeHolder 内容  */
   placeholderText = window.i18n.tc('有问题就问 AI 小鲸');
-  /* AI小鲸 输入框的值 */
-  inputValue = '';
 
   // 插入回车符
   insertLineBreakAndMoveCursor() {
@@ -113,20 +111,11 @@ export default class AiWhaleInput extends tsc<IAiWhaleInputProps, IAiWhaleInputE
     const content = event.target.innerText.trim();
     this.showPlaceholder = content === '' || content === this.placeholderText;
     if (content === '') {
-      event.target.innerText = this.inputValue;
+      event.target.innerText = content;
     }
     event.target.style.maxHeight = '32px';
     event.target.style.overflow = 'hidden';
     event.target.style.whiteSpace = 'nowrap';
-  }
-
-  // 输入事件
-  handleInput(event) {
-    const content = event.target.innerText.trim();
-    this.showPlaceholder = content === '';
-    if (content === this.inputValue) {
-      event.target.innerText = '';
-    }
   }
 
   @Emit('keyDown')
@@ -149,10 +138,8 @@ export default class AiWhaleInput extends tsc<IAiWhaleInputProps, IAiWhaleInputE
             tabindex={0}
             onBlur={this.shrinkTextarea}
             onFocus={this.expandTextarea}
-            onInput={this.handleInput}
             onKeydown={this.handleKeyDown}
           >
-            {this.inputValue}
             {this.showPlaceholder && <span class='placeholder'>{this.placeholderText}</span>}
           </div>
           <img

@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -40,9 +40,11 @@
   import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
   import useScroll from '../../hooks/use-scroll';
+  import $http from '@/api';
 
   import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
   import useResizeObserve from '../../hooks/use-resize-observe';
+  import useRetrieveHook from './use-retrieve-hook';
 
   const store = useStore();
   const router = useRouter();
@@ -54,6 +56,11 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+
+  const { search_mode, addition, keyword } = route.query;
+
+  const { resolveQueryParams } = useRetrieveHook();
+  resolveQueryParams({ search_mode, addition, keyword });
 
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
@@ -307,7 +314,8 @@
           :active-favorite="activeFavorite"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
-        ></SearchBar>
+        >
+        </SearchBar>
         <SearchResultTab v-model="activeTab"></SearchResultTab>
         <template v-if="showAnalysisTab">
           <GraphAnalysis></GraphAnalysis>

@@ -15,6 +15,7 @@ from core.drf_resource import APIResource
 
 class SdkResource(APIResource):
     TIMEOUT = 300
+    METRIC_REPORT_NOW = False
 
     # 模块名
     module_name = "aiops_sdk"
@@ -69,7 +70,7 @@ class SdkInitDependResource(APIResource):
 
 
 class TfSdkResource(SdkResource):
-    # 远程访问地址
+    # 时序预测远程访问地址
     base_url = "http://bk-aiops-serving-tf:8000"
 
 
@@ -92,7 +93,7 @@ class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
 
 
 class KpiSdkResource(SdkResource):
-    # 远程访问地址
+    # 智能异常检测远程访问地址
     base_url = "http://bk-aiops-serving-kpi:8000"
 
 
@@ -110,5 +111,28 @@ class KpiInitDependResource(KpiSdkResource, SdkInitDependResource):
 
 class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
     """异常检测SDK执行分组预测."""
+
+    pass
+
+
+class AcdSdkResource(SdkResource):
+    # 离群检测远程访问地址
+    base_url = "http://bk-aiops-serving-acd:8000"
+
+
+class AcdPredictResource(AcdSdkResource, SdkPredictResource):
+    """离群检测SDK执行时序预测逻辑."""
+
+    pass
+
+
+class AcdInitDependResource(AcdSdkResource, SdkInitDependResource):
+    """离群检测SDK初始化历史依赖."""
+
+    pass
+
+
+class AcdGroupPredictResource(AcdSdkResource, SdkGroupPredictResource):
+    """离群检测SDK执行分组预测."""
 
     pass

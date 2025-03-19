@@ -443,10 +443,6 @@
       margin-bottom: 0 !important;
     }
 
-    .dashboard-panel {
-      height: calc(100vh - 255px);
-    }
-
     .related-table-container {
       height: calc(100vh - 568px);
     }
@@ -458,7 +454,6 @@
   }
 
   .content-list.is-host-tab {
-
     .flex-dashboard-item.exception-panel {
       height: calc(100vh - 264px) !important;
     }

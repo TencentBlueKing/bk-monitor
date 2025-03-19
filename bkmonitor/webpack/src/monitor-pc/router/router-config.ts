@@ -28,27 +28,27 @@ export const GLOAB_FEATURE_LIST = [
   {
     id: 'global-config',
     name: '全局设置',
-    icon: 'icon-monitor icon-menu-setting',
+    icon: 'icon-monitor icon-quanjushezhi',
   },
   {
     id: 'healthz',
     name: '自监控',
-    icon: 'icon-monitor icon-menu-self',
+    icon: 'icon-monitor icon-zijiankong',
   },
   {
     id: 'migrate-dashboard',
     name: '迁移工具',
-    icon: 'icon-monitor icon-mc-migrate-tool',
+    icon: 'icon-monitor icon-qianyigongju',
   },
   {
     id: 'calendar',
     name: '日历服务',
-    icon: 'icon-monitor icon-mc-calendar-service',
+    icon: 'icon-monitor icon-rilifuwu',
   },
   {
     id: 'space-manage',
     name: '空间管理',
-    icon: 'icon-monitor icon-mc-migrate-tool',
+    icon: 'icon-monitor icon-kongjianguanli',
   },
   // {
   //   id: 'resource-register',
@@ -102,7 +102,7 @@ export const getRouteConfig = () => {
       children: [
         {
           name: '指标检索',
-          icon: 'icon-monitor icon-trend menu-icon',
+          icon: 'icon-monitor icon-zhibiaojiansuo menu-icon',
           navName: '指标检索',
           id: 'data-retrieval',
           path: '/data-retrieval',
@@ -111,7 +111,7 @@ export const getRouteConfig = () => {
         },
         {
           name: '日志检索',
-          icon: 'icon-monitor icon-mc-log-retrieval menu-icon',
+          icon: 'icon-monitor icon-rizhijiansuo menu-icon',
           navName: '日志检索',
           id: 'log-retrieval',
           path: '/log-retrieval',
@@ -120,7 +120,7 @@ export const getRouteConfig = () => {
         },
         {
           name: '事件检索',
-          icon: 'icon-monitor icon-shijian1 menu-icon',
+          icon: 'icon-monitor icon-shijianjiansuo menu-icon',
           navName: '事件检索',
           id: 'event-retrieval',
           path: '/event-retrieval',
@@ -129,7 +129,7 @@ export const getRouteConfig = () => {
         },
         {
           name: 'Tracing 检索',
-          icon: 'icon-monitor icon-mc-menu-trace menu-icon',
+          icon: 'icon-monitor menu-icon icon-Tracing',
           navName: 'Tracing 检索',
           id: 'trace-retrieval',
           path: '/trace/home',
@@ -140,7 +140,7 @@ export const getRouteConfig = () => {
         },
         {
           name: 'Profiling 检索',
-          icon: 'icon-monitor icon-profiling menu-icon',
+          icon: 'icon-monitor icon-Profiling menu-icon',
           navName: 'Profiling 检索',
           id: 'profiling',
           path: '/trace/profiling',
@@ -169,7 +169,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '综合拨测',
-              icon: 'icon-monitor icon-menu-uptime menu-icon',
+              icon: 'icon-monitor icon-boce menu-icon',
               navName: '综合拨测',
               id: 'uptime-check',
               path: '/uptime-check',
@@ -178,7 +178,7 @@ export const getRouteConfig = () => {
             },
             {
               name: 'APM',
-              icon: 'icon-monitor icon-mc-menu-apm menu-icon',
+              icon: 'icon-monitor icon-APM menu-icon',
               navName: 'APM',
               id: 'apm-home',
               path: '/apm/home',
@@ -196,7 +196,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '容器监控',
-              icon: 'icon-monitor icon-mc-mainboard menu-icon',
+              icon: 'icon-monitor icon-rongqi menu-icon',
               id: 'k8s',
               path: '/k8s',
               href: '#/k8s',
@@ -204,7 +204,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '容器监控',
-              icon: 'icon-monitor icon-mc-mainboard menu-icon',
+              icon: 'icon-monitor icon-rongqi menu-icon',
               id: 'k8s-new',
               path: '/k8s-new',
               href: '#/k8s-new',
@@ -212,7 +212,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '主机监控',
-              icon: 'icon-monitor icon-menu-performance menu-icon',
+              icon: 'icon-monitor icon-zhuji menu-icon',
               id: 'performance',
               path: '/performance',
               href: '#/performance',
@@ -227,7 +227,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '自定义场景',
-              icon: 'icon-monitor icon-mc-custom-scene menu-icon',
+              icon: 'icon-monitor icon-zidingyichangjing menu-icon',
               id: 'custom-scenes',
               path: '/custom-scenes',
               href: '#/custom-scenes',
@@ -249,7 +249,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '告警策略',
-              icon: 'icon-monitor icon-mc-strategy menu-icon',
+              icon: 'icon-monitor icon-gaojingcelve menu-icon',
               id: 'strategy-config',
               path: '/strategy-config',
               href: '#/strategy-config',
@@ -257,7 +257,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '告警分派',
-              icon: 'icon-monitor icon-fenpai menu-icon',
+              icon: 'icon-monitor icon-gaojingfenpai menu-icon',
               id: 'alarm-dispatch',
               path: '/alarm-dispatch',
               href: '#/alarm-dispatch',
@@ -265,7 +265,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '告警组',
-              icon: 'icon-monitor icon-menu-group menu-icon',
+              icon: 'icon-monitor icon-gaojingzu menu-icon',
               id: 'alarm-group',
               path: '/alarm-group',
               canStore: true,
@@ -273,7 +273,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '轮值',
-              icon: 'icon-monitor icon-mc-lunliu menu-icon',
+              icon: 'icon-monitor icon-lunzhi menu-icon',
               id: 'rotation',
               path: '/trace/rotation',
               canStore: true,
@@ -281,7 +281,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '指标管理',
-              icon: 'icon-monitor icon-mc-custom-scene menu-icon',
+              icon: 'icon-monitor icon-zhibiaoguanli menu-icon',
               id: 'metrics-manager',
               path: '/metrics-manager',
               href: '#/metrics-manager',
@@ -297,7 +297,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '告警屏蔽',
-              icon: 'icon-monitor icon-menu-shield menu-icon',
+              icon: 'icon-monitor icon-gaojingpingbi menu-icon',
               id: 'alarm-shield',
               path: '/trace/alarm-shield',
               href: '#/trace/alarm-shield',
@@ -305,7 +305,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '处理套餐',
-              icon: 'icon-monitor icon-chulitaocan menu-icon',
+              icon: 'icon-monitor icon-chulitaocan1 menu-icon',
               id: 'set-meal',
               path: '/set-meal',
               href: '#/set-meal',
@@ -336,7 +336,7 @@ export const getRouteConfig = () => {
               children: [
                 {
                   name: 'AI设置',
-                  icon: 'icon-monitor icon-chulitaocan menu-icon',
+                  icon: 'icon-monitor icon-AI menu-icon',
                   id: 'ai-settings',
                   path: '/ai-settings',
                   href: '#/ai-settings',
@@ -359,7 +359,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '指标插件',
-              icon: 'icon-monitor icon-menu-plugin menu-icon',
+              icon: 'icon-monitor icon-chajian menu-icon',
               id: 'plugin-manager',
               path: '/plugin-manager',
               href: '#/plugin-manager',
@@ -367,7 +367,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '告警源',
-              icon: 'icon-monitor icon-menu-aler-source menu-icon',
+              icon: 'icon-monitor icon-gaojingyuan menu-icon',
               id: 'fta-integrated',
               path: '/fta/intergrations',
               href: '#/fta/intergrations',
@@ -383,7 +383,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '数据采集',
-              icon: 'icon-monitor icon-menu-collect menu-icon',
+              icon: 'icon-monitor icon-shujucaiji menu-icon',
               id: 'collect-config',
               path: '/collect-config',
               href: '#/collect-config',
@@ -391,7 +391,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '自定义指标',
-              icon: 'icon-monitor icon-menu-custom menu-icon',
+              icon: 'icon-monitor icon-zidingyizhibiao menu-icon',
               id: 'custom-metric',
               path: '/custom-metric',
               href: '#/custom-metric',
@@ -400,7 +400,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '自定义事件',
-              icon: 'icon-monitor icon-mc-custom-event menu-icon',
+              icon: 'icon-monitor icon-zidingyishijian menu-icon',
               id: 'custom-event',
               path: '/custom-event',
               href: '#/custom-event',
@@ -415,7 +415,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '导入导出',
-              icon: 'icon-monitor icon-menu-export menu-icon',
+              icon: 'icon-monitor icon-daorudaochu menu-icon',
               id: 'export-import',
               path: '/export-import',
               href: '#/export-import',
@@ -464,13 +464,13 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             ...item,
             id: 'event-center',
             path: '/event-center',
-            icon: 'icon-monitor icon-mc-alert',
+            icon: 'icon-monitor icon-gaojing3',
             name: '所有告警',
           },
           {
             id: 'event-action',
             path: '/event-center',
-            icon: 'icon-monitor icon-mc-event',
+            icon: 'icon-monitor icon-chulijilu',
             query: {
               searchType: 'action',
               activeFilterId: 'action',
@@ -486,7 +486,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
         children: [
           {
             name: '默认仪表盘',
-            icon: 'icon-monitor icon-menu-chart menu-icon',
+            icon: 'icon-monitor icon-yibiaopan menu-icon',
             id: 'grafana-home',
             path: '/grafana',
             href: '#/grafana',
@@ -494,7 +494,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
           },
           {
             name: '数据源管理',
-            icon: 'icon-monitor icon-shujuku menu-icon',
+            icon: 'icon-monitor icon-shujuyuanguanli menu-icon',
             id: 'grafana-admin',
             path: '/grafana/admin',
             href: '#/grafana/admin',
@@ -502,7 +502,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
           },
           {
             name: '邮件订阅',
-            icon: 'icon-monitor icon-mc-youjian menu-icon',
+            icon: 'icon-monitor icon-youjian menu-icon',
             id: 'email-subscriptions',
             path: '/email-subscriptions',
             href: '#/email-subscriptions',
@@ -511,7 +511,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
           },
           {
             name: '发送历史',
-            icon: 'icon-monitor icon-mc-history menu-icon',
+            icon: 'icon-monitor icon-fasonglishi menu-icon',
             id: 'email-subscriptions-history',
             path: '/email-subscriptions/history',
             href: '#/email-subscriptions/history',

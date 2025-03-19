@@ -48,6 +48,35 @@ def get_related_spaces(space_type_id, space_id, target_space_type_id=SpaceTypes.
     return list(filtered_resources.values_list('space_id', flat=True))
 
 
+def get_negative_space_related_info(negative_biz_id):
+    """
+    获取负数ID的关联信息,空间类型、空间ID、归属业务ID（如有）
+    @param negative_biz_id: 负数ID
+    @return: dict
+    """
+    logger.info("get_negative_space_related_info: try to get negative_biz_id->[%s] related info", negative_biz_id)
+    try:
+        space = Space.objects.get(id=abs(negative_biz_id))
+        related_bk_biz_id = None
+        related_records = SpaceResource.objects.filter(
+            resource_type=SpaceTypes.BKCC.value,
+            space_id=space.space_id,
+            space_type_id=SpaceTypes.BKCI.value,
+        )
+        if related_records.exists():
+            related_bk_biz_id = related_records.last().resource_id
+    except Space.DoesNotExist:
+        logger.error("get_negative_space_related_info: negative_biz_id->[%s] not found", negative_biz_id)
+        raise ValueError("negative_biz_id->[%s] not found", negative_biz_id)
+
+    return {
+        'negative_biz_id': negative_biz_id,
+        'bk_biz_id': related_bk_biz_id,
+        'space_type': space.space_type_id,
+        'space_id': space.space_id,
+    }
+
+
 def get_biz_ids_by_space_ids(space_type, space_ids):
     """
     获取空间ID对应的业务ID列表
@@ -57,6 +86,23 @@ def get_biz_ids_by_space_ids(space_type, space_ids):
         biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
         res.append(biz_id)
     return res
+
+
+def reformat_table_id(table_id: str) -> str:
+    """检查并补充 table_id 中的 '.__default__'"""
+    parts = table_id.split(".")
+
+    if len(parts) == 1:
+        # 如果长度为 1，表示缺少点，补充 '.__default__'
+        logger.info("reformat_table_id: table_id->[%s] missing '.', add '.__default__'", table_id)
+        return f"{table_id}.__default__"
+    elif len(parts) != 2:
+        # 如果长度不是 2，表示不符合二段式规则，记录错误日志并返回原始值
+        logger.error("reformat_table_id: table_id->[%s] is not two parts, return original value", table_id)
+        return table_id  # 保持原样
+
+    # 如果已经是二段式，直接返回
+    return table_id
 
 
 def list_spaces(

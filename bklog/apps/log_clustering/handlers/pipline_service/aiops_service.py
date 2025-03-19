@@ -20,6 +20,10 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import arrow
+from django.conf import settings
+from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
+from pipeline.parser import PipelineParser
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.components.collections.aiops_model_component import (
@@ -66,9 +70,6 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     SampleSet,
 )
-from django.conf import settings
-from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
-from pipeline.parser import PipelineParser
 
 
 class AiopsLogService(BasePipeLineService):
@@ -323,7 +324,9 @@ def operator_aiops_service(index_set_id, operator=OperatorServiceEnum.CREATE):
     pipeline = service.build_pipeline(data, **params)
     service.start_pipeline(pipeline)
 
-    clustering_config.task_records.append({"operate": operator, "task_id": pipeline.id, "time": now_time.timestamp})
+    clustering_config.task_records.append(
+        {"operate": operator, "task_id": pipeline.id, "time": int(now_time.timestamp())}
+    )
     clustering_config.save()
 
     return pipeline.id

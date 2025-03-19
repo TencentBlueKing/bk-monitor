@@ -1586,7 +1586,7 @@ class ResultTableField(models.Model):
     table_id = models.CharField("结果表名", max_length=128)
     field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
-    description = models.TextField("字段描述")
+    description = models.TextField("字段描述", blank=True, default="")
     # 单位存在默认值，默认为空
     unit = models.CharField("字段单位", max_length=32, default="")
     tag = models.CharField("字段标签", max_length=16, choices=TAG_CHOICES)
@@ -2791,6 +2791,15 @@ class ESFieldQueryAliasOption(BaseModel):
         # 获取当前数据库中的记录（包括软删除记录）
         existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
         existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
+
+        if not query_alias_settings:
+            logger.info(
+                "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old "
+                "records",
+                table_id,
+            )
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)
+            return
 
         # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
         incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}

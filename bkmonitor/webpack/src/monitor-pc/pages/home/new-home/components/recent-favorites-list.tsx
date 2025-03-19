@@ -33,6 +33,7 @@ import emptyImageSrc from '../../../../static/images/png/empty.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
 import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
 import serviceSrc from '../../../../static/images/png/new-page/service.png';
+import reportLogStore from '../../../../store/modules/report-log';
 import { EFunctionNameType } from '../utils';
 
 import type { IRecentList } from '../type';
@@ -74,7 +75,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
   recentItems: IRecentList[] = []; // 最近使用列表
   favoriteItems: IRecentList[] = []; // 收藏列表
 
-  loadingRecentList = false;
+  loadingRecentList = true;
 
   // 计算布局策略
   get rowClass() {
@@ -115,6 +116,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
       const data = await getFunctionShortcut({
         type: this.isRecentView ? 'recent' : 'favorite',
         functions: this.selectedCategories,
+        limit: 7, // 最多展示七条
       });
       if (this.isRecentView) {
         this.recentItems = data;
@@ -139,15 +141,18 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
       /** 仪表盘 */
       dashboard: () => {
         const url = `${baseUrl}#/grafana/d/${item.dashboard_uid}`;
+        reportLogStore.reportHomeSearchNavLog({ type: 'dashboard', name: '仪表盘' });
         window.open(url, '_blank');
       },
       /** APM */
       apm_service: () => {
         const url = `${baseUrl}#/apm/service?filter-app_name=${item.app_name}&filter-service_name=${item.service_name}`;
+        reportLogStore.reportHomeSearchNavLog({ type: 'apm_service', name: '服务' });
         window.open(url, '_blank');
       },
       /** 日志检索 */
       log_retrieve: () => {
+        reportLogStore.reportHomeSearchNavLog({ type: 'log_retrieve', name: '日志检索' });
         const url = `${baseUrl}#/log-retrieval?indexId=${item.index_set_id}&spaceUid=${item.space_uid}`;
         window.open(url, '_blank');
       },
@@ -169,7 +174,10 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         class='recent-item'
         onClick={() => this.handleRecentList(type, item)}
       >
-        <div class='detail'>
+        <div
+          class='detail'
+          v-bk-overflow-tips
+        >
           {!this.isRecentView && <i class='icon-mc-collect icon-monitor favorite' />}
           {tag && (
             <span class='tag'>
@@ -178,7 +186,12 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
           )}
           <span>{title}</span>
         </div>
-        <span class='desc'>{item.bk_biz_name}</span>
+        <span
+          class='desc'
+          v-bk-overflow-tips
+        >
+          {item.bk_biz_name}
+        </span>
       </li>
     );
   }
@@ -191,7 +204,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         type,
         item,
         id: item.dashboard_uid,
-        title: item.dashboard_title,
+        title: `${item.folder_title ? `${item.folder_title}/ ` : ''}${item.dashboard_title}`,
       },
       /** APM */
       apm_service: {
@@ -215,7 +228,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
     const shortcut: IRecentList = this.getItemByName(param);
 
     return shortcut?.items.length ? (
-      shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
+      shortcut.items.slice(0, 7).map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
     ) : (
       <div class='recent-list-empty'>
         <div class='empty-img'>
@@ -224,7 +237,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
             src={emptyImageSrc}
           />
         </div>
-        {this.$t('暂无相关记录')}
+        {this.$t('暂无数据')}
       </div>
     );
   }
@@ -262,7 +275,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
                 this.renderList(functionName)
               ) : (
                 <div class='skeleton-list'>
-                  {Array(5)
+                  {Array(7)
                     .fill(null)
                     .map((_, index) => (
                       <div

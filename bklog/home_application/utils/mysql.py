@@ -23,8 +23,9 @@ import logging
 import time
 
 import pymysql
+from django.utils.translation import gettext_lazy as _
+
 import settings
-from django.utils.translation import ugettext_lazy as _
 
 logger = logging.getLogger()
 

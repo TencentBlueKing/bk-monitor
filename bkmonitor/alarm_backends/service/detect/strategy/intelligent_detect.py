@@ -14,17 +14,16 @@ IntelligentDetect：智能异常检测算法基于计算平台的计算结果，
 import copy
 import json
 import logging
+from typing import Dict
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
     RangeRatioAlgorithmsCollection,
     SDKPreDetectMixin,
 )
-from constants.aiops import SDKDetectStatus
 from core.drf_resource import api
 
 logger = logging.getLogger("detect")
@@ -36,39 +35,16 @@ class DetectDirect(object):
     ALL = "all"
 
 
-class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
+class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
     """
     智能异常检测（动态阈值算法）
     """
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
-    WITH_HISTORY_ANOMALY = True
 
-    def detect(self, data_point):
-        if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
-            # 历史依赖准备就绪才开始检测
-            if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
-                raise Exception("Strategy history dependency data not ready")
-
-            # 优先从预检测结果中获取检测结果
-            if hasattr(self, "_local_pre_detect_results"):
-                predict_result_point = self.fetch_pre_detect_result_point(data_point)
-                if predict_result_point:
-                    return super().detect(predict_result_point)
-                else:
-                    raise Exception("Pre delete error.")
-            else:
-                return self.detect_by_sdk(data_point)
-        else:
-            return super().detect(data_point)
-
-    def detect_by_sdk(self, data_point):
-        dimensions = self.generate_dimensions(data_point)
-        predict_params = {
-            "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
-            "dimensions": dimensions,
-            "interval": data_point.item.query_configs[0]["agg_interval"],
+    def generate_sdk_predict_params(self) -> Dict:
+        return {
             "predict_args": {
                 arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()
             },
@@ -86,23 +62,6 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 },
             },
         }
-
-        predict_result = self.PREDICT_FUNC(**predict_params)
-        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
-
-        return super().detect(
-            DataPoint(
-                accessed_data={
-                    "record_id": data_point.record_id,
-                    "value": data_point.value,
-                    "values": predict_result[0],
-                    "time": int(predict_result[0]["timestamp"] / 1000),
-                    "dimensions": data_point.dimensions,
-                    "dimension_fields": dimension_fields,
-                },
-                item=data_point.item,
-            )
-        )
 
     def gen_expr(self):
         expr = "is_anomaly > 0"

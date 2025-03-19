@@ -12,7 +12,8 @@
   .k8s-nav-title {
     display: flex;
     align-items: center;
-    padding-left: 24px;
+    width: 320px;
+    padding-left: 16px;
 
     .title {
       font-size: 16px;
@@ -21,8 +22,9 @@
 
     .nav-select {
       width: 160px;
-      height: 32px;
+      height: 28px;
       margin: 0 18px;
+      line-height: 28px;
       background: #f0f1f5;
       border-color: transparent;
       border-radius: 2px;
@@ -33,23 +35,39 @@
         box-shadow: none;
       }
 
-      .bk-select-prefix-icon {
-        top: calc(50% - 10px);
-        left: 8px;
-        font-size: 20px;
-        line-height: normal;
-        color: #a3c5fd;
-      }
+      .scene-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px 0 6px;
 
-      .bk-select-name {
-        padding-left: 36px;
-        font-size: 14px;
-        line-height: 32px;
-        color: #313238;
+        .scene-name {
+          display: flex;
+          align-items: center;
+
+          .scene-icon {
+            color: #a3b1cc;
+          }
+
+          .name {
+            margin-left: 4px;
+            font-size: 13px;
+            color: #313238;
+          }
+        }
+
+        .icon-mc-arrow-down {
+          font-size: 10px;
+          transition: transform 0.1s;
+
+          &.expand {
+            transform: rotateZ(-180deg);
+          }
+        }
       }
     }
 
-    .icon-copy-link {
+    .icon-mc-share {
       font-size: 14px;
       color: #3a84ff;
       cursor: pointer;
@@ -57,12 +75,39 @@
   }
 
   .k8s-nav-tools {
+    display: flex;
+    height: 100%;
+
     .dashboard-tools {
-      padding-right: 25px;
+      margin-right: 12px;
 
       .dashboard-tools-interval {
         &::after {
           display: none;
+        }
+      }
+    }
+
+    .goto-old {
+      display: flex;
+      align-items: center;
+      min-width: 81px;
+      padding: 0 12px 0 13px;
+      color: #3a84ff;
+      border-left: 1px solid #eaebf0;
+
+      .goto-old-wrap {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .icon {
+        margin-right: 5px;
+        transform: rotateY(180deg);
+
+        .icon-zhuanhuan {
+          font-size: 14px;
         }
       }
     }

@@ -1,5 +1,7 @@
 .k8s-converge-select {
   .popover-trigger {
+    cursor: pointer;
+
     &.active {
       .icon-monitor {
         color: #3a84ff;
@@ -11,15 +13,11 @@
       flex-shrink: 0;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
+      width: 18px;
+      height: 16px;
       margin-right: 4px;
       font-size: 12px;
-      color: #979ba5;
-
-      &:hover {
-        color: #3a84ff;
-      }
+      color: #3a84ff;
 
       &.icon-sum,
       &.icon-max {
@@ -31,7 +29,8 @@
       }
 
       &.icon-min {
-        transform: translateY(-1px);
+        font-size: 11px;
+        transform: translateY(-2px);
       }
     }
   }

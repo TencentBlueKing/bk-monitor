@@ -50,22 +50,26 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
   async created() {
     try {
       await this.initQuickAccessData();
-    } catch { }
+    } catch {}
   }
 
   // 初始化快捷入口的数据
   async initQuickAccessData() {
     try {
       this.loadingQuickList = true;
+      /** 根据当前bizId区分是要展示新版的k8s还是旧版的k8s, 当isEnableK8sV2为true时，不展示旧版 */
+      const filterKey = this.$store.getters.isEnableK8sV2 ? 'k8s' : 'k8s-new';
       const data = (await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true })) || [];
       const routes = [];
       for (const item of COMMON_ROUTE_LIST) {
         const list = item.children?.filter(set => data.includes(set.id));
         list?.length && routes.push(...list);
       }
-      this.quickAccessList = data.length
-        ? data.map(id => routes.find(item => item.id === id)).filter(Boolean)
-        : this.getDefaultQuickAccessList();
+      this.quickAccessList = (
+        data.length
+          ? data.map(id => routes.find(item => item.id === id)).filter(Boolean)
+          : this.getDefaultQuickAccessList()
+      ).filter(item => item.id !== filterKey);
     } catch {
     } finally {
       this.loadingQuickList = false;
@@ -116,7 +120,7 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
             class='customize'
             onClick={() => (this.showModal = true)}
           >
-            <i class='icon-monitor icon-menu-setting' />
+            <i class='icon-monitor icon-customize' />
             <span>{this.$t('自定义')}</span>
           </div>
         </div>
@@ -145,7 +149,7 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
                       src={emptyImageSrc}
                     />
                   </div>
-                  {this.$t('暂无快捷入口')}
+                  {this.$t('尚未配置，自定义')}
                 </div>
               )}
             </ul>

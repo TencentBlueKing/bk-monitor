@@ -103,7 +103,7 @@ class PatternHandler:
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
         if self._clustering_config.signature_pattern_rt:
-            pattern_map = self._get_pattern_data()
+            pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
         elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
@@ -330,7 +330,7 @@ class PatternHandler:
                     .select(*select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                     .query()
                 )
             except Exception:  # pylint: disable=broad-except
@@ -341,7 +341,7 @@ class PatternHandler:
                     .select(*select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                     .query()
                 )
         else:
@@ -350,12 +350,14 @@ class PatternHandler:
                 BkData(self._clustering_config.new_cls_pattern_rt)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(start_time.timestamp, end_time.timestamp)
+                .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
                 .query()
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
-    def _get_pattern_data(self):
+    def _get_pattern_data(self, patterns):
+        if not patterns:
+            return []
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
@@ -363,7 +365,8 @@ class PatternHandler:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
-                .time_range(start_time=start_time.shift(hours=-6).timestamp)  # 只查开始时间前6小时的数据，避免历史数据膨胀
+                .where("signature", "IN", patterns)
+                .time_range(start_time=int(start_time.shift(days=-1).timestamp()))  # 只查开始时间前1天的数据，避免历史数据膨胀
                 .limit(50000)  # 最多只拉取 5w 条
                 .query()
             )
@@ -439,7 +442,7 @@ class PatternHandler:
             )
             .first()
         )
-        now = int(arrow.now().timestamp * 1000)
+        now = int(arrow.now().timestamp() * 1000)
         # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":
             remark_info = {"username": get_request_username(), "create_time": now, "remark": params["remark"]}

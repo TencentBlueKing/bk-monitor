@@ -28,71 +28,23 @@
     class="select-chart-wrap"
     v-bkloading="{ isLoading }"
   >
-    <transition-group
-      name="flip-list"
-      tag="ul"
-      class="selected-list-wrap"
-      v-if="selectedList.length"
-    >
-      <li
-        v-for="(item, index) in selectedList"
-        :key="item.id"
-        :class="[
-          'selected-item',
-          {
-            active: DragData.toActive === index || selectedActive === item.id,
-          },
-        ]"
-        draggable="true"
-        @click="handleSelectItem(item)"
-        @dragstart="handleDragStart($event, index)"
-        @dragend="handleDragEnd($event, index)"
-        @drop="handleDrop($event, index)"
-        @dragenter="handleDragEnter($event, index)"
-        @dragover="handleDragOver($event, index)"
-      >
-        <span class="icon-drag" />
-        <span class="item-title">
-          <span class="title">{{ item.name }}</span>
-          <span
-            class="des"
-            v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
-            >&nbsp;{{ `- ${$t('所属:')}${handleBelonging(item)}` }}</span
-          >
-        </span>
-        <span
-          @click.stop="handleDelSelected(index)"
-          class="icon-monitor icon-mc-close"
-        />
-      </li>
-    </transition-group>
-    <div
-      class="add-btn-wrap"
-      v-show="!tool.show && !isDisabled"
-    >
-      <span
-        class="add-btn"
-        @click="handleAddChart"
-        ><span class="icon-monitor icon-mc-add" />{{ $t('添加图表') }}</span
-      >
-    </div>
-    <div
-      class="select-tool-wrap"
-      v-if="tool.show"
-    >
+    <div class="select-tool-wrap">
       <div class="tool-left-wrap">
-        <bk-tab
-          class="tab-wrap"
-          :active.sync="tool.active"
-          type="unborder-card"
-          @tab-change="handleTabChange"
-        >
-          <bk-tab-panel
-            v-for="(tab, index) in tool.tabList"
-            v-bind="tab"
-            :key="index"
-          />
-        </bk-tab>
+        <div class="tool-left-tab-wrap">
+          <bk-tab
+            class="tab-wrap"
+            :active.sync="tool.active"
+            type="card"
+            @tab-change="handleTabChange"
+          >
+            <bk-tab-panel
+              v-for="(tab, index) in tool.tabList"
+              v-bind="tab"
+              :key="index"
+            />
+          </bk-tab>
+          <div class="placeholder-box"></div>
+        </div>
         <!-- <bk-select
           v-show="tool.active === 'default'"
           class="biz-list-wrap"
@@ -105,94 +57,179 @@
           <bk-option v-for="(option, index) in handleBizIdList" :key="index" :id="option.id" :name="option.text">
           </bk-option>
         </bk-select> -->
-        <div
-          class="biz-list-wrap"
-          v-show="tool.active === 'default'"
-        >
-          <space-select
-            :value="DefaultCurBizIdList"
-            :space-list="$store.getters.bizList"
-            :need-authority-option="false"
-            :need-alarm-option="false"
-            :need-defalut-options="true"
-            @change="handleChangeBizIdList"
-          />
-        </div>
-        <div
-          class="biz-list-wrap"
-          v-if="tool.active === 'grafana'"
-        >
-          <space-select
-            :value="[curBizId]"
-            :space-list="$store.getters.bizList"
-            :need-authority-option="false"
-            :need-alarm-option="false"
-            :multiple="false"
-            @change="handleGraphBizid"
-          />
-        </div>
-        <!-- <bk-select
-          v-if="tool.active === 'grafana'"
-          searchable
-          class="biz-list-wrap"
-          v-model="curBizId"
-          :clearable="false"
-          @change="handleGraphBizid"
-        >
-          <bk-option v-for="(option, index) in bizIdList" :key="index" :id="option.id" :name="option.text"> </bk-option>
-        </bk-select> -->
-        <div class="left-list-wrap">
-          <div
-            v-for="(item, index) in leftList"
-            :key="index"
-            :class="['left-list-item', { active: leftActive === item.uid }]"
-            @click="handleSelectLeftItem(item)"
-          >
-            {{ item.name }}
+        <div class="chart-dashboard-container">
+          <div class="left-panel">
+            <div
+              class="biz-list-wrap"
+              v-show="tool.active === 'default'"
+            >
+              <space-select
+                :need-alarm-option="false"
+                :need-authority-option="false"
+                :need-defalut-options="true"
+                :space-list="$store.getters.bizList"
+                :value="DefaultCurBizIdList"
+                @change="handleChangeBizIdList"
+              />
+              <bk-input
+                class="search-input"
+                v-model="defaultKeyWord"
+                :clearable="true"
+                :placeholder="$t('搜索 内置')"
+                :right-icon="'bk-icon icon-search'"
+                @change="handleDefaultSearch"
+              >
+              </bk-input>
+            </div>
+            <div
+              v-if="tool.active === 'grafana'"
+              class="biz-list-wrap"
+            >
+              <space-select
+                :multiple="false"
+                :need-alarm-option="false"
+                :need-authority-option="false"
+                :space-list="$store.getters.bizList"
+                :value="[curBizId]"
+                @change="handleGraphBizid"
+              />
+              <bk-input
+                class="search-input"
+                v-model="grafanaKeyWord"
+                :clearable="true"
+                :placeholder="$t('搜索 仪表盘')"
+                :right-icon="'bk-icon icon-search'"
+                @change="handleGrafanaSearch"
+              >
+              </bk-input>
+            </div>
+            <div class="left-list-wrap">
+              <div
+                v-for="(item, index) in leftList"
+                :class="['left-list-item', { active: leftActive === item.uid }]"
+                :key="index"
+                @click="handleSelectLeftItem(item)"
+                v-bk-overflow-tips
+              >
+                {{ item.name }}
+              </div>
+              <bk-exception
+                class="exception"
+                v-if="exceptionType"
+                scene="part"
+                :type="exceptionType"
+              />
+            </div>
+          </div>
+          <div class="right-panel">
+            <div class="right-title">
+              {{ $t('可选图表') }}
+              <span class="chart-count">{{ `( ${rightList.length} )` }}</span>
+            </div>
+            <bk-input
+              class="chart-search-input"
+              v-model="chartKeyWord"
+              :clearable="true"
+              :placeholder="$t('搜索 图表')"
+              :right-icon="'bk-icon icon-search'"
+              @change="handleChartSearch"
+            >
+            </bk-input>
+            <div
+              class="right-list-wrap"
+              v-bkloading="{ isLoading: isRightListLoading }"
+            >
+              <checkbox-group
+                v-model="rightSelect"
+                :active="selectedActive"
+                :disabled="isDisabled"
+                :list="rightList"
+                @valueChange="handleValueChange"
+              />
+              <bk-exception
+                class="exception"
+                v-if="!rightList.length"
+                scene="part"
+                :type="chartKeyWord ? 'search-empty' : 'empty'"
+              />
+            </div>
           </div>
         </div>
       </div>
-      <div
-        class="tool-right-wrap"
-        v-bkloading="{ isLoading: isRightListLoading }"
-      >
-        <div class="right-title">
-          {{ $t('可选图表({num})', { num: rightList.length }) }}
-        </div>
-        <div class="right-list-wrap">
-          <checkbox-group
-            v-model="rightSelect"
-            :list="rightList"
-            :active="selectedActive"
-            :disabled="isDisabled"
-          />
-        </div>
-        <div class="right-btn-wrap">
+      <div class="selected-chart">
+        <div class="container">
+          {{ $t('已选图表') }} <span class="selected-chart-count">{{ `( ${selectedList.length} )` }}</span>
           <bk-button
-            size="small"
-            theme="primary"
-            :disabled="false"
-            @click="handleComfirm"
-            >{{ $t('确认') }}</bk-button
+            class="clear-button"
+            :text="true"
+            @click="handleClrSelected"
           >
-          <bk-button
-            size="small"
-            @click="handleCancel"
-            >{{ $t('取消') }}</bk-button
-          >
+            {{ $t('清空') }}
+          </bk-button>
         </div>
+        <transition-group
+          class="selected-list-wrap"
+          name="flip-list"
+          tag="ul"
+        >
+          <li
+            v-for="(item, index) in selectedList"
+            :class="[
+              'selected-item',
+              {
+                active: DragData.toActive === index || selectedActive === item.id,
+              },
+            ]"
+            :key="item.id"
+            draggable="true"
+            @click="handleSelectItem(item)"
+            @dragend="handleDragEnd($event, index)"
+            @dragenter="handleDragEnter($event, index)"
+            @dragover="handleDragOver($event, index)"
+            @dragstart="handleDragStart($event, index)"
+            @drop="handleDrop($event, index)"
+          >
+            <div class="selected-item-title">
+              <span class="icon-monitor icon-mc-tuozhuai" />
+              <span
+                class="item-title"
+                v-bk-overflow-tips
+                >{{ item.name }}</span
+              >
+              <span
+                class="icon-monitor icon-mc-close"
+                @click.stop="handleDelSelected(index)"
+              />
+            </div>
+            <span
+              class="des"
+              v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
+              >{{ `${$t('所属:')}&nbsp;&nbsp;${handleBelonging(item)}` }}</span
+            >
+          </li>
+        </transition-group>
+        <bk-exception
+          class="exception"
+          v-if="!selectedList.length"
+          scene="part"
+          type="empty"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
+import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { buildInMetric, getPanelsByDashboard } from 'monitor-api/modules/report';
 import { deepClone } from 'monitor-common/utils/utils';
-import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
 
 import SpaceSelect from '../../../components/space-select/space-select';
+import checkboxGroup from './checkboxGroup.vue';
+import { defaultRadioList } from './store';
+
 import type {
   IAddChartToolData,
   IChartDataItem,
@@ -200,9 +237,6 @@ import type {
   IDefaultRadioList,
   IGraphValueItem,
 } from '../types';
-
-import checkboxGroup from './checkboxGroup.vue';
-import { defaultRadioList } from './store';
 
 /**
  * 添加内容-图表选择组件
@@ -230,6 +264,12 @@ export default class SelectChart extends Vue {
     ],
   };
 
+  // 仪表盘搜索关键字
+  grafanaKeyWord: string = null;
+  defaultKeyWord: string = null;
+  chartKeyWord: string = null;
+  graphPanelsList: IChartDataItem[] = [];
+
   // active状态与列表数据
   selectedActive: string = null;
   selectedList: IGraphValueItem[] = [];
@@ -253,9 +293,9 @@ export default class SelectChart extends Vue {
   };
 
   get leftList(): IChartListAllItem[] {
-    const isDefault = this.tool.active === 'default';
-    const list = isDefault ? this.allDefaultList : this.allGrafanaListMap;
-    return list || [];
+    const list = this.tool.active === 'default' ? this.allDefaultList : this.allGrafanaListMap;
+    const keyWord = this.tool.active === 'default' ? this.defaultKeyWord : this.grafanaKeyWord;
+    return keyWord ? list.filter(item => item.text.toLowerCase().includes(keyWord.toLowerCase())) : list;
   }
   // get rightList(): IChartDataItem[] {
   //   if (this.tool.active === 'default' && !this.DefaultCurBizIdList.length) return [];
@@ -285,6 +325,18 @@ export default class SelectChart extends Vue {
   get isDisabled(): boolean {
     const MAX = 20;
     return this.rightSelect.length >= MAX;
+  }
+
+  // 内置  / 仪表盘 空数据类型
+  get exceptionType(): string {
+    // 选择使用的关键字
+    const selectedKeyWord = this.tool.active === 'grafana' ? this.grafanaKeyWord : this.defaultKeyWord;
+    // 根据条件返回异常类型
+    if (!this.leftList.length) {
+      return selectedKeyWord ? 'search-empty' : 'empty';
+    }
+    // 如果没有需要显示的异常类型，返回 null
+    return null;
   }
 
   @Emit('valueChange')
@@ -350,6 +402,15 @@ export default class SelectChart extends Vue {
   }
 
   /**
+   * 清空已选择
+   */
+  handleClrSelected() {
+    this.selectedList = [];
+    this.selectedActive = null;
+    this.handleValueChange();
+  }
+
+  /**
    * 选择
    * @params index 数据索引
    */
@@ -359,21 +420,12 @@ export default class SelectChart extends Vue {
     const ids = item.id.split('-');
     const isDefault = !(typeof +ids[0] === 'number' && this.bizIdList.find(item => item.id === ids[0]));
     if (!isDefault && !this.bizIdList.find(item => item.id === ids[0])) return;
-    // eslint-disable-next-line prefer-destructuring
+
     this.leftActive = ids[1];
-    this.tool.show = true;
     this.tool.active = isDefault ? 'default' : 'grafana';
-    // eslint-disable-next-line prefer-destructuring
+
     this.tool.active === 'default' ? (this.DefaultCurBizIdList = ids[0].split(',')) : (this.curBizId = ids[0]);
     this.rightSelect = deepClone(this.selectedList);
-  }
-
-  /**
-   * 新建图表
-   */
-  handleAddChart() {
-    this.rightSelect = deepClone(this.selectedList);
-    this.tool.show = true;
   }
 
   /**
@@ -383,43 +435,45 @@ export default class SelectChart extends Vue {
     item.bk_biz_id && (this.curBizId = `${item.bk_biz_id}`);
     this.leftActive = item.uid;
     this.isRightListLoading = true;
-    let graphPanelsList = [];
+    this.graphPanelsList = [];
     if (this.tool.active === 'default') {
-      graphPanelsList = this.allDefaultList.find(i => i.panels).panels;
+      this.graphPanelsList = this.allDefaultList.find(i => i.panels).panels;
       this.isRightListLoading = false;
     } else {
-      graphPanelsList = await this.getPanelsList(this.leftActive);
+      this.graphPanelsList = await this.getPanelsList(this.leftActive);
     }
-    graphPanelsList.forEach(panel => {
+    this.graphPanelsList.forEach(panel => {
       const bizId = this.tool.active === 'default' ? this.DefaultCurBizIdList.sort().join(',') : this.curBizId;
       panel.fatherId = item.uid;
       panel.key = `${bizId}-${this.leftActive}-${panel.id}`;
     });
-    this.rightList = graphPanelsList.filter(item => this.leftActive === item.fatherId && !/^-1/.test(item.key)) || [];
+    this.rightList =
+      this.graphPanelsList.filter(item => this.leftActive === item.fatherId && !/^-1/.test(item.key)) || [];
   }
 
   /**
-   * 确认操作
+   * 更新可选图表
    */
-  handleComfirm() {
-    this.$parent?.handlerFocus();
-    // this.selectedList = [...new Set(deepClone(this.rightSelect))].map(item => `${item}`)
-    this.selectedList = deepClone(this.rightSelect);
-    this.rightSelect = [];
-    this.handleValueChange();
-    this.tool.show = false;
-    this.selectedActive = null;
+  updateRightList() {
+    const filteredList = this.graphPanelsList.filter(
+      item =>
+        this.leftActive === item.fatherId &&
+        !/^-1/.test(item.key) &&
+        (!this.chartKeyWord || item.title.toLowerCase().includes(this.chartKeyWord.toLowerCase())) // 使用搜索关键字进行过滤
+    );
+    this.rightList = filteredList || [];
   }
 
-  /**
-   * 取消操作
-   */
-  handleCancel() {
-    this.tool.show = false;
-    this.selectedActive = null;
-    this.rightSelect = [];
+  handleGrafanaSearch(v) {
+    this.grafanaKeyWord = v;
   }
-
+  handleDefaultSearch(v) {
+    this.defaultKeyWord = v;
+  }
+  handleChartSearch(v) {
+    this.chartKeyWord = v;
+    this.updateRightList();
+  }
   handleTabChange() {
     this.tool.active === 'default'
       ? (this.DefaultCurBizIdList = [`${+window.cc_biz_id > -1 ? window.cc_biz_id : 'all'}`])
@@ -498,225 +552,278 @@ export default class SelectChart extends Vue {
     transition: transform 0.5s;
   }
 
-  .selected-list-wrap {
-    width: 465px;
-    margin-bottom: 6px;
-    border: 1px solid #dcdee5;
-
-    .selected-item {
-      display: flex;
-      align-items: center;
-      height: 38px;
-      cursor: pointer;
-      background: #fff;
-
-      &:hover {
-        background-color: #eef5ff;
-      }
-
-      &:not(:last-child) {
-        border-bottom: 1px solid #dcdee5;
-      }
-
-      .icon-drag {
-        position: relative;
-        display: inline-block;
-        flex-shrink: 0;
-        width: 6px;
-        height: 14px;
-        margin: 0 8px;
-        cursor: move;
-
-        &::after {
-          position: absolute;
-          top: 0;
-          width: 2px;
-          height: 14px;
-          content: ' ';
-          border-right: 2px dotted #63656e;
-          border-left: 2px dotted #63656e;
-        }
-      }
-
-      .item-title {
-        display: flex;
-        flex: 1;
-        align-items: center;
-
-        .des {
-          display: inline-block;
-          max-width: 300px;
-          overflow: hidden;
-          color: #979ba5;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-
-      .icon-mc-close {
-        display: flex;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        margin-right: 3px;
-        font-size: 24px;
-        cursor: pointer;
-      }
-    }
-
-    .active {
-      background-color: #eef5ff;
-    }
-  }
-
-  .add-btn-wrap {
-    .add-btn {
-      display: flex;
-      align-items: center;
-      width: 100px;
-      font-size: 14px;
-      color: #63656e;
-      cursor: pointer;
-
-      .icon-mc-add {
-        font-size: 32px;
-        color: #3a84ff;
-      }
-    }
-  }
-
   .select-tool-wrap {
     display: flex;
-    width: 664px;
-    height: 327px;
+    width: 810px;
+    height: 480px;
     margin-top: 7px;
     background: #fff;
     border: 1px solid #dcdee5;
-    border-radius: 2px 2px 0px 0px;
+    border-top: 0;
+    border-radius: 2px;
 
     .tool-left-wrap {
-      flex: 278px 0;
-      width: 278px;
-      border-right: 1px solid #dcdee5;
+      width: 570px;
 
-      .tab-wrap {
-        height: 32px;
-        background-color: #fafbfd;
-        border-bottom: 1px solid #dcdee5;
+      .tool-left-tab-wrap {
+        display: flex;
 
-        :deep(.bk-tab-header) {
-          /* stylelint-disable-next-line declaration-no-important */
-          height: 100% !important;
+        .tab-wrap {
+          width: 176px;
+          height: 42px;
+          background-color: #fafbfd;
 
-          .bk-tab-label-wrapper {
+          :deep(.bk-tab-header) {
             /* stylelint-disable-next-line declaration-no-important */
             height: 100% !important;
 
             .bk-tab-label-list {
               /* stylelint-disable-next-line declaration-no-important */
               height: 100% !important;
+            }
+          }
 
-              .bk-tab-label-item {
-                display: flex;
-                align-items: center;
-                justify-content: center;
+          :deep(.bk-tab-label-list) {
+            display: flex;
+
+            .bk-tab-label-item {
+              display: flex;
+              flex: 1;
+              align-items: center;
+              justify-content: center;
+              min-width: 0;
+              border-bottom: 1px solid #dcdee5;
+
+              &.active {
+                border-bottom: none;
+
+                &::after {
+                  position: absolute;
+                  top: -1px;
+                  right: 0;
+                  width: 100%;
+                  height: 4px;
+                  content: '';
+                  background-color: #3a84ff;
+                }
               }
 
               .bk-tab-label {
-                // height: 100%;
                 font-size: 12px;
-                line-height: 1;
               }
             }
           }
-        }
 
-        :deep(.bk-tab-label-list) {
-          display: flex;
-          width: 100%;
-          padding: 0 20px;
-
-          /* stylelint-disable-next-line no-descending-specificity */
-          .bk-tab-label-item {
-            flex: 1;
-            min-width: 0;
-            padding-right: 10px;
-            padding-left: 10px;
-
-            &.active {
-              &::after {
-                left: 0;
-                width: 100%;
-              }
-            }
+          :deep(.bk-tab-section) {
+            padding: 0;
+            border: none;
           }
         }
 
-        :deep(.bk-tab-section) {
-          padding: 0;
+        .placeholder-box {
+          flex: 1;
+          height: 42px;
+          background: #fafbfd;
+          border-top: 1px solid #dcdee5;
+          border-bottom: 1px solid #dcdee5;
         }
       }
 
-      .left-list-wrap {
-        height: calc(100% - 78px);
+      .chart-dashboard-container {
+        display: flex;
+        height: calc(100% - 42px);
+        padding-top: 12px;
+
+        .left-panel {
+          width: 280px;
+          height: 100%;
+
+          .biz-list-wrap {
+            margin: 0px 13px 4px 11px;
+
+            .search-input {
+              margin-top: 8px;
+            }
+          }
+
+          .left-list-wrap {
+            position: relative;
+            height: calc(100% - 76px);
+            overflow-y: auto;
+
+            .left-list-item {
+              height: 32px;
+              padding: 0 12px;
+              overflow: hidden;
+              font-size: 12px;
+              line-height: 32px;
+              color: #63656e;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              cursor: pointer;
+
+              &:hover {
+                background-color: #eef5ff;
+              }
+            }
+
+            .active {
+              color: #3a84ff;
+              background-color: #e1ecff;
+            }
+          }
+        }
+
+        .right-panel {
+          flex: 1;
+          height: 100%;
+          border-left: 1px solid #dcdee5;
+
+          .right-title {
+            height: 32px;
+            margin-bottom: 8px;
+            margin-left: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 32px;
+            color: #313238;
+
+            .chart-count {
+              font-weight: 400;
+            }
+          }
+
+          .chart-search-input {
+            width: calc(100% - 24px);
+            margin-left: 12px;
+          }
+
+          .right-list-wrap {
+            height: calc(100% - 70px);
+            overflow-y: auto;
+
+            .checkbox-group-wrap {
+              padding-right: 12px;
+              margin-left: 12px;
+            }
+          }
+        }
+      }
+    }
+
+    .selected-chart {
+      position: relative;
+      flex: 1;
+      width: 240px;
+      padding: 10px 12px 0;
+      line-height: 1;
+      background: #f5f7fa;
+      border-top: 1px solid #dcdee5;
+      border-left: 1px solid #dcdee5;
+
+      .container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 700;
+        color: #313238;
+
+        .selected-chart-count {
+          margin-left: 4px;
+          font-weight: normal;
+        }
+
+        .clear-button {
+          margin-left: auto;
+          font-size: 12px;
+          font-weight: normal;
+        }
+      }
+
+      .selected-list-wrap {
+        height: calc(100% - 32px);
+        margin: 10px 0 6px;
         overflow-y: auto;
 
-        .left-list-item {
-          height: 32px;
-          padding: 0 12px;
-          font-size: 12px;
-          line-height: 32px;
-          color: #63656e;
+        & > :not(:first-child) {
+          margin-top: 2px;
+        }
+
+        .selected-item {
+          height: 44px;
+          padding-top: 2px;
           cursor: pointer;
+          background: #fff;
+          border-radius: 2px;
+          box-shadow: 0 1px 1px 0 #00000014;
+
+          .selected-item-title {
+            display: flex;
+            align-items: center;
+          }
+
+          .des {
+            display: inline-block;
+            max-width: 300px;
+            margin-left: 24px;
+            overflow: hidden;
+            color: #979ba5;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .icon-mc-tuozhuai {
+            display: inline-block;
+            flex-shrink: 0;
+            margin: 0 6px 0 8px;
+            font-size: 10px;
+            color: #979ba5;
+            cursor: move;
+          }
+
+          .item-title {
+            display: inline-block;
+            width: 162px;
+            height: 20px;
+            overflow: hidden;
+            font-size: 12px;
+            line-height: 20px;
+            color: #313238;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .icon-mc-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 3px;
+            font-size: 18px;
+            color: #979ba5;
+            cursor: pointer;
+            visibility: hidden;
+          }
 
           &:hover {
-            background-color: #eef5ff;
+            background-color: #eaebf0;
+
+            .icon-mc-close {
+              visibility: visible;
+            }
           }
         }
-
-        .active {
-          background-color: #eef5ff;
-        }
-      }
-      // .no-bk-biz-select {
-      //   height: calc(100% - 40px);
-      // }
-      .biz-list-wrap {
-        margin: 10px 12px 5px 12px;
       }
     }
+  }
 
-    .tool-right-wrap {
-      flex: 1;
-      padding: 10px 0 0 14px;
-
-      .right-title {
-        height: 16px;
-        margin-bottom: 9px;
-        font-size: 12px;
-        line-height: 16px;
-        color: #c4c6cc;
-        text-align: left;
-      }
-
-      .right-list-wrap {
-        height: calc(100% - 68px);
-        overflow-y: auto;
-      }
-
-      .right-btn-wrap {
-        padding-right: 12px;
-        margin-top: 4px;
-        font-size: 0;
-        text-align: right;
-
-        & > :not(:last-child) {
-          margin-right: 12px;
-        }
-      }
-    }
+  .exception {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 </style>

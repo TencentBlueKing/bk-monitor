@@ -24,7 +24,7 @@ from typing import Dict
 
 import arrow
 from cloudpickle import cloudpickle
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkDataAIOPSApi
 from apps.log_clustering.exceptions import (
@@ -1066,7 +1066,7 @@ class AiopsModelHandler(BaseAiopsHandler):
         更新持续发布配置
         @param model_id 模型id
         """
-        target_time = int(arrow.now().shift(hours=TRAINING_HOUR).timestamp)
+        target_time = int(arrow.now().shift(hours=TRAINING_HOUR).timestamp())
         update_training_schedule_request = UpdateTrainingScheduleCls(
             model_id=model_id, project_id=self.conf.get("project_id")
         )

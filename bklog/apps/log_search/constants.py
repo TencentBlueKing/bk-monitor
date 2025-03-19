@@ -23,7 +23,7 @@ from enum import Enum
 
 from django.apps import apps
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
@@ -1099,7 +1099,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-07:00",
+                "description": "2006-01-02T15:04:05.000-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1121,7 +1121,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time_no_millis",
                 "name": "YYYY-MM-DDTHH:mm:ssZ",
-                "description": "2006-01-02T15:04:05-07:00",
+                "description": "2006-01-02T15:04:05-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1438,6 +1438,15 @@ class QueryMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class SQLGenerateMode(Enum):
+    """
+    SQL生成模式
+    """
+
+    COMPLETE = "complete"
+    WHERE_CLAUSE = "where_clause"
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1655,8 +1664,8 @@ SEARCH_OPTION_HISTORY_NUM = 20
 MAX_FIELD_VALUE_LIST_NUM = 10000
 
 # SQL模板
-SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
-SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
+SQL_PREFIX = "SELECT minute1, COUNT(*) AS log_count"
+SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 100"
 
 # 日志检索条件到sql操作符的映射
 SQL_CONDITION_MAPPINGS = {
@@ -1711,3 +1720,18 @@ ES_RESERVED_CHARACTERS = [
 class DataFlowResourceUsageType(object):
     online = "log_clustering_online"
     agg = "log_clustering_agg"
+
+
+class AlertStatusEnum(ChoicesEnum):
+    ALL = "ALL"
+    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
+    MY_ASSIGNEE = "MY_ASSIGNEE"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
+        (MY_ASSIGNEE, _("我收到的")),
+    )
+
+
+MAX_WORKERS = 5

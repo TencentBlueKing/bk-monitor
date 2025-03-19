@@ -353,6 +353,9 @@ class PlatformConfig(BkCollectorConfig):
             return {}
         operator_service_name = svc.items[0].metadata.name
 
+        cluster_cache_config = settings.K8S_COLLECTOR_CONFIG or {}
+        cache_interval = cluster_cache_config.get(bcs_cluster_id, {}).get("cache", {}).get("interval", '10s')
+
         return {
             "name": "resource_filter/fill_dimensions",
             "from_record": [
@@ -368,7 +371,7 @@ class PlatformConfig(BkCollectorConfig):
                     "key": "k8s.pod.ip",
                     "url": f"http://{operator_service_name}:8080/pods",
                     "timeout": "60s",
-                    "interval": "10s",
+                    "interval": cache_interval,
                 },
             },
         }
@@ -384,7 +387,7 @@ class PlatformConfig(BkCollectorConfig):
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
-            "drop": {"keys": ["resource.bk.data.token"]},
+            "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
     @classmethod

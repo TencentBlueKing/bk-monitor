@@ -13,9 +13,9 @@ rest/v2/k8s/resources/list_bcs_cluster/
 
 ### 请求参数
 
-| 字段        | 类型  | 必选  | 描述   |
-| --------- | --- | --- | ---- |
-| bk_biz_id | int | 是   | 业务 id |
+| 字段      | 类型 | 必选 | 描述    |
+|-----------|------|-----|-------|
+| bk_biz_id | int  | 是   | 业务 id |
 
 ### 请求示例
 
@@ -49,12 +49,12 @@ rest/v2/k8s/resources/workload_overview/
 
 ### 请求参数
 
-| 字段             | 类型  | 必选  | 描述               |
-| -------------- | --- | --- | ---------------- |
-| bk_biz_id      | int | 是   | 业务 ID            |
-| bcs_cluster_id | str | 是   | 集群 ID            |
-| namespace      | str | 否   | 命名空间             |
-| query_string   | str | 否   | workload_name 过滤 |
+| 字段           | 类型 | 必选 | 描述               |
+|----------------|------|-----|------------------|
+| bk_biz_id      | int  | 是   | 业务 ID            |
+| bcs_cluster_id | str  | 是   | 集群 ID            |
+| namespace      | str  | 否   | 命名空间           |
+| query_string   | str  | 否   | workload_name 过滤 |
 
 ### 示例
 
@@ -133,9 +133,9 @@ rest/v2/k8s/resources/scenario_metric_list/
 
 ### 请求参数
 
-| 字段       | 类型  | 必选  | 描述                        |
-| -------- | --- | --- | ------------------------- |
-| scenario | str | 是   | 接入场景。可选值为：["performance"] |
+| 字段     | 类型 | 必选 | 描述                                         |
+|----------|------|-----|--------------------------------------------|
+| scenario | str  | 是   | 接入场景。可选值为：["performance", "network"] |
 
 ### 请求示例
 
@@ -192,21 +192,45 @@ rest/v2/k8s/resources/list_resources/
 
 ### 请求参数
 
+| 字段           | 类型   | 必选 | 描述                                                                                    |
+|----------------|--------|-----|---------------------------------------------------------------------------------------|
+| bk_biz_id      | id     | 是   | 业务 id                                                                                 |
+| bcs_cluster_id | string | 是   | 集群 id                                                                                 |
+| resource_type  | string | 是   | 资源类型, 可选值为 "pod", "workload", "namespace", "container", "ingress", "service"    |
+| query_string   | string | 否   | 名字过滤                                                                                |
+| filter_dict    | dict   | 否   | 精确过滤                                                                                |
+| start_time     | int    | 是   | 开始时间                                                                                |
+| end_time       | int    | 是   | 结束时间                                                                                |
+| sernario       | str    | 是   | 场景，可选值为 "performance", "network"                                                  |
+| with_history   | bool   | 否   | 历史出现过的资源, 默认为 False                                                          |
+| page_size      | int    | 否   | 分页数量, 默认为 5                                                                      |
+| page           | int    | 否   | 页数，默认为 1                                                                           |
+| page_type      | str    | 否   | 分页类型, 可选值为: "scrolling"(滚动分页), "traditional"(传统分页), 默认为"traditional" |
+| order_by       | str    | 否   | 排序, 默认为"desc", \["desc", "asc"\]                                                   |
+| method         | str    | 否   | 聚合方法, 默认"sum", \["max", "avg", "min", "sum", "count"\]                            |
+| column         | str    | 否   | [指标名](#column), 默认为"container_cpu_usage_seconds_total"                            |
 
-| 字段               | 类型       | 必选    | 描述                                                                   |
-| ---------------- | -------- | ----- | -------------------------------------------------------------------- |
-| bk_biz_id        | id       | 是     | 业务 id                                                                |
-| bcs_cluster_id   | string   | 是     | 集群 id                                                                |
-| resource_type    | string   | 是     | 资源类型, 可选值为 "pod", "workload", "namespace", "container"               |
-| query_string     | string   | 否     | 名字过滤                                                                 |
-| filter_dict      | dict     | 否     | 精确过滤                                                                 |
-| start_time       | int      | 是     | 开始时间                                                                 |
-| end_time         | int      | 是     | 结束时间                                                                 |
-| sernario         | str      | 是     | 场景，可选值为 "performance"                                                |
-| with_history     | bool     | 否     | 历史出现过的资源, 默认为                                                        |
-| page_size        | int      | 否     | 分页数量, 默认为 5, 且 with_history=false 可用                                 |
-| page             | int      | 否     | 页数，默认为 1，且 with_history=false 可用                                     |
-| page_type        | str      | 否     | 分页类型, 可选值为: "scrolling"(滚动分页), "traditional"(传统分页), 默认为"traditional" |
+#### column
+
+| 值                                          | 描述                    |
+|---------------------------------------------|-----------------------|
+| container_cpu_usage_seconds_total           | CPU使用量               |
+| kube_pod_cpu_requests_ratio                 | CPU request使用率       |
+| kube_pod_cpu_limits_ratio                   | CPU limit使用率         |
+| container_memory_working_set_bytes          | 内存使用量(Working Set) |
+| kube_pod_memory_requests_ratio              | 内存 request使用率      |
+| kube_pod_memory_limits_ratio                | 内存 limit使用率        |
+| container_cpu_cfs_throttled_ratio           | CPU 限流占比            |
+| container_network_transmit_bytes_total      | 网络出带宽              |
+| container_network_receive_bytes_total       | 网络入带宽              |
+| nw_container_network_transmit_bytes_total   | 网络出带宽              |
+| nw_container_network_receive_bytes_total    | 网络入带宽              |
+| nw_container_network_receive_errors_ratio   | 网络入丢包率            |
+| nw_container_network_transmit_errors_ratio  | 网络出丢包率            |
+| nw_container_network_transmit_errors_total  | 网络出丢包量            |
+| nw_container_network_receive_errors_total   | 网络入丢包量            |
+| nw_container_network_receive_packets_total  | 网络入包量              |
+| nw_container_network_transmit_packets_total | 网络出包量              |
 
 ### 示例
 
@@ -228,6 +252,7 @@ rest/v2/k8s/resources/list_resources/
 ##### 响应示例
 
 默认返回 5 条内容
+
 ```json
 {
   "result": true,
@@ -289,6 +314,7 @@ rest/v2/k8s/resources/list_resources/
 ##### 响应示例
 
 返回从第一页的第一条到第二页的 20 条，共 40 条数据
+
 ```json
 {
   "result": true,
@@ -446,6 +472,7 @@ rest/v2/k8s/resources/list_resources/
 ##### 请求示例
 
 在 `filter_dict["workload"]` 中采用 `<type>:` 可以查询指定类型的列表
+
 ```json
 {
   "bk_biz_id": 2,
@@ -767,16 +794,16 @@ rest/v2/k8s/resources/get_resource_detail
 
 ### 请求参数
 
-| 字段              | 类型   | 必填   | 描述                                                 |
-| --------------- | ---- | ---- | -------------------------------------------------- |
-| bcs_cluster_id  | str  | 是    | 集群 id                                              |
-| bk_biz_id       | int  | 是    | 业务 id                                              |
-| namespace       | str  | 是    | 命名空间                                               |
-| resource_type   | str  | 是    | 资源类型，可选值为 "pod","workload","container"             |
-| pod_name        | str  | 否    | pod 名称，当 resource_type 为 "pod" \| "container" 时必填  |
-| container_name  | str  | 否    | 容器名称，当 resource_type 为 "container" 时必填             |
-| workload_name   | str  | 否    | 工作负载名称， 当 resource_type 为 "workload" 时必填           |
-| workload_type   | str  | 否    | 工作负载类型， 当 resource_type 为 "workload" 时必填           |
+| 字段           | 类型 | 必填 | 描述                                                     |
+|----------------|------|-----|--------------------------------------------------------|
+| bcs_cluster_id | str  | 是   | 集群 id                                                  |
+| bk_biz_id      | int  | 是   | 业务 id                                                  |
+| namespace      | str  | 是   | 命名空间                                                 |
+| resource_type  | str  | 是   | 资源类型，可选值为 "pod","workload","container","cluster"           |
+| pod_name       | str  | 否   | pod 名称，当 resource_type 为 "pod" \| "container" 时必填 |
+| container_name | str  | 否   | 容器名称，当 resource_type 为 "container" 时必填          |
+| workload_name  | str  | 否   | 工作负载名称， 当 resource_type 为 "workload" 时必填      |
+| workload_type  | str  | 否   | 工作负载类型， 当 resource_type 为 "workload" 时必填      |
 
 ### 请求示例
 
@@ -826,4 +853,94 @@ rest/v2/k8s/resources/get_resource_detail
     }
   ]
 }
+```
+
+## ResourceTrendResource
+
+### 请求方法
+
+POST
+
+### 请求 url
+
+rest/v2/k8s/resources/resource_trend/
+
+### 请求参数
+
+| 字段           | 类型        | 必选 | 描述                                                                            |
+|----------------|-------------|-----|-------------------------------------------------------------------------------|
+| bk_biz_id      | int         | 是   | 业务 id                                                                         |
+| filter_dict    | dict        | 否   | 精确过滤字典                                                                    |
+| bcs_cluster_id | str         | 是   | 集群id                                                                          |
+| column         | str         | 是   | [指标名](#column)                                                         |
+| resource_type  | str         | 是   | 资源类型, \["pod", "workload", "namespace", "container", "ingress", "service"\] |
+| method         | str         | 是   | 聚合方法, \["max", "avg", "min", "sum", "count"\]                               |
+| resource_list  | List\[str\] | 是   | 资源列表                                                                        |
+| start_time     | int         | 是   | 开始时间                                                                        |
+| end_time       | int         | 是   | 结束时间                                                                        |
+| scenario       | str         | 是   | 接入场景, \["performance", "network"\]                                          |
+
+#### column
+
+| 值                                          | 描述                    |
+|---------------------------------------------|-----------------------|
+| container_cpu_usage_seconds_total           | CPU使用量               |
+| kube_pod_cpu_requests_ratio                 | CPU request使用率       |
+| kube_pod_cpu_limits_ratio                   | CPU limit使用率         |
+| container_memory_working_set_bytes          | 内存使用量(Working Set) |
+| kube_pod_memory_requests_ratio              | 内存 request使用率      |
+| kube_pod_memory_limits_ratio                | 内存 limit使用率        |
+| container_cpu_cfs_throttled_ratio           | CPU 限流占比            |
+| container_network_transmit_bytes_total      | 网络出带宽              |
+| container_network_receive_bytes_total       | 网络入带宽              |
+| nw_container_network_transmit_bytes_total   | 网络出带宽              |
+| nw_container_network_receive_bytes_total    | 网络入带宽              |
+| nw_container_network_receive_errors_ratio   | 网络入丢包率            |
+| nw_container_network_transmit_errors_ratio  | 网络出丢包率            |
+| nw_container_network_transmit_errors_total  | 网络出丢包量            |
+| nw_container_network_receive_errors_total   | 网络入丢包量            |
+| nw_container_network_receive_packets_total  | 网络入包量              |
+| nw_container_network_transmit_packets_total | 网络出包量              |
+
+### 请求示例
+
+```json
+{
+  "scenario": "performance",
+  "bcs_cluster_id": "BCS-K8S-00000",
+  "start_time": 1741597068,
+  "end_time": 1741600668,
+  "filter_dict": {},
+  "column": "container_cpu_cfs_throttled_ratio",
+  "method": "sum",
+  "resource_type": "namespace",
+  "resource_list": [
+    "aiops-default",
+    "bcs-system",
+  ],
+  "bk_biz_id": 2
+}
+```
+
+### 响应示例
+
+```json
+[
+  {
+    "resource_name": "aiops-default",
+    "container_cpu_cfs_throttled_ratio": {
+      "datapoints": [[ 0.002558, 1741600560000 ]],
+      "unit": "percentunit",
+      "value_title": "CPU 限流占比"
+    }
+  },
+  {
+    "resource_name": "bcs-system",
+    "container_cpu_cfs_throttled_ratio": {
+      "datapoints": [[ 0, 1741600560000 ]],
+      "unit": "percentunit",
+      "value_title": "CPU 限流占比"
+    }
+  }
+]
 ```

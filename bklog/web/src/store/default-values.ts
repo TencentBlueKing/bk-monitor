@@ -37,15 +37,15 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
-    commonFilters: [],
   };
 };
 
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
+  const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
+  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue, format);
 
-  return { datePickerValue, start_time, end_time };
+  return { datePickerValue, start_time, end_time, format };
 };
 
 export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
@@ -80,6 +80,12 @@ export const IndexFieldInfo = {
   config_id: 0,
   aggs_items: {},
   last_eggs_request_token: null,
+  user_custom_config: {
+    filterSetting: [],
+    displayFields: [],
+    fieldsWidth: {},
+    filterAddition: [],
+  },
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };

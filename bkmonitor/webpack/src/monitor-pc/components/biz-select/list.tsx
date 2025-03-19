@@ -42,6 +42,7 @@ interface IProps {
 }
 interface IEvents {
   onSelected: number;
+  onHide: () => void;
 }
 export interface IListItem {
   id: number | string;
@@ -96,6 +97,8 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
   handleSelected(id: number | string) {
     return id;
   }
+  @Emit('hide')
+  handleHide() {}
 
   created() {
     !store.getters.defaultBizIdApiId && this.getUserConfigId();
@@ -140,6 +143,7 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
   // 打开弹窗
   handleDefaultBizIdDialog(e: MouseEvent, data: IListItem, isSetDefault: boolean) {
     e.stopPropagation();
+    this.handleHide();
     this.defaultSpace = data;
     this.isSetBizIdDefault = isSetDefault;
   }

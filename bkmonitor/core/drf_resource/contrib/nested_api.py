@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import os
+from typing import Any, Dict
 
 import yaml
 from django import urls
@@ -36,9 +37,8 @@ __doc__ = """
     注意： 不支持，monitor_v3.yaml 中dest_path 使用变量。
 """
 
-
 IS_API_MODE = settings.ROLE == "api"
-API_DEFINE = {}
+API_DEFINE: Dict[str, Dict[str, str]] = {}
 GET_DATA_RESOURCES = {}
 
 if settings.ROLE != "web":
@@ -81,8 +81,6 @@ class KernelAPIResource(APIResource):
         api_name, api_item = self.get_api_from_url(api_url)
         if api_item is None:
             raise HTTP404Error(message="api [{}] not define in monitor_v3.yaml".format(api_name))
-            # logger.error("api [{}] not define in monitor_v3.yaml".format(api_name))
-            # return super().perform_request(validated_request_data)
 
         dest_path = api_item["dest_path"]
         http_method = api_item["dest_http_method"]
@@ -123,21 +121,49 @@ class KernelAPIResource(APIResource):
 
 def load_api_yaml():
     global API_DEFINE
-    yaml_file_path = os.path.join(settings.BASE_DIR, "kernel_api", "monitor_v3.yaml")
+
+    # 读取esb的api定义
+    yaml_file_path = os.path.join(settings.BASE_DIR, "docs", "api", "monitor_v3.yaml")
     if not os.path.exists(yaml_file_path):
         logger.error("api configfile not found. [{}]".format(yaml_file_path))
         return
-
     with open(yaml_file_path, encoding="utf8") as yaml_fd:
         try:
-            api_list = yaml.load(yaml_fd, Loader=yaml.FullLoader)
+            for api_item in yaml.load(yaml_fd, Loader=yaml.FullLoader):
+                name = api_item["name"]
+                API_DEFINE[name] = {
+                    "dest_path": api_item["dest_path"],
+                    "dest_http_method": api_item["dest_http_method"],
+                }
         except ParserError:
             logger.error("api configfile is invalid. [{}]".format(yaml_file_path))
-            api_list = []
 
-    for api_item in api_list:
-        name = api_item["name"]
-        API_DEFINE[name] = api_item
+    # 读取apigw的api定义
+    yaml_file_path = os.path.join(settings.BASE_DIR, "support-files", "apigw", "resources")
+    sub_dir_paths = ["external/app", "internal/app", "external/user", "internal/user"]
+    for sub_dir_path in sub_dir_paths:
+        path = os.path.join(yaml_file_path, sub_dir_path)
+        if not os.path.exists(path):
+            continue
+
+        # 遍历文件夹下的yaml文件
+        for file_name in os.listdir(path):
+            if not file_name.endswith(".yaml"):
+                continue
+            file_path = os.path.join(path, file_name)
+            with open(file_path, encoding="utf8") as yaml_fd:
+                api_config: Dict[str, Any] = yaml.load(yaml_fd, Loader=yaml.FullLoader)
+                for api_path, api_item in api_config["paths"].items():
+                    if "post" in api_item:
+                        dest_http_method = "POST"
+                    elif "get" in api_item:
+                        dest_http_method = "GET"
+                    else:
+                        continue
+                    API_DEFINE[api_path.strip("/")] = {
+                        "dest_path": api_item[dest_http_method.lower()]["x-bk-apigateway-resource"]["backend"]["path"],
+                        "dest_http_method": dest_http_method,
+                    }
 
 
 load_api_yaml()

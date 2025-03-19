@@ -32,9 +32,9 @@ import pytz
 import ujson
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
+from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -189,13 +189,11 @@ class SearchHandler(object):
         self.scenario_id: str = ""
         self.storage_cluster_id: int = -1
 
-        self.index_set_obj = None
-
         # 是否使用了聚类代理查询
         self.using_clustering_proxy = False
 
         # 构建索引集字符串, 并初始化scenario_id、storage_cluster_id
-        self.indices: str = self._init_indices_str(index_set_id)
+        self.indices: str = self._init_indices_str()
         self.search_dict.update(
             {"indices": self.indices, "scenario_id": self.scenario_id, "storage_cluster_id": self.storage_cluster_id}
         )
@@ -251,12 +249,13 @@ class SearchHandler(object):
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone")
+        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
+        self._add_all_fields_search()
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -352,6 +351,29 @@ class SearchHandler(object):
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
 
+    def _add_all_fields_search(self):
+        """
+        补充全文检索条件
+        """
+        for item in self.addition:
+            field: str = item.get("key") if item.get("key") else item.get("field")
+            # 全文检索key & 存量query_string转换
+            if field in ["*", "__query_string__"]:
+                value = item.get("value", [])
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
+                    if field == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    new_query_string = " OR ".join(new_value_list)
+                    if field == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
+
     @property
     def index_set(self):
         if not hasattr(self, "_index_set"):
@@ -368,6 +390,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            time_zone=self.time_zone,
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
@@ -611,36 +634,14 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
-        # 补充别名信息
-        log_list = result.get("list")
-        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if collector_config:
-            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-            alias_dict = data.get("query_alias_settings")
-            if alias_dict:
-                for log in log_list:
-                    for query_alias, info in alias_dict.items():
-                        sub_field = info.get("path")
-                        if "." not in sub_field:
-                            if sub_field in log:
-                                log[query_alias] = log[sub_field]
-                        else:
-                            context = log
-                            # 处理嵌套字段
-                            while "." in sub_field:
-                                prefix, sub_field = sub_field.split(".", 1)
-                                context = context.get(prefix, {})
-                                if sub_field in context:
-                                    log[query_alias] = context[sub_field]
-                                    break
         return result
 
     def get_sort_group(self):
         """
         排序字段是self.time_field时,那么补充上gseIndex/gseindex, iterationIndex/_iteration_idx
         """
-        target_fields = self.index_set_obj.target_fields
-        sort_fields = self.index_set_obj.sort_fields
+        target_fields = self.index_set.target_fields
+        sort_fields = self.index_set.sort_fields
         # 根据不同情景为排序组字段赋予不同的名称
         if self.scenario_id == Scenario.LOG:
             gse_index = "gseIndex"
@@ -1083,9 +1084,9 @@ class SearchHandler(object):
         search_func = self.fetch_esquery_method(method_name="search")
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
-        max_result_window = self.index_set_obj.result_window
+        max_result_window = self.index_set.result_window
         while search_after_size == max_result_window and result_size < max(
-            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
+            self.index_set.max_async_count, MAX_ASYNC_COUNT
         ):
             search_after = []
             for sorted_field in sorted_fields:
@@ -1134,10 +1135,8 @@ class SearchHandler(object):
         scroll_func = self.fetch_esquery_method(method_name="scroll")
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
-        max_result_window = self.index_set_obj.result_window
-        while scroll_size == max_result_window and result_size < max(
-            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
-        ):
+        max_result_window = self.index_set.result_window
+        while scroll_size == max_result_window and result_size < max(self.index_set.max_async_count, MAX_ASYNC_COUNT):
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = scroll_func(
                 {
@@ -1403,8 +1402,12 @@ class SearchHandler(object):
                     index_set_id_all.extend(index_set_ids)
                 index_set_id_all = list(set(index_set_id_all))
 
+            from apps.log_search.handlers.index_set import IndexSetHandler
+
+            # 获取当前空间关联空间的索引集
+            space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
             effect_index_set_ids = list(
-                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values_list(
                     "index_set_id", flat=True
                 )
             )
@@ -1548,6 +1551,7 @@ class SearchHandler(object):
             self.storage_cluster_id,
             self.time_field,
             self.search_dict.get("bk_biz_id"),
+            time_zone=self.time_zone,
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1561,7 +1565,7 @@ class SearchHandler(object):
                 raise BaseSearchSortListException(BaseSearchSortListException.MESSAGE.format(sort_item=field))
 
     def search_context(self):
-        if self.scenario_id == Scenario.ES and not (self.index_set_obj.target_fields or self.index_set_obj.sort_fields):
+        if self.scenario_id == Scenario.ES and not (self.index_set.target_fields or self.index_set.sort_fields):
             return {"total": 0, "took": 0, "list": []}
 
         context_indice = IndicesOptimizerContextTail(
@@ -1589,7 +1593,7 @@ class SearchHandler(object):
 
         if self.scenario_id == Scenario.ES:
             # 第三方ES必须带上storage_cluster_id
-            dsl_params_base.update({"storage_cluster_id": self.index_set_obj.storage_cluster_id})
+            dsl_params_base.update({"storage_cluster_id": self.index_set.storage_cluster_id})
 
         if record_obj:
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
@@ -1624,8 +1628,8 @@ class SearchHandler(object):
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
-            target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
-            sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
+            target_fields = self.index_set.target_fields if self.index_set else []
+            sort_fields = self.index_set.sort_fields if self.index_set else []
             if sort_fields:
                 analyze_result_dict: dict = self._analyze_context_result(
                     new_list, target_fields=target_fields, sort_fields=sort_fields
@@ -1689,8 +1693,8 @@ class SearchHandler(object):
         return {"list": []}
 
     def _get_context_body(self, order):
-        target_fields = self.index_set_obj.target_fields
-        sort_fields = self.index_set_obj.sort_fields
+        target_fields = self.index_set.target_fields
+        sort_fields = self.index_set.sort_fields
 
         if sort_fields:
             return DslCreateSearchContextBodyCustomField(
@@ -1745,8 +1749,8 @@ class SearchHandler(object):
         else:
             body: Dict = {}
 
-            target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
-            sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
+            target_fields = self.index_set.target_fields if self.index_set else []
+            sort_fields = self.index_set.sort_fields if self.index_set else []
 
             if sort_fields:
                 body: Dict = DslCreateSearchTailBodyCustomField(
@@ -1790,7 +1794,7 @@ class SearchHandler(object):
 
             if self.scenario_id == Scenario.ES:
                 # 第三方ES必须带上storage_cluster_id
-                dsl_params.update({"storage_cluster_id": self.index_set_obj.storage_cluster_id})
+                dsl_params.update({"storage_cluster_id": self.index_set.storage_cluster_id})
 
             result = BkLogApi.dsl(dsl_params)
 
@@ -1810,21 +1814,19 @@ class SearchHandler(object):
             )
             return result
 
-    def _init_indices_str(self, index_set_id: int) -> str:
-        tmp_index_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        if tmp_index_obj:
-            self.index_set_name = tmp_index_obj.index_set_name
-            self.index_set_obj = tmp_index_obj
-            self.scenario_id = tmp_index_obj.scenario_id
-            self.storage_cluster_id = tmp_index_obj.storage_cluster_id
+    def _init_indices_str(self) -> str:
+        if self.index_set:
+            self.index_set_name = self.index_set.index_set_name
+            self.scenario_id = self.index_set.scenario_id
+            self.storage_cluster_id = self.index_set.storage_cluster_id
 
-            index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
+            index_set_data_obj_list: list = self.index_set.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:
                 index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
             else:
                 raise BaseSearchIndexSetDataDoseNotExists(
                     BaseSearchIndexSetDataDoseNotExists.MESSAGE.format(
-                        index_set_id=str(index_set_id) + "_" + tmp_index_obj.index_set_name
+                        index_set_id=str(self.index_set_id) + "_" + self.index_set.index_set_name
                     )
                 )
             self.origin_indices = ",".join(index_list)
@@ -1833,12 +1835,12 @@ class SearchHandler(object):
                 self.origin_indices = ",".join(
                     _index for _index in self.custom_indices.split(",") if _index in index_list
                 )
-            self.origin_scenario_id = tmp_index_obj.scenario_id
+            self.origin_scenario_id = self.index_set.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
                 if addition.get("field", "").startswith("__dist"):
                     clustering_config = ClusteringConfig.get_by_index_set_id(
-                        index_set_id=index_set_id, raise_exception=False
+                        index_set_id=self.index_set_id, raise_exception=False
                     )
                     if clustering_config and clustering_config.clustered_rt:
                         # 如果是查询bkbase端的表，即场景需要对应改为bkdata
@@ -1846,7 +1848,7 @@ class SearchHandler(object):
                         self.using_clustering_proxy = True
                         return clustering_config.clustered_rt
             return self.origin_indices
-        raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+        raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id))
 
     @staticmethod
     def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
@@ -1892,9 +1894,7 @@ class SearchHandler(object):
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
-        from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-
-        return MappingHandlers.get_default_sort_list(
+        return self.mapping_handlers.get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=self.scenario_id,
             scope=scope,
@@ -1918,6 +1918,8 @@ class SearchHandler(object):
                 storage_cluster_id=self.storage_cluster_id,
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
                 only_search=True,
+                index_set=self.index_set,
+                time_zone=self.time_zone,
             )
         return self._mapping_handlers
 
@@ -1942,22 +1944,7 @@ class SearchHandler(object):
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
-                value = item.get("value", [])
-                value_list = value if isinstance(value, list) else value.split(",")
-                new_value_list = []
-                for value in value_list:
-                    if field == "*":
-                        value = "\"" + value.replace('"', '\\"') + "\""
-                    if value:
-                        new_value_list.append(value)
-                if new_value_list:
-                    new_query_string = " OR ".join(new_value_list)
-                    if field == "*" and self.query_string != "*":
-                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
-                    else:
-                        self.query_string = new_query_string
                 continue
-
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
@@ -2062,7 +2049,7 @@ class SearchHandler(object):
         return aggs_dict
 
     def _init_highlight(self, can_highlight=True):
-        if not can_highlight:
+        if not can_highlight or self.index_set.max_analyzed_offset == -1:
             return {}
         # 避免多字段高亮
         if self.query_string and ":" in self.query_string:
@@ -2220,6 +2207,8 @@ class SearchHandler(object):
         if not isinstance(base_dict, dict):
             return base_dict
         for key, value in update_dict.items():
+            if key not in base_dict:
+                continue
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
             else:
@@ -2228,15 +2217,52 @@ class SearchHandler(object):
 
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        expand highlight dict by dot
+        input:
+        {
+            "resource.service.name": [
+                "<mark>groupsvr</mark>"
+            ],
+            "resource.deployment.cluster.name": [
+                "<mark>BCS-K8S-12345</mark>"
+            ]
+        }
+        =>
+        output:
+        {
+            "resource.service.name": "<mark>groupsvr</mark>",
+            "resource.deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+            "resource": {
+                "service.name": "<mark>groupsvr</mark>",
+                "service": {
+                    "name": "<mark>groupsvr</mark>"
+                },
+                "deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+                "deployment": {
+                    "cluster.name": "<mark>BCS-K8S-12345</mark>",
+                    "cluster": {
+                        "name": "<mark>BCS-K8S-12345</mark>"
+                    }
+                }
+            }
+        }
+        """
         result = {}
         for key, value in dotted_dict.items():
+            joined_value = "".join(value)
             parts = key.split('.')
+            result[key] = joined_value
+            if len(parts) <= 1:
+                continue
             current_level = result
-            for part in parts[:-1]:
+            for idx, part in enumerate(parts[:-1]):
                 if part not in current_level:
                     current_level[part] = {}
+                if idx < len(parts) - 1:
+                    current_level[part][".".join(parts[idx + 1 :])] = joined_value
                 current_level = current_level[part]
-            current_level[parts[-1]] = "".join(value)
+            current_level[parts[-1]] = joined_value
         return result
 
     def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:

@@ -23,8 +23,15 @@ the project delivered to anyone in the future.
 import datetime
 from typing import Any, Dict, Tuple, Union
 
+import arrow
+from django.conf import settings
+
+from apps.api import TransferApi
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
+from apps.log_search.models import Scenario
+from apps.utils.cache import cache_ten_minute
+from apps.utils.log import logger
 
 
 class QueryTimeBuilder(object):
@@ -48,12 +55,16 @@ class QueryTimeBuilder(object):
         time_field_unit: str = TimeFieldUnitEnum.SECOND.value,
         include_start_time: bool = True,
         include_end_time: bool = True,
+        indices: str = "",
+        scenario_id: str = "",
     ):
         self.time_field: str = time_field
         self.start_time: Union[int, datetime]
         self.end_time: Union[int, datetime]
         self.time_field_type = time_field_type
         self.time_field_unit = time_field_unit
+        self.indices = indices
+        self.scenario_id = scenario_id
 
         self._time_range_dict: Dict = {}
 
@@ -69,9 +80,9 @@ class QueryTimeBuilder(object):
             self._time_range_dict.update(
                 {
                     self.time_field: {
-                        self.start_time_filter: self.start_time,
-                        self.end_time_filter: self.end_time,
-                        "format": "epoch_second",
+                        self.start_time_filter: int(self.start_time * 1000),
+                        self.end_time_filter: int(self.end_time * 1000),
+                        "format": "epoch_millis",
                     }
                 }
             )
@@ -82,8 +93,8 @@ class QueryTimeBuilder(object):
                 self._time_range_dict.update(
                     {
                         self.time_field: {
-                            self.start_time_filter: self.start_time * time_field_unit_rate,
-                            self.end_time_filter: self.end_time * time_field_unit_rate,
+                            self.start_time_filter: int(self.start_time * time_field_unit_rate),
+                            self.end_time_filter: int(self.end_time * time_field_unit_rate),
                         }
                     }
                 )
@@ -92,8 +103,10 @@ class QueryTimeBuilder(object):
         raise SearchUnKnowTimeFieldType()
 
     def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
+        if settings.DEAL_RETENTION_TIME:
+            start_time, end_time = self._deal_time(start_time, end_time)
         # 序列化接口能够识别的时间格式
-        return start_time.timestamp, end_time.timestamp
+        return start_time.timestamp(), end_time.timestamp()
 
     def _start_time_filter(self, include_start_time):
         if include_start_time:
@@ -104,3 +117,33 @@ class QueryTimeBuilder(object):
         if include_end_time:
             return self.LTE
         return self.LT
+
+    @cache_ten_minute("retention_time_{indices}_{scenario_id}", need_md5=True)
+    def get_storage_retention_time(self, indices, scenario_id):
+        # 仅自有采集类型索引支持获取结果表，非自有采集类型不做处理
+        if scenario_id == Scenario.LOG:
+            try:
+                storage = TransferApi.get_result_table_storage(
+                    params={"result_table_list": indices, "storage_type": "elasticsearch"}
+                )[indices]
+                retention = int(storage["storage_config"]["retention"])
+                return retention
+            except Exception as e:
+                # 接口获取异常/retention不存在，跳过过期时间处理
+                logger.exception("get_result_table_storage_error: indices: %s, reason: %s", indices, e)
+        return None
+
+    def _deal_time(self, start_time, end_time):
+        retention = self.get_storage_retention_time(indices=self.indices, scenario_id=self.scenario_id)
+        # retention为0或None，不做处理
+        if retention:
+            current_time = arrow.now(start_time.tzinfo)
+            retention_time = current_time.shift(days=-int(retention))
+            # 向下取整
+            retention_time = retention_time.floor("minute")
+            # 开始时间 结束时间 限制在过期时间前
+            if start_time < retention_time:
+                start_time = retention_time
+            if end_time < retention_time:
+                end_time = retention_time
+        return start_time, end_time

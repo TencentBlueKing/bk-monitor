@@ -22,10 +22,11 @@ the project delivered to anyone in the future.
 
 from typing import Dict, List, Union
 
+from django.utils.translation import gettext_lazy as _
+from iam import Action
+
 from apps.iam.exceptions import ActionNotExistError
 from apps.iam.handlers.resources import ResourceEnum
-from django.utils.translation import ugettext_lazy as _
-from iam import Action
 
 
 class ActionMeta(Action):
@@ -76,7 +77,6 @@ class ActionMeta(Action):
 
 
 class ActionEnum:
-
     VIEW_BUSINESS = ActionMeta(
         id="view_business_v2",
         name=_("业务访问"),

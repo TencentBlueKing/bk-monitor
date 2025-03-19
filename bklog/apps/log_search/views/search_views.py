@@ -27,7 +27,7 @@ from urllib import parse
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 from six import StringIO
@@ -1778,8 +1778,13 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        sql = ChartHandler.generate_sql(params)
-        return Response({"sql": sql})
+        data = ChartHandler.generate_sql(
+            addition=params["addition"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            sql_param=params["sql"],
+        )
+        return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")
     def generate_querystring(self, request):

@@ -135,22 +135,23 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
     @classmethod
     def transform_query_string(cls, query_string: str):
-        global query_cache
-        if not query_string:
-            return ""
-        if query_string in query_cache:
-            query_tree = query_cache[query_string]
-        else:
+        def parse_query_string_node(_transform_obj, _query_string):
             try:
-                query_tree = parser.parse(query_string, lexer=lexer)
-                query_cache[query_string] = query_tree
+                query_node = parser.parse(_query_string, lexer=lexer.clone())
+                return _transform_obj.visit(query_node)
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})
 
-        transformer = cls()
-        query_tree = transformer.visit(query_tree)
+        global query_cache
+        if not query_string:
+            return ""
+        transform_obj = cls()
+        if query_string not in query_cache:
+            query_cache[query_string] = parse_query_string_node(transform_obj, query_string)
 
-        if getattr(transformer, "has_nested_field", False) and cls.doc_cls:
+        query_tree = query_cache[query_string]
+
+        if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
             schema_analyzer = SchemaAnalyzer(cls.doc_cls._index.to_dict())
             es_builder = QueryBuilder(**schema_analyzer.query_builder_options())

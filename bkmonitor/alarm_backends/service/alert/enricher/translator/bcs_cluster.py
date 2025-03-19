@@ -13,7 +13,6 @@ from typing import Dict
 
 from alarm_backends.core.cache.bcs_cluster import BcsClusterCacheManager
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator
-from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 class BcsClusterTranslator(BaseTranslator):
@@ -22,11 +21,7 @@ class BcsClusterTranslator(BaseTranslator):
     """
 
     def is_enabled(self) -> bool:
-        return (
-            self.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
-            and self.data_type_label == DataTypeLabel.TIME_SERIES
-            and self.strategy.get("scenario") == "kubernetes"
-        )
+        return True
 
     def translate(self, data: Dict) -> Dict:
         field = data.get("bcs_cluster_id")

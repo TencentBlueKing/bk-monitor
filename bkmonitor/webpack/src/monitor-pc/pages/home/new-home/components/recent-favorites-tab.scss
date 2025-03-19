@@ -1,4 +1,3 @@
-
 @mixin common-route-icon {
   display: flex;
   align-items: center;
@@ -8,34 +7,32 @@
   margin: 0 12px;
   overflow: hidden;
   font-size: 12px;
-  color: #DCDEE5;
+  color: #dcdee5;
 }
 
 @mixin customize {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  width: 70px;
-  height: 23px;
+  justify-content: space-evenly;
+  width: 60px;
+  height: 25px;
   cursor: pointer;
-  background: #0F1216;
-  border: 1px solid #33415B;
   border-radius: 2px;
 
   &:hover {
     background: #293241;
-    border: 1px solid #405680;
   }
 
-  .icon-menu-setting {
-    color: #699DF4;
+  .icon-customize {
+    font-size: 12px;
+    color: #56a7f9;
   }
 
   span {
     font-size: 12px;
-    line-height: 20px;
-    color: #699DF4;
+    color: #56a7f9;
     letter-spacing: 0;
+    line-height: 20px;
   }
 }
 
@@ -55,20 +52,24 @@
       justify-content: space-between;
 
       .tab-buttons {
-        margin-bottom: 12px;
+        margin-bottom: 6px;
 
         .recent-title {
           margin-right: 32px;
-          font-family: MicrosoftYaHei;
+          font-family: PingFangSC-Regular, MicrosoftYaHei;
           font-size: 14px;
-          color: #FFFFFF;
+          color: #ffffff;
           cursor: pointer;
+          padding-bottom: 2px;
+          font-size: 18px;
+          display: inline-block;
+          height: 25px;
+          box-sizing: content-box;
         }
 
         .active {
-          font-family: MicrosoftYaHei-Bold;
-          font-size: 18px;
-          font-weight: 700;
+          font-weight: 600;
+          border-bottom: 3px solid #3a84ff;
         }
       }
 
@@ -84,10 +85,33 @@
 
     .double-col .category {
       width: 50%;
+      position: relative; /* 使伪元素相对于父元素定位 */
+      &:nth-child(odd)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: 1px; /* 分割线的宽度 */
+        background: #f0f1f5;
+      }
     }
 
     .triple-col .category {
-      width: 32%;
+      width: 33%;
+      position: relative; /* 使伪元素相对于父元素定位 */
+      &:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        right: calc(-1 / 134 * 100% - 1px); // 计算分割线的位置
+        top: 0;
+        height: 100%;
+        width: 1px; /* 分割线的宽度 */
+        background: #f0f1f5;
+      }
+      &:nth-child(3)::after {
+        content: none; /* 移除这些特定元素的分割线 */
+      }
     }
 
     .has-line {
@@ -101,7 +125,7 @@
         display: block;
         height: 1px;
         content: '';
-        background: #EAEBF0;
+        background: #eaebf0;
       }
     }
   }

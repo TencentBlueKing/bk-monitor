@@ -129,6 +129,8 @@ export default {
   对比项: 'Comparative Item',
   告警: 'Alarm',
   关注人: 'Follower',
+  精确搜索: 'Advanced Search',
+  模糊匹配: 'Fuzzy Matching',
 
   单号: 'Order Number',
   当前步骤: 'Current Step',

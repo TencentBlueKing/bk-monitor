@@ -20,16 +20,17 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from django.db import models, transaction  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.log_desensitize.constants import DesensitizeOperator
-from apps.models import SoftDeleteModel, OperateRecordModel
+from apps.models import OperateRecordModel, SoftDeleteModel
 
 
 class DesensitizeRule(SoftDeleteModel):
     """
     脱敏规则
     """
+
     rule_name = models.CharField(_("脱敏规则名称"), max_length=128)
     operator = models.CharField(_("脱敏算子"), max_length=64, choices=DesensitizeOperator.get_choices())
     params = models.JSONField(_("脱敏参数"), default=dict, null=True)
@@ -49,6 +50,7 @@ class DesensitizeConfig(OperateRecordModel):
     """
     脱敏配置
     """
+
     index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
     text_fields = models.JSONField(_("日志原文字段"), null=True, default=list)
 
@@ -62,6 +64,7 @@ class DesensitizeFieldConfig(OperateRecordModel):
     """
     脱敏字段配置信息
     """
+
     index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
     field_name = models.CharField(_("字段名称"), max_length=64, blank=True, default="")
     rule_id = models.IntegerField(_("脱敏规则ID"), default=0, db_index=True)

@@ -27,7 +27,7 @@ import six
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.fields import DateTimeField, empty
@@ -134,8 +134,20 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
     接受10位时间戳的 DateTimeField
     """
 
+    def __init__(self, format="%Y-%m-%d %H:%M:%S.%f", input_formats=None, default_timezone=None, **kwargs):
+        super().__init__(format=format, input_formats=input_formats, default_timezone=default_timezone, **kwargs)
+
     def to_internal_value(self, value):
+        if isinstance(value, str):
+            value = value.replace("&nbsp;", " ")
         try:
+            if str(value).isdigit():
+                if len(str(value)) == 16:
+                    value = int(value) / 10**6
+                elif len(str(value)) == 13:
+                    value = int(value) / 10**3
+                else:
+                    value = int(value)
             value = datetime.datetime.fromtimestamp(
                 value, pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             ).strftime(self.format)
@@ -159,7 +171,7 @@ class GeneralSerializer(ModelSerializer):
 
     def is_valid(self, raise_exception=False):
         try:
-            super(GeneralSerializer, self).is_valid(raise_exception)
+            super(GeneralSerializer, self).is_valid(raise_exception=raise_exception)
         except ValidationError:
             if self._errors and raise_exception:
                 raise ValidationError(

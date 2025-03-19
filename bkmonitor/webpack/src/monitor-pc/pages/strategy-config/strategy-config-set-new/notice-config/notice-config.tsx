@@ -37,6 +37,7 @@ import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-d
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { deepClone } from 'monitor-common/utils/utils';
 
+import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
@@ -557,6 +558,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             >
               {noticeOptions.map(item => (
                 <bk-checkbox
+                  key={item.key}
                   v-en-style='width: 160px'
                   disabled={this.readonly}
                   value={item.key}
@@ -621,6 +623,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             >
               {actionOption.map(item => (
                 <bk-checkbox
+                  key={item.key}
                   v-en-style='width: 160px'
                   disabled={this.readonly}
                   value={item.key}
@@ -838,10 +841,12 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         />,
                       ]}
                 </i18n>
-                <span
+
+                <AIWhaleIcon
                   style={{ color: '#979ba5', marginTop: '-3px' }}
-                  class='icon-monitor icon-hint'
-                  v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode], allowHTML: false }}
+                  content={this.$t('通知间隔').toString()}
+                  tip={intervalModeTips[this.data.config.interval_notify_mode]}
+                  type='translate'
                 />
               </span>
             </VerifyItem>
@@ -858,7 +863,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 theme='primary'
                 on-change={this.handleChange}
               />
-              <i class='icon-monitor icon-hint' />
+              <AIWhaleIcon
+                content={this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。').toString()}
+                type='translate'
+              />
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
               </span>

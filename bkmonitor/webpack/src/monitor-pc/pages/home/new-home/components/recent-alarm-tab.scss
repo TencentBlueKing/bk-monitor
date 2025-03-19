@@ -6,31 +6,32 @@
 
   .tabs {
     display: flex;
-    align-items: center;
-
+    align-items: flex-end;
+    margin-left: -4px;
     .tab {
       position: relative;
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      margin-right: 10px;
       border: 1px solid transparent;
+      padding-left: 4px;
+      &:hover span {
+        visibility: visible;
+      }
 
       .tab-title {
-        padding: 8px 8px 9px 8px;
+        padding: 0px 0px 4px 0px;
         font-family: MicrosoftYaHei;
-        font-size: 14px;
+        font-size: 16px;
         line-height: 22px;
         color: #4d4f56;
         vertical-align: middle;
         cursor: pointer;
-
+        height: 31px;
         &.active {
           font-family: MicrosoftYaHei-Bold;
-          font-size: 16px;
-          font-weight: 700;
           color: #4d4f56;
-          border-bottom: 2px solid #3a84ff;
+          border-bottom: 3px solid #3a84ff;
         }
         &.is-dragover {
           background-color: #e1ecff;
@@ -39,12 +40,12 @@
 
       .item-drag {
         position: absolute;
-        top: 12px;
+        top: 4px;
         left: -13px;
         height: 16px;
         color: #979ba5;
         visibility: hidden;
-
+        font-size: 14px;
         &:hover {
           cursor: move;
           visibility: visible;
@@ -52,8 +53,9 @@
       }
 
       .item-close {
-        font-size: 13px;
+        font-size: 14px;
         color: #4d4f56;
+        margin-left: 3px;
         visibility: hidden;
 
         &:hover {
@@ -82,6 +84,8 @@
       color: #3a84ff;
       letter-spacing: 0;
       cursor: pointer;
+      display: block;
+      height: 31px;
 
       .icon-plus-circle {
         margin-right: 5px;
@@ -96,11 +100,38 @@
   }
 
   .alarm-time-filter {
-    color: #4d4f56;
-    background: #ffffff;
-    width: 116px;
-    .icon-angle-down {
-      color: #979ba5;
+    .alarm-time {
+      border: none;
+      color: #3A84FF;
+
+      .bk-select-name {
+        padding: 0 28px 0 10px;
+      }
+
+      .select-trigger {
+        cursor: pointer;
+        border-radius: 2px;
+        min-width: 80px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0 4px 10px;
+        font-family: MicrosoftYaHei;
+        font-size: 12px;
+        color: #3A84FF;
+        letter-spacing: 0;
+        line-height: 20px;
+        align-items: flex-end;
+        .icon-monitor {
+          font-size: 6px;
+        }
+      }
+
     }
+  }
+}
+.alarm-time-popover {
+  .bk-option-content {
+    padding: 0 8px;
   }
 }

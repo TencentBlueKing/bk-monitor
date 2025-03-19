@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import axios from 'axios';
+import { axiosInstance } from '@/api';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
@@ -52,9 +52,13 @@ export default defineComponent({
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const refSqlBox: Ref<HTMLElement> = ref();
+    const refSqlPreviewElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
     const isSyncSqlRequesting = ref(false);
     const isPreviewSqlShow = ref(false);
+    const sqlPreviewHeight = ref(0);
+    const previewSqlContent = ref('');
+
     const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
 
     const isFullscreen = ref(false);
@@ -96,13 +100,17 @@ export default defineComponent({
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
+      const { start_time, end_time } = retrieveParams.value;
       const params = {
         method: 'post',
         url: `/search/index_set/${indexSetId.value}/chart/`,
         cancelToken: requestCancelToken,
         withCredentials: true,
         baseURL: baseUrl,
+        originalResponse: true,
         data: {
+          start_time,
+          end_time,
           query_mode: 'sql',
           sql, // 使用获取到的内容
         },
@@ -110,13 +118,13 @@ export default defineComponent({
 
       emit('error', { code: 200, message: '请求中', result: true });
 
-      return axios(params)
+      return axiosInstance(params)
         .then((resp: any) => {
-          if (resp.data.result) {
+          if (resp.result) {
             isRequesting.value = false;
-            emit('change', resp.data);
+            emit('change', resp);
           } else {
-            emit('error', resp.data);
+            emit('error', resp);
           }
         })
         .finally(() => {
@@ -131,7 +139,7 @@ export default defineComponent({
     };
 
     const handleSyncAdditionToSQL = () => {
-      const { addition, start_time, end_time } = retrieveParams.value;
+      const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
         .request('graphAnalysis/generateSql', {
@@ -142,6 +150,8 @@ export default defineComponent({
             addition,
             start_time,
             end_time,
+            keyword,
+            sql: sqlContent.value,
           },
         })
         .then(resp => {
@@ -165,7 +175,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
       editorInstance.value?.setValue([val].join('\n'));
     };
 
@@ -255,11 +265,33 @@ export default defineComponent({
         </div>
       );
     };
-    const handleUpdateIsContentShow = val => {
-      isPreviewSqlShow.value = val;
+
+    const renderSqlPreview = () => {
+      return (
+        <div
+          class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
+          ref={refSqlPreviewElement}
+        >
+          <div class='sql-preview-title'>
+            <span class='bklog-icon bklog-circle-alert-filled'></span>检测到「顶部查询条件」，已自动补充 SQL（与已输入
+            SQL 语句叠加生效）：
+          </div>
+          <div class='sql-preview-text'>{previewSqlContent.value}</div>
+        </div>
+      );
     };
 
     const debounceQuery = debounce(handleQueryBtnClick, 120);
+    const debounceUpdateHeight = debounce(() => {
+      if (!refSqlPreviewElement?.value) {
+        sqlPreviewHeight.value = 0;
+        return;
+      }
+
+      sqlPreviewHeight.value = refSqlPreviewElement.value.offsetHeight;
+    });
+
+    useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
     // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
     // 这里会回填收藏的查询
@@ -282,18 +314,54 @@ export default defineComponent({
       },
     );
 
+    const debounceSyncAdditionToSQL = debounce(() => {
+      const { addition, start_time, end_time, keyword } = retrieveParams.value;
+      $http
+        .request('graphAnalysis/generateSql', {
+          params: {
+            index_set_id: indexSetId.value,
+          },
+          data: {
+            addition,
+            start_time,
+            end_time,
+            sql: sqlContent.value,
+            keyword,
+          },
+        })
+        .then(resp => {
+          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
+          isPreviewSqlShow.value = true;
+        });
+    }, 300);
+
+    watch(
+      () => [retrieveParams.value.addition, retrieveParams.value.keyword],
+      () => {
+        debounceSyncAdditionToSQL();
+      },
+      { deep: true },
+    );
+
     expose({
       handleQueryBtnClick,
+    });
+
+    const sqlRootStyle = computed(() => {
+      return {
+        paddingBottom: `${(isPreviewSqlShow.value ? sqlPreviewHeight.value : 0) + 38}px`,
+      };
     });
 
     return {
       refRootElement,
       refSqlBox,
-      isPreviewSqlShow,
+      previewSqlContent,
       sqlContent,
+      sqlRootStyle,
       renderTools,
       renderHeadTools,
-      handleUpdateIsContentShow,
+      renderSqlPreview,
       handleQueryBtnClick,
     };
   },
@@ -302,6 +370,7 @@ export default defineComponent({
       <div
         ref='refSqlBox'
         class='bklog-sql-editor-root'
+        style={this.sqlRootStyle}
       >
         <div
           ref='refRootElement'
@@ -309,6 +378,7 @@ export default defineComponent({
         >
           {this.renderHeadTools()}
         </div>
+        {this.renderSqlPreview()}
         {this.renderTools()}
       </div>
     );

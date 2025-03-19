@@ -297,6 +297,14 @@ class ApplicationInfoResource(Resource):
         return ApmApplication.objects.get(id=application_id)
 
 
+class QueryBkDataTokenInfoResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+
+    def perform_request(self, validated_request_data):
+        return ApplicationInfoResource()(**validated_request_data)["token"]
+
+
 class ApdexSerializer(serializers.Serializer):
     apdex_t = serializers.IntegerField(label="apdex_t", min_value=0)
     span_kind = serializers.CharField(label="span_kind", allow_blank=True)
@@ -1050,7 +1058,7 @@ class QueryTraceDetailResource(Resource):
         if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
             displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
 
-        trace, relation_mapping = QueryProxy(
+        trace, relation_mapping, options = QueryProxy(
             validated_data["bk_biz_id"], validated_data["app_name"]
         ).query_trace_detail(
             trace_id=validated_data["trace_id"],
@@ -1059,7 +1067,7 @@ class QueryTraceDetailResource(Resource):
             query_trace_relation_app=validated_data["query_trace_relation_app"],
         )
 
-        return {"trace_data": trace, "relation_mapping": relation_mapping}
+        return {"trace_data": trace, "relation_mapping": relation_mapping, "options": options}
 
 
 class QuerySpanDetailResource(Resource):

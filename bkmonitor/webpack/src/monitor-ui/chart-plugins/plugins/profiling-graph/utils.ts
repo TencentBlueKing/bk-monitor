@@ -56,7 +56,7 @@ export const parseProfileDataTypeValue = (
       const { text, suffix } = timeFormat(data);
       return {
         value: percent ? `(${percent}, ${text}${suffix})` : text + suffix,
-        ...(needDataText ? { text: window.i18n.t('耗时') } : {}),
+        ...(needDataText ? { text: window.i18n.tc('耗时') } : {}),
       };
     }
     case 'bytes': {
@@ -64,13 +64,13 @@ export const parseProfileDataTypeValue = (
       const { text, suffix } = bytesFormat(data);
       return {
         value: percent ? `(${percent}, ${text}${suffix})` : text + suffix,
-        ...(needDataText ? { text: window.i18n.t('大小') } : {}),
+        ...(needDataText ? { text: window.i18n.tc('大小') } : {}),
       };
     }
     case 'count': {
       return {
         value: percent ? `(${percent}, ${data})` : data,
-        ...(needDataText ? { text: window.i18n.t('数量') } : {}),
+        ...(needDataText ? { text: window.i18n.tc('数量') } : {}),
       };
     }
     default:

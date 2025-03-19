@@ -1,7 +1,8 @@
+/* stylelint-disable declaration-no-important */
 .failure-tags {
   position: relative;
-  flex-basis: 40px;
   flex-shrink: 0;
+  flex-basis: 40px;
   width: 100%;
   @keyframes text-ellipsis-animate {
     0% {
@@ -26,6 +27,20 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+  }
+
+  .failure-root-tag {
+    height: 20px;
+    padding: 0px 3px;
+    margin-right: 5px;
+    line-height: 20px;
+    color: white;
+    background: #E71818;
+    border-radius: 2px;
+
+    &:hover {
+      background: #E71818;
     }
   }
 
@@ -54,11 +69,12 @@
         min-width: 0;
         margin-right: 28px;
         color: #63656e;
+
         &:first-child {
           .item-main {
             display: flex;
-            gap: 4px;
             flex-wrap: wrap;
+            gap: 4px;
           }
         }
 
@@ -87,6 +103,17 @@
           display: inline-block;
           width: 100%;
           line-height: 24px;
+
+          .link-span {
+            margin-left:10px;
+            color: #3a84ff; 
+            cursor: pointer;
+
+            i {
+              margin-right: 2px;
+              font-size: 12px;
+            }
+          }
         }
       }
 
@@ -129,13 +156,15 @@
       color: #3a84ff;
       background: transparent;
     }
+
     .business-tag {
-      background-color: #fafbfd !important;
       padding: 0 4px !important;
+      background-color: #fafbfd !important;
       // &.business-tag-collapse {
       //   color: #63656e !important;
       // }
     }
+
     .principal-tag {
       .bk-select-tag {
         height: auto;
@@ -205,6 +234,8 @@
   }
 
   &.failure-tags-positions-absolute {
+    z-index: 1;
+
     .failure-tags-container {
       position: absolute;
       top: 0;

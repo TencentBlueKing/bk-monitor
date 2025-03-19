@@ -164,6 +164,8 @@ class EsQuery(object):
             time_field_unit=time_field_unit,
             include_start_time=include_start_time,
             include_end_time=include_end_time,
+            indices=indices,
+            scenario_id=scenario_id,
         ).time_range_dict
 
         query_string, filter_dict_list, index, sort_tuple = self._optimizer(
@@ -397,6 +399,6 @@ class EsQuery(object):
         logger.info(
             f"[time_start_end_builder] start_time=>{start_time}, end_time=>{end_time}, "
             f"time_zone=>{time_zone}, local_time_zone=>{local_time_zone}, "
-            f"output: {start_time.timestamp} {end_time.timestamp}"
+            f"output: {start_time.timestamp()} {end_time.timestamp()}"
         )
         return start_time, end_time

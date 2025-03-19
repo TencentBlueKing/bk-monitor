@@ -96,10 +96,12 @@ class BcsApiBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return headers
 
     def render_response_data(self, validated_request_data, response_data):
+        code = response_data.get("code")
+
         # 如果 code 非 0 时，记录对应的 request id，不做异常处理
-        if response_data.get("code") != 0:
+        if code != 0:
             logger.error(
-                "request bcs api error, params: %s, response: %s",
+                "BcsApiBaseResource: request bcs api error, params: %s, response: %s",
                 json.dumps(validated_request_data),
                 json.dumps(response_data),
             )

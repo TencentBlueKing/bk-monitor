@@ -88,6 +88,38 @@ export class FilterByOptions {
       children: [],
     }));
   }
+  async getCountData(dimensions: EDimensionKey[], search: string, setData: (v: Map<EDimensionKey, number>) => void) {
+    const countData = new Map();
+    for (const dimension of dimensions) {
+      if (dimension === EDimensionKey.workload) {
+        workloadOverview({
+          bcs_cluster_id: this.commonParams.bcs_cluster_id,
+          query_string: search,
+          namespace: this.isUpdate ? undefined : this.commonParams?.filter_dict?.namespace?.join?.(',') || undefined,
+        }).then(data => {
+          let total = 0;
+          for (const d of data) {
+            total += d[1];
+          }
+          countData.set(dimension, total);
+          setData(countData);
+        });
+      } else {
+        listK8sResources({
+          ...this.commonParams,
+          resource_type: dimension,
+          page: 1,
+          page_size: 1,
+          ...this.queryStringParams(dimension),
+          query_string: search,
+        }).then(({ count }) => {
+          countData.set(dimension, count);
+          setData(countData);
+        });
+      }
+    }
+  }
+
   // 下一页
   async getNextPageData(dimension: EDimensionKey, categoryDim?: string) {
     this.nextPage(dimension, categoryDim);
@@ -269,7 +301,6 @@ export class FilterByOptions {
     }
     return this.dimensionData;
   }
-
   setIsUpdate(v: boolean) {
     this.isUpdate = v;
   }

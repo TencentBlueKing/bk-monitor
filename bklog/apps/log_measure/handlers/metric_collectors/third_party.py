@@ -20,13 +20,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from collections import defaultdict
-from django.utils.translation import ugettext as _
+
+from django.utils.translation import gettext as _
 
 from apps.api import TransferApi
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 
 
 class ThirdPartyMetricCollector(object):
