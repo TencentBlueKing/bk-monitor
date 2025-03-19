@@ -56,11 +56,6 @@ export default class CollectContainer extends tsc<IProps> {
   dragList: IGroupItem[] = []; // 可拖拽的收藏列表
 
   get isSearchEmpty() {
-    console.log(
-      this.isSearchFilter && !this.dataList.length,
-      this.dragList,
-      'this.isSearchFilter && !this.dataList.length',
-    );
     return this.isSearchFilter && !this.dataList.length;
   }
 
