@@ -35,7 +35,7 @@ import { docCookies } from 'monitor-common/utils/utils';
 import LogVersion from '../components/log-version/intex';
 import LogVersionMixin from '../components/log-version/log-version-mixin';
 import DocumentLinkMixin from '../mixins/documentLinkMixin';
-import { GLOAB_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config';
+import { GLOBAL_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config';
 import enIcon from '../static/images/svg/en.svg';
 import zhIcon from '../static/images/svg/zh.svg';
 import type { IMenuItem } from '../types';
@@ -47,6 +47,7 @@ import SettingModal from './setting-modal';
 // #endif
 
 import './nav-tools.scss';
+import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
@@ -85,8 +86,8 @@ class NavTools extends DocumentLinkMixin {
   globalSearchShow = false;
   activeSetting = '';
   settingTitle = '';
-  defauleSearchPlaceholder = `${this.$t('全站搜索')}`;
-  globalSearchPlaceholder = this.defauleSearchPlaceholder;
+  defaultSearchPlaceholder = `${this.$t('全站搜索')}`;
+  globalSearchPlaceholder = this.defaultSearchPlaceholder;
   isShowMyApplyModal = false;
   isShowMyReportModal = false;
 
@@ -130,7 +131,7 @@ class NavTools extends DocumentLinkMixin {
         href: window.ce_url,
       },
     ];
-    this.setList = GLOAB_FEATURE_LIST.map(({ name, ...args }) => ({
+    this.setList = GLOBAL_FEATURE_LIST.map(({ name, ...args }) => ({
       name: `route-${name}`,
       ...args,
     }));
@@ -146,15 +147,15 @@ class NavTools extends DocumentLinkMixin {
     ];
   }
   mounted() {
-    // document.addEventListener('keydown', this.handleKeyupSearch);
+    document.addEventListener('keydown', this.handleKeyupSearch);
     bus.$on(HANDLE_SHOW_SETTING, this.handleShowSetting);
-    // bus.$on('handle-keyup-search', this.handleKeyupSearch);
+    bus.$on('handle-keyup-search', this.handleKeyupSearch);
     bus.$on(HANDLE_MENU_CHANGE, this.handleSet);
     window.addEventListener('blur', this.hidePopoverSetOrHelp);
   }
   beforeDestroy() {
-    // document.removeEventListener('keydown', this.handleKeyupSearch);
-    // bus.$off('handle-keyup-search', this.handleKeyupSearch);
+    document.removeEventListener('keydown', this.handleKeyupSearch);
+    bus.$off('handle-keyup-search', this.handleKeyupSearch);
     bus.$off(HANDLE_MENU_CHANGE, this.handleSet);
     window.removeEventListener('blur', this.hidePopoverSetOrHelp);
   }
@@ -169,9 +170,9 @@ class NavTools extends DocumentLinkMixin {
    * @description: ctrl+k 打开全站搜索弹窗
    * @param { * } event
    */
-  handleKeyupSearch(event) {
+  handleKeyupSearch(event: KeyboardEvent) {
     if (this.globalSearchShow) return;
-    if (event.key === '/') {
+    if ((event.ctrlKey || event.metaKey) && event.key === '/') {
       if (this.isHomePage) {
         bus.$emit('handle-keyup-nav', event);
       } else {
@@ -304,7 +305,7 @@ class NavTools extends DocumentLinkMixin {
     if (searchKey?.length) {
       this.globalSearchPlaceholder = searchKey;
     } else {
-      this.globalSearchPlaceholder = this.defauleSearchPlaceholder;
+      this.globalSearchPlaceholder = this.defaultSearchPlaceholder;
     }
   }
   /**
@@ -328,7 +329,9 @@ class NavTools extends DocumentLinkMixin {
             >
               <span class='search-text'>{this.globalSearchPlaceholder}</span>
               {/* <span class='bk-icon icon-search' /> */}
-              {/* <span class='search-bar-keyword'>{this.$t('快捷键')} /</span> */}
+              <span class='search-bar-keyword'>
+                {this.$t('快捷键')} {getCmdShortcutKey()} + /
+              </span>
             </div>
           )
           // #endif
