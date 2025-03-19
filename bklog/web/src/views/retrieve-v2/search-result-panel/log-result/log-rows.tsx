@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, onBeforeMount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount,  } from 'vue';
 
 import {
   parseTableRowData,
@@ -140,15 +140,16 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
-    // const showAiAssistant = computed(() => {
-    //   const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
-    //   if (ai_assistant === 'debug') {
-    //     const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
-    //     return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
-    //   }
+    const showAiAssistant = computed(() => {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
+      if (ai_assistant === 'debug') {
+        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
+        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
+      }
 
-    //   return ai_assistant === 'on';
-    // });
+      return ai_assistant === 'on';
+    });
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -866,34 +867,34 @@ export default defineComponent({
       );
     };
 
-    // const handleRowAIClcik = (e: MouseEvent, row: any) => {
-    //   const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
-    //   const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
-    //   const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+    const handleRowAIClcik = (e: MouseEvent, row: any) => {
+      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
 
-    //   oldRow?.classList.remove('ai-active');
-    //   targetRow?.classList.add('ai-active');
+      oldRow?.classList.remove('ai-active');
+      targetRow?.classList.add('ai-active');
 
-    //   props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
-    // };
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    };
 
     const renderScrollTop = () => {
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    // const handleMouseenter = (e: MouseEvent) => {
-    //   const target = e.target as HTMLElement;
-    //   if (target?.classList?.contains('bklog-row-ai')) {
-    //     popInstanceUtil.show(target);
-    //   }
-    // };
+    const handleMouseenter = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.show(target);
+      }
+    };
 
-    // const handleMouseleave = (e: MouseEvent) => {
-    //   const target = e.target as HTMLElement;
-    //   if (target?.classList?.contains('bklog-row-ai')) {
-    //     popInstanceUtil.hide();
-    //   }
-    // };
+    const handleMouseleave = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.hide();
+      }
+    };
 
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
@@ -929,16 +930,16 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        // showAiAssistant.value ? (
-        //   <span
-        //     class='bklog-row-ai'
-        //     onClick={e => handleRowAIClcik(e, row)}
-        //     onMouseenter={handleMouseenter}
-        //     onMouseleave={handleMouseleave}
-        //   >
-        //     <img src={aiBlueking} />
-        //   </span>
-        // ) : null,
+        showAiAssistant.value ? (
+          <span
+            class='bklog-row-ai'
+            onClick={e => handleRowAIClcik(e, row)}
+            onMouseenter={handleMouseenter}
+            onMouseleave={handleMouseleave}
+          >
+            <img src={require('@/images/rowAiNew.svg')} />
+          </span>
+        ) : null,
       ];
     };
 
@@ -1002,7 +1003,7 @@ export default defineComponent({
       if (window?.__IS_MONITOR_TRACE__) {
         return null;
       }
-      if (tableDataSize.value > 0) {
+      if (tableDataSize.value > 0 && showCtxType.value === 'table') {
         return <div class='fixed-right-shadown'></div>;
       }
 

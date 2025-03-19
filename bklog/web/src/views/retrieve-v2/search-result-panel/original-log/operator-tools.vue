@@ -47,30 +47,7 @@
         >
         </span>
       </span>
-      <span
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '智能分析', delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-icon `"
-          @click.stop="handleClick('ai')"
-        >
-          <img
-            style="width: 18px; height: 18px; margin-top: 8px"
-            :src="require('@/images/rowAiNew.svg')"
-          />
-        </span>
-      </span>
-      <!-- <span
-        v-if="isActiveWebConsole"
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
-          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
-        ></span>
-      </span> -->
+      <span class="handle-card"> </span>
       <div v-show="false">
         <div id="realTimeLog-html">
           <span>
@@ -224,7 +201,7 @@
 <style lang="scss" scoped>
   .handle-content {
     position: absolute;
-    top: 0;
+    top: -4px;
     right: 0;
     display: flex;
     align-items: flex-start;

@@ -239,8 +239,13 @@ export default class FieldItem extends tsc<object> {
       <li class='filed-item'>
         <div class={{ 'filed-title': true, expanded: this.isExpand }}>
           <div>
+            {/* 拖动字段位置按钮 */}
+            <div class='bklog-drag-dots-box'>
+              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
+            </div>
             {/* 三角符号 */}
-            <div class={this.isFieldObject ? 'filed-item-object' : 'filed-item-triangle'}></div>
+            {/* <div class={this.isFieldObject ? 'filed-item-object' : 'filed-item-triangle'}
+            ></div> */}
 
             {/* 字段类型对应的图标 */}
             <div>
@@ -303,7 +308,7 @@ export default class FieldItem extends tsc<object> {
                   this.handleClickAnalysisItem();
                 }}
               >
-                <i class='bklog-icon bklog-log-trend' />
+                <i class='bklog-icon bklog-chart-2' />
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
@@ -321,11 +326,6 @@ export default class FieldItem extends tsc<object> {
                 <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
               </div>
             }
-
-            {/* 拖动字段位置按钮 */}
-            <div style='position:absolute,left:20px'>
-              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
-            </div>
           </div>
         </div>
         {/* 显示聚合字段图表信息
@@ -389,3 +389,4 @@ export default class FieldItem extends tsc<object> {
     );
   }
 }
+

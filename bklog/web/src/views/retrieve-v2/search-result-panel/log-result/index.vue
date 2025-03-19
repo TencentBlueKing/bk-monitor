@@ -73,7 +73,7 @@
           @change="handleJsonFormat"
           ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
         >
-        <bk-checkbox
+        <!-- <bk-checkbox
           style="margin: 0 12px 0 0"
           value="false"
           theme="primary"
@@ -81,7 +81,7 @@
           <span class="switch-label">
             {{ $t('转换时间字段') }}
           </span>
-        </bk-checkbox>
+        </bk-checkbox> -->
 
         <bk-input
           v-if="isJsonFormat"
@@ -109,7 +109,7 @@
         v-if="!isMonitorTrace"
       >
         <div class="operation-icons">
-          <bk-input
+          <!-- <bk-input
             style="width: 240px"
             v-model="value"
             placeholder="输入后按 Enter..."
@@ -122,7 +122,7 @@
                 高亮
               </div>
             </template>
-          </bk-input>
+          </bk-input> -->
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"

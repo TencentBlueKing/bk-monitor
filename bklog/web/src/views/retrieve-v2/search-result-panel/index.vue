@@ -1,9 +1,9 @@
 <script setup>
-  import { computed, ref, defineComponent, h } from 'vue';
+  import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
-  import RetrieveHelper from '../../retrieve-helper';
 
+  import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
@@ -18,7 +18,7 @@
 
   import LogResult from './log-result/index';
 
-  const DEFAULT_FIELDS_WIDTH = 220;
+  const DEFAULT_FIELDS_WIDTH = 200;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
@@ -114,8 +114,8 @@
         ></FieldFilter>
       </div>
       <div
-        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
+        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
           v-show="isOriginShow"

@@ -5,16 +5,17 @@
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import WarningSetting from './warning-setting.vue';
+
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import WarningSetting from './warning-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -146,14 +147,14 @@
     </div>
 
     <div class="box-right-option">
-      <TimeSetting class="border-solo"></TimeSetting>
+      <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
-        class="border-solo"
+        class="custom-border-right"
       />
-      <WarningSetting></WarningSetting>
+      <WarningSetting class="custom-border-right"></WarningSetting>
       <ClusterSetting
-        class="border-solo"
+        class="custom-border-right"
         v-model="isShowClusterSetting"
       ></ClusterSetting>
       <div
@@ -173,7 +174,7 @@
   @import './index.scss';
 
   .box-right-option {
-    .border-solo {
+    .custom-border-right {
       border-right: 1px solid #eaebf0;
     }
   }

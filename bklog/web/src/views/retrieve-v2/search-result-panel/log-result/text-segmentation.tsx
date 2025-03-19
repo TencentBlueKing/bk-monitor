@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, inject } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
 
 import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -32,10 +32,10 @@ import useStore from '@/hooks/use-store';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { debounce } from 'lodash';
 
+import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
 
 import './text-segmentation.scss';
-import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
