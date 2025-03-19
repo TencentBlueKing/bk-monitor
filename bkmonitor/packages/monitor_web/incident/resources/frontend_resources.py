@@ -624,7 +624,14 @@ class IncidentTopologyResource(IncidentBaseResource):
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
-        for node_key in ["is_on_alert", "is_feedback_root", "anomaly_count", "alert_ids", "aggregated_nodes"]:
+        for node_key in [
+            "is_on_alert",
+            "is_feedback_root",
+            "anomaly_count",
+            "alert_ids",
+            "aggregated_nodes",
+            "alert_all_recorved",
+        ]:
             if current_node[node_key] != last_node[node_key]:
                 return True
 
@@ -1302,4 +1309,12 @@ class AlertIncidentDetailResource(IncidentDetailResource):
         incident["current_topology"] = self.generate_topology_data_from_snapshot(incident_doc, snapshot)
         incident["snapshot"] = snapshot_content
 
-        return incident
+        result = {"incident": incident}
+
+        result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+        result["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                result["wx_cs_link"] = item["link"]
+
+        return result
