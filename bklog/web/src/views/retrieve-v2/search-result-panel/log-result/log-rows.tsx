@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount,  } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
 
 import {
   parseTableRowData,
@@ -323,7 +323,7 @@ export default defineComponent({
         // 设置需要显示展开图标的列
         type: 'expand',
         title: '',
-        width: 50,
+        width: 36,
         align: 'center',
         resize: false,
         fixed: 'left',
