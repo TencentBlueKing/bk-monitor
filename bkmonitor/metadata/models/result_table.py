@@ -1157,7 +1157,7 @@ class ResultTable(models.Model):
             logger.info("result_table->[%s] has create real ex_storage on type->[%s]", self.table_id, ex_storage_type)
 
         # 删除额外存储配置
-        need_delete_storages = {} if need_delete_storages is None else need_delete_storages
+        need_delete_storages = need_delete_storages or {}
         for storage_type, delete_storage in need_delete_storages.items():
             if storage_type not in self.REAL_STORAGE_DICT:
                 logger.info(
