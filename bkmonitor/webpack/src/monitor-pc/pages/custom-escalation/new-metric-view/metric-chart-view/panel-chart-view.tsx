@@ -93,7 +93,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   }
   /** 是否展示统计值 */
   get isShowStatisticalValue() {
-    return this.config?.show_statistical_value || true;
+    return this.config?.show_statistical_value;
   }
   /** 是否展示高亮峰谷值 */
   get isHighlightPeakValue() {
@@ -118,7 +118,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
-    console.log('getGroupList = ', this.config);
     if (this.config.metrics.length < 1) {
       this.loading = false;
       this.groupList = [];

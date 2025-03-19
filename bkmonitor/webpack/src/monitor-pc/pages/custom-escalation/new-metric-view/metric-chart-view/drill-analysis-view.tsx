@@ -252,7 +252,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 支持上下拖拽 */
   handleResizing(height: number) {
     this.drag.height = height;
-    this.chartKey = random(8);
+    // this.chartKey = random(8);
   }
   /** 修改时间对比 */
   handleComparTypeChange(payload: IResultItem['compare']) {
