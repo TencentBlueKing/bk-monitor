@@ -554,10 +554,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         if app_name and service_name:
             # 取整到分钟作为缓存key的一部分
-            dt_start = (start_time // 60) * 60
-            dt_end = (end_time // 60) * 60
+            dt_start = (start_time // 300) * 300
+            dt_end = (end_time // 300) * 300
             cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-container"
-            response_cache = using_cache(CacheType.APM(60 * 1))
+            response_cache = using_cache(CacheType.APM(60 * 5))
             response = response_cache.get_value(cache_key)
             if not response:
                 from apm_web.container.resources import ListServicePodsResource
