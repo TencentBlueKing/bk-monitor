@@ -140,7 +140,7 @@ class GetResourceDetail(Resource):
         bcs_cluster_id: str = serializers.CharField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container", "cluster", "service"], label="资源类型"
+            required=True, choices=["pod", "workload", "container", "cluster", "service", "ingress"], label="资源类型"
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
@@ -148,12 +148,14 @@ class GetResourceDetail(Resource):
         workload_name: str = serializers.CharField(required=False, allow_null=True)
         workload_type: str = serializers.CharField(required=False, allow_null=True)
         service_name: str = serializers.CharField(required=False, allow_null=True)
+        ingress_name: str = serializers.CharField(required=False, allow_null=True)
 
     def validate_request_data(self, request_data: Dict):
         resource_type = request_data["resource_type"]
         if resource_type == "pod":
             fields = ["pod_name"]
             self.validate_field_exist(resource_type, fields, request_data)
+
         elif resource_type == "workload":
             fields = ["workload_name", "workload_type"]
             self.validate_field_exist(resource_type, fields, request_data)
@@ -162,6 +164,9 @@ class GetResourceDetail(Resource):
             self.validate_field_exist(resource_type, fields, request_data)
         elif resource_type == "service":
             fields = ["service_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "ingress":
+            fields = ["ingress_name"]
             self.validate_field_exist(resource_type, fields, request_data)
 
         return super().validate_request_data(request_data)
@@ -199,6 +204,7 @@ class GetResourceDetail(Resource):
             "workload": [resource.scene_view.get_kubernetes_workload, ["namespace", "workload_name", "workload_type"]],
             "container": [resource.scene_view.get_kubernetes_container, ["namespace", "pod_name", "container_name"]],
             "service": [resource.scene_view.get_kubernetes_service, ["namespace", "service_name"]],
+            "ingress": [resource.scene_view.get_kubernetes_ingress, ["namespace", "ingress_name"]],
         }
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
