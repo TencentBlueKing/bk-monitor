@@ -134,6 +134,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   scrollEndObserver: ExploreObserver = null;
   /** 表格logs数据请求中止控制器 */
   abortController: AbortController = null;
+  /** 滚动结束后回调逻辑执行计时器  */
+  scrollPointerEventsTimer = null;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -215,6 +217,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   }
 
   beforeDestroy() {
+    this.scrollPointerEventsTimer && clearTimeout(this.scrollPointerEventsTimer);
     const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
     if (!scrollWrapper) return;
     this.resizeObserver.unobserve(scrollWrapper);
@@ -251,8 +254,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   handleScrollToEnd(event: Event) {
     if (this.$el) {
-      // @ts-ignore
-      this.updateTablePointEvents(false);
+      this.updateTablePointEvents('none');
       this.handlePopoverHide?.();
     }
     const target = event.target as HTMLElement;
@@ -264,14 +266,16 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     if (isEnd) {
       this.getEventLogs(ExploreTableLoadingEnum.SCROLL);
     }
-    this.updateTablePointEvents();
+    this.scrollPointerEventsTimer && clearTimeout(this.scrollPointerEventsTimer);
+    this.scrollPointerEventsTimer = setTimeout(() => {
+      this.updateTablePointEvents('auto');
+    }, 600);
   }
 
-  @Debounce(1000)
-  updateTablePointEvents(hasPointEvents = true) {
+  updateTablePointEvents(val: 'auto' | 'none') {
     if (this.$el) {
       // @ts-ignore
-      this.$el.style.pointEvents = hasPointEvents ? 'all' : 'none';
+      this.$el.style.pointerEvents = val;
     }
   }
 
