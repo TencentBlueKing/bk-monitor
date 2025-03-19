@@ -81,23 +81,25 @@
     }
   }
 
-  .chart-legend {
-    display: flex;
-    min-height: 14px;
-
-    .common-legend {
+  .time-series-content {
+    .chart-legend {
       display: flex;
-      column-gap: 16px;
-      justify-content: center;
-      width: 100%;
+      min-height: 14px;
 
-      .common-legend-item {
-        margin-left: 0;
-        line-height: 14px;
+      .common-legend {
+        display: flex;
+        column-gap: 16px;
+        justify-content: center;
+        width: 100%;
 
-        .legend-icon {
-          width: 8px;
-          height: 8px;
+        .common-legend-item {
+          margin-left: 0;
+          line-height: 14px;
+
+          .legend-icon {
+            width: 8px;
+            height: 8px;
+          }
         }
       }
     }
