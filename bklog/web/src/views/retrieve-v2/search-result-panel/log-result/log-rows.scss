@@ -8,6 +8,7 @@
   min-width: 100%;
   min-height: 400px;
   margin-top: 6px;
+  border-top: solid 1px #dfe0e5;
 
   .bklog-requsting-loading {
     text-align: center;
@@ -82,6 +83,7 @@
     min-height: 34px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
+
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
@@ -100,11 +102,11 @@
       width: var(--scroll-width);
       min-width: fit-content;
       min-height: 32px;
+      padding: 4px 0;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 32px;
       color: var(--table-fount-color);
-      padding: 4px 0;
 
       .bklog-row-cell {
         padding: 0px 12px;
@@ -335,12 +337,11 @@
       line-height: 32px;
       visibility: visible;
       background-color: #fafbfd;
-      border-top: solid 1px #dfe0e5;
 
       .bklog-list-row {
         position: sticky;
-        padding: 0;
         z-index: 1;
+        padding: 0;
       }
     }
 
