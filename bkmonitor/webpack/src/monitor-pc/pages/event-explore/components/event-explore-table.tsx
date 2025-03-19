@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, random } from 'monitor-common/utils';
+import { random } from 'monitor-common/utils';
 
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
@@ -96,6 +96,8 @@ const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
 const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
+  @Ref('tableRef') tableRef: Record<string, any>;
+
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   /** 接口请求配置参数 */
@@ -469,9 +471,22 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.popoverInstance = null;
   }
 
+  /**
+   * @description: 清除popover延时打开定时器
+   *
+   */
   handleClearTimer() {
     this.popoverDelayTimer && clearTimeout(this.popoverDelayTimer);
     this.popoverDelayTimer = null;
+  }
+
+  /**
+   * @description: 事件表格行点击事件
+   *
+   */
+  handleTableRowClick(row, event, column) {
+    if (!this.tableRef || column.columnKey === 'target') return;
+    this.tableRef.toggleRowExpansion(row);
   }
 
   /**
@@ -639,6 +654,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return (
       <div class='event-explore-table'>
         <bk-table
+          ref='tableRef'
           row-style={e => {
             return this.getCssVarsByType(e?.row?.type?.value);
           }}
@@ -651,6 +667,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           border={false}
           data={this.tableData}
           outer-border={false}
+          on-row-click={this.handleTableRowClick}
         >
           <bk-table-column
             width={24}
