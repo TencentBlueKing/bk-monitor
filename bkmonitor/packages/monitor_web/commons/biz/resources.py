@@ -132,10 +132,10 @@ class ListSpacesResource(Resource):
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> List[dict]:
-        request = get_request()
+        request = get_request(peaceful=True)
         username = get_request_username()
 
-        if getattr(request, "external_user", None):
+        if request and getattr(request, "external_user", None):
             spaces: List[dict] = SpaceApi.list_spaces_dict()
             external_biz_ids = (
                 ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
