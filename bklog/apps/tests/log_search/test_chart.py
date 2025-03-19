@@ -5,6 +5,15 @@ from apps.log_search.handlers.search.chart_handlers import ChartHandler
 
 SEARCH_PARAMS = [
     {
+        "keyword": "title:\"Pyth?n\"",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
+        ],
+    },
+    {
+        "sql": "SELECT thedate, log, time ",
         "keyword": "title:\"Pyth?n\" OR title:/[Pp]ython.*/ AND __ext.bcs_id: \"test\"",
         "start_time": 1732220441,
         "end_time": 1732820443,
@@ -60,11 +69,10 @@ SEARCH_PARAMS = [
 
 
 SQL_RESULT = [
+    (f"{SQL_PREFIX} {SQL_SUFFIX}"),
     (
-        f"{SQL_PREFIX} "
-        "WHERE title = \"Pyth?n\" OR title REGEXP '[Pp]ython.*' AND CAST(__ext['bcs_id'] AS TEXT) = \"test\""
-        " AND "
-        "(bk_host_id = '1' OR bk_host_id = '2')"
+        "SELECT thedate, log, time "
+        "WHERE (bk_host_id = '1' OR bk_host_id = '2')"
         " AND "
         "service != 'php'"
         " AND "
@@ -111,19 +119,14 @@ SQL_RESULT = [
         "CAST(__ext['label']['component'] AS TEXT) LIKE '%py%')"
         " AND "
         "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
-        f" {SQL_SUFFIX}"
     ),
     (
         "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
-        "WHERE log LIKE '%' AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\""
-        " AND "
-        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
     (
         "SELECT thedate, dtEventTimeStamp, log "
-        "WHERE title = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
-        " AND "
-        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
 ]
 
@@ -143,4 +146,5 @@ class TestChart(TestCase):
                 sql_param=sql_param,
                 keyword=keyword,
             )
+            self.maxDiff = None
             self.assertEqual(data["sql"], sql_result)

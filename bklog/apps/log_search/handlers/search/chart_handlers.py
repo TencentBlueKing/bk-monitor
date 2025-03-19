@@ -163,11 +163,10 @@ class ChartHandler(object):
         """
         start_date = arrow.get(start_time).format("YYYYMMDD")
         end_date = arrow.get(end_time).format("YYYYMMDD")
-        date_condition = (
+        additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
-        sql = ""
 
         if keyword:
             # 加上keyword的查询条件
@@ -175,8 +174,9 @@ class ChartHandler(object):
             keyword = enhance_lucene_adapter.enhance()
             where_clause = cls.lucene_to_where_clause(keyword)
             if where_clause:
-                sql = where_clause
+                additional_where_clause += f" AND {where_clause}"
 
+        sql = ""
         for condition in addition:
             field_name = condition["field"]
             operator = condition["operator"]
@@ -233,12 +233,12 @@ class ChartHandler(object):
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
 
+        if sql:
+            additional_where_clause += f" AND {sql}"
+
         if action == SQLGenerateMode.WHERE_CLAUSE.value:
             # 返回SQL条件
-            return sql
-
-        # 保存where子句变量
-        additional_where_clause = f"{date_condition} AND {sql}"
+            return additional_where_clause
 
         if sql_param:
             pattern = (
@@ -250,11 +250,11 @@ class ChartHandler(object):
             matches = re.match(pattern, sql_param, re.DOTALL | re.IGNORECASE)
             final_sql = matches.group(1)
             if sql:
-                final_sql += f"WHERE {sql} "
+                final_sql += f"WHERE {sql}"
             if matches.group(2):
-                final_sql += matches.group(2)
+                final_sql += f" {matches.group(2)}"
         else:
-            final_sql = f"{SQL_PREFIX} WHERE {sql} {SQL_SUFFIX}" if sql else f"{SQL_PREFIX} {SQL_SUFFIX}"
+            final_sql = f"{SQL_PREFIX} {SQL_SUFFIX}"
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
 
 
