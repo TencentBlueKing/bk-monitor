@@ -47,7 +47,16 @@
         >
         </span>
       </span>
-      <span class="handle-card"> </span>
+      <span
+        v-if="isActiveWebConsole"
+        class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
+      >
+        <span
+          :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
+        ></span>
+      </span>
       <div v-show="false">
         <div id="realTimeLog-html">
           <span>
@@ -107,6 +116,9 @@
         <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
       </span>
     </template>
+    <template v-if="isAiAssistanceActive">
+      <span class="handle-card ai-assistant"> </span>
+    </template>
   </div>
 </template>
 
@@ -148,6 +160,9 @@
       },
       isActiveWebConsole() {
         return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+      },
+      isAiAssistanceActive() {
+        return this.$store.getters.isAiAssistantActive;
       },
       /** 判断webConsole是否能点击 */
       isCanClickWebConsole() {

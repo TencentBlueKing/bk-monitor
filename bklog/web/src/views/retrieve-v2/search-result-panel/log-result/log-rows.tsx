@@ -141,14 +141,7 @@ export default defineComponent({
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
     const showAiAssistant = computed(() => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
-      if (ai_assistant === 'debug') {
-        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
-        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
-      }
-
-      return ai_assistant === 'on';
+      return store.getters.isAiAssistantActive;
     });
 
     const fullColumns = ref([]);
@@ -227,7 +220,8 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const operatorToolsWidth = computed(() => {
-      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+      const w = indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+      return store.getters.isAiAssistantActive ? w + 26 : w;
     });
 
     const originalColumns = computed(() => {
