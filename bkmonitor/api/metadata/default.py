@@ -196,7 +196,7 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
     获取监控结果表具体信息
     """
 
-    action = "/app/metadata/metadata_get_result_table_storage/"
+    action = "/app/metadata/get_result_table_storage/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
