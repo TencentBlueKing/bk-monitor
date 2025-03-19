@@ -40,7 +40,7 @@ import OverseasLogo from '../components/overseas-logo/overseas-logo';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { GLOBAL_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
@@ -613,7 +613,7 @@ export default class App extends tsc<object> {
     this.$router.push(route);
   }
   handleGoStoreRoute(item: IRouteConfigItem) {
-    const globalSetting = GLOAB_FEATURE_LIST.find(set => set.id === item.id);
+    const globalSetting = GLOBAL_FEATURE_LIST.find(set => set.id === item.id);
     (this.$refs.commonHeaderDrop as any)?.hide();
     if (globalSetting) {
       this.handleHeaderSettingShowChange(false);
@@ -650,47 +650,47 @@ export default class App extends tsc<object> {
   }
   commonHeader() {
     /** 新版首页后，为了减少页面的跳动：隐藏（但是占位还在） */
-    return <div class='header-list-item-block'></div>;
-    return (
-      <bk-dropdown-menu
-        ref='commonHeaderDrop'
-        position-fixed={true}
-      >
-        <div
-          class='header-list-item no-border'
-          slot='dropdown-trigger'
-        >
-          {this.$t('route-常用')}
-          <i class='bk-icon icon-down-shape' />
-        </div>
-        ;
-        <ul
-          class='common-list'
-          slot='dropdown-content'
-        >
-          {this.userStoreRoutes
-            ?.filter(item => item.id)
-            .map(item => (
-              <li
-                key={item.id}
-                class='common-list-item'
-                onClick={() => this.handleGoStoreRoute(item)}
-              >
-                <i class={`${item.icon} list-item-icon`} />
-                {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
-              </li>
-            ))}
-        </ul>
-        <div
-          class='list-append'
-          slot='dropdown-content'
-          onClick={() => this.handleHeaderSettingShowChange(!this.headerSettingShow)}
-        >
-          <i class='bk-icon icon-cog' />
-          {this.$t('管理')}
-        </div>
-      </bk-dropdown-menu>
-    );
+    return <div class='header-list-item-block' />;
+    // return (
+    //   <bk-dropdown-menu
+    //     ref='commonHeaderDrop'
+    //     position-fixed={true}
+    //   >
+    //     <div
+    //       class='header-list-item no-border'
+    //       slot='dropdown-trigger'
+    //     >
+    //       {this.$t('route-常用')}
+    //       <i class='bk-icon icon-down-shape' />
+    //     </div>
+    //     ;
+    //     <ul
+    //       class='common-list'
+    //       slot='dropdown-content'
+    //     >
+    //       {this.userStoreRoutes
+    //         ?.filter(item => item.id)
+    //         .map(item => (
+    //           <li
+    //             key={item.id}
+    //             class='common-list-item'
+    //             onClick={() => this.handleGoStoreRoute(item)}
+    //           >
+    //             <i class={`${item.icon} list-item-icon`} />
+    //             {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
+    //           </li>
+    //         ))}
+    //     </ul>
+    //     <div
+    //       class='list-append'
+    //       slot='dropdown-content'
+    //       onClick={() => this.handleHeaderSettingShowChange(!this.headerSettingShow)}
+    //     >
+    //       <i class='bk-icon icon-cog' />
+    //       {this.$t('管理')}
+    //     </div>
+    //   </bk-dropdown-menu>
+    // );
   }
   handleHeaderSettingShowChange(v: boolean) {
     this.headerSettingShow = v;
