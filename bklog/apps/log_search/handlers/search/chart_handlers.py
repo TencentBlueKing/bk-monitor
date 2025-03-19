@@ -25,6 +25,17 @@ import time
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
+from luqum.parser import parser
+from luqum.tree import (
+    AndOperation,
+    Group,
+    OrOperation,
+    Phrase,
+    Range,
+    Regex,
+    SearchField,
+    Term,
+)
 
 from apps.api import BkDataQueryApi
 from apps.log_search import metrics
@@ -43,6 +54,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
+from apps.utils.lucene import EnhanceLuceneAdapter
 
 
 class ChartHandler(object):
@@ -78,11 +90,66 @@ class ChartHandler(object):
         raise NotImplementedError(_("功能暂未实现"))
 
     @staticmethod
+    def lucene_to_where_clause(lucene_query):
+        # 解析 Lucene 查询
+        query_tree = parser.parse(lucene_query)
+
+        # 递归遍历语法树并生成 SQL WHERE 子句
+        def build_condition(node):
+            if isinstance(node, SearchField):
+                field_name = node.name
+                # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+                if "." in field_name:
+                    field_list = field_name.split(".")
+                    field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+                    field_name = f"CAST({field_name} AS TEXT)"
+                expr = node.expr
+                if isinstance(node.expr, Phrase):
+                    # 处理带引号的短语
+                    value = expr.value.replace("'", "''")
+                    return f"{field_name} = {value}"
+                elif isinstance(expr, Regex):
+                    # 处理正则表达式
+                    regex = expr.value.strip("/")
+                    return f"{field_name} REGEXP '{regex}'"
+                elif isinstance(expr, Range):
+                    # 处理范围查询，例如 year:[2020 TO 2023]
+                    low = expr.low
+                    high = expr.high
+                    return f"{field_name} BETWEEN {low} AND {high}"
+                elif isinstance(expr, Term):
+                    # 处理不带引号的术语,替换通配符
+                    value = expr.value.replace("*", "%").replace("?", "_")
+                    if not value.startswith("%"):
+                        value = "%" + value
+                    if not value.endswith("%"):
+                        value += "%"
+                    return f"{field_name} LIKE '{value}'"
+            elif isinstance(node, OrOperation):
+                # 处理 OR 操作
+                conditions = [build_condition(child) for child in node.children]
+                return " OR ".join(cond for cond in conditions if cond if not None)
+            elif isinstance(node, AndOperation):
+                # 处理 AND 操作
+                conditions = [build_condition(child) for child in node.children]
+                return " AND ".join(cond for cond in conditions if cond if not None)
+            elif isinstance(node, Group):
+                # 处理 Group 节点，例如 (author:John OR author:Jane)
+                return f"({build_condition(node.children[0])})"
+            elif isinstance(node, Phrase):
+                # 处理带引号的短语
+                return f"log MATCH_PHRASE {node.value}"
+
+        return build_condition(query_tree)
+
+    @classmethod
     def generate_sql(
+        cls,
         addition,
         start_time,
         end_time,
         sql_param=None,
+        keyword=None,
         action=SQLGenerateMode.COMPLETE.value,
     ) -> dict:
         """
@@ -91,14 +158,24 @@ class ChartHandler(object):
         :param sql_param: SQL条件
         :param start_time: 开始时间
         :param end_time: 结束时间
+        :param keyword: 搜索关键字
         :param action: 生成SQL的方式
         """
         start_date = arrow.get(start_time).format("YYYYMMDD")
         end_date = arrow.get(end_time).format("YYYYMMDD")
-        sql = (
+        date_condition = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
+        sql = ""
+
+        if keyword:
+            # 加上keyword的查询条件
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
+            keyword = enhance_lucene_adapter.enhance()
+            where_clause = cls.lucene_to_where_clause(keyword)
+            if where_clause:
+                sql = where_clause
 
         for condition in addition:
             field_name = condition["field"]
@@ -161,7 +238,7 @@ class ChartHandler(object):
             return sql
 
         # 保存where子句变量
-        additional_where_clause = sql
+        additional_where_clause = f"{date_condition} AND {sql}"
 
         if sql_param:
             pattern = (
@@ -213,6 +290,7 @@ class SQLChartHandler(ChartHandler):
             addition=params["addition"],
             start_time=params["start_time"],
             end_time=params["end_time"],
+            keyword=params.get("keyword"),
             action=SQLGenerateMode.WHERE_CLAUSE.value,
         )
         # 如果不存在FROM则添加,存在则覆盖

@@ -5,6 +5,7 @@ from apps.log_search.handlers.search.chart_handlers import ChartHandler
 
 SEARCH_PARAMS = [
     {
+        "keyword": "title:\"Pyth?n\" OR title:/[Pp]ython.*/ AND __ext.bcs_id: \"test\"",
         "start_time": 1732220441,
         "end_time": 1732820443,
         "addition": [
@@ -36,6 +37,7 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "keyword": "log : * and year:[2020 TO 2023] AND \"abc\" AND def",
         "start_time": 1732220441,
         "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
@@ -45,6 +47,7 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "keyword": "title:\"Python Programming\" AND (author:John AND author: 6 OR author: \"7\")",
         "start_time": 1732220441,
         "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
@@ -55,15 +58,11 @@ SEARCH_PARAMS = [
     },
 ]
 
-ADDITIONAL_WHERE_CLAUSE = (
-    "WHERE thedate >= 20241121 AND thedate <= 20241128 "
-    "AND dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
-)
 
 SQL_RESULT = [
     (
         f"{SQL_PREFIX} "
-        f"{ADDITIONAL_WHERE_CLAUSE}"
+        "WHERE title = \"Pyth?n\" OR title REGEXP '[Pp]ython.*' AND CAST(__ext['bcs_id'] AS TEXT) = \"test\""
         " AND "
         "(bk_host_id = '1' OR bk_host_id = '2')"
         " AND "
@@ -116,13 +115,13 @@ SQL_RESULT = [
     ),
     (
         "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
-        f"{ADDITIONAL_WHERE_CLAUSE}"
+        "WHERE log LIKE '%' AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\""
         " AND "
         "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
     (
         "SELECT thedate, dtEventTimeStamp, log "
-        f"{ADDITIONAL_WHERE_CLAUSE}"
+        "WHERE title = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
         " AND "
         "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
@@ -136,10 +135,12 @@ class TestChart(TestCase):
             end_time = search_param["end_time"]
             addition = search_param["addition"]
             sql_param = search_param.get("sql")
+            keyword = search_param.get("keyword")
             data = ChartHandler.generate_sql(
                 addition=addition,
                 start_time=start_time,
                 end_time=end_time,
                 sql_param=sql_param,
+                keyword=keyword,
             )
             self.assertEqual(data["sql"], sql_result)
