@@ -37,6 +37,9 @@
         margin: 4px;
         padding: 0 8px;
         display: inline-block;
+        &:hover {
+          cursor: pointer;
+        }
       }
       .metric-change {
         font-size: 12px;

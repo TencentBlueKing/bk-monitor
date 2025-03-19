@@ -28,7 +28,7 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
-import { Debounce, debounce, deepClone } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
 
 import { METHOD_LIST } from '../../../constant/constant';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
@@ -300,7 +300,7 @@ export default class IndicatorTableSlide extends tsc<any> {
 
           <div class='slider-footer'>
             <bk-button
-              disabled={!this.localTable.length}
+              // disabled={!this.localTable.length}
               theme='primary'
               onClick={this.handleSave}
             >
@@ -376,7 +376,6 @@ export default class IndicatorTableSlide extends tsc<any> {
             onBlur={() => this.validateName(props.row)}
             onInput={() => this.clearError(props.row)}
           />
-          {/* {props.row.error && <div class='error-text'>{props.row.error}</div>} */}
         </div>
       );
     }
