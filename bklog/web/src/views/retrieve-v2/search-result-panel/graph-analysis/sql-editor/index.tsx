@@ -328,7 +328,7 @@ export default defineComponent({
           },
         })
         .then(resp => {
-          previewSqlContent.value = format(resp.data.sql, { language: 'transactsql' });
+          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
           isPreviewSqlShow.value = true;
         });
     }, 300);
