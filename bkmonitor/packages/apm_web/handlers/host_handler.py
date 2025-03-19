@@ -62,11 +62,6 @@ class HostHandler:
         2. 通过topo发现
         3. 通过关联查询
         """
-        cache_key = f"{bk_biz_id}-{app_name}-{service_name}-hosts"
-        hosts_cache = using_cache(CacheType.APM(60 * 1))
-        res = hosts_cache.get_value(cache_key)
-        if res:
-            return res
 
         if not start_time or not end_time:
             app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
@@ -74,6 +69,14 @@ class HostHandler:
                 logger.exception(f"[HostHandler] 业务({bk_biz_id})下的app({app_name}) 不存在.")
                 return []
             start_time, end_time = app.list_retention_time_range()
+
+        dt_start = (start_time // 60) * 60
+        dt_end = (end_time // 60) * 60
+        cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-list_hosts"
+        hosts_cache = using_cache(CacheType.APM(60 * 1))
+        res = hosts_cache.get_value(cache_key)
+        if res:
+            return res
 
         # step1: 从主机发现取出 和 拓扑关联中取出主机
         def get_hosts_from_cmdb_and_topo(bk_biz_id, app_name, service_name):
