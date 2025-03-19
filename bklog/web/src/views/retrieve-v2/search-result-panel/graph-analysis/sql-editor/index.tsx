@@ -71,20 +71,8 @@ export default defineComponent({
     const { $t } = useLocale();
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
 
-    const editorConfig = ref({
-      height: 400,
-    });
-
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-
-    useResizeObserve(
-      refRootElement,
-      entry => {
-        editorConfig.value.height = entry.target?.offsetHeight ?? 400;
-      },
-      60,
-    );
 
     const requestId = 'graphAnalysis_searchSQL';
 
