@@ -328,7 +328,7 @@ export default defineComponent({
       () => {
         debounceSyncAdditionToSQL();
       },
-      { deep: true },
+      { deep: true, immediate: true },
     );
 
     expose({

@@ -30,7 +30,7 @@ import draggable from 'vuedraggable';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { HANDLE_MENU_CHANGE } from '../../../../pages/nav-tools';
-import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import { GLOBAL_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 import aiWhaleStore from '../../../../store/modules/ai-whale';
 import { RECENT_FAVORITE_LIST_KEY } from '../utils';
 import QuickAccess from './quick-access';
@@ -136,7 +136,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
 
   // 处理导航到存储路由
   handleGoStoreRoute(item: IRouteConfigItem) {
-    const globalSetting = GLOAB_FEATURE_LIST.find(set => set.id === item.id);
+    const globalSetting = GLOBAL_FEATURE_LIST.find(set => set.id === item.id);
     if (globalSetting) {
       bus.$emit(HANDLE_MENU_CHANGE, item);
     } else if (this.$route.name !== item.id) {
