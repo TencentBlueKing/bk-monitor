@@ -193,11 +193,11 @@
   import { computed, onMounted, ref, watch } from 'vue';
 
   import { formatDate } from '@/common/util';
+  import PopInstanceUtil from '@/global/pop-instance-util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { bkMessage } from 'bk-magic-vue';
 
-  import PopInstanceUtil from '../../../global/pop-instance-util';
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
   import $http from '@/api';
