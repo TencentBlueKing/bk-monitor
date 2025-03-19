@@ -55,6 +55,7 @@ from bkmonitor.utils.common_utils import (
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.elasticsearch.curator import IndexList
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models import constants
@@ -1676,7 +1677,9 @@ class KafkaStorage(models.Model, StorageResultTable):
     UPGRADE_FIELD_CONFIG = ("partition", "retention")
 
     # 对应ResultTable的table_id
-    table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+    table_id = models.CharField("结果表名", max_length=128)
     topic = models.CharField("topic", max_length=256)
     partition = models.IntegerField("topic分区数量", default=1)
     # 对应StorageCluster记录ID
@@ -1691,11 +1694,13 @@ class KafkaStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "Kafka存储配置"
         verbose_name_plural = "Kafka存储配置"
+        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def create_table(
         cls,
         table_id,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         is_sync_db=False,
         storage_cluster_id=None,
         topic=None,
@@ -1707,6 +1712,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         """
         实际创建结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param is_sync_db: 是否需要同步到存储
         :param storage_cluster_id: 存储集群配置ID
         :param topic: topic
@@ -1737,8 +1743,12 @@ class KafkaStorage(models.Model, StorageResultTable):
                 raise ValueError(_("存储集群配置有误，请确认或联系管理员处理"))
 
         # 1. 校验table_id， key是否存在冲突
-        if cls.objects.filter(table_id=table_id).exists():
-            logger.error("result_table->[%s] already has redis storage config, nothing will add." % table_id)
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
+            logger.error(
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
+                "nothing will add." % table_id,
+                bk_tenant_id,
+            )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
 
         # 如果未有指定key，则改为table_id
@@ -1749,6 +1759,7 @@ class KafkaStorage(models.Model, StorageResultTable):
 
         new_record = cls.objects.create(
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             storage_cluster_id=storage_cluster_id,
             topic=topic,
             partition=partition,
@@ -1759,7 +1770,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] now has create kafka storage config" % table_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
         return new_record
 
     @property

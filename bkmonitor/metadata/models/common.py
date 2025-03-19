@@ -16,6 +16,8 @@ import six
 from django.db import models
 from django.utils.translation import gettext as _
 
+from constants.common import DEFAULT_TENANT_ID
+
 
 class Label(models.Model):
     """结果表及数据源标签配置"""
@@ -42,29 +44,32 @@ class Label(models.Model):
     parent_label = models.CharField(verbose_name="父级标签ID", max_length=128, null=True)
     level = models.IntegerField(verbose_name="标签层级", null=True)
     index = models.IntegerField(verbose_name="标签排序", null=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
 
     @classmethod
-    def exists_label(cls, label_id, label_type=None):
+    def exists_label(cls, label_id, label_type=None, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         判断是否存在一个指定的label, 也可以指定查询的标签类型
         :param label_id: 标签ID
         :param label_type: 标签类型
+        :param bk_tenant_id: 租户ID
         :return: True | False
         """
-        label_query = cls.objects.filter(label_id=label_id)
+        label_query = cls.objects.filter(label_id=label_id, bk_tenant_id=bk_tenant_id)
 
         if label_type is not None:
-            label_query = label_query.filter(label_type=label_type)
+            label_query = label_query.filter(label_type=label_type, bk_tenant_id=bk_tenant_id)
 
         return label_query.exists()
 
     @classmethod
-    def get_label_info(cls, include_admin_only=False, label_type=None, level=None):
+    def get_label_info(cls, include_admin_only=False, label_type=None, level=None, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         获取标签信息
         :param include_admin_only: 是否只需要返回全部标签, 包含只管理员可用的配置标签
         :param label_type: 标签类型，可选参数
         :param level: 标签层级，可选参数
+        :param bk_tenant_id: 租户ID
         :return: {
             "source_label": [{
                 "label_id": "bk_monitor_collector",
@@ -103,13 +108,13 @@ class Label(models.Model):
 
         if not include_admin_only:
             # 如果不需要包含管理员可用的标签，则需要将管理员可用的标签进行过滤
-            label_list = label_list.filter(is_admin_only=False)
+            label_list = label_list.filter(is_admin_only=False, bk_tenant_id=bk_tenant_id)
 
         if label_type is not None:
-            label_list = label_list.filter(label_type=label_type)
+            label_list = label_list.filter(label_type=label_type, bk_tenant_id=bk_tenant_id)
 
         if level is not None:
-            label_list = label_list.filter(level=level)
+            label_list = label_list.filter(level=level, bk_tenant_id=bk_tenant_id)
 
         result = {}
         for label_info in label_list:
@@ -141,6 +146,7 @@ class Label(models.Model):
             "level": self.level,
             "parent_label": self.parent_label,
             "index": self.index,
+            "bk_tenant_id": self.bk_tenant_id,
         }
 
 
@@ -166,6 +172,7 @@ class OptionBase(models.Model):
     value = models.TextField("option配置内容")
     creator = models.CharField("创建者", max_length=32)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
 
     class Meta:
         abstract = True

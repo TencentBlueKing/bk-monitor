@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound
 from metadata import config
@@ -1051,23 +1052,24 @@ def get_valid_bcs_projects() -> List:
     return valid_project_list
 
 
-def get_space_by_table_id(table_id: str) -> Dict[str, Any]:
+def get_space_by_table_id(table_id: str, bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID) -> Dict[str, Any]:
     """通过结果表获取空间信息
 
     @param table_id: 结果表
+    @param bk_tenant_id: 租户ID
     @return: 返回空间信息，包含空间类型，空间ID，是否所有空间
     """
     try:
-        bk_biz_id = ResultTable.objects.get(table_id=table_id).bk_biz_id
+        bk_biz_id = ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_biz_id
     except ResultTable.DoesNotExist:
-        raise ValueError(f"table_id:[{table_id}] not found")
+        raise ValueError(f"table_id:[{table_id}] of bk_tenant_id:[{bk_tenant_id}]not found")
 
     # 查询关联的data id
     try:
-        bk_data_id = DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
+        bk_data_id = DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_data_id
     except DataSourceResultTable.DoesNotExist:
         raise ValueError(f"table_id:[{table_id}] not found data source")
-    ds = DataSource.objects.get(bk_data_id=bk_data_id)
+    ds = DataSource.objects.get(bk_data_id=bk_data_id)  # 这里无需添加租户条件
 
     # 查询数据源是否为平台级并且为`0`业务
     if int(bk_biz_id) == 0 and ds.is_platform_data_id:
