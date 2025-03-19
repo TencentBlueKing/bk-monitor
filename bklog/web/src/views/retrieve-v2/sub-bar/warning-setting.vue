@@ -7,7 +7,7 @@
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
     ></span
-    >{{ t('告警') }}
+    >{{ $t('告警') }}
     <bk-badge
       v-if="badgeCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
@@ -21,7 +21,7 @@
         class="bklog-warning-wrapper"
       >
         <bk-tab
-          style="width: 560px; min-height: 200px; background-color: #fff"
+          style="width: 580px; min-height: 200px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
           type="card"
@@ -40,14 +40,14 @@
                   :key="type"
                   @click="handleRadioGroup(type)"
                 >
-                  {{ type === 'all' ? '全部' : '未处理' }}
+                  {{ type === 'all' ? $t('全部') : $t('未恢复') }}
                 </span>
               </div>
               <div
                 style="margin: 0 12px; color: #3a84ff; cursor: pointer"
                 @click="handleJumpMonitor()"
               >
-                {{ t('更多')
+                {{ $t('更多')
                 }}<span
                   style="margin-left: 4px"
                   class="bklog-icon bklog-jump"
@@ -69,15 +69,14 @@
                 class="active-box"
               ></div>
             </template>
-            <bk-alert type="info">
-              <template #title>
-                <span
-                  style="cursor: pointer"
-                  @click="handleJumpMonitor"
-                  >{{ alertText }}</span
-                >
-              </template>
-            </bk-alert>
+            <!-- <bk-alert type="info">
+              <span
+                slot="title"
+                style="cursor: pointer"
+                @click="handleJumpMonitor"
+                >{{ alertText }}</span
+              >
+            </bk-alert> -->
             <bk-table
               v-if="active === 'mission'"
               v-bkloading="{ isLoading: loading }"
@@ -92,14 +91,19 @@
             >
               <bk-table-column
                 :label="$t('告警名称')"
-                min-width="100"
+                :min-width="120"
               >
                 <template #default="{ row }">
                   <div
-                    style="color: #3a84ff; cursor: pointer"
+                    class="bklog-table-col-alert-name"
+                    :style="{
+                      color: '#3a84ff',
+                      cursor: 'pointer',
+                      '--severity-color': getLevelColor(row.severity),
+                    }"
                     @click="handleViewWarningDetail(row)"
                   >
-                    {{ t(row.alert_name) }}
+                    <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
                 </template>
               </bk-table-column>
@@ -130,21 +134,21 @@
                       :style="{ color: getColor(row.status), fontSize: '14px' }"
                       :class="getClass(row.status)"
                     />
-                    {{ t(STATUS_NAME_MAP[row.status]) }}
+                    {{ STATUS_NAME_MAP[row.status] }}
                   </div>
                 </template>
               </bk-table-column>
-              <bk-table-column
+              <!-- <bk-table-column
                 :label="$t('告警级别')"
                 min-width="90"
               >
                 <template #default="{ row }">
                   <div :style="{ color: getLevelColor(row.severity), fontSize: '14px' }">
                     <span :class="getLevelClass(row.severity)" />
-                    {{ t(LEVEL_NAME_MAP[row.severity]) }}
+                    {{ LEVEL_NAME_MAP[row.severity] }}
                   </div>
                 </template>
-              </bk-table-column>
+              </bk-table-column> -->
               <bk-table-column :label="$t('操作')">
                 <template #default="{ row }">
                   <div
@@ -178,6 +182,10 @@
                 </template>
               </bk-table-column>
               <bk-table-column
+                :label="$t('监控项')"
+                prop="query_string"
+              ></bk-table-column>
+              <bk-table-column
                 :label="$t('最近告警时间')"
                 prop="latest_time_format"
               >
@@ -191,7 +199,7 @@
 </template>
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
-
+  import $http from '@/api';
   import { formatDate } from '@/common/util';
   import PopInstanceUtil from '@/global/pop-instance-util';
   import useLocale from '@/hooks/use-locale';
@@ -200,7 +208,7 @@
 
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
-  import $http from '@/api';
+  // import label from '../../../language/lang/en/label';
   const { t } = useLocale();
   const store = useStore();
 
@@ -214,9 +222,9 @@
     newInstance: false,
     tippyOptions: {
       arrow: false,
-      placement: 'bottom-end',
+      placement: 'bottom',
       hideOnClick: true,
-      offset: [0, 0],
+      offset: [0, 6],
       appendTo: document.body,
     },
   });
@@ -226,13 +234,13 @@
     { name: 'config', label: '策略', count: 0 },
   ]);
   const indexId = computed(() => store.state.indexId);
-  const alertText = computed(() => {
-    if (active.value === 'mission') {
-      return t('最多展示近10条告警，点击查看更多');
-    }
+  // const alertText = computed(() => {
+  //   if (active.value === 'mission') {
+  //     return t('最多展示近10条告警，点击查看更多');
+  //   }
 
-    return t('最多展示近10条策略，点击查看更多');
-  });
+  //   return t('最多展示近10条策略，点击查看更多');
+  // });
 
   const badgeCount = ref(0);
   const activeBar = {
@@ -245,6 +253,7 @@
     all: 'ALL',
     unHandle: 'NOT_SHIELDED_ABNORMAL',
   };
+
   const currentType = ref('all');
   const handleRadioGroup = (val: string) => {
     currentType.value = val;
@@ -277,9 +286,9 @@
   };
 
   const STATUS_NAME_MAP = {
-    ABNORMAL: '未恢复',
-    RECOVERED: '已恢复',
-    CLOSED: '已失效',
+    ABNORMAL: t('未恢复'),
+    RECOVERED: t('已恢复'),
+    CLOSED: t('已失效'),
   };
 
   const LEVEL_COLOR_MAP = {
@@ -289,23 +298,23 @@
     DEFAULT: '#000000',
   };
 
-  const LEVEL_CLASS_MAP = {
-    1: 'bklog-icon bklog-weixian',
-    2: 'bklog-icon bklog-circle-alert-filled',
-    3: 'bklog-icon bklog-info-fill',
-    DEFAULT: 'bklog-icon bklog-info-fill',
-  };
+  // const LEVEL_CLASS_MAP = {
+  //   1: 'bklog-icon bklog-weixian',
+  //   2: 'bklog-icon bklog-circle-alert-filled',
+  //   3: 'bklog-icon bklog-info-fill',
+  //   DEFAULT: 'bklog-icon bklog-info-fill',
+  // };
 
-  const LEVEL_NAME_MAP = {
-    1: '致命',
-    2: '预警',
-    3: '提醒',
-  };
+  // const LEVEL_NAME_MAP = {
+  //   1: t('致命'),
+  //   2: t('预警'),
+  //   3: t('提醒'),
+  // };
   // 函数优化
   const getColor = (status: string) => STATUS_COLOR_MAP[status] || STATUS_COLOR_MAP.DEFAULT;
   const getClass = (status: string) => STATUS_CLASS_MAP[status] || STATUS_CLASS_MAP.DEFAULT;
   const getLevelColor = (severity: number) => LEVEL_COLOR_MAP[severity] || LEVEL_COLOR_MAP.DEFAULT;
-  const getLevelClass = (severity: number) => LEVEL_CLASS_MAP[severity] || LEVEL_CLASS_MAP.DEFAULT;
+  // const getLevelClass = (severity: number) => LEVEL_CLASS_MAP[severity] || LEVEL_CLASS_MAP.DEFAULT;
 
   const handleTabChange = () => {
     tableKey.value += 1;
@@ -330,11 +339,54 @@
     }
   };
 
+  const getQueryString = () => {
+    const { addition, keyword } = store.getters.retrieveParams;
+    const timezone = store.state.indexItem.timezone;
+    const [start_time, end_time] = store.state.indexItem.datePickerValue;
+
+    if (addition.length > 0) {
+      return $http
+        .request('retrieve/generateQueryString', {
+          data: {
+            addition,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const result = [keyword, res.data?.querystring]
+              .filter(item => item.length > 0 && item !== '*')
+              .join(' AND ');
+            return `queryString=${result}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
+          }
+
+          return `from=${start_time}&to=${end_time}&timezone=${timezone}`;
+        });
+    }
+
+    if (keyword.length > 0 && keyword !== '*') {
+      return Promise.resolve(`queryString=${keyword}&from=${start_time}&to=${end_time}&timezone=${timezone}`);
+    }
+
+    return Promise.resolve(`from=${start_time}&to=${end_time}&timezone=${timezone}`);
+  };
+
   const handleJumpMonitor = () => {
     const addressMap = {
       mission: 'event-center',
       config: 'strategy-config',
     };
+
+    if (active.value === 'mission') {
+      getQueryString().then(res => {
+        window.open(
+          `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+          '_blank',
+        );
+      });
+
+      return;
+    }
+
     window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
   };
 
@@ -358,6 +410,11 @@
    */
   const getAlertListData = async (val: string) => {
     try {
+      if (!indexId.value) {
+        return;
+      }
+
+      recordList.value = [];
       loading.value = true;
       const res = await $http.request('alertStrategy/alertList', {
         params: {
@@ -389,9 +446,15 @@
    */
   const getStrategyDate = async () => {
     try {
-      loading.value = true;
       strategyList.value.length = 0;
       strategyList.value = [];
+
+      if (!indexId.value) {
+        return;
+      }
+
+      loading.value = true;
+
       const res = await $http.request('alertStrategy/strategyList', {
         params: {
           index_set_id: indexId.value,
@@ -491,7 +554,10 @@
     () => [indexId.value],
     () => {
       badgeCount.value = 0;
-      setMounted();
+
+      if (indexId.value) {
+        setMounted();
+      }
     },
   );
 </script>
@@ -503,13 +569,13 @@
     justify-content: center;
     width: 70px;
     height: 32px;
-    margin-left: 10px;
-    font-size: 14px;
+    font-size: 12px;
     color: #63656e;
     cursor: pointer;
 
     .bklog-icon {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
+      font-size: 14px;
     }
   }
 
@@ -572,6 +638,22 @@
           height: 32px;
           border-bottom: none;
         }
+      }
+    }
+
+    .bklog-table-col-alert-name {
+      position: relative;
+      padding-left: 4px;
+
+      .severity-level {
+        position: absolute;
+        left: 0;
+        top: 2px;
+        display: inline-block;
+        min-width: 2px;
+        min-height: 14px;
+        background-color: var(--severity-color);
+        margin-right: 2px;
       }
     }
   }

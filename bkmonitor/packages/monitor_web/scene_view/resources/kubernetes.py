@@ -36,6 +36,7 @@ from bkmonitor.models import (
     BCSClusterLabels,
     BCSContainer,
     BCSContainerLabels,
+    BCSIngress,
     BCSLabel,
     BCSNode,
     BCSNodeLabels,
@@ -1085,6 +1086,22 @@ class GetKubernetesContainerList(KubernetesResource):
             self.model_class.get_filter_node_ip(params),
             self.model_class.get_filter_service_status(params),
         ]
+
+
+class GetKubernetesIngress(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id: int = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id: str = serializers.CharField(required=True)
+        namespace: str = serializers.CharField(required=True)
+        ingress_name: str = serializers.CharField(required=True)
+
+    def perform_request(self, params: Dict):
+        bk_biz_id = params["bk_biz_id"]
+        params["name"] = params.pop("ingress_name")
+        item = BCSIngress.load_item(params)
+        if item:
+            return item.render(bk_biz_id, "detail")
+        return []
 
 
 class GetKubernetesService(Resource):
