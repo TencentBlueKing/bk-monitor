@@ -146,14 +146,14 @@ class NavTools extends DocumentLinkMixin {
     ];
   }
   mounted() {
-    document.addEventListener('keydown', this.handleKeyupSearch);
+    // document.addEventListener('keydown', this.handleKeyupSearch);
     bus.$on(HANDLE_SHOW_SETTING, this.handleShowSetting);
     bus.$on('handle-keyup-search', this.handleKeyupSearch);
     bus.$on(HANDLE_MENU_CHANGE, this.handleSet);
     window.addEventListener('blur', this.hidePopoverSetOrHelp);
   }
   beforeDestroy() {
-    document.removeEventListener('keydown', this.handleKeyupSearch);
+    // document.removeEventListener('keydown', this.handleKeyupSearch);
     bus.$off('handle-keyup-search', this.handleKeyupSearch);
     bus.$off(HANDLE_MENU_CHANGE, this.handleSet);
     window.removeEventListener('blur', this.hidePopoverSetOrHelp);
@@ -328,7 +328,7 @@ class NavTools extends DocumentLinkMixin {
             >
               <span class='search-text'>{this.globalSearchPlaceholder}</span>
               {/* <span class='bk-icon icon-search' /> */}
-              <span class='search-bar-keyword'>{this.$t('快捷键')} /</span>
+              {/* <span class='search-bar-keyword'>{this.$t('快捷键')} /</span> */}
             </div>
           )
           // #endif
