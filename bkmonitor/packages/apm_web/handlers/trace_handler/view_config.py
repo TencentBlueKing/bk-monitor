@@ -45,7 +45,7 @@ class TraceUserCustomConfigHandler:
         self._user_custom_config_obj = None
 
     def get_user_custom_config_obj(self) -> TraceUserAppCustomConfig:
-        """获取用户自定义的配置信息"""
+        """获取用户自定义的配置对象"""
 
         if self._user_custom_config_obj:
             return self._user_custom_config_obj
@@ -84,6 +84,7 @@ class TraceDefaultConfigHandler:
 
     def _get_global_config_template_obj(self) -> TraceDefaultConfigTemplate:
         """获取或创建默认的配置模板对象"""
+
         template_obj, created = TraceDefaultConfigTemplate.objects.get_or_create(
             name=TRACE_DEFAULT_CONFIG_NAME,
             defaults={
@@ -147,8 +148,16 @@ class TraceViewConfigManager:
 
         fields = []
         for field_name in sorted_field_names:
+            field_type = field_info_dict[field_name]["type"]
             fields.append(
-                {"name": field_name, "field_operator": OPERATORS.get(field_info_dict[field_name]["type"], [])}
+                {
+                    "name": field_name,
+                    "alias": field_name,
+                    "type": field_type,
+                    "is_dimensions": True,
+                    "is_option_enabled": True,
+                    "supported_operations": OPERATORS.get(field_type, []),
+                }
             )
         return fields
 
@@ -159,8 +168,16 @@ class TraceViewConfigManager:
         for field_info in PrecalculateStorage.TABLE_SCHEMA:
             if field_info["field_name"] in ADVANCED_FIELDS:
                 field_es_type = field_info.get("option", {}).get("es_type")
+                field_name = field_info["field_name"]
                 advanced_fields.append(
-                    {"name": field_info["field_name"], "field_operator": OPERATORS.get(field_es_type, [])}
+                    {
+                        "name": field_name,
+                        "alias": field_name,
+                        "type": field_es_type,
+                        "is_dimensions": True,
+                        "is_option_enabled": True,
+                        "supported_operations": OPERATORS.get(field_es_type, []),
+                    }
                 )
         return advanced_fields
 
@@ -176,8 +193,14 @@ class TraceViewConfigManager:
         elif mode == QueryMode.SPAN:
             default_config: dict = template_obj.span_config
             custom_config: dict = user_custom_config_obj.span_config
+
         else:
             return {}
 
         default_config.update(custom_config)
+        default_config.update(
+            {
+                "user_custom_config": custom_config,
+            }
+        )
         return default_config

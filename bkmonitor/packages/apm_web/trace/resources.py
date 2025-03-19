@@ -1280,12 +1280,14 @@ class ListTraceViewConfigResource(Resource):
         app_name = validated_request_data["app_name"]
 
         view_config_manager = TraceViewConfigManager(bk_biz_id=bk_biz_id, app_name=app_name)
-        es_mapping = self.ES_MAPPING_API(bk_biz_id=bk_biz_id, app_name=app_name)
 
+        # 获取 trace 视角的视图配置
         trace_config = view_config_manager.get_config_by_mode(QueryMode.TRACE)
+        es_mapping = self.ES_MAPPING_API(bk_biz_id=bk_biz_id, app_name=app_name)
         trace_query_fields = view_config_manager.get_trace_queryable_fields(es_mapping=es_mapping)
         trace_config.update({"fields": trace_query_fields})
 
+        # 获取 span 视角的视图配置
         span_config = view_config_manager.get_config_by_mode(QueryMode.SPAN)
         span_query_fields = view_config_manager.get_span_queryable_fields()
         span_config.update({"fields": span_query_fields})
