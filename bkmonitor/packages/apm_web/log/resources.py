@@ -32,8 +32,14 @@ def overwrite_with_span_addition(info, overwrite_key=None):
 
 
 def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_time=None, end_time=None):
+    if start_time and end_time:
+        dt_start = (start_time // 60) * 60
+        dt_end = (end_time // 60) * 60
+        cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-{dt_start}-{dt_end}-log_relation_list"
+    else:
+        cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-log_relation_list"
+
     cache_call = using_cache(CacheType.APM(1 * 60))
-    cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-log_relation_list"
     index_info_list = cache_call.get_value(cache_key)
     if index_info_list:
         for index_info in index_info_list:
