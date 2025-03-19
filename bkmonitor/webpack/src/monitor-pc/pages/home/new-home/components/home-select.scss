@@ -416,7 +416,7 @@
 }
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
-  top: 10px;
+  top: calc(10px + var(--notice-alert-height));
   // right: 262px;
   right: 235px;
   width: 720px !important;
