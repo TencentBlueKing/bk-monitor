@@ -52,7 +52,7 @@ export default class DimensionTableSlide extends tsc<any> {
   FIELD_SETTINGS = {
     name: { label: '名称', width: 200 },
     description: { label: '别名', width: 200 },
-    disabled: { label: '启停', width: 120 },
+    disabled: { label: '启/停', width: 120 },
     common: { label: '是否常用', width: 140 },
     set: { label: '操作', width: 80 },
   };
@@ -73,7 +73,7 @@ export default class DimensionTableSlide extends tsc<any> {
   }
 
   // 响应式处理
-  @Watch('metricTable', { immediate: true, deep: true })
+  @Watch('dimensionTable', { immediate: true })
   handleDimensionTableChange(newVal: IDimensionItem[]) {
     this.localTable = deepClone(newVal);
   }

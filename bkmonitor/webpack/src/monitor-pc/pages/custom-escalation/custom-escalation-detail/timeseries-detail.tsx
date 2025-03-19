@@ -26,6 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import MonitorImport from '../../../components/monitor-import/monitor-import.vue';
 import DimensionTabDetail from './dimension-tab-detail';
 import MetricTabDetail from './metric-tab-detail';
 
@@ -43,23 +44,23 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
 
   tabs = [
     {
-      title: '指标',
+      title: this.$t('指标'),
       id: 'metric',
     },
     {
-      title: '维度',
+      title: this.$t('维度'),
       id: 'dimension',
     },
   ];
   activeTab = this.tabs[0].id;
 
   @Emit('handleExport')
-  handleDownload() {
-    return this.activeTab;
-  }
+  handleDownload() { }
 
-  handleUpload() {
-   }
+  @Emit('handleUpload')
+  handleUpload(data) {
+    return data;
+  }
 
   getCmpByActiveTab(activeTab: string) {
     const cmpMap = {
@@ -121,13 +122,14 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
               ))}
             </div>
             <div class='tools'>
-              <span
+              <MonitorImport
                 class='tool'
-                onClick={this.handleUpload}
+                base64={false}
+                return-text={true}
+                onChange={this.handleUpload}
               >
-                {' '}
                 <i class='icon-monitor icon-xiazai2' /> {this.$t('导入')}
-              </span>
+              </MonitorImport>
               <span
                 class='tool'
                 onClick={this.handleDownload}
