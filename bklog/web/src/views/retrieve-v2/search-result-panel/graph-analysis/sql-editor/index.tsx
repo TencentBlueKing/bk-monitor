@@ -139,7 +139,7 @@ export default defineComponent({
     };
 
     const handleSyncAdditionToSQL = () => {
-      const { addition, start_time, end_time } = retrieveParams.value;
+      const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
         .request('graphAnalysis/generateSql', {
@@ -150,6 +150,7 @@ export default defineComponent({
             addition,
             start_time,
             end_time,
+            keyword,
             sql: sqlContent.value,
           },
         })
@@ -314,7 +315,7 @@ export default defineComponent({
     );
 
     const debounceSyncAdditionToSQL = debounce(() => {
-      const { addition, start_time, end_time } = retrieveParams.value;
+      const { addition, start_time, end_time, keyword } = retrieveParams.value;
       $http
         .request('graphAnalysis/generateSql', {
           params: {
@@ -325,6 +326,7 @@ export default defineComponent({
             start_time,
             end_time,
             sql: sqlContent.value,
+            keyword,
           },
         })
         .then(resp => {
@@ -334,7 +336,7 @@ export default defineComponent({
     }, 300);
 
     watch(
-      () => [retrieveParams.value.addition],
+      () => [retrieveParams.value.addition, retrieveParams.value.keyword],
       () => {
         debounceSyncAdditionToSQL();
       },
