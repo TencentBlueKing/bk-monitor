@@ -33,7 +33,7 @@ import VueDraggable from 'vuedraggable';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-
+import { builtInInitHiddenList } from '@/const/index.js'
 import './index.scss';
 
 @Component
@@ -61,16 +61,8 @@ export default class FieldFilterComp extends tsc<object> {
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
-  builtInInitHiddenList = [
-    'gseIndex',
-    'iterationIndex',
-    '__dist_01',
-    '__dist_03',
-    '__dist_05',
-    '__dist_07',
-    '__dist_09',
-    '__ipv6__',
-  ];
+  builtInInitHiddenList = builtInInitHiddenList ;
+  
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -113,7 +105,8 @@ export default class FieldFilterComp extends tsc<object> {
     const builtInHiddenFields = [];
     const indexHiddenFields = [];
     this.hiddenFields.forEach(item => {
-      if (item.field_type === '__virtual__' || item.is_built_in) {
+      // if (item.field_type === '__virtual__' || item.is_built_in) {
+      if (this.builtInInitHiddenList.includes(item.field_name)) {
         builtInHiddenFields.push(item);
         return;
       }
@@ -251,10 +244,10 @@ export default class FieldFilterComp extends tsc<object> {
         this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
     };
   }
-  getIsShowIndexSetExpand() {
-    return this.indexSetFields().filter(item => item.filterVisible).length > 10;
+  getIsShowIndexSetExpand() { 
+    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.') ).length > 10;
   }
-  /** 展示的内置字段 */
+  /** 展示的可选字段 */
   get showIndexSetFields() {
     if (this.searchKeyword) return this.objectHierarchy(this.indexSetFields());
     const result = this.objectHierarchy(
