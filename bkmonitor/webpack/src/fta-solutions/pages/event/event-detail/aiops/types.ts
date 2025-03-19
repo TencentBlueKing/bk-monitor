@@ -91,6 +91,7 @@ export interface TabConfig {
 }
 
 export interface IIncidentDetail {
+  id: string;
   incident_name: string;
   status_alias: string;
   duration: string;
