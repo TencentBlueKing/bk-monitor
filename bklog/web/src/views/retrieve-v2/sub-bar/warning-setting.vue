@@ -24,8 +24,8 @@
           style="width: 560px; min-height: 200px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
-          @tab-change="handleTabChange"
           type="card"
+          @tab-change="handleTabChange"
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
@@ -70,12 +70,13 @@
               ></div>
             </template>
             <bk-alert type="info">
-              <span
-                slot="title"
-                style="cursor: pointer"
-                @click="handleJumpMonitor"
-                >{{ alertText }}</span
-              >
+              <template #title>
+                <span
+                  style="cursor: pointer"
+                  @click="handleJumpMonitor"
+                  >{{ alertText }}</span
+                >
+              </template>
             </bk-alert>
             <bk-table
               v-if="active === 'mission'"
@@ -190,14 +191,16 @@
 </template>
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
-  import $http from '@/api';
-  import useLocale from '@/hooks/use-locale';
+
   import { formatDate } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import PopInstanceUtil from '../search-bar/pop-instance-util';
   import { bkMessage } from 'bk-magic-vue';
+
+  import PopInstanceUtil from '../../../global/pop-instance-util';
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
+  import $http from '@/api';
   const { t } = useLocale();
   const store = useStore();
 
