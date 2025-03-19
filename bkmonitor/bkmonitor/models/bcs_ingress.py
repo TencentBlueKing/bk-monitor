@@ -141,7 +141,7 @@ class BCSIngress(BCSBase):
             bcs_ingress.bcs_cluster_id = bcs_cluster_id
             bcs_ingress.namespace = ingress.get("namespace")
             bcs_ingress.name = ingress.get("name")
-            bcs_ingress.class_name = ingress.get("class_name")
+            bcs_ingress.class_name = ingress.get("class_name") or "-"
             bcs_ingress.service_list = ",".join(ingress.get("service_list", []))
             bcs_ingress.created_at = ingress.get("created_at")
             bcs_ingress.last_synced_at = timezone.now()
