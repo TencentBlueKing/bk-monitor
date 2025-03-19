@@ -234,7 +234,7 @@ class EventTopKResource(Resource):
         # 计算事件总数
         total = EventTotalResource().perform_request(validated_request_data)["total"]
         if total == 0:
-            return [{"field": field, "distinct_count": 0, "list": []} for field in fields]
+            return [{"total": total, "field": field, "distinct_count": 0, "list": []} for field in fields]
 
         queryset = (
             UnifyQuerySet()
@@ -332,6 +332,7 @@ class EventTopKResource(Resource):
             sorted_fields = sorted(field_values.items(), key=lambda item: item[1], reverse=True)[:limit]
             topk_field_map[field] = {
                 "field": field,
+                "total": total,
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {

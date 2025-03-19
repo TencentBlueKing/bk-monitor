@@ -13,17 +13,15 @@ from typing import Any, Dict, List, Tuple
 from django.utils.translation import gettext_lazy as _
 
 from ...constants import (
-    DETAIL_MOCK_DATA,
     DISPLAY_FIELDS,
-    URL_MOCK_DATA,
     DisplayFieldType,
     EventDomain,
-    EventLabelOriginMapping,
-    EventOriginDefaultValue,
+    EVENT_ORIGIN_MAPPING,
     EventSource,
     EventType,
 )
 from .base import BaseEventProcessor
+from ...utils import get_field_label
 
 
 class OriginEventProcessor(BaseEventProcessor):
@@ -81,19 +79,23 @@ class OriginEventProcessor(BaseEventProcessor):
             if field.get("type", "") == DisplayFieldType.LINK.value:
                 event[field_name]["url"] = ""
             elif field.get("type", "") == DisplayFieldType.DESCRIPTIONS.value:
-                event[field_name]["detail"] = {}
+                event[field_name]["detail"] = {
+                    field_name: {
+                        "label": get_field_label(field_name, data_label=""), "value": field_value, "alias": field_value,
+                    }
+                }
 
         return event
 
     @classmethod
     def get_source_and_domain(cls, origin_event, data_label) -> Tuple[str, str]:
         # 根据 data_label获取
-        event_origin = EventLabelOriginMapping.get(data_label)
+        event_origin: Tuple[str, str] = EVENT_ORIGIN_MAPPING.get(data_label)
         if event_origin:
-            return event_origin.domain, event_origin.source
+            return event_origin
 
         # 从维度获取，获取不到返回默认值 DEFAULT
         return (
-            origin_event.get("domain", EventOriginDefaultValue.DEFAULT_DOMAIN.value),
-            origin_event.get("source", EventOriginDefaultValue.DEFAULT_SOURCE.value),
+            origin_event.get("domain", EventDomain.DEFAULT.value),
+            origin_event.get("source", EventSource.DEFAULT.value),
         )
