@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { APIType } from '../api-utils';
 import {
   ExploreEntitiesTypeEnum,
   type ConditionChangeEvent,
@@ -36,7 +37,6 @@ import {
   type ExploreEntitiesMap,
   type ExploreFieldMap,
 } from '../typing';
-import { APIType } from '../api-utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import type { ExploreSubject } from '../utils';
