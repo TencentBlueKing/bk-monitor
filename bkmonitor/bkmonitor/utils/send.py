@@ -483,7 +483,7 @@ class Sender(BaseSender):
     @staticmethod
     def send_wxwork_layouts(msgtype, content, chat_ids, layouts: list, mentioned_users=None, mentioned_title=None):
         """
-        模块化消息推送
+        模块化消息推送(未启用)
         """
         send_result = {"errcode": 0, "errmsg": []}
         for chat_id in chat_ids:
@@ -514,7 +514,13 @@ class Sender(BaseSender):
         """
         发送企业微信群通知
         """
-        notice_result = {}
+
+        def finish_send_wxork_bot(msg, ret):
+            notice_result = {}
+            for notice_receiver in notice_receivers:
+                notice_result[notice_receiver] = {"message": msg, "result": ret}
+            return notice_result
+
         message = _("发送成功")
         logger.info(
             "send.wxwork_group({}): \ncontent: {} \n action_plugin {}".format(
@@ -526,57 +532,41 @@ class Sender(BaseSender):
 
         alarm = self.context.get("alarm", None)
         if not settings.WXWORK_BOT_WEBHOOK_URL:
-            result = False
-            message = _("未配置企业微信群机器人，请联系管理员")
-        elif not notice_receivers:
-            result = False
-            message = _("通知人不能为空")
-        else:
-            try:
-                link_layouts = alarm.link_layouts
-            except Exception:
-                # 没有这个变量的情况下，默认为None
-                link_layouts = None
-            try:
-                if link_layouts:
-                    # 如果是layouts, 通过layouts的模式发送带按钮的通知
-                    response = self.send_wxwork_layouts(
-                        self.msg_type, self.content, notice_receivers, link_layouts, self.mentioned_users
-                    )
-                else:
-                    # 如果不是，保留以前的发送格式
-                    response = self.send_wxwork_content(
-                        self.msg_type, self.content, notice_receivers, self.mentioned_users
-                    )
-                if response["errcode"] != 0:
-                    result = False
-                    message = response["errmsg"]
-            except Exception as e:
+            return finish_send_wxork_bot(_("未配置蓝鲸监控群机器人回调地址，请联系管理员"), False)
+
+        if not notice_receivers:
+            return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
+
+        try:
+            # 如果不是，保留以前的发送格式
+            response = self.send_wxwork_content(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            if response["errcode"] != 0:
                 result = False
-                message = str(e)
-                logger.exception("send.wxwork_group failed, {}".format(e))
+                message = response["errmsg"]
+        except Exception as e:
+            result = False
+            message = str(e)
+            logger.exception("send.wxwork_group failed, {}".format(e))
 
-            if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
-                # 只有告警通知才发送图片，执行不做图片发送
-                try:
-                    image = alarm.chart_image if alarm else None
-                    if image:
-                        response = self.send_wxwork_image(image, notice_receivers)
-                        if response["errcode"] != 0:
-                            logger.error("send.wxwork_group image failed, {}".format(response["errmsg"]))
-                    else:
-                        logger.info(
-                            "ignore sending chart image to chat_id({}) for action({})".format(
-                                "|".join(notice_receivers),
-                                self.context["action"].id if self.context.get("action") else "NULL",
-                            )
+        if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
+            # 只有告警通知才发送图片，执行不做图片发送
+            try:
+                image = alarm.chart_image if alarm else None
+                if image:
+                    response = self.send_wxwork_image(image, notice_receivers)
+                    if response["errcode"] != 0:
+                        logger.error("send.wxwork_group image failed, {}".format(response["errmsg"]))
+                else:
+                    logger.info(
+                        "ignore sending chart image to chat_id({}) for action({})".format(
+                            "|".join(notice_receivers),
+                            self.context["action"].id if self.context.get("action") else "NULL",
                         )
-                except Exception as e:
-                    logger.exception("send.wxwork_group image failed, {}".format(e))
+                    )
+            except Exception as e:
+                logger.exception("send.wxwork_group image failed, {}".format(e))
 
-        for notice_receiver in notice_receivers:
-            notice_result[notice_receiver] = {"message": message, "result": result}
-        return notice_result
+        return finish_send_wxork_bot(message, result)
 
     def send_rtx(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
         """
@@ -679,12 +669,7 @@ class ChannelBkchatSender(BaseSender):
 
     def send_wxwork_bot(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
         """
-        发送邮件通知
-        :return: {
-            "1": {"result": true, "message": "OK"},
-            "2": {"result": false, "message": "发送失败"}
-        }
-        :rtype: dict
+        发送企业微信机器人通知
         """
         alarm = self.context.get("alarm")
         msg_param = {"content": self.content}
