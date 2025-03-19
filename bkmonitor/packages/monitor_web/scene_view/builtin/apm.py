@@ -553,7 +553,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             raise ValueError("没有传递 start_time, end_time")
 
         if app_name and service_name:
-            cache_key = f"{bk_biz_id}-{app_name}-{service_name}-container"
+            # 取整到分钟作为缓存key的一部分
+            dt_start = (start_time // 60) * 60
+            dt_end = (end_time // 60) * 60
+            cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-container"
             response_cache = using_cache(CacheType.APM(60 * 1))
             response = response_cache.get_value(cache_key)
             if not response:
