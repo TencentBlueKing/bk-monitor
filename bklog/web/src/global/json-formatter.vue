@@ -204,7 +204,7 @@
       }
 
       .valid-text {
-        padding: 4px 2px;
+        padding: 2px;
         :hover {
           color: #3a84ff;
           cursor: pointer;
@@ -242,7 +242,7 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 4px 2px;
+        padding: 2px;
 
         &.focus-text,
         &:hover {
@@ -301,15 +301,11 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 4px 2px;
-
+        padding: 2px;
         &.focus-text,
         &:hover {
-          // width: max-content;
-          padding: 4px 2px;
           background-color: #cddffe;
           border-radius: 2px;
-          // color: #3a84ff;
         }
       }
     }
