@@ -46,6 +46,7 @@
       flex-shrink: 0;
       column-gap: 4px;
       width: 210px;
+      font-family: roboto, Helvetica, Aria, 'PingFang SC', 'Microsoft Yahei', sans-serif;
       color: #4d4f56;
 
       .kv-label-icon {
@@ -57,6 +58,7 @@
     .item-value {
       display: flex;
       min-width: 0;
+      font-family: roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
       color: #313238;
 
       .value-jump-link {
