@@ -392,7 +392,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   handleContentHover(e: MouseEvent, detail: Record<string, any>) {
     const createListItem = item => {
       const itemValueDom =
-        item?.type === 'link'
+        item?.type === 'link' && item?.url
           ? `<a
             class='content-item-value-link'
             href=${item.url}
