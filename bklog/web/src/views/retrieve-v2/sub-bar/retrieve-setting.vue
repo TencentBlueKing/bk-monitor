@@ -209,7 +209,7 @@
     justify-content: center;
 
     span {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
       font-size: 14px;
     }
   }

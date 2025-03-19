@@ -199,7 +199,7 @@
 </template>
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
-
+  import $http from '@/api';
   import { formatDate } from '@/common/util';
   import PopInstanceUtil from '@/global/pop-instance-util';
   import useLocale from '@/hooks/use-locale';
@@ -570,12 +570,13 @@
     width: 70px;
     height: 32px;
     margin-left: 10px;
-    font-size: 14px;
+    font-size: 12px;
     color: #63656e;
     cursor: pointer;
 
     .bklog-icon {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
+      font-size: 14px;
     }
   }
 
