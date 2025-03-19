@@ -28,6 +28,7 @@ import { computed, defineComponent, ref } from 'vue';
 import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 import useScroll from '@/hooks/use-scroll';
+
 import RetrieveHelper from '../../../retrieve-helper';
 
 export default defineComponent({
@@ -55,7 +56,7 @@ export default defineComponent({
         v-bk-tooltips={$t('返回顶部')}
         onClick={() => scrollTop()}
       >
-        <i class='bklog-icon bklog-zhankai'></i>
+        <i class='bklog-icon bklog-backtotop'></i>
       </span>
     );
     return {

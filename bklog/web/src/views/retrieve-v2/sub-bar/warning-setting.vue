@@ -569,7 +569,6 @@
     justify-content: center;
     width: 70px;
     height: 32px;
-    margin-left: 10px;
     font-size: 12px;
     color: #63656e;
     cursor: pointer;
