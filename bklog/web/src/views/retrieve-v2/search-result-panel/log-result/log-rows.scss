@@ -82,23 +82,6 @@
     min-height: 34px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
-    .bklog-list-row {
-      .bklog-row-cell:nth-child(1) {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 12px !important;
-        /* stylelint-disable-next-line declaration-no-important */
-        min-width: 12px !important;
-        /* stylelint-disable-next-line declaration-no-important */
-        margin-left: 8px !important;
-        /* stylelint-disable-next-line declaration-no-important */
-        padding: 0px 0px 0px 0px !important;
-      }
-      .bklog-row-cell:nth-child(2) {
-        width: 50px;
-        min-width: 50px;
-        padding: 0px 12px;
-      }
-    }
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
@@ -128,12 +111,12 @@
         line-height: 22px;
 
         .bklog-expand-icon {
-          margin-top: 6px;
           position: relative;
           display: flex;
           align-items: center;
           justify-content: center;
           height: 20px;
+          margin-top: 6px;
           font-size: 12px;
           color: #c4c6cc;
           cursor: pointer;
@@ -207,6 +190,7 @@
             align-items: center;
             line-height: 32px;
             color: #313238;
+
             .bk-table-caret-wrapper {
               position: relative;
               display: inline-flex;
@@ -479,54 +463,54 @@
 
   .bklog-empty-data {
     display: flex;
-    justify-content: center;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     width: 100%;
 
     h1 {
       height: 28px;
       font-family: MicrosoftYaHei-Bold;
-      font-weight: 700;
       font-size: 20px;
+      font-weight: 700;
+      line-height: 28px;
       color: #313238;
       letter-spacing: 0;
-      line-height: 28px;
     }
 
     .sub-title {
       height: 22px;
+      margin: 8px 0 24px 0;
       font-family: MicrosoftYaHei;
       font-size: 14px;
+      line-height: 22px;
       color: #313238;
       letter-spacing: 0;
-      line-height: 22px;
-      margin: 8px 0 24px 0;
     }
 
     .empty-validate-steps {
       display: flex;
-      width: 100%;
       justify-content: center;
+      width: 100%;
 
       > div {
-        background: #f5f7fa;
-        padding: 12px 16px;
         width: 30%;
         height: 240px;
+        padding: 12px 16px;
         font-size: 12px;
         color: #4d4f56;
+        background: #f5f7fa;
 
         h3 {
           height: 22px;
-          font-family: MicrosoftYaHei-Bold;
-          font-weight: 700;
-          font-size: 14px;
-          color: #313238;
-          letter-spacing: 0;
-          line-height: 22px;
           margin: 0;
           margin-bottom: 8px;
+          font-family: MicrosoftYaHei-Bold;
+          font-size: 14px;
+          font-weight: 700;
+          line-height: 22px;
+          color: #313238;
+          letter-spacing: 0;
         }
 
         &.validate-step1 {
@@ -536,17 +520,17 @@
             padding: 6px 24px 32px 6px;
 
             font-family: MicrosoftYaHei;
+            line-height: 20px;
 
             letter-spacing: 0;
-            line-height: 20px;
           }
         }
 
         &.validate-step2 {
           margin: 0 16px;
+          font-size: 12px;
           line-height: 20px;
           color: #4d4f56;
-          font-size: 12px;
         }
 
         .segment-span-tag {

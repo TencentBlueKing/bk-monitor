@@ -71,6 +71,10 @@
   .big-tree {
     overflow-y: hidden;
 
+    .bklog-drag-dots-box{
+      display: none;
+}
+
     .is-leaf {
       height: auto;
       line-height: normal;
