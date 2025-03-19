@@ -201,13 +201,11 @@
 <style lang="scss" scoped>
   .handle-content {
     position: absolute;
-    top: -4px;
     right: 0;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     width: 84px;
-    padding: 14px 10px;
     overflow: hidden;
 
     .handle-card {
