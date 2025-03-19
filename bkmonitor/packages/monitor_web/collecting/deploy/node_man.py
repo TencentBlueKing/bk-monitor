@@ -741,6 +741,10 @@ class NodeManInstaller(BaseInstaller):
             else:
                 instance["instance_name"] = host.get("bk_host_innerip") or host.get("bk_host_innerip_v6") or ""
                 instance["bk_module_ids"] = host.get("module", [])
+                if not instance["bk_module_ids"]:
+                    instance["bk_module_ids"] = [
+                        r.get("bk_module_id") for r in host.get("relations", []) if r.get("bk_module_id")
+                    ]
 
             # 根据步骤获取操作类型
             action = "install"
