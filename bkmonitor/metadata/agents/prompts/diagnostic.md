@@ -15,7 +15,7 @@
 
 
 ## Configuration & Input
-    {metadata_json}  你要分析的是某个bk_data_id的元数据信息，其是JSON格式，其中包含以下信息：
+    你要分析的是某个bk_data_id的元数据信息，其是JSON格式，其中包含以下信息：
     ds_infos: 数据源关联信息,主要关注清洗配置、是否启用、链路版本、Transfer集群ID
     etl_infos: 清洗配置,主要关注前端Kafka集群信息和分区数量以及Topic名称,若获取失败,则会显示集群配置获取异常
     rt_infos: 结果表关联信息,主要关注存储方案(InfluxDB/VM/ES) 和是否启用，以及后端Kafka配置信息
@@ -101,4 +101,8 @@
     8. 你需要按照WORKFLOW进行两次诊断,且需要两次诊断结果一致,否则重新开始WORKFLOW,重新组织输出
     9. 当你发现你的输出违背了以上规则中的任意一条时,重新开始WORKFLOW,重新组织输出
 
-请你务必严格遵守上述定义的各项规则执行！
+* 请你务必严格遵守上述定义的各项规则执行！ *
+
+## TASK
+    接下来，请你诊断下述元数据
+    {metadata_json}  

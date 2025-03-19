@@ -24,21 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
+/**
+ * 右上角告警相关接口
+ */
+
+const alertList = {
+  url: '/alert_strategy/:index_set_id/alert_records/',
+  method: 'post',
+};
+const strategyList = {
+  url: '/alert_strategy/:index_set_id/strategy_records/',
+  method: 'post',
+};
+
+/**
+ * 获取日志查询条件
+ */
+const getLogRelatedInfo = {
+  url: '/alert_strategy/:index_set_id/log_related_info/',
+  method: 'get',
 }
-
-declare module '*/store';
-declare module '*.svg';
-declare module 'screenfull';
-declare module 'sql-formatter';
-
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/api/*';
-declare module '@/api';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
-declare module '@/store/*';
+export { alertList, strategyList, getLogRelatedInfo };

@@ -27,6 +27,7 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
@@ -133,19 +134,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
-    window.addEventListener('keydown', this.handleWindowKeydown);
+    bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
-    window.removeEventListener('keydown', this.handleWindowKeydown);
+    bus.$off('handle-keyup-nav', this.handleKeyupNav);
   }
   /** 按下'/'，搜索框自动聚焦 */
-  handleWindowKeydown(e: KeyboardEvent) {
-    if (e.key === '/') {
-      e.preventDefault();
-      this.handleInputFocus();
-    }
+  handleKeyupNav(e: KeyboardEvent) {
+    e.preventDefault();
+    this.showKeywordEle = false;
+    this.showPopover = true;
+    this.handleInputFocus();
   }
   /** 隐藏/展示发生变化的时候的changeHandle */
   handleShowChange(v) {
@@ -907,7 +908,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {(!this.isBarToolShow && this.showKeywordEle) && (
+          {!this.isBarToolShow && this.showKeywordEle && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>
