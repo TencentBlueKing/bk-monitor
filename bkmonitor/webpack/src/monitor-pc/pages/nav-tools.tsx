@@ -171,6 +171,10 @@ class NavTools extends DocumentLinkMixin {
    */
   handleKeyupSearch(event) {
     if (this.globalSearchShow) return;
+    const isInput =
+      ['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase()) ||
+      (document.activeElement as HTMLElement).contentEditable === 'true';
+    if (isInput) return;
     if (event.key === '/') {
       if (this.isHomePage) {
         bus.$emit('handle-keyup-nav', event);
