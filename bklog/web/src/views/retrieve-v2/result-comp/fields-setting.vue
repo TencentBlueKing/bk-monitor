@@ -120,7 +120,7 @@
             </div>
             <ul class="select-list">
               <li
-                v-for="item in filterShaowTotal"
+                v-for="item in filterShadowTotal"
                 style="cursor: pointer"
                 class="select-item"
                 v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
@@ -315,7 +315,7 @@
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
       },
-      filterShaowTotal() {
+      filterShadowTotal() {
         const fields = this.$store.state.indexFieldInfo.fields;
         return fields.filter(item => {
           const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
@@ -335,7 +335,7 @@
       },
       toSelectLength() {
         if(this.keyword){
-          return this.filterShaowTotal.length;
+          return this.filterShadowTotal.length;
         }
         if (this.activeFieldTab === 'visible') {
           return this.shadowTotal.length - this.shadowVisible.length;
