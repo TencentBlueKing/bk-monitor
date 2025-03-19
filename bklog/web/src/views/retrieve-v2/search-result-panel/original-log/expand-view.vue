@@ -141,7 +141,7 @@
 
       span {
         display: inline-block;
-        width: 68px;
+        width: 46px;
         height: 23px;
         font-size: 12px;
         line-height: 23px;
@@ -165,7 +165,7 @@
         &.activeKv::after {
           position: absolute;
           top: -2px; /* 确保线条在元素的上方 */
-          left: 26px;
+          left: 14px;
           width: 17px;
           height: 2px;
           content: ''; /* 必须有content属性，即使为空 */
@@ -175,7 +175,7 @@
         &.activeJson::after {
           position: absolute;
           top: -2px; /* 确保线条在元素的上方 */
-          left: 20px;
+          left: 10px;
           width: 30px;
           height: 2px;
           content: ''; /* 必须有content属性，即使为空 */
@@ -185,7 +185,7 @@
     }
 
     .view-content {
-      padding: 10px 15px;
+      padding: 2px 15px 14px 15px;
       background-color: #f5f7fa;
 
       :deep(.vjs-tree) {
