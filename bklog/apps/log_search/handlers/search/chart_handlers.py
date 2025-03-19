@@ -200,27 +200,24 @@ class SQLChartHandler(ChartHandler):
         :param params: 图表参数
         :return: 图表数据 dict
         """
-        try:
-            tracer = trace.get_tracer(__name__)
-            with tracer.start_as_current_span("bkdata_doris_query") as span:
-                span.set_attribute("index_set_id", self.index_set_id)
-                span.set_attribute("user.username", get_request_username())
-                span.set_attribute("space_uid", self.data.space_uid)
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("bkdata_doris_query") as span:
+            span.set_attribute("index_set_id", self.index_set_id)
+            span.set_attribute("user.username", get_request_username())
+            span.set_attribute("space_uid", self.data.space_uid)
 
-                if not self.data.support_doris:
-                    raise IndexSetDorisQueryException()
-                span.set_attribute("db.table", self.data.doris_table_id)
-                parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-                span.set_attribute("db.statement", parsed_sql)
-                span.set_attribute("db.system", "doris")
+            if not self.data.support_doris:
+                raise IndexSetDorisQueryException()
+            span.set_attribute("db.table", self.data.doris_table_id)
+            parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
+            span.set_attribute("db.statement", parsed_sql)
+            span.set_attribute("db.system", "doris")
 
-                data = self.fetch_query_data(parsed_sql)
-                span.set_attribute("total_records", data["total_records"])
-                span.set_attribute("time_taken", data["time_taken"])
+            data = self.fetch_query_data(parsed_sql)
+            span.set_attribute("total_records", data["total_records"])
+            span.set_attribute("time_taken", data["time_taken"])
 
-                return data
-        except Exception as e:
-            raise e
+            return data
 
     def parse_sql_syntax(self, doris_table_id: str, params: dict):
         """
