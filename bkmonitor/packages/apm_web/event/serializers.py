@@ -130,7 +130,7 @@ class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
         return attrs
 
 
-class EventTagDetailSerializer(EventTimeSeriesRequestSerializer):
+class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=5)
     interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
 
@@ -144,3 +144,18 @@ class EventTagDetailSerializer(EventTimeSeriesRequestSerializer):
         attrs["end_time"] = attrs["start_time"] + attrs["interval"]
 
         return attrs
+
+
+class EventTagStatisticsRequestSerializer(EventTotalRequestSerializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["expression"] = "a"
+        return attrs
+
+
+class EventGetTagConfigRequestSerializer(BaseEventRequestSerializer):
+    key = serializers.CharField(label="配置 Key", required=True)
+
+
+class EventUpdateTagConfigRequestSerializer(EventGetTagConfigRequestSerializer):
+    config = serializers.DictField(label="配置", required=True)

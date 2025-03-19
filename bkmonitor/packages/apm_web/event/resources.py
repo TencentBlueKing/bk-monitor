@@ -11,23 +11,23 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource
+from monitor.models import UserConfig
 from monitor_web.data_explorer.event import resources as event_resources
 from monitor_web.data_explorer.event.constants import EventDomain, EventSource, SYSTEM_EVENT_TRANSLATIONS, \
-    K8S_EVENT_TRANSLATIONS
-from monitor_web.data_explorer.event.utils import get_data_labels_map
-from packages.monitor_web.data_explorer.event.constants import (
-    EventLabelOriginMapping,
-    EventOriginDefaultValue,
-)
+    K8S_EVENT_TRANSLATIONS, EventType, DEFAULT_EVENT_ORIGIN
+from monitor_web.data_explorer.event.utils import get_data_labels_map, get_field_label
+from packages.monitor_web.data_explorer.event.constants import EVENT_ORIGIN_MAPPING
 
 from . import serializers
 from .utils import is_enabled_metric_tags
+from ..models import Application, ApmMetaConfig
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +80,9 @@ class EventTagsResource(Resource):
             [
                 InheritParentThread(
                     target=self.multi_thread_query_timeseries,
-                    args=(event_origin, timeseries_request_data, origin_time_series_map),
+                    args=(event_origin, req_data, origin_time_series_map),
                 )
-                for event_origin, timeseries_request_data in self.generate_timeseries_requests(
+                for event_origin, req_data in self.get_event_origin_req_data_map(
                     validated_request_data,
                     get_data_labels_map(
                         bk_biz_id, [query_config["table"] for query_config in validated_request_data["query_configs"]]
@@ -96,22 +96,26 @@ class EventTagsResource(Resource):
         return {"list": self.transform_aggregated_data(self.merge_timeseries(origin_time_series_map))}
 
     @classmethod
-    def generate_timeseries_requests(
+    def get_event_origin_req_data_map(
         cls,
         validated_request_data: Dict[str, Any],
         data_labels_map: Dict[str, str],
-    ):
-        event_requests = {}
+        exclude_origins: Optional[List[Tuple[str, str]]] = None
+    ) -> Dict[Tuple[str, str], Any]:
+        exclude_origins = exclude_origins or []
+        event_origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
         for query_config in validated_request_data["query_configs"]:
-            origin = EventLabelOriginMapping.get(data_labels_map.get(query_config["table"]))
-            domain = origin.domain if origin else EventOriginDefaultValue.DEFAULT_DOMAIN.value
-            source = origin.source if origin else EventOriginDefaultValue.DEFAULT_SOURCE.value
-            event_origin = (domain, source)
-            if event_origin not in event_requests:
-                event_requests[event_origin] = copy.deepcopy(validated_request_data)
-                event_requests[event_origin]["query_configs"] = []
-            event_requests[event_origin]["query_configs"].append(query_config)
-        return event_requests
+            event_origin: Tuple[str, str] = EVENT_ORIGIN_MAPPING.get(
+                data_labels_map.get(query_config["table"]), DEFAULT_EVENT_ORIGIN
+            )
+            if event_origin in exclude_origins:
+                continue
+
+            if event_origin not in event_origin_req_data_map:
+                event_origin_req_data_map[event_origin] = copy.deepcopy(validated_request_data)
+                event_origin_req_data_map[event_origin]["query_configs"] = []
+            event_origin_req_data_map[event_origin]["query_configs"].append(query_config)
+        return event_origin_req_data_map
 
     @classmethod
     def process_timeseries(cls, timeseries: List[Dict[str, Any]], domain: str, source: str) -> List[Dict[str, Any]]:
@@ -227,7 +231,7 @@ class EventTagsResource(Resource):
 
 
 class EventTagDetailResource(Resource):
-    RequestSerializer = serializers.EventTagDetailSerializer
+    RequestSerializer = serializers.EventTagDetailRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         # 获取 total
@@ -251,7 +255,7 @@ class EventTagDetailResource(Resource):
         )
         validated_request_data: Dict[str, Any] = copy.deepcopy(validated_request_data)
         validated_request_data["fields"] = ["event_name"]
-        origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = EventTagsResource.generate_timeseries_requests(
+        origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = EventTagsResource.get_event_origin_req_data_map(
             validated_request_data, data_labels_map
         )
         event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
@@ -299,3 +303,129 @@ class EventTagDetailResource(Resource):
         validated_request_data: Dict[str, Any] = copy.deepcopy(validated_request_data)
         validated_request_data["offset"] = 0
         return EventLogsResource().perform_request(validated_request_data).get("list") or []
+
+
+class EventTagStatisticsResource(Resource):
+    RequestSerializer = serializers.EventTagStatisticsRequestSerializer
+
+    @classmethod
+    def query_topk(cls, req_data: Dict[str, Any], field: str) -> Dict[str, Any]:
+        try:
+            return EventTopKResource().perform_request({**copy.deepcopy(req_data), "fields": [field], "limit": 10})[0]
+        except Exception:
+            return {"total": 0, "field": field, "distinct_count": 0, "list": []}
+
+    @classmethod
+    def query_total(
+        cls, event_origin: Tuple[str, str], req_data: Dict[str, Any], event_origin_total_map: Dict[Tuple[str, str], int]
+    ):
+        event_origin_total_map[event_origin] = EventTotalResource().perform_request(req_data).get("total") or 0
+
+    @classmethod
+    def fetch_total(cls, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        event_origin_total_map: Dict[Tuple[str, str], int] = {}
+        data_labels_map: Dict[str, str] = get_data_labels_map(
+            validated_request_data["bk_biz_id"],
+            [query_config["table"] for query_config in validated_request_data["query_configs"]],
+        )
+        origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = EventTagsResource.get_event_origin_req_data_map(
+            # Default 通过 total 差值计算，减少一次查询
+            validated_request_data, data_labels_map, exclude_origins=[DEFAULT_EVENT_ORIGIN]
+        )
+        run_threads([
+            InheritParentThread(target=cls.query_total, args=(event_origin, req_data, event_origin_total_map))
+            for event_origin, req_data in origin_req_data_map.items()
+        ])
+
+        return {event_origin[1]: total for event_origin, total in event_origin_total_map.items()}
+
+    @classmethod
+    def generate_field_columns(cls, field_metas: Dict[str, Any]) -> List[Dict[str, Any]]:
+        field_columns: List[Dict[str, Any]] = []
+        for field, meta in field_metas.items():
+            field_column = {
+                "name": field, "alias": get_field_label(field), "list": [
+                    {"value": value, "alias": meta["enum"].from_value(value).label}
+                    for value, _ in meta["enum"].choices()
+                ]
+            }
+            field_columns.append(field_column)
+
+            count_map: Optional[Dict[str, int]] = meta.get("count_map")
+            if count_map is None:
+                continue
+
+            for option in field_column["list"]:
+                option["count"] = meta["count_map"].get(option["value"], 0)
+
+        return field_columns
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        topk: Dict[str, Any] = self.query_topk(validated_request_data, field="type")
+        type_count_map: Dict[str, int] = {item["value"]: item["count"] for item in topk.get("list", [])}
+        type_count_map[EventType.Default.value] = topk["total"] - sum(type_count_map.values())
+
+        source_count_map: Dict[str, int] = self.fetch_total(validated_request_data)
+        source_count_map[EventSource.DEFAULT.value] = topk["total"] - sum(source_count_map.values())
+
+        field_metas: Dict[str, Any] = {
+            "type": {"count_map": type_count_map, "enum": EventType},
+            "source": {"count_map": source_count_map, "enum": EventSource}
+        }
+        return {"total": topk["total"], "columns": self.generate_field_columns(field_metas)}
+
+
+class EventGetTagConfigResource(Resource):
+    RequestSerializer = serializers.EventGetTagConfigRequestSerializer
+
+    DEFAULT_TAG_CONFIG: Dict[str, Any] = {
+        "is_enabled_metric_tags": False,
+        "source": {"is_select_all": True, "list": []},
+        "type": {"is_select_all": True, "list": []}
+    }
+
+    @classmethod
+    def process_key(cls, key: str) -> str:
+        return f"event_tag_config:{key}"
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        request = get_request(peaceful=True)
+        if not request:
+            return {}
+
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        app: Application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+
+        # 序列化器已做存在性判断，此处直接使用。
+        app_event_config: Dict[str, Any] = app.event_config
+
+        servie_tag_config: Dict[str, Any] = {}
+        servie_config: Optional[ApmMetaConfig] = ApmMetaConfig.get_service_config_value(
+            bk_biz_id, app_name, service_name, self.process_key(validated_request_data["key"])
+        )
+        if servie_config:
+            servie_tag_config = servie_config.config_value
+
+        return {
+            "columns": EventTagStatisticsResource.generate_field_columns(
+                {"type": {"enum": EventType}, "source": {"enum": EventSource}}
+            ),
+            # 配置优先级：默认 > App > Service
+            "config": {**self.DEFAULT_TAG_CONFIG, **app_event_config, **servie_tag_config}
+        }
+
+
+class EventUpdateTagConfigResource(Resource):
+    RequestSerializer = serializers.EventUpdateTagConfigRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        ApmMetaConfig.service_config_setup(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+            service_name=validated_request_data["service_name"],
+            config_key=EventGetTagConfigResource.process_key(validated_request_data["key"]),
+            config_value=validated_request_data["config"]
+        )
+        return {}

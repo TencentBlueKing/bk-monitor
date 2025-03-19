@@ -121,7 +121,7 @@ def get_filed_alias_dict(field, label: str) -> Tuple[str, Dict[str, str]]:
     return data_label, EVENT_FIELD_ALIAS.get(data_label, {})
 
 
-def get_field_label(field: str, data_label: str) -> str:
+def get_field_label(field: str, data_label: str = "") -> str:
     # 去掉可能存在 dimensions 前缀
     if field.startswith(DIMENSION_PREFIX):
         field = field[len(DIMENSION_PREFIX) :]

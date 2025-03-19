@@ -24,7 +24,7 @@ from ...constants import (
     EventSource,
     SystemEventTypeEnum,
 )
-from ...utils import create_host_info, generate_time_range
+from ...utils import create_host_info, generate_time_range, get_field_label
 from .base import BaseEventProcessor
 
 logger = logging.getLogger(__name__)
@@ -120,10 +120,20 @@ class HostEventProcessor(BaseEventProcessor):
 
             processed_event = copy.deepcopy(origin_event)
             processed_event["target"] = self.create_target(host_info)
+
+            event_content_alias = handler.create_event_content_alias(host_info)
             processed_event["event.content"] = {
                 "value": origin_event["event.content"]["value"],
-                "alias": handler.create_event_content_alias(host_info),
-                "detail": {**handler.create_detail(host_info), "target": processed_event["target"]},
+                "alias": event_content_alias,
+                "detail": {
+                    **handler.create_detail(host_info),
+                    "target": processed_event["target"],
+                    "event.content": {
+                        "label": get_field_label("event.content"),
+                        "value": origin_event["event.content"]["value"],
+                        "alias": event_content_alias,
+                    }
+                },
             }
 
             event_name = origin_event["event_name"]

@@ -9,9 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import sys
-from dataclasses import dataclass
 from enum import Enum, IntEnum
-from typing import Dict
+from typing import Dict, Tuple
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -28,10 +27,15 @@ class EventDomain(CachedEnum):
     K8S: str = "K8S"
     CICD: str = "CICD"
     SYSTEM: str = "SYSTEM"
+    DEFAULT: str = "DEFAULT"
 
     @cached_property
     def label(self):
-        return str({self.K8S: _("Kubernetes"), self.CICD: _("CICD"), self.SYSTEM: _("系统")}.get(self, self.value))
+        return str(
+            {
+                self.K8S: _("Kubernetes"), self.CICD: _("CICD"), self.SYSTEM: _("系统"), self.DEFAULT: _("默认")
+            }.get(self, self.value)
+        )
 
     @classmethod
     def get_default(cls, value):
@@ -41,26 +45,37 @@ class EventDomain(CachedEnum):
 
     @classmethod
     def choices(cls):
-        return [(cls.K8S.value, cls.K8S.value), (cls.CICD.value, cls.CICD.value), (cls.SYSTEM.value, cls.SYSTEM.value)]
+        return [
+            (cls.K8S.value, cls.K8S.value),
+            (cls.CICD.value, cls.CICD.value),
+            (cls.SYSTEM.value, cls.SYSTEM.value),
+            (cls.DEFAULT.value, cls.DEFAULT.value)
+        ]
 
 
 class EventSource(CachedEnum):
     """事件来源，需要保持唯一"""
 
-    # CICD
     BKCI: str = "BKCI"
-    # K8S
     BCS: str = "BCS"
-    # HOST
     HOST: str = "HOST"
+    DEFAULT: str = "DEFAULT"
 
     @classmethod
     def choices(cls):
-        return [(cls.BCS.value, cls.BCS.value), (cls.BKCI.value, cls.BKCI.value), (cls.HOST.value, cls.HOST.value)]
+        return [
+            (cls.BCS.value, cls.BCS.value),
+            (cls.BKCI.value, cls.BKCI.value),
+            (cls.HOST.value, cls.HOST.value),
+            (cls.DEFAULT.value, cls.DEFAULT.value)
+        ]
 
     @cached_property
     def label(self):
-        return str({self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机")}.get(self, self.value))
+        return str({
+                self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")
+            }.get(self, self.value)
+        )
 
     @classmethod
     def get_default(cls, value):
@@ -69,7 +84,7 @@ class EventSource(CachedEnum):
         return default
 
 
-class EventType(Enum):
+class EventType(CachedEnum):
     """
     事件类型
     """
@@ -77,6 +92,26 @@ class EventType(Enum):
     Normal = "Normal"
     Warning = "Warning"
     Default = "Default"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.Normal.value, cls.Normal.value),
+            (cls.Warning.value, cls.Warning.value),
+            (cls.Default.value, cls.Default.value)
+        ]
+
+    @cached_property
+    def label(self):
+        return str({
+            self.Normal: self.Normal.value, self.Warning: self.Warning.value, self.Default: self.Default.value
+        }.get(self, self.value))
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default
 
 
 class EventCategory(Enum):
@@ -112,25 +147,12 @@ CATEGORY_WEIGHTS = {
 }
 
 
-@dataclass
-class EventOrigin:
-    domain: str
-    source: str
+DEFAULT_EVENT_ORIGIN: Tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
 
-
-EventLabelOriginMapping: Dict[str, EventOrigin] = {
-    EventCategory.SYSTEM_EVENT.value: EventOrigin(
-        domain=EventDomain.SYSTEM.value,
-        source=EventSource.HOST.value,
-    ),
-    EventCategory.K8S_EVENT.value: EventOrigin(
-        domain=EventDomain.K8S.value,
-        source=EventSource.BCS.value,
-    ),
-    EventCategory.CICD_EVENT.value: EventOrigin(
-        domain=EventDomain.CICD.value,
-        source=EventSource.BKCI.value,
-    ),
+EVENT_ORIGIN_MAPPING: Dict[str, Tuple[str, str]] = {
+    EventCategory.SYSTEM_EVENT.value: (EventDomain.SYSTEM.value, EventSource.HOST.value,),
+    EventCategory.K8S_EVENT.value: (EventDomain.K8S.value, EventSource.BCS.value,),
+    EventCategory.CICD_EVENT.value: (EventDomain.CICD.value, EventSource.BKCI.value),
 }
 
 
