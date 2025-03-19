@@ -238,7 +238,15 @@ export const setScrollLoadCell = (
     }
   };
 
+  const reset = list => {
+    wordList = list;
+    startIndex = 0;
+    contentElement.innerHTML = '';
+    removeScrollEvent();
+  };
+
   return {
+    reset,
     setListItem,
     addScrollEvent,
     removeScrollEvent,

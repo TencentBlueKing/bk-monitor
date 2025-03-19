@@ -15,6 +15,7 @@
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import WarningSetting from './warning-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -151,6 +152,7 @@
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         class="custom-border-right"
       />
+      <WarningSetting></WarningSetting>
       <ClusterSetting
         class="custom-border-right"
         v-model="isShowClusterSetting"

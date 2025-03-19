@@ -339,7 +339,8 @@
 
     .history-item-name {
       display: inline-block;
-      width: 96%;
+      // width: 96%;
+      width: calc(100% - 34px);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -416,14 +417,16 @@
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
   top: 10px;
-  right: 262px;
+  // right: 262px;
+  right: 235px;
   width: 720px !important;
   min-height: 32px;
+  z-index: 100; // 数据探索→指标检索容器.data-retrieval-main: z-index: 9; tracing探索.inquire-right-header: z-index: 99;
   .icon-search {
     font-size: 14px;
     position: absolute;
-    right: 10px;
-    top: 9px;
+    right: 8px;
+    top: 8px;
     color: #979ba5;
   }
   .new-home-select-input {
@@ -439,8 +442,9 @@
     }
   }
   .home-select-input {
-    margin: 3px 0 1px;
-    padding-left: 16px;
+    // margin: 3px 0 1px;
+    margin: 0;
+    padding: 5px 0 0 16px;
     font-size: 12px;
     width: 93%;
     line-height: 22px;

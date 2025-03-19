@@ -602,3 +602,51 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-vm2:before {
 	content: "\e1f1";
 }
+.bklog-zhankai-2:before {
+	content: "\e1f3";
+}
+.bklog-dingyueguanli:before {
+	content: "\e1f4";
+}
+.bklog-guidangcangku:before {
+	content: "\e1f5";
+}
+.bklog-guidanghuisu:before {
+	content: "\e1f7";
+}
+.bklog-guidangliebiao:before {
+	content: "\e1f6";
+}
+.bklog-jiqun:before {
+	content: "\e1f8";
+}
+.bklog-jisuanpingtai:before {
+	content: "\e1fc";
+}
+.bklog-qingxiliebiao:before {
+	content: "\e1fb";
+}
+.bklog-qingximoban:before {
+	content: "\e1fa";
+}
+.bklog-rizhicaiji:before {
+	content: "\e1f9";
+}
+.bklog-rizhitiqupeizhi:before {
+	content: "\e1fd";
+}
+.bklog-rizhitiqurenwu:before {
+	content: "\e1fe";
+}
+.bklog-suoyinxiang:before {
+	content: "\e200";
+}
+.bklog-zidingyishangbao:before {
+	content: "\e1ff";
+}
+.bklog-es-2:before {
+	content: "\e201";
+}
+.bklog-yishixiao:before {
+	content: "\e202";
+}
