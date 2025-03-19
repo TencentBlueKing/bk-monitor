@@ -82,7 +82,23 @@
     min-height: 34px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
-
+    .bklog-list-row {
+      .bklog-row-cell:nth-child(1){
+         /* stylelint-disable-next-line declaration-no-important */
+        width:12px !important;
+         /* stylelint-disable-next-line declaration-no-important */
+        min-width: 12px !important;
+         /* stylelint-disable-next-line declaration-no-important */
+        margin-left: 8px !important;
+         /* stylelint-disable-next-line declaration-no-important */
+        padding: 0px 0px 0px 0px !important;
+      }
+      .bklog-row-cell:nth-child(2){
+         width:50px ;
+         min-width: 50px ;
+         padding: 0px 12px ;
+      }
+    }
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
@@ -146,7 +162,7 @@
             position: relative;
             display: flex;
             justify-content: space-around;
-            height: 30px;
+            height: 32px;
             padding: 0;
 
             .handle-card {
@@ -188,7 +204,7 @@
             display: flex;
             align-items: center;
             line-height: 32px;
-
+            color: #313238;
             .bk-table-caret-wrapper {
               position: relative;
               display: inline-flex;
@@ -231,7 +247,7 @@
             min-width: 16px;
             height: 16px;
             margin: 0 5px 0 0;
-            font-size: 12px;
+            font-size: 14px;
             color: #63656e;
             background: #dcdee5;
             border-radius: 2px;
@@ -349,8 +365,8 @@
 
       .bklog-row-ai {
         position: absolute;
-        top: 6px;
-        left: 32px;
+        top: 2px;
+        right: 0px;
         display: none;
         padding: 2px;
         // background-color: rgba(255, 255, 255, 0.4);
