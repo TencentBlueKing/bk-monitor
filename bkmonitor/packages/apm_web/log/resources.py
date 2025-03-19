@@ -86,7 +86,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             if relation:
                 if relation.related_bk_biz_id != bk_biz_id:
                     relation_full_indexes = _cached_search_index_set(_bk_biz_id=relation.related_bk_biz_id)
-                    indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes  # 这行代码的作用未知！！！
+                    indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
                     index_info = next(
                         (i for i in relation_full_indexes if str(i["index_set_id"]) == relation.value),
                         None,
