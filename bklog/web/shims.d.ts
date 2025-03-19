@@ -42,6 +42,7 @@ declare module '@/hooks/*';
 declare module '@/common/*';
 declare module '@/skeleton/*';
 declare module '@/store/*';
+declare module '@/global/*';
 
 declare module '*.module.scss' {
   const classes: { [key: string]: string };

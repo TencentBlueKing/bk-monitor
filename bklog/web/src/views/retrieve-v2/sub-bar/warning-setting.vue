@@ -194,7 +194,7 @@
   import useLocale from '@/hooks/use-locale';
   import { formatDate } from '@/common/util';
   import useStore from '@/hooks/use-store';
-  import PopInstanceUtil from '../search-bar/pop-instance-util';
+  import PopInstanceUtil from '@/global/pop-instance-util';
   import { bkMessage } from 'bk-magic-vue';
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
