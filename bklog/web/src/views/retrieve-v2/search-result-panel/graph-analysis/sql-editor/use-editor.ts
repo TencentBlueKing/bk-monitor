@@ -30,6 +30,7 @@ import { debounce } from 'lodash';
 import * as monaco from 'monaco-editor';
 
 import { setDorisFields } from './lang';
+import useResizeObserve from '../../../../../hooks/use-resize-observe';
 
 export default ({ refRootElement, sqlContent, onValueChange }) => {
   const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>();
@@ -52,7 +53,7 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
       language: 'dorisSQL',
       theme: 'vs-dark',
       padding: { top: 10, bottom: 40 },
-      automaticLayout: true,
+      automaticLayout: false,
       minimap: { enabled: false },
       scrollBeyondLastLine: false, // 避免空白行
       contextmenu: false, // 禁用右键菜单
@@ -85,22 +86,24 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
         interface SuggestController extends monaco.editor.IEditorContribution {
           model?: { state: number };
         }
-        const suggestWidget = editorInstance.value.getContribution('editor.contrib.suggestController') as SuggestController;
+        const suggestWidget = editorInstance.value.getContribution(
+          'editor.contrib.suggestController',
+        ) as SuggestController;
         const isSuggestVisible = suggestWidget?.model?.state === 2 || suggestWidget?.model?.state === 1;
-        
+
         if (isSuggestVisible) {
           // 如果建议列表可见，则接受当前的建议
           editorInstance.value.trigger('keyboard', 'acceptSelectedSuggestion', {});
-          return
+          return;
         }
         const position = editorInstance.value.getPosition();
         const model = editorInstance.value.getModel();
         const lineContent = model.getLineContent(position.lineNumber);
-    
+
         // 插入新行并保持缩进
         const indentLevel = lineContent.match(/^\s*/)[0]; // 获取当前行的缩进
         const newText = '\n' + indentLevel; // 新行内容
-    
+
         // 执行插入操作
         editorInstance.value.executeEdits(null, [
           {
@@ -109,16 +112,16 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
             forceMoveMarkers: true,
           },
         ]);
-    
+
         // 移动光标到新行
         const newPosition = {
           lineNumber: position.lineNumber + 1,
-          column: indentLevel.length + 1
+          column: indentLevel.length + 1,
         };
         editorInstance.value.setPosition(newPosition);
       }
     });
-   
+
     editorInstance.value.onDidChangeModelContent(() => debounceUpdateSqlValue());
   };
 
@@ -129,6 +132,14 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
       }),
     );
   };
+
+  useResizeObserve(refRootElement, () => {
+    const rect = refRootElement.value.getBoundingClientRect();
+    editorInstance.value?.layout({
+      width: rect.width,
+      height: rect.height, // 动态获取最新高度
+    });
+  });
 
   onMounted(() => {
     setTimeout(() => {

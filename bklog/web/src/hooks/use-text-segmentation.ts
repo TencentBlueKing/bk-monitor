@@ -301,63 +301,6 @@ export default class UseTextSegmentation {
     return output;
   }
 
-  // private optimizedSplit(str: string, delimiterPattern: string) {
-  //   if (!str) return [];
-
-  //   const MAX_TOKENS = 500;
-  //   const CHUNK_SIZE = 200;
-
-  //   // 转义特殊字符，并构建用于分割的正则表达式
-  //   const regexPattern = delimiterPattern
-  //     .split('')
-  //     .map(delimiter => `\\${delimiter}`)
-  //     .join('|');
-
-  //   const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
-  //   const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
-
-  //   let tokens = [];
-  //   let processedLength = 0;
-
-  //   const segments = str.split(/(<mark>.*?<\/mark>)/gi);
-
-  //   for (const segment of segments) {
-  //     if (tokens.length >= MAX_TOKENS) break;
-  //     const isMark = MARK_REGEX.test(segment);
-
-  //     const normalTokens = segment
-  //       .split(DELIMITER_REGEX)
-  //       .filter(Boolean)
-  //       .slice(0, MAX_TOKENS - tokens.length);
-
-  //     tokens.push(
-  //       ...normalTokens.map(t => {
-  //         processedLength += t.length;
-  //         return {
-  //           text: t,
-  //           isMark,
-  //           isCursorText: !DELIMITER_REGEX.test(t),
-  //         };
-  //       }),
-  //     );
-  //   }
-
-  //   if (processedLength < str.length) {
-  //     const remaining = str.slice(processedLength);
-  //     const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
-
-  //     for (let i = 0; i < chunkCount; i++) {
-  //       tokens.push({
-  //         text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-  //         isMark: false,
-  //         isCursorText: false,
-  //       });
-  //     }
-  //   }
-
-  //   return tokens;
-  // }
-
   private escapeString(val: string) {
     const map = {
       '&amp;': '&',

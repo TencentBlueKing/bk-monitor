@@ -24,24 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-/**
- * 右上角告警相关接口
- */
-
-const alertList = {
-  url: '/alert_strategy/:index_set_id/alert_records/',
-  method: 'post',
-};
-const strategyList = {
-  url: '/alert_strategy/:index_set_id/strategy_records/',
-  method: 'post',
-};
-
-/**
- * 获取日志查询条件
- */
-const getLogRelatedInfo = {
-  url: '/alert_strategy/:index_set_id/log_related_info/',
-  method: 'get',
-}
-export { alertList, strategyList, getLogRelatedInfo };
+// 固定的内置字段
+export const builtInInitHiddenList = [
+    'gseIndex',
+    'iterationIndex',
+    '_iteration_idx',
+    '__dist_01',
+    '__dist_03',
+    '__dist_05',
+    '__dist_07',
+    '__dist_09',
+    '__ipv6__',
+    '__parse_failure',
+    'time',
+    '__module__',
+    '__set__',
+    '__ipv6__'
+]
