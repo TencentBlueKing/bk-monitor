@@ -202,16 +202,17 @@ class SQLChartHandler(ChartHandler):
         """
         try:
             tracer = trace.get_tracer(__name__)
-            with tracer.start_as_current_span("doris_chart") as span:
+            with tracer.start_as_current_span("bkdata_doris_query") as span:
                 span.set_attribute("index_set_id", self.index_set_id)
-                span.set_attribute("username", get_request_username())
+                span.set_attribute("user.username", get_request_username())
                 span.set_attribute("space_uid", self.data.space_uid)
 
                 if not self.data.support_doris:
                     raise IndexSetDorisQueryException()
-                span.set_attribute("doris_table_id", self.data.doris_table_id)
+                span.set_attribute("db.table", self.data.doris_table_id)
                 parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-                span.set_attribute("parsed_sql", parsed_sql)
+                span.set_attribute("db.statement", parsed_sql)
+                span.set_attribute("db.system", "doris")
 
                 data = self.fetch_query_data(parsed_sql)
                 span.set_attribute("total_records", data["total_records"])
