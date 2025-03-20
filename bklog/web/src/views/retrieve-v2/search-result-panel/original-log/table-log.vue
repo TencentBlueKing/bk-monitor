@@ -300,6 +300,7 @@
         if (['realTimeLog', 'contextLog'].includes(event)) {
           const contextFields = config.contextAndRealtime.extra?.context_fields;
           const dialogNewParams = {};
+          Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
           const { targetFields, sortFields } = config.indexSetValue;
           const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
