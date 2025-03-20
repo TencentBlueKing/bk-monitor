@@ -2143,9 +2143,7 @@ class SearchHandler(object):
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
-            # 展开再合并
-            log = expand_nested_data(log)
-            log = merge_nested_data(log)
+            log = self.convert_keys(log)
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
@@ -2201,6 +2199,33 @@ class SearchHandler(object):
         agg_dict = result_dict.get("aggregations", {})
         result.update({"aggs": agg_dict})
         return result
+
+    def convert_keys(self, data):
+        new_dict = {}
+
+        for key, value in data.items():
+            # 如果值是字典，递归调用
+            if isinstance(value, dict):
+                value = self.convert_keys(value)  # 递归处理嵌套字典
+
+            # 如果键中有点，进行转换
+            if '.' in key:
+                # 分割键
+                parts = key.split('.')
+                nested_dict = new_dict
+
+                for part in parts[:-1]:  # 所有部分，除了最后一部分
+                    if part not in nested_dict:
+                        nested_dict[part] = {}
+                    nested_dict = nested_dict[part]
+
+                # 设置最后一个部分的值
+                nested_dict[parts[-1]] = value
+            else:
+                # 如果没有点，直接赋值
+                new_dict[key] = value
+
+        return new_dict
 
     @classmethod
     def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
