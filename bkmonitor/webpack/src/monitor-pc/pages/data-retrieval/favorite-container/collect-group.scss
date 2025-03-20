@@ -33,18 +33,14 @@
 
   .fav-name {
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .group-title {
     min-height: 32px;
-
-    // &.is-move-cur {
-    //   cursor: move;
-    // }
-
-    &.is-active {
-      margin-bottom: 0 !important;
-    }
+    padding: 0 14px;
 
     > :last-child {
       color: #979ba5;
@@ -57,11 +53,14 @@
     }
 
     &:hover {
-      background: #eff1f5;
+      background: #DDE1EB;
+      border-radius: 4px;
     }
   }
 
   .group-list {
+    padding: 0 14px;
+
     &.list-hidden {
       display: none;
     }
@@ -71,7 +70,6 @@
       line-height: 32px;
       color: #4d4f56;
       cursor: pointer;
-      border-bottom: none;
       border-radius: 4px;
 
       &:hover {

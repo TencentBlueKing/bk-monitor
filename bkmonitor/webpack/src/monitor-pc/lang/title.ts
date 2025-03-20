@@ -164,4 +164,5 @@ export default {
   待选列表: 'To be selected list',
   全部添加: 'Add all',
   检索内容: 'Retrieval content',
+  分组名称: 'Group name',
 };

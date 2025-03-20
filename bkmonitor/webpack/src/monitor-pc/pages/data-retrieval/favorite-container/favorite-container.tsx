@@ -84,6 +84,10 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
     return this.$store.getters.bizId;
   }
 
+  created() {
+    this.isHaveFavoriteInit = !!this.$route.query?.favorite_id;
+  }
+
   @Watch('isShowFavorite')
   watchIsShowFavorite(val: boolean) {
     if (!val) this.favCheckedValue = null;
@@ -115,6 +119,8 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
             const favorite = gItem.favorites.find(item => String(item.id) === urlFavoriteID);
             if (favorite) {
               this.handleSelectFav(favorite);
+              const { favorite_id, ...query } = this.$route.query;
+              this.$router.replace({ query });
               break;
             }
           }
@@ -254,7 +260,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
   }
 
   /** 弹窗dialog新增或编辑收藏 */
-  async handleSubmitFavorite({ value, hideCallback, isEdit }) {
+  async handleSubmitFavorite({ value, hideCallback, isEdit, tips = '' }) {
     const type = this.favoriteSearchType === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
@@ -278,6 +284,12 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
       updateFavorite(id, data)
         .then(res => {
           hideCallback();
+          if (tips) {
+            this.$bkMessage({
+              theme: 'success',
+              message: tips,
+            });
+          }
           this.handleSelectFav(res); // 更新点击的收藏
         })
         .finally(() => {
@@ -296,14 +308,15 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
    * 收藏操作
    * @param data 收藏数据
    */
-  handleFavorite(data, isEdit = false) {
+  async handleFavorite(data, isEdit = false, tips = '') {
     if (isEdit) {
       this.favoriteData = data.config;
       this.editFavoriteData = deepClone(this.favCheckedValue);
-      this.handleSubmitFavorite({
+      await this.handleSubmitFavorite({
         value: data,
         hideCallback: () => {},
         isEdit: true,
+        tips,
       });
     } else {
       this.isShowAddFavoriteDialog = true;

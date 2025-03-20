@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Emit, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
 import { detectOS } from 'monitor-common/utils';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import UserConfigMixin from '../../../mixins/userStoreConfig';
 import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
@@ -56,8 +57,11 @@ interface EventRetrievalNavBarEvents {
   onFavoriteShowChange(show: boolean): void;
 }
 
+/** 置顶的data_id */
+const EVENT_RETRIEVAL_DATA_ID_THUMBTACK = 'event_retrieval_data_id_thumbtack';
+
 @Component
-export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps, EventRetrievalNavBarEvents> {
+class EventRetrievalHeader extends Mixins(UserConfigMixin) {
   @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
@@ -72,7 +76,30 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
 
   @Ref('dataIdSelect') dataIdSelectRef: any;
 
+  /** 排序后的数据id列表 */
+  get sortDataIdList(): IDataIdItem[] {
+    const thumbtackList = [];
+    const other = [];
+    for (const item of this.dataIdList) {
+      if (this.thumbtackList.includes(item.id)) {
+        thumbtackList.push({
+          ...item,
+          isTop: true,
+        });
+      } else {
+        other.push({
+          ...item,
+          isTop: false,
+        });
+      }
+    }
+    return [...thumbtackList, ...other];
+  }
+
   dataIdToggle = false;
+
+  /** 置顶的数据id列表 */
+  thumbtackList: string[] = [];
 
   get selectDataIdName() {
     return this.dataIdList.find(item => item.id === this.dataId)?.name || '';
@@ -80,6 +107,9 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
 
   mounted() {
     document.addEventListener('keydown', this.handleDocumentClick);
+    this.handleGetUserConfig<string[]>(EVENT_RETRIEVAL_DATA_ID_THUMBTACK).then(res => {
+      this.thumbtackList = res || [];
+    });
   }
 
   beforeDestroy() {
@@ -137,19 +167,33 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
     this.$emit('eventTypeChange', { data_source_label: 'bk_monitor', data_type_label: 'log' });
   }
 
+  async handleThumbtack(e: Event, item: IDataIdItem) {
+    e.stopPropagation();
+    if (item.isTop) {
+      this.thumbtackList = this.thumbtackList.filter(id => id !== item.id);
+    } else {
+      this.thumbtackList.push(item.id);
+    }
+    await this.handleSetUserConfig(EVENT_RETRIEVAL_DATA_ID_THUMBTACK, JSON.stringify(this.thumbtackList));
+  }
+
   render() {
     return (
       <div class='event-retrieval-header'>
         <div class='header-left'>
-          <div
-            class={['favorite-btn', { active: this.isShowFavorite }]}
-            onClick={this.handleFavoriteShowChange}
-          >
-            <i
-              class='icon-monitor icon-shoucangjia'
-              v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
-            />
+          <div class='favorite-container'>
+            <div
+              class={['favorite-btn', { active: this.isShowFavorite }]}
+              onClick={this.handleFavoriteShowChange}
+            >
+              <i
+                class='icon-monitor icon-shoucangjia'
+                v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
+              />
+            </div>
           </div>
+
+          <div class='header-title'>{this.$t('route-事件检索')}</div>
           <div class='event-type-select'>
             <div
               class={{ item: true, active: this.dataSourceLabel === 'custom' }}
@@ -169,6 +213,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
             ref='dataIdSelect'
             class='data-id-select'
             clearable={false}
+            ext-popover-cls={'new-event-retrieval-data-id-select-popover'}
             value={this.dataId}
             searchable
             onSelected={this.handleDataIdChange}
@@ -185,12 +230,26 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
               <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
               <span class={`icon-monitor icon-mc-arrow-down ${this.dataIdToggle ? 'expand' : ''}`} />
             </div>
-            {this.dataIdList.map(item => (
+            {this.sortDataIdList.map(item => (
               <bk-option
                 id={item.id}
                 key={item.id}
                 name={item.name}
-              />
+              >
+                <div class={['event-item-name', { is_top: item.isTop }]}>
+                  <i
+                    class={['icon-monitor', 'thumbtack', item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
+                    onClick={e => this.handleThumbtack(e, item)}
+                  />
+                  <span
+                    class='name-text'
+                    v-bk-overflow-tips
+                  >
+                    {item.name}
+                  </span>
+                  {item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                </div>
+              </bk-option>
             ))}
           </bk-select>
         </div>
@@ -217,3 +276,5 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
     );
   }
 }
+
+export default tsx.ofType<EventRetrievalNavBarProps, EventRetrievalNavBarEvents>().convert(EventRetrievalHeader);

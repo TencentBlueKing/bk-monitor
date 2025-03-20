@@ -29,25 +29,25 @@ import { DimensionsTypeEnum } from './typing';
 export const fieldTypeMap = {
   integer: {
     name: window.i18n.tc('数字'),
-    icon: 'icon-monitor icon-number',
+    icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   keyword: {
     name: window.i18n.tc('字符串'),
-    icon: 'icon-monitor icon-string',
+    icon: 'icon-monitor icon-Str',
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
   text: {
     name: window.i18n.tc('文本'),
-    icon: 'icon-monitor icon-text',
+    icon: 'icon-monitor icon-text1',
     color: '#508CC8',
     bgColor: '#E1E7F2',
   },
   date: {
     name: window.i18n.tc('时间'),
-    icon: 'icon-monitor icon-mc-time',
+    icon: 'icon-monitor icon-Time',
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },

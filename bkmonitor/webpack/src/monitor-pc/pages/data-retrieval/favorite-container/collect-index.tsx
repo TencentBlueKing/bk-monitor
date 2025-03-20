@@ -58,6 +58,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   isSearchFilter = false; // 是否搜索过滤
   isShowAddNewFavoriteDialog = false; // 是否展示编辑收藏弹窗
   searchVal = ''; // 搜索
+  allExpand = true; // 是否全部展开
   // groupName = ''; // 新增或编辑组名
   verifyData = {
     groupName: '',
@@ -266,7 +267,8 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   }
 
   handleCollapseAll() {
-    this.collectContainerRef?.handleExpandAll(true);
+    this.collectContainerRef?.handleExpandAll(!this.allExpand);
+    this.allExpand = !this.allExpand;
   }
 
   @Emit('close')
@@ -339,10 +341,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <bk-icon
-                    class='tool-icon'
+                  <i
+                    class='icon-monitor icon-xinjianwenjianjia tool-icon'
                     v-bk-tooltips={{ content: this.$t('新建收藏分组') }}
-                    type='folder-plus'
                   />
                   <div slot='content'>
                     <bk-form
@@ -377,10 +378,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                     </div>
                   </div>
                 </bk-popover>
-                <bk-icon
-                  class='ml12'
-                  v-bk-tooltips={{ content: this.$t('全部收起') }}
-                  type='indent'
+                <i
+                  class='icon-monitor icon-shouqi3 ml12'
+                  v-bk-tooltips={{ content: this.$t(this.allExpand ? '全部收起' : '全部展开') }}
                   onClick={this.handleCollapseAll}
                 />
                 <bk-popover

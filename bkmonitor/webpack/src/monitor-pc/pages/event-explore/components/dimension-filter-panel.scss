@@ -77,6 +77,15 @@
         background-color: #f0f1f5;
       }
 
+      
+      &.disabled {
+        cursor: not-allowed;
+
+        .dimension-name {
+          color: #C4C6CC;
+        }
+      }
+
       .dimension-name {
         margin: 0 3px 0 4px;
         overflow: hidden;
@@ -92,7 +101,7 @@
         margin-left: auto;
         font-weight: 700;
         line-height: 14px;
-        color: #979ba5;
+        color: #A3B1CC;
         text-align: center;
       }
 
@@ -123,59 +132,8 @@
   }
 }
 
-.top-k-list {
-  .top-k-list-item {
-    display: flex;
-    margin-top: 12px;
-
-    .filter-tools {
-      margin-top: 2px;
-      color: #3a84ff;
-
-      .icon-monitor {
-        cursor: pointer;
-      }
-
-      .icon-sousuo- {
-        margin: 0 6px 0 8px;
-      }
-    }
-
-    .progress-content {
-      flex: 1;
-      overflow: hidden;
-
-      .info-text {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 20px;
-        margin-bottom: 2px;
-
-        .field-name {
-          flex: 1;
-          overflow: hidden;
-          font-size: 12px;
-          color: #313238;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .counts {
-          font-size: 12px;
-          color: #5ab8a8;
-
-          .progress-count {
-            margin-left: 4px;
-            font-weight: 700;
-          }
-        }
-      }
-    }
-  }
-}
-
-.event-retrieval-dimension-filter-theme {
+.tippy-tooltip.light-theme.event-retrieval-dimension-filter-theme {
   padding: 12px 16px;
+  border: 1px solid #DCDEE5;
   box-shadow: 0 2px 12px 0 #00000033;
 }

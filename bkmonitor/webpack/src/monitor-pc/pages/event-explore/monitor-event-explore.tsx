@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
@@ -32,6 +31,7 @@ import { random } from 'monitor-common/utils';
 import { EMode } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
+import UserConfigMixin from '../../mixins/userStoreConfig';
 import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
 import { APIType } from './api-utils';
 import EventRetrievalHeader from './components/event-retrieval-header';
@@ -42,8 +42,12 @@ import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IFormData } from './typing';
 
+/** 上一次选择的dataId */
+const EVENT_RETRIEVAL_DEFAULT_DATA_ID = 'event_retrieval_default_data_id';
+
 @Component
-export default class MonitorEventExplore extends tsc<object> {
+export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
+  // 获取收藏容器组件的引用
   @Ref('favoriteContainer') favoriteContainerRef: FavoriteContainer;
 
   // 数据时间间隔
@@ -70,6 +74,7 @@ export default class MonitorEventExplore extends tsc<object> {
 
   dataTypeLabel = 'event';
   dataSourceLabel = 'custom';
+  defaultDataId = '';
   /** 数据Id */
   dataId = '';
   /** 数据ID列表 */
@@ -97,6 +102,7 @@ export default class MonitorEventExplore extends tsc<object> {
       JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
     this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
+    this.defaultDataId = await this.handleGetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID);
     await this.getDataIdList(!this.dataId);
   }
 
@@ -233,7 +239,11 @@ export default class MonitorEventExplore extends tsc<object> {
       },
     };
     if (isEdit) {
-      this.favoriteContainerRef.handleFavorite({ ...this.currentFavorite, config: params }, isEdit);
+      this.favoriteContainerRef.handleFavorite(
+        { ...this.currentFavorite, config: params },
+        isEdit,
+        this.$tc('成功覆盖当前收藏')
+      );
     } else {
       this.favoriteContainerRef.handleFavorite(params, isEdit);
     }
@@ -242,6 +252,7 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.dataId = dataId;
+    this.handleSetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID, JSON.stringify(dataId));
     this.where = [];
     this.queryString = '';
     this.commonWhere = [];
@@ -276,7 +287,7 @@ export default class MonitorEventExplore extends tsc<object> {
     }).catch(() => []);
     this.dataIdList = list;
     if (init) {
-      this.dataId = list[0]?.id || '';
+      this.dataId = this.defaultDataId || list[0]?.id || '';
     }
   }
 

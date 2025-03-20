@@ -1,10 +1,62 @@
 .event-retrieval-dimension-filter-content {
+  .top-k-list {
+    .top-k-list-item {
+      display: flex;
+      margin-top: 12px;
+
+      .filter-tools {
+        margin-top: 2px;
+        color: #3a84ff;
+
+        .icon-monitor {
+          cursor: pointer;
+        }
+
+        .icon-sousuo- {
+          margin: 0 6px 0 8px;
+        }
+      }
+
+      .progress-content {
+        flex: 1;
+        overflow: hidden;
+
+        .info-text {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 20px;
+          margin-bottom: 2px;
+
+          .field-name {
+            flex: 1;
+            overflow: hidden;
+            font-size: 12px;
+            color: #313238;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .counts {
+            font-size: 12px;
+            color: #5ab8a8;
+
+            .progress-count {
+              margin-left: 4px;
+              font-weight: 700;
+            }
+          }
+        }
+      }
+    }
+  }
+
   .popover-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 22px;
-     
+
     .loading-icon {
       width: 20px;
       height: 20px;
@@ -14,16 +66,16 @@
       margin-left: 10px;
       cursor: pointer;
 
-        .icon-xiazai2 {
-          font-size: 14px;
-          color: #4D4F56;
-        }
-    
-        .text {
-          margin-left: 6px;
-          font-size: 12px;
-          color: #4D4F56;
-        }
+      .icon-xiazai2 {
+        font-size: 14px;
+        color: #4d4f56;
+      }
+
+      .text {
+        margin-left: 6px;
+        font-size: 12px;
+        color: #4d4f56;
+      }
     }
   }
 
@@ -38,40 +90,43 @@
     margin: 8px 0 0 46px;
     font-size: 12px;
     line-height: 20px;
-    color: #3A84FF;
+    color: #3a84ff;
     cursor: pointer;
   }
-}
 
-.dimension-top-k-title {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  overflow: hidden;
-
-  .field-name {
+  .dimension-top-k-title {
+    display: flex;
+    flex: 1;
+    align-items: center;
     overflow: hidden;
-    font-size: 16px;
-    color: #313238;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+
+    .field-name {
+      overflow: hidden;
+      font-size: 12px;
+      color: #313238;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .divider {
+      display: inline-block;
+      width: 1px;
+      height: 14px;
+      margin: 0 8px 0 6px;
+      background: #dcdee5;
+    }
+
+    .desc {
+      flex-shrink: 0;
+      font-size: 12px;
+      color: #979ba5;
+    }
   }
 
-  .divider {
-    display: inline-block;
-    width: 1px;
-    height: 14px;
-    margin: 0 8px 0 6px;
-    background: #DCDEE5;
-  }
-
-  .desc {
-    flex-shrink: 0;
-    font-size: 14px;
-    color: #979BA5;
+  .empty-text {
+    font-size: 12px;
   }
 }
-
 
 .dimension-top-k-slider {
   .skeleton-wrap {
@@ -98,13 +153,13 @@
 
       .icon-xiazai2 {
         font-size: 14px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
 
       .text {
         margin-left: 6px;
         font-size: 12px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
     }
   }
@@ -118,25 +173,24 @@
       margin: 16px auto 0;
       font-size: 12px;
       line-height: 27px;
-      color: #3A84FF;
+      color: #3a84ff;
       text-align: center;
       cursor: pointer;
-      background: #F0F5FF;
+      background: #f0f5ff;
       border-radius: 14px;
 
       &.is-loading {
-        background: transparent
+        background: transparent;
       }
 
       &:hover {
-        background: #E1ECFF;
+        background: #e1ecff;
 
         &.is-loading {
-          background: transparent
+          background: transparent;
         }
       }
     }
-
   }
 }
 
