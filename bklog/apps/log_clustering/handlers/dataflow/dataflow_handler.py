@@ -1500,11 +1500,16 @@ class DataFlowHandler(BaseAiopsHandler):
         }
         for src_field, dst_field in is_dimension_fields_map.items():
             is_dimension_fields_map[src_field] = reverse_all_fields_dict.get(dst_field, dst_field)
-        format_transform_fields = [
-            f"`{src_field}`" if src_field == dst_field else f"`{src_field}` as `{dst_field}`"
-            for src_field, dst_field in is_dimension_fields_map.items()
-            if dst_field not in [DEFAULT_TIME_FIELD]
-        ]
+
+        transformed_fields = set()
+        format_transform_fields = []
+        for src_field, dst_field in is_dimension_fields_map.items():
+            if dst_field not in [DEFAULT_TIME_FIELD] and dst_field not in transformed_fields:
+                # 防止字段别名重复导致节点创建失败
+                transformed_fields.add(dst_field)
+                format_transform_fields.append(
+                    f"`{src_field}`" if src_field == dst_field else f"`{src_field}` as `{dst_field}`"
+                )
 
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
