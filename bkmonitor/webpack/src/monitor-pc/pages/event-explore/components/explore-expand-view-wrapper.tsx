@@ -100,11 +100,13 @@ export default class ExploreExpandViewWrapper extends tsc<
           if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
             continue;
           }
+          const path = this.getEntitiesJumpLink(sourceName, value, item);
+          if (!path) continue;
 
           entities.push({
             alias: item.alias,
             type: item.type,
-            path: this.getEntitiesJumpLink(sourceName, value, item),
+            path,
           });
         }
       }
@@ -139,6 +141,11 @@ export default class ExploreExpandViewWrapper extends tsc<
    */
   getEntitiesJumpLink(fieldName, value, entitiesItem) {
     let path = '';
+    const item = this.detailData[fieldName];
+    path = item?.url || '';
+    if (path) {
+      return path;
+    }
     switch (entitiesItem.type) {
       case ExploreEntitiesTypeEnum.HOST:
         {
@@ -150,10 +157,7 @@ export default class ExploreExpandViewWrapper extends tsc<
         break;
       case ExploreEntitiesTypeEnum.K8S:
         {
-          if (['namespace', 'bcs_cluster_id'].includes(fieldName)) {
-            const item = this.detailData[fieldName];
-            path = item?.url || '';
-          } else if (fieldName === 'host') {
+          if (fieldName === 'host') {
             const cluster = this.getValueBySourceName('bcs_cluster_id');
             const query = {
               sceneId: 'kubernetes',
