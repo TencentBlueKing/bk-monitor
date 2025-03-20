@@ -40,6 +40,14 @@
         position: relative;
         box-sizing: border-box;
         width: 100%;
+        &:hover {
+          .title-wrapper .chart-title .main-title .hover-show {
+            visibility: inherit !important;
+          }
+          .title-wrapper .chart-title .main-title .title-icon-list {
+            visibility: inherit !important;
+          }
+        }
         & ~ .chart-view-item {
           margin-left: 12px;
         }

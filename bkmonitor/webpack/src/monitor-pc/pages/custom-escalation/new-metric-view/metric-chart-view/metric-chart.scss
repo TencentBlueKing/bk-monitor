@@ -60,8 +60,10 @@
     padding-bottom: 6px;
     .metric-chart-legend {
       width: 100%;
+      max-height: 28%;
       margin-top: 12px;
       padding: 0 16px;
+      overflow-y: auto;
     }
 
     .chart-instance {

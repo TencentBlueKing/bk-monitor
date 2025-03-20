@@ -25,7 +25,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
           }
         }
         .title-icon-list {
-          display: inline-block;
+          visibility: inherit;
         }
         .hover-show {
           visibility: inherit;
@@ -39,7 +39,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       align-items: center;
       min-height: 30px;
       .title-icon-list {
-        display: none;
+        visibility: hidden;
       }
 
       .alarm-icon {
