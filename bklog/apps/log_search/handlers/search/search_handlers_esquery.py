@@ -2143,6 +2143,9 @@ class SearchHandler(object):
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
+            # 展开再合并
+            log = expand_nested_data(log)
+            log = merge_nested_data(log)
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
