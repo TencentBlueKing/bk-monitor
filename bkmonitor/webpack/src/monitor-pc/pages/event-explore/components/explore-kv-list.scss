@@ -84,7 +84,7 @@
 }
 
 .explore-kv-list-menu {
-  width: 160px;
+  width: 178px;
   padding: 4px 0;
 
   .menu-item {
@@ -92,7 +92,8 @@
     column-gap: 4px;
     align-items: center;
     height: 32px;
-    padding: 0 12px;
+    padding-right: 10px;
+    padding-left: 12px;
     font-size: 12px;
     line-height: 20px;
     color: #4d4f56;
@@ -100,6 +101,22 @@
 
     &:hover {
       background: #f5f7fa;
+    }
+
+    .icon-monitor,
+    .item-suffix {
+      flex-shrink: 0;
+    }
+
+    .hover-blue {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    span {
+      flex: 1;
+      min-width: 0;
     }
   }
 }
