@@ -431,8 +431,14 @@ const setRootComboStyle = (combos: Array<any>, width) => {
   const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width);
   rootCombos.forEach((combo, index) => {
     const prevCombo = rootCombos[index - 1];
-    const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;
-    Object.assign(combo, { width: maxWidth, x: width / 2, y, fixSize: [maxWidth, combo.height + 30] });
+    const diffHeight = prevCombo ? (prevCombo?.fixSize?.[1] || 0) - (combo.fixSize[1] + 30) : 0;
+    const y = index === 0 ? combo.fixSize[1] / 2 : prevCombo.fixSize[1] + prevCombo.y + combo.fixSize[1] / 2;
+    Object.assign(combo, {
+      width: maxWidth,
+      x: width / 2,
+      y: y - (diffHeight > 0 ? diffHeight : 0) / 2,
+      fixSize: [maxWidth, combo.height + 30],
+    });
   });
 };
 

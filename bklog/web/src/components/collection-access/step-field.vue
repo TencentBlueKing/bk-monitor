@@ -352,12 +352,10 @@
                 :is-temp-field="isTempField"
                 :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
-                :retain-extra-json="formData.etl_params.retain_extra_json"
                 :built-field-show = "builtFieldShow"
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
                 @delete-field="deleteField"
-                @handle-keep-field="handleKeepField"
                 @handle-table-data="handleTableData"
                 @handle-built-field="handleBuiltField"
                 @reset="getDetail"
@@ -515,6 +513,25 @@
                   {{ $t('丢弃') }}
                 </bk-radio>
               </bk-radio-group>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            v-if="params.etl_config === 'bk_log_json'"
+            ext-cls="en-bk-form"
+            :icon-offset="120"
+            :label="$t('JSON 字段动态新增')"
+          >
+            <div class="origin-log-config">
+              <bk-switcher
+                v-model="formData.etl_params.retain_extra_json"
+                theme="primary"
+              ></bk-switcher>
+              <div class="switcher-tips">
+                <i class="bk-icon icon-info-circle" />
+                <span>
+                  {{ this.$t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据') }}
+                </span>
+              </div>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -902,7 +919,7 @@
   import AuthContainerPage from '@/components/common/auth-container-page';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
-
+import { builtInInitHiddenList } from '@/const/index.js'
   import * as authorityMap from '../../common/authority-map';
   import { deepClone, deepEqual } from '../../common/util';
   import fieldTable from './field-table';
@@ -1128,7 +1145,8 @@
         isDebugLoading: false,
         builtFieldShow:false,
         fieldsObjectData: [],
-        alias_settings:[]
+        alias_settings:[],
+        builtInInitHiddenList,
       };
     },
     computed: {
@@ -1208,7 +1226,7 @@
         return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
       },
       labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 125;
+        return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
       },
       renderFieldNameList() {
         return this.fieldNameList.filter((item,index) => {
@@ -1342,8 +1360,8 @@
           this.savaFormData();
         }else{
           const allFields = this.$refs.fieldTable.getData();
-          const builtFields = allFields.filter( item => item.is_built_in)
-          this.formData.fields = allFields.filter( item => !item.is_built_in)
+          const builtFields = allFields.filter( item => this.builtInInitHiddenList.includes(item.field_name) || this.builtInInitHiddenList.includes(item.alias_name))
+          this.formData.fields = allFields.filter( item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name))
           if(builtFields.length){
             this.copyBuiltField = builtFields;
           }
@@ -1571,7 +1589,7 @@
             path_type: item.field_type
           }
         })
-        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        data.etl_fields = data.etl_fields.filter( item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name))
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1951,10 +1969,11 @@
                 }
               : {},
           ),
-          fields: copyFields.filter(item => !item.is_built_in),
+          fields: copyFields.filter(item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name)),
         });
+        
         if (!this.copyBuiltField.length) {
-          this.copyBuiltField = copyFields.filter(item => item.is_built_in);
+          this.copyBuiltField = copyFields.filter(item => this.builtInInitHiddenList.includes(item.field_name) || this.builtInInitHiddenList.includes(item.alias_name || ''));
         }
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
@@ -2227,9 +2246,6 @@
       visibleHandle(val) {
         this.deletedVisible = val;
       },
-      handleKeepField(value) {
-        this.formData.etl_params.retain_extra_json = value;
-      },
       judgeNumber(val) {
         const { value } = val;
         if (value === 0) return false;
@@ -2307,10 +2323,14 @@
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
               this.concatenationQueryAlias(etlFields)
-              this.formData.fields.splice(0, this.formData.fields.length);
-
+              // this.formData.fields.splice(0, this.formData.fields.length);
               this.params.etl_config = clean_type;
               const logTimeOption = {};
+              
+              const existingFields = this.formData.fields || [];
+              const existingFieldsMap = new Map(
+                existingFields.map(field => [field.field_name, field])
+              );
               const previousStateFields = etlFields.map(item => {
                 if (item.is_time) {
                   Object.assign(logTimeOption, {
@@ -2321,16 +2341,23 @@
                   });
                 }
                 return {
+                  ...existingFieldsMap.get(item.field_name), // 这里保留现有字段的值
                   ...item,
                   participleState: item.tokenize_on_chars ? 'custom' : 'default',
                 };
+              });
+              existingFields.forEach(field => {
+                if (!existingFieldsMap.has(field.field_name) || !etlFields.some(e => e.field_name === field.field_name)) {
+                  previousStateFields.push(field);
+                }
               });
               Object.assign(this.params.etl_params, {
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
+
               this.fieldType = clean_type;
-              this.enableMetaData = etlParams.path_regexp ? true : false;
+              this.enableMetaData = !!etlParams.path_regexp;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2613,7 +2640,7 @@
             item.field_type = typeConversion[item.field_type]
             item.is_objectKey = true
             item.is_delete = false
-            this.copyBuiltField.forEach( builtField => {
+            this.formData.fields.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
                 if (!Array.isArray(builtField.children)) {
                   builtField.children = [];
@@ -2745,6 +2772,13 @@
       font-weight: 600;
       color: #63656e;
       border-bottom: 1px solid #dcdee5;
+    }
+
+    .switcher-tips{
+      color: #979BA5;
+      font-size: 12px;
+      position: absolute;
+      top: 20px;
     }
 
     .text-nav {

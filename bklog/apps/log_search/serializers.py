@@ -33,6 +33,7 @@ from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleS
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
+    AlertStatusEnum,
     ExportFileType,
     FavoriteListOrderType,
     FavoriteType,
@@ -285,8 +286,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
 
@@ -351,8 +352,8 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
@@ -365,8 +366,8 @@ class UnionSearchFieldsSerializer(serializers.Serializer):
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -482,8 +483,8 @@ class SearchExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
-    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
-    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
+    start_time = DateTimeFieldWithEpoch(label=_("起始时间"), required=True)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
@@ -956,27 +957,37 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         return attrs
 
 
-class ChartSerializer(serializers.Serializer):
-    sql = serializers.CharField(label=_("sql语句"), required=True)
-    query_mode = serializers.ChoiceField(
-        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
-    )
-
-
 class SearchConditionSerializer(serializers.Serializer):
     field = serializers.CharField(label=_("字段名"), required=True)
     operator = serializers.CharField(label=_("操作符"), required=True)
     value = serializers.ListField(label=_("值"), required=True)
 
 
-class UISearchSerializer(serializers.Serializer):
+class ChartSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql语句"), required=True)
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     addition = serializers.ListField(
         required=False,
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
-    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
+
+
+class UISearchSerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    sql = serializers.CharField(label=_("sql"), required=False, default="", allow_blank=True)
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
 
 
 class QueryStringSerializer(serializers.Serializer):
@@ -1001,8 +1012,8 @@ class UserSearchSerializer(serializers.Serializer):
 
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
-    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
     limit = serializers.IntegerField(label=_("限制条数"), required=True)
 
 
@@ -1023,3 +1034,20 @@ class StorageUsageSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
+
+
+class StrategyRecordSerializer(serializers.Serializer):
+    page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
+    page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
+
+
+class AlertRecordSerializer(StrategyRecordSerializer):
+    status = serializers.ChoiceField(
+        label=_("状态"),
+        choices=AlertStatusEnum.get_choices(),
+        required=False,
+    )
+
+
+class LogRelatedInfoSerializer(serializers.Serializer):
+    alert_id = serializers.IntegerField(label=_("告警ID"))

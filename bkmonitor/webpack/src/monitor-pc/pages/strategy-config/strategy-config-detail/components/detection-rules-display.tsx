@@ -64,7 +64,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
 
   /** 等级icons */
-  levelIconMap: string[] = [, 'icon-danger', 'icon-mind-fill', 'icon-tips'];
+  levelIconMap: string[] = ['', 'icon-danger', 'icon-mind-fill', 'icon-tips'];
   /** 算法等级 */
   levelList: ICommonItem[] = [
     { id: 1, name: window.i18n.t('致命') },
@@ -281,7 +281,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
 
   /** 处理算法内容部分 */
   handleContentTpl() {
-    const contentMap: Partial<Record<DetectionRuleTypeEnum, Function>> = {
+    const contentMap: Partial<Record<DetectionRuleTypeEnum, () => void>> = {
       // 环比策略（高级）
       AdvancedRingRatio: () => this.advancedYearRoundTpl(this.value.type),
       // 同比策略（高级）
@@ -342,7 +342,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <TimeSeriesForecast
         data={this.value}
-        interval={this.metricData[0].agg_interval}
+        interval={this.metricData?.[0]?.agg_interval}
         methodList={CONDITION_METHOD_LIST}
         unit={this.unitDisplay}
         readonly
@@ -491,7 +491,10 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       });
     });
     return localValue.map((item, index) => (
-      <span class='threshold-item'>
+      <span
+        key={index}
+        class='threshold-item'
+      >
         {index !== 0 && <span class='item-condition'>&nbsp;{item.condition}&nbsp;</span>}
         <span class='item-method'>{item.method}&nbsp;</span>
         <span class='item-value'>{item.value}</span>

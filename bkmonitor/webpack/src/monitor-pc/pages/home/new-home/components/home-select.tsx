@@ -27,6 +27,8 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
+import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
@@ -93,6 +95,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 窗口宽度 */
   windowWidth = 0;
   textareaRow = MIN_ROW;
+  showKeywordEle = false;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -132,10 +135,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
+    bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
+    bus.$off('handle-keyup-nav', this.handleKeyupNav);
+  }
+  /** 按下'/'，搜索框自动聚焦 */
+  handleKeyupNav(e: KeyboardEvent) {
+    e.preventDefault();
+    this.showKeywordEle = false;
+    this.showPopover = true;
+    this.handleInputFocus();
   }
   /** 隐藏/展示发生变化的时候的changeHandle */
   handleShowChange(v) {
@@ -152,6 +164,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.textareaRow = MIN_ROW;
       this.handleShowChange(false);
     }
+    this.showKeywordEle = !this.showPopover && !this.searchValue;
   }
   handleHiddenPopover() {
     this.handleShowChange(false);
@@ -267,7 +280,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /* 显示弹出层 */
   handleMousedown() {
-    this.showPopover = true;
+    if (this.textareaInputRef.autofocus) {
+      // 初始化自动聚焦时，不打开搜索历史
+      this.textareaInputRef.attributes.removeNamedItem('autofocus');
+    } else {
+      this.showPopover = true;
+    }
     this.textareaRow = this.limitRows();
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
@@ -355,6 +373,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       >
         <i class='icon-monitor icon-History item-icon' />
         <span class='history-item-name'>{item.name}</span>
+        <div
+          class='icon-delete-wrap'
+          onClick={e => this.handleDeleteHistoryItem(e, item)}
+        >
+          <i class='icon-monitor icon-mc-delete-line' />
+        </div>
       </div>
     );
   }
@@ -366,6 +390,21 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.textareaRow = this.limitRows();
     this.handleGetSearchData();
     this.handleInputFocus();
+  }
+  /** 删除历史搜索Item */
+  handleDeleteHistoryItem(e: Event, item: ISearchItem) {
+    e.stopPropagation();
+    if (item.name === this.searchValue) {
+      this.searchValue = '';
+    }
+    this.highlightedItem = null;
+    this.highlightedIndex = [-1, -1];
+    this.localHistoryList = this.localHistoryList.filter(history => history.name !== item.name);
+    localStorage.setItem(storageKey, JSON.stringify(this.localHistoryList));
+    if (!this.localHistoryList.length) {
+      this.isInput = false;
+      this.handleInputFocus();
+    }
   }
   /** 初始化输入框是否要自动聚焦 */
   handleInputFocus() {
@@ -512,6 +551,15 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
     this.textareaRow = this.limitRows();
+    // 初始化搜索框自动聚焦后，输入搜索内容后打开下拉框
+    if (!this.isBarToolShow && !this.showPopover && this.searchValue.trim()) {
+      this.showPopover = true;
+    }
+    // 输入内容后未选择，手动删空了输入内容需要取消history高亮
+    if (!this.isInput && this.highlightedItem?.name) {
+      this.highlightedIndex = [-1, -1];
+      this.highlightedItem = null;
+    }
   }
   /** 弹性布局适应输入长度变化的实现 --- end */
   /** 清空历史 */
@@ -601,6 +649,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 键盘操作 */
   handleKeydown(event: KeyboardEvent) {
+    event.stopPropagation(); // window会监听'/'按键 自动聚焦输入框
     switch (event.key) {
       case 'ArrowUp':
         this.handleHighlightUp();
@@ -747,6 +796,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleBlur() {
     this.showPopover = false;
   }
+  handleClick() {
+    // 初始化搜索框自动聚焦后，再次点击了搜索框，打开下拉框
+    if (!this.isBarToolShow && !this.showPopover && !this.searchValue.trim()) {
+      this.showPopover = true;
+    }
+  }
   /** 渲染历史搜索View */
   renderHistoryView() {
     if (this.localHistoryList.length > 0) {
@@ -835,9 +890,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             ref='textareaInput'
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
             v-model={this.searchValue}
+            autofocus={!this.isBarToolShow}
             placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={this.textareaRow}
             spellcheck={false}
+            onClick={this.handleClick}
             onCompositionend={this.handleCompositionend}
             onCompositionstart={this.handleCompositionstart}
             onFocus={this.handleMousedown}
@@ -850,6 +907,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               class='icon-monitor clear-btn icon-mc-close-fill'
               onClick={this.clearInput}
             />
+          )}
+          {!this.isBarToolShow && this.showKeywordEle && (
+            <div class='search-keyboard'>
+              {this.$tc('快捷键')} {getCmdShortcutKey()} + /
+            </div>
           )}
           {(this.isBarToolShow || this.showPopover) && (
             <div class='new-home-select-popover'>

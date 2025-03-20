@@ -1050,7 +1050,7 @@
         fieldsObjectData.forEach(item => {
           let name = item.field_name.split('.')[0]
           item.is_objectKey = true
-          this.builtFields.forEach( builtField => {
+          this.tableAllList.forEach( builtField => {
             if(builtField.field_type === "object" && name.includes(builtField.field_name)){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];

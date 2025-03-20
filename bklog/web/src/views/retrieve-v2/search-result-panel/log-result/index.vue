@@ -88,8 +88,22 @@
           type="number"
           @change="handleJsonFormatDeepChange"
         ></bk-input>
+
+        <bk-checkbox
+          style="margin: 0 12px 0 12px"
+          :value="isAllowEmptyField"
+          theme="primary"
+          @change="handleEmptyFieldFormat"
+        >
+          <span class="switch-label">
+            {{ $t('展示空字段') }}
+          </span>
+        </bk-checkbox>
       </div>
-      <div class="tools-more" v-if="!isMonitorTrace">
+      <div
+        class="tools-more"
+        v-if="!isMonitorTrace"
+      >
         <div class="operation-icons">
           <export-log
             :async-export-usable="asyncExportUsable"
@@ -175,7 +189,7 @@
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
-        isMonitorTrace: window.__IS_MONITOR_TRACE__
+        isMonitorTrace: window.__IS_MONITOR_TRACE__,
       };
     },
     computed: {
@@ -203,6 +217,7 @@
         isWrap: 'tableLineIsWrap',
         jsonFormatDeep: state => state.tableJsonFormatDepth,
         isJsonFormat: state => state.tableJsonFormat,
+        isAllowEmptyField: state => state.tableAllowEmptyField,
         showRowIndex: state => state.tableShowRowIndex,
       }),
 
@@ -275,6 +290,9 @@
       },
       handleJsonFormat(val) {
         this.$store.commit('updateTableJsonFormat', val);
+      },
+      handleEmptyFieldFormat(val) {
+        this.$store.commit('updateTableEmptyFieldFormat', val);
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);

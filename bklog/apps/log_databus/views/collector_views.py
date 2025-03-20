@@ -61,6 +61,8 @@ from apps.log_databus.serializers import (
     CustomUpdateSerializer,
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
+    FastContainerCollectorCreateSerializer,
+    FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
@@ -2353,6 +2355,10 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
+        if request.data.get("environment") == Environment.CONTAINER:
+            data = self.params_valid(FastContainerCollectorCreateSerializer)
+            return Response(CollectorHandler().fast_contain_create(data))
+
         data = self.params_valid(FastCollectorCreateSerializer)
         return Response(CollectorHandler().fast_create(data))
 
@@ -2426,6 +2432,9 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
+        if request.data.get("environment") == Environment.CONTAINER:
+            data = self.params_valid(FastContainerCollectorUpdateSerializer)
+            return Response(CollectorHandler(collector_config_id).fast_contain_update(data))
         data = self.params_valid(FastCollectorUpdateSerializer)
         return Response(CollectorHandler(collector_config_id).fast_update(data))
 

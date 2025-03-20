@@ -596,17 +596,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
   }
 
-  handleSqlQueryResultChange(data, isRequesting) {
+  handleSqlQueryResultChange(resp, isRequesting) {
     // 如果data为空，这里只处理请求状态
-    if (!data) {
+    if (!resp) {
       this.isRequesting = isRequesting;
       return;
     }
 
-    this.resultSchema = data.data?.result_schema ?? [];
+    this.resultSchema = resp.data?.result_schema ?? [];
     this.setDefaultFieldSettings(this.resultSchema);
-    this.chartData = data;
-    this.$set(this, 'chartData', data);
+    this.chartData = resp;
+    this.$set(this, 'chartData', resp);
     this.chartCounter++;
     this.isSqlValueChanged = false;
   }

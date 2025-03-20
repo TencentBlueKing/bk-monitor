@@ -337,7 +337,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 改变条件时 更新路由参数
-  setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
+  setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null, isPromise = false) {
     const { params, query } = this.$route;
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
@@ -368,7 +368,18 @@ export default class SearchComp extends tsc<IProps> {
       query: filterQuery,
     };
     if (linkAdditionList) return this.$router.resolve(routeData).href;
-    this.$router.replace(routeData);
+    if (!isPromise) return this.$router.replace(routeData);
+    // 如果相同，直接返回一个 resolved 的 Promise
+    if (
+      this.$route.name === routeData.name &&
+      JSON.stringify(this.$route.params) === JSON.stringify(routeData.params) &&
+      JSON.stringify(this.$route.query) === JSON.stringify(routeData.query)
+    ) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      this.$router.replace(routeData, resolve, reject);
+    });
   }
 
   // 获取有效的字段条件字符串
@@ -592,14 +603,14 @@ export default class SearchComp extends tsc<IProps> {
   async queryValueList(fieldsParams = []) {
     const fields = fieldsParams.length ? fieldsParams : this.fieldsKeyStrList;
     if (!fields.length) return;
-    const tempList = handleTransformToTimestamp(this.datePickerValue);
+    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
     try {
       const urlStr = this.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
         keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
         fields,
-        start_time: formatDate(tempList[0] * 1000),
-        end_time: formatDate(tempList[1] * 1000),
+        start_time: formatDate(tempList[0]),
+        end_time: formatDate(tempList[1]),
       };
       if (this.isUnionSearch) {
         Object.assign(queryData, {

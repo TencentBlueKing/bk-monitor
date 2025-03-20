@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, onBeforeMount } from 'vue';
 
 import {
   parseTableRowData,
@@ -39,12 +39,13 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
 import aiBlueking from '@/images/ai/ai-blueking.svg';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import PopInstanceUtil from '../../search-bar/pop-instance-util';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -66,7 +67,6 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import PopInstanceUtil from '../../search-bar/pop-instance-util';
 
 import './log-rows.scss';
 
@@ -91,6 +91,7 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
+    const refLoadMoreElement: Ref<HTMLElement> = ref();
     const popInstanceUtil = new PopInstanceUtil({
       refContent: ref('智能分析'),
       tippyOptions: {
@@ -290,7 +291,15 @@ export default defineComponent({
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
-              store.commit('updateIndexFieldInfo', { sort_list: sortList });
+              const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
+                if (sortList.length > 0 && item[0] === field.field_name) {
+                  return sortList[0];
+                } else if (sortList.length === 0 && item[0] === field.field_name) {
+                  return [field.field_name, 'desc'];
+                }
+                return item;
+              });
+              store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
               store.dispatch('requestIndexSetQuery');
             }
@@ -692,7 +701,8 @@ export default defineComponent({
     };
 
     const loadMoreTableData = () => {
-      if (isRequesting.value) {
+      // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
+      if (isRequesting.value && tableDataSize.value === 0) {
         return;
       }
 
@@ -737,6 +747,7 @@ export default defineComponent({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
+      refLoadMoreElement,
     });
 
     const scrollWidth = computed(() => {
@@ -902,6 +913,9 @@ export default defineComponent({
               width,
               minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
             };
+            if (typeof column.minWidth === 'number' && column.width < column.minWidth) {
+              cellStyle.minWidth = `${column.width}px`;
+            }
             return (
               <div
                 key={`${rowIndex}-${column.key}`}
@@ -946,7 +960,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft.value = (event.target as HTMLElement).scrollLeft;
+      scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
     };
 
     const renderScrollXBar = () => {
@@ -978,7 +992,10 @@ export default defineComponent({
 
     const renderLoader = () => {
       return (
-        <div class={['bklog-requsting-loading']}>
+        <div
+          ref={refLoadMoreElement}
+          class={['bklog-requsting-loading']}
+        >
           <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>
       );
@@ -997,6 +1014,11 @@ export default defineComponent({
 
     const isTableLoading = computed(() => {
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
+    });
+
+    onBeforeMount(() => {
+      renderList.value.length = 0;
+      renderList.value = [];
     });
 
     onBeforeUnmount(() => {

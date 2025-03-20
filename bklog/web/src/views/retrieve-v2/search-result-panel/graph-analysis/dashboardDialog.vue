@@ -71,7 +71,7 @@ defineExpose({
     :title="$t('收藏至仪表盘')"
   >
     <bk-checkbox v-model="checkValue" class="dialog_checkbox">{{
-      $t("同名视图替换 ")
+      $t("同名视图替换")
     }}</bk-checkbox>
     <bk-input v-model="inputValue" right-icon="icon-search"> </bk-input>
     <bk-collapse class="my-menu"  v-model="collapseValue">

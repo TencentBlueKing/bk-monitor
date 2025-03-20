@@ -104,7 +104,7 @@ export default defineComponent({
     };
     /** 初始化图表数据 */
     const initData = () => {
-      if (listData.value.length) {
+      if (listData.value?.length) {
         durationModal.value = new DurationDataModal(listData.value);
         const { minDuration, maxDuration, durationStep, xAxisData, seriesData } = durationModal.value;
 

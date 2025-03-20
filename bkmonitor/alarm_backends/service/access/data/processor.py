@@ -223,11 +223,10 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                     logger.exception("push noise data of strategy(%s) error, %s", item.strategy.id, str(e))
 
             logger.info(
-                "strategy_group_key(%s) strategy(%s) item(%s) push records(%s)",
+                "strategy_group_key(%s) strategy(%s) item(%s) push records to detect done",
                 item.strategy.strategy_group_key,
                 item.strategy.id,
                 item.id,
-                0,
             )
             # 推送无数据处理
             if item.no_data_config["is_enabled"]:
@@ -351,6 +350,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not (first_item.data_source_types & MULTI_METRIC_DATA_SOURCES):
             first_item.data_sources[0]._advance_where = []
 
+        bkdata_tmp_advance_where = []
         # 计算平台指标查询localTime
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
             if len(first_item.expression.strip()) <= 1:
@@ -358,6 +358,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 first_item.data_sources[0].metrics.append(
                     {"field": "localTime", "method": "MAX", "alias": "_localTime"}
                 )
+                first_item.data_sources[0].rollback_query()
+                # 暂存高级过滤条件
+                bkdata_tmp_advance_where = first_item.data_sources[0]._advance_where
+                first_item.data_sources[0]._advance_where = []
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
@@ -378,6 +382,8 @@ class AccessDataProcess(BaseAccessDataProcess):
             first_item.data_sources[0].metrics = [
                 m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
             ]
+            # 恢复高级过滤条件
+            first_item.data_sources[0]._advance_where = bkdata_tmp_advance_where
             filter_point_time = None
             for point_time, max_local_time in local_time_list:
                 if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
@@ -586,7 +592,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 非批量任务，记录日志
         if not self.sub_task_id:
             logger.info(
-                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                "strategy_group_key({}), process records({}), last_checkpoint({})".format(
                     self.strategy_group_key,
                     len(self.record_list),
                     arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),

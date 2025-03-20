@@ -5,11 +5,13 @@
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, getRegExp } from '@/common/util';
+  import { getOperatorKey, deepClone } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
+  import useFieldEgges from './use-field-egges';
+  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
-
+  const debouncedHandleChange = debounce(() => handleChange(), 300);
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -23,15 +25,33 @@
 
   const commonFilterAddition = computed({
     get() {
-      const filterAddition = store.getters.common_filter_addition || [];
+      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
+      if(additionValue?.indexId !== store.state.indexId){
+        localStorage.removeItem('commonFilterAddition');
+      }
+      // 将本地存储的JSON字符串解析为对象并创建映射
+      const parsedValueMap = additionValue
+        ? additionValue.value.reduce((acc, item) => {
+            acc[item.field] = item.value;
+            return acc;
+          }, {})
+        : {};
+      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
+      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
+        ...commonItem,
+        value: parsedValueMap[commonItem.field] || commonItem.value,
+      }));
+
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        return matchingItem ?? {
-          field: item.field_name || '',
-          operator: '=',
-          value: [],
-          list: [],
+        return (
+          matchingItem ?? {
+            field: item.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
           }
+        );
       });
     },
     set(val) {
@@ -50,7 +70,6 @@
   });
 
   const activeIndex = ref(-1);
-  const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
 
@@ -81,75 +100,69 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const rquestFieldEgges = (() => {
-    return (field, index, operator?, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-      commonFilterAddition.value[index].list.splice(0, commonFilterAddition.value[index].list.length);
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
-      }
-
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const targetAddition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
-          .then(res => {
-            const arr = res.data?.aggs_items?.[field.field_name] || [];
-            commonFilterAddition.value[index].list = arr.filter(item => item);
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
-    };
-  })();
-
+  const { requestFieldEgges } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      rquestFieldEgges(item, index, null, null, () => {});
+      isRequesting.value = true;
+      requestFieldEgges(
+        item,
+        null,
+        resp => {
+          if (typeof resp === 'boolean') {
+            return;
+          }
+          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+        },
+        () => {
+          isRequesting.value = false;
+        },
+      );
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    filterKeyword.value = value;
-    // rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    activeIndex.value = index;
+    isRequesting.value = true;
+    requestFieldEgges(
+      item,
+      value,
+      resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      },
+      () => {
+        isRequesting.value = false;
+      },
+    );
   };
 
   // 新建提交逻辑
   const updateCommonFilterAddition = () => {
-    const target = commonFilterAddition.value.map(item => {
+    const Additionvalue = deepClone(commonFilterAddition.value);
+    const target = Additionvalue.map(item => {
       if (!isShowConditonValueSetting(item.operator)) {
         item.value = [];
       }
-
+      item.value = [];
       return item;
     });
 
     const param = {
       filterAddition: target,
+      isUpdate: true
     };
 
     store.dispatch('userFieldConfigChange', param);
   };
 
   const handleChange = () => {
+    localStorage.setItem('commonFilterAddition', JSON.stringify({
+      indexId: store.state.indexId,
+      value: commonFilterAddition.value
+    }));
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
@@ -164,10 +177,6 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
-  const filterOption = ( index )=>{
-    const regExp = getRegExp(filterKeyword.value.trim());
-    return  commonFilterAddition.value[index].list.filter(item => regExp.test(item));
-  }
 </script>
 
 <template>
@@ -185,7 +194,10 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title" v-bk-overflow-tips>
+        <div
+          class="title"
+          v-bk-overflow-tips
+        >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -194,7 +206,7 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="handleChange"
+          @change="debouncedHandleChange"
         >
           <template #trigger>
             <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
@@ -216,7 +228,7 @@
             multiple
             searchable
             :fix-height="true"
-            @change="handleChange"
+            @change="debouncedHandleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>
@@ -228,7 +240,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in filterOption(index)"
+              v-for="option in commonFilterAddition[index].list"
               :id="option"
               :key="option"
               :name="option"

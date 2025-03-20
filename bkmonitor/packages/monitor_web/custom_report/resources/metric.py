@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import models
-from django.db.models import Q
+from django.db.models import Max, Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -809,7 +809,7 @@ class CustomTsGroupingRuleList(Resource):
         # 获取分组规则
         grouping_rules = CustomTSGroupingRule.objects.filter(
             time_series_group_id=validated_request_data["time_series_group_id"]
-        )
+        ).order_by("index")
         result = CustomTSGroupingRuleSerializer(grouping_rules, many=True).data
         for rule in result:
             rule["metric_count"] = group_metric_count[rule["name"]]
@@ -834,10 +834,12 @@ class ModifyCustomTsGroupingRuleList(Resource):
             )
 
         group_rules = {}
-        for group in params["group_list"]:
+        for index, group in enumerate(params["group_list"]):
             # 校验分组名称唯一
             if group_rules.get(group["name"]):
                 raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group['name']))
+
+            group["index"] = index
             group_rules[group["name"]] = group
 
         # 获取存量分组规则
@@ -864,6 +866,8 @@ class ModifyCustomTsGroupingRuleList(Resource):
                 change = True
             if exist_group_rule.auto_rules != current_group_rule.get("auto_rules", []):
                 change = True
+            if exist_group_rule.index != current_group_rule["index"]:
+                change = True
             if change:
                 need_update_rules.append(exist_group_rule)
 
@@ -882,7 +886,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
         )
 
         # 分组匹配现存指标
-        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=False)
+        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=True)
 
         return resource.custom_report.custom_ts_grouping_rule_list(time_series_group_id=params["time_series_group_id"])
 
@@ -910,6 +914,14 @@ class CreateOrUpdateGroupingRule(Resource):
         )
 
         if not group_rules:
+            # 获取当前分组规则index最大值
+            max_index = (
+                CustomTSGroupingRule.objects.filter(time_series_group_id=params["time_series_group_id"]).aggregate(
+                    Max("index")
+                )["index__max"]
+                or 0
+            )
+            params["index"] = max_index + 1
             # 创建分组规则
             grouping_rule = CustomTSGroupingRule.objects.create(**params)
         else:
@@ -982,12 +994,16 @@ class DeleteGroupingRule(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         name = serializers.CharField(required=True, label="分组规则名称")
 
     def perform_request(self, params: Dict):
         # 获取自定义时序表
-        table = CustomTSTable.objects.filter(time_series_group_id=params["time_series_group_id"]).first()
+        table = CustomTSTable.objects.filter(
+            time_series_group_id=params["time_series_group_id"],
+            bk_biz_id=params["bk_biz_id"],
+        ).first()
         if not table:
             raise ValidationError(
                 "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
@@ -1007,3 +1023,57 @@ class DeleteGroupingRule(Resource):
         # 删除分组规则
         if group_rule.id:
             group_rule.delete()
+
+
+class UpdateGroupingRuleOrder(Resource):
+    """
+    更新自定义指标分组规则排序
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        group_names = serializers.ListField(required=True, label="分组规则名称列表")
+
+    def perform_request(self, params: Dict):
+        # 获取自定义时序表
+        table = CustomTSTable.objects.get(
+            time_series_group_id=params["time_series_group_id"],
+            bk_biz_id=params["bk_biz_id"],
+        )
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+            )
+
+        # 获取分组规则
+        group_rules = CustomTSGroupingRule.objects.filter(
+            time_series_group_id=params["time_series_group_id"],
+        ).order_by("index")
+
+        exists_group_rules = {group_rule.name: group_rule for group_rule in group_rules}
+
+        # 去除不存在的分组
+        group_names = [group_name for group_name in params["group_names"] if group_name in exists_group_rules]
+
+        # 未出现的分组
+        no_order_group_rules = [group_rule.name for group_rule in group_rules if group_rule.name not in group_names]
+
+        index = 0
+
+        # 更新分组规则排序
+        for group_name in group_names:
+            exists_group_rules[group_name].index = index
+            index += 1
+
+        # 未出现的分组，排序为最后
+        for group_name in no_order_group_rules:
+            exists_group_rules[group_name].index = index
+            index += 1
+
+        # 批量更新分组规则排序
+        CustomTSGroupingRule.objects.bulk_update(
+            list(exists_group_rules.values()),
+            fields=["index"],
+            batch_size=200,
+        )
