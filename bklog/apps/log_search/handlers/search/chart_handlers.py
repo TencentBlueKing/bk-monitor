@@ -108,7 +108,8 @@ class ChartHandler(object):
                 if isinstance(node.expr, Phrase):
                     # 处理带引号的短语
                     value = expr.value.replace("'", "''")
-                    return f"{field_name} = {value}"
+                    op = "MATCH_PHRASE" if field_name == "log" else "="
+                    return f"{field_name} {op} {value}"
                 elif isinstance(expr, Regex):
                     # 处理正则表达式
                     regex = expr.value.strip("/")
