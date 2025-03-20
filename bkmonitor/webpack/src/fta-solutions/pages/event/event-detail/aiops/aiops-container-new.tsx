@@ -30,6 +30,7 @@ import FuctionalDependency from '@blueking/functional-dependency/vue2';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
+import { alertIncidentDetail } from 'monitor-api/modules/incident';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 
 import DimensionTable from './dimension.table';
@@ -37,7 +38,7 @@ import MetricsCollapse from './metrics-collapse';
 import MetricsView from './metrics-view';
 import TabTitle from './tab-title';
 import AiopsTroubleshootingCollapse from './troubleshooting-collapse';
-import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo } from './types';
+import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo, type IIncidentDetail } from './types';
 
 import type { IDetail } from '../type';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -101,7 +102,7 @@ export default class AiopsContainer extends tsc<IProps> {
     prop: 'dim_surprise',
   };
   /** tab切换 */
-  tabActive = ETabNames.dimension;
+  tabActive = ETabNames.diagnosis;
   /** 告警前后时间 */
   timeRange = 3;
 
@@ -112,6 +113,13 @@ export default class AiopsContainer extends tsc<IProps> {
   hasReportClick = false;
   hasReportTips = false;
   observer: IntersectionObserver = null;
+  topoLoading = false;
+  troubleShootingDataError = {
+    isError: false,
+    message: '',
+  };
+  troubleShootingData: IIncidentDetail = null;
+
   /** 展示collapse的配置 */
   get tabConfigs() {
     return [
@@ -121,7 +129,17 @@ export default class AiopsContainer extends tsc<IProps> {
         titleKey: '故障诊断',
         loading: this.metricRecommendationLoading,
         error: this.metricRecommendationErr,
-        contentRender: () => <AiopsTroubleshootingCollapse />,
+        contentRender: () => {
+          if (this.troubleShootingData) {
+            return (
+              <AiopsTroubleshootingCollapse
+                data={this.troubleShootingData}
+                errorData={this.troubleShootingDataError}
+                loading={this.topoLoading}
+              />
+            );
+          }
+        },
         tipsRenderer: () => {},
       },
       {
@@ -223,6 +241,10 @@ export default class AiopsContainer extends tsc<IProps> {
   handleChangeShow(val) {
     val && !this.isDataInit && this.getTabData();
   }
+  @Watch('detail.id')
+  handleAiopsTopoData(val) {
+    val && this.getAiopsTopoData();
+  }
   /** 挂载实例事件 */
   mounted() {
     this.$nextTick(() => {
@@ -246,6 +268,7 @@ export default class AiopsContainer extends tsc<IProps> {
     this.tabActive = active[0];
     this.isCorrelationMetrics = this.tabActive === ETabNames.index;
     this.selectActive = this.tabActive;
+    this.topoLoading = false;
   }
   /** 前端排序 */
   handleSortChange({ prop, order }) {
@@ -493,13 +516,17 @@ export default class AiopsContainer extends tsc<IProps> {
   renderMetricTips() {
     const isExitIndexInfo = Object.keys(this.info?.indexInfo || {}).length > 0;
     return [
-      <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
+      <span
+        key='metric_text'
+        class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
+      >
         <i18n path='{0} 个指标'>
           <font>{this.info?.indexInfo.recommended_metric || 0} </font>
         </i18n>
         {isExitIndexInfo ? ',' : ''}
       </span>,
       <span
+        key='metric_count_text'
         style='marginLeft: 6px'
         class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
       >
@@ -542,6 +569,28 @@ export default class AiopsContainer extends tsc<IProps> {
         {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
       </div>
     );
+  }
+  /** 获取故障拓扑图展示数据 */
+  async getAiopsTopoData() {
+    this.topoLoading = true;
+    const { bk_biz_id, id } = this.detail;
+    const params = {
+      alert_id: id,
+      bk_biz_id,
+    };
+    return alertIncidentDetail(params)
+      .then(res => {
+        this.troubleShootingData = res;
+        this.troubleShootingDataError.isError = false;
+        this.troubleShootingDataError.message = '';
+      })
+      .catch(err => {
+        this.troubleShootingDataError.isError = true;
+        this.troubleShootingDataError.message = err.data?.error_details ? err.data.error_details.overview : err.message;
+      })
+      .finally(() => {
+        this.topoLoading = false;
+      });
   }
   render() {
     return (

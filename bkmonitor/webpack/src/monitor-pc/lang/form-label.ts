@@ -1913,4 +1913,5 @@ export default {
   图表: 'Chart',
   数据明细: 'Data details',
   聚合维度: 'Group by',
+  影响业务: 'Impact on business',
 };
