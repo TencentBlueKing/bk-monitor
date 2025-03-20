@@ -21,6 +21,7 @@ from alarm_backends.core.control.mixins import CheckMixin, DetectMixin, DoubleCh
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.strategy.new_strategy import get_metric_id
+from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.range import load_condition_instance
 from bkmonitor.utils.range.target import TargetCondition
 from constants.strategy import AGG_METHOD_REAL_TIME
@@ -58,7 +59,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
 
         self.expression = item_config.get("expression")
         self.functions = item_config.get("functions")
-        self.time_delay = item_config.get("time_delay")
+        self.time_delay = safe_int(item_config.get("time_delay"), 0)
         self.metric_ids = set()
         self.data_source_types = set()
         self.data_source_labels = set()

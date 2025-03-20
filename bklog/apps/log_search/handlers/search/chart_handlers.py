@@ -25,6 +25,19 @@ import time
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
+from luqum.parser import parser
+from luqum.tree import (
+    AndOperation,
+    Group,
+    OrOperation,
+    Phrase,
+    Range,
+    Regex,
+    SearchField,
+    Term,
+    Word,
+)
+from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
 from apps.log_search import metrics
@@ -43,6 +56,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
+from apps.utils.lucene import EnhanceLuceneAdapter
 
 
 class ChartHandler(object):
@@ -78,11 +92,80 @@ class ChartHandler(object):
         raise NotImplementedError(_("功能暂未实现"))
 
     @staticmethod
+    def to_like_syntax(value: str):
+        """
+        转化为like语法
+        :param value: 值
+        """
+        value = value.replace("*", "%").replace("?", "_")
+        if not value.startswith("%"):
+            value = "%" + value
+        if not value.endswith("%"):
+            value += "%"
+        return value
+
+    @classmethod
+    def lucene_to_where_clause(cls, lucene_query):
+        # 解析 Lucene 查询
+        query_tree = parser.parse(lucene_query)
+
+        # 递归遍历语法树并生成 SQL WHERE 子句
+        def build_condition(node):
+            if isinstance(node, SearchField):
+                field_name = node.name
+                # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+                if "." in field_name:
+                    field_list = field_name.split(".")
+                    field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+                    field_name = f"CAST({field_name} AS TEXT)"
+                expr = node.expr
+                if isinstance(node.expr, Phrase):
+                    # 处理带引号的短语
+                    value = expr.value.replace("'", "''")
+                    op = "MATCH_PHRASE" if field_name == "log" else "="
+                    return f"{field_name} {op} {value}"
+                elif isinstance(expr, Regex):
+                    # 处理正则表达式
+                    regex = expr.value.strip("/")
+                    return f"{field_name} REGEXP '{regex}'"
+                elif isinstance(expr, Range):
+                    # 处理范围查询，例如 year:[2020 TO 2023]
+                    low = expr.low
+                    high = expr.high
+                    return f"{field_name} BETWEEN {low} AND {high}"
+                elif isinstance(expr, Term):
+                    # 处理不带引号的术语,替换通配符
+                    value = cls.to_like_syntax(expr.value)
+                    return f"{field_name} LIKE '{value}'"
+            elif isinstance(node, OrOperation):
+                # 处理 OR 操作
+                conditions = [build_condition(child) for child in node.children]
+                return " OR ".join(cond for cond in conditions if cond if not None)
+            elif isinstance(node, AndOperation):
+                # 处理 AND 操作
+                conditions = [build_condition(child) for child in node.children]
+                return " AND ".join(cond for cond in conditions if cond if not None)
+            elif isinstance(node, Group):
+                # 处理 Group 节点，例如 (author:John OR author:Jane)
+                return f"({build_condition(node.children[0])})"
+            elif isinstance(node, Phrase):
+                # 处理带引号的短语
+                return f"log MATCH_PHRASE {node.value}"
+            elif isinstance(node, Word):
+                # 处理不带引号的短语
+                value = cls.to_like_syntax(node.value)
+                return f"log LIKE '{value}'"
+
+        return build_condition(query_tree)
+
+    @classmethod
     def generate_sql(
+        cls,
         addition,
         start_time,
         end_time,
         sql_param=None,
+        keyword=None,
         action=SQLGenerateMode.COMPLETE.value,
     ) -> dict:
         """
@@ -91,15 +174,25 @@ class ChartHandler(object):
         :param sql_param: SQL条件
         :param start_time: 开始时间
         :param end_time: 结束时间
+        :param keyword: 搜索关键字
         :param action: 生成SQL的方式
         """
         start_date = arrow.get(start_time).format("YYYYMMDD")
         end_date = arrow.get(end_time).format("YYYYMMDD")
-        sql = (
+        additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
 
+        if keyword:
+            # 加上keyword的查询条件
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
+            keyword = enhance_lucene_adapter.enhance()
+            where_clause = cls.lucene_to_where_clause(keyword)
+            if where_clause:
+                additional_where_clause += f" AND {where_clause}"
+
+        sql = ""
         for condition in addition:
             field_name = condition["field"]
             operator = condition["operator"]
@@ -137,11 +230,7 @@ class ChartHandler(object):
             for index, value in enumerate(values):
                 if operator in ["=~", "&=~", "!=~", "&!=~"]:
                     # 替换通配符
-                    value = value.replace("*", "%").replace("?", "_")
-                    if not value.startswith("%"):
-                        value = "%" + value
-                    if not value.endswith("%"):
-                        value += "%"
+                    value = cls.to_like_syntax(value)
                 elif operator in ["contains", "not contains"]:
                     # 添加通配符
                     value = f"%{value}%"
@@ -156,12 +245,12 @@ class ChartHandler(object):
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
 
+        if sql:
+            additional_where_clause += f" AND {sql}"
+
         if action == SQLGenerateMode.WHERE_CLAUSE.value:
             # 返回SQL条件
-            return sql
-
-        # 保存where子句变量
-        additional_where_clause = sql
+            return additional_where_clause
 
         if sql_param:
             pattern = (
@@ -173,11 +262,11 @@ class ChartHandler(object):
             matches = re.match(pattern, sql_param, re.DOTALL | re.IGNORECASE)
             final_sql = matches.group(1)
             if sql:
-                final_sql += f"WHERE {sql} "
+                final_sql += f"WHERE {sql}"
             if matches.group(2):
-                final_sql += matches.group(2)
+                final_sql += f" {matches.group(2)}"
         else:
-            final_sql = f"{SQL_PREFIX} WHERE {sql} {SQL_SUFFIX}" if sql else f"{SQL_PREFIX} {SQL_SUFFIX}"
+            final_sql = f"{SQL_PREFIX} {SQL_SUFFIX}"
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
 
 
@@ -199,11 +288,24 @@ class SQLChartHandler(ChartHandler):
         :param params: 图表参数
         :return: 图表数据 dict
         """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
-        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-        data = self.fetch_query_data(parsed_sql)
-        return data
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("bkdata_doris_query") as span:
+            span.set_attribute("index_set_id", self.index_set_id)
+            span.set_attribute("user.username", get_request_username())
+            span.set_attribute("space_uid", self.data.space_uid)
+
+            if not self.data.support_doris:
+                raise IndexSetDorisQueryException()
+            span.set_attribute("db.table", self.data.doris_table_id)
+            parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
+            span.set_attribute("db.statement", parsed_sql)
+            span.set_attribute("db.system", "doris")
+
+            data = self.fetch_query_data(parsed_sql)
+            span.set_attribute("total_records", data["total_records"])
+            span.set_attribute("time_taken", data["time_taken"])
+
+            return data
 
     def parse_sql_syntax(self, doris_table_id: str, params: dict):
         """
@@ -213,6 +315,7 @@ class SQLChartHandler(ChartHandler):
             addition=params["addition"],
             start_time=params["start_time"],
             end_time=params["end_time"],
+            keyword=params.get("keyword"),
             action=SQLGenerateMode.WHERE_CLAUSE.value,
         )
         # 如果不存在FROM则添加,存在则覆盖

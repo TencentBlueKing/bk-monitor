@@ -4895,8 +4895,8 @@ class CollectorHandler(object):
         scope_data = [
             {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
             {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
-            {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
-            {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
+            # {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
+            # {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
         ]
         return_data["scope"] = scope_data
         return return_data
