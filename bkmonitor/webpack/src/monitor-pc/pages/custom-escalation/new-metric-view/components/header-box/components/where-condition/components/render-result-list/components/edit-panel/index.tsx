@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import KeySelect from './panel-key-select';
 import ValueSelect from './panel-value-select';
 
-import './edit-panel.scss';
+import './index.scss';
 
 export interface IValue {
   key: string;

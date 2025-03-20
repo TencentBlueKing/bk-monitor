@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
-import EditOffset from './edit-offset';
+import EditOffset from './componets/edit-offset';
 
 import './index.scss';
 

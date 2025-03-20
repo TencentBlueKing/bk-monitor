@@ -200,7 +200,6 @@ export default class ViewSave extends tsc<IProps, IEmit> {
           <bk-form
             ref='createFormRef'
             form-type='vertical'
-            model={this.createFormData}
             {...{
               props: {
                 model: this.createFormData,

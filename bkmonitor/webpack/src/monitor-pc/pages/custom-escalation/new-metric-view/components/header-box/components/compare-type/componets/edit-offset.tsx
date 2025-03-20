@@ -165,9 +165,13 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     if (this.value.length < 1) {
       this.popoverRef.showHandler();
     }
-    document.body.addEventListener('click', this.handleHideEdit);
-    this.$once('hook:beforeDestro', () => {
-      document.body.removeEventListener('click', this.handleHideEdit);
+
+    // 莫名其妙外部切花对比类型的点击操作会触发下面的click 事件，加个 setTimeout
+    setTimeout(() => {
+      document.body.addEventListener('click', this.handleHideEdit);
+      this.$once('hook:beforeDestroy', () => {
+        document.body.removeEventListener('click', this.handleHideEdit);
+      });
     });
   }
 
@@ -220,7 +224,6 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             ref='popoverMenuRef'
             class='wrapper'
             slot='content'
-            v-bk-clickoutside={this.handleHideEdit}
           >
             <bk-checkbox-group v-model={this.tempEditValue}>
               {this.offsetList.map(offsetItem => (

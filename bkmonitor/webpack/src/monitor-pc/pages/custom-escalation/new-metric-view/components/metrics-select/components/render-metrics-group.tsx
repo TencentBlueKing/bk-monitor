@@ -73,8 +73,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
   isLoading = true;
-  // {[groupId]: false} 值明确是 false 才表示折叠状态
-  groupFlodMap: Readonly<Record<string, boolean>> = {};
+  groupExpandMap: Readonly<Record<string, boolean>> = {};
   handleSearch = () => {};
 
   get commonDimensionList() {
@@ -120,6 +119,11 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
       }
 
       this.renderMetricGroupList = Object.freeze(this.metricGroupList);
+      if (this.renderMetricGroupList.length > 0) {
+        this.groupExpandMap = Object.freeze({
+          [this.metricGroupList[0].name]: true,
+        });
+      }
     } finally {
       this.isLoading = false;
     }
@@ -132,19 +136,22 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
     this.$emit('change');
   }
   // 实例方法
-  flodAll() {
-    const latestGroupFlodMap = { ...this.groupFlodMap };
+  foldAll() {
+    const latestGroupFlodMap = { ...this.groupExpandMap };
     this.renderMetricGroupList.forEach(item => {
       latestGroupFlodMap[item.name] = false;
     });
-    this.groupFlodMap = Object.freeze(latestGroupFlodMap);
+    this.groupExpandMap = Object.freeze(latestGroupFlodMap);
+  }
+  expandAll() {
+    this.groupExpandMap = {};
   }
 
   handleGroupToggleFlod(metricGroupName: string) {
-    const latestGroupFlodMap = { ...this.groupFlodMap };
+    const latestGroupFlodMap = { ...this.groupExpandMap };
     latestGroupFlodMap[metricGroupName] =
       latestGroupFlodMap[metricGroupName] === undefined ? false : !latestGroupFlodMap[metricGroupName];
-    this.groupFlodMap = Object.freeze(latestGroupFlodMap);
+    this.groupExpandMap = Object.freeze(latestGroupFlodMap);
   }
 
   handleGroupSelectAll(metricList: TCustomTsMetricGroups['metric_groups'][number]['metrics']) {
@@ -207,8 +214,8 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
                 <i
                   class={{
                     'icon-monitor': true,
-                    'icon-mc-file-open': this.groupFlodMap[groupItem.name] !== false,
-                    'icon-FileFold-Close': this.groupFlodMap[groupItem.name] === false,
+                    'icon-mc-file-open': this.groupExpandMap[groupItem.name],
+                    'icon-FileFold-Close': !this.groupExpandMap[groupItem.name],
                   }}
                 />
                 <div
@@ -229,7 +236,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
               </div>
               <div
                 style={{
-                  display: this.groupFlodMap[groupItem.name] === false ? 'none' : '',
+                  display: this.groupExpandMap[groupItem.name] ? '' : 'none',
                 }}
                 class='metrics-select-item-content'
               >

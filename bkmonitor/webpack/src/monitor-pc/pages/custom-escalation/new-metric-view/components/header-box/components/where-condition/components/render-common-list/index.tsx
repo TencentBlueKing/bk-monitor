@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
-import EditBox from './edit-box';
+import EditBox from './components/edit-box';
 
 import './index.scss';
 

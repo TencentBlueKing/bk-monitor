@@ -1,11 +1,40 @@
+%group-tag {
+  .value-item {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    line-height: 22px;
+    border-radius: 2px;
+    background-color: #f0f1f5;
+    padding: 0 2px;
+    margin-top: 6px;
+    margin-left: 6px;
+    white-space: nowrap;
+    &:hover {
+      background: #dde4eb;
+    }
+  }
+  .split-flag {
+    font-size: 12px;
+    margin-right: 2px;
+  }
+  .remote-btn {
+    cursor: pointer;
+    padding-left: 4px;
+  }
+}
+
 .new-metric-view-group-by {
   border-bottom: 1px solid #dcdee5;
   border-left: 1px solid #dcdee5;
+  overflow: hidden;
 
   .wrapper {
-    display: inline-flex;
+    display: flex;
     min-width: 225px;
     padding-right: 25px;
+    width: inherit;
+    overflow: hidden;
   }
   .label {
     height: 34px;
@@ -22,29 +51,14 @@
   }
 
   .value-wrapper {
+    position: relative;
     display: flex;
     padding-bottom: 6px;
-    .value-item {
-      display: flex;
-      align-items: center;
-      height: 22px;
-      border-radius: 2px;
-      background-color: #f0f1f5;
-      padding: 0 2px;
-      margin-top: 6px;
-      margin-left: 6px;
-      white-space: nowrap;
-      &:hover {
-        background: #dde4eb;
-      }
-    }
-    .split-flag {
-      font-size: 12px;
-      margin-right: 2px;
-    }
-    .remote-btn {
-      cursor: pointer;
-      padding-left: 4px;
-    }
+    overflow: hidden;
+    @extend %group-tag;
   }
+}
+.tippy-tooltip.new-metric-view-group-by-more-theme {
+  padding: 8px;
+  @extend %group-tag;
 }

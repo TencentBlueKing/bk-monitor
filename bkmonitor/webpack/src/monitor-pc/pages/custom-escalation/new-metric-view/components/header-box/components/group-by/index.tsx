@@ -27,8 +27,9 @@ import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import _ from 'lodash';
 
-import SelectPanel from './select-panel';
+import SelectPanel from './components/select-panel';
 
 import './index.scss';
 
@@ -51,13 +52,16 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
 
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('wrapperRef') wrapperRef: HTMLElement;
+  @Ref('calcTagListRef') calcTagListRef: HTMLElement;
 
   get currentSelectedMetricList() {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
-  localValue: Readonly<IProps['value']> = [];
+  isCalcRenderTagNum = true;
+  localValueList: Readonly<IProps['value']> = [];
   isWholeLine = false;
+  renderTagNum = 0;
 
   get demensionList() {
     const demenesionNameMap = {};
@@ -72,44 +76,119 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
     }, []);
   }
 
+  get renderValueList() {
+    return this.localValueList.slice(0, this.renderTagNum);
+  }
+
+  get moreValueCount() {
+    return this.localValueList.length - this.renderValueList.length;
+  }
+
   @Watch('value', { immediate: true })
   valueChange() {
-    this.localValue = Object.freeze([...this.value]);
+    this.localValueList = Object.freeze([...this.value]);
+    this.calcWholeLine();
+    this.calcRenderTagNum();
+  }
+
+  calcRenderTagNum() {
+    // next 确保组件是 mounted 状态
+    setTimeout(() => {
+      if (!this.wrapperRef || this.localValueList.length < 1 || !this.isWholeLine) {
+        this.renderTagNum = this.localValueList.length;
+        return;
+      }
+
+      this.isCalcRenderTagNum = true;
+      // setTimeout 确保 isCalcRenderTagNum 已经生效
+      this.$nextTick(() => {
+        const { width: maxWidth } = this.wrapperRef.getBoundingClientRect();
+
+        this.renderTagNum = 0;
+
+        let renderTagCount = 0;
+        const labelWidth = 80;
+        const tipsTagPlaceholderWidth = 45;
+        const selectBtnWidth = 60;
+
+        const allTagEleList = Array.from(this.calcTagListRef!.querySelectorAll('.value-item'));
+        if (
+          this.calcTagListRef!.getBoundingClientRect().width + selectBtnWidth + labelWidth <= maxWidth ||
+          this.localValueList.length === 1
+        ) {
+          this.renderTagNum = this.localValueList.length;
+        } else {
+          const tagMargin = 6;
+          let totalTagWidth = -tagMargin;
+          // eslint-disable-next-line @typescript-eslint/prefer-for-of
+          for (let i = 0; i < allTagEleList.length; i++) {
+            const { width: tagWidth } = allTagEleList[i].getBoundingClientRect();
+            totalTagWidth += tagWidth + tagMargin;
+            if (totalTagWidth + tipsTagPlaceholderWidth + selectBtnWidth + labelWidth <= maxWidth) {
+              renderTagCount = renderTagCount + 1;
+            } else {
+              break;
+            }
+          }
+          this.renderTagNum = Math.max(renderTagCount, 1);
+        }
+
+        this.isCalcRenderTagNum = false;
+      });
+    });
+  }
+
+  calcWholeLine() {
+    this.$nextTick(() => {
+      if (!this.rootRef) {
+        return;
+      }
+      const totalWrapperWidth = this.rootRef.parentElement.clientWidth;
+      const itemsTotalWidth = Array.from(this.rootRef.parentElement.children).reduce((result, childEle) => {
+        if (childEle === this.rootRef) {
+          return (
+            result +
+            Array.from(this.wrapperRef.children).reduce(
+              (childWidthTotal, childItem) => childWidthTotal + childItem.getBoundingClientRect().width,
+              0
+            )
+          );
+        }
+        return result + childEle.clientWidth;
+      }, 0);
+      this.isWholeLine = totalWrapperWidth < itemsTotalWidth + 120;
+    });
   }
 
   triggerChange() {
-    this.$emit('change', this.localValue);
+    this.$emit('change', this.localValueList);
   }
 
   handleChange(value: IProps['value']) {
-    this.localValue = Object.freeze(value);
+    this.localValueList = Object.freeze(value);
     this.triggerChange();
   }
 
   handleRemove(index: number) {
-    const localValue = [...this.localValue];
-    localValue.splice(index, 1);
-    this.localValue = Object.freeze(localValue);
+    const localValueList = [...this.localValueList];
+    localValueList.splice(index, 1);
+    this.localValueList = Object.freeze(localValueList);
     this.triggerChange();
   }
 
-  resizeLayout() {
-    const resizeObserver = new ResizeObserver(() => {
-      const totalWrapperWidth = this.rootRef.parentElement.clientWidth;
-      const itemsTotalWidth = Array.from(this.rootRef.parentElement.children).reduce((acc, childEle) => {
-        const childItem = childEle === this.rootRef ? this.wrapperRef : childEle;
-        return acc + childItem.clientWidth;
-      }, 0);
-      this.isWholeLine = totalWrapperWidth < itemsTotalWidth + 80;
-    });
-    resizeObserver.observe(this.wrapperRef);
+  mounted() {
+    this.calcWholeLine();
+    this.calcRenderTagNum();
+    const resizeObserver = new ResizeObserver(
+      _.throttle(() => {
+        this.calcWholeLine();
+        this.calcRenderTagNum();
+      }, 300)
+    );
+    resizeObserver.observe(this.rootRef.parentElement);
     this.$once('hook:beforeDestroy', () => {
       resizeObserver.disconnect();
     });
-  }
-
-  mounted() {
-    this.resizeLayout();
   }
 
   render() {
@@ -132,7 +211,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
             <div>{this.$t('聚合维度')}</div>
           </div>
           <div class='value-wrapper'>
-            {this.localValue.map((item, index) => (
+            {this.renderValueList.map((item, index) => (
               <div
                 key={item.field}
                 class='value-item'
@@ -145,12 +224,57 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
                 />
               </div>
             ))}
+            {this.moreValueCount > 0 && (
+              <bk-popover theme='light new-metric-view-group-by-more'>
+                <div
+                  key='more'
+                  class='value-item'
+                >
+                  + {this.moreValueCount}
+                </div>
+                <div slot='content'>
+                  {this.localValueList.slice(this.renderTagNum).map((item, index) => (
+                    <div
+                      key={item.field}
+                      class='value-item'
+                    >
+                      {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
+                      {item.field}
+                      <i
+                        class='icon-monitor icon-mc-close remote-btn'
+                        onClick={() => this.handleRemove(index)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </bk-popover>
+            )}
+            {this.isCalcRenderTagNum && (
+              <div
+                ref='calcTagListRef'
+                style='position: absolute; word-break: keep-all; white-space: nowrap; visibility: hidden'
+              >
+                {this.localValueList.map((item, index) => (
+                  <div
+                    key={item.field}
+                    class='value-item'
+                  >
+                    {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
+                    {item.field}
+                    <i
+                      class='icon-monitor icon-mc-close remote-btn'
+                      onClick={() => this.handleRemove(index)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <SelectPanel
             style='margin-left: 6px'
             data={this.demensionList}
             splitable={this.splitable}
-            value={this.localValue as IProps['value']}
+            value={this.localValueList as IProps['value']}
             onChange={this.handleChange}
           />
         </div>

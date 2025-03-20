@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
-import EditPanel, { type IValue, type IMetrics } from './components/edit-panel';
+import EditPanel, { type IValue, type IMetrics } from './components/edit-panel/index';
 
 import './index.scss';
 

@@ -64,36 +64,7 @@ class CustomEscalationViewStore extends VuexModule {
 
   @Mutation
   public updateCommonDimensionList(payload: TCustomTsMetricGroups['common_dimensions']) {
-    // this.commonDimensionList = Object.freeze(payload);
-    this.commonDimensionList = Object.freeze([
-      ...payload,
-      ...[
-        {
-          name: 'bk_biz_id',
-          alias: 'alias_bk_biz_id',
-        },
-        {
-          name: 'bk_os_name',
-          alias: 'alias_bk_os_name',
-        },
-        {
-          name: 'bk_os_type',
-          alias: 'alias_bk_os_type',
-        },
-        {
-          name: 'bk_men',
-          alias: 'alias_bk_men',
-        },
-        {
-          name: 'bk_cloudn',
-          alias: 'alias_bk_cloudn',
-        },
-        {
-          name: 'bk_area',
-          alias: 'alias_bk_area',
-        },
-      ],
-    ]);
+    this.commonDimensionList = Object.freeze(payload);
   }
 
   @Mutation
