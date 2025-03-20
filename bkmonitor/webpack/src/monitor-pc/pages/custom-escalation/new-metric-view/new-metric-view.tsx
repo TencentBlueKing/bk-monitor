@@ -57,7 +57,7 @@ export default class NewMetricView extends tsc<object> {
   }
 
   get graphConfigParams() {
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+    // const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     return {
       limit: {
         function: 'top', // top/bottom
@@ -65,8 +65,8 @@ export default class NewMetricView extends tsc<object> {
       },
       view_column: 1,
       ...this.dimenstionParams,
-      start_time: startTime,
-      end_time: endTime,
+      start_time: this.startTime,
+      end_time: this.endTime,
       metrics: customEscalationViewStore.currentSelectedMetricNameList,
     };
   }
