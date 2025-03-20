@@ -77,6 +77,28 @@ import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
 
+const EVENT_SOURCE_LIST = [
+  {
+    name: '全选',
+    id: 'all',
+  },
+  {
+    name: '蓝盾（3）',
+    id: 'bkci',
+  },
+  {
+    name: 'BCS（4）',
+    id: 'bcs',
+  },
+  {
+    name: '主机监控（4）',
+    id: 'host',
+  },
+  {
+    name: '其他（4）',
+    id: 'others',
+  },
+];
 interface IProps {
   panel: PanelModel;
 }
@@ -154,6 +176,8 @@ class CallerLineChart extends CommonSimpleChart {
   clickEventItem: ICustomEventTagsItem['items'][number] = null;
   // 自定义事件menu数据
   customMenuData: object = {};
+
+  eventAnalyze = false;
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -1087,6 +1111,9 @@ class CallerLineChart extends CommonSimpleChart {
       top: 0,
     };
   }
+  handleEventAnalyzeChange() {
+    this.eventAnalyze = !this.eventAnalyze;
+  }
   render() {
     return (
       <div
@@ -1135,6 +1162,66 @@ class CallerLineChart extends CommonSimpleChart {
             ) : (
               <span>{this.panel.title}</span>
             )}
+          </div>
+          <div>
+            <bk-popover
+              arrow={false}
+              distance={2}
+              placement='bottom-start'
+              theme='light common-monitor'
+              trigger='click'
+            >
+              <div
+                class='event-analyze tips-icon'
+                v-bk-tooltips={{ content: this.$t('事件分析') }}
+              >
+                <i class='icon-monitor icon-fasonglishi' />
+              </div>
+              <div
+                class={`event-analyze-wrapper ${this.eventAnalyze ? 'event-analyze-wrapper__set' : 'event-analyze-wrapper__unset'}`}
+                slot='content'
+              >
+                <div class='event-title'>{this.$t('事件分析')}</div>
+                <bk-switcher
+                  size='small'
+                  theme='primary'
+                  value={this.eventAnalyze}
+                  onChange={this.handleEventAnalyzeChange}
+                />
+                {this.eventAnalyze && (
+                  <div class='event-content'>
+                    <div class='event-wrapper'>
+                      <div class='event-content-title'>{this.$t('事件来源')}</div>
+                      <bk-checkbox-group class='event-content-list'>
+                        {EVENT_SOURCE_LIST.map(item => (
+                          <bk-checkbox
+                            key={item.id}
+                            size='small'
+                            value={item.id}
+                          >
+                            {item.name}
+                          </bk-checkbox>
+                        ))}
+                      </bk-checkbox-group>
+                    </div>
+                    <div class='event-wrapper'>
+                      <div class='event-content-title'>{this.$t('事件等级')}</div>
+                      <bk-checkbox-group class='event-content-list'>
+                        {EVENT_SOURCE_LIST.map(item => (
+                          <bk-checkbox
+                            key={item.id}
+                            size='small'
+                            value={item.id}
+                          >
+                            {item.name}
+                          </bk-checkbox>
+                        ))}
+                      </bk-checkbox-group>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </bk-popover>
           </div>
         </ChartHeader>
         {!this.empty ? (

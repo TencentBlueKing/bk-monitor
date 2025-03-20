@@ -434,8 +434,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             <div class='item-value'>
               {this.jumpLinkRender(item)}
               <span
-                class={`value-text ${!item.canClick ? 'disable-click' : ''}
-                }`}
+                class={`value-text ${!item.canClick ? 'disable-click' : ''}`}
                 onClick={e => this.handleValueTextClick(e, item)}
               >
                 {this.transformValue(item)}
