@@ -30,6 +30,10 @@ import type { RouteConfig } from 'vue-router';
 
 const CustomEscalationSet = () =>
   import(/* webpackChunkName: 'CustomEscalationAdd' */ '@page/custom-escalation/custom-escalation-set.vue');
+const CustomEscalationDetailNew = () =>
+  import(
+    /* web  packChunkName: 'CustomEscalationDetail' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
+  );
 const CustomEscalationDetail = () =>
   import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
 const CustomEscalationView = () =>
@@ -117,7 +121,7 @@ export default [
       noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetail,
+      noCache: CustomEscalationDetailNew,
     },
     meta: {
       title: '详情',

@@ -93,6 +93,9 @@ class CustomTSField(models.Model):
     disabled = models.BooleanField("禁用字段", default=False)
     config = models.JSONField("字段配置", default=dict)
 
+    create_time = models.DateTimeField("创建时间", auto_now_add=True, null=True)
+    update_time = models.DateTimeField("修改时间", auto_now=True, null=True)
+
 
 class CustomTSTable(OperateRecordModelBase):
     """
@@ -302,11 +305,13 @@ class CustomTSTable(OperateRecordModelBase):
                 if not delete and group_rule.match_metric(field.name):
                     if group_rule.name not in field.config["label"]:
                         field.config["label"].append(group_rule.name)
-                        updated_fields.append(field)
                 else:
                     if group_rule.name in field.config["label"]:
                         field.config["label"].remove(group_rule.name)
-                        updated_fields.append(field)
+
+            # 如果分组名称变更，则需要更新
+            if field.config["label"] != field.config.get("label", []):
+                updated_fields.append(field)
 
         # 批量更新
         if updated_fields:

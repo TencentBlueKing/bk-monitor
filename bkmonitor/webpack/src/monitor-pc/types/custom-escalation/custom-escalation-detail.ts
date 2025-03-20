@@ -63,6 +63,7 @@ export interface IDetailData {
   protocol?: string;
   desc?: string;
   bk_biz_id?: string;
+  auto_discover?: boolean;
 }
 
 export interface IShortcuts {

@@ -1,0 +1,71 @@
+.render-metric-group-item {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 2px;
+  padding-left: 22px;
+
+  &:hover,
+  &.is-active {
+    background: #f5f7fa;
+    .metric-edit-btn {
+      display: flex;
+    }
+  }
+
+  .metric-edit-btn {
+    display: none;
+    margin-left: auto;
+    font-size: 12px;
+    color: #3a84ff;
+    font-weight: bold;
+    cursor: pointer;
+    height: 100%;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  .bk-form-checkbox {
+    flex: 1;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    .bk-checkbox {
+      flex: 0 0 16px;
+    }
+    .bk-checkbox-text {
+      font-size: 12px;
+      color: #313238;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+.tippy-tooltip.edit-metric-alias-name-theme {
+  padding: 0;
+  .wrapper {
+    padding: 8px 16px 16px;
+    min-width: 320px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+  }
+  .title {
+    font-size: 16px;
+    color: #313238;
+    line-height: 24px;
+    margin-bottom: 14px;
+  }
+  .footer {
+    height: 42px;
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 16px;
+  }
+}

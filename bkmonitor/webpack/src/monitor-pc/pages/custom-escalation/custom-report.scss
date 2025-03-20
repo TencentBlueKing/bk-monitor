@@ -25,7 +25,7 @@
   }
 
   .custom-report-page-content {
-    padding: 24px 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
     margin-top: 8px;
     background: #fff;
     border-radius: 2px;
@@ -44,7 +44,7 @@
       align-items: center;
 
       .operator-input {
-        width: 360px;
+        width: 480px;
         margin: 0 0 0 auto;
       }
     }
@@ -92,7 +92,7 @@
 
       .bk-table-pagination-wrapper {
         /* stylelint-disable-next-line declaration-no-important */
-        padding: 15px !important;
+        padding: 14px !important;
       }
 
       .platform-tag {
@@ -116,5 +116,54 @@
     background: $whiteColor;
     border-left: 1px solid $defaultBorderColor;
     border-radius: 0 0 2px 2px;
+  }
+  .content-left-operator{
+    .bk-button-group-capsule{
+      background: #F0F1F5;
+      border-radius: 2px;
+      width: 152px;
+      height: 32px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      .bk-button-container{
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        flex: 1;
+      }
+      .bk-button-container:first-child{
+        justify-content: flex-end;
+      }
+      .bk-button{
+        background-color: transparent;
+        border: 0;
+        width: 72px;
+        height: 24px;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        div{
+          span{
+            font-size: 12px;
+            color: #4D4F56;
+            letter-spacing: 0;
+            line-height: 20px;
+          }
+        }
+      }
+      .bk-button.is-selected{
+        background: #FFFFFF;
+        border-radius: 2px;
+        div{
+          span{
+            color: #3A84FF;
+          }
+        }
+      }      
+    }
   }
 }

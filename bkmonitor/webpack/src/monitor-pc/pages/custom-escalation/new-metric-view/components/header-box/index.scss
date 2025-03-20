@@ -1,0 +1,32 @@
+.bk-monitor-new-metric-view-header-box {
+  background: #fff;
+  margin-left: -1px;
+  .mult-item-box {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    &:after {
+      content: '';
+      position: absolute;
+      right: 0;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 1px;
+      background: #dcdee5;
+    }
+
+    .action-extend {
+      display: flex;
+      align-items: center;
+      padding-right: 16px;
+      margin-left: auto;
+      white-space: nowrap;
+      font-size: 12px;
+      .bk-checkbox-text,
+      .bk-button-text {
+        font-size: 12px;
+      }
+    }
+  }
+}

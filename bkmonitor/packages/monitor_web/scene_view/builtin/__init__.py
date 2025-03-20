@@ -49,10 +49,10 @@ def get_builtin_processors() -> List["BuiltinProcessor"]:
         ObservationSceneBuiltinProcessor,
         CollectBuiltinProcessor,
         CustomEventBuiltinProcessor,
+        CustomMetricV2BuiltinProcessor,
         CustomMetricBuiltinProcessor,
         ApmBuiltinProcessor,
         AlertBuiltinProcessor,
-        CustomMetricV2BuiltinProcessor,
     ]
 
 
