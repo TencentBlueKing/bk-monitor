@@ -52,6 +52,7 @@ export default class AddGroupDialog extends tsc<any> {
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
   @Prop({ default: () => ({ name: '', rules: '' }), type: Object as PropType<IGroupInfo> }) groupInfo;
   @Prop({ default: () => [] }) nameList;
+  @Prop({ default: () => [] }) metricList;
   @Ref() groupRef;
   localGroupInfo: IGroupInfo = { name: '', rules: '' };
 
@@ -137,7 +138,14 @@ export default class AddGroupDialog extends tsc<any> {
       auto_rules: [this.localGroupInfo.rules],
     });
     this.previewBtnFlag = EPreviewFlag.Preview_Started;
-    this.matchedMetrics = autoMetrics[0]?.metrics || [];
+
+    this.matchedMetrics = (autoMetrics[0]?.metrics || []).map(metricName => {
+      const filter = this.metricList.filter(metric => metric.name === metricName)[0];
+      return {
+        name: filter.name,
+        description: filter.description,
+      };
+    });
   }
   /** 规则改变 */
   handleRulesChange() {
@@ -197,12 +205,15 @@ export default class AddGroupDialog extends tsc<any> {
       [EPreviewFlag.Preview_Started]: () => {
         return this.matchedMetrics.length ? (
           <div class='search-content'>
-            {this.matchedMetrics.map(metric => (
+            {this.matchedMetrics.map(({ name, description }) => (
               <span
-                key={metric}
+                key={name}
                 class='metric-item'
+                v-bk-tooltips={{
+                  content: name,
+                }}
               >
-                {metric}
+                {description || name}
               </span>
             ))}
           </div>

@@ -346,6 +346,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   changeGroupFilterList(v: string) {
     this.groupFilterList = v === ALL_LABEL ? [] : [v];
+    this.updateAllSelection();
   }
 
   created() {
@@ -696,6 +697,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
   /** 保存自动发现 */
   handleEditAutoDiscover(autoDiscover) {
+    this.autoDiscover = autoDiscover;
     this.handleEditFiled({
       auto_discover: autoDiscover,
     });
@@ -1066,6 +1068,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         manual_list: newMetrics,
         auto_rules: group.matchRules || [],
       });
+      this.updateCheckValue();
       this.getDetailData();
     } catch (error) {
       console.error(`Batch group ${groupName} update failed:`, error);
@@ -1238,6 +1241,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
+                  allCheckValue={this.allCheckValue}
                   allDataPreview={this.allDataPreview}
                   autoDiscover={this.autoDiscover}
                   customGroups={this.groupList}
@@ -1247,6 +1251,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   groupSelectList={this.groupSelectList}
                   groupsMap={this.groupsMap}
                   metricGroupsMap={this.metricGroupsMap}
+                  metricList={this.metricData}
                   metricNum={this.metricNum}
                   metricTable={this.metricTable}
                   nameList={this.groupNameList}
@@ -1265,6 +1270,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onHandleSelectGroup={this.handleSelectGroup}
                   onHandleSelectToggle={this.saveSelectGroup}
                   onHandleUpload={this.handleUploadMetric}
+                  onRowCheck={this.updateCheckValue}
                   onShowDimensionSlider={v => {
                     this.isShowDimensionSlider = v;
                   }}

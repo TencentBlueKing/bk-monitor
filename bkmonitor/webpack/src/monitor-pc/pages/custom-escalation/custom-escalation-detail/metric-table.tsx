@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
@@ -92,6 +92,7 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => [], type: Array }) dimensionTable;
   @Prop({ default: () => { } }) allDataPreview;
+  @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
   @Prop({ default: () => new Map(), type: Map }) metricGroupsMap: Map<string, any>;
@@ -103,6 +104,7 @@ export default class IndicatorTable extends tsc<any, any> {
   @Ref() readonly aggConditionInput!: HTMLInputElement;
   @Ref() readonly dimensionInput!: HTMLInputElement;
   @Ref() readonly intervalInput!: HTMLInputElement;
+  @Ref() readonly batchAddGroupPopover!: HTMLInputElement;
 
   table = {
     data: [],
@@ -123,11 +125,8 @@ export default class IndicatorTable extends tsc<any, any> {
   canEditDimension = false; // 编辑维度
   copyDimension = []; // 编辑维度
 
-  isAutoDiscover = false;
   /* 分组标签pop实例 */
   groupTagInstance = null;
-
-  allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
 
   isShow = false;
   isShowDialog = false;
@@ -149,11 +148,6 @@ export default class IndicatorTable extends tsc<any, any> {
     value: 0,
     dropdownShow: false,
     list: [{ id: 0, name: I18N.t('添加至分组') }],
-  };
-  unit = {
-    value: true,
-    index: -1,
-    toggle: false,
   };
   editingIndex = -1;
   search = '';
@@ -250,12 +244,6 @@ export default class IndicatorTable extends tsc<any, any> {
       },
     };
     this.table.data = this.metricTableVal;
-    this.updateCheckValue();
-  }
-
-  @Watch('autoDiscover')
-  updateAutoDiscover(v: boolean) {
-    this.isAutoDiscover = v;
   }
 
   /** 获取展示时间 */
@@ -369,7 +357,7 @@ export default class IndicatorTable extends tsc<any, any> {
       <ColumnCheck
         {...{
           props: {
-            list: [],
+            list: this.metricTableVal,
             value: this.allCheckValue,
             defaultType: 'current',
           },
@@ -430,8 +418,19 @@ export default class IndicatorTable extends tsc<any, any> {
         );
       },
     };
+    const hiddenSlot = {
+      /* 显示 */ default: props => (
+        <bk-switcher
+          class='switcher-btn'
+          size='small'
+          theme='primary'
+          value={!props.row.hidden}
+          onChange={v => this.handleEditHidden(v, props.row)}
+        />
+      ),
+    };
 
-    const { name, status, group, description } = this.fieldSettingData;
+    const { name, status, group, description, hidden } = this.fieldSettingData;
     return (
       <bk-table
         class='indicator-table'
@@ -490,10 +489,28 @@ export default class IndicatorTable extends tsc<any, any> {
         {status.checked && (
           <bk-table-column
             key='status'
-            width='75'
+            width='125'
             label={this.$t('状态')}
             prop='status'
             scopedSlots={statusSlot}
+          />
+        )}
+        {hidden.checked && (
+          <bk-table-column
+            key='hidden'
+            width='75'
+            renderHeader={() => (
+              <div>
+                <span>{this.$t('显示')}</span>
+                <bk-popover ext-cls='render-header-hidden-popover'>
+                  <bk-icon type='info-circle' />
+                  <div slot='content'>{this.$t('关闭后，在可视化视图里，将被隐藏')}</div>
+                </bk-popover>
+              </div>
+            )}
+            label={this.$t('显示')}
+            prop='hidden'
+            scopedSlots={hiddenSlot}
           />
         )}
       </bk-table>
@@ -502,6 +519,7 @@ export default class IndicatorTable extends tsc<any, any> {
 
   /** 批量添加至分组 */
   handleBatchAdd(groupName) {
+    this.batchAddGroupPopover?.hideHandler?.();
     if (!groupName) {
       return;
     }
@@ -515,14 +533,14 @@ export default class IndicatorTable extends tsc<any, any> {
   handChangeSwitcher(v) {
     if (!v) {
       this.isShowDialog = true;
-      return;
+      return false;
     }
     this.switcherChange(true);
+    return true;
   }
   @Emit('switcherChange')
   switcherChange(v: boolean) {
     this.isShowDialog = false;
-    this.isAutoDiscover = v;
     return v;
   }
   handlePageChange(v: number) {
@@ -536,24 +554,11 @@ export default class IndicatorTable extends tsc<any, any> {
     this.updateAllSelection();
   }
 
-  handleRowCheck() {
-    this.updateCheckValue();
-  }
-
-  updateCheckValue() {
-    const checkedLeng = this.metricTableVal.filter(item => item.selection).length;
-    const allLeng = this.metricTableVal.length;
-    this.allCheckValue = 0;
-    if (checkedLeng > 0) {
-      this.allCheckValue = checkedLeng < allLeng ? 1 : 2;
-    } else {
-      this.allCheckValue = 0;
-    }
-  }
+  @Emit('rowCheck')
+  handleRowCheck() { }
 
   handleCheckChange({ value }) {
     this.updateAllSelection(value === 2);
-    this.updateCheckValue();
   }
 
   @Emit('updateAllSelection')
@@ -683,11 +688,12 @@ export default class IndicatorTable extends tsc<any, any> {
   }
   /** 切换显示 */
   handleEditHidden(v, metricInfo) {
+    metricInfo.hidden = !metricInfo.hidden;
     this.updateCustomFields('hidden', !v, metricInfo.name);
   }
   /** 切换状态 */
   handleClickDisabled(metricInfo) {
-    if (this.isAutoDiscover) return;
+    if (this.autoDiscover) return;
     metricInfo.disabled = !metricInfo.disabled;
     this.updateCustomFields('disabled', metricInfo.disabled, metricInfo.name);
   }
@@ -837,7 +843,7 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
             <div class='info-item'>
               <span class='info-label'>{this.$t('关联维度')}：</span>
-              {this.isAutoDiscover || !this.canEditDimension ? (
+              {this.autoDiscover || !this.canEditDimension ? (
                 <div
                   class='info-content'
                   onClick={() => this.handleShowEditDimension(metricData.dimensions)}
@@ -967,6 +973,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 {this.header.list.map((option, index) => (
                   <bk-popover
                     key={index}
+                    ref='batchAddGroupPopover'
                     ext-cls='header-select-popover'
                     arrow={false}
                     placement='right-start'
@@ -996,7 +1003,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 <bk-switcher
                   preCheck={this.handChangeSwitcher}
                   theme='primary'
-                  value={this.isAutoDiscover}
+                  value={this.autoDiscover}
                 />
                 <span class='switcher-text'>{this.$t('自动发现新增指标')}</span>
                 <span class='alter-info'>
