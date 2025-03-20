@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
+import ViewColumn from './components/header-box/components/view-column/index';
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
@@ -43,6 +44,8 @@ import './new-metric-view.scss';
 export default class NewMetricView extends tsc<object> {
   currentView = 'asdadas';
   dimenstionParams: Record<string, any> = {};
+  showStatisticalValue = false;
+  viewColumn = 3;
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -132,9 +135,21 @@ export default class NewMetricView extends tsc<object> {
                   commonDimensionEnable
                   groupBySplitEnable
                   onChange={this.handleDimensionParamsChange}
-                />
+                >
+                  <template slot='actionExtend'>
+                    <bk-checkbox v-model={this.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+                    <ViewColumn
+                      style='margin-left: 32px;'
+                      v-model={this.viewColumn}
+                    />
+                  </template>
+                </HeaderBox>
                 <div class='metric-view-dashboard-container'>
-                  <PanelChartView config={this.graphConfigParams as any} />
+                  <PanelChartView
+                    config={this.graphConfigParams as any}
+                    showStatisticalValue={this.showStatisticalValue}
+                    viewColumn={this.viewColumn}
+                  />
                 </div>
               </template>
             </bk-resize-layout>
