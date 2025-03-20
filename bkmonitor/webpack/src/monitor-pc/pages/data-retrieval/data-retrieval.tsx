@@ -315,7 +315,8 @@ export default class DataRetrieval extends tsc<object> {
 
   // 自动刷新
   refreshInstance = null;
-
+  // 事件类型
+  eventType = 'custom_event';
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -2737,6 +2738,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param data
    */
   handleEventDataChange(data) {
+    this.eventType = data.eventType || '';
     const targets = [
       {
         data: {
@@ -3083,7 +3085,14 @@ export default class DataRetrieval extends tsc<object> {
       this.refleshNumber += 1;
     }, v);
   }
-
+  handleGotoNew() {
+    this.$router.push({
+      name: 'event-explore',
+      query: {
+        ...this.$route.query,
+      },
+    });
+  }
   destroyed() {
     window.clearInterval(this.refreshInstance);
     this.refreshInstance = null;
@@ -3486,45 +3495,56 @@ export default class DataRetrieval extends tsc<object> {
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
-                  {
-                    // url 带有 onlyShowView=false 的时候，不显示该按钮
-                    <div
-                      class='left-show-icon-container'
-                      slot='pre'
-                    >
-                      <div class='icon-container'>
-                        <div
-                          class={[
-                            'result-icon-box',
-                            {
-                              'light-icon': !this.isShowFavorite,
-                              'disable-icon': this.needUseCollectGuide,
-                            },
-                          ]}
-                          v-bk-tooltips={{
-                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
-                            placements: ['bottom'],
-                            delay: 200,
-                            disabled: this.needUseCollectGuide,
-                          }}
-                          onClick={() => this.handleClickResultIcon('favorite')}
-                        >
-                          <span class='bk-icon icon-star' />
-                        </div>
-                        <div
-                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
-                          v-bk-tooltips={{
-                            content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
-                            placements: ['bottom'],
-                            delay: 200,
-                          }}
-                          onClick={() => this.handleClickResultIcon('search')}
-                        >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
-                        </div>
+                  {/* // url 带有 onlyShowView=false 的时候，不显示该按钮 */}
+                  <div
+                    class='left-show-icon-container'
+                    slot='pre'
+                  >
+                    <div class='icon-container'>
+                      <div
+                        class={[
+                          'result-icon-box',
+                          {
+                            'light-icon': !this.isShowFavorite,
+                            'disable-icon': this.needUseCollectGuide,
+                          },
+                        ]}
+                        v-bk-tooltips={{
+                          content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
+                          placements: ['bottom'],
+                          delay: 200,
+                          disabled: this.needUseCollectGuide,
+                        }}
+                        onClick={() => this.handleClickResultIcon('favorite')}
+                      >
+                        <span class='bk-icon icon-star' />
+                      </div>
+                      <div
+                        class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
+                        v-bk-tooltips={{
+                          content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
+                          placements: ['bottom'],
+                          delay: 200,
+                        }}
+                        onClick={() => this.handleClickResultIcon('search')}
+                      >
+                        <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                       </div>
                     </div>
-                  }
+                  </div>
+                  {this.eventType === 'custom_event' && (
+                    <bk-button
+                      style={{ marginTop: '8px' }}
+                      slot='center'
+                      onClick={this.handleGotoNew}
+                    >
+                      <i
+                        style={{ margin: '4px 5px 0 0' }}
+                        class='icon-monitor icon-mc-change-version'
+                      />
+                      {this.$t('切换新版')}
+                    </bk-button>
+                  )}
                 </PanelHeader>
               )}
               <div class='data-retrieval-main'>

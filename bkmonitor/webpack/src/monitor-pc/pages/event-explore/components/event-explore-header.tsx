@@ -31,11 +31,12 @@ import { detectOS } from 'monitor-common/utils';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
+import GotoOldVersion from '../../monitor-k8s/components/k8s-nav-bar/goto-old';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import type { IDataIdItem } from '../typing';
 
-import './event-retrieval-header.scss';
+import './event-explore-header.scss';
 interface EventRetrievalNavBarProps {
   timeRange?: TimeRangeType;
   timezone?: string;
@@ -166,6 +167,15 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
     }
     this.$emit('eventTypeChange', { data_source_label: 'bk_monitor', data_type_label: 'log' });
   }
+  // 跳转旧版版本事件检索
+  handleGotoOldVersion() {
+    this.$router.push({
+      name: 'event-retrieval',
+      query: {
+        ...this.$route.query,
+      },
+    });
+  }
 
   async handleThumbtack(e: Event, item: IDataIdItem) {
     e.stopPropagation();
@@ -179,7 +189,7 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
 
   render() {
     return (
-      <div class='event-retrieval-header'>
+      <div class='event-explore-header'>
         <div class='header-left'>
           <div class='favorite-container'>
             <div
@@ -272,6 +282,10 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
             {this.$slots.dashboardTools}
           </DashboardTools>
         </div>
+        <GotoOldVersion
+          tips={this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看')}
+          onClick={this.handleGotoOldVersion}
+        />
       </div>
     );
   }

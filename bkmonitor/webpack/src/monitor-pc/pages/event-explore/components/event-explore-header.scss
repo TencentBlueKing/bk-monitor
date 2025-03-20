@@ -1,7 +1,6 @@
-.event-retrieval-header {
+.event-explore-header {
   display: flex;
   flex-shrink: 0;
-  justify-content: space-between;
   width: 100%;
   height: 52px;
   background: #ffffff;
@@ -124,6 +123,8 @@
   }
 
   .header-tools {
+    margin-left: auto;
+
     .dashboard-tools {
       margin-right: 8px;
 

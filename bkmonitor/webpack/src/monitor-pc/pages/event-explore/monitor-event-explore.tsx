@@ -34,7 +34,7 @@ import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
 import { APIType } from './api-utils';
-import EventRetrievalHeader from './components/event-retrieval-header';
+import EventRetrievalHeader from './components/event-explore-header';
 import EventExplore from './event-explore';
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
