@@ -160,16 +160,16 @@ class QueryCustomEventGroup(Resource):
         context = {"request_bk_biz_id": validated_request_data["bk_biz_id"]}
 
         if validated_request_data.get("table_id"):
-            # 单 Table ID 查询场景
+            # 1）单 Table ID 查询场景
             queryset = queryset.filter(table_id=validated_request_data["table_id"]).filter(
-                Q(bk_biz_id=validated_request_data.get("bk_biz_id", 0)) | Q(bk_biz_id=0)
+                Q(bk_biz_id=validated_request_data.get("bk_biz_id", 0)) | Q(is_platform=True)
             )
         elif validated_request_data.get("is_platform"):
-            # 只查全平台, 不关注业务
+            # 2）只查全平台, 不关注业务
             queryset = queryset.filter(is_platform=True)
 
         elif validated_request_data.get("bk_biz_id"):
-            # 非全平台，查当前业务(0表示全部业务)
+            # 3）非全平台，查当前业务(0表示全部业务)
             queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
         if validated_request_data.get("search_key"):

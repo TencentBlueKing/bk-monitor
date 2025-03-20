@@ -8,6 +8,9 @@ export const eventTimeSeries = request('POST', 'apm/event/event/time_series/');
 export const eventDownloadTopK = request('POST', 'apm/event/event/download_topk/');
 export const eventTags = request('POST', 'apm/event/event/tags/');
 export const eventTagDetail = request('POST', 'apm/event/event/tag_detail/');
+export const eventGetTagConfig = request('POST', 'apm/event/event/get_tag_config/');
+export const eventTagStatistics = request('POST', 'apm/event/event/tag_statistics/');
+export const eventUpdateTagConfig = request('POST', 'apm/event/event/update_tag_config/');
 
 export default {
   eventLogs,
@@ -18,4 +21,7 @@ export default {
   eventTags,
   eventDownloadTopK,
   eventTagDetail,
+  eventGetTagConfig,
+  eventTagStatistics,
+  eventUpdateTagConfig,
 };
