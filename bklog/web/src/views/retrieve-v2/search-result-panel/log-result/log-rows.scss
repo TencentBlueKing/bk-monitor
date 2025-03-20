@@ -350,11 +350,12 @@
 
       .bklog-row-ai {
         position: absolute;
-        top: 2px;
+        top: 4px;
         right: 0px;
         display: none;
         padding: 2px;
         opacity: 0;
+        z-index: 1;
 
         img {
           width: 24px;
