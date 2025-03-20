@@ -17,13 +17,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import (
-    CachedEnum,
-    OtlpKey,
-    PreCalculateSpecificField,
-    SpanKindKey,
-    TelemetryDataType,
-)
+from constants.apm import CachedEnum, OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -1173,24 +1167,6 @@ class DataStatusColumnEnum(CachedEnum):
         return default
 
 
-# Tracing 检索页面默认配置名称
-TRACE_DEFAULT_CONFIG_NAME = "全局默认配置"
-TRACE_DEFAULT_CONFIG_CONTENT = {
-    "trace_config": {
-        "display_fields": [
-            {"name": PreCalculateSpecificField.TRACE_ID, "alias": ""},
-        ],
-        "filter_setting": [],
-    },
-    "span_config": {
-        "display_field": [
-            {"name": "span_id", "alias": ""},
-        ],
-        "filter_setting": [],
-    },
-}
-
-
 class OperatorEnum:
     """操作符枚举"""
 
@@ -1302,20 +1278,146 @@ OPERATORS = {
     ],
 }
 
-ADVANCED_FIELDS = [
-    PreCalculateSpecificField.HIERARCHY_COUNT,
-    PreCalculateSpecificField.SERVICE_COUNT,
-    PreCalculateSpecificField.SPAN_COUNT,
-    PreCalculateSpecificField.ROOT_SERVICE,
-    PreCalculateSpecificField.ROOT_SERVICE_SPAN_ID,
-    PreCalculateSpecificField.ROOT_SERVICE_SPAN_NAME,
-    PreCalculateSpecificField.ROOT_SERVICE_STATUS_CODE,
-    PreCalculateSpecificField.ROOT_SERVICE_CATEGORY,
-    PreCalculateSpecificField.ROOT_SERVICE_KIND,
-    PreCalculateSpecificField.ROOT_SPAN_ID,
-    PreCalculateSpecificField.ROOT_SPAN_NAME,
-    PreCalculateSpecificField.ROOT_SPAN_SERVICE,
-    PreCalculateSpecificField.ROOT_SPAN_KIND,
-    PreCalculateSpecificField.ERROR,
-    PreCalculateSpecificField.ERROR_COUNT,
-]
+TRACE_FIELD_ALIAS = {
+    "hierarchy_count": "",
+    "service_count": _("服务数量"),
+    "span_count": "",
+    "root_service": _("入口服务"),
+    "root_service_span_id": "",
+    "root_service_span_name": _("入口接口"),
+    "root_service_status_code": _("状态码"),
+    "root_service_category": _("调用类型"),
+    "root_service_kind": "",
+    "root_span_id": "",
+    "root_span_name": _("根 Span"),
+    "root_span_service": "",
+    "root_span_kind": "",
+    "error": "",
+    "error_count": _("错误数"),
+    "min_start_time": _("开始时间"),
+    "max_end_time": _("结束时间"),
+    "trace_duration": _("耗时"),
+    "elapsed_time": _("耗时"),
+    "end_time": _("结束时间"),
+    "kind": _("类型"),
+    "links": "",
+    "parent_span_id": "",
+    "span_id": "Span ID",
+    "span_name": _("接口名称"),
+    "start_time": _("开始时间"),
+    "time": "",
+    "trace_id": "Trace ID",
+    "trace_state": "",
+    "attributes.apdex_type": "",
+    "attributes.http.host": "HTTP Host",
+    "attributes.http.url": "HTTP URL",
+    "attributes.server.address": _("服务地址"),
+    "attributes.http.scheme": _("HTTP协议"),
+    "attributes.http.flavor": _("HTTP服务名称"),
+    "attributes.http.route": "",
+    "attributes.http.server_name": "",
+    "attributes.http.target": "",
+    "attributes.http.method": _("HTTP方法"),
+    "attributes.http.status_code": _("HTTP状态码"),
+    "attributes.rpc.method": _("RPC方法"),
+    "attributes.rpc.service": _("RPC服务"),
+    "attributes.rpc.system": _("RPC系统名"),
+    "attributes.rpc.grpc.status_code": _("gRPC状态码"),
+    "attributes.db.name": _("数据库名称"),
+    "attributes.db.operation": _("数据库操作"),
+    "attributes.db.system": _("数据库类型"),
+    "attributes.db.statement": _("数据库语句"),
+    "attributes.db.instance": _("数据库实例ID"),
+    "attributes.messaging.system": _("消息系统"),
+    "attributes.messaging.destination": _("消息目的地"),
+    "attributes.messaging.destination_kind": _("消息目的地类型"),
+    "attributes.celery.action": _("操作名称"),
+    "attributes.celery.task_name": _("任务名称"),
+    "attributes.http.user_agent": "",
+    "attributes.net.host.name": "",
+    "attributes.net.host.port": "",
+    "attributes.net.peer.ip": "",
+    "attributes.net.peer.port": "",
+    "attributes.net.peer.name": _("远程服务器名称"),
+    "attributes.peer.service": _("远程服务名"),
+    "events.attributes.exception.escaped": "",
+    "events.attributes.exception.message": "",
+    "events.attributes.exception.stacktrace": "",
+    "events.attributes.exception.type": "",
+    "events.attributes.message": "",
+    "events.name": "",
+    "events.timestamp": "",
+    "resource.bk.instance.id": _("实例"),
+    "resource.host.name": "",
+    "resource.os.type": "",
+    "resource.os.version": "",
+    "resource.process.command": "",
+    "resource.process.command_args": "",
+    "resource.process.command_line": "",
+    "resource.process.executable.name": "",
+    "resource.process.executable.path": "",
+    "resource.process.parent_pid": "",
+    "resource.process.pid": "",
+    "resource.process.runtime.description": "",
+    "resource.process.runtime.name": "",
+    "resource.process.runtime.version": "",
+    "resource.service.name": _("服务名"),
+    "resource.service.namespace": _("服务命名空间"),
+    "resource.service.instance.id": _("服务实例ID"),
+    "resource.service.version": _("服务版本"),
+    "resource.k8s.bcs.cluster.id": _("K8S BCS 集群 ID"),
+    "resource.k8s.namespace.name": _("K8S 命名空间"),
+    "resource.k8s.pod.ip": "K8S Pod Ip",
+    "resource.k8s.pod.name": _("K8S Pod 名称"),
+    "resource.net.host.port": _("主机端口"),
+    "resource.net.host.name": _("主机名称"),
+    "resource.net.host.ip": _("主机IP(net.host.ip)"),
+    "resource.host.ip": _("主机IP(host.ip)"),
+    "resource.telemetry.sdk.language": _("SDK语言"),
+    "resource.telemetry.sdk.name": _("SDK名称"),
+    "resource.telemetry.sdk.version": _("SDK版本"),
+    "status.code": _("状态"),
+    "status.message": "",
+}
+
+# Tracing 检索页面默认配置名称
+TRACE_DEFAULT_CONFIG_NAME = "全局默认配置"
+TRACE_DEFAULT_CONFIG_CONTENT = {
+    "trace_config": {
+        "display_fields": [
+            {"name": "trace_id", "alias": TRACE_FIELD_ALIAS.get("trace_id", "trace_id")},
+            {"name": "min_start_time", "alias": TRACE_FIELD_ALIAS.get("min_start_time", "min_start_time")},
+            {"name": "root_span_name", "alias": TRACE_FIELD_ALIAS.get("root_span_name", "root_span_name")},
+            {"name": "root_service", "alias": TRACE_FIELD_ALIAS.get("root_service", "root_service")},
+            {
+                "name": "root_service_span_name",
+                "alias": TRACE_FIELD_ALIAS.get("root_service_span_name", "root_service_span_name"),
+            },
+            {
+                "name": "root_service_category",
+                "alias": TRACE_FIELD_ALIAS.get("root_service_category", "root_service_category"),
+            },
+            {
+                "name": "root_service_status_code",
+                "alias": TRACE_FIELD_ALIAS.get("root_service_status_code", "root_service_status_code"),
+            },
+            {"name": "trace_duration", "alias": TRACE_FIELD_ALIAS.get("trace_duration", "trace_duration")},
+            {"name": "hierarchy_count", "alias": TRACE_FIELD_ALIAS.get("hierarchy_count", "hierarchy_count")},
+            {"name": "service_count", "alias": TRACE_FIELD_ALIAS.get("service_count", "service_count")},
+        ],
+        "filter_setting": [],
+    },
+    "span_config": {
+        "display_field": [
+            {"name": "span_id", "alias": TRACE_FIELD_ALIAS.get("span_id", "span_id")},
+            {"name": "span_name", "alias": TRACE_FIELD_ALIAS.get("span_name", "span_name")},
+            {"name": "start_time", "alias": TRACE_FIELD_ALIAS.get("start_time", "start_time")},
+            {"name": "end_time", "alias": TRACE_FIELD_ALIAS.get("end_time", "end_time")},
+            {"name": "elapsed_time", "alias": TRACE_FIELD_ALIAS.get("elapsed_time", "elapsed_time")},
+            {"name": "status_code", "alias": TRACE_FIELD_ALIAS.get("status_code", "status_code")},
+            {"name": "kind", "alias": TRACE_FIELD_ALIAS.get("kind", "kind")},
+            {"name": "trace_id", "alias": TRACE_FIELD_ALIAS.get("trace_id", "trace_id")},
+        ],
+        "filter_setting": [],
+    },
+}

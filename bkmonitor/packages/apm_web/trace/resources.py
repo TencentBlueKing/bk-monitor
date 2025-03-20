@@ -1269,8 +1269,6 @@ class UserCustomConfigResource(Resource):
 class ListTraceViewConfigResource(Resource):
     """获取 trace 检索页面的视图配置"""
 
-    ES_MAPPING_API = api.apm_api.query_es_mapping
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -1283,14 +1281,13 @@ class ListTraceViewConfigResource(Resource):
 
         # 获取 trace 视角的视图配置
         trace_config = view_config_manager.get_config_by_mode(QueryMode.TRACE)
-        es_mapping = self.ES_MAPPING_API(bk_biz_id=bk_biz_id, app_name=app_name)
-        trace_query_fields = view_config_manager.get_trace_queryable_fields(es_mapping=es_mapping)
-        trace_config.update({"fields": trace_query_fields})
+        trace_fields = view_config_manager.fields_handler.get_fields_by_mode(QueryMode.TRACE)
+        trace_config.update({"fields": trace_fields})
 
         # 获取 span 视角的视图配置
         span_config = view_config_manager.get_config_by_mode(QueryMode.SPAN)
-        span_query_fields = view_config_manager.get_span_queryable_fields()
-        span_config.update({"fields": span_query_fields})
+        span_fields = view_config_manager.fields_handler.get_fields_by_mode(QueryMode.SPAN)
+        span_config.update({"fields": span_fields})
 
         return {
             "trace_config": trace_config,
