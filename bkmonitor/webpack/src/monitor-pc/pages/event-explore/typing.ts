@@ -40,6 +40,10 @@ export interface IFormData {
 export interface IDataIdItem {
   name: string;
   id: string;
+  /** 是否置顶 */
+  isTop?: boolean;
+  is_platform?: boolean;
+  [key: string]: any;
 }
 
 export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
@@ -56,6 +60,7 @@ export interface IDimensionField {
   is_option_enabled: boolean;
   is_dimensions: boolean;
   support_operations: IDimensionOperation[];
+  pinyinStr?: string;
 }
 
 export interface ITopKRequestParams {

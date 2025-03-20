@@ -45,6 +45,10 @@
         border: 1px solid transparent;
         border-radius: 4px;
 
+        &::placeholder {
+          color: #979BA5;
+        }
+
         &:hover {
           background: #D3D7E0;
         }
@@ -62,7 +66,12 @@
       .view-data {
         .bk-checkbox-text {
           font-size: 12px;
-          font-weight: 500;
+          color: #4D4F56;
+        }
+      }
+
+      .tools-btn {
+        .icon-monitor {
           color: #4D4F56;
         }
       }
@@ -91,6 +100,7 @@
     display: flex;
     align-items: center;
     height: 32px;
+    padding-left: 2px;
     margin: 0 12px 8px;
     color: #313238;
     cursor: pointer;
@@ -103,11 +113,10 @@
     }
 
     &.active {
-      color: #3a84ff;
-
-      .icon-xinjiansuo {
-        color: #3a84ff;
-      }
+      background: #FFFFFF;
+      border: none;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px 0 #00000014;
     }
   }
 

@@ -516,4 +516,5 @@ export default {
   后匹配: 'match after',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
   无请求数据: 'No request data',
+  成功覆盖当前收藏: 'Successfully covered the current collection',
 };

@@ -322,4 +322,5 @@ export default {
   展开收藏夹: 'Expand favorite folder',
   收起查询: 'Collapse query',
   即将上线: 'Coming soon',
+  '该维度暂无数据，无法进行统计分析': 'This dimension has no data and cannot be statistically analyzed',
 };

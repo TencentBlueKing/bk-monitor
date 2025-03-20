@@ -313,9 +313,15 @@ export default class EventExplore extends tsc<
         end_time: formatTimeRange[1],
       },
       this.source
-    ).catch(() => ({ display_fields: [], entities: [], fields: [] }));
+    ).catch(() => ({ display_fields: [], entities: [], field: [] }));
     this.loading = false;
-    this.fieldList = data.fields || data.field;
+    this.fieldList = data.field.map(item => {
+      const pinyinStr = this.$bkToPinyin(item.alias, true, '') || '';
+      return {
+        ...item,
+        pinyinStr,
+      };
+    });
     this.sourceEntities = data.entities || [];
   }
 

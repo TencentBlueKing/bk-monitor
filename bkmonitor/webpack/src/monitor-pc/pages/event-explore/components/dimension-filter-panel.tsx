@@ -108,7 +108,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       this.emptyStatus = 'empty';
     } else {
       this.emptyStatus = 'search-empty';
-      this.searchResultList = this.list.filter(item => item.name.includes(this.searchVal));
+      this.searchResultList = this.list.filter(item => item.pinyinStr.includes(this.searchVal));
     }
   }
 
@@ -231,28 +231,41 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
             {this.searchResultList.map(item => (
               <div
                 key={item.name}
-                class={{ 'dimension-item': true, active: this.selectField?.name === item.name }}
-                onClick={e => this.handleDimensionItemClick(e, item)}
+                v-bk-tooltips={{
+                  content: this.$t('该维度暂无数据，无法进行统计分析'),
+                  disabled: item.is_option_enabled,
+                  interactive: false,
+                  placement: 'right',
+                }}
               >
-                <FieldTypeIcon type={item.type} />
-                <span
-                  class='dimension-name'
-                  v-bk-overflow-tips
+                <div
+                  class={{
+                    'dimension-item': true,
+                    active: this.selectField?.name === item.name,
+                    disabled: !item.is_option_enabled,
+                  }}
+                  onClick={e => this.handleDimensionItemClick(e, item)}
                 >
-                  {item.alias}
-                </span>
-                {item.is_option_enabled && [
+                  <FieldTypeIcon type={item.type} />
                   <span
-                    key={`${item.name}__count`}
-                    class='dimension-count'
+                    class='dimension-name'
+                    v-bk-overflow-tips={{ content: item.alias }}
                   >
-                    {this.fieldListCount[item.name] || 0}
-                  </span>,
-                  <i
-                    key={`${item.name}__statistics`}
-                    class='icon-monitor icon-Chart statistics-icon'
-                  />,
-                ]}
+                    {item.alias}
+                  </span>
+                  {item.is_option_enabled && [
+                    <span
+                      key={`${item.name}__count`}
+                      class='dimension-count'
+                    >
+                      {this.fieldListCount[item.name] || 0}
+                    </span>,
+                    <i
+                      key={`${item.name}__statistics`}
+                      class='icon-monitor icon-Chart statistics-icon'
+                    />,
+                  ]}
+                </div>
               </div>
             ))}
           </div>

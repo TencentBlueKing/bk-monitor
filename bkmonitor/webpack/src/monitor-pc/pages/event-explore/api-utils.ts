@@ -68,7 +68,7 @@ export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR)
 
 export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {
   const apiFunc = type === APIType.APM ? apmEventViewConfig : eventViewConfig;
-  return apiFunc(params, { isDataParams: true }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
+  return apiFunc(params, { isDataParams: true }).catch(() => ({ display_fields: [], entities: [], field: [] }));
 };
 
 export const getDownloadTopK = (params, type = APIType.MONITOR) => {
