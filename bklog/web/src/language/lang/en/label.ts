@@ -748,4 +748,6 @@ export default {
   数值: 'Number',
   '最多展示近10条告警，点击查看更多': 'Up to 10 most recent alerts, click to view more',
   '最多展示近10条策略，点击查看更多': 'Up to 10 most recent strategies, click to view more',
+  未恢复: 'Unrecovered',
+  已恢复: 'Recovered',
 };
