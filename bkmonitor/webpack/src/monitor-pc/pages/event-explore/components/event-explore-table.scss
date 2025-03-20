@@ -235,6 +235,7 @@
     &-main {
       &-item {
         display: flex;
+        padding-right: 8px;
         line-height: 24px;
 
         &:nth-child(odd) {
@@ -251,6 +252,7 @@
 
         .content-item-colon {
           display: inline-flex;
+          flex-shrink: 0;
           align-items: flex-start;
           margin-right: 6px;
           margin-left: 2px;
@@ -259,12 +261,18 @@
 
         .content-item-value {
           display: inline-block;
+          flex: 1;
+          min-width: 0;
           color: #fafbfd;
+          word-break: break-all;
         }
 
         .content-item-value-link {
           display: inline-block;
+          flex: 1;
+          min-width: 0;
           color: #80afff;
+          word-break: break-all;
 
           &:hover {
             text-decoration: underline;
