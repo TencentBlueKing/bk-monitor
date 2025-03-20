@@ -566,6 +566,7 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["type"] = "aiops-dimension-lint"
             base_graph_panel["subTitle"] = " "
             base_graph_panel["anomaly_score"] = round(float(dimension["score"]), 2)
+            base_graph_panel["anomaly_level"] = dimension.get("level", "danger")
             base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
             base_graph_panel["targets"][0]["alias"] = ""
             base_graph_panel["targets"][0]["data"]["id"] = alert.id
@@ -749,6 +750,7 @@ class DimensionDrillManager(AIOPSManager):
                 [
                     {
                         "anomaly_score": round(anomaly_score, 2),
+                        "anomaly_level": "danger",
                         "is_anomaly": distribution_item["is_anomaly"],
                         "dimension_details": distribution_item["details"],
                     }
@@ -780,6 +782,7 @@ class DimensionDrillManager(AIOPSManager):
             "dimension_value": "|".join(dimension_data[0]),
             "metric_value": float(dimension_data[1]) if not math.isnan(float(dimension_data[1])) else "NaN",
             "anomaly_score": max(round(float(dimension_data[2]), 2), 0),  # 如果异常分值小于0，说明维度是正常的，则取0来作展示
+            "anomaly_level": "danger",
         }
 
     def is_enable(self):
