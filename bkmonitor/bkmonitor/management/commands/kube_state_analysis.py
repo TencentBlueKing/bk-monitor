@@ -15,6 +15,47 @@ from monitor_web.strategies.default_settings.common import (
     warning_algorithms_config,
 )
 
+doc = """
+    对“[kube pod] pod 因OOM重启”和“[kube pod] pod近30分钟重启次数过多”这两条策略进行修复
+
+    脚本功能：
+       1. 预览策略：打印需要进行修复的策略信息"策略id、策略名称、业务ID、关联的查询配置ID列表"
+       2. 修改策略：执行修复策略操作，并打印没有进行修复的策略信息"策略id、策略名称、业务ID、关联的查询配置ID列表",以供人工处理。
+
+    usage:
+        python manage.py kube_state_analysis.py   # 预览模式
+        python manage.py kube_state_analysis.py --no_preview # 非预览模式(修复策略)
+
+    —————————————————————————————————————————————————————————————————————————————————
+    需求背景：
+        监控中内置了针对以下两个指标的告警策略：
+            - kube_pod_container_status_restarts_total   策略名：[kube pod] pod 因OOM重启
+            - kube_pod_container_status_terminated_reason  策略名：[kube pod] pod近30分钟重启次数过多
+        但是这两个策略，配置的query_config(针对指标的查询配置)不够准确，存在误告的情况，需要进行修复处理。
+
+    处理方案：
+        - 修改数据库，将这两个内置策略的query_config内容替换为正确的promql查询语句。
+        - 判断条件：
+            - 如果近期1分钟内这两个策略有被创建过或者更新过，则对query_config进行替换。
+            - 如果这两个策略曾经被修改过，但是未修改query_config，则对query_config进行替换。
+        - 剩余的未进行修改的内置策略（之前创建的，但是从未被修改过的策略）输出策略信息，人工处理。
+
+    处理步骤：
+        1. 在数据库中查询出这两个内置策略、及其对应的query_config(查询配置)、item_model(监控项配置)
+        2. 判断这两个策略是否符合上述判断条件。
+        3. 符合条件，则进行以下内容更新：
+            - query_config.data_source_label = "prometheus"        # 数据源替换为prometheus
+            - query_config.metric_id= query_config.metric_id.replace("..", ":")
+            - query_config.config = {
+                "promql": promql,                                  # 配置正确的promql查询语句
+                "agg_interval": qc.config.get("agg_interval", ""), # 保留原有的聚合间隔
+                "functions": qc.config.get("functions", []),       # 保留原有的处理函数
+              }
+            - item_model.origin_sql = promql # 监控项配置中的origin_sql替换为promql
+        4. 如果不符合上述判断条件，则输出策略信息，待后续人工处理。
+
+    """
+
 # pod近30分钟重启次数过多，指标名
 RESTARTS_TOTAL_METRIC_FIELD = 'kube_pod_container_status_restarts_total'
 # 因OOM重启，指标名
@@ -235,7 +276,7 @@ def kube_state_metrics_analysis(preview=True):
     for item in items:
         items_mapping[item.strategy_id].append(item)
 
-    # 需要被更新的策略
+    # 预览需要被更新的策略
     previewed_strategies_info = defaultdict(list)
     query_configs_to_update = []
     items_to_update = []
