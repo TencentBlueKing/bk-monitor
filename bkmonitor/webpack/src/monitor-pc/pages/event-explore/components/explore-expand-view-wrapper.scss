@@ -56,11 +56,26 @@
 
   .json-view-content {
     padding-bottom: 6px;
-    padding-left: 4px;
 
     .vjs-tree-node {
       font-size: 12px;
       line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
 
       .vjs-indent-unit.has-line {
         width: 2em;
