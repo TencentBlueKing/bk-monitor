@@ -1,10 +1,6 @@
 .explore-custom-graph {
   position: relative;
 
-  .time-series-content {
-    padding-bottom: 4px;
-  }
-
   .chart-instance {
     min-height: 0;
   }
@@ -81,23 +77,27 @@
     }
   }
 
-  .chart-legend {
-    display: flex;
-    min-height: 14px;
+  .time-series-content {
+    padding-bottom: 4px;
 
-    .common-legend {
+    .chart-legend {
       display: flex;
-      column-gap: 16px;
-      justify-content: center;
-      width: 100%;
+      min-height: 14px;
 
-      .common-legend-item {
-        margin-left: 0;
-        line-height: 14px;
+      .common-legend {
+        display: flex;
+        column-gap: 16px;
+        justify-content: center;
+        width: 100%;
 
-        .legend-icon {
-          width: 8px;
-          height: 8px;
+        .common-legend-item {
+          margin-left: 0;
+          line-height: 14px;
+
+          .legend-icon {
+            width: 8px;
+            height: 8px;
+          }
         }
       }
     }

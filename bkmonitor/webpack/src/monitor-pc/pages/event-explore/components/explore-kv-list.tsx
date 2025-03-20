@@ -90,18 +90,21 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       id: 'add',
       name: this.$t('添加到本次检索'),
       icon: 'icon-a-sousuo',
+      suffixRender: this.menuItemSuffixRender({ method: EMethod.eq }),
       onClick: () => this.handleConditionChange(EMethod.eq),
     },
     {
       id: 'delete',
       name: this.$t('从本次检索中排除'),
       icon: 'icon-sousuo-',
+      suffixRender: this.menuItemSuffixRender({ method: EMethod.ne }),
       onClick: () => this.handleConditionChange(EMethod.ne),
     },
     {
       id: 'new-page',
       name: this.$t('新建检索'),
       icon: 'icon-mc-search',
+      suffixRender: this.menuItemSuffixRender({ hasClick: false }),
       onClick: this.handleNewExplorePage,
     },
   ];
@@ -237,9 +240,12 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 新建检索 回调
+   * @param {MouseEvent} event 点击事件
+   * @param {EMethod} method 条件类型（eq等于 / ne不等于） 如果为空未传则走新建检索逻辑
    *
    */
-  handleNewExplorePage() {
+  handleNewExplorePage(event, method?: EMethod) {
+    event.stopPropagation();
     if (!this.fieldTarget?.value) {
       return;
     }
@@ -250,13 +256,21 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     const { name, sourceName, value } = this.fieldTarget;
     let queryString = '';
     const where = [];
+    const actualMethod = method || EMethod.eq;
+
+    if (method) {
+      where.push(...(queryConfig?.where || []));
+      queryString = queryConfig?.query_string || '';
+    }
     if (rest.filterMode === EMode.queryString) {
-      queryString = `${name} : "${value || ''}"`;
+      let endStr = `${name} : "${value || ''}"`;
+      actualMethod === EMethod.ne && (endStr = `NOT ${endStr}`);
+      queryString = queryString ? `${queryString} AND ${endStr}` : `${endStr}`;
     } else {
       where.push({
         condition: ECondition.and,
         key: sourceName,
-        method: EMethod.eq,
+        method: actualMethod,
         value: [value || '""'],
       });
     }
@@ -364,6 +378,23 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description kv 值点击弹出菜单popover 自定义后缀icon渲染
+   * @param {EMethod} config.method 条件类型（eq等于 / ne不等于） 如果为空未传则走新建检索逻辑
+   * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
+   *
+   */
+  menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }) {
+    const { method, hasClick = true } = config;
+    return () => (
+      <i
+        class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
+        v-bk-tooltips={{ content: '新开标签页', disabled: !hasClick }}
+        onClick={e => this.handleNewExplorePage(e, method)}
+      />
+    );
+  }
+
+  /**
    * @description kv 值点击弹出菜单popover渲染
    *
    */
@@ -382,6 +413,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             >
               <i class={`icon-monitor ${item.icon}`} />
               <span>{item.name}</span>
+              <div class='item-suffix'>{item?.suffixRender?.()}</div>
             </li>
           ))}
         </ul>

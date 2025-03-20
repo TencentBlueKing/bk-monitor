@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { APIType } from '../api-utils';
 import {
   ExploreEntitiesTypeEnum,
   type ConditionChangeEvent,
@@ -36,7 +37,6 @@ import {
   type ExploreEntitiesMap,
   type ExploreFieldMap,
 } from '../typing';
-import { APIType } from '../api-utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import type { ExploreSubject } from '../utils';
@@ -100,11 +100,13 @@ export default class ExploreExpandViewWrapper extends tsc<
           if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
             continue;
           }
+          const path = this.getEntitiesJumpLink(sourceName, value, item);
+          if (!path) continue;
 
           entities.push({
             alias: item.alias,
             type: item.type,
-            path: this.getEntitiesJumpLink(sourceName, value, item),
+            path,
           });
         }
       }
@@ -139,6 +141,11 @@ export default class ExploreExpandViewWrapper extends tsc<
    */
   getEntitiesJumpLink(fieldName, value, entitiesItem) {
     let path = '';
+    const item = this.detailData[fieldName];
+    path = item?.url || '';
+    if (path) {
+      return path;
+    }
     switch (entitiesItem.type) {
       case ExploreEntitiesTypeEnum.HOST:
         {
@@ -150,10 +157,7 @@ export default class ExploreExpandViewWrapper extends tsc<
         break;
       case ExploreEntitiesTypeEnum.K8S:
         {
-          if (['namespace', 'bcs_cluster_id'].includes(fieldName)) {
-            const item = this.detailData[fieldName];
-            path = item?.url || '';
-          } else if (fieldName === 'host') {
+          if (fieldName === 'host') {
             const cluster = this.getValueBySourceName('bcs_cluster_id');
             const query = {
               sceneId: 'kubernetes',
@@ -222,18 +226,18 @@ export default class ExploreExpandViewWrapper extends tsc<
               JSON
             </span>
           </div>
-          <div class='header-operation'>
+        </div>
+        <div
+          class='view-content kv-view-content'
+          v-show={this.isKVTab}
+        >
+          <div class='content-operation'>
             <i
               class='icon-monitor icon-mc-copy'
               v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
               onClick={this.handleCopy}
             />
           </div>
-        </div>
-        <div
-          class='view-content kv-view-content'
-          v-show={this.isKVTab}
-        >
           <ExploreKvList
             fieldList={this.kvFieldList}
             scrollSubject={this.scrollSubject}
@@ -245,6 +249,13 @@ export default class ExploreExpandViewWrapper extends tsc<
           class='view-content json-view-content'
           v-show={!this.isKVTab}
         >
+          <div class='content-operation'>
+            <i
+              class='icon-monitor icon-mc-copy'
+              v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
+              onClick={this.handleCopy}
+            />
+          </div>
           <VueJsonPretty
             collapsedOnClickBrackets={false}
             data={this.data}
