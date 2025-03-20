@@ -1021,14 +1021,13 @@ export default class BasicInfo extends tsc<object> {
   /** 事件关联 */
   renderEventLink() {
     const bizName =
-      this.$store.getters.bizList.find(item => +item.bk_biz_id === +this.localRelationInfo?.bizId)?.name ||
-      this.localRelationInfo.bizId;
-    console.info(this.isLoading, '++++=');
+      this.$store.getters.bizList.find(item => +item.bk_biz_id === (+this.localRelationInfo?.bizId || window.cc_biz_id))
+        ?.name || this.localRelationInfo.bizId;
     return (
       <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
         <div class='event-link-item container-event'>
           <div class='title'>{this.$t('容器事件')}</div>
-          <p class='desc'>{this.$t('关联后，会自动获取相关观测数据，包括事件等。')}</p>
+          <p class='desc'>{this.$t('关联后，会自动获取相关的事件数据。')}</p>
           {this.isLoading ? undefined : this.eventRelation.isAutoRelation ? (
             <div class='tips'>
               <i class='icon-monitor icon-tishi' />
