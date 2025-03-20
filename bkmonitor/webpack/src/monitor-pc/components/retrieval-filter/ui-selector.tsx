@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { isEn } from '../../i18n/lang';
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
@@ -161,9 +162,9 @@ export default class UiSelector extends tsc<IProps> {
     this.localValue = localValue;
     this.destroyPopoverInstance();
     this.hideInput();
-    setTimeout(() => {
-      this.handleClickComponent();
-    }, 300);
+    // setTimeout(() => {
+    //   this.handleClickComponent();
+    // }, 300);
     this.handleChange();
   }
 
@@ -338,11 +339,11 @@ export default class UiSelector extends tsc<IProps> {
             onUpdate={event => this.handleUpdateTag(event, index)}
           />
         ))}
-        <div class='kv-placeholder'>
+        <div class={['kv-placeholder', { 'is-en': isEn }]}>
           <AutoWidthInput
             height={40}
             isFocus={this.inputFocus}
-            placeholder={`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}
+            placeholder={`${this.$t('快捷键/，请输入...')}`}
             value={this.inputValue}
             onBlur={this.handleBlur}
             onEnter={this.handleEnter}

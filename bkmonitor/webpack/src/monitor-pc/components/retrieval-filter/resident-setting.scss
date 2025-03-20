@@ -38,10 +38,24 @@
 
     .placeholder-text {
       position: relative;
+      position: relative;
       top: -4px;
       font-size: 12px;
       line-height: 40px;
       color: #979BA5;
+    }
+  }
+
+  &.no-data {
+    .left-btn {
+      position: relative;
+      top: 2px;
+    }
+
+    .right-content {
+      .placeholder-text {
+        top: -2px
+      }
     }
   }
 }

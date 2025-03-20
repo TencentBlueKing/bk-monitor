@@ -45,6 +45,8 @@ export enum EFieldType {
   text = 'text',
 }
 
+export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
+
 export const METHOD_MAP = {
   [EMethod.eq]: '=',
   [EMethod.exclude]: window.i18n.tc('不包含'),

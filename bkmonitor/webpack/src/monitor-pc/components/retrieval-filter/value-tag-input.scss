@@ -28,16 +28,6 @@
     cursor: pointer;
   }
 
-  &.edit-active {
-    padding: 0 4px;
-    background: #e1ecff;
-
-    .value-span {
-      padding: 4px 8px;
-      visibility: hidden;
-    }
-  }
-
   .value-span-input {
     position: absolute;
     top: 0;
@@ -72,5 +62,28 @@
   &.is-error {
     border-color: red;
     border-style: dashed;
+  }
+
+  &.edit-active {
+    padding: 0 4px;
+    background: #e1ecff;
+
+    .value-span {
+      padding: 4px 8px;
+      visibility: hidden;
+    }
+  }
+
+  &.one-row {
+    .value-span {
+      text-overflow: ellipsis;
+      word-break: normal;
+      white-space: nowrap;
+    }
+
+    .value-span-input {
+      overflow: hidden;
+      white-space: nowrap;
+    }
   }
 }
