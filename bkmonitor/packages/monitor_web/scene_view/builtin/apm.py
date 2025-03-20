@@ -553,16 +553,23 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             raise ValueError("没有传递 start_time, end_time")
 
         if app_name and service_name:
-            from apm_web.container.resources import ListServicePodsResource
+            # 取整到分钟作为缓存key的一部分
+            dt_start = (start_time // 300) * 300
+            dt_end = (end_time // 300) * 300
+            cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-container"
+            response_cache = using_cache(CacheType.APM(60 * 5))
+            response = response_cache.get_value(cache_key)
+            if not response:
+                from apm_web.container.resources import ListServicePodsResource
 
-            response = ListServicePodsResource()(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_name=service_name,
-                start_time=start_time,
-                end_time=end_time,
-            )
-
+                response = ListServicePodsResource()(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                response_cache.set_value(cache_key, response)
             if response:
                 # 实际有 Pod 数据才返回
                 return cls._add_config_from_container(app_name, service_name, view, view_config, display_with_sidebar)
