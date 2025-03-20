@@ -1007,8 +1007,12 @@ export default class IndicatorTable extends tsc<any, any> {
                 />
                 <span class='switcher-text'>{this.$t('自动发现新增指标')}</span>
                 <span class='alter-info'>
-                  <i class='bk-icon icon-info' />
-                  {this.$t('打开后，除了采集启用的指标，还会采集未来新增的指标')}
+                  <i
+                    class='bk-icon icon-info'
+                    v-bk-tooltips={{
+                      content: this.$t('打开后，除了采集启用的指标，还会采集未来新增的指标'),
+                    }}
+                  />
                 </span>
               </div>
             )}

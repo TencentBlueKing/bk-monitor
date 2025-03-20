@@ -13,7 +13,6 @@
     &.active {
       width: 260px;
       min-width: 260px;
-      @include border-1px($color: $defaultBorderColor);
     }
     .right-button {
       position: absolute;
@@ -64,7 +63,7 @@
         }
         .icon-monitor {
           color: #A3B1CC;
-          margin-right: 7px;
+          margin-right: 6px;
           font-size: 13px;
         }
 
@@ -82,6 +81,13 @@
       .top-group {
         padding: 16px 0 4px;
         border-bottom: 1px solid #DCDEE5;
+        .group-name {
+          display: flex;
+          align-items: center;
+          .icon-monitor {
+            font-size: 16px;
+          }
+        }
       }
       .custom-group-set {
         display: flex;
@@ -148,12 +154,19 @@
           .item-drag {
             position: absolute;
             color: #979BA5;
-            top: 3px;
+            top: 4px;
             left: 4px;
             width: 7px;
             height: 10px;
             font-size: 10px;
             visibility: hidden;
+          }
+          .group-name {
+            display: flex;
+            align-items: center;
+            .icon-FileFold-Close {
+              font-size: 16px;
+            }
           }
         }
       }
