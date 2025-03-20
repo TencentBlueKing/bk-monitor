@@ -222,18 +222,18 @@ export default class ExploreExpandViewWrapper extends tsc<
               JSON
             </span>
           </div>
-          <div class='header-operation'>
+        </div>
+        <div
+          class='view-content kv-view-content'
+          v-show={this.isKVTab}
+        >
+          <div class='content-operation'>
             <i
               class='icon-monitor icon-mc-copy'
               v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
               onClick={this.handleCopy}
             />
           </div>
-        </div>
-        <div
-          class='view-content kv-view-content'
-          v-show={this.isKVTab}
-        >
           <ExploreKvList
             fieldList={this.kvFieldList}
             scrollSubject={this.scrollSubject}
@@ -245,6 +245,13 @@ export default class ExploreExpandViewWrapper extends tsc<
           class='view-content json-view-content'
           v-show={!this.isKVTab}
         >
+          <div class='content-operation'>
+            <i
+              class='icon-monitor icon-mc-copy'
+              v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
+              onClick={this.handleCopy}
+            />
+          </div>
           <VueJsonPretty
             collapsedOnClickBrackets={false}
             data={this.data}

@@ -8,9 +8,6 @@
     100% 100%;
 
   .view-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
     font-size: 12px;
     line-height: 20px;
     color: #313238;
@@ -33,12 +30,14 @@
         }
       }
     }
+  }
 
-    .header-operation {
+  .view-content {
+    .content-operation {
       .icon-mc-copy {
         display: inline-flex;
         align-items: center;
-        height: 24px;
+        height: 18px;
         color: #4d4f56;
         cursor: pointer;
         border-top: 2px solid transparent;
@@ -52,6 +51,10 @@
 
   .kv-view-content {
     padding-bottom: 8px;
+
+    .content-operation {
+      margin-bottom: 6px;
+    }
   }
 
   .json-view-content {
