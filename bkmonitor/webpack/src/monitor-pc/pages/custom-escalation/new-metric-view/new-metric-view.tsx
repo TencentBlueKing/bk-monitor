@@ -104,8 +104,8 @@ export default class NewMetricView extends tsc<object> {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
     this.state = {
-      viewColumn: parseInt(routerQuery.viewColumn) || 3,
-      showStatisticalValue: routerQuery.showStatisticalValue === 'true' ? true : false,
+      viewColumn: Number.parseInt(routerQuery.viewColumn) || 3,
+      showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
   }
 
