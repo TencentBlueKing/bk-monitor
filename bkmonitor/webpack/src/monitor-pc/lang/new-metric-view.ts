@@ -102,4 +102,5 @@ export default {
   名称已存在: 'Name already exists',
   '打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：':
     'After opening, you can quickly expand it in [Filter Conditions] of [Visualization]:',
+  '关闭后，在可视化视图里，将被隐藏': 'After closing, it will be hidden in the visual view.',
 };

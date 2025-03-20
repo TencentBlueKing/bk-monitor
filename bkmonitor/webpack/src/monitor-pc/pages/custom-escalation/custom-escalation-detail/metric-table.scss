@@ -33,6 +33,9 @@ $border-color: #d9d9d9;
           .icon-info {
             margin-right: 5px;
             font-size: 13px;
+            &:hover {
+              cursor: pointer;
+            }
           }
         }
       }
@@ -50,6 +53,7 @@ $border-color: #d9d9d9;
           border-radius: 2px;
           .btn-name {
             color: #4D4F56;
+            font-size: 14px;
           }
           .icon-monitor {
             margin-left: 4px;
@@ -82,6 +86,7 @@ $border-color: #d9d9d9;
     .table-box {
       min-width: 0;
       flex: 1;
+      height: 508px;
       td {
         height: 40px;
         &:hover {
@@ -90,7 +95,6 @@ $border-color: #d9d9d9;
       }
       .indicator-table {
         transition: width .5s;
-        height: 444px;
         .name {
           color: #3A84FF;
         }
