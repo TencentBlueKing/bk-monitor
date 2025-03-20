@@ -216,8 +216,8 @@ class AggsHandlers(AggsBase):
 
         group_field = query_data.get("group_field")
         if group_field:
-            # 添加分组字段的聚合
-            aggs = s.aggs.bucket("group_by_field", A("terms", field=group_field, size=cls.AGGS_BUCKET_SIZE))
+            # 使用 group_field 的值作为桶名称, 添加分组字段的聚合
+            aggs = s.aggs.bucket(group_field, A("terms", field=group_field, size=cls.AGGS_BUCKET_SIZE))
             aggs = aggs.bucket("group_by_histogram", date_histogram)
         else:
             aggs = s.aggs.bucket("group_by_histogram", date_histogram)
