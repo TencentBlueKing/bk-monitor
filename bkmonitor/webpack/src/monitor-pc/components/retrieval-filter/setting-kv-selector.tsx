@@ -28,8 +28,9 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, type IWhereItem } from './utils';
+import { METHOD_MAP, OPPOSE_METHODS, type IWhereItem } from './utils';
 import ValueOptions from './value-options';
+import ValueTagInput from './value-tag-input';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
@@ -77,10 +78,6 @@ export default class SettingKvSelector extends tsc<IProps> {
   resizeObserver = null;
   optionsWidth = 0;
 
-  get tagList() {
-    return this.localValue;
-  }
-
   get localValueSet() {
     return new Set(this.localValue);
   }
@@ -120,8 +117,8 @@ export default class SettingKvSelector extends tsc<IProps> {
     this.resizeObserver.observe(valueWrap); // 开始监听
   }
 
-  @Watch('tagList')
-  handleWatchTagList() {
+  @Watch('localValue')
+  handleWatchLocalValue() {
     this.overviewCount();
   }
 
@@ -212,9 +209,11 @@ export default class SettingKvSelector extends tsc<IProps> {
    */
   handleEnter() {
     if (!this.isChecked || !this.showSelector) {
-      this.localValue.push(this.inputValue);
+      if (!this.localValue.includes(this.inputValue) && this.inputValue) {
+        this.localValue.push(this.inputValue);
+        this.handleChange();
+      }
       this.inputValue = '';
-      this.handleChange();
     }
   }
 
@@ -288,6 +287,15 @@ export default class SettingKvSelector extends tsc<IProps> {
     this.isChecked = v;
   }
 
+  handleValueUpdate(v: string, index: number) {
+    if (v) {
+      this.localValue.splice(index, 1, v);
+    } else {
+      this.localValue.splice(index, 1);
+    }
+    this.handleChange();
+  }
+
   render() {
     return (
       <div class={['resident-setting__setting-kv-selector-component', { active: this.isHighLight }]}>
@@ -303,7 +311,7 @@ export default class SettingKvSelector extends tsc<IProps> {
               trigger='click'
             >
               <span
-                class='method-span'
+                class={['method-span', { 'red-text': OPPOSE_METHODS.includes(this.localMethod as any) }]}
                 slot='dropdown-trigger'
               >
                 {METHOD_MAP[this.localMethod]}
@@ -326,36 +334,44 @@ export default class SettingKvSelector extends tsc<IProps> {
           </span>
           <div
             style={{
-              borderBottomWidth: this.tagList?.length ? '1px' : '0',
+              borderBottomWidth: this.localValue?.length ? '1px' : '0',
             }}
             class='value-wrap'
             onClick={this.handleClickValueWrap}
           >
-            {this.tagList?.map((item, index) => [
+            {this.localValue?.map((item, index) => [
               this.hideIndex === index && !this.expand ? (
                 <span
                   key={'count'}
                   class='hide-count'
                   v-bk-tooltips={{
-                    content: this.tagList.slice(index).join(','),
+                    content: this.localValue.slice(index).join(','),
                     delay: 300,
                   }}
                 >
-                  <span>{`+${this.tagList.length - index}`}</span>
+                  <span>{`+${this.localValue.length - index}`}</span>
                 </span>
               ) : undefined,
-              <span
+              // <span
+              //   key={index}
+              //   class='tag-item'
+              // >
+              //   <span class='tag-text'>{item}</span>
+              //   <span
+              //     class='icon-monitor icon-mc-close'
+              //     onClick={e => this.handleDeleteTag(e, index)}
+              //   />
+              // </span>,
+              <ValueTagInput
                 key={index}
                 class='tag-item'
-              >
-                <span class='tag-text'>{item}</span>
-                <span
-                  class='icon-monitor icon-mc-close'
-                  onClick={e => this.handleDeleteTag(e, index)}
-                />
-              </span>,
+                isOneRow={true}
+                value={item}
+                onChange={v => this.handleValueUpdate(v, index)}
+                onDelete={e => this.handleDeleteTag(e, index)}
+              />,
             ])}
-            {(this.expand || !this.tagList.length) && (
+            {(this.expand || !this.localValue.length) && (
               <AutoWidthInput
                 height={22}
                 isFocus={this.isFocus}
@@ -366,7 +382,7 @@ export default class SettingKvSelector extends tsc<IProps> {
                 onInput={this.handleInput}
               />
             )}
-            {this.isHover && this.tagList.length ? (
+            {this.isHover && this.localValue.length ? (
               <div class='delete-btn'>
                 <span
                   class='icon-monitor icon-mc-close-fill'
@@ -390,8 +406,9 @@ export default class SettingKvSelector extends tsc<IProps> {
               fieldInfo={this.fieldInfo}
               getValueFn={this.getValueFn}
               isPopover={true}
+              noDataSimple={true}
               search={this.inputValue}
-              selected={this.tagList}
+              selected={this.localValue}
               show={this.showSelector}
               onIsChecked={this.handleIsChecked}
               onSelect={this.handleSelectOption}

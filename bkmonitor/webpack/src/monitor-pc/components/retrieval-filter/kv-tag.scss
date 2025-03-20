@@ -30,7 +30,8 @@
         margin-left: 2px;
         color: #3A84FF;
 
-        &.exclude {
+        &.exclude,
+        &.ne {
           color: #EA3636;
         }
       }

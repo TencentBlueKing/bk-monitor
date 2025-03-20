@@ -55,6 +55,10 @@
 
       .method-span {
         white-space: nowrap;
+
+        &.red-text {
+          color: #EA3636;
+        }
       }
 
       .method-list-wrap {
@@ -97,30 +101,6 @@
 
       &.tippy-active {
         z-index: 10;
-      }
-
-      .tag-item {
-        display: inline-flex;
-        align-items: center;
-        height: 22px;
-        padding: 0 6px;
-        margin: 0 4px 4px 0;
-        background: #f0f1f5;
-
-        .tag-text {
-          max-width: 200px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .icon-mc-close {
-          cursor: pointer;
-        }
-
-        &:hover {
-          background-color: #dcdee5;
-        }
       }
 
       .hide-count {

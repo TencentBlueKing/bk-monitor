@@ -291,7 +291,8 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
    * @param value
    */
   handleUiValueChange(value: IFilterItem[]) {
-    this.uiValue = this.setResidentSettingStatus(value);
+    // this.uiValue = this.setResidentSettingStatus(value);
+    this.uiValue = value.map(item => ({ ...item, isSetting: undefined }));
     this.handleChange();
   }
 
@@ -364,21 +365,21 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
     return result;
   }
 
-  setResidentSettingStatus(uiValue: IFilterItem[]) {
-    const tempSet = new Set();
-    for (const item of this.cacheCommonWhere) {
-      tempSet.add(`${item.key}____${item.method}____${item.value.join('____')}`);
-    }
-    const result = [];
-    for (const item of uiValue) {
-      const str = `${item.key.id}____${item.method.id}____${item.value.map(v => v.id).join('____')}`;
-      result.push({
-        ...item,
-        isSetting: tempSet.has(str),
-      });
-    }
-    return result;
-  }
+  // setResidentSettingStatus(uiValue: IFilterItem[]) {
+  //   const tempSet = new Set();
+  //   for (const item of this.cacheCommonWhere) {
+  //     tempSet.add(`${item.key}____${item.method}____${item.value.join('____')}`);
+  //   }
+  //   const result = [];
+  //   for (const item of uiValue) {
+  //     const str = `${item.key.id}____${item.method.id}____${item.value.map(v => v.id).join('____')}`;
+  //     result.push({
+  //       ...item,
+  //       isSetting: tempSet.has(str),
+  //     });
+  //   }
+  //   return result;
+  // }
 
   handleFavoriteClick() {
     if (!this.selectFavorite) {
@@ -488,7 +489,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                   {this.selectFavorite ? (
                     <span class='icon-monitor icon-a-savebaocun' />
                   ) : (
-                    <span class='icon-monitor icon-mc-uncollect' />
+                    <span class='icon-monitor icon-bookmark' />
                   )}
                 </div>
                 <div

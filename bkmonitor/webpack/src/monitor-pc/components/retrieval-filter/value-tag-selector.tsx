@@ -48,6 +48,8 @@ interface IProps {
   onDropDownChange?: (v: boolean) => void;
   /* 获取数据 */
   getValueFn?: TGetValueFn;
+  onSelectorBlur?: () => void;
+  onSelectorFocus?: () => void;
 }
 
 @Component
@@ -79,6 +81,8 @@ export default class ValueTagSelector extends tsc<IProps> {
   /* 是否通过上下键悬停下拉选项 */
   isChecked = false;
 
+  onClickOutsideFn = () => {};
+
   get hasCustomOption() {
     return !!this.inputValue;
   }
@@ -93,12 +97,19 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   mounted() {
-    document.addEventListener('keydown', this.handleKeydownEvent);
-    this.handleClick();
+    this.handleShowShowDropDown(true);
+    this.activeIndex = this.localValue.length - 1;
+  }
+
+  /**
+   * @description 手动聚焦，由上层调用
+   */
+  focusFn() {
+    this.isFocus = true;
   }
 
   beforeDestroy() {
-    document.removeEventListener('keydown', this.handleKeydownEvent);
+    this.handleSelectorBlur();
   }
 
   @Watch('value', { immediate: true })
@@ -106,10 +117,10 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.localValue = JSON.parse(JSON.stringify(this.value));
   }
 
-  @Watch('isShowDropDown')
-  handleWatchIsShowDropDown() {
-    this.$emit('dropDownChange', this.isShowDropDown);
-  }
+  // @Watch('isShowDropDown')
+  // handleWatchIsShowDropDown() {
+  //   this.$emit('dropDownChange', this.isShowDropDown);
+  // }
 
   /**
    * @description 下拉选项点击事件
@@ -131,6 +142,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     }
     this.activeIndex = this.localValue.length - 1;
     this.isFocus = true;
+    this.handleSelectorFocus();
   }
 
   /**
@@ -199,6 +211,7 @@ export default class ValueTagSelector extends tsc<IProps> {
           () => {
             this.isShowDropDown = false;
             this.isFocus = false;
+            this.handleSelectorBlur();
           },
           { once: true }
         );
@@ -229,6 +242,9 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   handleKeydownEvent(event: KeyboardEvent) {
+    if (!this.isFocus) {
+      return;
+    }
     switch (event.key) {
       case 'ArrowLeft': {
         event.preventDefault();
@@ -244,15 +260,22 @@ export default class ValueTagSelector extends tsc<IProps> {
         }
         break;
       }
-      case 'Enter': {
-        event.preventDefault();
-        break;
-      }
+      // case 'Enter': {
+      //   event.preventDefault();
+      //   break;
+      // }
     }
   }
 
   handleIsChecked(v: boolean) {
     this.isChecked = v;
+  }
+
+  handleSelectorBlur() {
+    this.$emit('selectorBlur');
+  }
+  handleSelectorFocus() {
+    this.$emit('selectorFocus');
   }
 
   render() {
@@ -274,7 +297,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
-          class={['value-tag-selector-component-wrap', { active: this.isShowDropDown || this.isFocus }]}
+          class={['value-tag-selector-component-wrap', { active: this.isFocus }]}
           onClick={this.handleClick}
         >
           {this.localValue.length
@@ -294,6 +317,7 @@ export default class ValueTagSelector extends tsc<IProps> {
           <ValueOptions
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
+            needUpDownCheck={this.isFocus}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
             onIsChecked={this.handleIsChecked}
