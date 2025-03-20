@@ -198,7 +198,10 @@
         ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
       });
 
-      store.dispatch('requestIndexSetQuery');
+      if (route.query.tab !== 'graphAnalysis') {
+        store.dispatch('requestIndexSetQuery');
+      }
+
       setRouteParams();
     }
   };
@@ -209,6 +212,14 @@
     });
 
     store.dispatch('requestIndexSetQuery');
+    setRouteParams();
+  };
+
+  const handleSqlQueryChange = value => {
+    store.commit('updateIndexItemParams', {
+      keyword: value,
+    });
+
     setRouteParams();
   };
 
@@ -500,6 +511,7 @@
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
           @popup-change="handlePopupChange"
+          @change="handleSqlQueryChange"
         ></SqlQuery>
         <div
           ref="refPopTraget"

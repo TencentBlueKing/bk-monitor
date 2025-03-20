@@ -84,6 +84,9 @@
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
     emit('input', val);
+    nextTick(() => {
+      emit('change', val);
+    });
     if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
       delayShowInstance(refEditorParent.value);
     }

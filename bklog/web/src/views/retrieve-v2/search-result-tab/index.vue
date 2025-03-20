@@ -2,6 +2,8 @@
   import { defineEmits, defineProps, computed, watch, ref } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
+  import $http from '@/api';
+
   const { $t } = useLocale();
   const store = useStore();
   const props = defineProps({
@@ -106,7 +108,7 @@
     });
   });
 
-  const handleAddAlertPolicy = () => {
+  const handleAddAlertPolicy = async () => {
     const params = {
       bizId: store.state.bkBizId,
       indexSetId: indexSetId.value,
@@ -119,14 +121,21 @@
     if (indexSet) {
       params.scenarioId = indexSet.category_id;
     }
-    retrieveParams.value.addition.forEach(item => {
-      params.condition.push({
-        condition: 'and',
-        key: item.field,
-        method: item.operator === 'eq' ? 'is' : item.operator,
-        value: item.value,
+
+    if (retrieveParams.value.addition.length) {
+      const resp = await $http.request('retrieve/generateQueryString', {
+        data: {
+          addition: retrieveParams.value.addition,
+        },
       });
-    });
+
+      if (resp.result) {
+        params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
+          .filter(item => item.length > 0 && item !== '*')
+          .join(' AND ');
+      }
+    }
+
     const urlArr = [];
     for (const key in params) {
       if (key === 'dimension' || key === 'condition') {

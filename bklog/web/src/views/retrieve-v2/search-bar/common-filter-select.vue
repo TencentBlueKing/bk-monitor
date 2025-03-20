@@ -26,10 +26,13 @@
 
   const commonFilterAddition = computed({
     get() {
-      const additionValue = localStorage.getItem('commonFilterAddition');
+      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
+      if(additionValue?.indexId !== store.state.indexId){
+        localStorage.removeItem('commonFilterAddition');
+      }
       // 将本地存储的JSON字符串解析为对象并创建映射
       const parsedValueMap = additionValue
-        ? JSON.parse(additionValue).reduce((acc, item) => {
+        ? additionValue.value.reduce((acc, item) => {
             acc[item.field] = item.value;
             return acc;
           }, {})
@@ -157,7 +160,10 @@
   };
 
   const handleChange = () => {
-    localStorage.setItem('commonFilterAddition', JSON.stringify(commonFilterAddition.value));
+    localStorage.setItem('commonFilterAddition', JSON.stringify({
+      indexId: store.state.indexId,
+      value: commonFilterAddition.value
+    }));
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
