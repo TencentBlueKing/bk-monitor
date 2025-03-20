@@ -240,6 +240,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         time_series: {
           type: 'bar',
           echart_option: {
+            grid: {
+              bottom: 6,
+            },
             yAxis: {
               splitLine: {
                 lineStyle: {
