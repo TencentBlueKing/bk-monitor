@@ -62,6 +62,202 @@ SEARCH_RESULT = {
 }
 
 
+# 没有点
+NO_DOT_HITS = [
+    {
+        '_index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        '_type': '_doc',
+        '_id': '5066754728129242324',
+        '_score': None,
+        '_source': {
+            'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+            'time': '2025-03-07T15:59:59.854590000Z',
+            'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+            'time_unix': 1741363199854590,
+            'logs_name': None,
+            'severity_text': 'DEBUG',
+            'num': x,
+        },
+    }
+    for x in range(10000)
+]
+
+NO_DOT_DICT = {
+    'took': 1633,
+    'timed_out': False,
+    '_shards': {'total': 1502, 'successful': 1502, 'skipped': 1276, 'failed': 0},
+    'hits': {'total': 10000, 'max_score': None, 'hits': NO_DOT_HITS},
+}
+
+NO_DOT_RESULT = [
+    {
+        'index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+        'time': '2025-03-07T15:59:59.854590000Z',
+        'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+        'time_unix': 1741363199854590,
+        'logs_name': None,
+        'severity_text': 'DEBUG',
+        'num': x,
+    }
+    for x in range(10000)
+]
+
+
+# 1个点
+ONE_DOT_HITS = [
+    {
+        '_index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        '_type': '_doc',
+        '_id': '5066754728129242324',
+        '_score': None,
+        '_source': {
+            'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+            'time': '2025-03-07T15:59:59.854590000Z',
+            'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+            'time_unix': 1741363199854590,
+            'logs_name': None,
+            'severity_text': 'DEBUG',
+            'num': x,
+            'attributes': {
+                'worker_name': 'python_backend--0--session-default___scene_service_plan_preview__-owned',
+                'object_id': '',
+                'line_number': 123,
+                'level': 'DEBUG',
+            },
+            'resource': {
+                'service_name': 'AIOPS BACKEND',
+                'service.name': 'unknown_service',
+                'service.ppp': 'unknown_service',
+                'service.ddd': 'unknown_service',
+                'service.eee': 'unknown_service',
+            },
+        },
+    }
+    for x in range(10000)
+]
+
+ONE_DOT_DICT = {
+    'took': 1633,
+    'timed_out': False,
+    '_shards': {'total': 1502, 'successful': 1502, 'skipped': 1276, 'failed': 0},
+    'hits': {'total': 10000, 'max_score': None, 'hits': ONE_DOT_HITS},
+}
+
+ONE_DOT_RESULT = [
+    {
+        'index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+        'time': '2025-03-07T15:59:59.854590000Z',
+        'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+        'time_unix': 1741363199854590,
+        'logs_name': None,
+        'severity_text': 'DEBUG',
+        'num': x,
+        'attributes': {
+            'worker_name': 'python_backend--0--session-default___scene_service_plan_preview__-owned',
+            'object_id': '',
+            'line_number': 123,
+            'level': 'DEBUG',
+        },
+        'resource': {
+            'service_name': 'AIOPS BACKEND',
+            'service': {
+                'name': 'unknown_service',
+                'ppp': 'unknown_service',
+                'ddd': 'unknown_service',
+                'eee': 'unknown_service',
+            },
+        },
+    }
+    for x in range(10000)
+]
+
+
+# 很多点
+MANY_DOTS_HITS = [
+    {
+        '_index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        '_type': '_doc',
+        '_id': '5066754728129242324',
+        '_score': None,
+        '_source': {
+            'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+            'time': '2025-03-07T15:59:59.854590000Z',
+            'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+            'time_unix': 1741363199854590,
+            'logs_name': None,
+            'severity_text': 'DEBUG',
+            'num': x,
+            'attributes': {
+                'worker_name': 'python_backend--0--session-default___scene_service_plan_preview__-owned',
+                'object_id': '',
+                'line_number': 123,
+                'level': 'DEBUG',
+            },
+            'resource': {
+                'service_name': 'AIOPS BACKEND',
+                'service.name': 'unknown_service',
+                'telemetry.sdk.language': 'python',
+                'telemetry.sdk.name': 'opentelemetry',
+                'telemetry.sdk.version2': '1.20.0',
+                'telemetry.sdk.version3': '1.20.0',
+                'telemetry.sdk.version.name.ddd.ggg': '1.20.0',
+            },
+        },
+    }
+    for x in range(10000)
+]
+
+MANY_DOTS_DICT = {
+    'took': 1633,
+    'timed_out': False,
+    '_shards': {'total': 1502, 'successful': 1502, 'skipped': 1276, 'failed': 0},
+    'hits': {'total': 10000, 'max_score': None, 'hits': MANY_DOTS_HITS},
+}
+
+MANY_DOTS_RESULT = [
+    {
+        'index': 'v2_2_bklog_bkbase_aiops_backend_tencent_dev_logs_20250303_0',
+        'dtEventTimeStamp': '2025-03-07T15:59:59.854590000Z',
+        'time': '2025-03-07T15:59:59.854590000Z',
+        'body': '处理信号SignalAt.DURING|Procedure.MONITOR_WORKER,信号内容：{}',
+        'time_unix': 1741363199854590,
+        'logs_name': None,
+        'severity_text': 'DEBUG',
+        'num': x,
+        'attributes': {
+            'worker_name': 'python_backend--0--session-default___scene_service_plan_preview__-owned',
+            'object_id': '',
+            'line_number': 123,
+            'level': 'DEBUG',
+        },
+        'resource': {
+            'service_name': 'AIOPS BACKEND',
+            'service': {
+                'name': 'unknown_service',
+            },
+            'telemetry': {
+                'sdk': {
+                    'language': 'python',
+                    'name': 'opentelemetry',
+                    'version2': '1.20.0',
+                    'version3': '1.20.0',
+                    'version': {
+                        'name': {
+                            'ddd': {
+                                'ggg': '1.20.0',
+                            }
+                        },
+                    },
+                }
+            },
+        },
+    }
+    for x in range(10000)
+]
+
+
 @patch(
     "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.is_nested_field",
     lambda _, __: False,
@@ -89,7 +285,9 @@ class TestSearchHandler(TestCase):
         lambda _, __, index_set_id: "dtEventTimeStamp",
     )
     def setUp(self) -> None:
-        self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False, can_highlight=False)
+        self.search_handler = SearchHandler(
+            index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False, can_highlight=False
+        )
         self.search_handler._index_set = Mock()
         self.search_handler._index_set.max_async_count = 2010000
         self.search_handler._index_set.result_window = 10000
@@ -121,3 +319,15 @@ class TestSearchHandler(TestCase):
             logs_result.extend(result["list"])
 
         self.assertEqual(len(logs_result), 2000000)
+
+    def test_deal_query_result(self):
+        no_dot_result = self.search_handler._deal_query_result(result_dict=NO_DOT_DICT)
+        one_dot_result = self.search_handler._deal_query_result(result_dict=ONE_DOT_DICT)
+        many_dots_result = self.search_handler._deal_query_result(result_dict=MANY_DOTS_DICT)
+        no_dot_logs = no_dot_result["list"]
+        one_dot_logs = one_dot_result["list"]
+        many_dots_logs = many_dots_result["list"]
+
+        self.assertEqual(no_dot_logs, NO_DOT_RESULT)
+        self.assertEqual(one_dot_logs, ONE_DOT_RESULT)
+        self.assertEqual(many_dots_logs, MANY_DOTS_RESULT)
