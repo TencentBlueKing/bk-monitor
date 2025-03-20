@@ -3,6 +3,7 @@
 **{{gettext("—— 更多请查看详情 ——")}}**
 {{alert.alert_name | safe}} {% if alarm.detail_url %}[汇总详情]({{alarm.detail_url}}){% endif %}
 {% endif %}
+
 **{{gettext("—— 摘要其中 1 条告警 ——")}}**
 **{{gettext("告警名称: ")}}**{{alert.alert_name | safe}}
 {{user_content | safe}}
