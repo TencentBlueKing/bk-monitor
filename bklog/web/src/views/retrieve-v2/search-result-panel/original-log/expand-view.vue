@@ -57,7 +57,7 @@
       />
     </div>
     <div
-      style="padding: 10px 12px 10px 39px"
+      style="padding: 2px 12px 10px 39px"
       class="view-content json-view-content"
       v-show="activeExpandView === 'json'"
     >

@@ -118,7 +118,6 @@
           align-items: center;
           justify-content: center;
           height: 20px;
-
           font-size: 12px;
           color: #c4c6cc;
           cursor: pointer;
@@ -142,9 +141,8 @@
           align-items: flex-start;
           height: 100%;
           min-height: var(--row-min-height);
-          padding: 4px;
           background-color: #fff;
-
+          height: 22px;
           .handle-content {
             position: relative;
             display: flex;
