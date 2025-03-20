@@ -53,7 +53,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
 import {
-  createCustomEventSeries,
+  // createCustomEventSeries,
   getCustomEventTags,
   getCustomEventTagsPanelParams,
   type ICustomEventTagsItem,
@@ -514,7 +514,8 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: [...seriesList, customEventList?.length ? createCustomEventSeries(customEventList) : undefined],
+            // series: [...seriesList, customEventList?.length  ? createCustomEventSeries(customEventList) : undefined],
+            series: [...seriesList],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
