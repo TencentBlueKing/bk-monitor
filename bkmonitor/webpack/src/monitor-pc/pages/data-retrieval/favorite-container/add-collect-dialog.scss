@@ -1,5 +1,5 @@
 /* stylelint-disable declaration-no-important */
-@import "../../../theme";
+@import '../../../theme';
 
 .add-collect-dialog.bk-dialog-wrapper {
   .bk-dialog-header {
@@ -22,7 +22,7 @@
     padding: 8px 12px;
     font-size: 12px;
     line-height: 18px;
-    background: #F0F1F5;
+    background: #f0f1f5;
     border-radius: 2px;
   }
 
@@ -43,7 +43,9 @@
   .bk-form-item {
     padding: 0;
 
-    .bk-label, .bk-radio-text, .bk-checkbox-text {
+    .bk-label,
+    .bk-radio-text,
+    .bk-checkbox-text {
       font-size: 12px;
     }
   }
@@ -59,14 +61,14 @@
       margin-left: 6px;
       font-size: 16px;
       color: #979ba5;
-  
+
       span {
         cursor: pointer;
       }
-  
+
       > :first-child {
         margin-right: 12px;
-        color: #33D05C;
+        color: #33d05c;
       }
 
       > :last-child {
@@ -101,11 +103,11 @@
         width: 100%;
         word-wrap: break-word;
       }
-  
+
       .vjs-tree {
         font-size: 12px !important;
-  
-        .vjs-value__string {
+
+        .vjs-value-string {
           tab-size: 3;
           white-space: pre-wrap;
         }

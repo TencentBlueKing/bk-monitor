@@ -131,6 +131,12 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         &::before {
           height: 14px;
         }
+
+        &:hover {
+          cursor: pointer;
+          background-color: #e1ecff;
+          border-radius: 50%;
+        }
       }
 
       .strategy-icon {
