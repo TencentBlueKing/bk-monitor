@@ -32,9 +32,9 @@ class EventDomain(CachedEnum):
     @cached_property
     def label(self):
         return str(
-            {
-                self.K8S: _("Kubernetes"), self.CICD: _("CICD"), self.SYSTEM: _("系统"), self.DEFAULT: _("默认")
-            }.get(self, self.value)
+            {self.K8S: _("Kubernetes"), self.CICD: _("CICD"), self.SYSTEM: _("系统"), self.DEFAULT: _("默认")}.get(
+                self, self.value
+            )
         )
 
     @classmethod
@@ -49,7 +49,7 @@ class EventDomain(CachedEnum):
             (cls.K8S.value, cls.K8S.value),
             (cls.CICD.value, cls.CICD.value),
             (cls.SYSTEM.value, cls.SYSTEM.value),
-            (cls.DEFAULT.value, cls.DEFAULT.value)
+            (cls.DEFAULT.value, cls.DEFAULT.value),
         ]
 
 
@@ -67,14 +67,13 @@ class EventSource(CachedEnum):
             (cls.BCS.value, cls.BCS.value),
             (cls.BKCI.value, cls.BKCI.value),
             (cls.HOST.value, cls.HOST.value),
-            (cls.DEFAULT.value, cls.DEFAULT.value)
+            (cls.DEFAULT.value, cls.DEFAULT.value),
         ]
 
     @cached_property
     def label(self):
-        return str({
-                self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")
-            }.get(self, self.value)
+        return str(
+            {self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")}.get(self, self.value)
         )
 
     @classmethod
@@ -92,20 +91,26 @@ class EventType(CachedEnum):
     Normal = "Normal"
     Warning = "Warning"
     Default = "Default"
+    EMPTY_DEFAULT = ""
 
     @classmethod
     def choices(cls):
         return [
             (cls.Normal.value, cls.Normal.value),
             (cls.Warning.value, cls.Warning.value),
-            (cls.Default.value, cls.Default.value)
+            (cls.EMPTY_DEFAULT.value, cls.EMPTY_DEFAULT.value),
         ]
 
     @cached_property
     def label(self):
-        return str({
-            self.Normal: self.Normal.value, self.Warning: self.Warning.value, self.Default: self.Default.value
-        }.get(self, self.value))
+        return str(
+            {
+                self.Normal: self.Normal.value,
+                self.Warning: self.Warning.value,
+                self.Default: self.Default.value,
+                self.EMPTY_DEFAULT: self.Default.value,
+            }.get(self, self.value)
+        )
 
     @classmethod
     def get_default(cls, value):
@@ -150,8 +155,14 @@ CATEGORY_WEIGHTS = {
 DEFAULT_EVENT_ORIGIN: Tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
 
 EVENT_ORIGIN_MAPPING: Dict[str, Tuple[str, str]] = {
-    EventCategory.SYSTEM_EVENT.value: (EventDomain.SYSTEM.value, EventSource.HOST.value,),
-    EventCategory.K8S_EVENT.value: (EventDomain.K8S.value, EventSource.BCS.value,),
+    EventCategory.SYSTEM_EVENT.value: (
+        EventDomain.SYSTEM.value,
+        EventSource.HOST.value,
+    ),
+    EventCategory.K8S_EVENT.value: (
+        EventDomain.K8S.value,
+        EventSource.BCS.value,
+    ),
     EventCategory.CICD_EVENT.value: (EventDomain.CICD.value, EventSource.BKCI.value),
 }
 
@@ -262,6 +273,10 @@ INNER_FIELD_TYPE_MAPPINGS = {
 class Operation:
     EQ = {"alias": "=", "value": "eq"}
     NE = {"alias": "!=", "value": "ne"}
+    GT = {"alias": ">", "value": "gt"}
+    GTE = {"alias": ">=", "value": "gte"}
+    LT = {"alias": "<", "value": "le"}
+    LTE = {"alias": "<=", "value": "lte"}
     INCLUDE = {"alias": _("包含"), "value": "include"}
     EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
     EQ_WITH_WILDCARD = {"alias": _("包含"), "value": "include", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
@@ -273,7 +288,7 @@ TYPE_OPERATION_MAPPINGS = {
     "date": [Operation.EQ, Operation.NE],
     "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE],
     "text": [Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
-    "integer": [Operation.EQ, Operation.NE],
+    "integer": [Operation.EQ, Operation.NE, Operation.GT, Operation.GTE, Operation.LT, Operation.LTE],
 }
 
 ENTITIES = [
@@ -282,51 +297,16 @@ ENTITIES = [
     # 注意：bcs_cluster_id 存在的情况下，host 形式是 "node-127-0-0-1"，此时跳转到旧版容器监控页面的 Node
     {
         "type": "k8s",
-        "alias": _("容器"),
-        "fields": ["container_id", "namespace", "bcs_cluster_id", "host"],
+        "alias": _("容器监控"),
+        "fields": ["container_id", "namespace", "bcs_cluster_id", "host", "name"],
         # 原始数据存在这个字段，本规则才生效
         "dependent_fields": ["bcs_cluster_id"],
     },
     # 跳转到主机监控
-    {"type": "ip", "alias": _("主机"), "fields": ["bk_target_ip", "ip", "serverip", "bk_host_id"]},
+    {"type": "ip", "alias": _("主机监控"), "fields": ["bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
 
 DEFAULT_DIMENSION_FIELDS = ["time", "event_name", "event.count", "event.content", "target", "type"]
-
-DETAIL_MOCK_DATA = {
-    "bcs_cluster_id": {
-        "label": "集群",
-        "value": "BCS-K8S-90001",
-        "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
-        "type": "link",
-        "scenario": "容器监控",
-        # 带集群 ID 跳转到新版容器监控页面
-        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
-    },
-    "namespace": {
-        "label": "NameSpace",
-        "value": "127.0.0.1",
-        "alias": "kube-system",
-        # 带 namespace & 集群 ID 跳转到新版容器监控页面
-        "type": "link",
-        "scenario": "容器监控",
-        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
-    },
-    "name": {
-        "label": "工作负载",
-        "value": "bk-log-collector-fx97q",
-        "alias": "Pod / bk-log-collector-fx97q",
-    },
-    "event.content": {
-        "label": "事件内容",
-        "value": "MountVolume.SetUp failed for volume bk-log-main-config: "
-        "failed to sync configmap cache: timed out waiting for the condition",
-        "alias": "MountVolume.SetUp failed for volume bk-log-main-config: "
-        "failed to sync configmap cache: timed out waiting for the condition",
-    },
-}
-
-URL_MOCK_DATA = ("https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",)
 
 DIMENSION_DISTINCT_VALUE = 0
 
@@ -340,15 +320,15 @@ BK_BIZ_ID = "bk_biz_id"
 
 K8S_EVENT_TRANSLATIONS = {
     "Pod": {
-        "FailedKillPod": _("停止 Pod 失败"),
+        "FailedKillPod": _("Pod 停止失败"),
         # refer：https://www.cnblogs.com/alisystemsoftware/p/16919263.html
         "FailedPostStartHook": _("PostStart 回调失败"),
         "FailedPreStopHook": _("PreStop 回调失败"),
         "Failed": _("拉取/创建/启动失败"),
-        "FailedCreatePodContainer": _("创建容器失败"),
+        "FailedCreatePodContainer": _("容器创建失败"),
         "Preempting": _("抢占中"),
         "Preempted": _("被抢占"),
-        "ExceededGracePeriod": _("指定期限内未能停止 Pod"),
+        "ExceededGracePeriod": _("Pod 指定期限内停止失败"),
         "InspectFailed": _("镜像检查失败"),
         "ErrImageNeverPull": _("设置 Never 拉取策略且无本地镜像"),
         "InvalidEnvironmentVariableNames": _("环境变量名无效"),
@@ -381,21 +361,21 @@ K8S_EVENT_TRANSLATIONS = {
         "TaintManagerEviction": _("污点驱逐"),
         "Killing": _("镜像终止中"),
         "Pulling": _("镜像拉取中"),
-        "Pulled": _("镜像已拉取"),
-        "Created": _("容器已创建"),
-        "Started": _("容器已启动"),
+        "Pulled": _("镜像拉取"),
+        "Created": _("容器创建"),
+        "Started": _("容器启动"),
         "Scheduled": _("Pod 已调度"),
     },
     "Job": {
         "BackoffLimitExceeded": _("退避超限"),
-        "SuccessfulCreate": _("Pod 已创建"),
-        "SuccessfulDelete": _("Pod 已删除"),
+        "SuccessfulCreate": _("Pod 创建"),
+        "SuccessfulDelete": _("Pod 删除"),
         "Completed": _("已完成"),
     },
     "CronJob": {
         "BackoffLimitExceeded": _("退避超限"),
-        "SuccessfulCreate": _("Pod 已创建"),
-        "SuccessfulDelete": _("Pod 已删除 "),
+        "SuccessfulCreate": _("Pod 创建"),
+        "SuccessfulDelete": _("Pod 删除 "),
         "SawCompletedJob": _("已完成"),
     },
     "Deployment": {
@@ -405,15 +385,15 @@ K8S_EVENT_TRANSLATIONS = {
         "SuccessfulRollover": _("滚动更新成功"),
     },
     "ReplicaSet": {
-        "FailedCreate": _("创建 Pod 失败"),
-        "FailedDelete": _("销毁 Pod 失败"),
-        "SuccessfulCreate": _("创建 Pod 成功"),
-        "SuccessfulDelete": _("销毁 Pod 成功"),
+        "FailedCreate": _("Pod 创建失败"),
+        "FailedDelete": _("Pod 销毁失败"),
+        "SuccessfulCreate": _("Pod 创建成功"),
+        "SuccessfulDelete": _("Pod 创建成功"),
     },
     "HorizontalPodAutoscaler": {
         "FailedGetResourceMetric": _("指标获取失败"),
         "FailedComputeMetricsReplicas": _("副本计算失败"),
-        "SelectorRequired": _("需选择器"),
+        "SelectorRequired": _("依赖选择器"),
         "InvalidSelector": _("选择器转换失败"),
         "FailedGetObjectMetric": _("HPA 副本计算失败"),
         "InvalidMetricSourceType": _("未知指标类型"),
@@ -427,7 +407,7 @@ K8S_EVENT_TRANSLATIONS = {
     "DaemonSet": {
         "FailedCreate": _("Pod 创建失败"),
         "FailedPlacement": _("Pod 部署到节点失败"),
-        "FailedDaemonPod": _("终止异常 Daemon Pod 失败"),
+        "FailedDaemonPod": _("异常 Pod 停止失败"),
     },
     "Node": {
         "SystemOOM": _("内存不足"),
@@ -436,7 +416,7 @@ K8S_EVENT_TRANSLATIONS = {
         "EvictionThresholdMet": _("资源压力达到驱逐阈值"),
         "InvalidDiskCapacity": _("磁盘容量无效或不足"),
         "FreeDiskSpaceFailed": _("磁盘可用空间检测失败"),
-        "readOnlySysFS": _("系统磁盘只读"),
+        "readOnlySysFS": _("磁盘只读"),
         "ContainerGCFailed": _("容器垃圾回收失败"),
         "ImageGCFailed": _("镜像垃圾回收失败"),
         "MissingClusterDNS": _("缺少 ClusterDNS IP 设置"),
@@ -453,15 +433,15 @@ K8S_EVENT_TRANSLATIONS = {
         "KernelDeadlock": _("内核死锁"),
         "DockerHung": _("Docker 无响应"),
         "CorruptDockerOverlay2": _("Docker overlay2 损坏"),
-        "NodeUnderDiskPressure": _("节点正在经历磁盘压力"),
-        "NodeUnderMemoryPressure": _("节点正在经历内存压力"),
-        "NodeUnderPIDPressure": _("节点正在经历 PID 压力"),
+        "NodeUnderDiskPressure": _("节点存在磁盘压力"),
+        "NodeUnderMemoryPressure": _("节点存在内存压力"),
+        "NodeUnderPIDPressure": _("节点存在 PID 压力"),
         "NodeNotReady": _("节点未就绪"),
         "NodeNotSchedulable": _("节点不可调度"),
         "NodeHasInsufficientPID": _("节点 PID 不足"),
         "NodeHasInsufficientMemory": _("节点内存不足"),
         "NodeHasInsufficientDisk": _("节点磁盘不足"),
-        "NodeReady": _("节点已就绪"),
+        "NodeReady": _("节点就绪"),
         "NodeSchedulable": _("节点可调度"),
         "NodeHasSufficientMemory": _("节点内存充足"),
         "NodeHasSufficientDisk": _("节点磁盘充足"),

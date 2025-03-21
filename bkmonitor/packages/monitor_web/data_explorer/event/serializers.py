@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import re
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -34,7 +34,6 @@ class EventDataSource(serializers.Serializer):
 
 
 class EventFilterSerializer(EventDataSource):
-
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
     query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True)
@@ -98,6 +97,7 @@ class EventTopKRequestSerializer(BaseEventRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=0)
     fields = serializers.ListField(label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False)
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    need_empty = serializers.BooleanField(label="是否需要统计空值", required=False, default=False)
 
 
 class EventTotalRequestSerializer(BaseEventRequestSerializer):

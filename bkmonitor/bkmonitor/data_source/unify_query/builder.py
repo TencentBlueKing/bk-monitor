@@ -280,6 +280,8 @@ class UnifyQueryCompiler(SQLCompiler):
                 query_config["interval"] = query_config_obj.interval
             query_configs.append(query_config)
 
+        query_configs = query_configs or [{"order_by": "", "reference_name": "a", "dimension_fields": []}]
+
         order_by: List[str] = []
         for ordering in query_configs[0]["order_by"]:
             if len(ordering.split()) == 1:
