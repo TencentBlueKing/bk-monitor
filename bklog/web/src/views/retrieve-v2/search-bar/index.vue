@@ -382,6 +382,8 @@
   };
 
   const handleFilterSecClick = () => {
+    console.log(isFilterSecFocused.value,activeIndex.value,store.getters.common_filter_addition);
+    
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
         const { common_filter_addition } = store.getters;
