@@ -43,12 +43,19 @@ import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
 import EventRetrievalLayout from './components/event-retrieval-layout';
+import EventSourceSelect from './components/event-source-select';
+import {
+  type ConditionChangeEvent,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
+  ExploreSourceTypeEnum,
+  type IFormData,
+} from './typing';
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
-import type { ConditionChangeEvent, ExploreEntitiesMap, ExploreFieldMap, IFormData } from './typing';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -67,6 +74,7 @@ interface IProps {
   currentFavorite?: IFavList.favList;
   filterMode?: EMode;
   defaultShowResidentBtn?: boolean;
+  eventSourceType?: ExploreSourceTypeEnum[];
 }
 
 interface IEvent {
@@ -77,6 +85,7 @@ interface IEvent {
   onQueryStringInputChange: (val: string) => void;
   onCommonWhereChange: (where: IWhereItem[]) => void;
   onShowResidentBtnChange?: (v: boolean) => void;
+  onEventSourceTypeChange: (v: ExploreSourceTypeEnum[]) => void;
 }
 @Component
 export default class EventExplore extends tsc<
@@ -98,6 +107,7 @@ export default class EventExplore extends tsc<
   @Prop({ default: '' }) queryString;
   @Prop({ default: 'event' }) dataTypeLabel: string;
   @Prop({ default: 'custom' }) dataSourceLabel: string;
+  @Prop({ default: () => [ExploreSourceTypeEnum.ALL], type: Array }) eventSourceType: ExploreSourceTypeEnum[];
   /** UI查询 */
   @Prop({ default: () => [], type: Array }) where: IFormData['where'];
   /** 常驻筛选 */
@@ -122,6 +132,7 @@ export default class EventExplore extends tsc<
   @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
+  @Ref('eventSourceList') eventSourceListRef: EventSourceSelect;
 
   loading = false;
 
@@ -132,6 +143,9 @@ export default class EventExplore extends tsc<
   sourceEntities = [];
 
   queryStringInput = '';
+
+  /** 事件来源列表 */
+  eventSourceList = [];
 
   cacheQueryConfig = null;
 
@@ -144,6 +158,10 @@ export default class EventExplore extends tsc<
     group_by: [],
     filter_dict: {},
   };
+
+  /** 事件源popover实例 */
+  eventSourcePopoverInstance = null;
+  localEventSourceType = [];
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -256,6 +274,12 @@ export default class EventExplore extends tsc<
     this.getViewConfig();
   }
 
+  @Watch('eventSourceType')
+  handleWatchEventSourceTypeChange() {
+    this.getViewConfig();
+    this.updateQueryConfig();
+  }
+
   @Emit('whereChange')
   handleWhereChange(where: IFormData['where']) {
     return where;
@@ -298,6 +322,7 @@ export default class EventExplore extends tsc<
     }
     this.loading = true;
     const formatTimeRange = handleTransformToTimestamp(this.timeRange);
+
     const data = await getEventViewConfig(
       {
         data_sources: [
@@ -311,6 +336,9 @@ export default class EventExplore extends tsc<
         service_name: this.viewOptions?.filters?.service_name,
         start_time: formatTimeRange[0],
         end_time: formatTimeRange[1],
+        ...(this.eventSourceType.length && !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
+          ? { sources: this.eventSourceType }
+          : {}),
       },
       this.source
     ).catch(() => ({ display_fields: [], entities: [], field: [] }));
@@ -322,6 +350,11 @@ export default class EventExplore extends tsc<
         pinyinStr,
       };
     });
+    this.eventSourceList =
+      data.sources?.map(item => ({
+        id: item.value,
+        name: item.alias,
+      })) || [];
     this.sourceEntities = data.entities || [];
   }
 
@@ -400,6 +433,48 @@ export default class EventExplore extends tsc<
     return isShow;
   }
 
+  /** 展示事件源选择弹窗 */
+  handleShowEventSourcePopover(e: Event) {
+    if (this.eventSourcePopoverInstance) {
+      this.eventSourcePopoverInstance.destroy();
+      this.eventSourcePopoverInstance = null;
+    }
+    this.localEventSourceType = this.eventSourceType;
+    this.eventSourcePopoverInstance = this.$bkPopover(e.currentTarget, {
+      content: this.eventSourceListRef.$el,
+      placement: 'bottom',
+      boundary: 'viewport',
+      trigger: 'click',
+      arrow: false,
+      interactive: true,
+      distance: -2,
+      theme: 'light event-source-select-popover',
+      onHidden: this.handleEventSourceConfirm,
+    });
+    this.eventSourcePopoverInstance?.show(200);
+  }
+
+  handleEventSourceChange(source: ExploreSourceTypeEnum[]) {
+    this.localEventSourceType = source;
+  }
+
+  handleEventSourceConfirm() {
+    if (!this.localEventSourceType.length && this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) return;
+    if (
+      this.localEventSourceType.includes(ExploreSourceTypeEnum.ALL) &&
+      this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
+    )
+      return;
+    this.$emit(
+      'eventSourceTypeChange',
+      !this.localEventSourceType.length ? [ExploreSourceTypeEnum.ALL] : this.localEventSourceType
+    );
+  }
+
+  handleEventSourceClose() {
+    this.eventSourcePopoverInstance?.hide();
+  }
+
   /**
    * @description 清空筛选条件
    *
@@ -422,6 +497,13 @@ export default class EventExplore extends tsc<
     } else {
       queryString = this.queryString;
       where = [];
+    }
+    if (
+      this.source === APIType.APM &&
+      this.eventSourceType &&
+      !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
+    ) {
+      where.push({ key: 'source', method: 'eq', condition: ECondition.and, value: this.eventSourceType });
     }
     this.queryConfig = {
       data_source_label: this.dataSourceLabel || 'custom',
@@ -479,17 +561,21 @@ export default class EventExplore extends tsc<
               >
                 <DimensionFilterPanel
                   condition={this.queryConfig.where}
+                  eventSourceType={this.eventSourceType}
+                  hasSourceSelect={this.source === APIType.APM}
                   list={this.fieldList}
                   listLoading={this.loading}
                   queryString={this.queryConfig.query_string}
                   source={this.source}
                   onClose={this.handleCloseDimensionPanel}
                   onConditionChange={this.handleConditionChange}
+                  onShowEventSourcePopover={this.handleShowEventSourcePopover}
                 />
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
                   entitiesMapList={this.entitiesMapByField}
+                  eventSourceType={this.eventSourceType}
                   fieldMap={this.fieldMapByField}
                   queryConfig={this.queryConfig}
                   refreshImmediate={this.refreshImmediate}
@@ -498,10 +584,20 @@ export default class EventExplore extends tsc<
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}
                   onSearch={this.updateQueryConfig}
+                  onShowEventSourcePopover={this.handleShowEventSourcePopover}
                 />
               </div>
             </EventRetrievalLayout>
           </div>
+        </div>
+
+        <div style='display: none;'>
+          <EventSourceSelect
+            ref='eventSourceList'
+            list={this.eventSourceList}
+            value={this.localEventSourceType}
+            onSelect={this.handleEventSourceChange}
+          />
         </div>
       </div>
     );

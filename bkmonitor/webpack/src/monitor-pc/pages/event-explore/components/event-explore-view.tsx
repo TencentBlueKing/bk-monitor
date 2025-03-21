@@ -34,17 +34,18 @@ import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/char
 
 import BackTop from '../../../components/back-top/back-top';
 import { APIType, getEventTimeSeries, getEventTotal } from '../api-utils';
+import {
+  ExploreSourceTypeEnum,
+  type ConditionChangeEvent,
+  type DimensionsTypeEnum,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
+  type IFormData,
+} from '../typing';
 import { eventChartMap, ExploreSubject, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type {
-  ConditionChangeEvent,
-  DimensionsTypeEnum,
-  ExploreEntitiesMap,
-  ExploreFieldMap,
-  IFormData,
-} from '../typing';
 
 import './event-explore-view.scss';
 
@@ -54,6 +55,7 @@ interface IEventExploreViewProps {
   timeRange: TimeRangeType;
   refreshImmediate: string;
   fieldMap: ExploreFieldMap;
+  eventSourceType?: ExploreSourceTypeEnum[];
   entitiesMapList: ExploreEntitiesMap[];
 }
 
@@ -61,6 +63,7 @@ interface IEventExploreViewEvents {
   onClearSearch: () => void;
   onSearch: () => void;
   onConditionChange(e: ConditionChangeEvent): void;
+  onShowEventSourcePopover(event: Event): void;
 }
 
 @Component
@@ -77,6 +80,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
+  @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
   // 视图变量
@@ -312,6 +316,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.showLegendList = legends.filter(v => v.show).map(v => v.name) as DimensionsTypeEnum[];
   }
 
+  @Emit('showEventSourcePopover')
+  handleShowEventSourcePopover(e: Event) {
+    return e;
+  }
+
   render() {
     return (
       <div class='event-explore-view-wrapper'>
@@ -330,6 +339,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             entitiesMapList={this.entitiesMapList}
+            eventSourceType={this.eventSourceType}
             fieldMap={this.fieldMap}
             limit={30}
             queryParams={this.eventQueryParams}
@@ -340,6 +350,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
             onSearch={this.filterSearch}
+            onShowEventSourcePopover={this.handleShowEventSourcePopover}
           />
         </div>
         <BackTop

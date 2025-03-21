@@ -3,9 +3,9 @@
 /* stylelint-disable indentation */
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1742440484290') format('woff2'),
-       url('monitor-icons.woff?t=1742440484290') format('woff'),
-       url('monitor-icons.ttf?t=1742440484290') format('truetype');
+  src: url('monitor-icons.woff2?t=1742527352674') format('woff2'),
+       url('monitor-icons.woff?t=1742527352674') format('woff'),
+       url('monitor-icons.ttf?t=1742527352674') format('truetype');
 }
 
 .icon-monitor {
@@ -14,6 +14,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-all:before {
+  content: "\e821";
 }
 
 .icon-a-:before {

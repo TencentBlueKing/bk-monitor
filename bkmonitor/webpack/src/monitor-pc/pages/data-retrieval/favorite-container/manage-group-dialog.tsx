@@ -518,7 +518,25 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       </div>
     );
 
-    const eventKeywordsSlot = row => <span>{row.config?.queryConfig.query_string}</span>;
+    const eventKeywordsSlot = row => {
+      if (row.config?.queryConfig?.query_string) return <span>{row.config.queryConfig.query_string}</span>;
+      if (row.config?.queryConfig?.where?.length)
+        return row.config?.queryConfig?.where?.map((item, index) => (
+          <span key={item.key}>
+            <span>
+              {item.key} <span style='color: #3A84FF'>{item.method}</span>{' '}
+              {item.value.map((v, index) => (
+                <span key={`${v}_${index}`}>
+                  <span>{v}</span>
+                  {index < item.value.length - 1 && <span style='color: #F59500'> or </span>}
+                </span>
+              ))}
+            </span>
+            {index < row.config.queryConfig.where.length - 1 && <span style='color: #F59500'> and </span>}
+          </span>
+        ));
+      return '*';
+    };
 
     const nameSlot = {
       default: ({ row }) => (

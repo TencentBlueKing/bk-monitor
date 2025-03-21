@@ -25,10 +25,17 @@
   }
 
   .search-input {
+    position: relative;
     padding: 0 12px;
     margin-bottom: 8px;
 
     .bk-form-control {
+      &.has-source-select {
+        .bk-form-input {
+          padding-left: 42px;
+        }
+      }
+
       .bk-form-input {
         cursor: pointer;
         background-color: #f0f1f5;
@@ -42,6 +49,63 @@
           border-width: 1px;
         }
       }
+    }
+
+    .event-source-select {
+      position: absolute;
+      top: 0;
+      left: 19px;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      cursor: pointer;
+
+      .icon-all {
+        margin-right: 3px;
+        font-size: 14px;
+        color: #2F567D;
+      }
+
+      .icon-mc-arrow-down {
+        font-size: 10px;
+      }
+
+      .source-icon {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        vertical-align: middle;
+  
+        &.icon-host {
+          background-image: url('../../../../monitor-common/svg/svg/host.svg');
+        }
+  
+        &.icon-bcs {
+          background-image: url('../../../../monitor-common/svg/svg/bcs.svg');
+        }
+  
+        &.icon-landun {
+          background-image: url('../../../../monitor-common/svg/svg/landun.svg');
+        }
+  
+        &.icon-default {
+          background-image: url('../../../../monitor-common/svg/svg/default.svg');
+        }
+      
+      }
+
+      .source-count-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 12px;
+        line-height: 16px;
+        color: #FFFFFF;
+        text-align: center;
+        background: #2F567D;
+        border-radius: 50%;
+
+      }
+      
     }
   }
 

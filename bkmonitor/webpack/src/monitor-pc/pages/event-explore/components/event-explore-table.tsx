@@ -67,12 +67,14 @@ interface EventExploreTableProps {
   scrollSubject: ExploreSubject;
   /** 刷新表格 */
   refreshTable: string;
+  eventSourceType?: ExploreSourceTypeEnum[];
 }
 
 interface EventExploreTableEvents {
   onConditionChange: (condition: ConditionChangeEvent) => void;
   onSearch: () => void;
   onClearSearch: () => void;
+  onShowEventSourcePopover: (event: Event) => void;
 }
 
 /** 检索表格loading类型枚举 */
@@ -114,7 +116,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Prop({ type: Object }) scrollSubject: ExploreSubject;
   /** 刷新表格 */
   @Prop({ type: String, default: random(8) }) refreshTable: string;
-
+  @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
   /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
@@ -300,6 +302,23 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         type: PREFIX_ICON,
         width: 150,
         customHeaderCls: 'explore-table-source-header-cell',
+        renderHeader:
+          this.source === APIType.APM
+            ? (column: EventExploreTableColumn) => (
+                <div
+                  class='event-source-header'
+                  onClick={this.handleShowEventSourcePopover}
+                >
+                  <span class='header-title'>{column.name}</span>
+                  <i
+                    class={[
+                      'icon-monitor icon-filter-fill filters',
+                      { active: !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL) },
+                    ]}
+                  />
+                </div>
+              )
+            : undefined,
       },
       {
         id: 'event_name',
@@ -363,6 +382,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.tableLoading[loadingType] = false;
 
     updateTableDataFn(res.list);
+  }
+
+  @Emit('showEventSourcePopover')
+  handleShowEventSourcePopover(e: Event) {
+    return e;
   }
 
   /**
@@ -645,6 +669,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         label={column.name}
         min-width={column.min_width}
         prop={column.id}
+        render-header={column?.renderHeader ? () => column.renderHeader(column) : undefined}
         show-overflow-tooltip={false}
       />
     );

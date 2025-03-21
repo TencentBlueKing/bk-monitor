@@ -374,7 +374,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
           ? (filterMode as EMode)
           : EMode.ui;
         this.commonWhere = favoriteId ? [] : JSON.parse((commonWhere as string) || '[]');
-        this.showResidentBtn = JSON.parse(showResidentBtn as string) || false;
+        this.showResidentBtn = JSON.parse((showResidentBtn as string) || 'false') || false;
       } catch (error) {
         console.log('route query:', error);
       }

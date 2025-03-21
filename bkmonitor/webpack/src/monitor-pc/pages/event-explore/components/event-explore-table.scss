@@ -33,6 +33,21 @@
         .bk-table-header-label {
           color: #16171a;
         }
+
+        .event-source-header {
+          .filters {
+            margin-left: 5px;
+            font-size: 12px;
+            color: #979BA5;
+            cursor: pointer;
+
+            &.active {
+              color: #3A84FF;
+            }
+          }
+          
+
+        }
       }
     }
 

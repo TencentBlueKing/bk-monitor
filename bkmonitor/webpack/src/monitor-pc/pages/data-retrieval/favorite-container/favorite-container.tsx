@@ -107,7 +107,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
         const publicFavorite = res[res.length - 1];
         const sortFavoriteList = res.slice(1, res.length - 1).sort((a, b) => a.name.localeCompare(b.name));
         const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-        this.favoritesList = sortAfterList;
+        this.favoritesList = this.setDisabledStatus(sortAfterList);
         this.favStrList = res.reduce((pre, cur) => {
           // 获取所有收藏的名字新增时判断是否重命名
           return pre.concat(cur.favorites.map(item => item.name));
@@ -153,6 +153,27 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
       });
 
     this.$emit('favoriteListChange', this.favoritesList);
+  }
+
+  setDisabledStatus(favoritesList: IFavList.favGroupList[]) {
+    const list = favoritesList;
+    const routeName = this.$route.name;
+    /** 新版事件检索暂不支持日志关键字，需要把日志关键字的收藏给禁用掉 */
+    if (routeName === 'event-explore') {
+      for (const favoriteGroup of list) {
+        for (const favorite of favoriteGroup.favorites) {
+          const data_source_label = favorite.config?.queryConfig?.data_source_label;
+          const data_type_label = favorite.config?.queryConfig?.data_type_label;
+          const eventType = `${data_source_label}_${data_type_label}`;
+          if (eventType === 'bk_monitor_log') {
+            favorite.disabled = true;
+          } else {
+            favorite.disabled = false;
+          }
+        }
+      }
+    }
+    return list;
   }
 
   /** 收藏列表操作 */

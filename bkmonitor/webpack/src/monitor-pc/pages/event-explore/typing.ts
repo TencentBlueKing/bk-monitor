@@ -104,6 +104,7 @@ export enum ExploreTableColumnTypeEnum {
  * @description 事件检索 事件来源 枚举
  */
 export enum ExploreSourceTypeEnum {
+  ALL = 'ALL',
   /** Kubernetes/BCS */
   BCS = 'BCS',
   /** CICD/蓝盾 */
@@ -139,6 +140,8 @@ export interface EventExploreTableColumn {
   fixed?: 'left' | 'right' | boolean;
   /** 自定义列表头类型 */
   customHeaderCls?: string;
+  /** 自定义列表头内容 */
+  renderHeader?: (column: EventExploreTableColumn) => any;
 }
 
 /** 事件检索 kv 面板跳转其他页面 类型枚举 */

@@ -61,9 +61,13 @@ export enum EventTimeSeriesApiEnum {
  * @param type
  * @returns
  */
-export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR): Promise<ITopKField[]> => {
+export const getEventTopK = (
+  params: ITopKRequestParams,
+  type = APIType.MONITOR,
+  config = {}
+): Promise<ITopKField[]> => {
   const apiFunc = type === APIType.APM ? apmEventTopK : eventTopK;
-  return apiFunc(params, { needMessage: false }).catch(() => []);
+  return apiFunc(params, { needMessage: false, ...config }).catch(() => []);
 };
 
 export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {

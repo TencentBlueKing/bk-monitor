@@ -59,6 +59,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
 
   /** 点击收藏 */
   handleClickCollect(item) {
+    if (item.disabled) return;
     setTimeout(() => {
       this.clickDrop = false;
     }, 100);
@@ -141,11 +142,11 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
             <span
               class={[
                 'icon-monitor',
-                this.collectItem.id === 0
-                  ? 'icon-file-personal'
-                  : !this.isExpand
-                    ? 'icon-mc-file-close'
-                    : 'icon-mc-file-open',
+                {
+                  'icon-file-personal': this.collectItem.id === 0,
+                  'icon-mc-file-close': this.collectItem.id !== 0 && !this.isExpand,
+                  'icon-mc-file-open': this.collectItem.id !== 0 && this.isExpand,
+                },
               ]}
             />
             <span class='group-str'>{this.collectItem.name}</span>
@@ -156,7 +157,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
           {this.collectItem.favorites.map((item, index) => (
             <div
               key={index}
-              class={['group-item', { active: this.isActiveFavorite(item.id) }]}
+              class={['group-item', { active: this.isActiveFavorite(item.id), disabled: item.disabled }]}
               onClick={() => this.handleClickCollect(item)}
             >
               <div
@@ -171,7 +172,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
                 >
                   {item.name}
                 </span>
-                {collectDropdownSlot(item)}
+                {!item.disabled && collectDropdownSlot(item)}
               </div>
             </div>
           ))}
