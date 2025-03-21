@@ -1031,4 +1031,6 @@ export default {
   收藏成功: 'Favorite successfully',
   '请输入关键词...': 'Please enter keywords',
   '请输入 或 选择': 'Please enter or select',
+  '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
+    '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
 };

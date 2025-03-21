@@ -357,9 +357,9 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata list label
-  /app/metadata/metadata_get_result_table_storage/:
+  /app/metadata/get_result_table_storage/:
     get:
-      operationId: metadata_get_result_table_storage
+      operationId: metadata_get_result_table_storage_v2
       description: 查询指定结果表的指定存储信息
       tags:
       - metadata
