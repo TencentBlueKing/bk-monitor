@@ -160,7 +160,7 @@ class GetObservationSceneStatusList(CacheResource):
         # 日志关键字无数据判断
         if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
             event_group_name = "{}_{}".format(plugin.plugin_type, plugin.plugin_id)
-            group_info = CustomEventGroup.objects.filter(name=event_group_name).first()
+            group_info = CustomEventGroup.objects.filter(bk_biz_id=bk_biz_id, name=event_group_name).first()
 
             if not group_info:
                 return False
@@ -369,9 +369,9 @@ class GetObservationSceneList(Resource):
             )
 
         event_group_name__info_map: Dict[str, Dict[str, Any]] = {}
-        for event_group_info in CustomEventGroup.objects.filter(name__in=id__event_group_name_map.values()).values(
-            "name", "table_id"
-        ):
+        for event_group_info in CustomEventGroup.objects.filter(
+            bk_biz_id=bk_biz_id, name__in=id__event_group_name_map.values()
+        ).values("name", "table_id"):
             event_group_name__info_map[event_group_info["name"]] = event_group_info
 
         for collect_config in collect_configs:

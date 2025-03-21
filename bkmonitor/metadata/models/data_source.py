@@ -25,6 +25,7 @@ from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -57,7 +58,13 @@ logger = logging.getLogger("metadata")
 
 
 class DataSource(models.Model):
-    """数据源配置"""
+    """
+    数据源配置
+    多租户环境下,除1001等内置数据源外,其余数据源均是租户下唯一,归属租户在创建时即需指定,不允许后续修改
+    1001数据源归属于默认租户
+    data_name + bk_tenant_id 构成联合唯一索引
+    1001数据的RT直接变成 system.io@{bk_tenant_id},以避免在DSRT过滤时混淆
+    """
 
     # 标识 transfer 可以写入的存储表
     TRANSFER_STORAGE_LIST = [ESStorage, InfluxDBStorage, KafkaStorage]
@@ -76,7 +83,11 @@ class DataSource(models.Model):
     bk_data_id = models.AutoField("数据源ID", primary_key=True)
     # data_source的token, 用于供各个自定义上报对data_id进行校验，防止恶意上报, 但是对于已有的data_id由于不是自定义，不做处理
     token = models.CharField("上报校验token", max_length=256, default="")
-    data_name = models.CharField("数据源名称", max_length=128, db_index=True, unique=True)
+
+    # 多租户 data_name + bk_tenant_id 联合唯一
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system', db_index=True)
+    data_name = models.CharField("数据源名称", max_length=128, db_index=True)
+
     data_description = models.TextField("数据源描述")
     # 对应StorageCluster 记录ID
     mq_cluster_id = models.IntegerField("消息队列集群ID")
@@ -125,6 +136,7 @@ class DataSource(models.Model):
     class Meta:
         verbose_name = "数据源管理"
         verbose_name_plural = "数据源管理表"
+        unique_together = ('data_name', 'bk_tenant_id')
 
     def __init__(self, *args, **kwargs):
         super(DataSource, self).__init__(*args, **kwargs)
@@ -199,13 +211,15 @@ class DataSource(models.Model):
 
         return conf_list
 
-    def get_spaces_by_data_id(self, bk_data_id: int, from_authorization: Optional[bool] = False) -> Union[List, Dict]:
+    def get_spaces_by_data_id(
+        self, bk_data_id: int, from_authorization: Optional[bool] = False, bk_tenant_id=DEFAULT_TENANT_ID
+    ) -> Union[List, Dict]:
         """通过数据源 ID 查询空间为授权的或者为当前空间"""
-        # 返回来源于授权空间信息
+        # 返回来源于授权空间信息,{space_type_id}__{space_id}__{bk_tenant_id}
         space_list = list(
-            SpaceDataSource.objects.filter(bk_data_id=bk_data_id, from_authorization=from_authorization).values(
-                "space_type_id", "space_id"
-            )
+            SpaceDataSource.objects.filter(
+                bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, from_authorization=from_authorization
+            ).values("space_type_id", "space_id", "bk_tenant_id")
         )
         # 如果为授权，则直接返回
         if from_authorization:
@@ -236,6 +250,7 @@ class DataSource(models.Model):
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "mq_config": mq_config,
             "etl_config": self.etl_config,
             "option": DataSourceOption.get_option(self.bk_data_id),
@@ -251,9 +266,12 @@ class DataSource(models.Model):
         }
 
         if with_rt_info:
-            # 获取ResultTable的配置
+            # 获取ResultTable的配置,1001等数据存在 1--N 结果表映射关系
             result_table_id_list = [
-                info.table_id for info in DataSourceResultTable.objects.filter(bk_data_id=self.bk_data_id)
+                info.table_id
+                for info in DataSourceResultTable.objects.filter(
+                    bk_data_id=self.bk_data_id, bk_tenant_id=self.bk_tenant_id
+                )
             ]
 
             result_table_info_list = []
@@ -262,10 +280,12 @@ class DataSource(models.Model):
                 rt["table_id"]: rt
                 for rt in ResultTable.objects.filter(
                     table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-                ).values("table_id", "bk_biz_id", "schema_type")
+                ).values("table_id", "bk_biz_id", "schema_type", "bk_tenant_id")
             }
 
             real_table_id_list = list(real_table_ids.keys())
+
+            # TODO: 多租户 需要适配多租户查询RTField和Option
             # 批量获取结果表级别选项
             table_id_option_dict = ResultTableOption.batch_result_table_option(real_table_id_list)
             # 获取字段信息
@@ -275,6 +295,7 @@ class DataSource(models.Model):
                 result_table_info_list.append(
                     {
                         "bk_biz_id": rt_info["bk_biz_id"],
+                        "bk_tenant_id": rt_info["bk_tenant_id"],
                         "result_table": rt,
                         "shipper_list": self.get_transfer_storage_conf(rt),
                         # 如果是自定义上报的情况，不需要将字段信息写入到consul上
@@ -320,6 +341,7 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID) -> int:
         """
@@ -390,7 +412,13 @@ class DataSource(models.Model):
             raise
 
     def _save_space_datasource(
-        self, creator: str, space_type_id: str, space_id: str, bk_data_id: str, authorized_spaces: Optional[List] = None
+        self,
+        creator: str,
+        space_type_id: str,
+        space_id: str,
+        bk_data_id: str,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
+        authorized_spaces: Optional[List] = None,
     ):
         """保存空间数据源关系表
 
@@ -398,7 +426,7 @@ class DataSource(models.Model):
         :param space_type_id: 空间类型
         :param space_id: 空间英文名称
         :param bk_data_id: 数据源ID
-        :param authorized_space: 授权的使用的空间 ID
+        :param authorized_spaces: 授权的使用的空间 ID
         """
         # 1. 保存当前空间和数据源的关系
         SpaceDataSource.objects.create(
@@ -406,6 +434,7 @@ class DataSource(models.Model):
             space_type_id=space_type_id,
             space_id=space_id,
             bk_data_id=bk_data_id,
+            bk_tenant_id=bk_tenant_id,
             from_authorization=False,
         )
         if not authorized_spaces:
@@ -423,6 +452,7 @@ class DataSource(models.Model):
                 space_type_id=s["space_type_id"],
                 space_id=s["space_id"],
                 bk_data_id=bk_data_id,
+                bk_tenant_id=bk_tenant_id,
                 from_authorization=True,
             )
             for s in authorized_spaces
@@ -437,6 +467,7 @@ class DataSource(models.Model):
         operator,
         source_label,
         type_label,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         bk_data_id=None,
         mq_cluster=None,
         mq_config=None,
@@ -461,6 +492,7 @@ class DataSource(models.Model):
         :param transfer_cluster_id: transfer 集群ID，默认为 default
         :param data_name: 数据源名称
         :param bk_data_id: 数据源ID，如果未None则自增配置
+        :param bk_tenant_id: 租户ID
         :param mq_cluster: Kafka 集群ID，如果为None时，则使用默认的Kafka集群
         :param mq_config: Kafka 集群配置 {"topic": "xxxx", "partition": 1}
         :param etl_config: 清洗配置，可以为json格式字符串，或者默认内置的清洗配置函数名
@@ -484,6 +516,17 @@ class DataSource(models.Model):
         :return: DataSource instance | raise Exception
         """
         # 判断两个使用到的标签是否存在
+        logger.info(
+            "create_data_source: try to create datasource with params,data_name->[%s],etl_config->[%s],"
+            "operator->[%s],source_label->[%s],type_label->[%s],bk_tenant_id->[%s]",
+            data_name,
+            etl_config,
+            operator,
+            source_label,
+            type_label,
+            bk_tenant_id,
+        )
+
         if not Label.exists_label(label_id=source_label, label_type=Label.LABEL_TYPE_SOURCE) or not Label.exists_label(
             label_id=type_label, label_type=Label.LABEL_TYPE_TYPE
         ):
@@ -495,10 +538,15 @@ class DataSource(models.Model):
 
         # 1. 判断参数是否符合预期
         # 数据源名称是否重复
-        if cls.objects.filter(data_name=data_name).exists():
-            logger.error("data_name->[%s] is already exists, maybe something go wrong?" % data_name)
-            raise ValueError(_("数据源名称[%s]已经存在，请确认后重试") % data_name)
+        if cls.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).exists():
+            logger.error(
+                "data_name->[%s] in bk_tenant_id->[%s] is already exists, maybe something go wrong?",
+                data_name,
+                bk_tenant_id,
+            )
+            raise ValueError(_("数据源名称[%s]在租户[%s]下已经存在，请确认后重试") % data_name, bk_tenant_id)
 
+        # TODO: 多租户 V4链路中,理论上用户不再能指定Kafka集群,且多租户场景下,Kafka集群需要读取SpaceRelatedStorageInfo关联信息
         try:
             # 如果集群信息无提供，则使用默认的MQ集群信息
             if mq_cluster is None:
@@ -522,6 +570,7 @@ class DataSource(models.Model):
                 logger.info(
                     "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
                 )
+                # TODO: 多租户 等待BkBase多租户协议,传递租户ID
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name, bk_biz_id)
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
@@ -540,6 +589,7 @@ class DataSource(models.Model):
             data_source = cls.objects.create(
                 bk_data_id=bk_data_id,
                 data_name=data_name,
+                bk_tenant_id=bk_tenant_id,
                 etl_config=etl_config,
                 creator=operator,
                 mq_cluster_id=mq_cluster.cluster_id,
@@ -641,7 +691,14 @@ class DataSource(models.Model):
         # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
         try:
             if not is_platform_data_id and space_type_id and space_id:
-                cls()._save_space_datasource(operator, space_type_id, space_id, bk_data_id, authorized_spaces)
+                cls()._save_space_datasource(
+                    creator=operator,
+                    space_type_id=space_type_id,
+                    space_id=space_id,
+                    bk_tenant_id=bk_tenant_id,
+                    bk_data_id=bk_data_id,
+                    authorized_spaces=authorized_spaces,
+                )
         except Exception:
             logger.exception("save the relationship for space and datasource error")
 
@@ -842,14 +899,15 @@ class DataSource(models.Model):
             if space_info:
                 try:
                     self._save_space_datasource(
-                        operator,
-                        space_info["space_type_id"],
-                        space_info["space_id"],
-                        self.bk_data_id,
-                        authorized_spaces,
+                        creator=operator,
+                        space_type_id=space_info["space_type_id"],
+                        space_id=space_info["space_id"],
+                        bk_data_id=str(self.bk_data_id),
+                        authorized_spaces=authorized_spaces,
+                        bk_tenant_id=self.bk_tenant_id,
                     )
-                except Exception:
-                    logger.exception("save the relationship for space and datasource error")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.exception("save the relationship for space and datasource error->[%s]", e)
 
         return True
 
@@ -1086,7 +1144,10 @@ class DataSource(models.Model):
 
             # 判断是否已经存在字段配置
             if ResultTableRecordFormat.objects.filter(
-                table_id=table_id, metric=metric_name, dimension_list=json.dumps(dimension_list)
+                table_id=table_id,
+                metric=metric_name,
+                bk_tenant_id=self.bk_tenant_id,
+                dimension_list=json.dumps(dimension_list),
             ).exists():
                 logger.info(
                     "record format for table->[%s] metric->[%s] dimension->[%s] is exists, nothing will do."
@@ -1097,10 +1158,11 @@ class DataSource(models.Model):
             # 如果不存在，需要先创建所有的字段，然后创建record_format
             for dimension_field in table_config["dimension"]:
                 if not ResultTableField.objects.filter(
-                    table_id=table_id, field_name=dimension_field["field_name"]
+                    table_id=table_id, bk_tenant_id=self.bk_tenant_id, field_name=dimension_field["field_name"]
                 ).exists():
                     ResultTableField.create_field(
                         table_id=table_id,
+                        bk_tenant_id=self.bk_tenant_id,
                         field_name=dimension_field["field_name"],
                         field_type=dimension_field["type"],
                         is_config_by_user=False,
@@ -1109,10 +1171,11 @@ class DataSource(models.Model):
                     )
 
             if not ResultTableField.objects.filter(
-                table_id=table_id, field_name=table_config["metric"]["field_name"]
+                table_id=table_id, bk_tenant_id=self.bk_tenant_id, field_name=table_config["metric"]["field_name"]
             ).exists():
                 ResultTableField.create_field(
                     table_id=table_id,
+                    bk_tenant_id=self.bk_tenant_id,
                     field_name=table_config["metric"]["field_name"],
                     field_type=table_config["metric"]["type"],
                     is_config_by_user=False,
@@ -1122,7 +1185,7 @@ class DataSource(models.Model):
 
             # 创建record_format记录
             ResultTableRecordFormat.create_record_format(
-                table_id=table_id, metric=metric_name, dimension_list=dimension_list
+                table_id=table_id, metric=metric_name, dimension_list=dimension_list, bk_tenant_id=self.bk_tenant_id
             )
             logger.info("new record for table->[%s] now is create.")
 
@@ -1188,22 +1251,24 @@ class DataSourceOption(OptionBase):
 
     # 增加option标记内容
     bk_data_id = models.IntegerField("数据源ID", db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     name = models.CharField(
         "option名称",
         max_length=128,
     )
 
     @classmethod
-    def create_option(cls, bk_data_id, name, value, creator):
+    def create_option(cls, bk_data_id, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         创建结果表字段选项
         :param bk_data_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param name: 选项名
         :param value: 值
         :param creator: 创建者
         :return:
         """
-        if cls.objects.filter(bk_data_id=bk_data_id, name=name).exists():
+        if cls.objects.filter(bk_data_id=bk_data_id, name=name, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
                 "bk_data_id->[{}] already has option->[{}], maybe something go wrong?".format(bk_data_id, name)
             )
@@ -1214,6 +1279,7 @@ class DataSourceOption(OptionBase):
 
         # 补充子类的特殊信息
         record.bk_data_id = bk_data_id
+        record.bk_tenant_id = bk_tenant_id
         record.name = name
 
         # 写入到数据库
@@ -1222,17 +1288,18 @@ class DataSourceOption(OptionBase):
         return record
 
     @classmethod
-    def create_or_update(cls, bk_data_id, name, value, creator):
+    def create_or_update(cls, bk_data_id, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         创建或者更新结果表字段选项
         :param bk_data_id:  数据源ID
+        :param bk_tenant_id: 租户ID
         :param name:   可选字段名称
         :param value:  可选字段值
         :param creator: 创建人和更新人
         :return:
         """
         try:
-            record = cls.objects.get(bk_data_id=bk_data_id, name=name)
+            record = cls.objects.get(bk_data_id=bk_data_id, name=name, bk_tenant_id=bk_tenant_id)
             val, val_type = cls._parse_value(value)
             record.value = val
             record.value_type = val_type
@@ -1247,6 +1314,7 @@ class DataSourceOption(OptionBase):
             # 补充子类的特殊信息
             record.bk_data_id = bk_data_id
             record.name = name
+            record.bk_tenant_id = bk_tenant_id
 
             # 写入到数据库
             record.save()
@@ -1258,11 +1326,13 @@ class DataSourceResultTable(models.Model):
 
     bk_data_id = models.IntegerField("数据源ID")
     table_id = models.CharField("结果表名", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     creator = models.CharField("创建者", max_length=32)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
 
     class Meta:
-        unique_together = ("bk_data_id", "table_id")
+        # TODO: 是否需要三联合唯一,system.io -> system.io@canway
+        unique_together = ("bk_data_id", "table_id", "bk_tenant_id")
         verbose_name = "数据源-结果表关系配置"
         verbose_name_plural = "数据源-结果表关系配置表"
 
@@ -1270,21 +1340,21 @@ class DataSourceResultTable(models.Model):
         return "<{},{}>".format(self.bk_data_id, self.table_id)
 
     @classmethod
-    def modify_table_id_datasource(cls, table_id=None, bk_data_id=None):
-        if cls.objects.filter(bk_data_id=bk_data_id).exists():
+    def modify_table_id_datasource(cls, table_id=None, bk_data_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        if cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("数据源有跟结果表关联"))
 
-        if not DataSource.objects.filter(bk_data_id=bk_data_id).exists():
+        if not DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("数据源不存在"))
 
         refresh_consul_config_data_ids = [bk_data_id]
 
         with atomic(config.DATABASE_CONNECTION_NAME):
             # 解除老的关联关系
-            if cls.objects.filter(table_id=table_id).exists():
-                if cls.objects.filter(table_id=table_id).count() != 1:
+            if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
+                if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).count() != 1:
                     raise ValueError(_("结果表有多个关联数据源"))
-                target = cls.objects.filter(table_id=table_id).first()
+                target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
                 logger.info("table_id => [%s] do not relation bk_data_id => [%s]", table_id, target.bk_data_id)
                 target.delete()
                 refresh_consul_config_data_ids.append(target.bk_data_id)
@@ -1295,14 +1365,17 @@ class DataSourceResultTable(models.Model):
             datasource.refresh_consul_config()
 
     @classmethod
-    def refresh_consul_config_by_table_id(cls, table_id):
+    def refresh_consul_config_by_table_id(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         通过 table_id 批量更新 consul 配置
-        :param bk_data_id:  数据表id
+        :param table_id:  数据表id
+        :param bk_tenant_id:  租户id
         :return: None | raise Exception
         """
         data_id_list = list(
-            DataSourceResultTable.objects.filter(table_id=table_id).values_list("bk_data_id", flat=True)
+            DataSourceResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                "bk_data_id", flat=True
+            )
         )
 
         if len(data_id_list) == 0:

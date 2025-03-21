@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
+from bkmonitor.utils.request import get_request
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_api.filtersets import get_filterset
@@ -300,6 +301,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         """
         旧版动态下发配置转换
         """
+        request = get_request()
         data = super(UptimeCheckTaskViewSet, self).retrieve(request, *args, **kwargs).data
         config = data["config"]
         protocol = data["protocol"]
@@ -314,7 +316,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 config["ip_list"] = []
             if hosts[0].get("ip"):
                 ips = [host["ip"] for host in hosts if host.get("ip")]
-                host_instances = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+                host_instances = api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, ips=ips)["hosts"]
                 config["node_list"] = [{"bk_host_id": h.bk_host_id} for h in host_instances]
                 host_instance_ips = [h.ip for h in host_instances]
                 config["ip_list"] = [host["ip"] for host in hosts if host["ip"] not in host_instance_ips]

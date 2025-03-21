@@ -65,6 +65,7 @@ class Label(models.Model):
         :param include_admin_only: 是否只需要返回全部标签, 包含只管理员可用的配置标签
         :param label_type: 标签类型，可选参数
         :param level: 标签层级，可选参数
+        :param bk_tenant_id: 租户ID
         :return: {
             "source_label": [{
                 "label_id": "bk_monitor_collector",
@@ -166,6 +167,7 @@ class OptionBase(models.Model):
     value = models.TextField("option配置内容")
     creator = models.CharField("创建者", max_length=32)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
 
     class Meta:
         abstract = True
