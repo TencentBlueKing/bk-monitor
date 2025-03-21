@@ -348,7 +348,7 @@ export default class UiSelector extends tsc<IProps> {
           <AutoWidthInput
             height={40}
             isFocus={this.inputFocus}
-            placeholder={`${this.$t('快捷键/，请输入...')}`}
+            placeholder={`${this.$t('快捷键 / ，请输入...')}`}
             value={this.inputValue}
             onBlur={this.handleBlur}
             onEnter={this.handleEnter}

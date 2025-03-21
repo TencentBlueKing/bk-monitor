@@ -315,5 +315,5 @@ export default {
   '搜索 维度字段': 'Search Dimension Field',
   '仅查看当前数据 ID': 'Only view current data ID',
   '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
-  '快捷键/，请输入...': 'Quick key/, please enter...',
+  '快捷键 / ，请输入...': 'Quick key/, please enter...',
 };

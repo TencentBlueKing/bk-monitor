@@ -574,7 +574,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               theme='primary'
               onClick={() => this.handleConfirm()}
             >
-              {`${this.$t('确定')} Ctrl+ Enter`}
+              {`${this.$t('确定')} Ctrl + Enter`}
             </bk-button>
             <bk-button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</bk-button>
           </div>

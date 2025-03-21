@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  min-height: 22px;
+  height: 22px;
   padding: 2px 4px;
   margin: 0 4px 4px 0;
   overflow: hidden;
@@ -11,7 +11,6 @@
   background: #f0f1f5;
   border: 1px solid transparent;
   border-radius: 2px;
-
 
   .value-span {
     overflow: hidden;
@@ -48,7 +47,7 @@
       width: 12px; /* Width of the scrollbar */
     }
   }
-  
+
   &:hover {
     cursor: pointer;
     background-color: #dcdee5;
