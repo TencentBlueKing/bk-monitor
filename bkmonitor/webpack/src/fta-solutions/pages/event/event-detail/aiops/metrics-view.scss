@@ -59,6 +59,9 @@
     flex-direction: row;
     min-height: 260px;
     padding-top: 8px;
+    .bk-table-empty-block {
+      background: none;
+    }
 
     .correlation-metric-fixed {
       position: fixed;

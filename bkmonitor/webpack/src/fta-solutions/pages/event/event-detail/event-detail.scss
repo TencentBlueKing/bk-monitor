@@ -40,7 +40,7 @@
     position: relative;
     width: 100%;
     padding: 0 84px;
-    min-width: 1200px;
+    // min-width: 1200px;
     // padding-bottom: 68px;
 
     .basicinfo-bottom-border {
@@ -57,6 +57,7 @@
   }
   .event-detail-aiops {
     height: 100%;
+    // overflow-x: auto;
     background: #f0f3fa;
   }
 }

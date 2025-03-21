@@ -40,8 +40,6 @@ import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-// import AiopsContainer from './aiops/aiops-container-test';
 import AiopsContainer from './aiops/aiops-container-new';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
@@ -56,6 +54,7 @@ import QuickShield from './quick-shield';
 import TabContainer from './tab-container';
 
 import type { IDetail } from './type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './event-detail.scss';
 
@@ -621,18 +620,22 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         <bk-resize-layout
           class='detail-resize-view'
           auto-minimize={true}
-          initial-divide={'62%'}
-          min={760}
+          initial-divide={'32%'}
+          max={660}
+          min={400}
+          placement={'right'}
         >
-          <div slot='aside'>{this.renderDetailContainer()}</div>
-          <div
-            class='event-detail-aiops'
-            slot='main'
-          >
+          <div slot='aside'>
             <AiopsContainer
               detail={this.basicInfo}
               show={true}
             />
+          </div>
+          <div
+            class='event-detail-aiops'
+            slot='main'
+          >
+            {this.renderDetailContainer()}
           </div>
         </bk-resize-layout>
       );
