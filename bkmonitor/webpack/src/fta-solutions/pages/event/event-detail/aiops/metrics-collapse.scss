@@ -81,6 +81,12 @@
     .correlation-metrics-collapse-head-show {
       display: flex;
     }
+    .correlation-metrics-collapse-content {
+      .flex-dashboard-item {
+        max-width: 100% !important;
+        margin-right: 0;
+      }
+    }
 
     .correlation-metrics-right {
       display: flex;

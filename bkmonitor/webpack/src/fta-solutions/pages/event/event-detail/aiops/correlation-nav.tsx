@@ -51,7 +51,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
 
   @Watch('list', { immediate: true })
   handleChange(val) {
-    if (!this.active && val.length > 0 && val[0].metrics.length > 0) {
+    if (!this.active && val.length > 0 && val[0].metrics?.length > 0) {
       this.active = val[0].metrics[0].metric_name;
     }
   }
@@ -86,7 +86,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
           <span class='classification-num'>
             {item?.dimension_anomaly_value_count
               ? `${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}`
-              : item.metrics.length}
+              : item.metrics?.length}
           </span>
         </p>
         <bk-transition name='collapse'>
@@ -94,7 +94,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
             class='classification-list'
             v-show={!this.isCollapse}
           >
-            {item.metrics.map(metric => (
+            {(item.metrics || []).map(metric => (
               <li
                 key={metric.metric_name}
                 class={['classification-list-item', { active: this.active === metric.metric_name }]}

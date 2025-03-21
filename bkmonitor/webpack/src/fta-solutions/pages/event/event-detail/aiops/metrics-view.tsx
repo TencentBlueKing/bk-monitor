@@ -191,12 +191,15 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
     this.scrollActiveFlag = true;
     const key = `${item.metric_name}_collapse`;
     const current = document.getElementById(key);
+    const detailWrapper = document.querySelector('.correlation-metric-panels');
     if (!current) {
       return;
     }
-    current.scrollIntoView({
+    detailWrapper.scrollTo({
+      top: current.offsetTop - 10,
       behavior: 'smooth',
     });
+
     if (this.$refs[key] && (this.$refs[key] as any).isCollapse) {
       setTimeout(() => {
         (this.$refs[key] as any)?.handleToggleCollapse?.(true);
@@ -245,7 +248,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             </div>,
           ]
         ) : (
-          <div class={`bk-table-empty-block aiops-metrics-view-${!this.isCorrelationMetrics ? 'hide' : 'show'}`}>
+          <div class={`bk-table-empty-block`}>
             <bk-exception
               scene='part'
               type={this.metricRecommendationErr ? '500' : 'empty'}
@@ -287,6 +290,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       />
     );
   }
+
   render() {
     return <div class='aiops-metrics-view'>{this.renderCorrelationMetricPanels()}</div>;
   }
