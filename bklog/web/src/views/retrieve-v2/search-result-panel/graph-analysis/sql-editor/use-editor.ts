@@ -133,13 +133,15 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
     );
   };
 
-  useResizeObserve(refRootElement, () => {
+  const debounceLayout = debounce(() => {
     const rect = refRootElement.value.getBoundingClientRect();
     editorInstance.value?.layout({
       width: rect.width,
-      height: rect.height, // 动态获取最新高度
+      height: rect.height,
     });
-  });
+  }, 300);
+
+  useResizeObserve(refRootElement, debounceLayout);
 
   onMounted(() => {
     setTimeout(() => {

@@ -35,6 +35,7 @@ from luqum.tree import (
     Regex,
     SearchField,
     Term,
+    Word,
 )
 from opentelemetry import trace
 
@@ -91,7 +92,20 @@ class ChartHandler(object):
         raise NotImplementedError(_("功能暂未实现"))
 
     @staticmethod
-    def lucene_to_where_clause(lucene_query):
+    def to_like_syntax(value: str):
+        """
+        转化为like语法
+        :param value: 值
+        """
+        value = value.replace("*", "%").replace("?", "_")
+        if not value.startswith("%"):
+            value = "%" + value
+        if not value.endswith("%"):
+            value += "%"
+        return value
+
+    @classmethod
+    def lucene_to_where_clause(cls, lucene_query):
         # 解析 Lucene 查询
         query_tree = parser.parse(lucene_query)
 
@@ -108,7 +122,8 @@ class ChartHandler(object):
                 if isinstance(node.expr, Phrase):
                     # 处理带引号的短语
                     value = expr.value.replace("'", "''")
-                    return f"{field_name} = {value}"
+                    op = "MATCH_PHRASE" if field_name == "log" else "="
+                    return f"{field_name} {op} {value}"
                 elif isinstance(expr, Regex):
                     # 处理正则表达式
                     regex = expr.value.strip("/")
@@ -120,11 +135,7 @@ class ChartHandler(object):
                     return f"{field_name} BETWEEN {low} AND {high}"
                 elif isinstance(expr, Term):
                     # 处理不带引号的术语,替换通配符
-                    value = expr.value.replace("*", "%").replace("?", "_")
-                    if not value.startswith("%"):
-                        value = "%" + value
-                    if not value.endswith("%"):
-                        value += "%"
+                    value = cls.to_like_syntax(expr.value)
                     return f"{field_name} LIKE '{value}'"
             elif isinstance(node, OrOperation):
                 # 处理 OR 操作
@@ -140,6 +151,10 @@ class ChartHandler(object):
             elif isinstance(node, Phrase):
                 # 处理带引号的短语
                 return f"log MATCH_PHRASE {node.value}"
+            elif isinstance(node, Word):
+                # 处理不带引号的短语
+                value = cls.to_like_syntax(node.value)
+                return f"log LIKE '{value}'"
 
         return build_condition(query_tree)
 
@@ -215,11 +230,7 @@ class ChartHandler(object):
             for index, value in enumerate(values):
                 if operator in ["=~", "&=~", "!=~", "&!=~"]:
                     # 替换通配符
-                    value = value.replace("*", "%").replace("?", "_")
-                    if not value.startswith("%"):
-                        value = "%" + value
-                    if not value.endswith("%"):
-                        value += "%"
+                    value = cls.to_like_syntax(value)
                 elif operator in ["contains", "not contains"]:
                     # 添加通配符
                     value = f"%{value}%"
