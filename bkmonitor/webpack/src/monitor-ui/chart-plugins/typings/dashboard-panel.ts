@@ -719,11 +719,14 @@ export class PanelModel implements IPanelModel {
           const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
           return {
             expression: set.expression || 'A',
-            query_configs: [
-              filterDictConvertedToWhere(
-                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
-              ),
-            ],
+            // query_configs: [
+            //   filterDictConvertedToWhere(
+            //     Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+            //   ),
+            // ],
+            query_configs: Array.isArray(config.query_configs)
+              ? config.query_configs.map(item => filterDictConvertedToWhere(item))
+              : [filterDictConvertedToWhere(config.query_configs)],
           };
         }
         return undefined;
