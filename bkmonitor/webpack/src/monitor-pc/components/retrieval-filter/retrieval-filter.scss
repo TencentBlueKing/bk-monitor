@@ -64,33 +64,47 @@
       align-items: center;
       align-self: stretch;
       margin: 0 0 0 auto;
-
-      .setting-btn,
-      .favorite-btn {
+      .component-right-btns {
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        margin-right: 12px;
-        font-size: 16px;
-        color: #4d4f56;
-        cursor: pointer;
-        border-radius: 2px;
+        flex-wrap: wrap;
+        .clear-btn,
+        .copy-btn,
+        .setting-btn,
+        .favorite-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          margin: 10px 12px 10px 0;
+          font-size: 16px;
+          color: #4d4f56;
+          cursor: pointer;
+          border-radius: 2px;
 
-        .icon-bookmark {
-          font-size: 20px;
-        }
+          .icon-bookmark {
+            font-size: 18px;
+          }
+          .icon-a-Clearqingkong {
+            font-size: 18px;
+          }
+          .icon-mc-copy {
+            font-size: 18px;
+          }
 
-        &:hover {
-          background: #eaebf0;
-        }
+          &:hover {
+            background: #eaebf0;
+          }
 
-        &.btn-active {
-          color: #3a84ff;
-          background: #e1ecff;
+          &.btn-active {
+            color: #3a84ff;
+            background: #e1ecff;
+          }
         }
       }
+
+      
 
       .search-btn {
         display: flex;

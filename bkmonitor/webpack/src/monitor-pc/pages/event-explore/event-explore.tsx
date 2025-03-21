@@ -452,7 +452,6 @@ export default class EventExplore extends tsc<
                 fields={this.fieldList}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
-                isQsOperateWrapBottom={this.source === APIType.APM}
                 isShowFavorite={this.source === APIType.MONITOR}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}

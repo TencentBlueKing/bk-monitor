@@ -454,9 +454,9 @@ export class QueryStringEditor {
   }
   handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
-      // event.stopPropagation();
+      event.stopPropagation();
       event.preventDefault();
-      // this.options?.onQuery?.();
+      this.options?.onQuery?.();
     }
   }
 
@@ -564,9 +564,9 @@ export class QueryStringEditor {
       }
       this.queryString = `${this.queryString} ${value} `;
       this.parseQueryString();
-      if (this.tokens[this.tokens.length - 1].type === EQueryStringTokenType.value) {
-        this.options?.onQuery?.();
-      }
+      // if (this.tokens[this.tokens.length - 1].type === EQueryStringTokenType.value) {
+      //   this.options?.onQuery?.();
+      // }
     }
     this.setTokensToTarget(true);
     this.popUpFn(true);

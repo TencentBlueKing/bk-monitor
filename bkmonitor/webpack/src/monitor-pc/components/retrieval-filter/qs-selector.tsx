@@ -45,9 +45,10 @@ import './qs-selector.scss';
 interface IProps {
   value?: string;
   fields: IFilterField[];
+  clearKey?: string;
   qsSelectorOptionsWidth?: number;
   favoriteList?: IFavoriteListItem[];
-  isQsOperateWrapBottom?: boolean;
+  // isQsOperateWrapBottom?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onQuery?: (v: string) => void;
   onChange?: (v: string) => void;
@@ -69,10 +70,11 @@ export default class QsSelector extends tsc<IProps> {
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   /* 语句模式hover显示的操作是否显示在下方 */
-  @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
+  // @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
+  @Prop({ type: String, default: '' }) clearKey: string;
 
   @Ref('select') selectRef: HTMLDivElement;
-  @Ref('lastPosition') lastPositionRef: HTMLDivElement;
+  // @Ref('lastPosition') lastPositionRef: HTMLDivElement;
   @Ref('el') elRef: HTMLDivElement;
 
   localValue = '';
@@ -91,10 +93,10 @@ export default class QsSelector extends tsc<IProps> {
 
   queryStringEditor: QueryStringEditor = null;
 
-  operatePosition = {
-    top: -26,
-    left: 0,
-  };
+  // operatePosition = {
+  //   top: -26,
+  //   left: 0,
+  // };
 
   inputValue = '';
   fieldsMap: Map<string, IFilterField> = new Map();
@@ -119,13 +121,13 @@ export default class QsSelector extends tsc<IProps> {
   @Debounce(200)
   @Watch('localValue', { immediate: true })
   handleWatchLocalValue() {
-    if (!this.lastPositionRef) return;
-    const left = this.lastPositionRef.offsetLeft;
-    const top = this.lastPositionRef.offsetTop < 14 && !this.isQsOperateWrapBottom ? -26 : this.$el.clientHeight - 2;
-    this.operatePosition = {
-      top,
-      left,
-    };
+    // if (!this.lastPositionRef) return;
+    // const left = this.lastPositionRef.offsetLeft;
+    // const top = this.lastPositionRef.offsetTop < 14 && !this.isQsOperateWrapBottom ? -26 : this.$el.clientHeight - 2;
+    // this.operatePosition = {
+    //   top,
+    //   left,
+    // };
     this.handleAddKeyDownSlash();
   }
 
@@ -136,6 +138,10 @@ export default class QsSelector extends tsc<IProps> {
     }
   }
 
+  @Watch('clearKey')
+  handleWatchClearKey() {
+    this.handleClear();
+  }
   mounted() {
     this.handleInit();
   }
@@ -373,7 +379,7 @@ export default class QsSelector extends tsc<IProps> {
           ref='el'
           class='__bottom__'
         />
-        <div class='qs-value-hidden'>
+        {/* <div class='qs-value-hidden'>
           <div class='qs-value-hidden-text'>
             {this.localValue}
             <span
@@ -381,7 +387,7 @@ export default class QsSelector extends tsc<IProps> {
               class='last-position__'
             />
           </div>
-        </div>
+        </div> */}
 
         <div style='display: none;'>
           <div
@@ -405,7 +411,7 @@ export default class QsSelector extends tsc<IProps> {
             />
           </div>
         </div>
-        {!!this.localValue && !this.showSelector && (
+        {/* {!!this.localValue && !this.showSelector && (
           <div
             style={{
               left: `${this.operatePosition.left}px`,
@@ -436,7 +442,7 @@ export default class QsSelector extends tsc<IProps> {
               <span class='icon-monitor icon-mc-copy' />
             </div>
           </div>
-        )}
+        )} */}
       </div>
     );
   }

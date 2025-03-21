@@ -47,6 +47,7 @@ import './ui-selector.scss';
 interface IProps {
   fields: IFilterField[];
   value?: IFilterItem[];
+  clearKey?: string;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
 }
@@ -64,6 +65,7 @@ export default class UiSelector extends tsc<IProps> {
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ type: Array, default: () => [] }) value: IFilterItem[];
+  @Prop({ type: String, default: '' }) clearKey: string;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -88,6 +90,11 @@ export default class UiSelector extends tsc<IProps> {
     if (valueStr !== localValueStr) {
       this.localValue = JSON.parse(valueStr);
     }
+  }
+
+  @Watch('clearKey')
+  handleWatchClearKey() {
+    this.handleClear();
   }
 
   mounted() {
@@ -214,8 +221,8 @@ export default class UiSelector extends tsc<IProps> {
   /**
    * @description 清空
    */
-  handleClear(event: MouseEvent) {
-    event.stopPropagation();
+  handleClear(event?: MouseEvent) {
+    event?.stopPropagation?.();
     this.localValue = [];
     this.updateActive = -1;
     this.hideInput();
@@ -362,7 +369,7 @@ export default class UiSelector extends tsc<IProps> {
           ) : (
             <span class='placeholder-text'>{`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}</span>
           )} */}
-          {!!this.localValue.length && !this.showSelector && (
+          {/* {!!this.localValue.length && !this.showSelector && (
             <div class='hover-btn-wrap'>
               <div
                 class='operate-btn'
@@ -385,7 +392,7 @@ export default class UiSelector extends tsc<IProps> {
                 <span class='icon-monitor icon-mc-copy' />
               </div>
             </div>
-          )}
+          )} */}
         </div>
         <div style='display: none;'>
           <div ref='selector'>
