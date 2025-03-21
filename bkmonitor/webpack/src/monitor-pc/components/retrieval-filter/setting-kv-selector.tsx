@@ -304,7 +304,7 @@ export default class SettingKvSelector extends tsc<IProps> {
           onMouseenter={this.handleMouseenter}
           onMouseleave={this.handleMouseleave}
         >
-          <span class='key-wrap'>{this.value?.key}</span>
+          <span class='key-wrap'>{this.fieldInfo?.alias || this.value?.key}</span>
           <span class='method-wrap'>
             <bk-dropdown-menu
               positionFixed={true}

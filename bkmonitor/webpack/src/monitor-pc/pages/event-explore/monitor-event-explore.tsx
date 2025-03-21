@@ -28,7 +28,7 @@ import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-d
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
-import { EMode } from '../../components/retrieval-filter/utils';
+import { EMode, whereFormatter } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
@@ -184,7 +184,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.dataSourceLabel = data_source_label;
       this.dataTypeLabel = data_type_label;
       this.queryString = query_string;
-      this.where = where;
+      this.where = whereFormatter(where);
       this.group_by = group_by;
       this.filter_dict = filter_dict;
       this.timeRange = compareValue.tools.timeRange;
@@ -363,7 +363,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         this.dataTypeLabel = data_type_label;
         this.dataSourceLabel = data_source_label;
         this.dataId = result_table_id;
-        this.where = where || [];
+        this.where = whereFormatter(where || []);
         this.queryString = queryString || '';
         this.group_by = groupBy || [];
         this.filter_dict = filterDict || {};

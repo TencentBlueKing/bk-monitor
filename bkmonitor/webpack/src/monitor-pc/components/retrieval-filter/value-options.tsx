@@ -298,7 +298,7 @@ export default class ValueOptions extends tsc<IProps> {
               <div
                 key={'00'}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
-                onClick={e => {
+                onMousedown={e => {
                   e.stopPropagation();
                   this.handleCheck({ id: this.search, name: this.search });
                 }}

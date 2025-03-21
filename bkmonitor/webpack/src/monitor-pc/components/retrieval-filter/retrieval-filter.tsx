@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from 'monitor-common/utils';
+import { copyText, deepClone, random } from 'monitor-common/utils';
 
 import { APIType } from '../../pages/event-explore/api-utils';
 import QsSelector from './qs-selector';
@@ -64,7 +64,7 @@ interface IProps {
   favoriteList?: IFavoriteListItem[];
   filterMode?: EMode;
   defaultShowResidentBtn?: boolean;
-  isQsOperateWrapBottom?: boolean;
+  // isQsOperateWrapBottom?: boolean;
   isShowFavorite?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
@@ -105,7 +105,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /* 语句模式hover显示的操作是否显示在下方 */
-  @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
+  // @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
   @Prop({ type: Boolean, default: false }) isShowFavorite: boolean;
   @Prop({ type: Boolean, default: false }) defaultShowResidentBtn: boolean;
 
@@ -124,6 +124,11 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   qsSelectorOptionsWidth = 0;
   resizeObserver = null;
   cacheQueryString = '';
+
+  clearKey = '';
+
+  searchBtnObserver = null;
+  rightBtnsWrapWidth = 146;
 
   /** 当前选择收藏的id */
   get curFavoriteId() {
@@ -159,6 +164,14 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
         const contentEl = entry.target.querySelector('.retrieval-filter__component-main > .filter-content');
         const rightEl = entry.target.querySelector('.retrieval-filter__component-main > .component-right');
         this.qsSelectorOptionsWidth = contentEl.clientWidth + rightEl.clientWidth - 48;
+        // const height = contentEl.clientHeight;
+        // if (height < 58) {
+        //   this.rightBtnsWrapWidth = 146;
+        // } else if (height < 102) {
+        //   this.rightBtnsWrapWidth = 74;
+        // } else if (height > 146) {
+        //   this.rightBtnsWrapWidth = 38;
+        // }
       }
     });
     this.resizeObserver.observe(this.$el);
@@ -248,7 +261,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
         localValue.push({
           key: cacheItem.key,
           condition: { id: ECondition.and, name: 'AND' },
-          method: { id: w.method as EMethod, name: methodName },
+          method: { id: w.method as EMethod, name: methodName || w.method },
           options: w.options || { is_wildcard: false },
           value: w.value.map(v => ({
             id: v,
@@ -263,7 +276,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
         localValue.push({
           key: keyItem,
           condition: { id: ECondition.and, name: 'AND' },
-          method: { id: w.method as EMethod, name: METHOD_MAP[w.method] },
+          method: { id: w.method as EMethod, name: METHOD_MAP[w.method] || w.method },
           options: w.options || { is_wildcard: false },
           value: w.value.map(v => ({
             id: v,
@@ -338,7 +351,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
           field.supported_operations?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
         uiValueAdd.push({
           key: { id: item.key, name: field?.alias || item.key },
-          method: { id: item.method, name: methodName },
+          method: { id: item.method, name: methodName || item.method },
           condition: { id: ECondition.and, name: 'AND' },
           value: item.value.map(v => ({
             id: v,
@@ -416,6 +429,39 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
     setCacheUIData(uiValue.filter(item => !item?.hide));
   }
 
+  handleClear(_event: MouseEvent) {
+    this.clearKey = random(8);
+  }
+  handleCopy(_event: MouseEvent) {
+    let str = '';
+    if (this.mode === EMode.ui && this.uiValue.length) {
+      str = this.uiValue
+        .map(item => {
+          const value =
+            item.value.length > 1
+              ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
+              : `"${item.value?.[0]?.id || '*'}"`;
+          return `${item.key.id} : ${value}`;
+        })
+        .join(' AND ');
+    } else if (this.mode === EMode.queryString && this.qsValue) {
+      str = this.qsValue;
+    }
+    if (str) {
+      copyText(str, msg => {
+        this.$bkMessage({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      this.$bkMessage({
+        message: this.$t('复制成功'),
+        theme: 'success',
+      });
+    }
+  }
+
   render() {
     return (
       <div class='retrieval-filter__component'>
@@ -442,6 +488,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
           <div class='filter-content'>
             {this.mode === EMode.ui ? (
               <UiSelector
+                clearKey={this.clearKey}
                 fields={this.fields}
                 getValueFn={this.getValueFn}
                 value={this.uiValue}
@@ -449,10 +496,11 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
               />
             ) : (
               <QsSelector
+                clearKey={this.clearKey}
                 favoriteList={this.favoriteList}
                 fields={this.fields}
                 getValueFn={this.getValueFn}
-                isQsOperateWrapBottom={this.isQsOperateWrapBottom}
+                // isQsOperateWrapBottom={this.isQsOperateWrapBottom}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
                 onChange={this.handleQsValueChange}
@@ -461,56 +509,83 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
             )}
           </div>
           <div class='component-right'>
-            {this.mode === EMode.ui && (
+            <div
+              style={{
+                width: `${this.rightBtnsWrapWidth}px`,
+              }}
+              class='component-right-btns'
+            >
               <div
-                class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
+                class='clear-btn'
                 v-bk-tooltips={{
-                  content: window.i18n.tc('常驻筛选'),
+                  content: window.i18n.tc('清空'),
                   delay: 300,
                 }}
-                onClick={() => this.handleShowResidentSetting()}
+                onClick={this.handleClear}
               >
-                <span class='icon-monitor icon-tongyishezhi' />
+                <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
-            )}
-            {this.isShowFavorite && (
-              <bk-popover
-                class='favorite-btn'
-                ext-cls='favorite-btn-popover'
-                tippy-options={{
-                  trigger: 'click',
-                  interactive: true,
-                  theme: 'light',
+              <div
+                class='copy-btn'
+                v-bk-tooltips={{
+                  content: window.i18n.tc('复制'),
+                  delay: 300,
                 }}
-                disabled={!this.selectFavorite}
-                placement='bottom'
+                onClick={this.handleCopy}
               >
-                <div onClick={this.handleFavoriteClick}>
-                  {this.selectFavorite ? (
-                    <span class='icon-monitor icon-a-savebaocun' />
-                  ) : (
-                    <span class='icon-monitor icon-bookmark' />
-                  )}
-                </div>
+                <span class='icon-monitor icon-mc-copy' />
+              </div>
+              {this.mode === EMode.ui && (
                 <div
-                  class='favorite-btn-popover-content'
-                  slot='content'
+                  class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
+                  v-bk-tooltips={{
+                    content: window.i18n.tc('常驻筛选'),
+                    delay: 300,
+                  }}
+                  onClick={() => this.handleShowResidentSetting()}
                 >
-                  <div
-                    class='favorite-btn-item'
-                    onClick={() => this.handleFavorite(true)}
-                  >
-                    {this.$t('覆盖当前收藏')}
-                  </div>
-                  <div
-                    class='favorite-btn-item'
-                    onClick={() => this.handleFavorite(false)}
-                  >
-                    {this.$t('另存为新收藏')}
-                  </div>
+                  <span class='icon-monitor icon-tongyishezhi' />
                 </div>
-              </bk-popover>
-            )}
+              )}
+              {this.isShowFavorite && (
+                <bk-popover
+                  class='favorite-btn'
+                  ext-cls='favorite-btn-popover'
+                  tippy-options={{
+                    trigger: 'click',
+                    interactive: true,
+                    theme: 'light',
+                  }}
+                  disabled={!this.selectFavorite}
+                  placement='bottom'
+                >
+                  <div onClick={this.handleFavoriteClick}>
+                    {this.selectFavorite ? (
+                      <span class='icon-monitor icon-a-savebaocun' />
+                    ) : (
+                      <span class='icon-monitor icon-bookmark' />
+                    )}
+                  </div>
+                  <div
+                    class='favorite-btn-popover-content'
+                    slot='content'
+                  >
+                    <div
+                      class='favorite-btn-item'
+                      onClick={() => this.handleFavorite(true)}
+                    >
+                      {this.$t('覆盖当前收藏')}
+                    </div>
+                    <div
+                      class='favorite-btn-item'
+                      onClick={() => this.handleFavorite(false)}
+                    >
+                      {this.$t('另存为新收藏')}
+                    </div>
+                  </div>
+                </bk-popover>
+              )}
+            </div>
             <div
               class='search-btn'
               onClick={this.handleClickSearchBtn}

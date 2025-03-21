@@ -300,3 +300,25 @@ export enum EQueryStringTokenType {
 export function isNumeric(str) {
   return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
 }
+
+/**
+ * @description 格式化where条件，调整一些不支持的的连接符
+ * @param where
+ * @returns
+ */
+export function whereFormatter(where: IWhereItem[]) {
+  const result: IWhereItem[] = [];
+  const methods = Object.entries(METHOD_MAP);
+  const methodNames = methods.map(item => item[1]);
+  for (const item of where) {
+    let method = item.method;
+    if (methodNames.includes(item.method)) {
+      method = methods.find(m => m[1] === item.method)[0];
+    }
+    result.push({
+      ...item,
+      method,
+    });
+  }
+  return result;
+}

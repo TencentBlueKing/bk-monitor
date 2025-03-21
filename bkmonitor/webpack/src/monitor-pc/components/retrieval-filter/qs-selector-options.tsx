@@ -132,7 +132,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   localOptions: IOptions[] = [];
   favoriteOptions: { title: string; content: string; keyword: string }[] = [];
-  cursorIndex = 0;
+  cursorIndex = -1;
 
   loading = false;
   pageSize = 5;
@@ -193,7 +193,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   async handleGetOptions() {
     this.pageInit();
-    this.cursorIndex = 0;
+    this.cursorIndex = -1;
     let fieldItem: IFilterField = null;
     for (const item of this.fields) {
       if (item.name === this.field) {
