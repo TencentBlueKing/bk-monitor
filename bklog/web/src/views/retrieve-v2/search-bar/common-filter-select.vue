@@ -41,14 +41,11 @@
             return acc;
           }, {})
         : {};
-      
       // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
       const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
         ...commonItem,
         value: parsedValueMap[commonItem.field] || commonItem.value,
       }));
-      console.log(filterAddition);
-      
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
         return (
