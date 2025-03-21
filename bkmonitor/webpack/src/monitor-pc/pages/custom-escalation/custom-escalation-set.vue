@@ -65,7 +65,7 @@
           <!-- 英文名 -->
           <bk-form-item
             :ext-cls="rule.dataLabel ? 'content-check' : 'content-basic'"
-            :label="$t('英文名')"
+            :label="$t('数据标签')"
             property="dataLabel"
             required
           >
@@ -84,7 +84,7 @@
           <!--名称-->
           <bk-form-item
             :ext-cls="rule.name ? 'content-check' : 'content-basic'"
-            :label="$t('数据别名')"
+            :label="$t('名称')"
             property="name"
             required
           >
@@ -194,7 +194,7 @@
           </bk-form-item>
           <bk-form-item
             :ext-cls="'content-basic'"
-            :label="$t('说明')"
+            :label="$t('描述')"
             v-if="type !== 'customEvent'"
           >
             <bk-input

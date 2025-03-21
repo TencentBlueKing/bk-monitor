@@ -48,7 +48,7 @@ const FIELD_SETTINGS = {
   name: { label: '名称', width: 200 },
   description: { label: '别名', width: 200 },
   disabled: { label: '启/停', width: 120 },
-  common: { label: '是否常用', width: 140 },
+  common: { label: '常用维度', width: 140 },
   set: { label: '操作', width: 80 },
 };
 @Component

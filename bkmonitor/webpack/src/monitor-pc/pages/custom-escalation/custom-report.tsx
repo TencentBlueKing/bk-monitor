@@ -139,7 +139,7 @@ const commonTableProps: ICommonTableProps = {
   paginationType: 'normal',
   columns: [
     { id: 'bkDataId', name: window.i18n.tc('数据ID'), type: 'string', props: { minWidth: 100 } },
-    { id: 'nameBtn', name: window.i18n.tc('别名'), type: 'scoped_slots', props: { minWidth: 100 } },
+    { id: 'nameBtn', name: window.i18n.tc('名称'), type: 'scoped_slots', props: { minWidth: 100 } },
     { id: 'scenarioStr', name: window.i18n.tc('监控对象'), type: 'string', props: { minWidth: 80 } },
     { id: 'relatedStrategyLink', name: window.i18n.tc('关联策略'), type: 'scoped_slots', props: { minWidth: 100 } },
     { id: 'create', name: window.i18n.tc('创建记录'), type: 'scoped_slots' },
@@ -250,8 +250,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       2,
       0,
       ...([
-        { id: 'data_label', name: window.i18n.tc('名称'), type: 'string', props: { minWidth: 100 } },
-        { id: 'desc', name: window.i18n.tc('说明'), type: 'string', props: { minWidth: 100 } },
+        { id: 'data_label', name: window.i18n.tc('数据标签'), type: 'string', props: { minWidth: 100 } },
+        { id: 'desc', name: window.i18n.tc('描述'), type: 'string', props: { minWidth: 100 } },
         { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } },
       ] as ITableColumn[])
     );

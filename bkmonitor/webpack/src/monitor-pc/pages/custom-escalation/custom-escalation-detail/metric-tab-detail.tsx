@@ -61,7 +61,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   dragId = '';
   dragoverId = '';
   topGroupList: IGroup[] = [
-    { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-mc-all' },
+    { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-all' },
     { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-FileFold-Close' },
   ];
   isShowRightWindow = true; // 是否显示右侧帮助栏
@@ -195,7 +195,7 @@ export default class MetricTabDetail extends tsc<any, any> {
                 >
                   <div class='group-name'>
                     <i class={`icon-monitor ${group.icon}`} />
-                    {group.name}
+                    <span>{group.name}</span>
                   </div>
                   <div class='group-count'>{this.getCountByType(group.id)}</div>
                 </div>
