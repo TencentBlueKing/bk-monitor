@@ -667,6 +667,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           border={false}
           data={this.tableData}
           outer-border={false}
+          row-key={row => row._meta.__index + row._meta.__doc_id}
           on-row-click={this.handleTableRowClick}
         >
           <bk-table-column

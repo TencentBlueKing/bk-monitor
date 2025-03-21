@@ -5,11 +5,16 @@
     padding: 5px 22px;
     line-height: 14px;
 
-    %kv-hover-text {
+    %kv-row-hover {
       &:not(.disable-click) {
-        color: #3a84ff;
         text-decoration: underline;
         cursor: pointer;
+      }
+    }
+
+    %kv-text-hover {
+      &:not(.disable-click):hover {
+        color: #3a84ff;
       }
     }
 
@@ -17,27 +22,35 @@
       background-color: #fff;
     }
 
-    &.active {
+    &.active-row {
       background-color: #f0f1f5;
 
-      .item-label span {
-        @extend %kv-hover-text;
+      .item-label .label-text {
+        @extend %kv-row-hover;
+
+        &.active-column {
+          color: #3a84ff;
+        }
       }
 
       .item-value .value-text {
-        @extend %kv-hover-text;
+        @extend %kv-row-hover;
+
+        &.active-column {
+          color: #3a84ff;
+        }
       }
     }
 
     &:hover {
       background-color: #f0f1f5;
 
-      .item-label span {
-        @extend %kv-hover-text;
+      .item-label .label-text {
+        @extend %kv-row-hover;
       }
 
       .item-value .value-text {
-        @extend %kv-hover-text;
+        @extend %kv-row-hover;
       }
     }
 
@@ -51,6 +64,10 @@
       .kv-label-icon {
         flex-shrink: 0;
         line-height: normal;
+      }
+
+      .label-text {
+        @extend %kv-text-hover;
       }
     }
 
@@ -76,6 +93,7 @@
         flex: 1;
         min-width: 0;
         word-break: break-all;
+        @extend %kv-text-hover;
       }
     }
   }

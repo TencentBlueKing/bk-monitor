@@ -110,10 +110,16 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   ];
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
+  /** 当前激活触发弹出 popover 的列 */
+  activeColumn: 'key' | 'value' = null;
   /** 统计面板的 抽屉页展示状态 */
   statisticsSliderShow = false;
   /** 容器滚动 popover 弹窗关闭 观察者 */
   scrollPopoverHideObserver: ExploreObserver;
+
+  get activeColumnIsKey() {
+    return this.activeColumn === 'key';
+  }
 
   @Emit('conditionChange')
   conditionChange(condition: ConditionChangeEvent) {
@@ -150,6 +156,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         this.popoverInstance?.destroy?.();
         this.popoverInstance = null;
         this.fieldTarget = null;
+        this.activeColumn = null;
       },
     });
     await this.$nextTick();
@@ -162,6 +169,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     this.popoverInstance = null;
     if (resetFieldTarget) {
       this.fieldTarget = null;
+      this.activeColumn = null;
     }
   }
 
@@ -179,6 +187,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       return;
     }
     this.fieldTarget = item;
+    this.activeColumn = 'value';
+
     this.handlePopoverShow(e);
   }
 
@@ -198,6 +208,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       return;
     }
     this.fieldTarget = item;
+    this.activeColumn = 'key';
+
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
@@ -212,6 +224,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         this.popoverInstance = null;
         if (!this.statisticsSliderShow) {
           this.fieldTarget = null;
+          this.activeColumn = null;
         }
       },
       interactive: true,
@@ -448,7 +461,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         {this.fieldList.map(item => (
           <div
             key={item.name}
-            class={`kv-list-item ${this.fieldTarget?.name === item.name ? 'active' : ''}`}
+            class={{
+              'kv-list-item': true,
+              'active-row': this.fieldTarget?.name === item.name,
+            }}
           >
             <div class='item-label'>
               <FieldTypeIcon
@@ -456,7 +472,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
                 type={item.type || ''}
               />
               <span
-                class={!item.canOpenStatistics ? 'disable-click' : ''}
+                class={{
+                  'label-text': true,
+                  'disable-click': !item.canOpenStatistics,
+                  'active-column': this.activeColumnIsKey,
+                }}
                 title={item.name}
                 onClick={e => this.handleDimensionItemClick(e, item)}
               >
@@ -466,7 +486,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             <div class='item-value'>
               {this.jumpLinkRender(item)}
               <span
-                class={`value-text ${!item.canClick ? 'disable-click' : ''}`}
+                class={{
+                  'value-text': true,
+                  'disable-click': !item.canClick,
+                  'active-column': !this.activeColumnIsKey,
+                }}
                 onClick={e => this.handleValueTextClick(e, item)}
               >
                 {this.transformValue(item)}

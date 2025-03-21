@@ -94,7 +94,7 @@ export default class ExploreExpandViewWrapper extends tsc<
       const sourceName = fieldItem?.name as string;
       const canClick = value != null && value !== '' && !!sourceName;
 
-      if (value != null && value !== '') {
+      if (canClick) {
         for (const entitiesMap of this.entitiesMapList) {
           const item = entitiesMap?.[key];
           if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
@@ -110,7 +110,7 @@ export default class ExploreExpandViewWrapper extends tsc<
           });
         }
       }
-      return {
+      const kvFieldItem = {
         name: key,
         type: fieldItem?.type as DimensionType,
         value: value as string,
@@ -119,6 +119,8 @@ export default class ExploreExpandViewWrapper extends tsc<
         canOpenStatistics: fieldItem?.is_option_enabled || false,
         canClick,
       };
+
+      return kvFieldItem;
     });
   }
 
