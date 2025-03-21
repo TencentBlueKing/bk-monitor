@@ -1,12 +1,15 @@
 .new-metric-view-metrics-group {
-  padding: 24px 8px 24px 10px;
-  height: calc(100% - 100px);
+  padding: 0 8px 0 10px;
+  margin-top: 8px;
+  height: calc(100% - 118px);
   overflow-y: auto;
   .metrics-select-box {
+    position: relative;
     & ~ .metrics-select-box {
       margin-top: 6px;
     }
   }
+
   .metrics-select-item-header {
     display: flex;
     align-items: center;
@@ -16,15 +19,30 @@
     color: #313238;
     cursor: pointer;
     transition: all 0.15s;
-    padding: 0px 8px 0 6px;
     font-family: PingFangSC-Medium;
     font-weight: 500;
     margin-bottom: 2px;
+    padding-left: 20px;
+    padding-right: 8px;
 
-    .icon-monitor {
-      margin-right: 6px;
-      color: #979ba5;
+    .group-expand-flag {
+      position: absolute;
+      font-size: 12px;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      transition: transform 0.15s;
+      margin-top: 6px;
+      color: #a3b1cc;
+      &.is-expanded {
+        transform: rotateZ(90deg);
+      }
     }
+
     &:hover {
       background: #f5f7fa;
       .metric-demension-count {
@@ -42,6 +60,7 @@
     text-overflow: ellipsis;
     flex: 1;
     line-height: 32px;
+    padding-left: 4px;
   }
   .metric-demension-count {
     margin-left: auto;
@@ -61,7 +80,7 @@
       content: '';
       position: absolute;
       bottom: 0;
-      left: 7px;
+      left: 27px;
       top: 0;
       width: 1px;
       background: #dcdee5;

@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import KeySelect from './panel-key-select';
 import ValueSelect from './panel-value-select';
 
-import './edit-panel.scss';
+import './index.scss';
 
 export interface IValue {
   key: string;
@@ -119,6 +119,13 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
   update() {
     if (instance) {
       instance.popperInstance.update();
+    }
+  }
+  hide() {
+    if (instance) {
+      instance.hide();
+      instance.destroy();
+      instance = undefined;
     }
   }
 
@@ -226,7 +233,7 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
               {this.$t('收起查询')}
             </div>
             <div class='desc-box'>
-              <div class='desc-tag'>Ctrl+Enter</div>
+              <div class='desc-tag'>Ctrl + Enter</div>
               {this.$t('提交查询')}
             </div>
             <bk-button
@@ -234,7 +241,7 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
               theme='primary'
               onClick={this.handleConfirm}
             >
-              {this.$t('确定 Ctrl+ Enter')}
+              {this.$t('确定 Ctrl + Enter')}
             </bk-button>
             <bk-button
               style='margin-left: 8px'

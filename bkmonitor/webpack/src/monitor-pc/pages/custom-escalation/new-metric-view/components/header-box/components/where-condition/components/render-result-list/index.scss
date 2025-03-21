@@ -3,7 +3,6 @@
   flex-wrap: wrap;
   padding-bottom: 6px;
   padding-right: 60px;
-  align-items: center;
   min-height: 50px;
 
   &:hover {
@@ -106,10 +105,17 @@
       background: #fff;
       box-shadow: 0 1px 2px 0 #00000014;
       border-radius: 2px;
+      font-size: 12px;
       &:hover {
         color: #e71818;
       }
     }
+  }
+
+  .more-action-box {
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
   }
 
   .add-btn,
@@ -133,6 +139,10 @@
     background: #e1ecff;
     &:hover {
       background: #cddffe;
+    }
+    &.is-disabled {
+      color: #dcdee5;
+      background: #f5f7fa;
     }
   }
 

@@ -68,6 +68,10 @@ export default class LimitFunction extends tsc<IProps, IEmit> {
 
   handleFunctionChange(value: string) {
     this.localFunction = value;
+    this.$emit('change', {
+      function: this.localFunction,
+      limit: Number(this.value.limit),
+    });
     this.popoverRef.hideHandler();
   }
 
