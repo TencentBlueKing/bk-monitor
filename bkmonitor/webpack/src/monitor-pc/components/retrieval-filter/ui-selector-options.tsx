@@ -154,9 +154,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
         }
       } else {
         this.handleCheck(this.fields[0]);
-        this.$nextTick(() => {
+        setTimeout(() => {
           this.searchInputRef?.focus();
-        });
+        }, 200);
       }
     }
   }

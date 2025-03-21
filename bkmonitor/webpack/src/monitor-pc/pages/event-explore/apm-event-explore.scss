@@ -1,4 +1,27 @@
 .apm-event-explore {
+  position: relative;
+  background: rgb(245, 247, 250);
+
+  &::after {
+    position: absolute;
+    top: 0;
+    right: -1px;
+    width: 1px;
+    height: 100%;
+    content: '';
+    background: rgb(245, 247, 250);
+  }
+
+  &::before {
+    position: absolute;
+    top: 0;
+    left: -1px;
+    width: 1px;
+    height: 100%;
+    content: '';
+    background: rgb(245, 247, 250);
+  }
+
   &.event-explore {
     overflow: initial;
 

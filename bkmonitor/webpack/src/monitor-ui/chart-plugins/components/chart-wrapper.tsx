@@ -178,7 +178,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
   get needWaterMask() {
-    return !['log-retrieve'].includes(this.panel?.type);
+    return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
   beforeCreate() {
     initLogRetrieveWindowsFields();
