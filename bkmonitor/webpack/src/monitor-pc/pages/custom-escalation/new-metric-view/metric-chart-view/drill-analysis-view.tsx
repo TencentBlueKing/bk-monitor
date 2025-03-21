@@ -113,6 +113,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   mounted() {
+    window.addEventListener('keydown', this.handleKeydown);
     this.refreshList = refreshList;
     this.$nextTick(() => {
       /** 初始化数据 */
@@ -144,6 +145,13 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
   beforeDestroy() {
     this.timer && clearInterval(this.timer);
+    window.removeEventListener('keydown', this.handleKeydown);
+  }
+
+  handleKeydown(event) {
+    if (event.key === 'Escape') {
+      this.handleClose();
+    }
   }
 
   /** 获取当前可选的维度值 */
@@ -203,7 +211,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       })
     );
     this.filterConfig.drill_group_by = activeKey;
-    this.setPanelConfigAndRefresh('filter_dict.drill_filter', list);
+
+    const drillFilter = {};
+    list.map(item => (drillFilter[item.key] = item.value));
+    this.setPanelConfigAndRefresh('filter_dict.drill_filter', drillFilter);
   }
   /** 设置panel的值 */
   setPanelConfigAndRefresh(keys: string, value) {

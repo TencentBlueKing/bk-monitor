@@ -184,7 +184,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           scopedSlots={{
             default: ({ row }) => (
-              <span>
+              <span class='color-name'>
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
