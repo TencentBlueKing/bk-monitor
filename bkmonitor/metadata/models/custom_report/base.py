@@ -16,6 +16,7 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -50,6 +51,7 @@ class CustomGroupBase(models.Model):
     bk_data_id = models.IntegerField(verbose_name="数据源ID", db_index=True)
     # 可能存在公共数据源，但是独立的事件分组，因此先保留
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     table_id = models.CharField(verbose_name="结果表ID", max_length=128, db_index=True, null=True)
     # 自定义上报速率限制，默认为-1，跟随应用动态调整。如果手动指定，则优先使用使用数据库中的设置
     max_rate = models.IntegerField(verbose_name="上报速率限制", default=-1)
@@ -81,7 +83,7 @@ class CustomGroupBase(models.Model):
         return {}
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name: str = None) -> str:
+    def make_table_id(bk_biz_id, bk_data_id, table_name: str = None, bk_tenant_id=DEFAULT_TENANT_ID) -> str:
         raise NotImplementedError
 
     def update_metrics(self, metric_info):
@@ -100,7 +102,9 @@ class CustomGroupBase(models.Model):
         pass
 
     @classmethod
-    def pre_check(cls, label: str, bk_data_id: int, custom_group_name: str, bk_biz_id: int) -> dict:
+    def pre_check(
+        cls, label: str, bk_data_id: int, custom_group_name: str, bk_biz_id: int, bk_tenant_id=DEFAULT_TENANT_ID
+    ) -> dict:
         """
         pre check name, label, bk_data_id
         """
@@ -119,10 +123,12 @@ class CustomGroupBase(models.Model):
         filter_kwargs = {
             cls.GROUP_NAME_FIELD: custom_group_name,
         }
-        if cls.objects.filter(bk_biz_id=bk_biz_id, is_delete=False, **filter_kwargs).exists():
+        if cls.objects.filter(
+            bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id, is_delete=False, **filter_kwargs
+        ).exists():
             logger.error(
-                "biz_id->[{}] already has {}->[{}], should change {} and try again.".format(
-                    bk_biz_id, cls.__name__, cls.GROUP_NAME_FIELD, custom_group_name
+                "biz_id->[{}] of bk_tenant_id->[{}] already has {}->[{}], should change {} and try again.".format(
+                    bk_biz_id, bk_tenant_id, cls.__name__, cls.GROUP_NAME_FIELD, custom_group_name
                 )
             )
             raise ValueError(_("自定义组名称已存在，请确认后重试"))
@@ -140,6 +146,7 @@ class CustomGroupBase(models.Model):
         operator: str,
         is_split_measurement: bool,
         max_rate: int = -1,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         **filter_kwargs,
     ) -> (str, "CustomGroupBase"):
         """
@@ -148,7 +155,7 @@ class CustomGroupBase(models.Model):
 
         if table_id is None:
             # 如果是公共结果表记录，则需要创建公共结果表ID，否则填充None
-            table_id = cls.make_table_id(bk_biz_id, bk_data_id, custom_group_name)
+            table_id = cls.make_table_id(bk_biz_id, bk_data_id, custom_group_name, bk_tenant_id=bk_tenant_id)
 
         custom_group = cls.objects.create(
             bk_data_id=bk_data_id,
@@ -159,13 +166,14 @@ class CustomGroupBase(models.Model):
             is_delete=False,
             is_enable=True,
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             is_split_measurement=is_split_measurement,
             max_rate=max_rate,
             **filter_kwargs,
         )
         logger.info(
-            "{}->[{}] now is created from data_id->[{}] by operator->[{}]".format(
-                cls.__name__, custom_group.custom_group_id, bk_data_id, operator
+            "{}->[{}] now is created from data_id->[{}] by operator->[{}],bk_tenant_id->[{}]".format(
+                cls.__name__, custom_group.custom_group_id, bk_data_id, operator, bk_tenant_id
             )
         )
 
@@ -186,6 +194,7 @@ class CustomGroupBase(models.Model):
         default_storage_config=None,
         additional_options: Optional[dict] = None,
         data_label: Optional[str] = None,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -200,14 +209,28 @@ class CustomGroupBase(models.Model):
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param default_storage_config: 默认存储的配置
         :param additional_options: 附带创建的 ResultTableOption
-        :param is_otlp_lop: 是否为 OTLP 日志
         :param data_label: 数据标签
+        :param bk_tenant_id: 租户ID
         :return: group object
         """
 
+        logger.info(
+            "create_custom_group: bk_biz_id->[%s],bk_tenant_id->[%s], custom_group_name->[%s], label->[%s], "
+            "operator->[%s]",
+            bk_biz_id,
+            bk_tenant_id,
+            custom_group_name,
+            label,
+            operator,
+        )
+
         # 1. 参数检查
         filter_kwargs = cls.pre_check(
-            label=label, bk_data_id=bk_data_id, custom_group_name=custom_group_name, bk_biz_id=bk_biz_id
+            label=label,
+            bk_data_id=bk_data_id,
+            custom_group_name=custom_group_name,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 2. 创建group
@@ -219,6 +242,7 @@ class CustomGroupBase(models.Model):
             label=label,
             operator=operator,
             is_split_measurement=is_split_measurement,
+            bk_tenant_id=bk_tenant_id,
             **filter_kwargs,
         )
 
@@ -247,6 +271,7 @@ class CustomGroupBase(models.Model):
         option.update(additional_options or {})
 
         # 4. 清除历史 DataSourceResultTable 数据
+        # 这里无需添加租户过滤条件,因为bk_data_id全局唯一,除1001外不存在跨租户场景
         if DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).exists():
             DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).delete()
 
@@ -268,6 +293,7 @@ class CustomGroupBase(models.Model):
             label=label,
             option=option,
             data_label=data_label,
+            bk_tenant_id=bk_tenant_id,
         )
 
         custom_group.update_metrics(metric_info=final_metric_info_list)
@@ -275,7 +301,7 @@ class CustomGroupBase(models.Model):
 
         # 4. 需要为datasource增加一个option，否则transfer无法得知需要拆解的字段内容
         for item in custom_group.get_datasource_options():
-            DataSourceOption.create_option(bk_data_id=bk_data_id, creator="system", **item)
+            DataSourceOption.create_option(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, creator="system", **item)
 
         # 5. 刷新配置到节点管理，通过节点管理下发配置到采集器
         # 目前只在新增组的时候增加了这个配置下发逻辑，更新不影响采集器的配置
@@ -381,17 +407,19 @@ class CustomGroupBase(models.Model):
         rt = None
         if field_list or data_label:
             try:
-                rt = ResultTable.objects.get(table_id=self.table_id)
+                rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
                 raise ValueError(_("对应结果表不存在"))
 
-        if field_list is not None:
+        if field_list is not None:  # 无需添加租户过滤,上文RT已经携带租户属性
             rt.modify(operator=operator, is_reserved_check=False, is_time_field_only=True, field_list=field_list)
 
         # 如果有传开启/关闭黑名单，则修改结果表数据，并刷新consul数据，触发transfer更新
         if enable_field_black_list is not None:
             ResultTableOption.objects.filter(
-                table_id=self.table_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
             ).update(value=json.dumps(enable_field_black_list))
             logger.info(
                 "%s->[%s] has change enable_field_black_list->[%s]",
@@ -467,6 +495,6 @@ class CustomGroupBase(models.Model):
     @property
     def data_label(self):
         try:
-            return ResultTable.objects.get(table_id=self.table_id).data_label
+            return ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).data_label
         except ResultTable.DoesNotExist:
             return ""

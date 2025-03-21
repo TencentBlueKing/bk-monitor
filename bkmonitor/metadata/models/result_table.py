@@ -1352,6 +1352,7 @@ class ResultTable(models.Model):
         self.save()
 
         # 异步执行时，需要在commit之后，以保证所有操作都提交
+        # TODO：多租户改造--路由推送是否需要携带租户信息
         try:
             from metadata.models.space.utils import get_space_by_table_id
             from metadata.task.tasks import push_and_publish_space_router

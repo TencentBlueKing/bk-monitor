@@ -22,3 +22,6 @@ __all__ = [
     "VMStorageBindingConfig",
     "ConditionalSinkConfig",
 ]
+
+
+# TODO：BkBase多租户改造
