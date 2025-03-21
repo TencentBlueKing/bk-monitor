@@ -2143,7 +2143,8 @@ class SearchHandler(object):
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
-            log = self.convert_keys(log)
+            else:
+                log = self.convert_keys(log)
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
