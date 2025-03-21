@@ -7,7 +7,9 @@
   .tabs {
     display: flex;
     align-items: flex-end;
-    margin-left: -4px;
+    &.has-space {
+      margin-left: -4px;
+    }
     .tab {
       position: relative;
       display: flex;
@@ -123,7 +125,7 @@
         line-height: 20px;
         align-items: flex-end;
         .icon-monitor {
-          font-size: 6px;
+          font-size: 12px;
         }
       }
 
