@@ -113,12 +113,17 @@ export default class AiopsContainer extends tsc<IProps> {
   hasReportClick = false;
   hasReportTips = false;
   observer: IntersectionObserver = null;
-  topoLoading = false;
+  troubleShootingLoading = false;
   troubleShootingDataError = {
     isError: false,
     message: '',
   };
   troubleShootingData: IIncidentDetail = null;
+  // 是否有权限查看故障诊断
+  hasTroubleShootingAuth = false;
+  troubleShootingNoData = false;
+  // bk助手链接
+  incidentWxCsLink = '';
 
   /** 展示collapse的配置 */
   get tabConfigs() {
@@ -127,20 +132,22 @@ export default class AiopsContainer extends tsc<IProps> {
         name: 'diagnosis',
         icon: 'icon-guzhang',
         titleKey: '故障诊断',
-        loading: this.metricRecommendationLoading,
-        error: this.metricRecommendationErr,
+        isShow: this.hasTroubleShootingAuth && !this.troubleShootingNoData,
+        loading: this.troubleShootingLoading,
+        error: this.troubleShootingDataError.isError,
         contentRender: () => {
-          if (this.troubleShootingData) {
+          if (!this.troubleShootingNoData && this.hasTroubleShootingAuth) {
             return (
               <AiopsTroubleshootingCollapse
                 data={this.troubleShootingData}
                 errorData={this.troubleShootingDataError}
-                loading={this.topoLoading}
+                loading={this.troubleShootingLoading}
+                onToIncidentDetail={this.goToIncidentDetail}
               />
             );
           }
         },
-        tipsRenderer: () => {},
+        tipsRenderer: this.renderDiagnosisTips,
       },
       {
         name: 'dimension',
@@ -268,7 +275,7 @@ export default class AiopsContainer extends tsc<IProps> {
     this.tabActive = active[0];
     this.isCorrelationMetrics = this.tabActive === ETabNames.index;
     this.selectActive = this.tabActive;
-    this.topoLoading = false;
+    this.troubleShootingLoading = false;
   }
   /** 前端排序 */
   handleSortChange({ prop, order }) {
@@ -490,6 +497,25 @@ export default class AiopsContainer extends tsc<IProps> {
       />
     );
   }
+  /** 故障诊断的信息提示 */
+  renderDiagnosisTips() {
+    if (!this.hasTroubleShootingAuth || this.troubleShootingNoData) {
+      this.renderStatusTipsErr('diagnosis');
+    }
+    return (
+      <span key='diagnosis-info-text'>
+        {this.$t('当前告警被包含在故障')}
+        <span
+          class='diagnosis-text_blue'
+          v-bk-overflow-tips
+          onClick={this.goToIncidentDetail}
+        >
+          {this.troubleShootingData?.incident_name}
+        </span>
+        {this.$t('中')}
+      </span>
+    );
+  }
   /** 异常维度的信息提示 */
   renderDimensionTips() {
     const isExitDimensionInfo = Object.keys(this.info?.dimensionInfo || {}).length > 0;
@@ -565,14 +591,29 @@ export default class AiopsContainer extends tsc<IProps> {
         ]}
       </span>
     ) : (
-      <div class='aiops-tab-title-message aiops-tab-title-index-message'>
-        {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+      this.renderStatusTipsErr(name)
+    );
+  }
+  /** 绘制collapse头部异常的内容 */
+  renderStatusTipsErr(name) {
+    if (name === 'diagnosis' && this.troubleShootingNoData) {
+      return <div key='diagnosis-info-err-text'>{this.$t('当前告警不属于任何故障')}</div>;
+    }
+    return (
+      <div class='aiops-tab-title-message aiops-tab-title-no-auth'>
+        {this.$t('当前空间暂不支持该功能，请联系')}
+        <span
+          class='bk-assistant-link'
+          onClick={this.handleToBkAssistant}
+        >
+          {this.$t('BK助手')}
+        </span>
       </div>
     );
   }
   /** 获取故障拓扑图展示数据 */
   async getAiopsTopoData() {
-    this.topoLoading = true;
+    this.troubleShootingLoading = true;
     const { bk_biz_id, id } = this.detail;
     const params = {
       alert_id: id,
@@ -580,18 +621,38 @@ export default class AiopsContainer extends tsc<IProps> {
     };
     return alertIncidentDetail(params)
       .then(res => {
-        this.troubleShootingData = res;
         this.troubleShootingDataError.isError = false;
         this.troubleShootingDataError.message = '';
+
+        this.troubleShootingNoData = !(res.incident && Object.keys(res.incident).length !== 0);
+        this.hasTroubleShootingAuth = res.greyed_spaces?.includes(bk_biz_id) || false;
+        this.troubleShootingData = res.incident ?? null;
+        this.incidentWxCsLink = res.wx_cs_link ?? '';
       })
       .catch(err => {
         this.troubleShootingDataError.isError = true;
         this.troubleShootingDataError.message = err.data?.error_details ? err.data.error_details.overview : err.message;
       })
       .finally(() => {
-        this.topoLoading = false;
+        this.troubleShootingLoading = false;
       });
   }
+  /** 跳转打开bk助手 */
+  handleToBkAssistant(e: MouseEvent) {
+    e.stopPropagation();
+    this.incidentWxCsLink && window.open(this.incidentWxCsLink, '__blank');
+  }
+  /** 跳转至故障详情页面 */
+  goToIncidentDetail(e: MouseEvent) {
+    e.stopPropagation();
+    this.$router.push({
+      name: 'incident-detail',
+      params: {
+        id: this.troubleShootingData.id,
+      },
+    });
+  }
+
   render() {
     return (
       <div
@@ -608,7 +669,12 @@ export default class AiopsContainer extends tsc<IProps> {
           {this.tabConfigs.map(config => (
             <bk-collapse-item
               key={config.name}
-              class='aiops-container-menu-item'
+              class={[
+                'aiops-container-menu-item',
+                config.name === 'diagnosis' && (!this.hasTroubleShootingAuth || this.troubleShootingNoData)
+                  ? 'cursor-allowed'
+                  : '',
+              ]}
               name={config.name}
             >
               <div class='aiops-container-menu-item-head'>
