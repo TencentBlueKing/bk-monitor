@@ -63,12 +63,22 @@ function scaleArrayToRange(inputArray: number[], minRange = 4, maxRange = 16): n
 
   const minInput = Math.min(...inputArray);
   const maxInput = Math.max(...inputArray);
+
+  // 处理所有输入值相同的情况
   if (minInput === maxInput) {
-    return inputArray.map(() => (minRange + maxRange) / 2);
+    return inputArray.map(value => (value < 1 ? 0 : minRange));
   }
 
   return inputArray.map(value => {
-    return ((value - minInput) / (maxInput - minInput)) * (maxRange - minRange) + minRange;
+    if (value < 1) {
+      return 0; // 当输入值小于 1 时，输出为 0
+    }
+
+    // 应用线性变换公式缩放值
+    const scaledValue = ((value - minInput) / (maxInput - minInput)) * (maxRange - minRange) + minRange;
+
+    // 确保缩放后的值在 minRange 和 maxRange 之间
+    return Math.max(minRange, Math.min(maxRange, scaledValue));
   });
 }
 export const getDefaultDefaultTagConfig = () => {
@@ -765,7 +775,7 @@ export const getCustomEventSeries = async (params: Record<string, any>): Promise
     .then(data => {
       const series = data?.series?.slice(0, 1) || [];
       if (!series.length) return undefined;
-      const scaleList = scaleArrayToRange(series[0].datapoints.map(item => item[1]));
+      const scaleList = scaleArrayToRange(series[0].datapoints.map(item => item[0]));
       return {
         type: 'scatter',
         name: window.i18n.t('事件数'),
