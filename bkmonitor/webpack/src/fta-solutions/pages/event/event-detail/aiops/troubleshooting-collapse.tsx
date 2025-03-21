@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { AiopsTopo, createApp, h as vue2CreateElement } from '@blueking/aiops-topo/vue2';
@@ -41,6 +41,7 @@ interface IProps {
     message: string;
   };
   loading: boolean;
+  onToIncidentDetail: Function;
 }
 
 // 最大做小缩放倍率
@@ -63,7 +64,15 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
   infoConfig = {
     alert_name: {
       label: this.$t('故障名称'),
-      renderFn: alert_name => <span class='blue-txt'>{alert_name}</span>,
+      renderFn: alert_name => (
+        <span
+          class='blue-txt'
+          v-bk-overflow-tips
+          onClick={this.goToIncidentDetail}
+        >
+          {alert_name}
+        </span>
+      ),
     },
     status: {
       label: this.$t('故障状态'),
@@ -115,6 +124,10 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
   handleClick() {
     this.zoomImage.showImg();
   }
+
+  @Emit('toIncidentDetail')
+  goToIncidentDetail() {}
+
   async mounted() {
     this.detailConfig.alert_name = this.data.incident_name;
     this.detailConfig.status = this.data.status_alias;
