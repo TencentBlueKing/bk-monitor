@@ -188,8 +188,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 if not space_dict.get("bk_tenant_id"):
                     space_dict["bk_tenant_id"] = DEFAULT_TENANT_ID
 
+            # 过滤指定租户
+            if bk_tenant_id:
+                spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
+
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
-        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters:
+        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
             raise Exception(
                 "未成功初始化metadata空间数据，请执行"
                 "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
