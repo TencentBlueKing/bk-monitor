@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
@@ -26,14 +26,6 @@
   const commonFilterAddition = computed({
     get() {
       const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      if(additionValue?.indexId !== store.state.indexId){
-        localStorage.removeItem('commonFilterAddition');
-      }
-      else{
-        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
-        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
-        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
-      }
       // 将本地存储的JSON字符串解析为对象并创建映射
       const parsedValueMap = additionValue
         ? additionValue.value.reduce((acc, item) => {
@@ -72,7 +64,21 @@
       });
     },
   });
-
+  watch(
+    () => store.state.indexId,
+    () => {
+      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
+      if(additionValue?.indexId !== store.state.indexId){
+        localStorage.removeItem('commonFilterAddition');
+      }
+      else{
+        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
+        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
+        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
+      }
+    },
+    { immediate: true }
+  );
   const activeIndex = ref(-1);
   let requestTimer = null;
   const isRequesting = ref(false);
