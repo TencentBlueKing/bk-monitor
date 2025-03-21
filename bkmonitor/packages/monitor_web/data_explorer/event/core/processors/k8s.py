@@ -210,7 +210,7 @@ class K8sEventProcessor(BaseEventProcessor):
     def _generate_url(cls, workload_info, start_time, end_time, filter_by: Dict[str, Any], group_by: List[str]) -> str:
         params = {
             "from": start_time,
-            "to": end_time,
+            "to": end_time or "now",
             "refreshInterval": NEVER_REFRESH_INTERVAL,
             "cluster": workload_info["bcs_cluster_id"]["value"],
             "filterBy": json.dumps(filter_by),
@@ -223,7 +223,7 @@ class K8sEventProcessor(BaseEventProcessor):
     def _generate_legacy_host_url(cls, workload_info, host: str, start_time, end_time) -> str:
         params = {
             "from": start_time,
-            "to": end_time,
+            "to": end_time or "now",
             "sceneId": "kubernetes",
             "dashboardId": "node",
             "sceneType": "detail",

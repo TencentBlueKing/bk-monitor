@@ -11,23 +11,28 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource
-from monitor.models import UserConfig
 from monitor_web.data_explorer.event import resources as event_resources
-from monitor_web.data_explorer.event.constants import EventDomain, EventSource, SYSTEM_EVENT_TRANSLATIONS, \
-    K8S_EVENT_TRANSLATIONS, EventType, DEFAULT_EVENT_ORIGIN
+from monitor_web.data_explorer.event.constants import (
+    DEFAULT_EVENT_ORIGIN,
+    K8S_EVENT_TRANSLATIONS,
+    SYSTEM_EVENT_TRANSLATIONS,
+    EventDomain,
+    EventSource,
+    EventType,
+)
 from monitor_web.data_explorer.event.utils import get_data_labels_map, get_field_label
 from packages.monitor_web.data_explorer.event.constants import EVENT_ORIGIN_MAPPING
 
+from ..models import ApmMetaConfig, Application
 from . import serializers
 from .utils import is_enabled_metric_tags
-from ..models import Application, ApmMetaConfig
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,13 @@ class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        return event_resources.EventViewConfigResource().perform_request(validated_request_data)
+        sources: List[Dict[str, str]] = []
+        for related_source in validated_request_data["related_sources"]:
+            sources.append({"value": related_source, "alias": EventSource.from_value(related_source).label})
+
+        view_config: Dict[str, Any] = event_resources.EventViewConfigResource().perform_request(validated_request_data)
+        view_config["sources"] = sources
+        return view_config
 
 
 class EventTopKResource(Resource):
@@ -100,7 +111,7 @@ class EventTagsResource(Resource):
         cls,
         validated_request_data: Dict[str, Any],
         data_labels_map: Dict[str, str],
-        exclude_origins: Optional[List[Tuple[str, str]]] = None
+        exclude_origins: Optional[List[Tuple[str, str]]] = None,
     ) -> Dict[Tuple[str, str], Any]:
         exclude_origins = exclude_origins or []
         event_origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
@@ -241,7 +252,7 @@ class EventTagDetailResource(Resource):
             topk: List[Dict[str, Any]] = self.fetch_topk(validated_request_data)
             for item in topk:
                 item["proportions"] = round((item["count"] / total) * 100, 2)
-            tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[:validated_request_data["limit"]]
+            tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[: validated_request_data["limit"]]
         else:
             tag_detail["list"] = self.fetch_logs(validated_request_data)
 
@@ -251,7 +262,7 @@ class EventTagDetailResource(Resource):
     def fetch_topk(cls, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         data_labels_map: Dict[str, str] = get_data_labels_map(
             validated_request_data["bk_biz_id"],
-            [query_config["table"] for query_config in validated_request_data["query_configs"]]
+            [query_config["table"] for query_config in validated_request_data["query_configs"]],
         )
         validated_request_data: Dict[str, Any] = copy.deepcopy(validated_request_data)
         validated_request_data["fields"] = ["event_name"]
@@ -259,10 +270,12 @@ class EventTagDetailResource(Resource):
             validated_request_data, data_labels_map
         )
         event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-        run_threads([
-            InheritParentThread(target=cls.query_topk, args=(event_origin, req_data, event_origin_topk_map))
-            for event_origin, req_data in origin_req_data_map.items()
-        ])
+        run_threads(
+            [
+                InheritParentThread(target=cls.query_topk, args=(event_origin, req_data, event_origin_topk_map))
+                for event_origin, req_data in origin_req_data_map.items()
+            ]
+        )
 
         event_tuple_count_map: Dict[Tuple[str, str, str], int] = defaultdict(int)
         for event_origin, topk in event_origin_topk_map.items():
@@ -277,16 +290,19 @@ class EventTagDetailResource(Resource):
         processed_topk: List[Dict[str, Any]] = []
         for event_tuple, count in event_tuple_count_map.items():
             domain, source, event_name = event_tuple
-            processed_topk.append({
-                "domain": {"value": domain, "alias": EventDomain.from_value(domain).label},
-                "source": {"value": source, "alias": EventSource.from_value(source).label},
-                "event_name": {
-                    "value": event_name, "alias": _("{alias}（{name}）").format(
-                        alias=event_name_translations.get(domain, {}).get(event_name, event_name), name=event_name
-                    )
-                },
-                "count": count
-            })
+            processed_topk.append(
+                {
+                    "domain": {"value": domain, "alias": EventDomain.from_value(domain).label},
+                    "source": {"value": source, "alias": EventSource.from_value(source).label},
+                    "event_name": {
+                        "value": event_name,
+                        "alias": _("{alias}（{name}）").format(
+                            alias=event_name_translations.get(domain, {}).get(event_name, event_name), name=event_name
+                        ),
+                    },
+                    "count": count,
+                }
+            )
         return processed_topk
 
     @classmethod
@@ -294,7 +310,7 @@ class EventTagDetailResource(Resource):
         cls,
         event_origin: Tuple[str, str],
         req_data: Dict[str, Any],
-        event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]]
+        event_origin_topk_map: Dict[Tuple[str, str], List[Dict[str, Any]]],
     ):
         event_origin_topk_map[event_origin] = EventTopKResource().perform_request(req_data)[0].get("list") or []
 
@@ -311,7 +327,9 @@ class EventTagStatisticsResource(Resource):
     @classmethod
     def query_topk(cls, req_data: Dict[str, Any], field: str) -> Dict[str, Any]:
         try:
-            return EventTopKResource().perform_request({**copy.deepcopy(req_data), "fields": [field], "limit": 10})[0]
+            return EventTopKResource().perform_request(
+                {**copy.deepcopy(req_data), "fields": [field], "limit": 10, "need_empty": True}
+            )[0]
         except Exception:
             return {"total": 0, "field": field, "distinct_count": 0, "list": []}
 
@@ -326,16 +344,20 @@ class EventTagStatisticsResource(Resource):
         event_origin_total_map: Dict[Tuple[str, str], int] = {}
         data_labels_map: Dict[str, str] = get_data_labels_map(
             validated_request_data["bk_biz_id"],
-            [query_config["table"] for query_config in validated_request_data["query_configs"]],
+            sorted({query_config["table"] for query_config in validated_request_data["query_configs"]}),
         )
         origin_req_data_map: Dict[Tuple[str, str], Dict[str, Any]] = EventTagsResource.get_event_origin_req_data_map(
             # Default 通过 total 差值计算，减少一次查询
-            validated_request_data, data_labels_map, exclude_origins=[DEFAULT_EVENT_ORIGIN]
+            validated_request_data,
+            data_labels_map,
+            exclude_origins=[DEFAULT_EVENT_ORIGIN],
         )
-        run_threads([
-            InheritParentThread(target=cls.query_total, args=(event_origin, req_data, event_origin_total_map))
-            for event_origin, req_data in origin_req_data_map.items()
-        ])
+        run_threads(
+            [
+                InheritParentThread(target=cls.query_total, args=(event_origin, req_data, event_origin_total_map))
+                for event_origin, req_data in origin_req_data_map.items()
+            ]
+        )
 
         return {event_origin[1]: total for event_origin, total in event_origin_total_map.items()}
 
@@ -344,10 +366,12 @@ class EventTagStatisticsResource(Resource):
         field_columns: List[Dict[str, Any]] = []
         for field, meta in field_metas.items():
             field_column = {
-                "name": field, "alias": get_field_label(field), "list": [
+                "name": field,
+                "alias": get_field_label(field),
+                "list": [
                     {"value": value, "alias": meta["enum"].from_value(value).label}
                     for value, _ in meta["enum"].choices()
-                ]
+                ],
             }
             field_columns.append(field_column)
 
@@ -363,14 +387,13 @@ class EventTagStatisticsResource(Resource):
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         topk: Dict[str, Any] = self.query_topk(validated_request_data, field="type")
         type_count_map: Dict[str, int] = {item["value"]: item["count"] for item in topk.get("list", [])}
-        type_count_map[EventType.Default.value] = topk["total"] - sum(type_count_map.values())
 
         source_count_map: Dict[str, int] = self.fetch_total(validated_request_data)
         source_count_map[EventSource.DEFAULT.value] = topk["total"] - sum(source_count_map.values())
 
         field_metas: Dict[str, Any] = {
             "type": {"count_map": type_count_map, "enum": EventType},
-            "source": {"count_map": source_count_map, "enum": EventSource}
+            "source": {"count_map": source_count_map, "enum": EventSource},
         }
         return {"total": topk["total"], "columns": self.generate_field_columns(field_metas)}
 
@@ -381,7 +404,7 @@ class EventGetTagConfigResource(Resource):
     DEFAULT_TAG_CONFIG: Dict[str, Any] = {
         "is_enabled_metric_tags": False,
         "source": {"is_select_all": True, "list": []},
-        "type": {"is_select_all": True, "list": []}
+        "type": {"is_select_all": True, "list": []},
     }
 
     @classmethod
@@ -413,7 +436,7 @@ class EventGetTagConfigResource(Resource):
                 {"type": {"enum": EventType}, "source": {"enum": EventSource}}
             ),
             # 配置优先级：默认 > App > Service
-            "config": {**self.DEFAULT_TAG_CONFIG, **app_event_config, **servie_tag_config}
+            "config": {**self.DEFAULT_TAG_CONFIG, **app_event_config, **servie_tag_config},
         }
 
 
@@ -426,6 +449,6 @@ class EventUpdateTagConfigResource(Resource):
             app_name=validated_request_data["app_name"],
             service_name=validated_request_data["service_name"],
             config_key=EventGetTagConfigResource.process_key(validated_request_data["key"]),
-            config_value=validated_request_data["config"]
+            config_value=validated_request_data["config"],
         )
         return {}

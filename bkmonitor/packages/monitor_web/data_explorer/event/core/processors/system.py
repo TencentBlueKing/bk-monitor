@@ -49,7 +49,7 @@ class HostEventProcessor(BaseEventProcessor):
             return ""
         params = {
             "from": start_time,
-            "to": end_time,
+            "to": end_time or "now",
         }
         return "{base_url}?bizId={biz_id}#/performance/detail/{ip}-{cloud_id}?{params}".format(
             base_url=settings.BK_MONITOR_HOST,
@@ -132,7 +132,7 @@ class HostEventProcessor(BaseEventProcessor):
                         "label": get_field_label("event.content"),
                         "value": origin_event["event.content"]["value"],
                         "alias": event_content_alias,
-                    }
+                    },
                 },
             }
 

@@ -244,6 +244,7 @@ class EventTopKResource(Resource):
             .time_agg(False)
             .instant()
         )
+        need_empty: bool = validated_request_data.get("need_empty") or False
         limit = validated_request_data["limit"]
         query_configs = validated_request_data["query_configs"]
         tables = [query_config["table"] for query_config in query_configs]
@@ -279,6 +280,7 @@ class EventTopKResource(Resource):
                         dimension_metadata_map,
                         field_distinct_map,
                         field_topk_map,
+                        need_empty,
                     ),
                 )
                 for field in valid_fields
@@ -293,7 +295,14 @@ class EventTopKResource(Resource):
                         "[EventTopKResource] distinct_count not found, try to compensate: field -> %s", field
                     )
                     self.calculate_field_distinct_count(
-                        lock, queryset, query_configs, field, dimension_metadata_map, field_distinct_map, field_topk_map
+                        lock,
+                        queryset,
+                        query_configs,
+                        field,
+                        dimension_metadata_map,
+                        field_distinct_map,
+                        field_topk_map,
+                        need_empty,
                     )
 
                 topk_field_map[field] = {
@@ -316,14 +325,7 @@ class EventTopKResource(Resource):
             thread_list.append(
                 InheritParentThread(
                     target=self.calculate_topk,
-                    args=(
-                        lock,
-                        queryset,
-                        [match_configs[0]],
-                        field,
-                        limit,
-                        field_topk_map,
-                    ),
+                    args=(lock, queryset, [match_configs[0]], field, limit, field_topk_map, need_empty),
                 )
             )
         run_threads(thread_list)
@@ -336,8 +338,9 @@ class EventTopKResource(Resource):
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {
-                        "value": field_value,
-                        "alias": field_value or "--",
+                        # TODO unifyquery 处理完空值问题会退这段代码
+                        "value": "" if not field_value or field_value == " " else field_value,
+                        "alias": "--" if not field_value or field_value == " " else field_value,
                         "count": field_count,
                         "proportions": round(100 * (field_count / total), 2),
                     }
@@ -357,11 +360,15 @@ class EventTopKResource(Resource):
         )
 
     @classmethod
-    def query_topk(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0):
+    def query_topk(
+        cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0, need_empty: bool = False
+    ):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(
-                q.metric(field=field, method="COUNT", alias=alias).group_by(field).order_by("-_value")
+                q.metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
+                .group_by(field)
+                .order_by("-_value")
             )
 
         queryset.expression(alias)
@@ -401,12 +408,13 @@ class EventTopKResource(Resource):
         field: str,
         limit: int,
         field_topk_map: Dict[str, Dict[str, int]],
+        need_empty: bool = False,
     ):
         """
         计算事件源 topk 查询
         """
         field_value_count_dict_list = cls.query_topk(
-            queryset, [get_q_from_query_config(query_config) for query_config in query_configs], field, limit
+            queryset, [get_q_from_query_config(qc) for qc in query_configs], field, limit, need_empty
         )
         for field_value_count_dict in field_value_count_dict_list:
             try:
@@ -444,6 +452,7 @@ class EventTopKResource(Resource):
         dimension_metadata_map: Dict[str, Dict[str, Set[str]]],
         field_distinct_map: Dict[str, int],
         field_topk_map: Dict[str, Dict[str, int]],
+        need_empty: bool = False,
     ):
         """
         计算维度去重数量
@@ -454,7 +463,7 @@ class EventTopKResource(Resource):
             return
         if matching_configs_length > 1:
             # 多事件源直接求所有枚举值
-            cls.calculate_topk(lock, queryset, matching_configs, field, QUERY_MAX_LIMIT, field_topk_map)
+            cls.calculate_topk(lock, queryset, matching_configs, field, QUERY_MAX_LIMIT, field_topk_map, need_empty)
             field_distinct_map[field] = len(field_topk_map.get(field, []))
         else:
             cls.calculate_distinct_count_for_table(queryset, matching_configs[0], field, field_distinct_map)

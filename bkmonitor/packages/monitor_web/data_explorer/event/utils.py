@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 from urllib import parse
 
 from django.db.models import Q
@@ -53,7 +53,7 @@ def get_q_from_query_config(query_config: Dict[str, Any]) -> QueryConfigBuilder:
     )
 
 
-def get_data_labels_map(bk_biz_id: int, tables: List[str]) -> Dict[str, str]:
+def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> Dict[str, str]:
     data_labels_map = {}
     data_labels_queryset = (
         ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
@@ -62,7 +62,9 @@ def get_data_labels_map(bk_biz_id: int, tables: List[str]) -> Dict[str, str]:
     )
     for item in data_labels_queryset:
         data_labels_map[item["table_id"]] = item["data_label"]
-        data_labels_map[item["data_label"]] = item["data_label"]
+        if item["data_label"]:
+            # 不为空才建立映射关系，避免写入 empty=empty，
+            data_labels_map[item["data_label"]] = item["data_label"]
     return data_labels_map
 
 
@@ -146,4 +148,8 @@ def generate_time_range(timestamp):
         raise ValueError(_("类型转换失败: 无法将 '{}' 转换为整数").format(timestamp))
     start_time = timestamp - one_hour_ms
     end_time = timestamp + one_hour_ms
-    return start_time, min(end_time, now_ms)
+
+    if end_time > now_ms:
+        end_time = 0
+
+    return start_time, end_time
