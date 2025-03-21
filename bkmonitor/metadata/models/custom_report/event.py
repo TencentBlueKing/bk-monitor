@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 from typing import Optional
 
@@ -20,6 +19,7 @@ from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
@@ -31,7 +31,6 @@ logger = logging.getLogger("metadata")
 
 
 class EventGroup(CustomGroupBase):
-
     """事件分组记录"""
 
     EVENT_GROUP_STATUS_CHOICES = (
@@ -120,14 +119,27 @@ class EventGroup(CustomGroupBase):
     DEFAULT_STORAGE_CONFIG = STORAGE_ES_CONFIG
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None):
-        bk_biz_id_str = str(bk_biz_id)
-        if bk_biz_id_str > "0":
-            return "{}_bkmonitor_event_{}".format(bk_biz_id, bk_data_id)
-        elif bk_biz_id_str < "0":
-            return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        """
+        生成结果表table_id
+        涉及破坏性改造,通过是否开启多租户开关控制
+        """
 
-        return "bkmonitor_event_{}".format(bk_data_id)
+        bk_biz_id_str = str(bk_biz_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return "{}_{}_bkmonitor_event_{}".format(bk_tenant_id, bk_biz_id, bk_data_id)
+            elif bk_biz_id_str < "0":
+                return f"{bk_tenant_id}_bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return "{}_bkmonitor_event_{}".format(bk_tenant_id, bk_data_id)
+        else:
+            logger.info("make_table_id: disable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return "{}_bkmonitor_event_{}".format(bk_biz_id, bk_data_id)
+            elif bk_biz_id_str < "0":
+                return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return "bkmonitor_event_{}".format(bk_data_id)
 
     def update_metrics(self, metric_info):
         return Event.modify_event_list(self.event_group_id, metric_info)

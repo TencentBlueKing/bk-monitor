@@ -11,10 +11,12 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 
 from bkmonitor.utils.cipher import transform_data_id_to_token
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.custom_report.base import CustomGroupBase
 
@@ -34,10 +36,13 @@ class LogGroup(CustomGroupBase):
     GROUP_NAME_FIELD = "log_group_name"
 
     @staticmethod
-    def make_table_id(bk_biz_id: int, bk_data_id: int, table_name: str = None) -> str:
+    def make_table_id(bk_biz_id: int, bk_data_id: int, table_name: str = None, bk_tenant_id=DEFAULT_TENANT_ID) -> str:
         """
         获取表名
         """
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            return f"{bk_tenant_id}_{bk_biz_id}_bklog_{table_name}"
 
         return f"{bk_biz_id}_bklog_{table_name}"
 

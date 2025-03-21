@@ -25,6 +25,7 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import (
@@ -87,16 +88,31 @@ class TimeSeriesGroup(CustomGroupBase):
         }
     ]
 
-    # 组合一个默认的tableid
+    # 组合一个默认的table_id
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None):
-        if str(bk_biz_id) != "0":
-            return "{}_bkmonitor_time_series_{}.{}".format(bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT)
+    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            if str(bk_biz_id) != "0":
+                return "{}_{}_bkmonitor_time_series_{}.{}".format(
+                    bk_tenant_id, bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+                )
+            return "{}_bkmonitor_time_series_{}.{}".format(
+                bk_tenant_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+            )
+        else:
+            if str(bk_biz_id) != "0":
+                return "{}_bkmonitor_time_series_{}.{}".format(
+                    bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+                )
 
-        return "bkmonitor_time_series_{}.{}".format(bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT)
+            return "bkmonitor_time_series_{}.{}".format(bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT)
 
     def make_metric_table_id(self, field_name):
         # 结果表是bk_k8s开头，保证这些的结果表和用户的结果表是区别开的
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_metric_table_id: enable multi-tenant mode")
+            return f"bk_k8s_{self.bk_tenant_id}_{self.time_series_group_name}_{field_name}"
         return f"bk_k8s_{self.time_series_group_name}_{field_name}"
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -903,22 +919,42 @@ class TimeSeriesGroup(CustomGroupBase):
         # 1. 判断是否公共结果表
         if not self.is_split_measurement:
             # 公共结果表，直接设置即可
-            ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
-            logger.info("ts group->[%s] table_id->[%s] is set to disabled now.", self.custom_group_name, self.table_id)
+            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
+                is_deleted=True, is_enable=False
+            )
+            logger.info(
+                "ts group->[%s] table_id->[%s] of bk_tenant_id->[%s] is set to disabled now.",
+                self.custom_group_name,
+                self.table_id,
+                self.bk_tenant_id,
+            )
 
             return True
 
         # 2. 拆分结果表的，先遍历所有的metric
-        # TODO 这里需要调整,因为实际拆分结果表也不会生成新的tableid了，对应的应该在TimeSeriesMetric上增加状态位
+        # TODO 这里需要调整,因为实际拆分结果表也不会生成新的table_id了，对应的应该在TimeSeriesMetric上增加状态位
+
         logger.info("ts group->[%s] is split measurement will disable all tables.", self.custom_group_name)
         for metric_group in TimeSeriesMetric.objects.filter(group_id=self.custom_group_id):
             # 2.1 每个metric拼接出结果表名
             table_id = self.make_metric_table_id(metric_group.field_name)
             # 2.2 设置该结果表启用
-            ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
-            logger.info("ts group->[%s] per table_id->[%s] is set to disabled now.", self.custom_group_name, table_id)
+            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
+                is_deleted=True, is_enable=False
+            )
 
-        logger.info("ts group->[%s] all table_id is set to disabled now.", self.custom_group_name)
+            logger.info(
+                "ts group->[%s] of bk_tenant_id->[%s]per table_id->[%s] is set to disabled now.",
+                self.custom_group_name,
+                self.bk_tenant_id,
+                table_id,
+            )
+
+        logger.info(
+            "ts group->[%s] of bk_tenant_id->[%s] all table_id is set to disabled now.",
+            self.custom_group_name,
+            self.bk_tenant_id,
+        )
         return True
 
 
