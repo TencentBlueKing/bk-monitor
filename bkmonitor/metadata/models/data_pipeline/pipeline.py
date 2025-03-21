@@ -33,6 +33,9 @@ from .managers import (
 logger = logging.getLogger("metadata")
 
 
+# 链路管道模型似乎并未启用,且链路管道逻辑上和租户无关
+
+
 class DataPipeline(BaseModel):
     name = models.CharField("链路管道名称", max_length=128, unique=True)
     chinese_name = models.CharField("链路管道中文名称", max_length=64, null=True, blank=True, help_text="如果不传递，可以和name保持一致")
