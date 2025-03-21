@@ -87,7 +87,6 @@ export default {
   批量编辑维度: 'Batch edit dimensions',
   批量编辑指标: 'Batch edit metrics',
   搜索维度: 'Search dimensions',
-  是否常用: 'Mark as frequently used?',
   暂无自定义分组: 'No custom groups yet',
   常用维度: 'Frequently used dimensions',
   添加至分组: 'Add to group',
@@ -103,4 +102,7 @@ export default {
   '打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：':
     'After opening, you can quickly expand it in [Filter Conditions] of [Visualization]:',
   '关闭后，在可视化视图里，将被隐藏': 'After closing, it will be hidden in the visual view.',
+  数据标签: 'Data Label',
+  '自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名':
+    'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
 };
