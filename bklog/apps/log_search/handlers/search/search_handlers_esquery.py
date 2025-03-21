@@ -2208,6 +2208,9 @@ class SearchHandler(object):
             # 如果值是字典，递归调用
             if isinstance(value, dict):
                 value = self.convert_keys(value)  # 递归处理嵌套字典
+            # 如果值是列表，处理列表中的每个字典
+            elif isinstance(value, list):
+                value = [self.convert_keys(item) if isinstance(item, dict) else item for item in value]
 
             # 如果键中有点，进行转换
             if '.' in key:
