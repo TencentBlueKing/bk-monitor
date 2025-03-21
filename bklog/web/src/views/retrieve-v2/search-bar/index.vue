@@ -40,6 +40,8 @@
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
   const refRootElement = ref(null);
+  const refKeywordInspectElement = ref(null);
+
   const queryParams = ['ui', 'sql'];
   const route = useRoute();
   const router = useRouter();
@@ -61,6 +63,13 @@
     return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
+  const inspectResponse = ref({
+    is_legal: true,
+    is_resolved: true,
+    keyword: '',
+    message: '',
+  });
+
   const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
@@ -79,6 +88,14 @@
       theme: 'log-light transparent',
       arrow: false,
       offset: [60, 0],
+    },
+  });
+
+  const inspectPopInstance = new PopInstanceUtil({
+    refContent: refKeywordInspectElement,
+    tippyOptions: {
+      placement: 'bottom-end',
+      offset: [0, 10],
     },
   });
 
@@ -106,6 +123,7 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -190,29 +208,69 @@
     });
   };
 
+  const beforeQueryBtnClick = () => {
+    return $http
+      .request('favorite/checkKeywords', {
+        data: {
+          keyword: sqlQueryValue.value,
+          fields: totalFields.value.map(item => ({
+            field_name: item.field_name,
+            is_analyzed: item.is_analyzed,
+            field_type: item.field_type,
+          })),
+        },
+      })
+      .then(resp => {
+        if (resp.result) {
+          Object.assign(inspectResponse.value, resp.data);
+          return resp.data;
+        }
+
+        return Promise.reject(resp);
+      });
+  };
+
+  const getBtnQueryResult = () => {
+    store.commit('updateIndexItemParams', {
+      addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+      keyword: sqlQueryValue.value ?? '',
+      ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+    });
+
+    if (route.query.tab !== 'graphAnalysis') {
+      store.dispatch('requestIndexSetQuery');
+    }
+
+    setRouteParams();
+  };
+
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
-      store.commit('updateIndexItemParams', {
-        addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-        keyword: sqlQueryValue.value ?? '',
-        ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
-      });
+      if (searchMode.value === 'sql') {
+        beforeQueryBtnClick().then(resp => {
+          if (resp.is_legal) {
+            getBtnQueryResult();
+          }
+        });
 
-      if (route.query.tab !== 'graphAnalysis') {
-        store.dispatch('requestIndexSetQuery');
+        return;
       }
 
-      setRouteParams();
+      getBtnQueryResult();
     }
   };
 
   const handleSqlRetrieve = value => {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
+    beforeQueryBtnClick().then(resp => {
+      if (resp.is_legal) {
+        store.commit('updateIndexItemParams', {
+          keyword: value,
+        });
 
-    store.dispatch('requestIndexSetQuery');
-    setRouteParams();
+        store.dispatch('requestIndexSetQuery');
+        setRouteParams();
+      }
+    });
   };
 
   const handleSqlQueryChange = value => {
@@ -229,6 +287,7 @@
     store.commit('updateIndexItemParams', {
       ip_chooser: {},
     });
+    popToolInstance?.hide(300);
     handleBtnQueryClick();
   };
 
@@ -347,6 +406,8 @@
     }
 
     if (activeIndex.value === 0) {
+      popToolInstance?.hide(300);
+
       if (addition.value.length > 0) {
         $http
           .request('retrieve/generateQueryString', {
@@ -381,7 +442,8 @@
       return refRootElement.value?.querySelector('.search-item-focus.hidden-pointer');
     }
 
-    return refRootElement.value?.querySelector('.search-sql-editor .cm-editor .cm-scroller .cm-line')?.lastElementChild;
+    const editorLine = refRootElement.value?.querySelector('.search-sql-editor .cm-editor .cm-scroller .cm-line');
+    return editorLine?.lastElementChild ?? editorLine;
   };
 
   const setPopProps = () => {
@@ -476,6 +538,31 @@
     popToolInstance.hide(300);
   };
 
+  const handleMouseleaveInspect = e => {
+    inspectPopInstance.hide(300);
+  };
+
+  /**
+   * @description 鼠标移入错误校验区域时，弹出错误信息
+   * @param e
+   */
+  const handleMouseenterInspect = (e, isRoot = true) => {
+    inspectPopInstance.cancelHide();
+    if (isRoot) {
+      inspectPopInstance.show(e.target);
+    }
+  };
+
+  /**
+   * @description 点击错误校验区域时，替换关键字
+   */
+  const handleInspectKeywordReplace = () => {
+    sqlQueryValue.value = inspectResponse.value.keyword;
+    inspectResponse.value.keyword = '';
+    inspectResponse.value.is_legal = true;
+    inspectPopInstance.hide(300);
+  };
+
   onBeforeUnmount(() => {
     popToolInstance.onBeforeUnmount();
     popToolInstance.uninstallInstance();
@@ -486,7 +573,12 @@
     ref="refRootElement"
     :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container', { 'set-border': isFilterSecFocused }]">
+    <div
+      :class="[
+        'search-bar-container',
+        { 'set-border': isFilterSecFocused, 'inspect-error': !inspectResponse.is_legal },
+      ]"
+    >
       <div
         class="search-options"
         @click="handleQueryTypeChange"
@@ -518,6 +610,38 @@
           class="hidden-focus-pointer"
         ></div>
         <div class="search-tool items">
+          <div
+            v-show="!inspectResponse.is_legal"
+            style="color: #ea3636"
+            class="bklog-icon bklog-circle-alert-filled bklog-keyword-validate"
+            @mouseenter="handleMouseenterInspect"
+            @mouseleave="handleMouseleaveInspect"
+          >
+            <div v-show="false">
+              <div
+                class="bklog-keyword-inspect"
+                ref="refKeywordInspectElement"
+                @mouseenter="e => handleMouseenterInspect(e, false)"
+                @mouseleave="handleMouseleaveInspect"
+              >
+                <div class="inspect-row">
+                  <div class="inspect-title">{{ $t('语法错误') }}：</div>
+                  <div class="inspect-message">{{ inspectResponse.message }}</div>
+                </div>
+                <div class="inspect-row">
+                  <div class="inspect-title">{{ $t('你可能想输入:') }}</div>
+                  <div class="inspect-message">
+                    <span>{{ inspectResponse.keyword }}</span>
+                    <span
+                      class="inspect-keyword-replace"
+                      @click="handleInspectKeywordReplace"
+                      >{{ $t('替换') }}</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"

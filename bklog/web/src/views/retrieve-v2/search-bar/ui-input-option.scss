@@ -1,4 +1,4 @@
-@use "sass:color";
+@use 'sass:color';
 
 .ui-query-options {
   background: #ffffff;
@@ -39,6 +39,7 @@
       .ui-search-result {
         height: 315px;
         overflow: auto;
+        overflow-x: hidden;
 
         &::-webkit-scrollbar {
           width: 6px;
@@ -47,12 +48,12 @@
 
         &::-webkit-scrollbar-thumb {
           height: 6px;
-          background-color: #DCDEE5;
+          background-color: #dcdee5;
           border-radius: 3px;
         }
 
         .ui-search-result-row {
-          display: flex;
+          display: inline-flex;
           align-items: center;
           width: 100%;
           height: 32px;
@@ -60,6 +61,8 @@
           font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
           text-overflow: ellipsis;
           white-space: nowrap;
+          min-width: 300px;
+          max-width: 358px;
           cursor: pointer;
 
           &:hover,
@@ -67,11 +70,11 @@
             background-color: #f5f7fa;
 
             .field-alias {
-              color: #3A84FF;
+              color: #3a84ff;
             }
 
             .field-name {
-              color: #699DF4;
+              color: #699df4;
             }
           }
 
@@ -93,11 +96,11 @@
             }
 
             .field-alias {
-              color: #3A84FF;
+              color: #3a84ff;
             }
 
             .field-name {
-              color: #699DF4;
+              color: #699df4;
             }
           }
 
@@ -107,7 +110,7 @@
             justify-content: center;
             width: 14px;
             height: 14px;
-            background: #E8EAF0;
+            background: #e8eaf0;
             border-radius: 2px;
             opacity: 0.9;
 
@@ -205,7 +208,7 @@
           margin-bottom: 8px;
           font-size: 12px;
           line-height: 20px;
-          color: #4D4F56;
+          color: #4d4f56;
         }
 
         .ui-value-component {
@@ -228,7 +231,7 @@
             .operator-content {
               max-width: 300px;
               overflow: hidden;
-              color: #F59500;
+              color: #f59500;
               text-overflow: ellipsis;
               white-space: nowrap;
             }
@@ -260,7 +263,7 @@
     padding-left: 8px;
     background: #fafbfd;
     border-top: solid 1px #dcdee5;
-    box-shadow: 0 -1px 0 0 #DCDEE5;
+    box-shadow: 0 -1px 0 0 #dcdee5;
 
     .ui-shortcut-key {
       display: flex;
@@ -281,7 +284,7 @@
           padding: 0 4px;
           font-size: 11px;
           font-weight: 700;
-          color: #A3B1CC;
+          color: #a3b1cc;
           background-color: #a3b1cc29;
           border: 1px solid #a3b1cc4d;
           border-radius: 2px;
@@ -378,7 +381,7 @@
 
         .tag-item-del {
           font-size: 16px;
-          color: #979BA5;
+          color: #979ba5;
           cursor: pointer;
         }
       }
@@ -411,7 +414,7 @@
         height: 100%;
         padding: 0 8px;
         resize: none;
-        background-color: #E1ECFF;
+        background-color: #e1ecff;
         border: none;
 
         &::-webkit-scrollbar {

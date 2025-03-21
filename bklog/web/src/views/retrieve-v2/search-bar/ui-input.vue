@@ -507,5 +507,25 @@
         }
       }
     }
+
+    &[data-theme='log-dark'] {
+      color: #fff;
+      background-color: #4d4f56;
+      box-shadow: 0 2px 6px 0 #fff;
+      transform: translateY(-4px);
+
+      .tippy-content {
+        padding: 4px 8px;
+      }
+
+      .tippy-arrow {
+        color: #4d4f56;
+
+        &::after {
+          background-color: #4d4f56;
+          box-shadow: 0 2px 6px 0 #fff;
+        }
+      }
+    }
   }
 </style>

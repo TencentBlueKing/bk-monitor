@@ -161,7 +161,6 @@ export default class CollectGroup extends tsc<IProps> {
   }
   /** 新增组 */
   handleChangeGroupInputStatus(type: string) {
-    debugger;
     if (type === 'cancel') {
       this.isShowNewGroupInput = false;
       this.groupListPopoverInstance?.hide();

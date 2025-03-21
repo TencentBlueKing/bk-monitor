@@ -1,9 +1,11 @@
 <script setup>
   import { ref, nextTick, onMounted, computed } from 'vue';
+  import $http from '@/api';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
+  import useStore from '@/hooks/use-store';
 
   const props = defineProps({
     value: {
@@ -18,6 +20,7 @@
     emit('height-change', height);
   };
 
+  const store = useStore();
   const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);

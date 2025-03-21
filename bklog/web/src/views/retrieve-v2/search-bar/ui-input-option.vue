@@ -89,6 +89,16 @@
     return operator;
   };
 
+  const fieldOptionListInstance = new PopInstanceUtil({
+    refContent: '',
+    arrow: true,
+    newInstance: true,
+    tippyOptions: {
+      placement: 'auto',
+      theme: 'log-dark',
+    },
+  });
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
@@ -575,7 +585,7 @@
   /**
    * 通用方法：根据键盘上下键操作，设置对应参数当前激活Index的值
    */
-  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true, type: string) => {
+  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true, type?: string) => {
     const maxIndex = matchList.length - 1;
     if (objIndex.value === null) {
       objIndex.value = -1;
@@ -909,6 +919,20 @@
     return filedValueMapping[fieldName] ?? t('检索内容');
   };
 
+  const handleOptionListMouseEnter = (e, item) => {
+    const { offsetWidth, scrollWidth } = e.target.lastElementChild;
+    if (offsetWidth < scrollWidth) {
+      fieldOptionListInstance.setContent(
+        `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      );
+      fieldOptionListInstance.show(e.target);
+    }
+  };
+  const handleOptionListMouseLeave = e => {
+    // fieldOptionListInstance.hide();
+    fieldOptionListInstance.uninstallInstance();
+  };
+
   onBeforeUnmount(() => {
     afterHideFn();
   });
@@ -942,6 +966,8 @@
             :data-tab-index="index"
             :key="item.field_name"
             @click="() => handleFieldItemClick(item, index)"
+            @mouseenter="e => handleOptionListMouseEnter(e, item)"
+            @mouseleave="handleOptionListMouseLeave"
           >
             <span
               :style="{
@@ -951,14 +977,16 @@
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">
-              {{ item.field_type }}——{{ item.query_alias || item.field_alias || item.field_name }}
-            </span>
-            <span
-              v-if="!item.is_full_text"
-              class="field-name"
-              >({{ item.field_name }})</span
-            >
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
+              <span class="field-alias">
+                {{ item.query_alias || item.field_alias || item.field_name }}
+              </span>
+              <span
+                v-if="!item.is_full_text"
+                class="field-name"
+                >({{ item.field_name }})</span
+              >
+            </div>
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception

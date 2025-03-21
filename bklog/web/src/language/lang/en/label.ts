@@ -764,4 +764,6 @@ export default {
   日志告警测试: 'Log alarm test',
   告警能力test: 'Alarm capability test',
   'UI 模式': 'UI mode',
+  检索语句: 'Search statement',
+  '你可能想输入:': 'You may want to enter',
 };

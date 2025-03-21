@@ -6,8 +6,7 @@
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  // import imgEnterKey from '@/images/icons/enter-key.svg';
-  // import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
   import jsCookie from 'js-cookie';
   // @ts-ignore
   import { debounce } from 'lodash';
@@ -149,6 +148,7 @@
   const setValueList = (fieldName: string, value: string) => {
     const fieldInfo = store.state.indexFieldInfo.fields.find(item => item.field_name === fieldName);
     if (fieldInfo && isValidateEgges(fieldInfo)) {
+      valueList.value = [];
       requestFieldEgges(fieldInfo, value, resp => {
         if (typeof resp === 'boolean') {
           valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
@@ -429,9 +429,7 @@
 
   // 查询语法按钮部分
   const isRetractShow = ref(true);
-  // const handleRetract = () => {
-  //   isRetractShow.value = !isRetractShow.value;
-  // };
+
   const matchList = ref([
     {
       name: $t('精确匹配(支持AND、OR):'),
@@ -662,17 +660,6 @@
             </li>
           </div>
         </template>
-        <!-- <template
-          v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
-        >
-          <bk-exception
-            style="height: 40px"
-            type="search-empty"
-            scene="part"
-          >
-            当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
-          </bk-exception>
-        </template> -->
       </ul>
       <FavoriteList
         :search-value="value"
@@ -692,15 +679,6 @@
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <!-- <span
-        class="sql-query-retract"
-        @click="handleRetract"
-      >
-        <span>{{ isRetractShow ? $t('收起') : $t('查询语法') }}</span>
-        <span
-          :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
-        ></span>
-      </span> -->
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -883,6 +861,15 @@
         .sql-query-fold {
           display: none;
         }
+      }
+    }
+  }
+</style>
+<style lang="scss">
+  .sql-query-options {
+    .bk-loading {
+      .bk-loading-wrapper {
+        left: 5%;
       }
     }
   }

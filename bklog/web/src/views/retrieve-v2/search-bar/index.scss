@@ -45,7 +45,7 @@
       display: flex;
       width: 100%;
       min-height: 48px;
-      padding-right: 120px;
+      // padding-right: 120px;
       background: #ffffff;
       border-radius: 2px;
 
@@ -63,9 +63,9 @@
       }
 
       .search-tool {
-        position: absolute;
-        top: 0;
-        bottom: 0;
+        // position: absolute;
+        // top: 0;
+        // bottom: 0;
 
         .bk-tooltip {
           display: inline-flex;
@@ -77,12 +77,60 @@
         }
 
         &.items {
-          right: 48px;
+          // right: 48px;
           display: flex;
           align-items: center;
           justify-content: space-around;
-          width: 60px;
+          // width: 60px;
           padding-right: 4px;
+
+          .bklog-keyword-inspect {
+            width: 280px;
+            height: 146px;
+            background: #ffffff;
+            border: 1px solid #dcdee5;
+            box-shadow: 0 2px 6px 0 #0000001a;
+            padding: 12px;
+            cursor: default;
+
+            .inspect-row {
+              width: 100%;
+              text-align: left;
+
+              .inspect-title {
+                width: 100%;
+                height: 20px;
+                font-size: 12px;
+                color: #313238;
+                line-height: 20px;
+              }
+
+              .inspect-message {
+                width: 100%;
+                height: 32px;
+                background: #f5f7fa;
+                border-radius: 2px;
+
+                font-size: 12px;
+                color: #e71818;
+                line-height: 32px;
+                padding: 0 8px;
+
+                display: flex;
+                justify-content: space-between;
+
+                .inspect-keyword-replace {
+                  font-size: 12px;
+                  color: #3a84ff;
+                  cursor: pointer;
+                }
+              }
+
+              &:last-child {
+                margin-top: 16px;
+              }
+            }
+          }
 
           > div {
             display: flex;
@@ -104,6 +152,11 @@
               background: #e1ecff;
             }
 
+            &.bklog-keyword-validate {
+              position: relative;
+              overflow: visible;
+            }
+
             .bklog-star-line {
               font-size: 20px;
             }
@@ -111,8 +164,8 @@
         }
 
         &.search-btn {
-          right: 0;
-          bottom: 0;
+          // right: 0;
+          // bottom: 0;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -233,6 +286,12 @@
 
     &.set-border {
       border-bottom: 1px solid #dcdee5;
+    }
+
+    &.inspect-error {
+      .search-input {
+        background: #fff0f0;
+      }
     }
   }
 

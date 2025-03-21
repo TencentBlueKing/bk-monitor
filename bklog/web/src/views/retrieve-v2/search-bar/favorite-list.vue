@@ -64,7 +64,7 @@
             @click="handleClickFavorite(item)"
           >
             <div><span class="active bklog-icon bklog-table-2"></span></div>
-            <div class="list-item-type">{{ item.full_name || '检索语句' }}</div>
+            <div class="list-item-type">{{ item.full_name || $t('检索语句') }}</div>
             <div class="list-item-information">{{ item.params?.keyword }}</div>
           </div>
         </template>
