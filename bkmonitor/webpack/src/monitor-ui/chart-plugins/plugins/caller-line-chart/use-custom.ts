@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { eventTags } from 'monitor-api/modules/apm_event';
+import { graphic } from 'echarts';
+import { eventTags, eventGetTagConfig, eventTimeSeries, eventUpdateTagConfig } from 'monitor-api/modules/apm_event';
 import svg from 'monitor-common/svg/base64';
-
 export enum StatisticsEventType {
   Default = 'Default',
   Normal = 'Normal',
@@ -35,11 +35,90 @@ export enum StatisticsEventType {
 interface IEventTagsItem {
   app_name: string;
   service_name: string;
-  interval: number;
+  interval?: number;
   where?: Record<string, string | string[]>[];
   start_time: number;
   end_time: number;
 }
+export type EventTagConfig = {
+  is_enabled_metric_tags: boolean;
+  source: {
+    is_select_all: boolean;
+    list: string[];
+  };
+  type: {
+    is_select_all: boolean;
+    list: string[];
+  };
+};
+export type EventTagColumn = {
+  alias: string;
+  name: string;
+  list: { alias: string; value: string }[];
+};
+function scaleArrayToRange(inputArray: number[], minRange = 4, maxRange = 16): number[] {
+  if (inputArray.length === 0) {
+    return [];
+  }
+
+  const minInput = Math.min(...inputArray);
+  const maxInput = Math.max(...inputArray);
+  if (minInput === maxInput) {
+    return inputArray.map(() => (minRange + maxRange) / 2);
+  }
+
+  return inputArray.map(value => {
+    return ((value - minInput) / (maxInput - minInput)) * (maxRange - minRange) + minRange;
+  });
+}
+export const getDefaultDefaultTagConfig = () => {
+  return {};
+};
+export const getCustomEventSeriesParams = (params: IEventTagsItem, config: Partial<EventTagConfig>) => {
+  const where = [];
+  if (!config.source?.is_select_all) {
+    where.push({
+      condition: 'and',
+      key: 'source',
+      method: 'eq',
+      value: config.source?.list || [],
+    });
+  }
+  if (!config.type?.is_select_all) {
+    where.push({
+      condition: 'and',
+      key: 'type',
+      method: 'eq',
+      value: config.type?.list || [],
+    });
+  }
+  return {
+    app_name: params.app_name,
+    service_name: params.service_name,
+    start_time: params.start_time,
+    end_time: params.end_time,
+    expression: 'a',
+    query_configs: [
+      {
+        data_source_label: 'bk_apm',
+        data_type_label: 'event',
+        table: 'builtin',
+        filter_dict: {},
+        interval: Math.ceil((params.end_time - params.start_time) / 12), // 暂定 12个 气泡
+        where,
+        query_string: '*',
+        group_by: [],
+        metrics: [
+          {
+            field: '_index',
+            method: 'SUM',
+            alias: 'a',
+          },
+        ],
+      },
+    ],
+  };
+};
 export const getCustomEventTagsPanelParams = (params: IEventTagsItem) => {
   return {
     app_name: params.app_name,
@@ -631,4 +710,107 @@ export const createCustomEventSeries = (list: ICustomEventTagsItem[]) => {
     z: 100000,
     tooltips: false,
   };
+};
+
+export const getCustomEventAnalysisConfig = async (
+  params: Pick<IEventTagsItem, 'app_name' | 'service_name'> & {
+    key: string;
+  }
+) => {
+  return await eventGetTagConfig(params)
+    .then((res: { columns: EventTagColumn[]; config: EventTagConfig }) => {
+      const { columns, config } = res;
+      if (config.source?.is_select_all) {
+        config.source.list = columns?.find(item => item.name === 'source').list?.map(item => item.value);
+      }
+      if (config.source?.is_select_all) {
+        config.type.list = columns?.find(item => item.name === 'type').list?.map(item => item.value);
+      }
+      return {
+        columns,
+        config,
+      };
+    })
+    .catch(() => ({
+      columns: [],
+      config: {
+        is_enabled_metric_tags: false,
+        source: {
+          is_select_all: true,
+          list: [],
+        },
+        type: {
+          is_select_all: true,
+          list: [],
+        },
+      },
+    }));
+};
+
+export const updateCustomEventAnalysisConfig = async (
+  params: Pick<IEventTagsItem, 'app_name' | 'service_name'> & {
+    key: string;
+    config: Partial<EventTagConfig>;
+  }
+) => {
+  return await eventUpdateTagConfig(params)
+    .then(() => true)
+    .catch(() => false);
+};
+
+export const getCustomEventSeries = async (params: Record<string, any>): Promise<ICustomEventTagsItem[]> => {
+  return await eventTimeSeries({
+    ...params,
+  })
+    .then(data => {
+      const series = data?.series?.slice(0, 1) || [];
+      if (!series.length) return undefined;
+      const scaleList = scaleArrayToRange(series[0].datapoints.map(item => item[1]));
+      return {
+        type: 'scatter',
+        name: window.i18n.t('事件数'),
+        data: series[0].datapoints.reduce((pre, cur, index) => {
+          pre.push([cur[1], cur[0], scaleList[index]]);
+          return pre;
+        }, []),
+        symbolSize: data => {
+          return data[2];
+        },
+        yAxisIndex: 1,
+        xAxisIndex: 0,
+        z: 10,
+        emphasis: {
+          scale: 1.666,
+        },
+        itemStyle: {
+          // shadowBlur: 0,
+          // shadowColor: 'rgb(25, 183, 207)',
+          // shadowOffsetY: 0,
+          // color: new graphic.RadialGradient(0.4, 0.3, 1, [
+          //   {
+          //     offset: 0,
+          //     color: 'rgb(129, 227, 238)',
+          //   },
+          //   {
+          //     offset: 1,
+          //     color: 'rgb(25, 183, 207)',
+          //   },
+          // ]),
+          shadowBlur: 10,
+          shadowColor: 'rgba(25, 100, 150, 0.5)',
+          shadowOffsetY: 5,
+          color: new graphic.RadialGradient(0.4, 0.3, 1, [
+            {
+              offset: 0,
+              color: 'rgb(129, 227, 238)',
+            },
+            {
+              offset: 1,
+              color: 'rgb(25, 183, 207)',
+            },
+          ]),
+        },
+      };
+    })
+    .catch(() => undefined);
 };

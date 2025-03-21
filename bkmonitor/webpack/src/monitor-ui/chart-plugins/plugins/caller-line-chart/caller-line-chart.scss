@@ -98,6 +98,7 @@
 .event-analyze-wrapper {
   display: flex;
   flex-direction: column;
+  width: 280px;
   padding: 8px 12px;
   font-size: 12px;
   line-height: 20px;
@@ -108,13 +109,10 @@
 
   &__unset {
     justify-content: center;
-    width: 160px;
-    height: 64px;
   }
 
   &__set {
-    width: 280px;
-    height: 245px;
+    height: fit-content;
   }
 
   .event-title {
@@ -142,14 +140,32 @@
     &-list {
       display: flex;
       flex-direction: column;
+    }
 
-      .bk-form-checkbox {
-        height: 20px;
-        margin-top: 8px;
-      }
+    .bk-form-checkbox {
+      height: 20px;
+      margin-top: 8px;
+    }
 
-      .bk-checkbox-text {
-        font-size: 12px !important;
+    .bk-checkbox-text {
+      font-size: 12px !important;
+    }
+  }
+
+  .event-footer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 20px 0 4px 0;
+
+    .bk-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+
+      &:last-child {
+        margin-right: 0;
       }
     }
   }
