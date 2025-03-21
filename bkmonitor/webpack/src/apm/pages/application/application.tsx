@@ -243,7 +243,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       this.pageKey += 1;
       this.handleGetAppInfo();
     } else {
-      const dashboardId = this.$route.query.dashboardId;
+      const { dashboardId, to, from } = this.$route.query;
       this.$router.push({
         name: 'service',
         query: {
@@ -253,6 +253,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           'filter-kind': item.kind,
           'filter-predicate_value': item.predicate_value,
           dashboardId,
+          to,
+          from,
         },
       });
     }
