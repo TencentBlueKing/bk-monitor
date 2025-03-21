@@ -76,8 +76,11 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   @Watch('graphConfigPayload')
   graphConfigPayloadChange() {
+    console.log('============================================= from graphConfigPayloadChange');
     this.$router.replace({
       query: {
+        ...this.$route.query,
+        key: `${Date.now()}`, // query 相同时 router.replace 会报错
         viewTab: this.viewTab,
         viewPayload: JSON.stringify(this.graphConfigPayload),
       },
@@ -126,7 +129,9 @@ export default class ViewTab extends tsc<IProps, IEmit> {
         updateCurrentSelectedMetricNameList(
           this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : []
         );
-        this.$emit('payloadChange', {});
+        this.$emit('payloadChange', {
+          metrics: this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : [],
+        });
 
         this.isViewDetailLoading = false;
         return;
@@ -181,6 +186,10 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     });
     this.viewTab = 'default';
     this.fetchViewList();
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('视图删除成功'),
+    });
   }
 
   handleViewSaveSuccess() {

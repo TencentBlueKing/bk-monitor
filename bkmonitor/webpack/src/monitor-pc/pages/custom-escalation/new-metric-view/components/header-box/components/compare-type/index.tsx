@@ -93,10 +93,13 @@ export default class CompareType extends tsc<IProps, IEmit> {
     if (this.localType === 'time' && this.localOffset.length < 1) {
       return;
     }
-    this.$emit('change', {
+    const result = {
       type: this.localType,
       offset: this.localOffset,
-    });
+    };
+    if (!_.isEqual(this.value, result)) {
+      this.$emit('change', result);
+    }
   }
 
   handleTypeChange(type: string) {

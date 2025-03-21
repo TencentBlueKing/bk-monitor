@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
-import ViewColumn from './components/header-box/components/view-column/index';
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
+import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
 
@@ -42,10 +42,14 @@ import './new-metric-view.scss';
 
 @Component
 export default class NewMetricView extends tsc<object> {
-  currentView = 'asdadas';
+  currentView = 'default';
   dimenstionParams: Record<string, any> = {};
   showStatisticalValue = false;
   viewColumn = 3;
+  state = {
+    showStatisticalValue: false,
+    viewColumn: 3,
+  };
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -60,7 +64,6 @@ export default class NewMetricView extends tsc<object> {
   }
 
   get graphConfigParams() {
-    // const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     return {
       limit: {
         function: 'top', // top/bottom
@@ -74,12 +77,13 @@ export default class NewMetricView extends tsc<object> {
     };
   }
 
-  @Watch('graphConfigParams')
-  graphConfigParamsChange() {
+  @Watch('state', { deep: true })
+  stateChange() {
     this.$router.replace({
       query: {
-        viewTab: this.currentView,
-        payload: JSON.stringify(this.graphConfigParams),
+        ...this.$route.query,
+        ...(this.state as Record<string, any>),
+        key: `${Date.now()}`, // query 相同时 router.replace 会报错
       },
     });
   }
@@ -90,8 +94,6 @@ export default class NewMetricView extends tsc<object> {
 
   handleDimensionParamsChange(payload: any) {
     this.dimenstionParams = Object.freeze(payload);
-
-    console.log('from handleDimensionParamsChange = ', payload);
   }
 
   handleMetricsSelectReset() {
@@ -101,6 +103,10 @@ export default class NewMetricView extends tsc<object> {
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
+    this.state = {
+      viewColumn: parseInt(routerQuery.viewColumn) || 3,
+      showStatisticalValue: routerQuery.showStatisticalValue === 'true' ? true : false,
+    };
   }
 
   render() {
@@ -137,18 +143,18 @@ export default class NewMetricView extends tsc<object> {
                   onChange={this.handleDimensionParamsChange}
                 >
                   <template slot='actionExtend'>
-                    <bk-checkbox v-model={this.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+                    <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
                     <ViewColumn
                       style='margin-left: 32px;'
-                      v-model={this.viewColumn}
+                      v-model={this.state.viewColumn}
                     />
                   </template>
                 </HeaderBox>
                 <div class='metric-view-dashboard-container'>
                   <PanelChartView
                     config={this.graphConfigParams as any}
-                    showStatisticalValue={this.showStatisticalValue}
-                    viewColumn={this.viewColumn}
+                    showStatisticalValue={this.state.showStatisticalValue}
+                    viewColumn={this.state.viewColumn}
                   />
                 </div>
               </template>

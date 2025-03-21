@@ -121,6 +121,13 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
       instance.popperInstance.update();
     }
   }
+  hide() {
+    if (instance) {
+      instance.hide();
+      instance.destroy();
+      instance = undefined;
+    }
+  }
 
   handleKeyChange(key: string) {
     this.localValue = genDefaultVallue({
@@ -226,7 +233,7 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
               {this.$t('收起查询')}
             </div>
             <div class='desc-box'>
-              <div class='desc-tag'>Ctrl+Enter</div>
+              <div class='desc-tag'>Ctrl + Enter</div>
               {this.$t('提交查询')}
             </div>
             <bk-button
@@ -234,7 +241,7 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
               theme='primary'
               onClick={this.handleConfirm}
             >
-              {this.$t('确定 Ctrl+ Enter')}
+              {this.$t('确定 Ctrl + Enter')}
             </bk-button>
             <bk-button
               style='margin-left: 8px'

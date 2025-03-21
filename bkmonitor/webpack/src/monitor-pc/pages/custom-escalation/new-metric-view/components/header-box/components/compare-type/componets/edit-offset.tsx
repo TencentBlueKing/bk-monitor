@@ -231,7 +231,9 @@ export default class CompareWay extends tsc<IProps, IEmit> {
                   key={offsetItem.id}
                   class='time-item'
                 >
-                  <bk-checkbox value={offsetItem.id}>{offsetItem.name}</bk-checkbox>
+                  <bk-checkbox value={offsetItem.id}>
+                    <div>{offsetItem.name}</div>
+                  </bk-checkbox>
                 </div>
               ))}
             </bk-checkbox-group>

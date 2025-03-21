@@ -35,26 +35,42 @@ interface IProps {
     alias: string;
     metric_name: string;
   };
+  checked?: boolean;
 }
 
 interface IEmit {
-  onChange: () => void;
+  onCheckChange: (checked: boolean) => void;
+  onEditSuccess: () => void;
 }
 
 @Component
 export default class RenderMetric extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
+  @Prop({ type: Boolean, default: false }) readonly checked: IProps['checked'];
 
+  @Ref('fromRef') fromRef: any;
   @Ref('popoverRef') popoverRef: any;
   @Ref('inputRef') inputRef: any;
 
   isActive = false;
   isSubmiting = false;
-  localAlias = '';
+  formData = {
+    description: '',
+  };
+
+  get formRules() {
+    return Object.freeze({
+      description: [],
+    });
+  }
 
   @Watch('data', { immediate: true })
   dataChange() {
-    this.localAlias = this.data.alias;
+    this.formData.description = this.data.alias;
+  }
+
+  handleChange(checked: boolean) {
+    this.$emit('checkChange', checked);
   }
 
   handleEditShow() {
@@ -71,18 +87,19 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
   async handleSubmit() {
     this.isSubmiting = true;
     try {
+      await this.fromRef.validate();
       await modifyCustomTsFields({
         time_series_group_id: this.$route.params.id,
         update_fields: [
           {
             type: 'metric',
             name: this.data.metric_name,
-            description: this.localAlias,
+            ...this.formData,
           },
         ],
       });
       this.popoverRef.hideHandler();
-      this.$emit('change');
+      this.$emit('editSuccess');
     } finally {
       this.isSubmiting = false;
     }
@@ -100,8 +117,17 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
           'render-metric-group-item': true,
           'is-active': this.isActive,
         }}
+        v-bk-tooltips={{
+          html: `<div>${this.$t('指标名：')}${this.data.metric_name}</div><div>${this.$t('指标别名：')}${this.data.alias || '--'}</div>`,
+          placement: 'right',
+        }}
       >
-        <bk-checkbox value={this.data.metric_name}>{this.data.alias || this.data.metric_name}</bk-checkbox>
+        <bk-checkbox
+          checked={this.checked}
+          onChange={this.handleChange}
+        >
+          <div class='render-metric-group-name'>{this.data.alias || this.data.metric_name}</div>
+        </bk-checkbox>
         <bk-popover
           ref='popoverRef'
           tippyOptions={{
@@ -124,11 +150,27 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
                 <span style='color: #63656E;'>{this.$t('指标名：')}</span>
                 <span>{this.data.metric_name}</span>
               </div>
-              <div style='margin: 8px 0 6px; color: #4D4F56;'>{this.$t('指标别名：')}</div>
-              <bk-input
-                ref='inputRef'
-                v-model={this.localAlias}
-              />
+              <bk-form
+                ref='fromRef'
+                form-type='vertical'
+                {...{
+                  props: {
+                    model: this.formData,
+                    rules: this.formRules,
+                  },
+                }}
+              >
+                <bk-form-item
+                  class='alias-item-label'
+                  label={this.$t('指标别名：')}
+                  property='description'
+                >
+                  <bk-input
+                    ref='inputRef'
+                    v-model={this.formData.description}
+                  />
+                </bk-form-item>
+              </bk-form>
             </div>
             <div class='footer'>
               <bk-button

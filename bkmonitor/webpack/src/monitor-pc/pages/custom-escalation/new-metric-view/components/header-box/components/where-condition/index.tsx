@@ -58,6 +58,8 @@ interface IEmit {
   }) => void;
 }
 
+const URL_CACHE_KEY = 'showCommonly';
+
 @Component
 export default class WhereConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
@@ -79,9 +81,6 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
 
   @Watch('commonConditionValue', { immediate: true })
   commonConditionValueChange() {
-    if (this.commonConditionValue.length > 0) {
-      this.isShowCommonlyUsedList = true;
-    }
     this.mergeCommonConditionValue();
   }
 
@@ -136,6 +135,16 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
 
   handleToggleCommonlyUsedList() {
     this.isShowCommonlyUsedList = !this.isShowCommonlyUsedList;
+    this.$router.replace({
+      query: {
+        ...this.$route.query,
+        [URL_CACHE_KEY]: `${this.isShowCommonlyUsedList}`,
+      },
+    });
+  }
+
+  created() {
+    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] === 'true' ? true : false;
   }
 
   render() {
@@ -165,6 +174,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
               'commonly-used-btn': true,
               'is-active': this.isShowCommonlyUsedList,
             }}
+            v-bk-tooltips={this.$t('展示/隐藏常用条件')}
             onClick={this.handleToggleCommonlyUsedList}
           >
             <i class='icon-monitor icon-dimension-line' />

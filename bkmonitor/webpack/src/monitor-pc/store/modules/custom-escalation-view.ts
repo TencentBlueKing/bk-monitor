@@ -35,8 +35,6 @@ type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 @Module({ name: 'customEscalationView', dynamic: true, namespaced: true, store })
 class CustomEscalationViewStore extends VuexModule {
   public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
-  // 当前视图选中的指标
-  // public currentSelectedMetricList: Readonly<TCustomTsMetricGroups['metric_groups'][number]['metrics']> = [];
   public currentSelectedMetricNameList: string[] = [];
   public endTime = 'now';
   public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
@@ -45,17 +43,20 @@ class CustomEscalationViewStore extends VuexModule {
 
   get currentSelectedMetricList() {
     const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
-    return this.metricGroupList.reduce<TCustomTsMetricGroups['metric_groups'][number]['metrics']>(
-      (result, groupItem) => {
-        groupItem.metrics.forEach(metricsItem => {
-          if (metricKeyMap[metricsItem.metric_name]) {
-            result.push(metricsItem);
-          }
-        });
-        return result;
-      },
-      []
-    );
+    const result: TCustomTsMetricGroups['metric_groups'][number]['metrics'] = [];
+    const repeatMap: Record<string, boolean> = {};
+    this.metricGroupList.forEach(groupItem => {
+      groupItem.metrics.forEach(metricsItem => {
+        if (repeatMap[metricsItem.metric_name]) {
+          return;
+        }
+        if (metricKeyMap[metricsItem.metric_name]) {
+          repeatMap[metricsItem.metric_name] = true;
+          result.push(metricsItem);
+        }
+      });
+    });
+    return result;
   }
 
   get timeRangTimestamp() {

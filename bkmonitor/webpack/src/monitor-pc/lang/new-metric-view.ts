@@ -38,7 +38,7 @@ export default {
   选中: '',
   收起查询: '',
   提交查询: '',
-  '确定 Ctrl+ Enter': '',
+  '确定 Ctrl + Enter': '',
   '1 列': '',
   其它维度: '',
   拆图: '',
@@ -102,4 +102,9 @@ export default {
   名称已存在: 'Name already exists',
   '打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：':
     'After opening, you can quickly expand it in [Filter Conditions] of [Visualization]:',
+  没有可选维度: '',
+  没有可聚合维度: '',
+  '展示/隐藏常用条件': '',
+  'UI 模式': '',
+  语句模式: '',
 };

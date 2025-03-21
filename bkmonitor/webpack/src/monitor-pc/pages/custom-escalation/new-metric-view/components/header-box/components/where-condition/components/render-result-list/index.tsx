@@ -55,8 +55,8 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
-  get isShowAddBtn() {
-    return this.latestMetricsList.length > 1 || this.latestMetricsList[0]?.dimensions.length > 0;
+  get isAddBtnDisabled() {
+    return _.every(this.latestMetricsList, metricItem => metricItem.dimensions.length < 1);
   }
 
   @Watch('currentSelectedMetricList', { immediate: true })
@@ -67,7 +67,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   @Watch('value', { immediate: true })
   valueChange() {
     this.localValue = Object.freeze(this.value);
-    this.editPanelRef?.update();
+    this.editPanelRef?.hide();
   }
 
   calcLatestMetricsList() {
@@ -134,6 +134,9 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   }
 
   handleShowAppendPanel(event: Event) {
+    if (this.isAddBtnDisabled) {
+      return;
+    }
     this.currentEditDimension = undefined;
     this.editPanelRef.show(event.target as HTMLElement);
     this.calcLatestMetricsList();
@@ -225,30 +228,40 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                   class='tag-remove'
                   onClick={() => this.handleRemoveTag(index)}
                 >
-                  <i class='icon-monitor icon-mc-close' />
+                  <i
+                    style='font-size: 12px;'
+                    class='icon-monitor icon-mc-close-fill'
+                  />
                 </div>
               </div>
             );
           })}
-          {this.isShowAddBtn && (
+          <div class='more-action-box'>
             <div
               key='add'
-              class='add-btn'
+              class={{
+                'add-btn': true,
+                'is-disabled': this.isAddBtnDisabled,
+              }}
+              v-bk-tooltips={{
+                content: this.$t('没有可选维度'),
+                disabled: !this.isAddBtnDisabled,
+              }}
               onClick={this.handleShowAppendPanel}
             >
               <i class='icon-monitor icon-a-1jiahao' />
             </div>
-          )}
-          {this.localValue.length > 0 && (
-            <div
-              key='clear'
-              class='clear-btn'
-              v-bk-tooltips={this.$t('清空')}
-              onClick={this.handleClear}
-            >
-              <i class='icon-monitor icon-a-Clearqingkong' />
-            </div>
-          )}
+            {this.localValue.length > 0 && (
+              <div
+                key='clear'
+                class='clear-btn'
+                v-bk-tooltips={this.$t('清空')}
+                onClick={this.handleClear}
+              >
+                <i class='icon-monitor icon-a-Clearqingkong' />
+              </div>
+            )}
+          </div>
         </div>
         <EditPanel
           ref='editPanelRef'
