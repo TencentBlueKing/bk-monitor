@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { SETTINGS_POP_ZINDEX } from '../../utils';
+import { SETTINGS_POP_Z_INDEX } from '../../utils';
 import TabForm from './tab-form';
 
 import type { IBookMark, SettingsTabType } from '../../typings';
@@ -164,7 +164,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   handleShowTip(cb) {
     if (this.localTabListIsDiff) {
       this.$bkInfo({
-        zIndex: SETTINGS_POP_ZINDEX,
+        zIndex: SETTINGS_POP_Z_INDEX,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           this.localTabData = deepClone(this.bookMarkData);
@@ -277,7 +277,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   handleDelete(id: string) {
     if (this.localTabData.length < 2) return;
     this.$bkInfo({
-      zIndex: SETTINGS_POP_ZINDEX,
+      zIndex: SETTINGS_POP_Z_INDEX,
       title: this.$t('确认删除此页签吗？'),
       confirmFn: () => {
         if (this.bookMarkData.some(tab => tab.id === this.curTabForm.id)) {

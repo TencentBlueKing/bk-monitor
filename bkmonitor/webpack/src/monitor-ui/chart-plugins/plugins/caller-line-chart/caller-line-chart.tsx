@@ -44,13 +44,20 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
+import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+import CustomEventMenu from './custom-event-menu/custom-event-menu';
+import {
+  // createCustomEventSeries,
+  getCustomEventTags,
+  getCustomEventTagsPanelParams,
+  type ICustomEventTagsItem,
+} from './use-custom';
 
 import type {
   DataQuery,
@@ -66,9 +73,32 @@ import type {
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
+import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
 
+const EVENT_SOURCE_LIST = [
+  {
+    name: '全选',
+    id: 'all',
+  },
+  {
+    name: '蓝盾（3）',
+    id: 'bkci',
+  },
+  {
+    name: 'BCS（4）',
+    id: 'bcs',
+  },
+  {
+    name: '主机监控（4）',
+    id: 'host',
+  },
+  {
+    name: '其他（4）',
+    id: 'others',
+  },
+];
 interface IProps {
   panel: PanelModel;
 }
@@ -138,6 +168,16 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 图例排序
   legendSorts: { name: string; timeShift: string }[] = [];
+  // 自定义事件menu位置信息
+  customMenuPosition: IPosition = {
+    left: 0,
+    top: 0,
+  };
+  clickEventItem: ICustomEventTagsItem['items'][number] = null;
+  // 自定义事件menu数据
+  customMenuData: object = {};
+
+  eventAnalyze = false;
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -255,6 +295,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
+      let newParams: Record<string, any> = {};
       for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
@@ -265,7 +306,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newParams = structuredClone({
+          newParams = structuredClone({
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -347,7 +388,21 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      await Promise.all(promiseList).catch(() => false);
+      let customEventList = [];
+      await Promise.all([
+        ...promiseList,
+        getCustomEventTags(
+          getCustomEventTagsPanelParams({
+            start_time: newParams.start_time,
+            end_time: newParams.end_time,
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+            interval: interval * 60 * 15,
+          })
+        ).then(list => {
+          customEventList = list;
+        }),
+      ]).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -427,6 +482,13 @@ class CallerLineChart extends CommonSimpleChart {
             animation: hasShowSymbol,
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
+            grid: {
+              top: customEventList?.length ? 30 : 10,
+              left: 20,
+              right: 20,
+              bottom: 0,
+              containLabel: true,
+            },
             yAxis: {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
@@ -452,7 +514,8 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: seriesList,
+            // series: [...seriesList, customEventList?.length  ? createCustomEventSeries(customEventList) : undefined],
+            series: [...seriesList],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -1019,10 +1082,46 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
   }
-
+  handleClick(event) {
+    if (event.seriesType === 'custom') {
+      this.$el.focus?.();
+      const {
+        info,
+        event: {
+          event: { clientX, clientY },
+        },
+      } = event;
+      const position = fitPosition(
+        {
+          left: clientX + 12,
+          top: clientY + 12,
+        },
+        400,
+        300
+      );
+      this.customMenuPosition = {
+        left: position.left,
+        top: position.top,
+      };
+      this.clickEventItem = info;
+    }
+  }
+  handleChartBlur() {
+    this.customMenuPosition = {
+      left: 0,
+      top: 0,
+    };
+  }
+  handleEventAnalyzeChange() {
+    this.eventAnalyze = !this.eventAnalyze;
+  }
   render() {
     return (
-      <div class='apm-caller-line-chart'>
+      <div
+        class='apm-caller-line-chart'
+        tabindex={22}
+        onBlur={this.handleChartBlur}
+      >
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
@@ -1065,6 +1164,66 @@ class CallerLineChart extends CommonSimpleChart {
               <span>{this.panel.title}</span>
             )}
           </div>
+          <div>
+            <bk-popover
+              arrow={false}
+              distance={2}
+              placement='bottom-start'
+              theme='light common-monitor'
+              trigger='click'
+            >
+              <div
+                class='event-analyze tips-icon'
+                v-bk-tooltips={{ content: this.$t('事件分析') }}
+              >
+                <i class='icon-monitor icon-fasonglishi' />
+              </div>
+              <div
+                class={`event-analyze-wrapper ${this.eventAnalyze ? 'event-analyze-wrapper__set' : 'event-analyze-wrapper__unset'}`}
+                slot='content'
+              >
+                <div class='event-title'>{this.$t('事件分析')}</div>
+                <bk-switcher
+                  size='small'
+                  theme='primary'
+                  value={this.eventAnalyze}
+                  onChange={this.handleEventAnalyzeChange}
+                />
+                {this.eventAnalyze && (
+                  <div class='event-content'>
+                    <div class='event-wrapper'>
+                      <div class='event-content-title'>{this.$t('事件来源')}</div>
+                      <bk-checkbox-group class='event-content-list'>
+                        {EVENT_SOURCE_LIST.map(item => (
+                          <bk-checkbox
+                            key={item.id}
+                            size='small'
+                            value={item.id}
+                          >
+                            {item.name}
+                          </bk-checkbox>
+                        ))}
+                      </bk-checkbox-group>
+                    </div>
+                    <div class='event-wrapper'>
+                      <div class='event-content-title'>{this.$t('事件等级')}</div>
+                      <bk-checkbox-group class='event-content-list'>
+                        {EVENT_SOURCE_LIST.map(item => (
+                          <bk-checkbox
+                            key={item.id}
+                            size='small'
+                            value={item.id}
+                          >
+                            {item.name}
+                          </bk-checkbox>
+                        ))}
+                      </bk-checkbox-group>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </bk-popover>
+          </div>
         </ChartHeader>
         {!this.empty ? (
           <div class={'time-series-content'}>
@@ -1082,6 +1241,7 @@ class CallerLineChart extends CommonSimpleChart {
                   needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
+                  onClick={this.handleClick}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onZrClick={this.handleZrClick}
@@ -1097,6 +1257,12 @@ class CallerLineChart extends CommonSimpleChart {
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {this.customMenuPosition?.left > 0 && (
+          <CustomEventMenu
+            eventItem={this.clickEventItem}
+            position={this.customMenuPosition}
+          />
         )}
       </div>
     );

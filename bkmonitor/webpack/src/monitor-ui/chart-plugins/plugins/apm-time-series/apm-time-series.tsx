@@ -514,7 +514,7 @@ export default class ApmTimeSeries extends TimeSeries {
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           >
             {this.enableContextmenu && (
               <div class='context-menu-info'>

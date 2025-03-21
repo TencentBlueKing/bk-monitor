@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { SETTINGS_POP_ZINDEX } from '../utils';
+import { SETTINGS_POP_Z_INDEX } from '../utils';
 import SettingsDashboard from './settings-dashboard/settings-dashboard';
 import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
@@ -205,7 +205,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     /** 离开变量设置 并且存在未保存操作时*/
     if (this.hasDiff) {
       this.$bkInfo({
-        zIndex: SETTINGS_POP_ZINDEX,
+        zIndex: SETTINGS_POP_Z_INDEX,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => (this.localActive = this.active),
         cancelFn: () => this.handleActiveChange(this.localActive),

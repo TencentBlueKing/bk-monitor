@@ -345,6 +345,14 @@ export class LineChart
       extraCssText: 'max-width: 50%',
     };
   }
+
+  /**
+   * @description 请求前 loading 状态改值逻辑（可用于继承组件重写该方法）
+   **/
+  handleBeforeRequestLoadingChange() {
+    if (this.inited) this.handleLoadingChange(true);
+  }
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -360,7 +368,7 @@ export class LineChart
       this.registerObserver(start_time, end_time);
       return;
     }
-    if (this.inited) this.handleLoadingChange(true);
+    this.handleBeforeRequestLoadingChange();
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
@@ -510,6 +518,7 @@ export class LineChart
             z: 1,
             traceData: item.trace_data ?? '',
             dimensions: item.dimensions ?? {},
+            color: item?.color,
           })) as any
         );
         const boundarySeries = seriesResult
@@ -1399,7 +1408,7 @@ export class LineChart
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           />
         )}
         {!this.empty ? (

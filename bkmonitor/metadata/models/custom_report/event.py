@@ -8,10 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-
+import copy
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from django.conf import settings
 from django.db import models
@@ -47,6 +46,11 @@ class EventGroup(CustomGroupBase):
 
     GROUP_ID_FIELD = "event_group_id"
     GROUP_NAME_FIELD = "event_group_name"
+
+    # 事件支持 UnifyQuery 检索所需的配置项
+    DEFAULT_RESULT_TABLE_OPTIONS = {
+        "need_add_time": True, "time_field": {"name": "time", "type": "date", "unit": "millisecond"}
+    }
 
     # 时间字段的配置
     STORAGE_TIME_OPTION = {"es_type": "date", "es_format": "epoch_millis"}
@@ -128,6 +132,11 @@ class EventGroup(CustomGroupBase):
             return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
 
         return "bkmonitor_event_{}".format(bk_data_id)
+
+    @classmethod
+    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
+        # 补充索引集，用于 UnifyQuery 查询。
+        default_storage_config["index_set"] = custom_group.table_id
 
     def update_metrics(self, metric_info):
         return Event.modify_event_list(self.event_group_id, metric_info)
@@ -294,6 +303,7 @@ class EventGroup(CustomGroupBase):
             metric_info_list=event_info_list,
             table_id=table_id,
             data_label=data_label,
+            additional_options=copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS),
         )
 
         fields = cls.STORAGE_FIELD_LIST

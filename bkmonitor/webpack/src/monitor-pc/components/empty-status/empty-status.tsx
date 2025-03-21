@@ -46,7 +46,7 @@ interface IEmptyStatusEvent {
 // 默认类型对应的文本枚举
 export const defaultTextMap: IEmptyStatusTextMap = {
   incidentEmpty: window.i18n.t('当前空间下暂无故障'),
-  empty: window.i18n.t('查无数据'),
+  empty: window.i18n.t('暂无数据'),
   'search-empty': window.i18n.t('搜索结果为空'),
   500: window.i18n.t('数据获取异常'),
   403: window.i18n.t('无业务权限'),

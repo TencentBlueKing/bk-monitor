@@ -1,0 +1,26 @@
+.auto-width-input-component {
+  position: relative;
+  // display: inline-flex;
+  // align-items: center;
+  margin: 0 4px 4px 0;
+  line-height: 22px;
+
+  .input-value-hidden {
+    display: flex;
+    height: 1px;
+    padding: 0;
+    padding: 0 2px;
+    overflow: hidden;
+    visibility: hidden;
+  }
+
+  input {
+    min-width: 100%;
+    background: #ffffff00;
+    border: none;
+
+    &::placeholder {
+      color: #ccc;
+    }
+  }
+}

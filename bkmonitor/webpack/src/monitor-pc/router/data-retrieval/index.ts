@@ -33,6 +33,8 @@ const IndexRetrievalNew = () =>
   import(/* webpackChunkName: 'IndexRetrievalNew'*/ '../../pages/data-retrieval/index-retrieval');
 const EventRetrievalNew = () =>
   import(/* webpackChunkName: 'EventRetrievalNew'*/ '../../pages/data-retrieval/event-retrieval');
+const EventExplore = () =>
+  import(/* webpackChunkName: 'EventRetrievalNew'*/ '../../pages/event-explore/monitor-event-explore');
 const LogRetrievalNew = () =>
   import(/* webpackChunkName: 'LogRetrievalNew'*/ '../../pages/data-retrieval/log-retrieval');
 const TraceRetrieval = () =>
@@ -90,6 +92,27 @@ export default [
     meta: {
       title: '事件检索',
       navId: 'event-retrieval',
+      navClass: 'event-retrieval-nav',
+      noNavBar: true,
+      needClearQuery: true, // 需要清空query搜索条件
+      authority: {
+        map: dataRetrievalAuth,
+        page: dataRetrievalAuth.VIEW_AUTH,
+      },
+      route: {
+        parent: 'data',
+      },
+    },
+  },
+  {
+    path: '/event-explore',
+    name: 'event-explore',
+    components: {
+      noCache: EventExplore,
+    },
+    meta: {
+      title: '事件检索new',
+      navId: 'event-explore',
       navClass: 'event-retrieval-nav',
       noNavBar: true,
       needClearQuery: true, // 需要清空query搜索条件

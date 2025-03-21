@@ -35,6 +35,8 @@ nodata_error_strategy_config_mapping = {
 
 DEFAULT_APM_APP_QPS = 500
 
+DEFAULT_APM_APP_EVENT_CONFIG = {"is_enabled_metric_tags": False}
+
 OTLP_JAEGER_SPAN_KIND = {2: "server", 3: "client", 4: "producer", 5: "consumer", 1: "internal", 0: "unset"}
 IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
 

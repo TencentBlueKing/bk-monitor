@@ -2,10 +2,10 @@
 
 .biz-list-wrap-01 {
   width: 100%;
-  border-radius: 2px;
   padding: 12px 0;
   background: #fafbfd;
   border: 1px solid #eaebf0;
+  border-radius: 2px;
 
   .biz-list-main {
     .biz-search-wrap {
@@ -14,8 +14,8 @@
 
     .biz-search {
       .control-icon.left-icon {
-        color: #63656e;
         left: 0;
+        color: #63656e;
       }
 
       &.with-left-icon {
@@ -30,8 +30,8 @@
     }
 
     .biz-list {
-      margin-top: 8px;
       max-height: 256px;
+      margin-top: 8px;
       overflow-y: auto;
     }
   }
@@ -49,9 +49,9 @@
 
     .biz-btn {
       position: relative;
+      flex: 1;
       color: #63656e;
       cursor: pointer;
-      flex: 1;
 
       @include flex-center;
 
@@ -61,8 +61,8 @@
           top: 50%;
           right: 0;
           height: 16px;
-          border-right: 1px solid #434e68;
           content: '';
+          border-right: 1px solid #434e68;
           transform: translateY(-50%);
         }
       }
@@ -85,12 +85,12 @@
   
   .reset-name-title {
     display: inline-block;
-    border-bottom: 1px dashed #979ba5;
     margin-bottom: 10px;
+    border-bottom: 1px dashed #979ba5;
   }
 
   .bk-form-radio {
-    font-size: 12px;
     margin-right: 24px;
+    font-size: 12px;
   }
 }
