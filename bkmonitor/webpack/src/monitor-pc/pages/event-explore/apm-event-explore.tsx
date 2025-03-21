@@ -27,11 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
+import { ECondition, EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
 import { APIType } from './api-utils';
 import EventExplore from './event-explore';
-
-import type { IFormData } from './typing';
+import { ExploreSourceTypeEnum, type IFormData } from './typing';
 
 import './apm-event-explore.scss';
 const APM_EVENT_DATA_ID = 'builtin';
@@ -58,6 +57,9 @@ export default class ApmEventExplore extends tsc<object> {
   /** 用于 日志 和 事件关键字切换 换成查询 */
   cacheQuery = null;
   filterMode = EMode.ui;
+
+  eventSourceType = [ExploreSourceTypeEnum.ALL];
+
   created() {
     this.getRouteParams();
   }
@@ -78,6 +80,11 @@ export default class ApmEventExplore extends tsc<object> {
         ] = targetsList;
         this.dataTypeLabel = data_type_label;
         this.where = where || [];
+        const hasSource = this.where.find(item => item.key === 'source');
+        if (hasSource) {
+          this.where = this.where.filter(item => item.key !== 'source');
+          this.eventSourceType = hasSource.value as ExploreSourceTypeEnum[];
+        }
         this.queryString = queryString || '';
         this.group_by = groupBy || [];
         this.filter_dict = filterDict || {};
@@ -93,6 +100,10 @@ export default class ApmEventExplore extends tsc<object> {
   }
 
   setRouteParams() {
+    const where = [...this.where];
+    if (!this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) {
+      where.push({ key: 'source', method: 'eq', condition: ECondition.and, value: this.eventSourceType });
+    }
     const query = {
       ...this.$route.query,
       targets: JSON.stringify([
@@ -103,7 +114,7 @@ export default class ApmEventExplore extends tsc<object> {
                 result_table_id: this.dataId,
                 data_type_label: this.dataTypeLabel,
                 data_source_label: this.dataSourceLabel,
-                where: this.where,
+                where,
                 query_string: this.queryString,
                 group_by: this.group_by,
                 filter_dict: this.filter_dict,
@@ -155,6 +166,12 @@ export default class ApmEventExplore extends tsc<object> {
     this.showResidentBtn = isShow;
     this.setRouteParams();
   }
+
+  handleEventSourceTypeChange(eventSourceType: ExploreSourceTypeEnum[]) {
+    this.eventSourceType = eventSourceType;
+    this.setRouteParams();
+  }
+
   render() {
     return (
       <EventExplore
@@ -163,6 +180,7 @@ export default class ApmEventExplore extends tsc<object> {
         dataId={APM_EVENT_DATA_ID}
         dataSourceLabel={'apm'}
         defaultShowResidentBtn={this.showResidentBtn}
+        eventSourceType={this.eventSourceType}
         filter_dict={this.filter_dict}
         filterMode={this.filterMode}
         group_by={this.group_by}
@@ -170,6 +188,7 @@ export default class ApmEventExplore extends tsc<object> {
         source={APIType.APM}
         where={this.where}
         onCommonWhereChange={this.handleCommonWhereChange}
+        onEventSourceTypeChange={this.handleEventSourceTypeChange}
         onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}

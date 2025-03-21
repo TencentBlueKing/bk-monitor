@@ -136,4 +136,5 @@ export default {
   两个参数都: 'Both parameters',
   一个或多个参数: 'One or more parameters',
   全文检索: 'Full-text Search',
+  全部来源: 'All Sources',
 };

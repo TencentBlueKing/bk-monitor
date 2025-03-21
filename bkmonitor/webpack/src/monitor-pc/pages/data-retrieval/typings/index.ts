@@ -63,6 +63,7 @@ export declare namespace IFavList {
     name: string;
     update_time: string;
     update_user: string;
+    disabled?: boolean;
   }
   interface groupList {
     group_name: string;

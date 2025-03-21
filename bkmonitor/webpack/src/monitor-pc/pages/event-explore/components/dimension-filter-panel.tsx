@@ -27,16 +27,17 @@
 import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CancelToken } from 'monitor-api/index';
 import { Debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { APIType, getEventTopK } from '../api-utils';
+import { type ConditionChangeEvent, ExploreSourceTypeEnum, type IDimensionField } from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { IWhereItem } from '../../../components/retrieval-filter/utils';
-import type { ConditionChangeEvent, IDimensionField } from '../typing';
 
 import './dimension-filter-panel.scss';
 
@@ -46,11 +47,14 @@ interface DimensionFilterPanelProps {
   condition: IWhereItem[];
   queryString: string;
   source: APIType;
+  eventSourceType?: ExploreSourceTypeEnum[];
+  hasSourceSelect?: boolean;
 }
 
 interface DimensionFilterPanelEvents {
   onClose(): void;
   onConditionChange(val: ConditionChangeEvent): void;
+  onShowEventSourcePopover(e: Event): void;
 }
 
 @Component
@@ -63,6 +67,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Prop({ default: false }) listLoading!: boolean;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+  /** 事件来源类型 */
+  @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
+  @Prop({ type: Boolean, default: false }) hasSourceSelect: boolean;
+
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
   @InjectReactive('commonParams') commonParams;
@@ -79,6 +87,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   selectField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
+
+  topKCancelFn = null;
 
   /** 条件切换后，维度count需要重新获取 */
   @Watch('condition')
@@ -160,13 +170,22 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   getFieldTopK(params) {
+    this.topKCancelFn?.();
     return getEventTopK(
       {
         ...this.commonParams,
         ...params,
       },
-      this.source
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKCancelFn = c)),
+      }
     ).catch(() => []);
+  }
+
+  @Emit('showEventSourcePopover')
+  handleShowEventSourcePopover(e: Event) {
+    return e;
   }
 
   @Emit('close')
@@ -195,6 +214,19 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     }
   }
 
+  renderEventSourceIcon() {
+    const iconMap = {
+      [ExploreSourceTypeEnum.BCS]: 'icon-bcs',
+      [ExploreSourceTypeEnum.CICD]: 'icon-landun',
+      [ExploreSourceTypeEnum.HOST]: 'icon-host',
+      [ExploreSourceTypeEnum.DEFAULT]: 'icon-default',
+    };
+
+    if (this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) return <i class='icon-monitor icon-all' />;
+    if (this.eventSourceType.length === 1) return <i class={['source-icon', iconMap[this.eventSourceType[0]]]} />;
+    return <div class='source-count-icon'>{this.eventSourceType.length}</div>;
+  }
+
   render() {
     if (this.listLoading) return this.renderSkeleton();
 
@@ -210,6 +242,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
         </div>
         <div class='search-input'>
           <bk-input
+            class={{ 'has-source-select': this.hasSourceSelect }}
             v-model={this.searchVal}
             native-attributes={{
               spellcheck: false,
@@ -224,6 +257,15 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
             onClear={this.handleSearch}
             onEnter={this.handleSearch}
           />
+          {this.hasSourceSelect && (
+            <div
+              class='event-source-select'
+              onClick={this.handleShowEventSourcePopover}
+            >
+              {this.renderEventSourceIcon()}
+              <i class='icon-monitor icon-mc-arrow-down' />
+            </div>
+          )}
         </div>
 
         {this.searchResultList.length ? (

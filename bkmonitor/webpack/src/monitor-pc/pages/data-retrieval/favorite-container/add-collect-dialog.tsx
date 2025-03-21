@@ -332,13 +332,23 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         </div>
       </div>
     );
+
     const eventKeywordsSlot = () => {
       if (this.keyword?.queryConfig?.query_string) return <span>{this.keyword.queryConfig.query_string}</span>;
       if (this.keyword?.queryConfig?.where?.length)
-        return this.keyword?.queryConfig?.where?.map(item => (
-          <div key={item.key}>
-            {item.key} {item.method} {item.value.map(v => v).join(' AND ')}
-          </div>
+        return this.keyword?.queryConfig?.where?.map((item, index) => (
+          <span key={item.key}>
+            <span>
+              {item.key} <span style='color: #3A84FF'>{item.method}</span>{' '}
+              {item.value.map((v, index) => (
+                <span key={`${v}_${index}`}>
+                  <span>{v}</span>
+                  {index < item.value.length - 1 && <span style='color: #F59500'> or </span>}
+                </span>
+              ))}
+            </span>
+            {index < this.keyword.queryConfig.where.length - 1 && <span style='color: #F59500'> and </span>}
+          </span>
         ));
       return '*';
     };
