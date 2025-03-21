@@ -30,20 +30,10 @@
         localStorage.removeItem('commonFilterAddition');
       }
       // 将本地存储的JSON字符串解析为对象并创建映射
-      const parsedValueMap = additionValue
-        ? additionValue.value.reduce((acc, item) => {
-            acc[item.field] = item.value;
-            return acc;
-          }, {})
-        : {};
-      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
-      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
-        ...commonItem,
-        value: parsedValueMap[commonItem.field] || commonItem.value,
-      }));
-
+      const parsedValueMap = additionValue? additionValue.value :[]
+      
       return filterFieldsList.value.map(item => {
-        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+        const matchingItem = parsedValueMap.find(addition => addition.field === item.field_name);
         return (
           matchingItem ?? {
             field: item.field_name || '',
@@ -146,13 +136,11 @@
       if (!isShowConditonValueSetting(item.operator)) {
         item.value = [];
       }
-      item.value = [];
       return item;
     });
 
     const param = {
       filterAddition: target,
-      isUpdate: true
     };
 
     store.dispatch('userFieldConfigChange', param);
