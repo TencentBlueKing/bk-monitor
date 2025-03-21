@@ -109,10 +109,14 @@
         color: rgba(234, 54, 54, 1);
       }
 
+      .diagnosis-info-text {
+        display: flex;
+        align-items: center;
+      }
+
       .diagnosis-text_blue {
         display: inline-block;
         max-width: 60%;
-        height: 14px;
         padding: 0 4px;
         overflow: hidden;
         color: #3a84ff;
