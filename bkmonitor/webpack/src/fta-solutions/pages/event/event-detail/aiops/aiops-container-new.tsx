@@ -503,7 +503,10 @@ export default class AiopsContainer extends tsc<IProps> {
       this.renderStatusTipsErr('diagnosis');
     }
     return (
-      <span key='diagnosis-info-text'>
+      <span
+        key='diagnosis-info-text'
+        class='diagnosis-info-text'
+      >
         {this.$t('当前告警被包含在故障')}
         <span
           class='diagnosis-text_blue'
