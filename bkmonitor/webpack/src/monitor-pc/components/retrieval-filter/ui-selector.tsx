@@ -98,7 +98,7 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   mounted() {
-    this.handleAddKeyDownSlash();
+    document.addEventListener('keydown', this.handleKeyDownSlash);
   }
   beforeDestroy() {
     document.removeEventListener('keydown', this.handleKeyDownSlash);
@@ -123,6 +123,7 @@ export default class UiSelector extends tsc<IProps> {
       followCursor: false,
       onHidden: () => {
         this.destroyPopoverInstance();
+        document.addEventListener('keydown', this.handleKeyDownSlash);
       },
     });
     await this.$nextTick();
@@ -314,14 +315,11 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   handleKeyDownSlash(event) {
-    if (event.key === '/') {
+    if (event.key === '/' && !this.inputValue && !this.showSelector) {
+      event.preventDefault();
       this.handleClickComponent();
       document.removeEventListener('keydown', this.handleKeyDownSlash);
     }
-  }
-  handleAddKeyDownSlash() {
-    document.removeEventListener('keydown', this.handleKeyDownSlash);
-    document.addEventListener('keydown', this.handleKeyDownSlash);
   }
 
   render() {

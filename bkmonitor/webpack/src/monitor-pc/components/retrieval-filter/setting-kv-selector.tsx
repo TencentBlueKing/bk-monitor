@@ -28,7 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, OPPOSE_METHODS, type IWhereItem } from './utils';
+import { METHOD_MAP, onClickOutside, OPPOSE_METHODS, type IWhereItem } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -77,6 +77,7 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   resizeObserver = null;
   optionsWidth = 0;
+  clickOutsideFn = () => {};
 
   get localValueSet() {
     return new Set(this.localValue);
@@ -88,6 +89,21 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   created() {
     this.methodMap = JSON.parse(JSON.stringify(METHOD_MAP));
+  }
+  mounted() {
+    this.overviewCount();
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { offsetWidth } = entry.target;
+        this.optionsWidth = offsetWidth;
+      }
+    });
+    const valueWrap = this.$el.querySelector('.component-main > .value-wrap') as any;
+    this.resizeObserver.observe(valueWrap); // 开始监听
+  }
+
+  beforeDestroy() {
+    this.clickOutsideFn?.();
   }
 
   @Watch('value', { immediate: true })
@@ -103,18 +119,6 @@ export default class SettingKvSelector extends tsc<IProps> {
         this.localMethod = this.value.method;
       }
     }
-  }
-
-  mounted() {
-    this.overviewCount();
-    this.resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const { offsetWidth } = entry.target;
-        this.optionsWidth = offsetWidth;
-      }
-    });
-    const valueWrap = this.$el.querySelector('.component-main > .value-wrap') as any;
-    this.resizeObserver.observe(valueWrap); // 开始监听
   }
 
   @Watch('localValue')
@@ -154,12 +158,12 @@ export default class SettingKvSelector extends tsc<IProps> {
     event.stopPropagation();
     if (!this.expand) {
       this.expand = true;
-      const targetEvent = {
-        target: this.$el.querySelector('.component-main > .value-wrap'),
-      };
-      this.handleShowSelect(targetEvent as any);
       this.isFocus = true;
     }
+    const targetEvent = {
+      target: this.$el.querySelector('.component-main > .value-wrap'),
+    };
+    this.handleShowSelect(targetEvent as any);
   }
 
   async handleShowSelect(event: MouseEvent) {
@@ -187,15 +191,29 @@ export default class SettingKvSelector extends tsc<IProps> {
     await this.$nextTick();
     this.popoverInstance?.show();
     this.showSelector = true;
+    this.handleOnClickOutside();
   }
 
   destroyPopoverInstance() {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
-    this.expand = false;
-    this.inputValue = '';
+    // this.expand = false;
     this.showSelector = false;
+  }
+
+  handleOnClickOutside() {
+    const el = document.querySelector('.resident-setting__setting-kv-selector-component-pop');
+    this.clickOutsideFn = onClickOutside(
+      [this.$el, el],
+      () => {
+        this.expand = false;
+        this.inputValue = '';
+        this.showSelector = false;
+        this.destroyPopoverInstance();
+      },
+      { once: true }
+    );
   }
 
   handleMouseenter() {
@@ -304,7 +322,15 @@ export default class SettingKvSelector extends tsc<IProps> {
           onMouseenter={this.handleMouseenter}
           onMouseleave={this.handleMouseleave}
         >
-          <span class='key-wrap'>{this.fieldInfo?.alias || this.value?.key}</span>
+          <span
+            class='key-wrap'
+            v-bk-overflow-tips={{
+              content: this.fieldInfo?.alias || this.value?.key,
+              placement: 'top',
+            }}
+          >
+            {this.fieldInfo?.alias || this.value?.key}
+          </span>
           <span class='method-wrap'>
             <bk-dropdown-menu
               positionFixed={true}

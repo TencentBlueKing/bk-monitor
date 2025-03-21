@@ -278,7 +278,7 @@ export default class ValueOptions extends tsc<IProps> {
               );
             })}
           </div>
-        ) : !this.localOptions.length && !this.search ? (
+        ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {this.noDataSimple ? (
               <span class='no-data-text'>{this.$t('暂无数据')}</span>
