@@ -19,6 +19,11 @@ from metadata.models.storage import ClusterInfo
 logger = logging.getLogger("metadata")
 
 
+# ------------------------------------------------------ #
+# ------------------ BkBase相关暂不修改 ------------------ #
+# ------------------------------------------------------ #
+
+
 class BkBaseResultTable(models.Model):
     """
     计算平台结果表

@@ -53,6 +53,7 @@ class LogGroup(CustomGroupBase):
 
         return {
             "log_group_id": self.log_group_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "bk_data_id": self.bk_data_id,
             "bk_biz_id": self.bk_biz_id,
             "table_id": self.table_id,
@@ -69,7 +70,15 @@ class LogGroup(CustomGroupBase):
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_log_group(
-        cls, bk_data_id, bk_biz_id, log_group_name, label, operator, table_id=None, max_rate=-1
+        cls,
+        bk_data_id,
+        bk_biz_id,
+        log_group_name,
+        label,
+        operator,
+        table_id=None,
+        max_rate=-1,
+        bk_tenant_id=DEFAULT_TENANT_ID,
     ) -> "LogGroup":
         """
         创建一个新的自定义分组记录
@@ -77,7 +86,11 @@ class LogGroup(CustomGroupBase):
 
         # 校验参数
         filter_kwargs = cls.pre_check(
-            label=label, bk_data_id=bk_data_id, custom_group_name=log_group_name, bk_biz_id=bk_biz_id
+            label=label,
+            bk_data_id=bk_data_id,
+            custom_group_name=log_group_name,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 创建自定义日志
@@ -90,12 +103,14 @@ class LogGroup(CustomGroupBase):
             is_split_measurement=False,
             operator=operator,
             max_rate=max_rate,
+            bk_tenant_id=bk_tenant_id,
             **filter_kwargs,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
 
+        # 不存在跨租户日志分组,所以无需添加租户属性用于过滤
         DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         # 更新 BkDataToken
