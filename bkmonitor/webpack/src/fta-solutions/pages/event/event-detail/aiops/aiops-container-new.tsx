@@ -248,14 +248,14 @@ export default class AiopsContainer extends tsc<IProps> {
   /** 挂载实例事件 */
   mounted() {
     this.$nextTick(() => {
-      const detailWrapper = document.querySelector('.event-detail-container');
+      const detailWrapper = document.querySelector('.correlation-metrics-collapse');
       if (detailWrapper) {
         detailWrapper.addEventListener('scroll', this.handleScroll);
       }
     });
   }
   beforeDestroy() {
-    const detailWrapper = document.querySelector('.event-detail-container');
+    const detailWrapper = document.querySelector('.correlation-metrics-collapse');
     if (detailWrapper) {
       detailWrapper.removeEventListener('scroll', this.handleScroll);
     }
