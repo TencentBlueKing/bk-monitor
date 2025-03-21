@@ -162,6 +162,7 @@ class QueryHelper:
             order_by=query_body["order_by"],
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
+            time_alignment=query_body["is_time_align"],
         )
         return data
 
@@ -174,6 +175,7 @@ class QueryHelper:
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
             instant=query_body["instant"],
+            time_alignment=["is_time_align"],
         )
         return data
 
@@ -186,6 +188,7 @@ class QueryHelper:
             offset=query_body["offset"],
             instant=query_body["instant"],
             order_by=query_body["order_by"],
+            time_alignment=["is_time_align"],
         )
         return data
 
@@ -303,6 +306,7 @@ class UnifyQueryCompiler(SQLCompiler):
             "start_time": self.query.start_time,
             "end_time": self.query.end_time,
             "search_after_key": self.query.search_after_key,
+            "is_time_align": self.query.is_time_align,
         }
 
 
@@ -330,6 +334,7 @@ class UnifyQueryConfig:
         self.bk_biz_id: Optional[int] = None
         self.instant: bool = False
         self.is_time_agg: bool = True
+        self.is_time_align: bool = True
         self.expression: str = ""
         self.functions: List[Dict[str, Any]] = []
         self.query_configs: List[QueryConfig] = []
@@ -373,6 +378,9 @@ class UnifyQueryConfig:
 
     def set_time_agg(self, is_time_agg: bool):
         self.is_time_agg = is_time_agg
+
+    def set_time_align(self, is_time_align: bool):
+        self.is_time_align = is_time_align
 
     def set_expression(self, expression: Optional[str]):
         if expression:
@@ -489,6 +497,12 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
     def time_agg(self, is_time_agg: bool = True) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_time_agg(is_time_agg)
+        return clone
+
+    def time_align(self, is_time_align: bool = True) -> "UnifyQuerySet":
+        """"""
+        clone = self._clone()
+        clone.query.set_time_align(is_time_align)
         return clone
 
     def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":

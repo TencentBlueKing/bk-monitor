@@ -245,17 +245,47 @@ class EventTagDetailResource(Resource):
     RequestSerializer = serializers.EventTagDetailRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        def _collect(_key: str, _req_data: Dict[str, Any]):
+            result[_key] = self.get_tag_detail(_req_data)
+            pass
+
+        result: Dict[str, Dict[str, Any]] = {}
+        req_data_with_warn: Dict[str, str] = copy.deepcopy(validated_request_data)
+        for qc in req_data_with_warn["query_configs"]:
+            qc.setdefault("where", []).append(
+                {"key": "type", "method": "eq", "value": [EventType.Warning.value], "condition": "and"}
+            )
+
+        run_threads(
+            [
+                InheritParentThread(target=_collect, args=(EventType.Warning.value, req_data_with_warn)),
+                InheritParentThread(target=_collect, args=("All", validated_request_data)),
+            ]
+        )
+        return result
+
+    @classmethod
+    def get_tag_detail(cls, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         # 获取 total
-        total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
-        tag_detail: Dict[str, Any] = {"time": validated_request_data["start_time"], "total": total}
+        tag_detail: Dict[str, Any] = {"time": validated_request_data["start_time"], "total": 0}
+        try:
+            total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
+        except Exception:  # pylint: disable=broad-except
+            return {**tag_detail, "total": 0, "list": []}
+
+        if total == 0:
+            tag_detail["list"] = []
+            return tag_detail
+
         if total > 20:
-            topk: List[Dict[str, Any]] = self.fetch_topk(validated_request_data)
+            topk: List[Dict[str, Any]] = cls.fetch_topk(validated_request_data)
             for item in topk:
                 item["proportions"] = round((item["count"] / total) * 100, 2)
             tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[: validated_request_data["limit"]]
         else:
-            tag_detail["list"] = self.fetch_logs(validated_request_data)
+            tag_detail["list"] = cls.fetch_logs(validated_request_data)
 
+        tag_detail["total"] = total
         return tag_detail
 
     @classmethod
