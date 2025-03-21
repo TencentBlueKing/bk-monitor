@@ -29,6 +29,7 @@ from luqum.parser import parser
 from luqum.tree import (
     AndOperation,
     Group,
+    Not,
     OrOperation,
     Phrase,
     Range,
@@ -155,6 +156,9 @@ class ChartHandler(object):
                 # 处理不带引号的短语
                 value = cls.to_like_syntax(node.value)
                 return f"log LIKE '{value}'"
+            elif isinstance(node, Not):
+                # 处理 NOT 操作
+                return f"NOT {build_condition(node.children[0])}"
 
         return build_condition(query_tree)
 
