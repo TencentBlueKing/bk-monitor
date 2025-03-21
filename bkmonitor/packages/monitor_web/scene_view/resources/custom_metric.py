@@ -75,6 +75,10 @@ class GetCustomTsMetricGroups(Resource):
         # 指标分组
         metric_groups = defaultdict(list)
         for metric in metrics:
+            # 如果指标隐藏，则不展示
+            if metric.config.get("hidden", False):
+                continue
+
             labels = metric.config.get("label", [])
 
             # 如果 label 为空，则使用未分组
@@ -576,7 +580,7 @@ class GraphDrillDownResource(Resource):
         # 计算占比
         sum_value = sum([x["value"] for x in dimensions_values.values()])
         for item in dimensions_values.values():
-            item["percentage"] = round(item["value"] / sum_value * 100, 3)
+            item["percentage"] = round(item["value"] / sum_value * 100, 3) if sum_value else None
 
         # 数据组装
         rsp_data = []
