@@ -182,6 +182,12 @@
     showWhichDropdown(showVal);
   };
 
+  // 如果是当前位置 AND | OR | AND NOT 结尾
+  const regExpAndOrNot = /(AND|OR|AND\s+NOT)$/gi;
+
+  // 如果当前位置是 : 结尾，说明需要显示字段值列表
+  const regExpFieldValue = /(:\s*)$/;
+
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
     if (!originFieldList().length) {
@@ -193,78 +199,48 @@
 
     const value = props.value;
     const trimValue = value.trim();
-    const lastFragments = value.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
-    // 以 name:"arman" OR age:18 为例，还没开始输入字段
-    if (
-      !trimValue ||
-      trimValue === '*' ||
-      /\s+AND\s+$/i.test(value) ||
-      /\s+OR\s+$/i.test(value) ||
-      /\s+AND\s+NOT\s+$/i.test(value)
-    ) {
+
+    if (!trimValue.length) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
       return;
     }
-    // 开始输入字段【nam】
-    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
-    if (inputField) {
-      fieldList.value = originFieldList().filter(item => {
-        if (item.includes(inputField)) {
-          if (item === inputField) {
-            showColonOperator(inputField);
-          }
-          return true;
-        }
-      });
-      showWhichDropdown(fieldList.value.length ? OptionItemType.Fields : undefined);
-      return;
-    }
-    // 字段输入完毕【name 】
-    if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
-      showColonOperator(lastFragment);
+
+    // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
+    if (regExpAndOrNot.test(trimValue)) {
+      if (/\s+$/.test(value)) {
+        showWhichDropdown('Fields');
+        fieldList.value.push(...originFieldList());
+      }
+
       return;
     }
 
-    // 准备输入值【name:】
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
-    if (confirmField) {
-      const valueMap = retrieveDropdownData.value[confirmField];
-      if (valueMap) {
+    // 如果是以 : 结尾，说明需要显示字段值列表
+    if (regExpFieldValue.test(trimValue)) {
+      const lastFragments = value.split(separator);
+      const lastFragment = lastFragments[lastFragments.length - 1];
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
+
+      if (confirmField) {
         showWhichDropdown(OptionItemType.Value);
         setValueList(confirmField, '');
-        // valueList.value = getValueList(valueMap);
-      } else {
-        showWhichDropdown();
-        valueList.value.splice(0);
+        return;
       }
-      return;
-    }
-    // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-    const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
-    if (valueResult) {
-      const confirmField = valueResult.groups?.field;
-      const valueMap = retrieveDropdownData.value[confirmField];
-      if (valueMap) {
-        const inputValue = valueResult.groups?.value ?? '';
-        setValueList(confirmField, inputValue);
-        // valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
-        showWhichDropdown(valueList.value.length ? OptionItemType.Value : undefined);
-      } else {
-        showWhichDropdown();
-        valueList.value.splice(0);
-      }
-      return;
     }
 
-    // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>["']?.*["']?)$/.test(lastFragment)) {
+    // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
+    if (/\S+\s+$/.test(value)) {
       showWhichDropdown(OptionItemType.Continue);
       return;
     }
 
-    showWhichDropdown();
+    const lastFragments = value.split(separator);
+    const lastFragment = lastFragments[lastFragments.length - 1];
+
+    if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
+      showColonOperator(lastFragment);
+    }
   };
 
   /**
@@ -276,15 +252,15 @@
 
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {
-      emits('change', `${field} `);
+      emits('change', `${field}`);
     } else {
       const fragments = currentValue.split(separator);
       if (!fragments[fragments.length - 1].trim()) {
         // 可能的情况 【name:"arman" AND \s】
-        emits('change', `${currentValue}${field} `);
+        emits('change', `${currentValue}${field}`);
       } else {
         // 可能的情况【name:"arman" AND ag】【name】
-        emits('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
+        emits('change', currentValue.replace(/\s*[\w.]+$/, `${field}`));
       }
     }
     showColonOperator(field as string);
@@ -299,7 +275,7 @@
    * @param {string} type
    */
   const handleClickColon = (type: string) => {
-    emits('change', `${props.value + type} `);
+    emits('change', `${props.value + type}`);
     calculateDropdown();
     nextTick(() => {
       activeIndex.value = null;
@@ -316,10 +292,9 @@
     emits(
       'change',
       props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator} "${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
+        return `${matchOperator}"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
       }),
     );
-    showWhichDropdown(OptionItemType.Continue);
     nextTick(() => {
       activeIndex.value = null;
       setOptionActive();
@@ -331,7 +306,7 @@
    * @param {string} type
    */
   const handleClickContinue = (type: string) => {
-    emits('change', `${props.value + type} `);
+    emits('change', `${props.value}${type} `);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
@@ -717,7 +692,7 @@
     .sql-field-list {
       position: relative;
       width: 100%;
-      // padding-bottom: 48px;
+      padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {

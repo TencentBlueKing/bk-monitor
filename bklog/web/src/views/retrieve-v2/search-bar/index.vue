@@ -248,7 +248,7 @@
     if (!isInputLoading.value) {
       if (searchMode.value === 'sql') {
         beforeQueryBtnClick().then(resp => {
-          if (resp.is_legal) {
+          if (resp.is_legal && resp.is_resolved) {
             getBtnQueryResult();
           }
         });
@@ -560,6 +560,7 @@
     sqlQueryValue.value = inspectResponse.value.keyword;
     inspectResponse.value.keyword = '';
     inspectResponse.value.is_legal = true;
+    inspectResponse.is_resolved = false;
     inspectPopInstance.hide(300);
   };
 
@@ -628,7 +629,10 @@
                   <div class="inspect-title">{{ $t('语法错误') }}：</div>
                   <div class="inspect-message">{{ inspectResponse.message }}</div>
                 </div>
-                <div class="inspect-row">
+                <div
+                  class="inspect-row"
+                  v-show="inspectResponse.is_resolved"
+                >
                   <div class="inspect-title">{{ $t('你可能想输入:') }}</div>
                   <div class="inspect-message">
                     <span>{{ inspectResponse.keyword }}</span>

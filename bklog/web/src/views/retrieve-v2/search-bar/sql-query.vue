@@ -1,6 +1,5 @@
 <script setup>
   import { ref, nextTick, onMounted, computed } from 'vue';
-  import $http from '@/api';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';

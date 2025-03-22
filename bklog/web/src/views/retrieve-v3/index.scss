@@ -38,7 +38,12 @@
             left: calc(var(--left-collection-width) + 8px);
             left: calc(var(--left-collection-width) + 8px);
             height: calc(100vh - var(--top-searchbar-height) - 52px);
-            height: calc(100vh - var(--offset-search-bar) - 52px);
+
+            .field-filter-box {
+              .field-filter-container-new {
+                height: calc(100vh - var(--top-searchbar-height) - 100px);
+              }
+            }
           }
         }
       }
