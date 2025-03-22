@@ -459,7 +459,7 @@ export default {
   '通过字段清洗，可以格式化日志内容方便检索、告警和分析。':
     'By field parsing, log content can be formatted for easy search, alarm and analysis.',
   '关键字范围: 从匹配{0}开始到匹配{1}之间的所有行': 'Keyword range: all rows from matching {0} to matching {1}',
-  '检索结果（找到 {0} 条结果，用时{1}毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
+  '（找到 {0} 条结果，用时 {1} 毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
   '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾':
     'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
   '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)':

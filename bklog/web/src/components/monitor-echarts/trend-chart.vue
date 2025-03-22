@@ -20,16 +20,16 @@
   const chartKey = computed(() => store.state.retrieve.chartKey);
 
   const refDataTrendCanvas = ref(null);
-
+  const dynamicHeight = ref(110);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
+    dynamicHeight
   });
 
   const finishPolling = ref(false);
   const isStart = ref(false);
-
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
@@ -208,7 +208,7 @@
   >
     <div
       ref="refDataTrendCanvas"
-      style="height: 110px"
+      :style="{ height: dynamicHeight + 'px' }"
     ></div>
   </div>
 </template>

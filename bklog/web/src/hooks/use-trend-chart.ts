@@ -33,10 +33,12 @@ import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
 import chartOption from './trend-chart-options';
+import { deepClone } from '../common/util';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
   handleChartDataZoom?: (val) => void;
+  dynamicHeight?: Ref<number>;
 };
 
 export type EchartData = {
@@ -44,7 +46,7 @@ export type EchartData = {
   target: string;
   isFinish: boolean;
 };
-export default ({ target, handleChartDataZoom }: TrandChartOption) => {
+export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
@@ -236,9 +238,21 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
 
     options.series[0].data = chartData;
+    options.series[0].stack = 'total';
+    // 此处为展示用假数据
+    options.series[0].name = 'error';
+    options.series[1] = deepClone(options.series[0]);
+    options.series[2] = deepClone(options.series[0]);
+    options.series[1].name = 'wran';
+    options.series[2].name = 'info';
+    
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
+    options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
+    options.yAxis[0].minInterval = 1;
+
+
     chartInstance.setOption(options);
     nextTick(() => {
       dispatchAction({
