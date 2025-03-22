@@ -11,13 +11,12 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
-from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import Tool
-
+from langchain_core.tools import Tool  # noqa
 
 from ai_agent.core.qa.retriever import retrieve
-from ai_agent.llm import get_llm, LLMConfig, LLMProvider, LLMModel
+from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
 
 """
 QA Agent
@@ -60,11 +59,11 @@ private_qa_agent_prompt = ChatPromptTemplate.from_messages(
 _llm = get_llm(LLMConfig(provider=LLMProvider.BLUEKING, model=LLMModel.HUNYUAN_TURBO))
 
 _tools = [
-#     Tool(
-#     name="KnowledgeSearch",
-#     func=retrieve,
-#     description=retrieve.__doc__,
-# )
+    #     Tool(
+    #     name="KnowledgeSearch",
+    #     func=retrieve,
+    #     description=retrieve.__doc__,
+    # )
 ]
 
 
@@ -77,8 +76,9 @@ class StreamEventType:
     DONE = "done"
 
 
-def check_retrieve_result(documents, score_threshold=0.35):
+def check_retrieve_result(documents, score_threshold=0.2):
     return list(filter(lambda doc: doc["metadata"]["__score__"] > score_threshold, documents))
+
 
 def filter_documents_with_tag(documents, tag=""):
     if not tag:
@@ -95,7 +95,8 @@ class QaAgent:
         agent = create_tool_calling_agent(llm=llm, tools=tools, prompt=prompt)
         self.agent_executor = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True)
 
-    def generate_answer(self, query):
+    def generate_answer(self, inputs):
+        query = inputs["query"]
         documents = retrieve(query)
         # 通过filter_documents_with_tag函数，将文档列表中的标签不包含指定标签的文档过滤掉，剩余的文档列表命名为指定标签文档
         documents = filter_documents_with_tag(documents)
@@ -107,7 +108,7 @@ class QaAgent:
             yield self.make_event_stream_token(StreamEventType.TEXT, "我不知道。" + self.reject_guide_answer())
             return
         context = "\n\n".join([doc["page_content"] for doc in trusted_documents])
-        for each in self.agent_executor.stream({"query": query, "context": context}):
+        for each in self.agent_executor.stream({"context": context, **inputs}):
             if "output" not in each:
                 continue
             yield self.make_event_stream_token(StreamEventType.TEXT, each["output"])
@@ -131,6 +132,7 @@ class QaAgent:
 
 
 QA_AGENT = QaAgent()
+
 
 def main():
     for content in QA_AGENT.generate_answer("如何配置监控策略?"):

@@ -8,16 +8,4 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from django.urls import include, re_path
-
-from ai_agent.views import bkm_chat_views
-from core.drf_resource.routers import ResourceRouter
-
-app_name = "ai_agent"
-router = ResourceRouter()
-router.register_module(bkm_chat_views)
-
-urlpatterns = [
-    re_path(r"^ai/", include(router.urls)),
-]
+from ai_agent.scenarios.bkm_chat import views as bkm_chat_views  # noqa

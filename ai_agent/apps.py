@@ -9,15 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.urls import include, re_path
+from django.apps import AppConfig
 
-from ai_agent.views import bkm_chat_views
-from core.drf_resource.routers import ResourceRouter
 
-app_name = "ai_agent"
-router = ResourceRouter()
-router.register_module(bkm_chat_views)
-
-urlpatterns = [
-    re_path(r"^ai/", include(router.urls)),
-]
+class AiAgentConfig(AppConfig):
+    name = "ai_agent"

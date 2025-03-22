@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 prompt_system = (
     "你是一位得力的智能问答助手。"
     "我会给你提供一个用户提问，以及一些来自【蓝鲸监控】(监控平台)知识库的知识库知识。"
+    "如果有用户和智能问答助手的对话历史，我也会一并提供给你"
     "你需要根据情况智能地选择以下3种情况的1种进行答复。"
     "\n\n1. 如果你非常自信地觉得根据给你的知识库知识可以回答给你的用户提问，你务必严格遵循给你的知识库知识回答给你的用户提问。"
     "永远不要编造答案或回复一些超出该知识库知识信息范围外的答案。不要在你的返回中出现诸如“根据提供的知识库知识”这样的表述，"
@@ -38,7 +39,8 @@ agent_prompt = ChatPromptTemplate.from_messages(
         ("placeholder", "{chat_history}"),
         (
             "human",
-            "以下是知识库知识内容：```{context}```\n\n\n以下是用户提问内容：```{query}```\n\n{agent_scratchpad}",
+            "用户和智能问答助手的对话历史如下：```{{chat_history}}```\n\n\n用户当前场景```{{scenario}}```下的最新输入如下：```{{query}}```"
+            "以下是知识库知识内容：```{context}```\n\n\n{agent_scratchpad}",
         ),
         ("placeholder", "{agent_scratchpad}"),
     ]
