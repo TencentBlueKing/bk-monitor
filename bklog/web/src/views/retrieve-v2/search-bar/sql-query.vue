@@ -4,7 +4,6 @@
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
-  import useStore from '@/hooks/use-store';
 
   const props = defineProps({
     value: {
@@ -19,18 +18,19 @@
     emit('height-change', height);
   };
 
-  const store = useStore();
   const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
+  const editorFocusPosition = ref(null);
 
   // SQL查询提示选中可选项索引
   const sqlActiveParamsIndex = ref(null);
 
   let editorInstance = null;
+  let isSelectedText = false;
 
-  const setEditorContext = val => {
-    editorInstance?.setValue(val);
+  const setEditorContext = (val, from = 0, to = undefined) => {
+    editorInstance?.setValue(val, from, to);
   };
 
   const formatModelValueItem = item => {
@@ -42,55 +42,52 @@
     return refEditorParent.value?.contains(e.target) ?? false;
   };
 
-  const {
-    modelValue,
-    isDocumentMousedown,
-    setIsDocumentMousedown,
-    delayShowInstance,
-    getTippyInstance,
-    handleContainerClick,
-  } = useFocusInput(props, {
-    onHeightChange: handleHeightChange,
-    formatModelValueItem,
-    refContent: refSqlQueryOption,
-    arrow: false,
-    newInstance: false,
-    addInputListener: false,
-    tippyOptions: {
-      maxWidth: 'none',
-      offset: [0, 15],
-    },
-    onShowFn: instance => {
-      emit('popup-change', { isShow: true });
+  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
+    props,
+    {
+      onHeightChange: handleHeightChange,
+      formatModelValueItem,
+      refContent: refSqlQueryOption,
+      arrow: false,
+      newInstance: false,
+      addInputListener: false,
+      tippyOptions: {
+        maxWidth: 'none',
+        offset: [0, 15],
+      },
+      onShowFn: instance => {
+        emit('popup-change', { isShow: true });
 
-      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
-        instance.popper?.style.setProperty('width', '100%');
-        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-        return true;
-      }
-      return false;
-    },
-    onHiddenFn: () => {
-      emit('popup-change', { isShow: false });
-      if (isDocumentMousedown.value) {
-        setIsDocumentMousedown(false);
+        if (isSelectedText) {
+          return false;
+        }
+
+        if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+          instance.popper?.style.setProperty('width', '100%');
+          refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
+          return true;
+        }
+
         return false;
-      }
-      refSqlQueryOption.value?.$el?.querySelector('.list-item ')?.classList.remove('is-hover');
-      refSqlQueryOption.value?.beforeHideFn?.();
-      return true;
+      },
+      onHiddenFn: () => {
+        emit('popup-change', { isShow: false });
+        return true;
+      },
+      handleWrapperClick: handleWrapperClickCapture,
     },
-    handleWrapperClick: handleWrapperClickCapture,
-  });
+  );
 
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
-    emit('input', val);
-    nextTick(() => {
-      emit('change', val);
-    });
-    if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
+    if (val !== props.value) {
+      emit('input', val);
+      nextTick(() => {
+        emit('change', val);
+      });
+      if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
+        delayShowInstance(refEditorParent.value);
+      }
     }
   };
 
@@ -106,9 +103,14 @@
     // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
     // 此时执行查询操作，如果有联想提示，关闭提示弹出
     if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
-      getTippyInstance()?.hide();
+      hideTippyInstance();
       debounceRetrieve();
     }
+  };
+
+  const onFocusPosChange = state => {
+    editorFocusPosition.value = state.selection.main.to;
+    isSelectedText = state.selection.main.to > state.selection.main.from;
   };
 
   const createEditorInstance = () => {
@@ -123,12 +125,13 @@
         closeAndRetrieve();
         return true;
       },
-      onFocusChange: isFocusing => {
+      onFocusChange: (_, isFocusing) => {
         if (isFocusing && !(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);
           return;
         }
       },
+      onFocusPosChange,
     });
   };
 
@@ -142,9 +145,24 @@
     }
   };
 
-  const handleQueryChange = (value, retrieve) => {
+  const getSelectionRenage = (value, replace) => {
+    if (replace) {
+      return {
+        from: 0,
+        to: undefined,
+      };
+    }
+
+    return {
+      from: editorFocusPosition.value,
+      to: editorFocusPosition.value + value.length,
+    };
+  };
+
+  const handleQueryChange = (value, retrieve, replace = true) => {
+    const { from, to } = getSelectionRenage(value, replace);
     if (modelValue.value !== value) {
-      setEditorContext(value);
+      setEditorContext(value, from, to);
       nextTick(() => {
         handleContainerClick();
         if (retrieve) {
@@ -158,9 +176,12 @@
     sqlActiveParamsIndex.value = val;
   };
 
-  const handleCancel = () => {
-    getTippyInstance()?.hide();
-    handleContainerClick();
+  const handleCancel = (force = false) => {
+    hideTippyInstance();
+
+    if (!force) {
+      handleContainerClick();
+    }
   };
 
   onMounted(() => {
@@ -185,6 +206,7 @@
       <SqlQueryOptions
         ref="refSqlQueryOption"
         :value="modelValue"
+        :focusPosition="editorFocusPosition"
         @active-change="handleSqlParamsActiveChange"
         @cancel="handleCancel"
         @change="handleQueryChange"

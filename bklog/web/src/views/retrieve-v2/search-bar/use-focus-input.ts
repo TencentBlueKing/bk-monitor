@@ -29,6 +29,7 @@ import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue'
 import { getCharLength } from '@/common/util';
 
 import PopInstanceUtil from '../../../global/pop-instance-util';
+import { debounce } from 'lodash';
 
 export default (
   props,
@@ -59,7 +60,9 @@ export default (
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = target => popInstanceUtil.show(target);
+  const delayShowInstance = debounce(target => {
+    popInstanceUtil.show(target);
+  }, 180);
 
   const setModelValue = val => {
     if (Array.isArray(val)) {
@@ -93,8 +96,13 @@ export default (
     }
   };
 
-  const repositionTippyInstance = () => popInstanceUtil.repositionTippyInstance();
   const isInstanceShown = () => popInstanceUtil.isShown();
+
+  const repositionTippyInstance = () => {
+    if (isInstanceShown()) {
+      popInstanceUtil.repositionTippyInstance();
+    }
+  };
 
   const handleFulltextInput = e => {
     const input = getTargetInput();
@@ -113,7 +121,10 @@ export default (
     }
   };
 
-  const hideTippyInstance = () => popInstanceUtil.hide();
+  const hideTippyInstance = () => {
+    delayShowInstance?.cancel?.();
+    popInstanceUtil.hide();
+  };
 
   const resizeHeightObserver = target => {
     if (!target) {

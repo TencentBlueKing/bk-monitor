@@ -1365,7 +1365,6 @@ const store = new Vuex.Store({
      * @returns
      */
     requestIndexSetValueList({ commit, state }, payload) {
-      debugger;
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
 

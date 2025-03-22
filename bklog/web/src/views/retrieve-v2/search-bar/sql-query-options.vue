@@ -21,10 +21,13 @@
       default: '',
       required: true,
     },
+    focusPosition: {
+      type: Number,
+      default: null,
+    },
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
-  // const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -188,6 +191,21 @@
   // 如果当前位置是 : 结尾，说明需要显示字段值列表
   const regExpFieldValue = /(:\s*)$/;
 
+  /**
+   * @description 获取当前输入框左侧内容
+   */
+  const getFocusLeftValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(0, props.focusPosition);
+    }
+
+    return props.value;
+  };
+
+  const emitValueChange = (appendValue: string, retrieve = false, replace = false) => {
+    emits('change', appendValue, retrieve, replace);
+  };
+
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
     if (!originFieldList().length) {
@@ -197,7 +215,7 @@
     fieldList.value.length = 0;
     fieldList.value = [];
 
-    const value = props.value;
+    const value = getFocusLeftValue();
     const trimValue = value.trim();
 
     if (!trimValue.length) {
@@ -211,8 +229,10 @@
       if (/\s+$/.test(value)) {
         showWhichDropdown('Fields');
         fieldList.value.push(...originFieldList());
+        return;
       }
 
+      emits('cancel', true);
       return;
     }
 
@@ -227,6 +247,9 @@
         setValueList(confirmField, '');
         return;
       }
+
+      emits('cancel', true);
+      return;
     }
 
     // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
@@ -240,7 +263,12 @@
 
     if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
       showColonOperator(lastFragment);
+      return;
     }
+
+    requestAnimationFrame(() => {
+      emits('cancel', true);
+    });
   };
 
   /**
@@ -248,21 +276,8 @@
    * @param {string} field
    */
   const handleClickField = (field: string) => {
-    const currentValue = props.value;
+    emitValueChange(field);
 
-    const trimValue = currentValue.trim();
-    if (!trimValue || trimValue === '*') {
-      emits('change', `${field}`);
-    } else {
-      const fragments = currentValue.split(separator);
-      if (!fragments[fragments.length - 1].trim()) {
-        // 可能的情况 【name:"arman" AND \s】
-        emits('change', `${currentValue}${field}`);
-      } else {
-        // 可能的情况【name:"arman" AND ag】【name】
-        emits('change', currentValue.replace(/\s*[\w.]+$/, `${field}`));
-      }
-    }
     showColonOperator(field as string);
     nextTick(() => {
       activeIndex.value = null;
@@ -275,7 +290,7 @@
    * @param {string} type
    */
   const handleClickColon = (type: string) => {
-    emits('change', `${props.value + type}`);
+    emitValueChange(type);
     calculateDropdown();
     nextTick(() => {
       activeIndex.value = null;
@@ -289,12 +304,7 @@
    */
   const handleClickValue = (value: any) => {
     // 当前输入值可能的情况 【name:"a】【age:】
-    emits(
-      'change',
-      props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator}"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
-      }),
-    );
+    emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
     nextTick(() => {
       activeIndex.value = null;
       setOptionActive();
@@ -306,7 +316,7 @@
    * @param {string} type
    */
   const handleClickContinue = (type: string) => {
-    emits('change', `${props.value}${type} `);
+    emitValueChange(`${type} `);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
@@ -345,7 +355,7 @@
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
-        emits('change', props.value);
+        emitValueChange(props.value, false, true);
         nextTick(() => {
           handleRetrieve();
         });
@@ -384,7 +394,6 @@
     activeIndex.value = null;
     document.addEventListener('keydown', handleKeydown);
 
-    calculateDropdown();
     nextTick(() => {
       setOptionActive();
     });
@@ -433,7 +442,7 @@
   ]);
 
   const handleFavoriteClick = item => {
-    emits('change', item.params?.keyword, true);
+    emitValueChange(item.params?.keyword, true, true);
   };
 
   const handleSQLReadmeClick = () => {
@@ -444,18 +453,22 @@
     );
   };
 
+  const debounceUpdate = debounce(() => {
+    calculateDropdown();
+    nextTick(() => {
+      setOptionActive();
+    });
+  }, 100);
+
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
   });
 
   watch(
-    props,
+    () => [props.value, props.focusPosition],
     () => {
-      calculateDropdown();
-      nextTick(() => {
-        setOptionActive();
-      });
+      debounceUpdate();
     },
     { immediate: true, deep: true },
   );
