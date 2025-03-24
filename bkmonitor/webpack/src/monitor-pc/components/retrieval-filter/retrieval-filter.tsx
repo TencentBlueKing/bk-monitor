@@ -430,7 +430,9 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   }
 
   handleClear(_event: MouseEvent) {
-    this.clearKey = random(8);
+    if (this.uiValue.length) {
+      this.clearKey = random(8);
+    }
   }
   handleCopy(_event: MouseEvent) {
     let str = '';
@@ -441,7 +443,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
             item.value.length > 1
               ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
               : `"${item.value?.[0]?.id || '*'}"`;
-          return `${item.key.id} : ${value}`;
+          return `${item.key.id} ${item.method.id} ${value}`;
         })
         .join(' AND ');
     } else if (this.mode === EMode.queryString && this.qsValue) {
@@ -516,7 +518,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
               class='component-right-btns'
             >
               <div
-                class='clear-btn'
+                class={['clear-btn', { disabled: !this.uiValue.length }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('清空'),
                   delay: 300,
@@ -526,7 +528,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
               <div
-                class='copy-btn'
+                class={['copy-btn', { disabled: !this.uiValue.length }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('复制'),
                   delay: 300,
