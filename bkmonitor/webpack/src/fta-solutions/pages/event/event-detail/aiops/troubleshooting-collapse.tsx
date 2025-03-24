@@ -42,6 +42,7 @@ interface IProps {
   };
   loading: boolean;
   onToIncidentDetail: Function;
+  spaceId: string;
 }
 
 // 最大做小缩放倍率
@@ -59,12 +60,13 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
     message: string;
   };
   @Prop({ type: Boolean, default: false }) loading: boolean;
+  @Prop({ type: String, default: '' }) spaceId: string;
   imgUrl = '';
   app = null;
   infoConfig = {
     alert_name: {
       label: this.$t('故障名称'),
-      renderFn: alert_name => (
+      renderFn: (alert_name: any) => (
         <span
           class='blue-txt'
           v-bk-overflow-tips
@@ -76,15 +78,28 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
     },
     status: {
       label: this.$t('故障状态'),
-      renderFn: status => (
+      renderFn: (status: any) => (
         <span class={`info-status ${status}`}>
           <i class='icon-monitor icon-mind-fill' />
           {status}
         </span>
       ),
     },
-    time: { label: this.$t('持续时间') },
-    bk_biz_name: { label: this.$t('影响业务') },
+    time: {
+      label: this.$t('持续时间'),
+    },
+    bk_biz_name: {
+      label: this.$t('影响业务'),
+      renderFn: (bk_biz_name: any) => {
+        const data = bk_biz_name.split('-');
+        return (
+          <span>
+            {data[0]}
+            <span class='info-business'>{data[1]}</span>
+          </span>
+        );
+      },
+    },
     // metric: { label: '故障总结' },
     // assignee: { label: '处置指引' },
   };
@@ -117,22 +132,48 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
     this.app?.unmount();
   }
 
-  handleImgUrl(url) {
+  handleImgUrl(url: string) {
     // 处理AiopsTopo组件传递过来的数据
     this.imgUrl = url;
   }
   handleClick() {
     this.zoomImage.showImg();
   }
+  formatTimestamp(timestamp: string | number | Date) {
+    // 将时间戳从秒转换为毫秒
+    const date = new Date(timestamp);
+    // 获取年月日时分秒
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // 月份从0开始
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  /** 持续时间 */
+  handleShowTime() {
+    const { begin_time, end_time, duration } = this.data;
+    if (!begin_time) {
+      return duration;
+    }
+    const beginTime = this.formatTimestamp(begin_time * 1000);
+    const endTime = this.formatTimestamp(end_time ? end_time * 1000 : new Date().getTime());
+
+    return `${duration} (${beginTime} ~ ${endTime})`;
+  }
 
   @Emit('toIncidentDetail')
   goToIncidentDetail() {}
 
   async mounted() {
+    const timeRange = this.handleShowTime();
     this.detailConfig.alert_name = this.data.incident_name;
     this.detailConfig.status = this.data.status_alias;
-    this.detailConfig.time = this.data.duration;
-    this.detailConfig.bk_biz_name = this.data.bk_biz_name;
+    this.detailConfig.time = timeRange;
+    this.detailConfig.bk_biz_name = `${this.data.bk_biz_name}-${this.spaceId}`;
     this.graphData = this.data.current_topology;
     this.isNoData = !this.errorData.isError && Object.keys(this.graphData ?? {}).length === 0;
     // eslint-disable-next-line @typescript-eslint/no-this-alias
@@ -153,7 +194,7 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
           errorMessage: that.errorData.message,
           isNoData: that.isNoData,
           message: that.isNoData ? that.$t('暂无数据') : that.$t('查询异常'),
-          onImgUrl(url) {
+          onImgUrl(url: string) {
             that.handleImgUrl(url);
           },
         } as any);

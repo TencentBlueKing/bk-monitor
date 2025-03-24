@@ -42,6 +42,7 @@ import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo, type I
 
 import type { IDetail } from '../type';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
 
 import './aiops-container.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
@@ -124,6 +125,7 @@ export default class AiopsContainer extends tsc<IProps> {
   troubleShootingNoData = false;
   // bk助手链接
   incidentWxCsLink = '';
+  spaceId = '';
 
   /** 展示collapse的配置 */
   get tabConfigs() {
@@ -142,6 +144,7 @@ export default class AiopsContainer extends tsc<IProps> {
                 data={this.troubleShootingData}
                 errorData={this.troubleShootingDataError}
                 loading={this.troubleShootingLoading}
+                spaceId={this.spaceId}
                 onToIncidentDetail={this.goToIncidentDetail}
               />
             );
@@ -631,6 +634,9 @@ export default class AiopsContainer extends tsc<IProps> {
         this.hasTroubleShootingAuth = res.greyed_spaces?.includes(bk_biz_id) || false;
         this.troubleShootingData = res.incident ?? null;
         this.incidentWxCsLink = res.wx_cs_link ?? '';
+        if (!this.troubleShootingNoData) {
+          this.spaceId = this.getSpaceId(res.incident);
+        }
       })
       .catch(err => {
         this.troubleShootingDataError.isError = true;
@@ -639,6 +645,14 @@ export default class AiopsContainer extends tsc<IProps> {
       .finally(() => {
         this.troubleShootingLoading = false;
       });
+  }
+  /** 获取根据空间类型转换后的id */
+  getSpaceId(data) {
+    const { bizList } = this.$store.getters;
+    const spaceData = bizList.find(f => f.space_id === data.bk_biz_id && f.space_name === data.bk_biz_name);
+    if (!spaceData) return;
+    const { space_type_id, id, space_id, space_code } = spaceData;
+    return space_type_id === ETagsType.BKCC ? `(#${id})` : `(${space_id || space_code})`;
   }
   /** 跳转打开bk助手 */
   handleToBkAssistant(e: MouseEvent) {
