@@ -42,41 +42,49 @@
     return refEditorParent.value?.contains(e.target) ?? false;
   };
 
-  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
-    props,
-    {
-      onHeightChange: handleHeightChange,
-      formatModelValueItem,
-      refContent: refSqlQueryOption,
-      arrow: false,
-      newInstance: false,
-      addInputListener: false,
-      tippyOptions: {
-        maxWidth: 'none',
-        offset: [0, 15],
-      },
-      onShowFn: instance => {
-        emit('popup-change', { isShow: true });
-
-        if (isSelectedText) {
-          return false;
-        }
-
-        if (refSqlQueryOption.value?.beforeShowndFn?.()) {
-          instance.popper?.style.setProperty('width', '100%');
-          refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-          return true;
-        }
-
-        return false;
-      },
-      onHiddenFn: () => {
-        emit('popup-change', { isShow: false });
-        return true;
-      },
-      handleWrapperClick: handleWrapperClickCapture,
+  const {
+    modelValue,
+    delayShowInstance,
+    isDocumentMousedown,
+    getTippyInstance,
+    handleContainerClick,
+    hideTippyInstance,
+  } = useFocusInput(props, {
+    onHeightChange: handleHeightChange,
+    formatModelValueItem,
+    refContent: refSqlQueryOption,
+    arrow: false,
+    newInstance: false,
+    addInputListener: false,
+    tippyOptions: {
+      maxWidth: 'none',
+      offset: [0, 15],
     },
-  );
+    onShowFn: instance => {
+      emit('popup-change', { isShow: true });
+
+      if (isSelectedText) {
+        return false;
+      }
+
+      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+        instance.popper?.style.setProperty('width', '100%');
+        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
+        return true;
+      }
+
+      return false;
+    },
+    onHiddenFn: () => {
+      if (isDocumentMousedown.value) {
+        return false;
+      }
+
+      emit('popup-change', { isShow: false });
+      return true;
+    },
+    handleWrapperClick: handleWrapperClickCapture,
+  });
 
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
@@ -140,7 +148,7 @@
       createEditorInstance();
     }
 
-    if (!(getTippyInstance()?.state?.isShown ?? false) && editorInstance.view.hasFocus) {
+    if (!(getTippyInstance()?.state?.isShown ?? false)) {
       delayShowInstance(refEditorParent.value);
     }
   };
@@ -177,6 +185,7 @@
   };
 
   const handleCancel = (force = false) => {
+    isDocumentMousedown.value = false;
     hideTippyInstance();
 
     if (!force) {

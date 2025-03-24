@@ -45,6 +45,7 @@ import router from './router';
 import store from './store';
 
 import './static/style.css';
+import './static/font-face/index.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 

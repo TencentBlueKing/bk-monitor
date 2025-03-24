@@ -196,6 +196,7 @@
           background-color: #ebeef5;
           border-radius: 2px;
           font-weight: 600;
+          font-family: 'RobotoMono-Medium';
         }
 
         &::after {
@@ -204,7 +205,7 @@
       }
 
       .valid-text {
-        padding: 2px;
+        padding: 2px 0;
         :hover {
           color: #3a84ff;
           cursor: pointer;
@@ -242,7 +243,7 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 2px;
+        padding: 2px 0;
 
         &.focus-text,
         &:hover {
@@ -301,7 +302,7 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 2px;
+        padding: 2px 0;
         &.focus-text,
         &:hover {
           background-color: #cddffe;

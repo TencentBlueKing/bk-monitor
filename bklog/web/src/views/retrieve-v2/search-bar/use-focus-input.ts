@@ -48,6 +48,9 @@ export default (
 ) => {
   const modelValue = ref([]);
   const sectionHeight = ref(0);
+
+  // 是否为父级容器元素点击操作
+  // 避免容器元素点击时触发 hideOnclick多次渲染
   const isDocumentMousedown = ref(false);
 
   let resizeObserver = null;

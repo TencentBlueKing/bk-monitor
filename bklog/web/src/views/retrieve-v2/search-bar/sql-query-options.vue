@@ -292,6 +292,7 @@
   const handleClickColon = (type: string) => {
     emitValueChange(type);
     calculateDropdown();
+
     nextTick(() => {
       activeIndex.value = null;
       setOptionActive();
@@ -391,8 +392,10 @@
   };
 
   const beforeShowndFn = () => {
-    activeIndex.value = null;
+    // activeIndex.value = null;
     document.addEventListener('keydown', handleKeydown);
+    showWhichDropdown();
+    calculateDropdown();
 
     nextTick(() => {
       setOptionActive();
