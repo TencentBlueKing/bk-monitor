@@ -112,16 +112,16 @@
       .diagnosis-info-text {
         display: flex;
         align-items: center;
-      }
 
-      .diagnosis-text_blue {
-        display: inline-block;
-        max-width: 60%;
-        padding: 0 4px;
-        overflow: hidden;
-        color: #3a84ff;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        .diagnosis-text_blue {
+          display: inline-block;
+          max-width: 174px;
+          padding: 0 4px;
+          overflow: hidden;
+          color: #3a84ff;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
     }
 
@@ -141,7 +141,7 @@
 
     .aiops-container-menu-item-content {
       max-height: calc(100vh - 228px);
-      padding: 0 10px;
+      padding: 0 8px;
     }
   }
 }
