@@ -145,6 +145,29 @@
   }
 }
 
+.tippy-popper.new-add-group-popover {
+  width: 272px;
+
+  .tippy-tooltip.light-theme {
+    padding: 16px;
+  }
+
+  .operate-button {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
+    color: #979ba5;
+
+    .bk-button {
+      min-width: 52px;
+
+      &:first-child {
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
 .sort-group-popover {
   .sort-group-container {
     display: flex;
