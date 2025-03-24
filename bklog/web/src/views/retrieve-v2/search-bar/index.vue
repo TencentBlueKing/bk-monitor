@@ -435,14 +435,14 @@
       if (activeIndex.value === 0) {
         const { common_filter_addition } = store.getters;
         if (common_filter_addition.length) {
-          window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
+          window.mainComponent.messageSuccess($t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
             ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
               ...item,
               isCommonFixed: true,
             })),
           );
-
+          localStorage.removeItem('commonFilterAddition');
           store.commit('updateIndexItemParams', {
             addition: uiQueryValue.value.filter(val => !val.is_focus_input),
             keyword: sqlQueryValue.value ?? '',

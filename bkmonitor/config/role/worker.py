@@ -248,6 +248,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.downsampled.access_and_calc_for_downsample", "*/5 * * * *", "global"),
     # 刷新回溯配置
     ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
+    # 上报自采集指标--每分钟一次
+    ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
     # bcs信息刷新
     ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),

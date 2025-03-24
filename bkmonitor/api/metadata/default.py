@@ -22,8 +22,9 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 
 class MetaDataAPIGWResource(KernelAPIResource):
     base_url_statement = None
-    base_url = settings.MONITOR_API_BASE_URL or "%s/api/c/compapi/v2/monitor_v3/" % settings.BK_COMPONENT_API_URL
-
+    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
+        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    )
     # 模块名
     module_name = "metadata_v3"
 
@@ -46,7 +47,7 @@ class GetLabelResource(MetaDataAPIGWResource):
     获取分类标签（一二级标签）
     """
 
-    action = "/metadata_list_label/"
+    action = "/app/metadata/list_label/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -63,7 +64,7 @@ class CreateDataIdResource(MetaDataAPIGWResource):
     创建监控数据源
     """
 
-    action = "/metadata_create_data_id/"
+    action = "/app/metadata/create_data_id/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -84,7 +85,7 @@ class CreateResultTableResource(MetaDataAPIGWResource):
     创建监控结果表
     """
 
-    action = "/metadata_create_result_table/"
+    action = "/app/metadata/create_result_table/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -111,7 +112,7 @@ class ListResultTableResource(MetaDataAPIGWResource):
     查询监控结果表
     """
 
-    action = "/metadata_list_result_table/"
+    action = "/app/metadata/list_result_table/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -132,7 +133,7 @@ class ModifyResultTableResource(MetaDataAPIGWResource):
     修改监控结果表
     """
 
-    action = "/metadata_modify_result_table/"
+    action = "/app/metadata/modify_result_table/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -142,7 +143,6 @@ class ModifyResultTableResource(MetaDataAPIGWResource):
         table_name_zh = serializers.CharField(required=False)
         default_storage = serializers.ChoiceField(required=False, choices=["influxdb", "kafka"])
         label = serializers.CharField(required=True)
-        external_storage = serializers.DictField(required=False)
         option = serializers.DictField(required=False)
         is_time_field_only = serializers.BooleanField(required=False, label="默认字段仅有time")
         external_storage = serializers.DictField(required=False, label="额外存储")
@@ -157,7 +157,7 @@ class GetDataIdResource(MetaDataAPIGWResource):
     获取监控数据源具体信息
     """
 
-    action = "/metadata_get_data_id/"
+    action = "/app/metadata/get_data_id/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -171,7 +171,7 @@ class QueryDataSourceBySpaceUidResource(MetaDataAPIGWResource):
     根据space_uid查询data_source
     """
 
-    action = "/metadata_query_data_source_by_space_uid/"
+    action = "/app/metadata/query_data_source_by_space_uid/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -184,7 +184,7 @@ class GetResultTableResource(MetaDataAPIGWResource):
     获取监控结果表具体信息
     """
 
-    action = "/metadata_get_result_table/"
+    action = "/app/metadata/get_result_table/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -196,7 +196,7 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
     获取监控结果表具体信息
     """
 
-    action = "/metadata_get_result_table_storage/"
+    action = "/app/metadata/get_result_table_storage/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -209,7 +209,7 @@ class GetTsDataResource(MetaDataAPIGWResource):
     数据查询
     """
 
-    action = "/get_ts_data/"
+    action = "/app/data_query/get_ts_data/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -221,7 +221,7 @@ class GetEsDataResource(MetaDataAPIGWResource):
     ES数据查询
     """
 
-    action = "/get_es_data/"
+    action = "/app/data_query/get_es_data/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -235,7 +235,7 @@ class ModifyDataIdResource(MetaDataAPIGWResource):
     修改dataid和dataname的关系
     """
 
-    action = "/metadata_modify_data_id/"
+    action = "/app/metadata/modify_data_id/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -252,7 +252,7 @@ class CreateResultTableMetricSplitResource(MetaDataAPIGWResource):
     创建一个结果表CMDB拆分
     """
 
-    action = "/metadata_create_result_table_metric_split/"
+    action = "/app/metadata/create_result_table_metric_split/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -295,7 +295,7 @@ class CreateEventGroupResource(MetaDataAPIGWResource):
     创建事件分组
     """
 
-    action = "/metadata_create_event_group/"
+    action = "/app/metadata/create_event_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -313,7 +313,7 @@ class ModifyEventGroupResource(MetaDataAPIGWResource):
     修改事件分组
     """
 
-    action = "/metadata_modify_event_group/"
+    action = "/app/metadata/modify_event_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -331,7 +331,7 @@ class DeleteEventGroupResource(MetaDataAPIGWResource):
     删除事件分组
     """
 
-    action = "/metadata_delete_event_group/"
+    action = "/app/metadata/delete_event_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -344,7 +344,7 @@ class GetEventGroupResource(MetaDataAPIGWResource):
     获取事件分组
     """
 
-    action = "/metadata_get_event_group/"
+    action = "/app/metadata/get_event_group/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -360,7 +360,7 @@ class SingleQueryEventGroupResource(MetaDataAPIGWResource):
     查询事件分组
     """
 
-    action = "/metadata_query_event_group/"
+    action = "/app/metadata/query_event_group/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -392,7 +392,7 @@ class CreateTimeSeriesGroupResource(MetaDataAPIGWResource):
     创建自定义时序分组
     """
 
-    action = "/metadata_create_time_series_group/"
+    action = "/app/metadata/create_time_series_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -413,7 +413,7 @@ class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
     修改自定义时序分组
     """
 
-    action = "/metadata_modify_time_series_group/"
+    action = "/app/metadata/modify_time_series_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -433,7 +433,7 @@ class DeleteTimeSeriesGroupResource(MetaDataAPIGWResource):
     删除自定义时序分组
     """
 
-    action = "/metadata_delete_time_series_group/"
+    action = "/app/metadata/delete_time_series_group/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -446,7 +446,7 @@ class GetTimeSeriesGroupResource(MetaDataAPIGWResource):
     获取自定义时序分组
     """
 
-    action = "/metadata_get_time_series_group/"
+    action = "/app/metadata/get_time_series_group/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -460,7 +460,7 @@ class SingleQueryTimeSeriesGroupResource(MetaDataAPIGWResource):
     查询自定义时序分组
     """
 
-    action = "/metadata_query_time_series_group/"
+    action = "/app/metadata/query_time_series_group/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -495,7 +495,7 @@ class QueryTagValuesResource(MetaDataAPIGWResource):
     查询自定义时序分组
     """
 
-    action = "/metadata_query_tag_values/"
+    action = "/app/metadata/query_tag_values/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -509,7 +509,7 @@ class QueryClusterInfoResource(MetaDataAPIGWResource):
     查询集群信息
     """
 
-    action = "/metadata_get_cluster_info/"
+    action = "/app/metadata/get_cluster_info/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -526,7 +526,7 @@ class AccessBkDataByResultTable(MetaDataAPIGWResource):
     创建降采样dataflow
     """
 
-    action = "/access_bk_data_by_result_table/"
+    action = "/app/metadata/access_bk_data_by_result_table/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -539,7 +539,7 @@ class IsDataLabelExistResource(MetaDataAPIGWResource):
     判断结果表中是否存在指定data_label
     """
 
-    action = "/metadata_is_data_label_exist/"
+    action = "/app/metadata/is_data_label_exist/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -552,7 +552,7 @@ class CreateDownSampleDataFlow(MetaDataAPIGWResource):
     创建降采样dataflow
     """
 
-    action = "/metadata_create_down_sample_data_flow/"
+    action = "/app/metadata/create_down_sample_data_flow/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -565,7 +565,7 @@ class FullCmdbNodeInfo(MetaDataAPIGWResource):
     补充CMDB节点信息（需要保证表中有bk_target_ip、bk_target_cloud_id两个字段）
     """
 
-    action = "/full_cmdb_node_info/"
+    action = "/app/metadata/full_cmdb_node_info/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -577,7 +577,7 @@ class CheckOrCreateKafkaStorageResource(MetaDataAPIGWResource):
     检查对应结果表的kafka存储是否存在，不存在则创建
     """
 
-    action = "/check_or_create_kafka_storage/"
+    action = "/app/metadata/check_or_create_kafka_storage/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -589,7 +589,7 @@ class RegisterBCSClusterResource(MetaDataAPIGWResource):
     将BCS集群信息注册到metadata，并进行一系列初始化操作
     """
 
-    action = "/register_bcs_cluster/"
+    action = "/app/metadata/register_bcs_cluster/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -610,7 +610,7 @@ class ModifyBCSResourceInfoResource(MetaDataAPIGWResource):
     修改bcs的resource内容，通常为调整dataid
     """
 
-    action = "/modify_bcs_resource_info/"
+    action = "/app/metadata/modify_bcs_resource_info/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -621,7 +621,7 @@ class ModifyBCSResourceInfoResource(MetaDataAPIGWResource):
 
 
 class ListBCSResourceInfoResource(MetaDataAPIGWResource):
-    action = "/list_bcs_resource_info/"
+    action = "/app/metadata/list_bcs_resource_info/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -630,7 +630,7 @@ class ListBCSResourceInfoResource(MetaDataAPIGWResource):
 
 
 class ListBCSClusterInfoResource(MetaDataAPIGWResource):
-    action = "/list_bcs_cluster_info/"
+    action = "/app/metadata/list_bcs_cluster_info/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -638,7 +638,7 @@ class ListBCSClusterInfoResource(MetaDataAPIGWResource):
 
 
 class QueryBCSMetricsResource(MetaDataAPIGWResource):
-    action = "/query_bcs_metrics/"
+    action = "/app/metadata/query_bcs_metrics/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -649,22 +649,22 @@ class QueryBCSMetricsResource(MetaDataAPIGWResource):
 
 
 class EsRouteResource(MetaDataAPIGWResource):
-    action = "/metadata_es_route"
+    action = "/app/metadata/es_route/"
     method = "POST"
 
 
 class KafkaTailResource(MetaDataAPIGWResource):
-    action = "/metadata_kafka_tail"
+    action = "/app/metadata/kafka_tail/"
     method = "GET"
 
 
 class GetTimeSeriesMetricsResource(MetaDataAPIGWResource):
-    action = "/metadata_get_time_series_metrics"
+    action = "/app/metadata/get_time_series_metrics/"
     method = "GET"
 
 
 class ListSpaceTypesResource(MetaDataAPIGWResource):
-    action = "/metadata_list_space_types"
+    action = "/app/metadata/list_space_types/"
     method = "GET"
     cache_type = CacheType.METADATA
 
@@ -673,7 +673,7 @@ class ListSpaceTypesResource(MetaDataAPIGWResource):
 
 
 class ListSpacesResource(MetaDataAPIGWResource):
-    action = "/metadata_list_spaces"
+    action = "/app/metadata/list_spaces/"
     method = "GET"
     cache_type = CacheType.METADATA
 
@@ -682,13 +682,13 @@ class ListSpacesResource(MetaDataAPIGWResource):
 
 
 class GetSpaceDetailResource(MetaDataAPIGWResource):
-    action = "/metadata_get_space_detail"
+    action = "/app/metadata/get_space_detail/"
     method = "GET"
     cache_type = CacheType.METADATA
 
 
 class GetClustersBySpaceUidResource(MetaDataAPIGWResource):
-    action = "/metadata_get_clusters_by_space_uid"
+    action = "/app/metadata/get_clusters_by_space_uid/"
     method = "GET"
     cache_type = CacheType.METADATA
 
@@ -705,7 +705,7 @@ class UsernameSerializer(MetadataBaseSerializer):
 
 
 class ListStickySpacesResource(MetaDataAPIGWResource):
-    action = "/metadata_list_sticky_spaces"
+    action = "/app/metadata/list_sticky_spaces/"
     method = "GET"
 
     class RequestSerializer(UsernameSerializer):
@@ -713,7 +713,7 @@ class ListStickySpacesResource(MetaDataAPIGWResource):
 
 
 class StickSpaceResource(MetaDataAPIGWResource):
-    action = "/metadata_stick_space"
+    action = "/app/metadata/stick_space/"
     method = "POST"
 
     class RequestSerializer(UsernameSerializer):
@@ -723,7 +723,7 @@ class StickSpaceResource(MetaDataAPIGWResource):
 
 
 class CreateSpaceResource(MetaDataAPIGWResource):
-    action = "/metadata_create_space"
+    action = "/app/metadata/create_space/"
     method = "POST"
 
     class RequestSerializer(UsernameSerializer):
@@ -743,7 +743,7 @@ class QueryDataSourceResource(MetaDataAPIGWResource):
     查询数据源
     """
 
-    action = "/metadata_query_data_source/"
+    action = "/app/metadata/query_data_source/"
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
@@ -754,7 +754,7 @@ class QueryDataSourceResource(MetaDataAPIGWResource):
 
 
 class ListDataPipelineResource(MetaDataAPIGWResource):
-    action = "/metadata_list_data_pipeline"
+    action = "/app/metadata/list_data_pipeline/"
     method = "GET"
 
     class RequestSerializer(UsernameSerializer):
@@ -769,7 +769,7 @@ class ListDataPipelineResource(MetaDataAPIGWResource):
 
 
 class ListDataSourceByDataPipeline(MetaDataAPIGWResource):
-    action = "/metadata_list_data_source_by_data_pipeline"
+    action = "/app/metadata/list_data_source_by_data_pipeline/"
     method = "GET"
 
     class RequestSerializer(UsernameSerializer):
@@ -779,7 +779,7 @@ class ListDataSourceByDataPipeline(MetaDataAPIGWResource):
 
 
 class CreateDataPipelineResource(MetaDataAPIGWResource):
-    action = "/metadata_create_data_pipeline"
+    action = "/app/metadata/create_data_pipeline/"
     method = "POST"
 
     class RequestSerializer(UsernameSerializer):
@@ -810,7 +810,7 @@ class CreateDataPipelineResource(MetaDataAPIGWResource):
 
 
 class UpdateDataPipelineResource(MetaDataAPIGWResource):
-    action = "/metadata_update_data_pipeline"
+    action = "/app/metadata/update_data_pipeline/"
     method = "POST"
 
     class RequestSerializer(UsernameSerializer):
@@ -837,7 +837,7 @@ class UpdateDataPipelineResource(MetaDataAPIGWResource):
 
 
 class GetStorageClusterInfoResource(MetaDataAPIGWResource):
-    action = "metadata_get_storage_cluster_info"
+    action = "/app/metadata/get_storage_cluster_info/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -846,22 +846,22 @@ class GetStorageClusterInfoResource(MetaDataAPIGWResource):
 
 
 class GetEtlConfigResource(MetaDataAPIGWResource):
-    action = "/metadata_get_etl_config"
+    action = "/app/metadata/get_etl_config/"
     method = "GET"
 
 
 class GetTransferListResource(MetaDataAPIGWResource):
-    action = "/metadata_get_transfer_list"
+    action = "/app/metadata/get_transfer_list/"
     method = "GET"
 
 
 class CheckClusterHealthResource(MetaDataAPIGWResource):
-    action = "/metadata_check_cluster_health"
+    action = "/app/metadata/check_cluster_health/"
     method = "GET"
 
 
 class ListClustersResource(MetaDataAPIGWResource):
-    action = "/metadata_list_clusters"
+    action = "/app/metadata/list_clusters/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -871,7 +871,7 @@ class ListClustersResource(MetaDataAPIGWResource):
 
 
 class GetStorageClusterDetailResource(MetaDataAPIGWResource):
-    action = "/metadata_get_storage_cluster_detail"
+    action = "/app/metadata/get_storage_cluster_detail/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -879,7 +879,7 @@ class GetStorageClusterDetailResource(MetaDataAPIGWResource):
 
 
 class RegisterClusterResource(MetaDataAPIGWResource):
-    action = "/metadata_register_cluster"
+    action = "/app/metadata/register_cluster/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -899,7 +899,7 @@ class RegisterClusterResource(MetaDataAPIGWResource):
 
 
 class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
-    action = "/metadata_update_registered_cluster"
+    action = "/app/metadata/update_registered_cluster/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -916,7 +916,7 @@ class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
 
 
 class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
-    action = "/custom_time_series_detail"
+    action = "/app/custom_metric/detail/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -926,7 +926,7 @@ class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
 
 
 class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
-    action = "/metadata_query_result_table_storage_detail"
+    action = "/app/metadata/query_result_table_storage_detail/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):

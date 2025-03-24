@@ -144,7 +144,6 @@
 
       &:last-child {
         margin-top: 2px;
-        color: #63656e;
       }
     }
   }
@@ -177,6 +176,13 @@
         .btn-icon {
           color: #eaebf0;
         }
+      }
+    }
+
+    .header-group-btn {
+      color: #313238;
+      .btn-icon {
+        color: #63656e;
       }
     }
 

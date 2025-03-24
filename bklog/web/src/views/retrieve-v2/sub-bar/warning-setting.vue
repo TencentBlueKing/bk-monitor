@@ -510,7 +510,7 @@
             keyword: query_string,
           };
           resolveCommonParams(params);
-          resolveQueryParams(params).then(res => {
+          resolveQueryParams(params, true).then(res => {
             if (res) {
               store.dispatch('requestIndexSetQuery', { isPagination: false });
               PopInstanceUtilInstance.hide();
