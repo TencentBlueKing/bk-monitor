@@ -344,7 +344,7 @@ export default class SettingKvSelector extends tsc<IProps> {
                 class={['method-span', { 'red-text': OPPOSE_METHODS.includes(this.localMethod as any) }]}
                 slot='dropdown-trigger'
               >
-                {this.methodMap[this.localMethod]}
+                {this.methodMap[this.localMethod] || this.localMethod}
               </span>
               <ul
                 class='method-list-wrap'
