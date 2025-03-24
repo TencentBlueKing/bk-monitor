@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { getDefaultTimezone } from '../../../i18n/dayjs';
 import { APIType } from '../api-utils';
 import {
   ExploreEntitiesTypeEnum,
@@ -37,9 +38,8 @@ import {
   type ExploreEntitiesMap,
   type ExploreFieldMap,
 } from '../typing';
+import { optimizedSplit, type ExploreSubject } from '../utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
-
-import type { ExploreSubject } from '../utils';
 
 import './explore-expand-view-wrapper.scss';
 
@@ -51,9 +51,11 @@ interface ExploreExpandViewWrapperProps {
   /** 滚动事件被观察者实例 */
   scrollSubject: ExploreSubject;
   source: APIType;
+  kvFieldCache: WeakMap<any, KVFieldList[]>;
 }
 
 interface ExploreExpandViewWrapperEvents {
+  onUpdateKvFieldCache: (originData, kvFieldItem: KVFieldList) => void;
   onConditionChange(e: ConditionChangeEvent): void;
 }
 
@@ -79,6 +81,9 @@ export default class ExploreExpandViewWrapper extends tsc<
   @Prop({ type: Object }) scrollSubject?: ExploreSubject;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+  @Prop({ type: Object }) kvFieldCache: WeakMap<any, KVFieldList[]>;
+  /** 筛选时间范围-跳转时使用 */
+  @InjectReactive('timeRange') timezone: string;
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
 
@@ -88,11 +93,14 @@ export default class ExploreExpandViewWrapper extends tsc<
 
   /** KV列表 */
   get kvFieldList(): KVFieldList[] {
-    return Object.entries(this.data).map(([key, value]) => {
+    if (this.kvFieldCache?.has?.(this.data)) {
+      return this.kvFieldCache.get(this.data);
+    }
+    const kvFieldList = Object.entries(this.data).map(([key, sourceValue]) => {
       const entities = [];
       const fieldItem = this.fieldMap?.target?.[key] || {};
       const sourceName = fieldItem?.name as string;
-      const canClick = value != null && value !== '' && !!sourceName;
+      const canClick = sourceValue != null && sourceValue !== '' && !!sourceName;
 
       if (canClick) {
         for (const entitiesMap of this.entitiesMapList) {
@@ -100,7 +108,7 @@ export default class ExploreExpandViewWrapper extends tsc<
           if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
             continue;
           }
-          const path = this.getEntitiesJumpLink(sourceName, value, item);
+          const path = this.getEntitiesJumpLink(sourceName, sourceValue, item);
           if (!path) continue;
 
           entities.push({
@@ -110,6 +118,7 @@ export default class ExploreExpandViewWrapper extends tsc<
           });
         }
       }
+      const value = fieldItem.type === 'text' ? optimizedSplit(sourceValue) : sourceValue;
       const kvFieldItem = {
         name: key,
         type: fieldItem?.type as DimensionType,
@@ -119,9 +128,10 @@ export default class ExploreExpandViewWrapper extends tsc<
         canOpenStatistics: fieldItem?.is_option_enabled || false,
         canClick,
       };
-
       return kvFieldItem;
     });
+    this.$emit('updateKvFieldCache', this.data, kvFieldList);
+    return kvFieldList;
   }
 
   @Emit('conditionChange')
@@ -148,13 +158,15 @@ export default class ExploreExpandViewWrapper extends tsc<
     if (path) {
       return path;
     }
+    const timezone = this.timezone?.length ? this.timezone : getDefaultTimezone();
     switch (entitiesItem.type) {
       case ExploreEntitiesTypeEnum.HOST:
         {
           const cloudId =
             this.getValueBySourceName('bk_cloud_id') || this.getValueBySourceName('bk_target_cloud_id') || '0';
           const endStr = `${value}${fieldName === 'bk_host_id' ? '' : `-${cloudId}`}`;
-          path = `#/performance/detail/${endStr}`;
+          const query = `?from=${timezone[0]}&to=${timezone[1]}`;
+          path = `#/performance/detail/${endStr}${query}`;
         }
         break;
       case ExploreEntitiesTypeEnum.K8S:
@@ -165,6 +177,8 @@ export default class ExploreExpandViewWrapper extends tsc<
               sceneId: 'kubernetes',
               dashboardId: 'node',
               sceneType: 'detail',
+              from: timezone[0],
+              to: timezone[1],
               queryData: JSON.stringify({
                 selectorSearch: [
                   {

@@ -190,3 +190,18 @@ export interface ExploreEntitiesItem {
 export type ExploreEntitiesMap = Record<string, ExploreEntitiesItem>;
 
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
+
+/**
+ * @description 分词枚举
+ */
+export enum KVSplitEnum {
+  /** 分词符号 */
+  SEGMENTS = 'segments',
+  /** 单词 */
+  WORD = 'word',
+}
+
+export interface KVSplitItem {
+  value: string;
+  type: KVSplitEnum;
+}

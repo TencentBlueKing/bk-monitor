@@ -47,6 +47,7 @@ import { ExploreObserver, type ExploreSubject, getEventLegendColorByType } from 
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { KVFieldList } from './explore-kv-list';
 
 import './event-explore-table.scss';
 
@@ -140,6 +141,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   abortController: AbortController = null;
   /** 滚动结束后回调逻辑执行计时器  */
   scrollPointerEventsTimer = null;
+  /** kv 面板主要是利用接口中 origin_data 作为数据驱动渲染，
+   * 所以使用 map 结构并采用 origin_data 作为 key 对处理成 kvField 的数据做一层缓存 */
+  kvFieldMap = new WeakMap();
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -229,6 +233,13 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       this.scrollSubject.deleteObserver(this.scrollHeaderFixedObserver);
       this.scrollSubject.deleteObserver(this.scrollEndObserver);
     }
+  }
+
+  /**
+   * @description: 缓存kv面板处理后的数据
+   */
+  setKvFieldMap(originData, kvFieldItem: KVFieldList) {
+    this.kvFieldMap?.set?.(originData, kvFieldItem);
   }
 
   /**
@@ -526,9 +537,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         detailData={rowData?.['event.content']?.detail || {}}
         entitiesMapList={this.entitiesMapList}
         fieldMap={this.fieldMap}
+        kvFieldCache={this.kvFieldMap}
         scrollSubject={this.scrollSubject}
         source={this.source}
         onConditionChange={this.conditionChange}
+        onUpdateKvFieldCache={this.setKvFieldMap}
       />
     );
   }

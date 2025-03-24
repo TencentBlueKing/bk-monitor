@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { DimensionsTypeEnum } from './typing';
+import { DimensionsTypeEnum, KVSplitEnum, type KVSplitItem } from './typing';
 
 export const fieldTypeMap = {
   integer: {
@@ -115,4 +115,34 @@ export class ExploreObserver {
   notify(...args): void {
     this.fn.call(this.$vm, ...args);
   }
+}
+
+/** 分词字符串 */
+const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
+// 转义特殊字符，并构建用于分割的正则表达式
+const regexPattern = segmentRegStr
+  .split('')
+  .map(delimiter => `\\${delimiter}`)
+  .join('|');
+const DELIMITER_REGEX = new RegExp(`([${regexPattern}])|([^${regexPattern}]+)`, 'gi');
+
+/**
+ *
+ * @param {String} query 需要进行分词操作的字符串
+ * @returns
+ */
+export function optimizedSplit(query: string): KVSplitItem[] {
+  const tokens = [];
+  let match: null | RegExpExecArray;
+
+  // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+  while ((match = DELIMITER_REGEX.exec(query)) !== null) {
+    const [_full, segments, word] = match;
+    if (word) {
+      tokens.push({ value: word, type: KVSplitEnum.WORD });
+    } else if (segments) {
+      tokens.push({ value: segments, type: KVSplitEnum.SEGMENTS });
+    }
+  }
+  return tokens;
 }

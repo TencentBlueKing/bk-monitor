@@ -33,11 +33,18 @@
         }
       }
 
-      .item-value .value-text {
-        @extend %kv-row-hover;
+      .item-value {
+        .value-text,
+        .value-word {
+          @extend %kv-row-hover;
 
-        &.active-column {
-          color: #3a84ff;
+          &.active-column {
+            color: #3a84ff;
+          }
+        }
+
+        .value-segments {
+          text-decoration: underline;
         }
       }
     }
@@ -49,8 +56,15 @@
         @extend %kv-row-hover;
       }
 
-      .item-value .value-text {
-        @extend %kv-row-hover;
+      .item-value {
+        .value-text,
+        .value-word {
+          @extend %kv-row-hover;
+        }
+      }
+
+      .value-segments {
+        text-decoration: underline;
       }
     }
 
@@ -73,8 +87,10 @@
 
     .item-value {
       display: flex;
+      flex-wrap: wrap;
       min-width: 0;
       color: #313238;
+      white-space: pre-wrap;
 
       .value-jump-link {
         display: inline;
@@ -93,6 +109,10 @@
         flex: 1;
         min-width: 0;
         word-break: break-all;
+        @extend %kv-text-hover;
+      }
+
+      .value-word {
         @extend %kv-text-hover;
       }
     }
