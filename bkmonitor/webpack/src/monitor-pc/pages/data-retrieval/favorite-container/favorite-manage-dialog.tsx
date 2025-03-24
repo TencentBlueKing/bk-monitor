@@ -120,7 +120,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
       if (!names[item.update_user]) {
         names[item.update_user] = item.update_user;
       }
-      if (!ids[item.config?.queryConfig?.result_table_id]) {
+      if (this.favoriteType === 'event' && !ids[item.config.queryConfig.result_table_id]) {
         ids[item.config.queryConfig.result_table_id] = item.config.queryConfig.result_table_id;
       }
       if (!groups[item.group_id as number]) {
@@ -474,7 +474,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                   prop='group_id'
                   filter-multiple
                 />
-                {this.renderEventColumns()}
+                {this.favoriteType === 'event' && this.renderEventColumns()}
                 <bk-table-column
                   filter-method={(value, row, column) => row[column.property] === value}
                   filters={this.tableFilters.names}
