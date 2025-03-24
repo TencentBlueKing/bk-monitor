@@ -206,9 +206,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   layout = null;
 
-  // 是否正在操作连接线筛选
-  isHandleEdgeType = false;
-
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
     const curNodeLen = this.data?.nodes?.length || 0;
@@ -282,17 +279,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('data')
   handleDataChange() {
-    // 非连接线切换筛选 关闭toolsPopover
-    if (!(this.showType === 'topo' && this.toolsPopoverInstance && this.isHandleEdgeType)) {
-      console.log('关闭');
-      this.toolsPopoverInstance?.hide?.();
-      this.toolsPopoverInstance?.destroy?.();
-      this.toolsPopoverInstance = null;
-      this.showLegend = false;
-    }
+    // this.toolsPopoverInstance?.hide?.();
+    // this.toolsPopoverInstance?.destroy?.();
+    // this.toolsPopoverInstance = null;
     this.hideMenu();
     this.initGraph();
-    this.isHandleEdgeType = false;
   }
 
   @Watch('filterCondition', { deep: true })
@@ -1029,7 +1020,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Emit('edgeTypeChange')
   handleEdgeTypeChange(type: EdgeDataType) {
-    this.isHandleEdgeType = true;
     return type;
   }
 
