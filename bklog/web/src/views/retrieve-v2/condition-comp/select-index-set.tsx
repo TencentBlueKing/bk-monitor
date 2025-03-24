@@ -457,8 +457,6 @@ export default class SelectIndexSet extends tsc<object> {
   toggleSelect(val: boolean) {
     // 当前是否展示下拉列表
     this.isShowSelectPopover = val;
-    console.log(val);
-
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
       this.selectAloneVal = this.indexId ? [this.indexId] : [];
