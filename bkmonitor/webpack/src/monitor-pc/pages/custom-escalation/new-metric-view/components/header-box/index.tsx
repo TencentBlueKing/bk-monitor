@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import CompareType from './components/compare-type';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
-import ViewColumn from './components/view-column/index';
 import WhereCondition from './components/where-condition';
 
 import './index.scss';
@@ -59,9 +58,6 @@ interface IResult {
     type: string;
     offset: string[];
   };
-  show_statistical_value: boolean;
-  highlight_peak_value: boolean;
-  view_column: number;
 }
 
 interface IProps {
@@ -87,9 +83,6 @@ export const createDefaultParams = (): IResult => ({
     type: '',
     offset: [],
   },
-  show_statistical_value: true,
-  highlight_peak_value: false,
-  view_column: 1,
 });
 
 @Component
@@ -202,26 +195,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             value={this.params.compare}
             onChange={this.handleComparTypeChange}
           />
-          <div class='action-extend'>
-            <bk-checkbox
-              v-model={this.params.show_statistical_value}
-              onChange={this.triggerChange}
-            >
-              {this.$t('展示统计值')}
-            </bk-checkbox>
-            {/* <bk-checkbox
-              style='margin-left: 16px'
-              v-model={this.params.highlight_peak_value}
-              onChange={this.triggerChange}
-            >
-              {this.$t('高粱峰谷值')}
-            </bk-checkbox> */}
-            <ViewColumn
-              style='margin-left: 32px;'
-              v-model={this.params.view_column}
-              onChange={this.triggerChange}
-            />
-          </div>
+          <div class='action-extend'>{this.$slots.actionExtend}</div>
         </div>
       </div>
     );

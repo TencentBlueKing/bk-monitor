@@ -53,6 +53,10 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   renderData: Readonly<IProps['data']> = [];
   hasSelectedAll = false;
 
+  get isSelectDisabled() {
+    return this.data.length < 1;
+  }
+
   handleFilterChange: (filterKey: string) => void;
 
   @Watch('data', { immediate: true })
@@ -61,6 +65,9 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   }
 
   handleShowPopover() {
+    if (this.isSelectDisabled) {
+      return;
+    }
     this.popoverRef.showHandler();
     this.checkedMap = Object.freeze(
       this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
@@ -103,13 +110,13 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   }
 
   handleChange() {
-    this.$emit(
-      'change',
-      Object.entries(this.checkedMap).map(([field, split]) => ({
-        field,
-        split,
-      }))
-    );
+    const result = Object.entries(this.checkedMap).map(([field, split]) => ({
+      field,
+      split,
+    }));
+    if (!_.isEqual(result, this.value)) {
+      this.$emit('change', result);
+    }
   }
 
   created() {
@@ -127,10 +134,6 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   }
 
   render() {
-    if (this.data.length < 1) {
-      return null;
-    }
-
     const renderDimensionItem = (dimensionData: IProps['data'][number]) => {
       const isChecked = _.has(this.checkedMap, dimensionData.name);
       const isSplit = this.checkedMap[dimensionData.name];
@@ -186,7 +189,14 @@ export default class AppendValue extends tsc<IProps, IEmit> {
         trigger='manual'
       >
         <div
-          class='group-by-select-panel'
+          class={{
+            'group-by-select-panel': true,
+            'is-disabled': this.isSelectDisabled,
+          }}
+          v-bk-tooltips={{
+            content: this.$t('没有可聚合维度'),
+            disabled: !this.isSelectDisabled,
+          }}
           onClick={this.handleShowPopover}
         >
           <i class='icon-monitor icon-a-1jiahao' />

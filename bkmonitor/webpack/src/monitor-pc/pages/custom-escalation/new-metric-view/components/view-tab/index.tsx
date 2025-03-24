@@ -55,6 +55,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   @Ref('tabRef') readonly tabRef: any;
 
   isNeedParseUrl = true;
+  isTabListInit = false; // bk-tab 组件默认传入active时，并且bk-tab-panel异步加载因为组件内部有正确性校验会改变 active 的值
   isListLoading = true;
   isViewDetailLoading = false;
   viewTab = '';
@@ -77,6 +78,8 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   graphConfigPayloadChange() {
     this.$router.replace({
       query: {
+        ...this.$route.query,
+        key: `${Date.now()}`, // query 相同时 router.replace 会报错
         viewTab: this.viewTab,
         viewPayload: JSON.stringify(this.graphConfigPayload),
       },
@@ -97,6 +100,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       }
     } finally {
       this.isListLoading = false;
+      this.isTabListInit = true;
     }
   }
 
@@ -124,7 +128,9 @@ export default class ViewTab extends tsc<IProps, IEmit> {
         updateCurrentSelectedMetricNameList(
           this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : []
         );
-        this.$emit('payloadChange', {});
+        this.$emit('payloadChange', {
+          metrics: this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : [],
+        });
 
         this.isViewDetailLoading = false;
         return;
@@ -179,6 +185,10 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     });
     this.viewTab = 'default';
     this.fetchViewList();
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('视图删除成功'),
+    });
   }
 
   handleViewSaveSuccess() {
@@ -198,39 +208,41 @@ export default class ViewTab extends tsc<IProps, IEmit> {
           class='bk-monitor-new-metric-view-view-tab'
           v-bkloading={{ isListLoading: this.isListLoading }}
         >
-          <bk-tab
-            ref='tabRef'
-            active={this.viewTab}
-            labelHeight={42}
-            sortable={true}
-            type='unborder-card'
-            {...{ on: { 'update:active': this.handleTabChange, 'sort-change': this.handleSortChange } }}
-          >
-            <bk-tab-panel
-              label={this.$t('默认')}
-              name='default'
-              sortable={false}
-            />
-            {this.viewList.map(item => (
+          {this.isTabListInit && (
+            <bk-tab
+              ref='tabRef'
+              active={this.viewTab}
+              labelHeight={42}
+              sortable={true}
+              type='unborder-card'
+              {...{ on: { 'update:active': this.handleTabChange, 'sort-change': this.handleSortChange } }}
+            >
               <bk-tab-panel
-                key={item.id}
-                name={item.id}
-              >
-                <template slot='label'>
-                  <i class='icon-monitor icon-mc-tuozhuai drag-flag' />
-                  <span>{item.name}</span>
-                  <RemoveConfirm
-                    data={item}
-                    onSubmit={() => this.handleRemoveView(item.id)}
-                  >
-                    <span class='remove-btn'>
-                      <i class='icon-monitor icon-mc-clear' />
-                    </span>
-                  </RemoveConfirm>
-                </template>
-              </bk-tab-panel>
-            ))}
-          </bk-tab>
+                label={this.$t('默认')}
+                name='default'
+                sortable={false}
+              />
+              {this.viewList.map(item => (
+                <bk-tab-panel
+                  key={item.id}
+                  name={item.id}
+                >
+                  <template slot='label'>
+                    <i class='icon-monitor icon-mc-tuozhuai drag-flag' />
+                    <span>{item.name}</span>
+                    <RemoveConfirm
+                      data={item}
+                      onSubmit={() => this.handleRemoveView(item.id)}
+                    >
+                      <span class='remove-btn'>
+                        <i class='icon-monitor icon-mc-clear' />
+                      </span>
+                    </RemoveConfirm>
+                  </template>
+                </bk-tab-panel>
+              ))}
+            </bk-tab>
+          )}
           <ViewSave
             class='view-save'
             payload={this.graphConfigPayload}

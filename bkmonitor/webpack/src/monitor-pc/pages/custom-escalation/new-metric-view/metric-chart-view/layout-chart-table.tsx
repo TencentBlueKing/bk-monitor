@@ -91,8 +91,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     const { compare } = this.filterOption;
     return {
       compare: {
-        type: compare.type,
-        value: compare.offset,
+        type: compare?.type,
+        value: compare?.offset,
       },
       tools: {
         timeRange: this.timeRange,

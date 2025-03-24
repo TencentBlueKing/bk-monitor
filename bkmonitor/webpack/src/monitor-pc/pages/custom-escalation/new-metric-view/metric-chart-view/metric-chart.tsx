@@ -151,10 +151,11 @@ class NewMetricChart extends CommonSimpleChart {
     this.handleResize();
   }
   /** 重新拉取数据 */
-  @Watch('panel', { deep: true })
-  handlePanelChange() {
-    this.getPanelData();
-  }
+  // @Watch('panel')
+  // handlePanelChange() {
+  //   console.log('getPanelData ----');
+  //   this.getPanelData();
+  // }
   /** 切换计算的Method */
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
     this.method = method;
@@ -361,7 +362,7 @@ class NewMetricChart extends CommonSimpleChart {
   /**
    * @description: 获取图表数据
    */
-  @Debounce(100)
+  @Debounce(300)
   async getPanelData(start_time?: string, end_time?: string) {
     this.legendData = [];
     this.legendSorts = [];
@@ -396,6 +397,7 @@ class NewMetricChart extends CommonSimpleChart {
 
       const timeShiftList = [...(this.filterOption?.compare?.offset || [])];
       const list = this.panel.targets.map(item => {
+        console.log(item, '===');
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => (metric.method = this.method));
         });

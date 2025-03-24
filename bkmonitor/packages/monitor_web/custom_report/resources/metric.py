@@ -266,7 +266,7 @@ class ModifyCustomTimeSeries(Resource):
         name = serializers.CharField(required=False, max_length=128, label="名称")
         is_platform = serializers.BooleanField(required=False, label="平台级")
         data_label = serializers.CharField(required=False, label="数据标签")
-        desc = serializers.CharField(required=False, label="说明")
+        desc = serializers.CharField(required=False, label="说明", allow_blank=True)
         auto_discover = serializers.BooleanField(required=False, label="自动发现")
 
         class MetricListSerializer(serializers.Serializer):
