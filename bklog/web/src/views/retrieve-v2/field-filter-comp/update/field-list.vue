@@ -42,16 +42,30 @@
   const isDropdownShow = ref(false);
   const isLoading = ref(false);
   const configList = ref([]);
-
+  const searchKeyword = ref('');
+  const searchConfigList = computed(() => {
+    return configList.value.filter(item => {
+      // 确保 item.name 是一个字符串
+      const name = String(item.name);
+      // 检查 name 是否包含 searchString
+      return name.includes(searchKeyword.value);
+    });
+  });
   const unionIndexList = computed(() => store.state.unionIndexList);
   const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const dropdownShow = () => {
-    isDropdownShow.value = true;
-    getFiledConfigList();
+  const handleDropContent = () => {
+    isDropdownShow.value = !isDropdownShow.value;
+    if (isDropdownShow.value) {
+      getFiledConfigList();
+    }
   };
-  const dropdownHide = () => {
-    isDropdownShow.value = false;
-  };
+  // const dropdownHide = () => {
+  //   console.log('222');
+  //   const dropdownElement = document.querySelector('.bk-dropdown-content');
+  //   if (!dropdownElement?.contains(document.activeElement)) {
+  //     isDropdownShow.value = false;
+  //   }
+  // };
 
   const getFiledConfigList = async () => {
     isLoading.value = true;
@@ -73,6 +87,7 @@
   };
   const handleClickManagementConfig = () => {
     store.commit('updateShowFieldsConfigPopoverNum', 1);
+    localStorage.setItem('fieldSettingsIsShowLeft', true);
   };
 
   const handleClickSelectConfig = item => {
@@ -87,13 +102,57 @@
         store.commit('updateIsSetDefaultTableColumn');
         emit('select-fields-config', item.display_fields);
       });
+    isDropdownShow.value = false;
   };
 </script>
 <template>
   <div class="field-select-config">
-    <bk-dropdown-menu
+    <div
+      class="dropdown-trigger-text"
+      @click="handleDropContent"
+    >
+      <span class="bklog-icon bklog-overview1"></span>
+      <span> {{ $t('字段模板') }} </span>
+    </div>
+    <div
+      v-if="isDropdownShow"
+      class="dropdown-content"
+    >
+      <div style="margin-top: 4px">
+        <bk-input
+          class="field-input"
+          v-model="searchKeyword"
+          left-icon="icon-search"
+          placeholder="搜索 模板名称"
+          clearable
+        />
+      </div>
+      <div class="underline-box"></div>
+      <ul
+        class="bk-dropdown-list"
+        v-bkloading="{ isLoading: isLoading, size: 'small' }"
+      >
+        <li
+          v-for="(item, index) in searchConfigList"
+          :key="index"
+        >
+          <span @click="() => handleClickSelectConfig(item)">
+            {{ item.name }}
+          </span>
+        </li>
+      </ul>
+      <div class="manage-setting">
+        <psan
+          style="font-size: 16px"
+          class="bklog-icon bklog-shezhi"
+        ></psan>
+        <span @click="handleClickManagementConfig">
+          {{ $t('管理配置') }}
+        </span>
+      </div>
+    </div>
+    <!-- <bk-dropdown-menu
       ref="dropdown"
-      align="left"
       trigger="click"
       @hide="dropdownHide"
       @show="dropdownShow"
@@ -105,6 +164,20 @@
         </div>
       </template>
       <template #dropdown-content>
+        <div
+          style="margin-top: 4px"
+          class="field-container"
+        >
+          <bk-input
+            class="field-input"
+            v-model="searchKeyword"
+            left-icon="icon-search"
+            placeholder="搜索 字段名"
+            clearable
+            @focus.stop
+            @input.stop
+          />
+        </div>
         <ul
           class="bk-dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
@@ -131,9 +204,9 @@
           </li>
         </ul>
       </template>
-    </bk-dropdown-menu>
+    </bk-dropdown-menu> -->
   </div>
 </template>
 <style lang="scss">
-  @import './field-select-config.scss';
+  @import './field-list.scss';
 </style>
