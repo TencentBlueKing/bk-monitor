@@ -105,8 +105,8 @@
         </bk-checkbox>
       </div>
       <div
-        class="tools-more"
         v-if="!isMonitorTrace"
+        class="tools-more"
       >
         <div class="operation-icons">
           <!-- <bk-input
@@ -138,6 +138,7 @@
             :offset="0"
             :on-hide="handleDropdownHide"
             :on-show="handleDropdownShow"
+            :tippy-options="tippyOptions"
             animation="slide-toggle"
             placement="bottom-end"
             theme="light bk-select-dropdown"
@@ -146,8 +147,8 @@
             <slot name="trigger">
               <div class="operation-icon">
                 <span
-                  class="icon bklog-icon bklog-shezhi"
                   style="font-size: 16px"
+                  class="icon bklog-icon bklog-shezhi"
                 ></span>
               </div>
             </slot>
@@ -156,6 +157,7 @@
                 <fields-setting
                   v-if="showFieldsSetting"
                   :field-alias-map="fieldAliasMap"
+                  :is-show-left="isShowLeft"
                   :retrieve-params="retrieveParams"
                   @cancel="cancelModifyFields"
                   @set-popper-instance="setPopperInstance"
@@ -178,7 +180,7 @@
   import { mapGetters, mapState } from 'vuex';
 
   import ExportLog from '../../result-comp/export-log.vue';
-  import FieldsSetting from '../../result-comp/fields-setting';
+  import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
 
   export default {
@@ -207,11 +209,15 @@
         value: '',
         contentType: 'table',
         showFieldsSetting: false,
+        isShowLeft: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
+        tippyOptions: {
+          hideOnClick: false,
+        },
       };
     },
     computed: {
@@ -276,9 +282,13 @@
       // 字段设置
       handleDropdownShow() {
         this.showFieldsSetting = true;
+        this.isShowLeft = false;
+        this.isShowLeft = localStorage.getItem('fieldSettingsIsShowLeft') === 'true';
       },
       handleDropdownHide() {
         this.showFieldsSetting = false;
+        localStorage.setItem('fieldSettingsIsShowLeft', false);
+        this.isShowLeft = false;
       },
       cancelModifyFields() {
         this.closeDropdown();
