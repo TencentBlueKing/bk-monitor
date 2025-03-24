@@ -1,0 +1,129 @@
+# -*- coding: utf-8 -*-
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+import copy
+from typing import Any, Dict, List
+
+from django.conf import settings
+
+from ...constants import (
+    CICD_EVENT_NAME_ALIAS,
+    DisplayFieldType,
+    EventDomain,
+    EventScenario,
+    EventSource,
+)
+from ...utils import create_cicd_info
+from .base import BaseEventProcessor
+
+
+class CicdEventProcessor(BaseEventProcessor):
+    def __init__(self, pipeline_context, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pipeline_context = pipeline_context
+
+    @classmethod
+    def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
+        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
+            EventDomain.CICD.value,
+            EventSource.BKCI.value,
+        )
+
+    def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        processed_events: List[Dict[str, Any]] = []
+        cicd_infos: List[Dict[str, Any]] = []
+        pipeline_ids_to_query: List[Dict[str, Any]] = []
+
+        for origin_event in origin_events:
+            if not self._need_process(origin_event):
+                processed_events.append(origin_event)
+                continue
+            processed_event = copy.deepcopy(origin_event)
+            cicd_info = create_cicd_info(
+                origin_event["origin_data"],
+                ["pipelineName", "projectId", "buildId", "pipelineId", "duration", "event_name", "bk_biz_id", "time"],
+            )
+            cicd_infos.append(cicd_info)
+
+            if not cicd_info["pipelineName"]["value"]:
+                pipeline_ids_to_query.append(
+                    {
+                        "pipeline_id": cicd_info["pipelineId"]["value"],
+                        "bk_biz_id": cicd_info["bk_biz_id"]["value"],
+                        "time": cicd_info["time"]["value"],
+                    }
+                )
+
+            detail = processed_event["event.content"]["detail"]
+            # 设置 duration，ms 转为 s
+            detail["duration"] = self.set_duration(cicd_info)
+            # 设置 target
+            processed_event["target"] = self.set_target(cicd_info)
+            # 设置 event_name
+            event_name_value = cicd_info["event_name"]["value"]
+            processed_event["event_name"]["alias"] = CICD_EVENT_NAME_ALIAS.get(event_name_value, event_name_value)
+            processed_events.append(processed_event)
+        # 设置 pipelineName
+        pipelines = self.pipeline_context.fetch(pipeline_ids_to_query)
+
+        for processed_event in processed_events:
+            processed_event["event.content"]["detail"]["pipelineName"] = self.set_pipeline_name(
+                create_cicd_info(
+                    processed_event["origin_data"],
+                    ["pipelineName", "projectId", "buildId", "pipelineId", "bk_biz_id", "time"],
+                ),
+                pipelines,
+            )
+        return processed_events
+
+    @classmethod
+    def generate_url(cls, cicd_info):
+        return "{base_url}/console/pipeline/{project_id}/{pipeline_id}/detail/{build_id}/executeDetail".format(
+            base_url=settings.BKCI_HOST,
+            project_id=cicd_info["projectId"]["value"],
+            pipeline_id=cicd_info["pipelineId"]["value"],
+            build_id=cicd_info["buildId"]["value"],
+        )
+
+    @classmethod
+    def set_duration(cls, cicd_info):
+        if cicd_info["duration"]["value"]:
+            duration = "{:.2f}s".format(float(cicd_info["duration"]["value"]) / 1000)
+            cicd_info["duration"]["value"] = duration
+            cicd_info["duration"]["alias"] = duration
+        return cicd_info["duration"]
+
+    @classmethod
+    def set_target(cls, cicd_info):
+        return {
+            "value": cicd_info["pipelineId"]["value"],
+            "alias": cicd_info["pipelineId"]["alias"],
+            "scenario": EventScenario.BKCI.value,
+            "url": cls.generate_url(cicd_info),
+        }
+
+    @classmethod
+    def set_pipeline_name(cls, cicd_info, pipelines):
+        pipeline_name = cicd_info["pipelineName"]["value"]
+        # 流水线 Stage 执行，需要获取流水线名称
+        if not pipeline_name:
+            pipeline_name = pipelines.get(cicd_info["pipelineId"]["value"], {}).get("pipeline_name", "")
+        return {
+            "type": DisplayFieldType.LINK.value,
+            "label": cicd_info["pipelineName"]["label"],
+            "value": pipeline_name,
+            "alias": "{projectId} / {pipelineName}".format(
+                projectId=cicd_info["projectId"]["value"], pipelineName=pipeline_name
+            )
+            if pipeline_name
+            else "--",
+            "scenario": EventScenario.BKCI.value,
+            "url": cls.generate_url(cicd_info),
+        }

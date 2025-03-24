@@ -2232,7 +2232,7 @@ class NewCustomEventDataSource(CustomEventDataSource):
         self.reference_name: str = kwargs.get("reference_name") or "a"
 
     def _get_unify_query_table(self) -> str:
-        if self.table in {"system_event", "k8s_event"}:
+        if self.table in {"system_event", "k8s_event", "cicd_event"}:
             return self.table
         return f"{self.table}.__default__"
 
@@ -2572,7 +2572,7 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> Dict[str, Any]:
     if need_add_filter:
         return biz_filter
 
-    if table_id in ["k8s_event", "system_event"]:
+    if table_id in ["k8s_event", "system_event", "cicd_event"]:
         return biz_filter
 
     if settings.ENVIRONMENT == "development":

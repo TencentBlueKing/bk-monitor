@@ -15,7 +15,6 @@ import os
 import sys
 from urllib.parse import urljoin
 
-from ai_agent.conf.default import *
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
@@ -23,6 +22,7 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
+from ai_agent.conf.default import *
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -553,6 +553,9 @@ APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
+
+# 蓝盾配置
+BKCI_HOST = ""
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"

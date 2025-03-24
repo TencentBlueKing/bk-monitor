@@ -457,6 +457,7 @@ NEVER_REFRESH_INTERVAL = "-1"
 class EventScenario(Enum):
     CONTAINER_MONITOR = _("容器监控")
     HOST_MONITOR = _("主机监控")
+    BKCI = _("蓝盾")
 
 
 class SystemEventTypeEnum(Enum):
@@ -475,4 +476,15 @@ SYSTEM_EVENT_TRANSLATIONS = {
     "OOM": _("OOM 异常事件告警"),
     "AgentLost": _("Agent 心跳丢失"),
     "PingUnreachable": _("PING 不可达告警"),
+}
+
+
+class CicdEventNameEnum(Enum):
+    PIPELINE_STATUS_INFO: str = "pipeline_status_info"
+    PIPELINE_STEP_STATUS_INFO: str = "pipeline_step_status_info"
+
+
+CICD_EVENT_NAME_ALIAS = {
+    CicdEventNameEnum.PIPELINE_STATUS_INFO.value: _("流水线执行"),
+    CicdEventNameEnum.PIPELINE_STEP_STATUS_INFO.value: _("流水线 Stage 执行"),
 }

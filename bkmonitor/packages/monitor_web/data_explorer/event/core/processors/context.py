@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Callable, Dict, List
 
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 
+from ...constants import CicdEventNameEnum, EventCategory
 from .base import BaseContext, EntityT
 
 
@@ -73,3 +76,49 @@ class SystemClusterContext(BaseContext):
                 clusters[bk_cloud_id] = self._cache[bk_cloud_id]
 
         return clusters
+
+
+class CicdPipelineContext(BaseContext):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(args, kwargs)
+
+    def fetch(
+        self, entities: List[EntityT], get_key: Callable[[EntityT], str] = lambda _e: _e.get("id", "")
+    ) -> Dict[str, EntityT]:
+        pipelines = {}
+        pipeline_ids = set()
+        for entity in entities:
+            pipeline_id = entity["pipeline_id"]
+            if pipeline_id in self._cache:
+                pipelines[pipeline_id] = self._cache[pipeline_id]
+                continue
+            pipeline_ids.add(pipeline_id)
+        if pipeline_ids:
+            # 查询 pipeline_name 并更新缓存
+            timestamp = [int(entity["time"]) for entity in entities]
+            one_hour_ms = 3600 * 1000
+            new_pipelines = {
+                pipeline["pipelineId"]: {"pipeline_name": pipeline["pipelineName"]}
+                for pipeline in list(
+                    UnifyQuerySet()
+                    .scope(bk_biz_id=entities[0]["bk_biz_id"])
+                    .start_time(min(timestamp) - one_hour_ms)
+                    .end_time(max(timestamp) + one_hour_ms)
+                    .time_agg(False)
+                    .instant()
+                    .add_query(
+                        QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM))
+                        .table(EventCategory.CICD_EVENT.value)
+                        .group_by("pipelineId", "pipelineName")
+                        .metric(field="pipelineId", method="COUNT", alias="a")
+                        .filter(
+                            pipelineId__eq=list(pipeline_ids),
+                            event_name__eq=CicdEventNameEnum.PIPELINE_STATUS_INFO.value,
+                        )
+                    )
+                    .limit(len(pipeline_ids))
+                )
+            }
+            pipelines.update(new_pipelines)
+            self._cache.update(new_pipelines)
+        return pipelines
