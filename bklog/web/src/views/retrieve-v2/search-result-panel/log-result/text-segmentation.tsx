@@ -54,11 +54,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const refContent: Ref<HTMLDivElement> = ref();
 
-    const wheelTrigger: Ref<{ isWheeling: boolean; id: string }> = inject(
-      'wheelTrigger',
-      ref({ isWheeling: false, id: '' }),
-    );
-
     const store = useStore();
     const { $t } = useLocale();
 
@@ -88,7 +83,7 @@ export default defineComponent({
       emit('menu-click', event);
     };
 
-    const textSegmentInstance = new UseTextSegmentation({
+    let textSegmentInstance = new UseTextSegmentation({
       onSegmentClick: handleMenuClick,
       options: {
         content: props.content,
@@ -146,31 +141,39 @@ export default defineComponent({
     });
 
     let removeScrollEventFn = null;
+    let cellScrollInstance: {
+      setListItem: (size?: number) => void;
+      removeScrollEvent: () => void;
+      reset: (list: WordListItem[]) => void;
+    };
+
+    const setWordSegmentRender = () => {
+      const { setListItem, removeScrollEvent } = cellScrollInstance;
+      renderMoreItems = setListItem;
+      removeScrollEventFn = removeScrollEvent;
+
+      // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
+      // 这里默认渲染前500跟分词 + 10 - 20行溢出
+      setListItem(isLimitExpandView.value ? 550 : 300);
+      debounceUpdateWidth();
+    };
 
     onMounted(() => {
       hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
-      requestAnimationFrame(() => {
-        const { setListItem, removeScrollEvent } = setScrollLoadCell(
-          wordList,
-          refContent.value,
-          refSegmentContent.value,
-          (item: WordListItem) => {
-            const child = document.createElement(getTagName(item));
-            child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-            child.innerText = item.text;
-            return child;
-          },
-        );
+      cellScrollInstance = setScrollLoadCell(
+        wordList,
+        refContent.value,
+        refSegmentContent.value,
+        (item: WordListItem) => {
+          const child = document.createElement(getTagName(item));
+          child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
+          child.innerText = item.text;
+          return child;
+        },
+      );
 
-        renderMoreItems = setListItem;
-        removeScrollEventFn = removeScrollEvent;
-
-        // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
-        // 这里默认渲染前500跟分词 + 10 - 20行溢出
-        setListItem(isLimitExpandView.value ? 550 : 300);
-        debounceUpdateWidth();
-      });
+      setWordSegmentRender();
     });
 
     onBeforeUnmount(() => {
@@ -203,6 +206,38 @@ export default defineComponent({
       },
     );
 
+    watch(
+      () => props.content,
+      () => {
+        textSegmentInstance = new UseTextSegmentation({
+          onSegmentClick: handleMenuClick,
+          options: {
+            content: props.content,
+            field: props.field,
+            data: props.data,
+          },
+        });
+        setWordList();
+        const { reset } = cellScrollInstance;
+        reset(wordList);
+        setWordSegmentRender();
+      },
+    );
+
+    const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
+    const getMoreAction = () => {
+      if (showMoreAction.value) {
+        return (
+          <span
+            class={['btn-more-action', `word-text`, 'is-show']}
+            onClick={handleClickMore}
+          >
+            {btnText.value}
+          </span>
+        );
+      }
+    };
+
     return () => (
       <div
         class={[
@@ -217,19 +252,7 @@ export default defineComponent({
         ]}
       >
         {renderSegmentList()}
-        <span
-          class={[
-            'btn-more-action',
-            `word-text`,
-            {
-              'is-show':
-                !wheelTrigger.value.isWheeling && (hasOverflowY.value || (showAll.value && !isLimitExpandView.value)),
-            },
-          ]}
-          onClick={handleClickMore}
-        >
-          {btnText.value}
-        </span>
+        {getMoreAction()}
       </div>
     );
   },

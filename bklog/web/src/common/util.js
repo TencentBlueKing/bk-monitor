@@ -1166,6 +1166,7 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const contextHighlightColor = [
   {
     dark: '#FFB401',

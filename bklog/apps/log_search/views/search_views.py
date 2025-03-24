@@ -1778,8 +1778,14 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        sql = ChartHandler.generate_sql(params)
-        return Response({"sql": sql})
+        data = ChartHandler.generate_sql(
+            addition=params["addition"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            sql_param=params["sql"],
+            keyword=params["keyword"],
+        )
+        return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")
     def generate_querystring(self, request):
