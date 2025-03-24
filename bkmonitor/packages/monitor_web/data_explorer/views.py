@@ -405,20 +405,15 @@ class DataExplorerViewSet(ResourceViewSet):
         serializer = EventDownloadTopKRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data: Dict[str, Any] = serializer.validated_data
-
-        # 获取 topk 数据并生成文件内容
-        output_content = self.generate_topk_file_content(validated_data)
-
-        table_name = validated_data["query_configs"][0]["table"]
-        file_name = f"{table_name}_{validated_data['fields'][0]}.txt"
-
-        return generate_file_download_response(output_content, file_name)
+        return generate_file_download_response(
+            DataExplorerViewSet.generate_topk_file_content(EventTopKResource().perform_request(validated_data)),
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+        )
 
     @classmethod
-    def generate_topk_file_content(cls, validated_data: Dict[str, Any]) -> str:
+    def generate_topk_file_content(cls, api_topk_response) -> str:
         output = StringIO()
         try:
-            api_topk_response = EventTopKResource().perform_request(validated_data)
             for item in api_topk_response[0]["list"]:
                 output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
             return output.getvalue()

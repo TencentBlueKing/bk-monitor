@@ -236,3 +236,10 @@ class EventGetTagConfigRequestSerializer(BaseEventRequestSerializer):
 
 class EventUpdateTagConfigRequestSerializer(EventGetTagConfigRequestSerializer):
     config = serializers.DictField(label="配置", required=True)
+
+
+class EventDownloadTopKRequestSerializer(
+    event_serializers.EventDownloadTopKRequestSerializer, EventTopKRequestSerializer
+):
+    def validate(self, attrs):
+        return super().validate(attrs)
