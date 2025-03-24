@@ -331,4 +331,6 @@ export default {
   移动光标: 'Move the cursor',
   选中: 'Select',
   提交查询: 'Submit query',
+  '异常事件 ({0})': 'Exception event ({0})',
+  '全部事件 ({0})': 'All events ({0})',
 };

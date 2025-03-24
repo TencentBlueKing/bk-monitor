@@ -310,4 +310,7 @@ export default {
   查询语法: 'Query syntax',
   '精确匹配（支持 AND、OR）': 'Exact match (support AND, OR)',
   检索值: 'Search value',
+  事件展示: 'Event display',
+  保存为服务配置: 'Save as service configuration',
+  查看事件详情: 'View event details',
 };

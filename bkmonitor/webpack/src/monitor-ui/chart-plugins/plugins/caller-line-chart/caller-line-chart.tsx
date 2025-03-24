@@ -58,10 +58,7 @@ import {
   getCustomEventAnalysisConfig,
   getCustomEventSeries,
   getCustomEventSeriesParams,
-  // createCustomEventSeries,
-  // getCustomEventTags,
-  // getCustomEventTagsPanelParams,
-  type ICustomEventTagsItem,
+  type IEventTagsItem,
   updateCustomEventAnalysisConfig,
 } from './use-custom';
 
@@ -132,7 +129,7 @@ class CallerLineChart extends CommonSimpleChart {
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
 
   metrics = [];
-  options = {};
+  options: Record<string, any> = {};
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
   cancelTokens = [];
@@ -157,7 +154,7 @@ class CallerLineChart extends CommonSimpleChart {
     left: 0,
     top: 0,
   };
-  clickEventItem: ICustomEventTagsItem['items'][number] = null;
+  clickEventItem: Partial<IEventTagsItem> = {};
   // 自定义事件menu数据
   customMenuData: object = {};
 
@@ -385,24 +382,21 @@ class CallerLineChart extends CommonSimpleChart {
         this.eventConfig = config;
         this.eventColumns = columns;
       }
+      const commonCustomEventParams = {
+        start_time: newParams.start_time,
+        end_time: newParams.end_time,
+        app_name: this.viewOptions.filters?.app_name,
+        service_name: this.viewOptions.filters?.service_name,
+      };
       await Promise.all(
         [
           ...promiseList,
           this.eventConfig.is_enabled_metric_tags
-            ? getCustomEventSeries(
-                getCustomEventSeriesParams(
-                  {
-                    start_time: newParams.start_time,
-                    end_time: newParams.end_time,
-                    app_name: this.viewOptions.filters?.app_name,
-                    service_name: this.viewOptions.filters?.service_name,
-                  },
-                  this.eventConfig
-                )
-              ).then(series => {
-                customEventScatterSeries = series;
-                console.info(series, '+++++++++');
-              })
+            ? getCustomEventSeries(getCustomEventSeriesParams(commonCustomEventParams, this.eventConfig)).then(
+                series => {
+                  customEventScatterSeries = series;
+                }
+              )
             : undefined,
         ].filter(Boolean)
       ).catch(() => false);
@@ -543,6 +537,7 @@ class CallerLineChart extends CommonSimpleChart {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
               maxXInterval,
               maxSeriesCount,
+              commonCustomEventParams,
             },
           })
         );
@@ -1103,10 +1098,10 @@ class CallerLineChart extends CommonSimpleChart {
     }
   }
   handleClick(event) {
-    if (event.seriesType === 'scatters') {
+    if (event.seriesType === 'scatter') {
       this.$el.focus?.();
       const {
-        info,
+        value,
         event: {
           event: { clientX, clientY },
         },
@@ -1123,7 +1118,14 @@ class CallerLineChart extends CommonSimpleChart {
         left: position.left,
         top: position.top,
       };
-      this.clickEventItem = info;
+      const { start_time, end_time } = this.options.customData.commonCustomEventParams;
+      this.clickEventItem = {
+        ...this.options.customData.commonCustomEventParams,
+        app_name: this.viewOptions.filters?.app_name,
+        service_name: this.viewOptions.filters?.service_name,
+        interval: Math.ceil((end_time - start_time) / 12),
+        start_time: value[0] / 1000,
+      };
     }
   }
   handleChartBlur() {
@@ -1167,7 +1169,10 @@ class CallerLineChart extends CommonSimpleChart {
       key: `${this.$route.query.scene_id || 'apm_service'}|${this.panel.id}`,
       config: this.eventConfig,
     });
-    this.$bkMessage({ theme: success ? 'success' : 'error', message: success ? '保存成功' : '保存失败' });
+    this.$bkMessage({
+      theme: success ? 'success' : 'error',
+      message: success ? this.$t('保存成功') : this.$t('保存失败'),
+    });
   }
   render() {
     return (
@@ -1230,15 +1235,15 @@ class CallerLineChart extends CommonSimpleChart {
               >
                 <div
                   class='event-analyze tips-icon'
-                  v-bk-tooltips={{ content: this.$t('事件分析') }}
+                  v-bk-tooltips={{ content: this.$t('事件展示') }}
                 >
-                  <i class='icon-monitor icon-fasonglishi' />
+                  <i class='icon-monitor icon-shijianjiansuo' />
                 </div>
                 <div
                   class={`event-analyze-wrapper ${this.eventConfig.is_enabled_metric_tags ? 'event-analyze-wrapper__set' : 'event-analyze-wrapper__unset'}`}
                   slot='content'
                 >
-                  <div class='event-title'>{this.$t('事件分析')}</div>
+                  <div class='event-title'>{this.$t('事件展示')}</div>
                   <bk-switcher
                     size='small'
                     theme='primary'

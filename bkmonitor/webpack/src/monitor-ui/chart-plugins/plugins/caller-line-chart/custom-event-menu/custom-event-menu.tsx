@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import base64Svg from 'monitor-common/svg/base64';
 
-import { getCustomEventTagDetails, type ICustomEventDetail, type ICustomEventTagsItem } from '../use-custom';
+import { getCustomEventTagDetails, type IEventTagsItem, type ICustomEventDetail } from '../use-custom';
 
 import type { IPosition } from 'CustomEventMenu';
 
@@ -43,29 +43,47 @@ interface IProps {
   /* 位置 */
   position: IPosition;
   /* 事件项 */
-  eventItem: ICustomEventTagsItem['items'][number];
+  eventItem: Partial<IEventTagsItem>;
 }
 @Component
 export default class CustomEventMenu extends tsc<IProps> {
   /* 位置 */
   @Prop({ required: true, type: Object }) position: IPosition;
   /* 事件项 */
-  @Prop({ required: true, type: Object }) eventItem: ICustomEventTagsItem['items'][number];
-  menuData: ICustomEventDetail = {};
+  @Prop({ required: true, type: Object }) eventItem: Partial<IEventTagsItem>;
+
+  warningData: ICustomEventDetail = {};
+  allData: ICustomEventDetail = {};
   activeTab: EventTab = EventTab.Warning;
   loading = false;
+  get menuData(): ICustomEventDetail {
+    return this.activeTab === EventTab.Warning ? this.warningData : this.allData;
+  }
   @Watch('eventItem', { deep: true, immediate: true })
   async getCustomEventTagDetails() {
     if (this.position.left && this.position.top && this.eventItem) {
       this.loading = true;
-      const data = await getCustomEventTagDetails(
-        this.eventItem,
-        this.eventItem.count,
-        this.eventItem.statistics.Warning > 0
-      );
-      this.activeTab = this.eventItem.statistics.Warning > 0 ? EventTab.Warning : EventTab.All;
-      console.info(data);
-      this.menuData = data;
+      const { Warning, All } = await getCustomEventTagDetails({
+        app_name: this.eventItem.app_name,
+        service_name: this.eventItem.service_name,
+        query_configs: [
+          {
+            data_source_label: 'bk_apm',
+            data_type_label: 'event',
+            table: 'builtin',
+            filter_dict: {},
+            where: [],
+            query_string: '*',
+            group_by: [],
+            interval: this.eventItem.interval,
+          },
+        ],
+        expression: 'a',
+        start_time: this.eventItem.start_time,
+      });
+      this.warningData = Warning;
+      this.allData = All;
+      this.activeTab = this.warningData.total > 0 ? EventTab.Warning : EventTab.All;
       this.loading = false;
     }
   }
@@ -73,19 +91,70 @@ export default class CustomEventMenu extends tsc<IProps> {
   handleTabChange(tab: EventTab) {
     this.activeTab = tab;
   }
+  createApmEventExploreHref(startTime: number, eventName = '') {
+    const targets = [
+      {
+        data: {
+          query_configs: [
+            {
+              result_table_id: 'builtin',
+              data_type_label: 'event',
+              data_source_label: 'apm',
+              where: eventName
+                ? [
+                    {
+                      key: 'event_name',
+                      condition: 'and',
+                      value: [eventName],
+                      method: 'eq',
+                    },
+                  ]
+                : [],
+              query_string: '',
+              group_by: [],
+              filter_dict: {},
+            },
+          ],
+        },
+      },
+    ];
+    const query = {
+      sceneId: 'apm_service',
+      sceneType: 'overview',
+      dashboardId: 'service-default-event',
+      from: ((startTime || this.eventItem.start_time) * 1000).toString(),
+      to: `${((startTime || this.eventItem.start_time) + this.eventItem.interval) * 1000}`,
+      'filter-app_name': this.eventItem.app_name,
+      'filter-service_name': this.eventItem.service_name,
+      targets: JSON.stringify(targets),
+    };
+    const { href } = this.$router.resolve({
+      path: this.$route.path,
+      query,
+    });
+    window.open(location.href.replace(location.hash, href), '_blank');
+  }
+  handleListGotoEventDetail(event: MouseEvent, item: ICustomEventDetail['list'][number]) {
+    event.preventDefault();
+    this.createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value);
+  }
+  handleTopKGotoEventDetail(event: MouseEvent, item: ICustomEventDetail['topk'][number]) {
+    event.preventDefault();
+    this.createApmEventExploreHref(this.menuData.time, item.event_name.value);
+  }
   createTitleRender() {
     if (!this.menuData?.list?.length && !this.menuData.topk) return undefined;
     const { list, time, topk } = this.menuData;
     const data = list || topk;
-    if (data?.length === 1) {
-      const { 'event.content': eventContent, source } = data[0];
+    if (list?.length === 1) {
+      const { event_name, source } = data[0];
       return (
         <div class='custom-event-menu-title'>
           <span
             style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || 'bcs']})` }}
             class='event-icon'
           />
-          <div class='event-name'>{eventContent.alias}</div>
+          <div class='event-name'>{event_name.alias}</div>
           <bk-button
             class='detail-btn'
             v-bk-tooltips={{
@@ -100,21 +169,21 @@ export default class CustomEventMenu extends tsc<IProps> {
         </div>
       );
     }
-    if (data?.length > 1) {
+    if (data?.length > 0) {
       // const { source } = data[0];
       return (
         <div class='custom-event-menu-title'>
           <div class='event-name'>
             <i18n path={'共 {0} 个事件，展示 Top{1}'}>
-              <span style='font-weight: bold;color:#313238;'> {12} </span>
-              <span style='font-weight: bold;color:#313238;'> {5} </span>
+              <span style='font-weight: bold;color:#313238;'> {this.menuData.total} </span>
+              <span style='font-weight: bold;color:#313238;'> {data.length} </span>
             </i18n>
           </div>
           <span
             style='color: #979BA5;'
             class='detail-btn'
           >
-            {dayjs(time).format('YYYY-MM-DD HH:mm:ss')}
+            {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss')}
           </span>
         </div>
       );
@@ -173,6 +242,7 @@ export default class CustomEventMenu extends tsc<IProps> {
                     content: this.$t('查看事件详情'),
                     allowHTML: false,
                   }}
+                  onMousedown={e => this.handleListGotoEventDetail(e, item)}
                 />
               </div>
             );
@@ -202,11 +272,12 @@ export default class CustomEventMenu extends tsc<IProps> {
                       content: this.$t('查看事件详情'),
                       allowHTML: false,
                     }}
+                    onMousedown={e => this.handleTopKGotoEventDetail(e, item)}
                   />
                 </div>
                 <bk-progress
                   color={this.activeTab === EventTab.Warning ? '#F59500' : '#3A84FF'}
-                  percent={+(item.proportions / 100).toFixed(2)}
+                  percent={Math.max(+(item.proportions / 100).toFixed(2), 0.01)}
                   show-text={false}
                 />
               </div>
@@ -227,7 +298,7 @@ export default class CustomEventMenu extends tsc<IProps> {
     );
   }
   createHeaderRender() {
-    if (!this.eventItem.statistics.Warning || this.loading || !this.menuData?.total) return undefined;
+    if (!this.warningData.total || this.loading || !this.menuData?.total) return undefined;
     return (
       <div class='custom-event-menu-header'>
         {[EventTab.Warning, EventTab.All].map(level => {
@@ -240,9 +311,11 @@ export default class CustomEventMenu extends tsc<IProps> {
                 backgroundColor: level === this.activeTab ? 'transparent' : '#F0F1F5',
               }}
               class='header-tab'
-              onClick={() => this.handleTabChange(level)}
+              onMousedown={() => this.handleTabChange(level)}
             >
-              {this.$t(level === EventTab.Warning ? '异常事件 (8)' : '全部事件 (81)')}
+              {level === EventTab.Warning
+                ? this.$t('异常事件 ({0})', [this.warningData.total || 0])
+                : this.$t('全部事件 ({0})', [this.allData.total])}
             </div>
           );
         })}
@@ -250,9 +323,15 @@ export default class CustomEventMenu extends tsc<IProps> {
     );
   }
   createContentMore() {
-    if (this.menuData?.total < 6) return undefined;
+    if (this.menuData?.list?.length < 6 || this.menuData?.topk?.length < 6) return undefined;
     return (
-      <div class='common-more'>
+      <div
+        class='common-more'
+        onMousedown={e => {
+          e.preventDefault();
+          this.createApmEventExploreHref(this.menuData.time);
+        }}
+      >
         ...
         <bk-button
           size='small'
