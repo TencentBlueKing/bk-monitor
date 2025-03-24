@@ -80,7 +80,7 @@
     box-sizing: border-box;
     width: fit-content;
     min-width: 100%;
-    min-height: 34px;
+    min-height: 32px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
 
@@ -101,7 +101,7 @@
       align-items: flex-start;
       width: var(--scroll-width);
       min-width: fit-content;
-      min-height: 32px;
+      // min-height: 32px;
       padding: 4px 0;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
@@ -443,7 +443,7 @@
 
     i {
       font-size: 24px;
-      color: #3A84FF;
+      color: #3a84ff;
     }
   }
 

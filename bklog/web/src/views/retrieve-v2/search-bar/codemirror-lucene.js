@@ -39,7 +39,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     },
   }));
 
-  const debouncedTrack = debounce((update) => {
+  const debouncedTrack = debounce(update => {
     onChange?.(update.state.doc);
     onFocusPosChange?.(update.state);
   });
@@ -82,6 +82,11 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       return;
     }
 
+    if (Infinity === to) {
+      view.dispatch({
+        changes: { from, to: view.state.doc.length, insert: value },
+      });
+    }
     view.dispatch({
       changes: { from, insert: value },
     });
@@ -90,7 +95,6 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       selection: EditorSelection.cursor(to ?? view.state.doc.length),
     });
   };
-
 
   return { state, view, appendText, setValue };
 };

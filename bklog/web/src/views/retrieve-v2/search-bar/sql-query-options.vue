@@ -333,6 +333,12 @@
     }
   };
 
+  const stopEventPreventDefault = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
   const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
     const { code } = e;
     if (code === 'Escape') {
@@ -361,6 +367,8 @@
           handleRetrieve();
         });
       }
+
+      stopEventPreventDefault(e);
     }
 
     if (code === 'ArrowUp') {
