@@ -489,7 +489,7 @@
       display: inline-block;
       margin-left: 24px;
       font-size: 12px;
-      color: #63656e;
+      color: #4d4f56;
 
       .select-custom {
         display: inline-block;

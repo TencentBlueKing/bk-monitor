@@ -43,7 +43,7 @@
           <div class="title-name">{{ title }}</div>
           <i18n
             class="time-result"
-            path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}"
+            path="（找到 {0} 条结果，用时 {1} 毫秒) {2}"
           >
             <span class="total-count">{{ getShowTotalNum(totalCount) }}</span>
             <span>{{ tookTime }}</span>
@@ -54,9 +54,8 @@
           class="converge-cycle"
           @click.stop
         >
-          <span>{{ $t('汇聚周期') }}</span>
+          <span>{{ $t('汇聚周期')+':' }}</span>
           <bk-select
-            style="width: 120px"
             ext-cls="select-custom"
             v-model="chartInterval"
             :clearable="false"
@@ -182,12 +181,17 @@
       margin-left: 14px;
       font-size: 12px;
       font-weight: normal;
-      color: #63656e;
+      color: #4d4f56;
 
       .select-custom {
         display: inline-block;
         margin-left: 5px;
         vertical-align: middle;
+        border: none;
+        color: #313238;
+        :deep(.bk-select-name){
+          padding: 0 26px 0 16px
+        }
       }
     }
 
@@ -195,7 +199,7 @@
       padding: 0 10px;
       margin-left: -10px;
       font-size: 12px;
-      color: #63656e;
+      color: #4d4f56;
       border-radius: 2px;
 
       .title-click {
@@ -219,10 +223,11 @@
           line-height: 20px;
           text-overflow: ellipsis;
           white-space: nowrap;
+          color: #313238;
+          font-family: MicrosoftYaHei-Bold;
         }
 
         .time-result {
-          margin-left: 14px;
 
           .total-count {
             color: #f00;
