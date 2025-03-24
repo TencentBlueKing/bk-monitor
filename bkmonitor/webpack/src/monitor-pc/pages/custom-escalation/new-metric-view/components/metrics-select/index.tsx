@@ -52,7 +52,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
   }
 
   handleFlodAllGround() {
-    this.metricGroupRef.flodAll();
+    this.metricGroupRef.foldAll();
   }
 
   render() {

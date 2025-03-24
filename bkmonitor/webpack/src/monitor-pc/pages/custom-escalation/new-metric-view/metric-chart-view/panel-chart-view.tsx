@@ -46,12 +46,16 @@ import './panel-chart-view.scss';
 const DEFAULT_HEIGHT = 600;
 interface IPanelChartViewProps {
   config?: IMetricAnalysisConfig;
+  showStatisticalValue?: boolean;
+  viewColumn?: number;
 }
 
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 相关配置
-  @Prop({ default: () => {} }) config: IMetricAnalysisConfig;
+  @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
+  @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
+  @Prop({ type: Number, default: 3 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
@@ -78,29 +82,21 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     val && this.getGroupList();
   }
   /** 展示的个数发生变化时 */
-  @Watch('columnNum')
+  @Watch('viewColumn')
   handleColumnNumChange() {
     this.handleCollapseChange();
   }
   /** 是否需要展示统计值 */
-  @Watch('isShowStatisticalValue', { immediate: true })
+  @Watch('showStatisticalValue', { immediate: true })
   handleShowStatisticalValueChange() {
     this.handleCollapseChange();
-  }
-  /** 每列展示的个数 */
-  get columnNum() {
-    return this.config.view_column || 3;
-  }
-  /** 是否展示统计值 */
-  get isShowStatisticalValue() {
-    return this.config?.show_statistical_value;
   }
   /** 是否展示高亮峰谷值 */
   get isHighlightPeakValue() {
     return this.config?.highlight_peak_value || false;
   }
   get baseHeight() {
-    return this.isShowStatisticalValue ? DEFAULT_HEIGHT : 300;
+    return this.showStatisticalValue ? DEFAULT_HEIGHT : 300;
   }
 
   /** 重新获取对应的高度 */
@@ -112,7 +108,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       this.collapseRefsHeight[ind] = [];
       Array(len)
         .fill(0)
-        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = this.baseHeight));
+        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.viewColumn)] = this.baseHeight));
     });
   }
   /** 获取图表配置 */
@@ -133,9 +129,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       start_time: startTime,
       end_time: endTime,
     };
-    delete params.show_statistical_value;
-    delete params.view_column;
-    delete params.highlight_peak_value;
     delete params.bk_biz_id;
     if (!params.compare?.type) {
       delete params.compare;
@@ -157,11 +150,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 渲染panel的内容 */
   renderPanelMain(chart: IPanelModel, ind: number, chartInd: number) {
     return (
-      <div class={`chart-view-item column-${this.columnNum}`}>
+      <div class={`chart-view-item column-${this.viewColumn}`}>
         <LayoutChartTable
-          height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
+          height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.viewColumn)]}
           config={this.config}
-          isShowStatisticalValue={this.isShowStatisticalValue}
+          isShowStatisticalValue={this.showStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
         ></LayoutChartTable>
@@ -199,7 +192,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   }
   /** 拉伸 */
   handleResize(height: number, ind: number, chartInd: number) {
-    this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)] = height;
+    this.collapseRefsHeight[ind][Math.floor(chartInd / this.viewColumn)] = height;
     this.collapseRefsHeight = [...this.collapseRefsHeight];
   }
 
@@ -244,7 +237,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   slot='content'
                 >
                   {/* {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))} */}
-                  {chunkArray(item.panels, this.columnNum).map((rowItem, rowIndex) => (
+                  {chunkArray(item.panels, this.viewColumn).map((rowItem, rowIndex) => (
                     <div
                       key={rowIndex}
                       class='chart-view-row'

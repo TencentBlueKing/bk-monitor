@@ -10,6 +10,10 @@
   border-radius: 2px;
   color: #3a84ff;
   align-self: center;
+  &.is-disabled {
+    color: #dcdee5;
+    background: #f5f7fa;
+  }
 }
 
 .tippy-tooltip.group-by-select-panel-theme {

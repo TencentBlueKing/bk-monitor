@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
-import EditOffset from './edit-offset';
+import EditOffset from './componets/edit-offset';
 
 import './index.scss';
 
@@ -93,10 +93,13 @@ export default class CompareType extends tsc<IProps, IEmit> {
     if (this.localType === 'time' && this.localOffset.length < 1) {
       return;
     }
-    this.$emit('change', {
+    const result = {
       type: this.localType,
       offset: this.localOffset,
-    });
+    };
+    if (!_.isEqual(this.value, result)) {
+      this.$emit('change', result);
+    }
   }
 
   handleTypeChange(type: string) {

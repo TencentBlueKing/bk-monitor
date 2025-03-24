@@ -82,7 +82,7 @@ export default class PageHeader extends tsc<object> {
               >
                 {this.currentCustomTimeSeriesName}
                 <i
-                  style='margin-left: 10px'
+                  style='margin-left: 10px; font-size: 12px;'
                   class='icon-monitor icon-mc-arrow-down'
                 />
               </div>
