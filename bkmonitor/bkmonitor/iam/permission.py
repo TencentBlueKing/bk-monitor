@@ -306,6 +306,7 @@ class Permission(object):
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         if self.token:
             try:
+                # TODO: iam租户改造时需要同步修改
                 record = ApiAuthToken.objects.get(token=self.token)
             except ApiAuthToken.DoesNotExist:
                 record = None
@@ -395,6 +396,7 @@ class Permission(object):
         """
         result = defaultdict(dict)
         # 请求头携带token，临时分享模式权限豁免
+        # TODO: iam租户改造时需要同步修改
         if self.token:
             try:
                 record = ApiAuthToken.objects.get(token=self.token)
