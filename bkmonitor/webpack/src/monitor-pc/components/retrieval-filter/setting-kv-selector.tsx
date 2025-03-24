@@ -77,6 +77,7 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   resizeObserver = null;
   optionsWidth = 0;
+
   clickOutsideFn = () => {};
 
   get localValueSet() {
@@ -89,6 +90,9 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   created() {
     this.methodMap = JSON.parse(JSON.stringify(METHOD_MAP));
+    for (const item of this.fieldInfo?.methods || []) {
+      this.methodMap[item.id] = item.name;
+    }
   }
   mounted() {
     this.overviewCount();
@@ -340,7 +344,7 @@ export default class SettingKvSelector extends tsc<IProps> {
                 class={['method-span', { 'red-text': OPPOSE_METHODS.includes(this.localMethod as any) }]}
                 slot='dropdown-trigger'
               >
-                {METHOD_MAP[this.localMethod]}
+                {this.methodMap[this.localMethod] || this.localMethod}
               </span>
               <ul
                 class='method-list-wrap'

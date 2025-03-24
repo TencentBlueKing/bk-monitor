@@ -34,7 +34,7 @@
         justify-content: center;
         width: 14px;
         height: 14px;
-        font-size: 12px;
+        font-size: 16px;
         color: #fff;
         background: #4d4f56;
         border-radius: 50%;
@@ -64,10 +64,12 @@
       align-items: center;
       align-self: stretch;
       margin: 0 0 0 auto;
+
       .component-right-btns {
         display: flex;
-        align-items: center;
         flex-wrap: wrap;
+        align-items: center;
+
         .clear-btn,
         .copy-btn,
         .setting-btn,
@@ -86,9 +88,11 @@
           .icon-bookmark {
             font-size: 18px;
           }
+
           .icon-a-Clearqingkong {
             font-size: 18px;
           }
+
           .icon-mc-copy {
             font-size: 18px;
           }
@@ -100,6 +104,11 @@
           &.btn-active {
             color: #3a84ff;
             background: #e1ecff;
+          }
+
+          &.disabled {
+            color: #dcdee5;
+            cursor: not-allowed;
           }
         }
       }

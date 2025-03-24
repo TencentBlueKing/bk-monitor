@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText, deepClone, random } from 'monitor-common/utils';
@@ -430,7 +430,9 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   }
 
   handleClear(_event: MouseEvent) {
-    this.clearKey = random(8);
+    if (this.uiValue.length) {
+      this.clearKey = random(8);
+    }
   }
   handleCopy(_event: MouseEvent) {
     let str = '';
@@ -441,7 +443,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
             item.value.length > 1
               ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
               : `"${item.value?.[0]?.id || '*'}"`;
-          return `${item.key.id} : ${value}`;
+          return `${item.key.id} ${item.method.id} ${value}`;
         })
         .join(' AND ');
     } else if (this.mode === EMode.queryString && this.qsValue) {
@@ -510,13 +512,13 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
           </div>
           <div class='component-right'>
             <div
-              style={{
-                width: `${this.rightBtnsWrapWidth}px`,
-              }}
+              // style={{
+              //   width: `${this.rightBtnsWrapWidth}px`,
+              // }}
               class='component-right-btns'
             >
               <div
-                class='clear-btn'
+                class={['clear-btn', { disabled: !this.uiValue.length }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('清空'),
                   delay: 300,
@@ -526,7 +528,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
               <div
-                class='copy-btn'
+                class={['copy-btn', { disabled: !this.uiValue.length }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('复制'),
                   delay: 300,
@@ -559,7 +561,13 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                   disabled={!this.selectFavorite}
                   placement='bottom'
                 >
-                  <div onClick={this.handleFavoriteClick}>
+                  <div
+                    v-bk-tooltips={{
+                      content: window.i18n.tc('收藏'),
+                      delay: 300,
+                    }}
+                    onClick={this.handleFavoriteClick}
+                  >
                     {this.selectFavorite ? (
                       <span class='icon-monitor icon-a-savebaocun' />
                     ) : (
