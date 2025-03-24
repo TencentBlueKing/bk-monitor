@@ -131,6 +131,32 @@ SQL_RESULT = [
 ]
 
 
+WHERE_CLAUSE_CASE = [
+    "*",
+    "success",
+    "\"\"",
+    "\"002\" OR error",
+    "year:[2020 TO 2023]",
+    "title:/[Pp]ython.*/",
+    "title:Pyth?n",
+    "(name:John AND name: 6 OR name: \"7\") AND (python OR \"django\")",
+    "__ext.bcs_id: 1 OR __ext.bcs_id: \"ts\"",
+    "NOT log: \"ts\" AND NOT a : \"b\"",
+]
+WHERE_CLAUSE_RESULT = [
+    "log LIKE '%'",
+    "log LIKE '%success%'",
+    "log MATCH_PHRASE \"\"",
+    "log MATCH_PHRASE \"002\" OR log LIKE '%error%'",
+    "year BETWEEN 2020 AND 2023",
+    "title REGEXP '[Pp]ython.*'",
+    "title LIKE '%Pyth_n%'",
+    "(name LIKE '%John%' AND name LIKE '%6%' OR name = \"7\") AND (log LIKE '%python%' OR log MATCH_PHRASE \"django\")",
+    "CAST(__ext['bcs_id'] AS TEXT) LIKE '%1%' OR CAST(__ext['bcs_id'] AS TEXT) = \"ts\"",
+    "NOT log MATCH_PHRASE \"ts\" AND NOT a = \"b\"",
+]
+
+
 class TestChart(TestCase):
     def test_generate_sql(self):
         for search_param, sql_result in zip(SEARCH_PARAMS, SQL_RESULT):
@@ -148,3 +174,8 @@ class TestChart(TestCase):
             )
             self.maxDiff = None
             self.assertEqual(data["sql"], sql_result)
+
+    def test_lucene_to_where_clause(self):
+        for where_clause_case, where_clause_result in zip(WHERE_CLAUSE_CASE, WHERE_CLAUSE_RESULT):
+            result = ChartHandler.lucene_to_where_clause(where_clause_case)
+            self.assertEqual(result, where_clause_result)
