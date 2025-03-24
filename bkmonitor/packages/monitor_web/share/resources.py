@@ -16,7 +16,7 @@ from secrets import token_hex
 
 from bkmonitor.iam.permission import ActionIdMap, Permission
 from bkmonitor.models import ApiAuthToken, TokenAccessRecord
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
@@ -59,8 +59,13 @@ class CreateShareTokenResource(Resource):
         data = serializers.DictField(required=False, default={}, label="鉴权参数")
 
     def perform_request(self, validated_request_data):
+        # 获取当前租户
+        bk_tenant_id = get_request_tenant_id()
+
         # 创建唯一token，长度8位
-        exist_tokens = list(ApiAuthToken.origin_objects.all().values_list("token", flat=True).distinct())
+        exist_tokens = list(
+            ApiAuthToken.origin_objects.filter(bk_tenant_id=bk_tenant_id).values_list("token", flat=True).distinct()
+        )
         token = partial(token_hex, 8)()
         while token in exist_tokens:
             token = partial(token_hex, 8)()
@@ -68,6 +73,7 @@ class CreateShareTokenResource(Resource):
         name = validated_request_data["type"]
         token_type = get_token_type(validated_request_data["type"])
         create_params = {
+            "bk_tenant_id": bk_tenant_id,
             "namespaces": [f"biz#{validated_request_data['bk_biz_id']}"],
             "name": str(f"{name}_" + str(datetime.now())),
             "type": token_type,
@@ -103,7 +109,9 @@ class UpdateShareTokenResource(Resource):
 
     def perform_request(self, validated_request_data):
         try:
-            token_obj = ApiAuthToken.origin_objects.get(token=validated_request_data["token"])
+            token_obj = ApiAuthToken.origin_objects.get(
+                bk_tenant_id=get_request_tenant_id(), token=validated_request_data["token"]
+            )
             # token被收回校验
             if token_obj.is_deleted:
                 raise TokenDeletedError({"username": token_obj.update_user})
@@ -136,7 +144,9 @@ class GetShareParamsResource(Resource):
 
     def perform_request(self, validated_request_data):
         try:
-            token_obj = ApiAuthToken.origin_objects.get(**validated_request_data)
+            token_obj = ApiAuthToken.origin_objects.get(
+                bk_tenant_id=get_request_tenant_id(), token=validated_request_data["token"]
+            )
             # token被收回校验
             if token_obj.is_deleted:
                 raise TokenDeletedError({"username": token_obj.update_user})
@@ -218,7 +228,9 @@ class GetShareTokenListResource(Resource):
         token_type = get_token_type(validated_request_data["type"])
         token_list = []
         tokens = ApiAuthToken.origin_objects.filter(
-            namespaces=[f"biz#{validated_request_data['bk_biz_id']}"], type=token_type
+            bk_tenant_id=get_request_tenant_id(),
+            namespaces=[f"biz#{validated_request_data['bk_biz_id']}"],
+            type=token_type,
         ).order_by("-create_time")
         access_record_dict = self.get_access_record_dict(tokens.values_list("token", flat=True))
         for token in tokens:
@@ -266,6 +278,7 @@ class DeleteShareTokenResource(Resource):
         else:
             token_types = [token_type]
         return ApiAuthToken.objects.filter(
+            bk_tenant_id=get_request_tenant_id(),
             namespaces=[f"biz#{validated_request_data['bk_biz_id']}"],
             type__in=token_types,
             token__in=validated_request_data["tokens"],

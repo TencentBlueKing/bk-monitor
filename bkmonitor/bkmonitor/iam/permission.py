@@ -106,7 +106,7 @@ class Permission(object):
                     raise ValueError("must provide `username` or `request` param to init")
 
         self.iam_client = self.get_iam_client()
-        self.token = getattr(request, "token", None)
+        self.request = request
 
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
@@ -302,12 +302,10 @@ class Permission(object):
         :param resources: 依赖的资源实例列表
         :param raise_exception: 鉴权失败时是否需要抛出异常
         """
-        request = get_request(peaceful=True)
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
-        if self.token:
+        if self.request and getattr(self.request, "token", None):
             try:
-                # TODO: iam租户改造时需要同步修改
-                record = ApiAuthToken.objects.get(token=self.token)
+                record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
             except ApiAuthToken.DoesNotExist:
                 record = None
             if isinstance(action, ActionMeta):
@@ -318,7 +316,7 @@ class Permission(object):
             if (
                 action_id == ActionEnum.VIEW_BUSINESS.id
                 or (record and action in ActionIdMap[record.type])
-                or path in request.path
+                or path in self.request.path
                 for path in api_paths
             ):
                 return True
@@ -397,9 +395,9 @@ class Permission(object):
         result = defaultdict(dict)
         # 请求头携带token，临时分享模式权限豁免
         # TODO: iam租户改造时需要同步修改
-        if self.token:
+        if self.request and getattr(self.request, "token", None):
             try:
-                record = ApiAuthToken.objects.get(token=self.token)
+                record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
             except ApiAuthToken.DoesNotExist:
                 raise TokenValidatedError
             for action in actions:
