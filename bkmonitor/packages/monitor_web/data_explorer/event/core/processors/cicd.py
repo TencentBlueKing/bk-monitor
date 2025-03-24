@@ -70,6 +70,7 @@ class CicdEventProcessor(BaseEventProcessor):
             event_name_value = cicd_info["event_name"]["value"]
             processed_event["event_name"]["alias"] = CICD_EVENT_NAME_ALIAS.get(event_name_value, event_name_value)
             processed_events.append(processed_event)
+
         # 设置 pipelineName
         pipelines = self.pipeline_context.fetch(pipeline_ids_to_query)
 

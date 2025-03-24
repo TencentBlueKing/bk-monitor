@@ -87,12 +87,14 @@ class CicdPipelineContext(BaseContext):
     ) -> Dict[str, EntityT]:
         pipelines = {}
         pipeline_ids = set()
+
         for entity in entities:
             pipeline_id = entity["pipeline_id"]
             if pipeline_id in self._cache:
                 pipelines[pipeline_id] = self._cache[pipeline_id]
                 continue
             pipeline_ids.add(pipeline_id)
+
         if pipeline_ids:
             # 查询 pipeline_name 并更新缓存
             timestamp = [int(entity["time"]) for entity in entities]
