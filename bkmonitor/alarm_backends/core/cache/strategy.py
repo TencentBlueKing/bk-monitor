@@ -1063,7 +1063,7 @@ class StrategyCacheManager(CacheManager):
                 f" seconds"
             )
         else:
-            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories, with_group_key=False)
             # 如果有策略待删除，则记录日志
             if to_be_deleted_strategy_ids:
                 logger.info(f"[refresh_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
@@ -1097,7 +1097,9 @@ class StrategyCacheManager(CacheManager):
         strategies = list(strategies_map.values())
         for processor in processors:
             try:
+                start = time.time()
                 processor(strategies)
+                logger.info(f"refresh strategy {processor.__name__} cost: {time.time() - start}")
             except Exception as e:
                 logger.exception(f"refresh strategy error when {processor.__name__}")
                 exc = e
@@ -1105,7 +1107,7 @@ class StrategyCacheManager(CacheManager):
         # 策略处理期间删除的策略，直接清理
         histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(process_time))
         if histories.exists():
-            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories, with_group_key=False)
             for strategy_id, _ in to_be_deleted_strategy_ids:
                 cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
@@ -1114,11 +1116,12 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
     @classmethod
-    def handle_history_strategies(cls, histories: List[StrategyHistoryModel]) -> Tuple[Set, Set]:
+    def handle_history_strategies(cls, histories: List[StrategyHistoryModel], with_group_key=True) -> Tuple[Set, Set]:
         """
         处理策略历史，确定受影响的业务和待删除的策略。
 
         :param histories: List[StrategyHistoryModel]，策略历史记录列表。
+        :param with_group_key: bool，是否要求获取group key(在smart_refresh中，需要获取group key)
         :returns: Tuple[Set, Set]，包含受影响的业务ID集合和待删除的策略ID集合的元组。
         """
         target_biz_set = set()
@@ -1140,7 +1143,9 @@ class StrategyCacheManager(CacheManager):
             # 从缓存中获取策略详情
             strategy = cls.get_strategy_by_id(strategy_id)
             if not strategy:
-                # 先禁用，再删除的情况下，不一定有缓存，此时不需要处理
+                if not with_group_key:
+                    # 被smart_refresh删除的策略, 在refresh流程中需要被再次删除
+                    to_be_deleted_strategy_ids.add((strategy_id, ""))
                 continue
             # 根据策略内容生成对应的查询MD5
             for item in strategy["items"]:

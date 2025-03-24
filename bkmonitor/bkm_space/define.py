@@ -69,6 +69,11 @@ class Space:
                 filtered_data["is_demo"] = True
             else:
                 filtered_data["is_demo"] = False
+
+        # 默认使用system租户
+        if not filtered_data.get("bk_tenant_id"):
+            filtered_data["bk_tenant_id"] = DEFAULT_TENANT_ID
+
         instance = cls(**filtered_data)
         setattr(instance, "extend", data)
         return instance

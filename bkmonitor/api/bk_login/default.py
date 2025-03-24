@@ -65,7 +65,7 @@ class ListTenantResource(BkUserApiResource):
 
     def perform_request(self, params: dict):
         # 如果使用esb，则直接返回默认租户
-        if not self.use_apigw():
+        if not settings.ENABLE_MULTI_TENANT_MODE:
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
         result = super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
@@ -92,7 +92,7 @@ class GetAllUserResource(BkUserApiResource):
 class ListDepartmentsResource(BkUserApiResource):
     """
     获取部门列表
-    TODO: 需要重构，将部门信息全部存储下来自行分层
+    TODO: 后续用户管理apigw将会支持查询第一层部门
     """
 
     @property

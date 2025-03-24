@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 local_mem = caches["space"]
@@ -117,17 +118,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         查询空间列表
         """
-        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", miss_cache)
+        cache_key = f"metadata:list_spaces:{bk_tenant_id}" if bk_tenant_id else "metadata:list_spaces"
+
+        ret: List[SpaceDefine] = local_mem.get(cache_key, miss_cache)
         if ret is miss_cache or refresh:
             ret: List[SpaceDefine] = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
-                for space_dict in cls.list_spaces_dict(using_cache=False)
+                for space_dict in cls.list_spaces_dict(using_cache=False, bk_tenant_id=bk_tenant_id)
             ]
-            local_mem.set("metadata:list_spaces", ret, timeout=3600)
-
-        # 如果指定了bk_tenant_id，则只查询指定租户的空间
-        if bk_tenant_id:
-            ret = [space for space in ret if space.bk_tenant_id == bk_tenant_id]
+            local_mem.set(cache_key, ret, timeout=3600)
 
         return ret
 
@@ -137,18 +136,16 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
     ) -> List[dict]:
         """
         告警性能版本获取空间列表
+        TODO: Space表增加租户字段后，需要修改 SQL，增加租户字段查询，当前使用默认租户
         """
         if bk_tenant_id:
             cache_key = f"metadata:list_spaces_dict:{bk_tenant_id}"
         else:
             cache_key = "metadata:list_spaces_dict"
 
-        # 如果指定了过滤条件，则不使用缓存
-        if filters:
-            using_cache = False
-
         ret = miss_cache
-        if using_cache:
+        # 如果指定了过滤条件，则不使用缓存
+        if using_cache and not filters:
             ret = local_mem.get(cache_key, miss_cache)
         if ret is not miss_cache:
             return ret
@@ -186,8 +183,18 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
             spaces: List[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            # 如果空间没有指定租户，则补充默认租户
+            for space_dict in spaces:
+                if not space_dict.get("bk_tenant_id"):
+                    space_dict["bk_tenant_id"] = DEFAULT_TENANT_ID
+
+            # 过滤指定租户
+            if bk_tenant_id:
+                spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
+
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
-        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters:
+        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
             raise Exception(
                 "未成功初始化metadata空间数据，请执行"
                 "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
@@ -214,6 +221,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 如果指定了过滤条件，则不缓存
         if not filters:
             local_mem.set(cache_key, spaces, timeout=3600)
+
         return spaces
 
     @classmethod

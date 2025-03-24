@@ -579,7 +579,8 @@ class SDKPreDetectMixin(object):
             )
 
         # 统计每个策略处理的维度数量
-        metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(len(predict_inputs))
+        dimension_count = len(predict_inputs)
+        metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(dimension_count)
 
         start_time = time.time()
         tasks = []
@@ -609,8 +610,13 @@ class SDKPreDetectMixin(object):
                 logger.warning(f"Predict error: {e}")
 
         metrics.AIOPS_PRE_DETECT_LATENCY.labels(**base_labels).set(time.time() - start_time)
+        total_error_count = 0
         for error_code, count in error_counter.items():
+            total_error_count += count
             metrics.AIOPS_DETECT_ERROR_COUNT.labels(**base_labels, error_code=error_code).set(count)
+
+        if dimension_count > 0:
+            metrics.AIOPS_DETECT_INVALID_DIMENSION_RATE.labels(**base_labels).set(total_error_count / dimension_count)
 
         metrics.report_all()
 

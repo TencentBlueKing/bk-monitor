@@ -57,6 +57,7 @@ from bkmonitor.utils.elasticsearch.curator import IndexList
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata import config
 from metadata.models import constants
 from metadata.models.influxdb_cluster import InfluxDBTool
@@ -2609,8 +2610,22 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                response = self._create_index_with_retry(current_index)
-                logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
+                try:
+                    response = self._create_index_with_retry(current_index)
+                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+                    ).inc()
+                    logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
+                except Exception as e:  # pylint: disable=broad-except
+                    # 统一处理所有异常，区分RetryError和其他异常的错误信息
+                    error_msg = e.__cause__ if isinstance(e, RetryError) else e
+                    logger.error(
+                        "create_index: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg
+                    )
+                    metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                        table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+                    ).inc()
+                    raise  # 重新抛出原异常，保留堆栈信息
 
                 # 需要将对应的别名指向这个新建的index
                 # 新旧类型的alias都会创建，防止transfer未更新导致异常
@@ -2899,13 +2914,25 @@ class ESStorage(models.Model, StorageResultTable):
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
         logger.info("create_index_v2: table_id->[%s] start to create index->[%s]", self.table_id, new_index_name)
-        response = self._create_index_with_retry(new_index_name)
-        logger.info(
-            "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
-            self.table_id,
-            new_index_name,
-            response,
-        )
+        try:
+            response = self._create_index_with_retry(new_index_name)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+            ).inc()
+            logger.info(
+                "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
+                self.table_id,
+                new_index_name,
+                response,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            # 统一处理所有异常，区分RetryError和其他异常的错误信息
+            error_msg = e.__cause__ if isinstance(e, RetryError) else e
+            logger.error("create_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise  # 重新抛出原异常，保留堆栈信息
         return True
 
     def update_index_v2(self, force_rotate: bool = False):
@@ -3034,7 +3061,20 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("update_index_v2: table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
         # 8. 创建新的index,添加重试机制
-        response = self._create_index_with_retry(new_index_name)
+        try:
+            response = self._create_index_with_retry(new_index_name)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="SUCCESS"
+            ).inc()
+        except Exception as e:  # pylint: disable=broad-except
+            # 统一处理所有异常，区分RetryError和其他异常的错误信息
+            error_msg = e.__cause__ if isinstance(e, RetryError) else e
+            logger.error("update_index_v2: table_id->[%s] failed to create index,error->[%s]", self.table_id, error_msg)
+            metrics.LOG_INDEX_ROTATE_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, status="FAILED"
+            ).inc()
+            raise  # 重新抛出原异常，保留堆栈信息
+
         logger.info(
             "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
             self.table_id,
@@ -3078,6 +3118,9 @@ class ESStorage(models.Model, StorageResultTable):
                 index_size_in_byte,
                 self.slice_size,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_OVER_SLICE_SIZE"
+            ).inc()
             return True
 
         # 2. mapping 不一样了，也需要创建新的index
@@ -3087,6 +3130,11 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 last_index_name,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id,
+                storage_cluster_id=self.storage_cluster_id,
+                reason="INDEX_MAPPING_SETTINGS_DIFFERENT",
+            ).inc()
             return True
 
         # 3. 达到保存期限进行分裂
@@ -3097,6 +3145,9 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 last_index_name,
             )
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_EXPIRED"
+            ).inc()
             return True
 
         # 4. 若配置了归档时间，且当前索引在归档日期之前，需要创建新的index
@@ -3109,6 +3160,9 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
+                metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                    table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_NEED_ARCHIVE"
+                ).inc()
                 return True
 
         # 5. 暖数据等待天数大于0且当前索引未过期，需要创建新的index
@@ -3123,11 +3177,17 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
+                metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                    table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="INDEX_NEED_WARM_PHASE"
+                ).inc()
                 return True
 
         # 6. 根据参数决定是否强制轮转
         if force_rotate:
             logger.info("_should_create_index:table_id->[%s],enable force rotate", self.table_id)
+            metrics.LOG_INDEX_ROTATE_REASON_TOTAL.labels(
+                table_id=self.table_id, storage_cluster_id=self.storage_cluster_id, reason="FORCE_ROTATE"
+            ).inc()
             return True
 
         return False
@@ -3574,8 +3634,17 @@ class ESStorage(models.Model, StorageResultTable):
             es_properties = self.index_body["mappings"][self.table_id]["properties"]
         else:
             es_properties = self.index_body["mappings"]["properties"]
+
         database_field_list = list(es_properties.keys())
-        current_field_list = list(current_mapping.keys())
+
+        # 获取别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
+        try:
+            alias_field_list = [v["path"] for v in current_mapping.values() if v.get("type") == "alias"]
+        except KeyError:
+            alias_field_list = []  # 如果 "path" 不存在，返回空列表
+
+        current_field_list = list(current_mapping.keys()) + alias_field_list
+
         # 数据库中字段多于es的index中数据，则进行分裂
         field_diff_set = set(database_field_list) - set(current_field_list)
         if len(field_diff_set) != 0:
@@ -3588,6 +3657,8 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
+            if field_name in alias_field_list:
+                continue
             try:
                 current_config = current_mapping[field_name]
 

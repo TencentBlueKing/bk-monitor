@@ -415,7 +415,7 @@ def _manage_es_storage(es_storage):
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
         task_name="_manage_es_storage", process_target=es_storage.table_id
     ).observe(cost_time)
-    metrics.report_all()
+    metrics.report_all()  # 上报全部指标,包括索引轮转原因、轮转状态
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

@@ -27,6 +27,8 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
+import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
@@ -133,20 +135,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
-    window.addEventListener('keydown', this.handleWindowKeydown);
+    bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
-    window.removeEventListener('keydown', this.handleWindowKeydown);
+    bus.$off('handle-keyup-nav', this.handleKeyupNav);
   }
   /** 按下'/'，搜索框自动聚焦 */
-  handleWindowKeydown(e: KeyboardEvent) {
-    if (e.key === '/') {
-      e.preventDefault();
-      this.showKeywordEle = false;
-      this.handleInputFocus();
-    }
+  handleKeyupNav(e: KeyboardEvent) {
+    e.preventDefault();
+    this.showKeywordEle = false;
+    this.showPopover = true;
+    this.handleInputFocus();
   }
   /** 隐藏/展示发生变化的时候的changeHandle */
   handleShowChange(v) {
@@ -404,7 +405,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.isInput = false;
       this.handleInputFocus();
     }
-    
   }
   /** 初始化输入框是否要自动聚焦 */
   handleInputFocus() {
@@ -890,16 +890,16 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             ref='textareaInput'
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
             v-model={this.searchValue}
+            autofocus={!this.isBarToolShow}
             placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={this.textareaRow}
             spellcheck={false}
-            autofocus={!this.isBarToolShow}
+            onClick={this.handleClick}
             onCompositionend={this.handleCompositionend}
             onCompositionstart={this.handleCompositionstart}
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
-            onClick={this.handleClick}
           />
           {this.isBarToolShow && <span class='bk-icon icon-search' />}
           {this.searchValue && (
@@ -908,9 +908,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {this.showKeywordEle && (
+          {!this.isBarToolShow && this.showKeywordEle && (
             <div class='search-keyboard'>
-              {this.$tc('快捷键')} /
+              {this.$tc('快捷键')} {getCmdShortcutKey()} + /
             </div>
           )}
           {(this.isBarToolShow || this.showPopover) && (
