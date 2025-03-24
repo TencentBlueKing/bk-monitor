@@ -84,7 +84,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
 
         cache_key = params.get("space_uid", "")
-        using_cache = cache_key
+        using_cache = cache_key or bk_biz_id > 0
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景， 非 bkcc 空间，没有预先缓存，通过api获取后再更新
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
