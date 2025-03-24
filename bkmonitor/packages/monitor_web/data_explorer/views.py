@@ -407,7 +407,7 @@ class DataExplorerViewSet(ResourceViewSet):
         validated_data: Dict[str, Any] = serializer.validated_data
         return generate_file_download_response(
             DataExplorerViewSet.generate_topk_file_content(EventTopKResource().perform_request(validated_data)),
-            f"{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
         )
 
     @classmethod

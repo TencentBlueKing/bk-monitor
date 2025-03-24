@@ -59,5 +59,5 @@ class EventViewSet(ResourceViewSet):
             DataExplorerViewSet.generate_topk_file_content(
                 resources.EventTopKResource().perform_request(validated_data)
             ),
-            f"{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
         )
