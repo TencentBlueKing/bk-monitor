@@ -11,6 +11,7 @@ from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
 
 from bkmonitor.utils.db import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models import common
 from metadata.models.custom_report import EventGroup, TimeSeriesGroup
@@ -69,6 +70,7 @@ class BCSClusterInfo(models.Model):
     cluster_id = models.CharField("集群ID", db_index=True, max_length=128)
     bcs_api_cluster_id = models.CharField("bcs-api集群ID", db_index=True, max_length=128)
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     bk_cloud_id = models.IntegerField("云区域ID", default=None, null=True)
     project_id = models.CharField("项目ID", max_length=128)
     status = models.CharField("集群状态", default=CLUSTER_RAW_STATUS_RUNNING, max_length=50)
@@ -162,6 +164,7 @@ class BCSClusterInfo(models.Model):
         is_skip_ssl_verify: bool = True,
         transfer_cluster_id: str = None,
         bk_env: str = settings.BCS_CLUSTER_BK_ENV_LABEL,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
         is_fed_cluster: Optional[bool] = False,
     ) -> "BCSClusterInfo":
         """
@@ -176,6 +179,9 @@ class BCSClusterInfo(models.Model):
         :param api_key_type: 集群链接认证类型，默认是authorization
         :param api_key_prefix: 认证类型前缀，默认是Bearer
         :param transfer_cluster_id: 默认使用的transfer集群ID
+        :param bk_env: 集群环境标签
+        :param bk_tenant_id: 租户ID
+        :param is_fed_cluster: 是否是联邦集群
         :return: 新建的集群信息；否则直接抛出异常
         """
         # 1. 判断集群ID是否已经接入
@@ -204,9 +210,15 @@ class BCSClusterInfo(models.Model):
             api_key_prefix=api_key_prefix,
             is_skip_ssl_verify=is_skip_ssl_verify,
             creator=creator,
+            bk_tenant_id=bk_tenant_id,
             bk_env=bk_env or settings.BCS_CLUSTER_BK_ENV_LABEL,
         )
-        logger.info("cluster->[%s] create database record success.", cluster.cluster_id)
+        logger.info(
+            "cluster->[%s] of bk_biz_id->[%s],bk_tenant_id->[%s] create database record success.",
+            cluster.cluster_id,
+            bk_biz_id,
+            bk_tenant_id,
+        )
 
         if transfer_cluster_id is None:
             transfer_cluster_id = settings.DEFAULT_TRANSFER_CLUSTER_ID_FOR_K8S
@@ -217,6 +229,7 @@ class BCSClusterInfo(models.Model):
             # 注册data_id
             data_source = cluster.create_datasource(
                 usage=usage,
+                bk_tenant_id=bk_tenant_id,
                 etl_config=register_info["etl_config"],
                 operator=creator,
                 mq_cluster_id=settings.BCS_KAFKA_STORAGE_CLUSTER_ID,
@@ -251,11 +264,13 @@ class BCSClusterInfo(models.Model):
                 is_split_measurement=register_info.get("is_split_measurement", False),
                 default_storage_config=default_storage_config,
                 additional_options=additional_options,
+                bk_tenant_id=bk_tenant_id,
             )
 
             logger.info(
-                "cluster->[%s] register group->[%s] for usage->[%s] success.",
+                "cluster->[%s] of bk_tenant_id->[%s] register group->[%s] for usage->[%s] success.",
                 cluster.cluster_id,
+                bk_tenant_id,
                 report_group.custom_group_name,
                 usage,
             )
@@ -264,8 +279,9 @@ class BCSClusterInfo(models.Model):
             # k8s不支持下划线,python不支持中划线
             setattr(cluster, register_info["datasource_name"], data_source.bk_data_id)
             logger.info(
-                "cluster->[%s] usage->[%s] datasource_name->[%s] with data_id->[%s] is mark now.",
+                "cluster->[%s] of bk_tenant_id->[%s] usage->[%s] datasource_name->[%s] with data_id->[%s] is mark now.",
                 cluster.cluster_id,
+                bk_tenant_id,
                 usage,
                 data_source.data_name,
                 data_source.bk_data_id,
@@ -277,6 +293,7 @@ class BCSClusterInfo(models.Model):
 
         return cluster
 
+    # 下发的资源配置中不携带租户属性
     def compose_dataid_resource_name(self, name: str, is_fed_cluster: Optional[bool] = False) -> str:
         """组装下发的配置资源的名称"""
         if self.bk_env_label:
@@ -295,7 +312,7 @@ class BCSClusterInfo(models.Model):
     def refresh_common_resource(self, is_fed_cluster: Optional[bool] = False):
         """
         刷新内置公共dataid资源信息，追加部署的资源，更新未同步的资源
-        :param cluster_id: 集群ID
+        :param is_fed_cluster: 是否是联邦集群
         :return: True | False
         """
         api_client = self.api_client
@@ -416,6 +433,7 @@ class BCSClusterInfo(models.Model):
         operator: str,
         transfer_cluster_id: str,
         mq_cluster_id: str,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
     ) -> DataSource:
         """
         创建数据源
@@ -424,6 +442,7 @@ class BCSClusterInfo(models.Model):
         :param etl_config: 清洗配置，可以为bk_standard_v2_time_series(时序)、bk_standard_v2_event(事件)和bk_flat_batch(日志)
         :param transfer_cluster_id: transfer集群ID，决定数据交由哪个transfer集群处理
         :param mq_cluster_id: 消息队列集群 ID
+        :param bk_tenant_id: 租户ID
         :return: DataSource
         """
         type_label_dict = {
@@ -443,6 +462,7 @@ class BCSClusterInfo(models.Model):
                 source_system=settings.SAAS_APP_CODE,
                 bcs_cluster_id=self.cluster_id,
                 bk_biz_id=self.bk_biz_id,
+                bk_tenant_id=bk_tenant_id,
             )
         except ValueError as err:
             logger.exception(
@@ -465,6 +485,7 @@ class BCSClusterInfo(models.Model):
     def to_json(self):
         return {
             "cluster_id": self.cluster_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "bcs_api_cluster_id": self.bcs_api_cluster_id,
             "bk_biz_id": self.bk_biz_id,
             "project_id": self.project_id,
