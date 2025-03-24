@@ -394,6 +394,29 @@ export default class SelectIndexSet extends tsc<object> {
     return payload;
   }
 
+  mounted() {
+    window.addEventListener('keydown', this.handleKeyDown);
+  }
+
+  beforeDestroy() {
+    window.removeEventListener('keydown', this.handleKeyDown);
+  }
+
+  handleKeyDown(event) {
+    // 检查是否按下了 Ctrl + O 或 Cmd + O
+    const isCtrlO = event.ctrlKey && event.key === 'o';
+    const isCmdO = event.metaKey && event.key === 'o';
+
+    if (isCtrlO || isCmdO) {
+      event.preventDefault();
+      if (this.isShowSelectPopover) {
+        this.selectInputRef.close();
+      } else {
+        this.selectInputRef.show();
+      }
+    }
+  }
+
   /** 判断当前索引集是否有权限 */
   isHaveAuthority(item) {
     if (item.tagAllID) return true;
@@ -434,6 +457,8 @@ export default class SelectIndexSet extends tsc<object> {
   toggleSelect(val: boolean) {
     // 当前是否展示下拉列表
     this.isShowSelectPopover = val;
+    console.log(val);
+
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
       this.selectAloneVal = this.indexId ? [this.indexId] : [];
