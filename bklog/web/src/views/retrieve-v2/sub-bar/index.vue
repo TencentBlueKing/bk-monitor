@@ -16,6 +16,7 @@
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
   import WarningSetting from './warning-setting.vue';
+  import MoreSetting from './more-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -157,11 +158,16 @@
         class="custom-border-right"
         v-model="isShowClusterSetting"
       ></ClusterSetting>
-      <div
+      <!-- <div
+        v-if="!isExternal"
+      >
+        <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
+      </div> -->
+       <div
         v-if="!isExternal"
         class="more-setting"
       >
-        <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
+        <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
       </div>
       <VersionSwitch
         style="border-left: 1px solid #eaebf0"
