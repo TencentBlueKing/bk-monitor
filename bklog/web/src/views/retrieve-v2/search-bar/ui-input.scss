@@ -54,6 +54,15 @@ ul.search-items {
       }
 
       &.is-focus-input {
+        &::after {
+          content: attr(data-attr-txt);
+          font-size: 12px;
+          color: #c4c6cc;
+          line-height: 20px;
+          position: absolute;
+          pointer-events: none;
+        }
+
         .tag-option-focus-input {
           &:hover {
             cursor: pointer;
@@ -63,10 +72,6 @@ ul.search-items {
     }
 
     .tag-option-focus-input {
-      // width: 8px;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      width: auto !important;
       height: 38px;
       font-size: 12px;
       color: #63656e;

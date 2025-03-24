@@ -814,7 +814,7 @@
     }
 
     // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
-    if ((e.ctrlKey || e.metaKey) && ['Control', 'Enter'].includes(e?.key)) {
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
       stopEventPreventDefault(e);
       handelSaveBtnClick();
       return;

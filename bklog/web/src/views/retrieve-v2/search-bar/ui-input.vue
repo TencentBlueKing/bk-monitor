@@ -87,6 +87,7 @@
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const refSearchInput = ref(null);
+  const refHiddenFocus = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
 
@@ -143,9 +144,10 @@
     repositionTippyInstance,
     hideTippyInstance,
   } = useFocusInput(props, {
+    refContent: refPopInstance,
+    refTarget: refHiddenFocus,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    refContent: refPopInstance,
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
@@ -476,12 +478,17 @@
         />
       </div>
     </li>
-    <li class="search-item-focus hidden-pointer"></li>
-    <li class="search-item is-focus-input">
+    <li
+      class="search-item-focus hidden-pointer"
+      ref="refHiddenFocus"
+    ></li>
+    <li
+      class="search-item is-focus-input"
+      :data-attr-txt="inputPlaceholder"
+    >
       <input
         ref="refSearchInput"
         class="tag-option-focus-input"
-        :placeholder="inputPlaceholder"
         type="text"
         @click.stop="handleInputTextClick"
         @blur="handleFullTextInputBlur"

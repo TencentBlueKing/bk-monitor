@@ -27,8 +27,7 @@ import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue'
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-import { debounce } from 'lodash';
-
+import { debounce, isElement } from 'lodash';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
@@ -36,6 +35,7 @@ export default (
   {
     formatModelValueItem,
     refContent,
+    refTarget,
     onShowFn,
     onHiddenFn,
     arrow = true,
@@ -53,7 +53,7 @@ export default (
   // 避免容器元素点击时触发 hideOnclick多次渲染
   const isDocumentMousedown = ref(false);
 
-  let resizeObserver = null;
+  let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
   const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
 
@@ -66,7 +66,7 @@ export default (
   const delayShowInstance = debounce(target => {
     popInstanceUtil.cancelHide();
     popInstanceUtil.show(target);
-  }, 180);
+  }, 120);
 
   const setModelValue = val => {
     if (Array.isArray(val)) {
@@ -127,7 +127,7 @@ export default (
 
   const hideTippyInstance = () => {
     delayShowInstance?.cancel?.();
-    popInstanceUtil.hide(300);
+    popInstanceUtil.hide(180);
   };
 
   const resizeHeightObserver = target => {
@@ -169,10 +169,43 @@ export default (
     isDocumentMousedown.value = val;
   };
 
+  const getPopTarget = () => {
+    if (refTarget?.value && isElement(refTarget.value)) {
+      return refTarget.value;
+    }
+
+    return getRoot();
+  };
+
+  const handleKeydown = event => {
+    // 检查是否按下 Ctrl（Windows/Linux）或 Command（Mac）
+    const isModifierPressed = event.ctrlKey || event.metaKey;
+
+    // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
+    const isSlashKey = event.key === '/' || event.keyCode === 191;
+
+    if (isModifierPressed && isSlashKey) {
+      // 阻止浏览器默认行为（如打开浏览器搜索栏）
+      event.preventDefault();
+
+      const targetElement = getPopTarget();
+
+      console.log('targetElement', targetElement);
+      if (refTarget?.value && isElement(refTarget.value)) {
+        delayShowInstance(targetElement);
+        return;
+      }
+
+      targetElement?.click?.();
+    }
+  };
+
   onMounted(() => {
     instance = getCurrentInstance();
     document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
     document?.addEventListener('click', handleContainerClick);
+    document?.addEventListener('keydown', handleKeydown);
+
     if (addInputListener) {
       document?.addEventListener('input', handleFulltextInput);
     }
@@ -187,7 +220,9 @@ export default (
     }
 
     document.removeEventListener('mousedown', handleWrapperClickCapture);
+    document?.removeEventListener('keydown', handleKeydown);
     resizeObserver?.disconnect();
+    resizeObserver = null;
   });
 
   return {

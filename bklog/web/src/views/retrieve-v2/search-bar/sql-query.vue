@@ -22,6 +22,7 @@
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);
+  const refPopElement = ref(null);
 
   // SQL查询提示选中可选项索引
   const sqlActiveParamsIndex = ref(null);
@@ -228,6 +229,7 @@
     ></div>
     <span
       class="empty-placeholder-text"
+      ref="refPopElement"
       v-show="isEmptySqlString"
       >{{ placeholderText }}</span
     >
