@@ -530,11 +530,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       }}
                       class='option-icon'
                     >
-                      {item.name === '*' ? (
-                        <span class='option-icon-xing'>*</span>
-                      ) : (
-                        <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
-                      )}
+                      <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
                     </span>
                     <span class='option-name-title'>{title}</span>
                     {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}
