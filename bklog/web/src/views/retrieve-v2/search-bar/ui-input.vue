@@ -28,6 +28,7 @@
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
+  const inputPlaceholder = $t('/ 快速定位到搜索，请输入关键词...');
 
   const bkBizId = computed(() => store.state.bkBizId);
 
@@ -88,8 +89,14 @@
   const refSearchInput = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
+
+  // 表示是否来自input输入的点击弹出
+  // 弹出组件依赖此属性展示内容会改变
   const isInputFocus = ref(false);
   const showIpSelector = ref(false);
+
+  // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
+  let isInputTextFocus = false;
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
@@ -134,6 +141,7 @@
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
+    hideTippyInstance,
   } = useFocusInput(props, {
     onHeightChange: handleHeightChange,
     formatModelValueItem,
@@ -146,8 +154,17 @@
     onHiddenFn: () => {
       emit('popup-change', { isShow: false });
 
-      if (isDocumentMousedown.value) {
+      if (isDocumentMousedown.value || isInputTextFocus) {
         setIsDocumentMousedown(false);
+        // 这里blur事件触发会比出发clickoutside收起弹出晚
+        // 所以在收起时，需要一个延迟检测
+        if (isInputTextFocus) {
+          requestAnimationFrame(() => {
+            if (!isInputTextFocus) {
+              hideTippyInstance();
+            }
+          });
+        }
         return false;
       }
 
@@ -310,7 +327,20 @@
     setSearchInputValue('');
   };
 
+  const handleInputTextClick = () => {
+    if (isInstanceShown() || isInputTextFocus || isAutoFocus.value) {
+      return;
+    }
+
+    debounceShowInstance();
+  };
+
   const handleFocusInput = () => {
+    if (isInstanceShown()) {
+      return;
+    }
+
+    isInputTextFocus = true;
     isInputFocus.value = true;
     activeIndex.value = null;
     queryItem.value = '';
@@ -323,11 +353,10 @@
   };
 
   const handleFullTextInputBlur = e => {
-    // if (!isInstanceShown()) {
+    isInputTextFocus = false;
     handleInputBlur(e);
     inputValueLength = 0;
     queryItem.value = '';
-    // }
   };
 
   const handleInputValueChange = e => {
@@ -362,16 +391,6 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
-
-  // const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
-  // const additionList = computed(() => {
-  //   if (!isFilterSecFocused.value) {
-  //     const addition = store.state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
-  //     return [...modelValue.value, ...(addition.map(item => ({ ...item, isCommonFixed: true })))]
-  //   }
-
-  //   return modelValue.value;
-  // })
 </script>
 
 <template>
@@ -462,8 +481,9 @@
       <input
         ref="refSearchInput"
         class="tag-option-focus-input"
-        :placeholder="$t('请输入关键词...')"
+        :placeholder="inputPlaceholder"
         type="text"
+        @click.stop="handleInputTextClick"
         @blur="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"
         @input="handleInputValueChange"

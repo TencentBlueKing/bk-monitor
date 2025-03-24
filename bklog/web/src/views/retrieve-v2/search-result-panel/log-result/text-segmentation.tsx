@@ -186,8 +186,8 @@ export default defineComponent({
       return (
         <div
           ref={refContent}
-          class='field-value bklog-word-segment'
           style={rootStyle.value}
+          class='field-value bklog-word-segment'
           data-field-name={props.field.field_name}
           onClick={handleTextSegmentClick}
         >

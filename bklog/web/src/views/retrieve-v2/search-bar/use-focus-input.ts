@@ -27,9 +27,9 @@ import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue'
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
+import { debounce } from 'lodash';
 
 import PopInstanceUtil from '../../../global/pop-instance-util';
-import { debounce } from 'lodash';
 
 export default (
   props,
@@ -64,6 +64,7 @@ export default (
    * 处理多次点击触发多次请求的事件
    */
   const delayShowInstance = debounce(target => {
+    popInstanceUtil.cancelHide();
     popInstanceUtil.show(target);
   }, 180);
 
@@ -126,7 +127,7 @@ export default (
 
   const hideTippyInstance = () => {
     delayShowInstance?.cancel?.();
-    popInstanceUtil.hide();
+    popInstanceUtil.hide(300);
   };
 
   const resizeHeightObserver = target => {
@@ -153,7 +154,7 @@ export default (
   };
 
   watch(
-    props,
+    () => [props.value],
     () => {
       setModelValue(props.value);
     },

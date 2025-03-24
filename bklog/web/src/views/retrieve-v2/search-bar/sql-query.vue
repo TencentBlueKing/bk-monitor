@@ -29,15 +29,31 @@
   let editorInstance = null;
   let isSelectedText = false;
 
+  /**
+   * 更新编辑器内容
+   * @param val 更新值
+   * @param from 开始位置
+   * @param to 结束位置：如果是指定位置插入，To可以忽略，只要指定from位置就行
+   * 如果是替换，需要指定结束位置；to：设置为 Infinity 表示从from位置到结束位置全部替换
+   */
   const setEditorContext = (val, from = 0, to = undefined) => {
     editorInstance?.setValue(val, from, to);
   };
 
+  /**
+   * use-focus在监听到props.value更新时会调用此方法
+   * 用于格式化并更新编辑器内容
+   * @param item
+   */
   const formatModelValueItem = item => {
-    setEditorContext(item);
+    setEditorContext(item, 0, Infinity);
     return item;
   };
 
+  /**
+   * 用于点击操作判定当前是否在搜索容器内部进行多次点击
+   * @param e
+   */
   const handleWrapperClickCapture = e => {
     return refEditorParent.value?.contains(e.target) ?? false;
   };
@@ -86,6 +102,10 @@
     handleWrapperClick: handleWrapperClickCapture,
   });
 
+  /**
+   * 编辑器内容改变回掉事件
+   * @param doc
+   */
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
     if (val !== props.value) {

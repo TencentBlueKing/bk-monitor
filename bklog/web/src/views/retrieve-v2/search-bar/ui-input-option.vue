@@ -7,12 +7,11 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import { translateKeys } from './const-values';
   import { bkIcon } from 'bk-magic-vue';
   import { Props } from 'tippy.js';
-
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
-  import { translateKeys } from './const-values';
   import PopInstanceUtil from '../../../global/pop-instance-util';
   import useFieldEgges from './use-field-egges';
   const INPUT_MIN_WIDTH = 12;
@@ -47,12 +46,10 @@
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
-  const locationIndex = ref(0);
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
   // 条件Value选择列表
   const refValueTagInputOptionList = ref(null);
-  const tagInputItemRef = ref(null);
 
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
@@ -298,7 +295,6 @@
 
   const setDefaultActiveIndex = () => {
     activeIndex.value = searchValue.value.length ? null : 0;
-    locationIndex.value = activeIndex.value || 0;
   };
 
   watch(
@@ -470,7 +466,7 @@
 
   const currentEditTagIndex = ref(null);
 
-  const handleEditTagClick = (e, tagContent, tagIndex) => {
+  const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
 
     currentEditTagIndex.value = tagIndex;
@@ -552,7 +548,6 @@
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
-    isArrowDown.value = false;
     setTimeout(() => {
       conditionValueInstance.hide();
     });
@@ -585,32 +580,27 @@
   /**
    * 通用方法：根据键盘上下键操作，设置对应参数当前激活Index的值
    */
-  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true, type?: string) => {
+  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
     const maxIndex = matchList.length - 1;
     if (objIndex.value === null) {
       objIndex.value = -1;
-      locationIndex.value = -1;
     }
 
     if (isIncrease) {
       if (objIndex.value < maxIndex) {
         objIndex.value++;
-        type === 'list' && locationIndex.value++;
         return;
       }
 
       objIndex.value = 0;
-      if (type === 'list') {
-        locationIndex.value = 0;
-      }
       return;
     }
 
     if (objIndex.value > 0) {
       objIndex.value--;
-      type === 'list' && locationIndex.value--;
       return;
     }
+
     objIndex.value = maxIndex;
   };
 
@@ -618,7 +608,7 @@
    * 设置当前条件值激活Index
    */
   const setConditionValueActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease, 'condition');
+    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease);
   };
 
   /**
@@ -654,6 +644,7 @@
       afterOperatorValueEnter();
       return;
     }
+
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
     if (
@@ -664,11 +655,9 @@
       activeIndex.value >= 0
     ) {
       const instance = conditionValueInstance.getTippyInstance();
+
       // 如果是条件选择下拉已经展开，查询当前选中项
       if (instance?.state.isShown) {
-        if (conditionValueActiveIndex.value === -1 && activeItemMatchList.value?.length > 0) {
-          conditionValueActiveIndex.value = 0;
-        }
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
           handleTagItemClick(val, conditionValueActiveIndex.value);
@@ -679,7 +668,6 @@
 
           // 设置当前行样式，避免Vue实例渲染，这里直接操作DOM进行class赋值
           activeConditionValueOption();
-          refValueTagInput.value?.focus();
           return;
         }
       }
@@ -718,7 +706,7 @@
    * 设置当前条件激活Index
    */
   const setOperatorActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease, 'operator');
+    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease);
     const operator = activeFieldItem.value.field_operator[operatorActiveIndex.value]?.operator;
     if (condition.value.operator !== operator) {
       condition.value.operator = operator;
@@ -734,7 +722,6 @@
    */
   const setFieldListActiveIndex = (isIncrease = true) => {
     setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease);
-    setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease, 'list');
   };
 
   /**
@@ -954,7 +941,8 @@
             :placeholder="$t('请输入关键字')"
             behavior="simplicity"
             left-icon="bk-icon icon-search"
-          />
+          >
+          </bk-input>
         </div>
         <div
           ref="refSearchResultList"
@@ -962,7 +950,7 @@
         >
           <div
             v-for="(item, index) in filterFieldList"
-            :class="['ui-search-result-row', { active: activeIndex === index }, { location: locationIndex === index }]"
+            :class="['ui-search-result-row', { active: activeIndex === index }]"
             :data-tab-index="index"
             :key="item.field_name"
             @click="() => handleFieldItemClick(item, index)"
@@ -990,7 +978,7 @@
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
-              style="justify-content: center; height: 250px"
+              style="justify-content: center; height: 260px"
               :type="exceptionType"
               scene="part"
             >
@@ -1001,7 +989,7 @@
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="isSearchEmpty">
           <bk-exception
-            style="justify-content: center; height: 250px"
+            style="justify-content: center; height: 260px"
             scene="part"
             type="500"
           >
@@ -1095,7 +1083,7 @@
                 :rows="12"
                 maxlength="100"
                 type="textarea"
-              />
+              ></bk-input>
             </template>
             <div
               v-else
@@ -1118,27 +1106,24 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
-                      @blur.stop="handleTagInputBlur"
                       @input="handleInputValueChange"
+                      @blur.stop="handleTagInputBlur"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
-                  <span
-                    class="tag-item-text"
-                    @click.stop="e => handleEditTagClick(e, item, index)"
-                  >
-                    {{ formatDateTimeField(item, activeFieldItem.field_type) }}
-                  </span>
-                  <span
-                    class="tag-item-del bk-icon icon-close"
-                    @click.stop="e => handleDeleteTagItem(index)"
-                  />
+                  <template>
+                    <span
+                      class="tag-item-text"
+                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
+                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
+                    >
+                    <span
+                      class="tag-item-del bk-icon icon-close"
+                      @click.stop="e => handleDeleteTagItem(index)"
+                    ></span>
+                  </template>
                 </li>
-                <li
-                  id="tagInputItem"
-                  ref="tagInputItemRef"
-                  class="tag-item no-selected-tag-item"
-                >
+                <li class="tag-item no-selected-tag-item">
                   <input
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
@@ -1231,12 +1216,17 @@
         <bk-button
           class="save-btn"
           :disabled="!isSaveBtnActive"
+          style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
         >
           {{ $t('确定 Ctrl+ Enter') }}
         </bk-button>
-        <bk-button @click.stop="handleCancelBtnClick">{{ $t('取消') }}</bk-button>
+        <bk-button
+          style="width: 64px"
+          @click.stop="handleCancelBtnClick"
+          >{{ $t('取消') }}</bk-button
+        >
       </div>
     </div>
   </div>
