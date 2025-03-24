@@ -28,12 +28,14 @@ import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
+import { builtInInitHiddenList } from '@/const/index.js';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
-import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-import { builtInInitHiddenList } from '@/const/index.js'
+// import FieldSelectConfig from './components/field-select-config.vue';
+import FieldSelectConfig from './update/field-list.vue';
+
 import './index.scss';
 
 @Component
@@ -61,8 +63,8 @@ export default class FieldFilterComp extends tsc<object> {
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
-  builtInInitHiddenList = builtInInitHiddenList ;
-  
+  builtInInitHiddenList = builtInInitHiddenList;
+
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -240,12 +242,11 @@ export default class FieldFilterComp extends tsc<object> {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      builtInShowFields:
-        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
+      builtInShowFields: this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
     };
   }
-  getIsShowIndexSetExpand() { 
-    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.') ).length > 10;
+  getIsShowIndexSetExpand() {
+    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.')).length > 10;
   }
   /** 展示的可选字段 */
   get showIndexSetFields() {
