@@ -343,6 +343,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
+        ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
     ]
 )
 

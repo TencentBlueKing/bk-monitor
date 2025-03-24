@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import List, Union
+from typing import List, Optional, Union
 
 from django.conf import settings
 from django.core.cache import caches
@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 local_mem = caches["space"]
@@ -90,33 +91,62 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             if space is not miss_cache:
                 return SpaceDefine.from_dict(space)
 
-        space_info = api.metadata.get_space_detail(**params)
+        # 通过数据库直查
+        filters = {}
+        if "id" in params:
+            filters["space_id"] = params["id"]
+        elif "space_uid" in params:
+            filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__")
+        space_info = cls.list_spaces_dict(using_cache=False, filters=filters)
+        if not space_info:
+            return None
+        space_info = space_info[0]
+
+        # 如果是非 cmdb 空间，需要通过 metadata 补全信息
+        # 由于一开始缺乏 bk_tenant_id 信息，需要先查询数据库才能继续查询 metadata
+        if space_info["space_type_id"] != SpaceTypeEnum.BKCC.value:
+            space_info = api.metadata.get_space_detail(
+                space_uid=params["space_uid"], bk_tenant_id=space_info["bk_tenant_id"]
+            )
+
         # 补充miss 的 space_uid 信息（非cmdb 空间）
         local_mem.set(f"metadata:spaces_map:{space_info['space_uid']}", space_info, timeout=3600)
         return cls._init_space(space_info)
 
     @classmethod
-    def list_spaces(cls, refresh=False) -> List[SpaceDefine]:
+    def list_spaces(cls, refresh=False, bk_tenant_id: Optional[str] = None) -> List[SpaceDefine]:
         """
         查询空间列表
         """
-        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", miss_cache)
+        cache_key = f"metadata:list_spaces:{bk_tenant_id}" if bk_tenant_id else "metadata:list_spaces"
+
+        ret: List[SpaceDefine] = local_mem.get(cache_key, miss_cache)
         if ret is miss_cache or refresh:
             ret: List[SpaceDefine] = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
-                for space_dict in cls.list_spaces_dict(using_cache=False)
+                for space_dict in cls.list_spaces_dict(using_cache=False, bk_tenant_id=bk_tenant_id)
             ]
-            local_mem.set("metadata:list_spaces", ret, timeout=3600)
+            local_mem.set(cache_key, ret, timeout=3600)
+
         return ret
 
     @classmethod
-    def list_spaces_dict(cls, using_cache=True) -> List[dict]:
+    def list_spaces_dict(
+        cls, using_cache=True, bk_tenant_id: Optional[str] = None, filters: Optional[dict[str, Union[str, int]]] = None
+    ) -> List[dict]:
         """
         告警性能版本获取空间列表
+        TODO: Space表增加租户字段后，需要修改 SQL，增加租户字段查询，当前使用默认租户
         """
+        if bk_tenant_id:
+            cache_key = f"metadata:list_spaces_dict:{bk_tenant_id}"
+        else:
+            cache_key = "metadata:list_spaces_dict"
+
         ret = miss_cache
-        if using_cache:
-            ret = local_mem.get("metadata:list_spaces_dict", miss_cache)
+        # 如果指定了过滤条件，则不使用缓存
+        if using_cache and not filters:
+            ret = local_mem.get(cache_key, miss_cache)
         if ret is not miss_cache:
             return ret
 
@@ -139,11 +169,31 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 ON
                     s.space_type_id = t.type_id
             """
+            if filters:
+                sql += " WHERE "
+                where_conditions = []
+                for field, value in filters.items():
+                    if isinstance(value, str):
+                        where_conditions.append(f" s.{field} = '{value}'")
+                    elif isinstance(value, int):
+                        where_conditions.append(f" s.{field} = {value}")
+                sql += " AND ".join(where_conditions)
+
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
             spaces: List[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            # 如果空间没有指定租户，则补充默认租户
+            for space_dict in spaces:
+                if not space_dict.get("bk_tenant_id"):
+                    space_dict["bk_tenant_id"] = DEFAULT_TENANT_ID
+
+            # 过滤指定租户
+            if bk_tenant_id:
+                spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
+
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
-        if not spaces and settings.RUN_MODE == "DEVELOP":
+        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
             raise Exception(
                 "未成功初始化metadata空间数据，请执行"
                 "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
@@ -166,8 +216,11 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             else:
                 # 非cmdb 空间，内存暂存一份bk_biz_id -> space_uid 的映射
                 _space_transform[space["bk_biz_id"]] = space["space_uid"]
-        # 10min
-        local_mem.set("metadata:list_spaces_dict", spaces, timeout=3600)
+
+        # 如果指定了过滤条件，则不缓存
+        if not filters:
+            local_mem.set(cache_key, spaces, timeout=3600)
+
         return spaces
 
     @classmethod
