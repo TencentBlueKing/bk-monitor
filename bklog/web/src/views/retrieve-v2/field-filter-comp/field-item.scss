@@ -8,19 +8,18 @@
       visibility: hidden;
     }
   }
-.bklog-drag-dots-box{
-    width:12px;
-  .bklog-drag-dots {
-    font-size: 12px;
-    padding-left: 2px;
-    color: #979ba5;
-    text-align: left;
-    cursor: move;
-    opacity: 0;
-    transition: opacity 0.2s linear;
+  .bklog-drag-dots-box {
+    width: 12px;
+    .bklog-drag-dots {
+      font-size: 12px;
+      padding-left: 2px;
+      color: #979ba5;
+      text-align: left;
+      cursor: move;
+      opacity: 0;
+      transition: opacity 0.2s linear;
+    }
   }
-}
-
 
   &:hover {
     background-color: #f4f5f8;
@@ -36,7 +35,8 @@
     position: relative;
     display: flex;
     width: 100%;
-    min-height: 28px;
+    line-height: 16px;
+    padding: 6px 0;
     cursor: pointer;
     border-radius: 2px;
 
@@ -81,14 +81,22 @@
       border-radius: 2px;
     }
 
+    .bklog-field-icon {
+      height: 100%;
+
+      .bklog-icon {
+        height: 100%;
+      }
+    }
+
     .field-name {
       width: calc(100% - 42px);
       padding-right: 12px;
       font-size: 12px;
-      color: #16171A;
+      color: #16171a;
       word-break: break-all;
       overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
-      white-space: nowrap;
+      // white-space: nowrap;
     }
 
     .conflict-icon {
@@ -109,7 +117,7 @@
     .operation-text {
       position: absolute;
       right: 0;
-      // top: 10px;
+      top: 0px;
       z-index: 999;
 
       /* stylelint-disable-next-line declaration-no-important */
@@ -118,7 +126,7 @@
       align-items: center;
       height: 100%;
       font-size: 16px;
-      background: #F3F4F7;
+      background: #f3f4f7;
 
       @include flex-justify(space-between);
 
@@ -132,7 +140,7 @@
       }
       .operation-icon-box:not(:last-child) {
         margin-right: 8px;
-      };
+      }
       .operation-icon-box {
         width: 20px;
         height: 20px;
@@ -186,10 +194,9 @@
     }
   }
 
-  .sideslider{
-    left: auto ;
+  .sideslider {
+    left: auto;
   }
-
 }
 
 .conflict-popover {
@@ -200,7 +207,7 @@
   }
 }
 
-.agg-sides-content{
+.agg-sides-content {
   padding: 16px;
   font-size: 12px;
 }

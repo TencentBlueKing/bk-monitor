@@ -75,21 +75,7 @@
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
 
-  const refPopContent = ref(null);
   const refPopTraget = ref(null);
-
-  const popToolInstance = new PopInstanceUtil({
-    refContent: refPopContent,
-    tippyOptions: {
-      placement: 'bottom-end',
-      zIndex: 200,
-      appendTo: document.body,
-      interactive: true,
-      theme: 'log-light transparent',
-      arrow: false,
-      offset: [60, 0],
-    },
-  });
 
   const inspectPopInstance = new PopInstanceUtil({
     refContent: refKeywordInspectElement,
@@ -287,7 +273,6 @@
     store.commit('updateIndexItemParams', {
       ip_chooser: {},
     });
-    popToolInstance?.hide(300);
     handleBtnQueryClick();
   };
 
@@ -308,7 +293,6 @@
   const handleQueryTypeChange = () => {
     activeIndex.value = activeIndex.value === 0 ? 1 : 0;
     localStorage.setItem('bkLogQueryType', activeIndex.value);
-    popToolInstance?.uninstallInstance();
   };
   const sourceSQLStr = ref('');
   const sourceUISQLAddition = ref([]);
@@ -406,8 +390,6 @@
     }
 
     if (activeIndex.value === 0) {
-      popToolInstance?.hide(300);
-
       if (addition.value.length > 0) {
         $http
           .request('retrieve/generateQueryString', {
@@ -437,49 +419,9 @@
     }
   };
 
-  const getTargetElement = () => {
-    if (activeIndex.value === 0) {
-      return refRootElement.value?.querySelector('.search-item-focus.hidden-pointer');
-    }
-
-    const editorLine = refRootElement.value?.querySelector('.search-sql-editor .cm-editor .cm-scroller .cm-line');
-    return editorLine?.lastElementChild ?? editorLine;
-  };
-
-  const setPopProps = () => {
-    if (activeIndex.value === 0) {
-      popToolInstance?.setProps({
-        offset: [60, 0],
-      });
-      return;
-    }
-
-    popToolInstance?.setProps({
-      offset: [60, 20],
-    });
-  };
-
   let isPopupShow = false;
   const handlePopupChange = ({ isShow }) => {
     isPopupShow = isShow;
-  };
-
-  const handleMouseenterInputSection = () => {
-    if (isPopupShow) {
-      return;
-    }
-
-    const target = getTargetElement();
-    setPopProps();
-
-    if (target) {
-      popToolInstance.cancelHide();
-      popToolInstance.show(target);
-    }
-  };
-
-  const handleMouseleaveInputSection = () => {
-    popToolInstance?.hide(300);
   };
 
   useResizeObserve(refRootElement, () => {
@@ -530,14 +472,6 @@
     });
   };
 
-  const handleMouseenterPopContent = () => {
-    popToolInstance.cancelHide();
-  };
-
-  const handleMouseleavePopContent = () => {
-    popToolInstance.hide(300);
-  };
-
   const handleMouseleaveInspect = e => {
     inspectPopInstance.hide(300);
   };
@@ -565,8 +499,8 @@
   };
 
   onBeforeUnmount(() => {
-    popToolInstance.onBeforeUnmount();
-    popToolInstance.uninstallInstance();
+    // popToolInstance.onBeforeUnmount();
+    // popToolInstance.uninstallInstance();
   });
 </script>
 <template>
@@ -590,8 +524,6 @@
       <div
         class="search-input"
         :class="{ disabled: isInputLoading }"
-        @mouseenter="handleMouseenterInputSection"
-        @mouseleave="handleMouseleaveInputSection"
       >
         <UiInput
           v-if="activeIndex === 0"
@@ -633,19 +565,31 @@
                   class="inspect-row"
                   v-show="inspectResponse.is_resolved"
                 >
-                  <div class="inspect-title">{{ $t('你可能想输入:') }}</div>
-                  <div class="inspect-message">
-                    <span>{{ inspectResponse.keyword }}</span>
-                    <span
+                  <div class="inspect-title">
+                    <span>{{ $t('你可能想输入:') }}</span
+                    ><span
                       class="inspect-keyword-replace"
                       @click="handleInspectKeywordReplace"
                       >{{ $t('替换') }}</span
                     >
                   </div>
+                  <div class="inspect-message">
+                    <span>{{ inspectResponse.keyword }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          <div
+            v-bk-tooltips="$t('复制当前查询')"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"
+          ></div>
+          <div
+            v-bk-tooltips="$t('清理当前查询')"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"
+          ></div>
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
@@ -672,25 +616,6 @@
             size="small"
             theme="primary"
           />
-        </div>
-      </div>
-      <div style="display: none">
-        <div
-          ref="refPopContent"
-          class="bklog-search-input-poptool"
-          @mouseenter="handleMouseenterPopContent"
-          @mouseleave="handleMouseleavePopContent"
-        >
-          <div
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"
-          ></div>
-          <div
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"
-          ></div>
         </div>
       </div>
     </div>

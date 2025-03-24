@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick, onMounted } from 'vue';
 
   // @ts-ignore
   import { getCharLength, getRegExp, formatDateTimeField } from '@/common/util';
@@ -57,6 +57,7 @@
   const tippyOptions: Partial<Props> = {
     // flip: false,
     placement: 'bottom',
+    delay: [0, 300],
     popperOptions: {
       placement: 'bottom', // 或者其他你想要的位置
       modifiers: [
@@ -93,6 +94,7 @@
     tippyOptions: {
       placement: 'auto',
       theme: 'log-dark',
+      delay: [0, 300],
     },
   });
 
@@ -119,7 +121,10 @@
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
       return true;
     },
-    tippyOptions,
+    tippyOptions: {
+      ...tippyOptions,
+      hideOnClick: false,
+    },
   });
 
   const fullTextField = ref({
@@ -143,7 +148,7 @@
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
 
-  const { requestFieldEgges, isRequesting } = useFieldEgges();
+  const { requestFieldEgges, isRequesting, setIsRequesting } = useFieldEgges();
 
   const getFieldWeight = field => {
     if (field.field_name === '*') {
@@ -353,6 +358,7 @@
       return;
     }
 
+    setIsRequesting(true);
     conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
@@ -371,13 +377,14 @@
           if (!isOperatorInstanceActive()) {
             const target = refConditionInput.value?.parentNode;
             if (target) {
-              conditionValueInstance.show(target);
+              conditionValueInstance.show(target, true);
             }
           }
         }
       });
     } else {
-      conditionValueInstance.hide();
+      conditionValueInstance.hide(300);
+      setIsRequesting(false);
     }
   };
 
@@ -476,6 +483,8 @@
   };
 
   const handleConditionValueClick = (e = null) => {
+    conditionValueInstance.cancelHide();
+
     if (e?.target !== refConditionInput.value || !e) {
       return;
     }
@@ -486,7 +495,7 @@
     if (activeItemMatchList.value.length > 0) {
       if (!conditionValueInstance.isShown()) {
         const target = refConditionInput.value.parentNode;
-        conditionValueInstance.show(target);
+        conditionValueInstance.show(target, true);
       }
     }
   };
@@ -518,11 +527,13 @@
   };
 
   const handleInputValueChange = e => {
+    setIsRequesting(true);
     const input = e.target;
     const value = input.value;
     const charLen = getCharLength(value);
     input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
     conditionValueInputVal.value = input.value;
+
     requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
@@ -530,7 +541,7 @@
         if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
           const target = refConditionInput.value?.parentNode;
           if (target) {
-            conditionValueInstance.show(target);
+            conditionValueInstance.show(target, true);
           }
         }
       }
@@ -539,7 +550,10 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleInputValueChange(e);
+
+    if (conditionValueInstance.isShown()) {
+      return;
+    }
   };
 
   const handleDeleteTagItem = index => {
@@ -549,7 +563,7 @@
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
     setTimeout(() => {
-      conditionValueInstance.hide();
+      conditionValueInstance.hide(300);
     });
   };
 
@@ -772,7 +786,7 @@
 
   const handleEscKeyEvent = () => {
     if (isConditionValueFocus()) {
-      conditionValueInstance.hide();
+      conditionValueInstance.hide(300);
       return;
     }
 
@@ -859,6 +873,7 @@
 
   const handleValueInputEnter = e => {
     stopEventPreventDefault(e);
+    conditionValueInputVal.value = '';
 
     if (e.target.value) {
       const value = e.target.value;
@@ -916,12 +931,31 @@
     }
   };
   const handleOptionListMouseLeave = e => {
-    // fieldOptionListInstance.hide();
     fieldOptionListInstance.uninstallInstance();
   };
 
+  const handleDocumentClick = e => {
+    if (
+      refSearchResultList?.value?.contains(e.target) ||
+      refConditionInput?.value?.contains(e.target) ||
+      refValueTagInputOptionList?.value?.contains(e.target)
+    ) {
+      return;
+    }
+
+    conditionValueInstance?.hide(100);
+  };
+
+  onMounted(() => {
+    document.addEventListener('click', handleDocumentClick);
+  });
+
   onBeforeUnmount(() => {
     afterHideFn();
+    document.removeEventListener('click', handleDocumentClick);
+    fieldOptionListInstance.uninstallInstance();
+    operatorInstance.uninstallInstance();
+    conditionValueInstance.uninstallInstance();
   });
 
   defineExpose({
@@ -1127,7 +1161,6 @@
                   <input
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
-                    :placeholder="$t('请输入 或 选择')"
                     type="text"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
@@ -1140,10 +1173,10 @@
                   <ul
                     ref="refValueTagInputOptionList"
                     class="condition-value-options"
-                    v-bkloading="{ isLoading: isRequesting }"
+                    v-bkloading="{ isLoading: isRequesting, size: 'small' }"
                   >
                     <li
-                      v-if="!activeItemMatchList.length"
+                      v-if="!activeItemMatchList.length && !isRequesting && !conditionValueInputVal.length"
                       class="empty-section"
                     >
                       <bk-exception
@@ -1152,6 +1185,12 @@
                         scene="part"
                       >
                       </bk-exception>
+                    </li>
+                    <li
+                      v-show="conditionValueInputVal.length > 0"
+                      :class="{ active: conditionValueInputVal.length > 0 }"
+                    >
+                      生成 "{{ conditionValueInputVal }}" Tag
                     </li>
                     <li
                       v-for="(item, index) in activeItemMatchList"

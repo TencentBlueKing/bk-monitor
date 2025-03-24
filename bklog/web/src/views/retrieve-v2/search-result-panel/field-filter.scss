@@ -4,20 +4,10 @@
   height: 100%;
   padding: 0;
   background: #ffffff;
+  border-right: solid 1px #dcdee5;
 
   &:not(.is-close) {
     overflow: visible;
-
-    &::after {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      height: 100vh;
-      content: '';
-      background-color: #fff;
-      transform: translateY(100%);
-    }
   }
 
   &.is-close {

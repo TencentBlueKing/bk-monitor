@@ -248,7 +248,7 @@ export default class FieldItem extends tsc<object> {
             ></div> */}
 
             {/* 字段类型对应的图标 */}
-            <div>
+            <div class='bklog-field-icon'>
               <span
                 style={{
                   backgroundColor: this.fieldItem.is_full_text
@@ -389,4 +389,3 @@ export default class FieldItem extends tsc<object> {
     );
   }
 }
-

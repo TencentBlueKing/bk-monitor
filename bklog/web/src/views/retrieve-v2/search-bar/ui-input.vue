@@ -455,7 +455,6 @@
           <span
             v-if="item.value.length > 3 && !item.showAll"
             style="color: #f59500"
-            @click.stop="handleShowAll(item)"
           >
             +{{ item.value.length - 3 }}
           </span>

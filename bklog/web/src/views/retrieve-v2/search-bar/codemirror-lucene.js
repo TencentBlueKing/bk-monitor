@@ -82,18 +82,51 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       return;
     }
 
-    if (Infinity === to) {
+    if (to === Infinity) {
       view.dispatch({
         changes: { from, to: view.state.doc.length, insert: value },
       });
-    }
-    view.dispatch({
-      changes: { from, insert: value },
-    });
 
-    view.dispatch({
-      selection: EditorSelection.cursor(to ?? view.state.doc.length),
-    });
+      view.dispatch({
+        selection: EditorSelection.cursor(view.state.doc.length),
+      });
+
+      return;
+    }
+
+    if (!to) {
+      view.dispatch({
+        changes: { from, insert: value },
+      });
+
+      view.dispatch({
+        selection: EditorSelection.cursor(from + value.length),
+      });
+
+      return;
+    }
+
+    if (typeof to === 'number') {
+      if (to > view.state.doc.length) {
+        view.dispatch({
+          changes: { from, to: view.state.doc.length, insert: value },
+        });
+  
+        view.dispatch({
+          selection: EditorSelection.cursor(from + value.length),
+        });
+
+        return;
+      }
+      
+      view.dispatch({
+        changes: { from, to, insert: value },
+      });
+
+      view.dispatch({
+        selection: EditorSelection.cursor(to),
+      });
+    }
   };
 
   return { state, view, appendText, setValue };

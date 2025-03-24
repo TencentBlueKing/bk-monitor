@@ -123,6 +123,7 @@ export default class PopInstanceUtil {
   }
 
   uninstallInstance = () => {
+    this.resizeObserver?.disconnect();
     if (this.tippyInstance) {
       this.tippyInstance.hide();
       this.tippyInstance.unmount();
@@ -171,8 +172,9 @@ export default class PopInstanceUtil {
     }
   }
 
-  show(target) {
+  show(target, cancelHidding = false) {
     this.isShowing = true;
+    cancelHidding && this.cancelHide();
     this.delayShowInstance(target);
   }
 

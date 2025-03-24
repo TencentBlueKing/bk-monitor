@@ -1,12 +1,14 @@
 @import '@/scss/mixins/flex.scss';
 
 .field-filter-box {
+  overflow: hidden;
   > .form-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 32px;
-    margin: 12px;
+    padding: 12px;
+    box-sizing: content-box;
 
     .king-input {
       width: 100%;
@@ -50,7 +52,7 @@
       }
 
       &:hover {
-        color: #F5F7FA;
+        color: #f5f7fa;
       }
 
       .text {
@@ -71,9 +73,9 @@
   .big-tree {
     overflow-y: hidden;
 
-    .bklog-drag-dots-box{
+    .bklog-drag-dots-box {
       display: none;
-}
+    }
 
     .is-leaf {
       height: auto;
@@ -158,4 +160,3 @@
     }
   }
 }
-

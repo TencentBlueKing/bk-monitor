@@ -156,6 +156,7 @@
       padding-right: 24px;
       padding-left: 22px;
       margin-top: 16px;
+      border-bottom: solid 1px #dcdee5;
 
       &:not(.is-full-text) {
         background: #ffffff;
@@ -262,7 +263,7 @@
     padding-right: 24px;
     padding-left: 8px;
     background: #fafbfd;
-    border-top: solid 1px #dcdee5;
+    // border-top: solid 1px #dcdee5;
     box-shadow: 0 -1px 0 0 #dcdee5;
 
     .ui-shortcut-key {
