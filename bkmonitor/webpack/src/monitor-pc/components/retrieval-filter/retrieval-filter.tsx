@@ -430,22 +430,35 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   }
 
   handleClear(_event: MouseEvent) {
-    if (this.uiValue.length) {
+    if (this.mode === EMode.ui ? this.uiValue.length : this.qsValue) {
       this.clearKey = random(8);
     }
   }
   handleCopy(_event: MouseEvent) {
     let str = '';
     if (this.mode === EMode.ui && this.uiValue.length) {
-      str = this.uiValue
-        .map(item => {
-          const value =
-            item.value.length > 1
-              ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
-              : `"${item.value?.[0]?.id || '*'}"`;
-          return `${item.key.id} ${item.method.id} ${value}`;
-        })
-        .join(' AND ');
+      const where = [];
+      for (const item of this.uiValue) {
+        if (!item?.hide) {
+          where.push({
+            key: item.key.id,
+            condition: ECondition.and,
+            value: item.value.map(v => v.id),
+            ...(item?.options?.is_wildcard ? { options: { is_wildcard: true } } : {}),
+            method: item.method.id,
+          });
+        }
+      }
+      str = JSON.stringify(where);
+      // str = this.uiValue
+      //   .map(item => {
+      //     const value =
+      //       item.value.length > 1
+      //         ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
+      //         : `"${item.value?.[0]?.id || '*'}"`;
+      //     return `${item.key.id} ${item.method.id} ${value}`;
+      //   })
+      //   .join(' AND ');
     } else if (this.mode === EMode.queryString && this.qsValue) {
       str = this.qsValue;
     }
@@ -518,7 +531,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
               class='component-right-btns'
             >
               <div
-                class={['clear-btn', { disabled: !this.uiValue.length }]}
+                class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('清空'),
                   delay: 300,
@@ -528,7 +541,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
               <div
-                class={['copy-btn', { disabled: !this.uiValue.length }]}
+                class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('复制'),
                   delay: 300,

@@ -1921,4 +1921,6 @@ export default {
 
   'UI 模式': 'UI mode',
   语句模式: 'Statement mode',
+  收藏名称: 'Collection name',
+  收藏详情: 'Collection details',
 };

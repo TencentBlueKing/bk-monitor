@@ -46,14 +46,15 @@
   }
 
   .favorite-group-dialog-content {
+    position: relative;
     display: flex;
+    width: 100%;
     height: calc(100% - 48px);
 
     .favorite-group-filter {
       display: flex;
-      flex-shrink: 0;
       flex-direction: column;
-      width: 220px;
+      min-width: 220px;
       padding: 12px 0;
       background-color: #f5f7fa;
 
@@ -137,6 +138,7 @@
 
     .favorite-table-container {
       flex: 1;
+      width: calc(100% - 760px);
       padding: 12px;
 
       .table-header-operation {
@@ -204,7 +206,6 @@
     }
 
     .favorite-detail-container {
-      flex-shrink: 0;
       width: 540px;
       background: #f5f7fa;
     }
