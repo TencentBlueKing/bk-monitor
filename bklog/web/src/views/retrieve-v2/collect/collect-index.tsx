@@ -185,7 +185,6 @@ export default class CollectIndex extends tsc<IProps> {
           group_name,
           group_type,
           favorites: favorites.filter(item => {
-            console.log(item);
             // 当前索引集为联合索引
             if (this.isUnionSearch) {
               // 收藏为单个索引
