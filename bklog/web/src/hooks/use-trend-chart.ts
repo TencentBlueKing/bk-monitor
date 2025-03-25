@@ -32,8 +32,8 @@ import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
-import chartOption from './trend-chart-options';
 import { deepClone } from '../common/util';
+import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -245,13 +245,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     options.series[2] = deepClone(options.series[0]);
     options.series[1].name = 'wran';
     options.series[2].name = 'info';
-    
+
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
-    options.yAxis[0].minInterval = 1;
-
 
     chartInstance.setOption(options);
     nextTick(() => {
