@@ -1537,6 +1537,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
           .then(res => {
             const fields = res.data?.fields || [];
             this.formData.etl_params?.metadata_fields.push(...fields);
+            
           })
           .finally(() => {
             this.isDebugLoading = false;
@@ -2078,6 +2079,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                 } else {
                   // 否则 - 将对table已修改值-> newFields进行操作
                   if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
+                    
                     const list = dataFields.reduce((arr, item) => {
                       const child = newFields.find(field => {
                         // return  !field.is_built_in && (field.field_name === item.field_name || field.alias_name === item.field_name)
@@ -2099,6 +2101,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
+                    
                     list.forEach((item, itemIndex) => {
                       item.field_index = itemIndex;
                     });
@@ -2120,7 +2123,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                     if (index) {
                       newFields.forEach((item, idx) => {
                         // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index === item.field_index);
+                        const child = dataFields.find(data => data.field_index  === item.field_index + 1);
                         item.value = child ? child.value : ''; // 修改value值(预览值)
                         if (index > idx && !item.is_delete) {
                           // 将未删除的存进数组
@@ -2149,6 +2152,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                 this.formatResult = true; // 此时才能将结果设置为成功
                 this.savaFormData();
               } else {
+                
                 // 仅做预览赋值操作，不改变结果
                 newFields.forEach(field => {
                   const child = dataFields.find(item => {
@@ -2775,10 +2779,10 @@ import { builtInInitHiddenList } from '@/const/index.js'
     }
 
     .switcher-tips{
-      color: #979BA5;
-      font-size: 12px;
       position: absolute;
       top: 20px;
+      font-size: 12px;
+      color: #979BA5;
     }
 
     .text-nav {
@@ -2935,6 +2939,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
         display: flex;
         align-items: center;
         margin: 10px 0 0;
+
         .bklog-button{
           font-size: 12px;
         }
