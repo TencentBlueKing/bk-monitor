@@ -20,7 +20,7 @@
   const chartKey = computed(() => store.state.retrieve.chartKey);
 
   const refDataTrendCanvas = ref(null);
-  const dynamicHeight = ref(110);
+  const dynamicHeight = ref(130);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
