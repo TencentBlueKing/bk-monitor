@@ -19,6 +19,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@blueking/aiops-topo':
+        specifier: 0.0.1-beta.4
+        version: 0.0.1-beta.4(@blueking/bkui-library@0.0.0-beta.6)(vue@3.5.12(typescript@5.6.3))
     devDependencies:
       '@biomejs/biome':
         specifier: ^1.9.4
@@ -1403,6 +1407,12 @@ packages:
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
       markdown-it-code-copy: ^0.2.1
+
+  '@blueking/aiops-topo@0.0.1-beta.4':
+    resolution: {integrity: sha512-roHpqVnMshmnDF/H2kQcIsf3lW2RENYvbjEP8Z07VaLsRzsQjcXgyIKgzB7piV685g5KN+CA885PmBys4QSWow==}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      vue: ^3
 
   '@blueking/bk-weweb@0.0.29-beta.3':
     resolution: {integrity: sha512-Jxhbnl/oEAgCf3ZFT4IXjebKs48HhdFfHZXBECCOqaNhiSCU7hPhljEdqEW6/7seTLPJJd315KJD70WyAehHEA==}
@@ -8034,6 +8044,9 @@ packages:
   web-worker@1.3.0:
     resolution: {integrity: sha512-BSR9wyRsy/KOValMgd5kMyr3JzpdeoR9KVId8u5GVlTTAtNChlsE4yTxeY7zMdNSyOmoKBv8NH2qeRY9Tg+IaA==}
 
+  web-worker@1.5.0:
+    resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
+
   webpack-bundle-analyzer@4.10.2:
     resolution: {integrity: sha512-vJptkMm9pk5si4Bv922ZbKLV8UTT4zib4FPgXMhgzUny0bfDDkLXAVQs3ly3fS4/TN9ROFtb0NFrm04UXFE/Vw==}
     engines: {node: '>= 10.13.0'}
@@ -9222,6 +9235,14 @@ snapshots:
       highlight.js: 11.5.1
       markdown-it: 13.0.2
       markdown-it-code-copy: 0.2.1
+
+  '@blueking/aiops-topo@0.0.1-beta.4(@blueking/bkui-library@0.0.0-beta.6)(vue@3.5.12(typescript@5.6.3))':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      element-resize-detector: 1.2.4
+      elkjs: 0.8.2
+      vue: 3.5.12(typescript@5.6.3)
+      web-worker: 1.5.0
 
   '@blueking/bk-weweb@0.0.29-beta.3': {}
 
@@ -16752,6 +16773,8 @@ snapshots:
       minimalistic-assert: 1.0.1
 
   web-worker@1.3.0: {}
+
+  web-worker@1.5.0: {}
 
   webpack-bundle-analyzer@4.10.2:
     dependencies:
