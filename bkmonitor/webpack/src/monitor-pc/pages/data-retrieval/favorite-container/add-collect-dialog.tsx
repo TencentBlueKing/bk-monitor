@@ -30,6 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
 
+import { mergeWhereList } from '../../../components/retrieval-filter/utils';
+
 import './add-collect-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';
 
@@ -340,7 +342,9 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
           <div class='view-box is-expand'>
             <span class='string-json view-content'>
               <VueJsonPretty
-                data={{ where: this.keyword.queryConfig.where }}
+                data={{
+                  where: mergeWhereList(this.keyword.queryConfig.where, this.keyword.queryConfig?.commonWhere || []),
+                }}
                 deep={5}
               />
             </span>
