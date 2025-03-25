@@ -504,7 +504,7 @@ class DataAPI(object):
             session.headers.update({"X-METHOD-OVERRIDE": self.method_override})
             # params['X_HTTP_METHOD_OVERRIDE'] = self.method_override
 
-        session.headers.update({"blueking-language": translation.get_language(), "request-id": get_request_id()})
+        session.headers.update({"blueking-language": translation.get_language(), "X-Request-Id": request_id})
 
         # headers 增加api认证数据
         api_auth_params = {}

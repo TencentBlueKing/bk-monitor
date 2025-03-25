@@ -27,7 +27,9 @@
 // 固定的内置字段
 export const builtInInitHiddenList = [
     'gseIndex',
+    'gseindex',
     'iterationIndex',
+    'iterationindex',
     '_iteration_idx',
     '__dist_01',
     '__dist_03',

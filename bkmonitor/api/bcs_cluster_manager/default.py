@@ -149,6 +149,8 @@ class GetSharedClustersResource(BcsClusterManagerBaseResource):
     method = "GET"
 
     def render_response_data(self, validated_request_data, response_data):
+        if isinstance(response_data, dict):
+            response_data = response_data.get("data", [])
         return [
             {"project_id": c["projectID"], "cluster_id": c["clusterID"], "bk_biz_id": c["businessID"]}
             for c in response_data or []
