@@ -9,9 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import datetime
 from typing import Any, Dict, List
 
 from django.conf import settings
+
+from bkmonitor.utils.time_tools import hms_string
 
 from ...constants import (
     CICD_EVENT_NAME_ALIAS,
@@ -39,8 +42,7 @@ class CicdEventProcessor(BaseEventProcessor):
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed_events: List[Dict[str, Any]] = []
         cicd_infos: List[Dict[str, Any]] = []
-        pipeline_ids_to_query: List[Dict[str, Any]] = []
-
+        pipeline_entities: List[Dict[str, Any]] = []
         for origin_event in origin_events:
             if not self._need_process(origin_event):
                 processed_events.append(origin_event)
@@ -48,12 +50,25 @@ class CicdEventProcessor(BaseEventProcessor):
             processed_event = copy.deepcopy(origin_event)
             cicd_info = create_cicd_info(
                 origin_event["origin_data"],
-                ["pipelineName", "projectId", "buildId", "pipelineId", "duration", "event_name", "bk_biz_id", "time"],
+                [
+                    "pipelineName",
+                    "projectId",
+                    "buildId",
+                    "pipelineId",
+                    "duration",
+                    "event_name",
+                    "bk_biz_id",
+                    "time",
+                    "trigger",
+                    "triggerUser",
+                    "status",
+                    "startTime",
+                ],
             )
             cicd_infos.append(cicd_info)
 
             if not cicd_info["pipelineName"]["value"]:
-                pipeline_ids_to_query.append(
+                pipeline_entities.append(
                     {
                         "pipeline_id": cicd_info["pipelineId"]["value"],
                         "bk_biz_id": cicd_info["bk_biz_id"]["value"],
@@ -62,18 +77,23 @@ class CicdEventProcessor(BaseEventProcessor):
                 )
 
             detail = processed_event["event.content"]["detail"]
-            # 设置 duration，ms 转为 s
-            detail["duration"] = self.set_duration(cicd_info)
+            # 设置存在字段
+            detail.update(self.set_detail_with_cicd_info(cicd_info))
             # 设置 target
             processed_event["target"] = self.set_target(cicd_info)
             # 设置 event_name
             event_name_value = cicd_info["event_name"]["value"]
             processed_event["event_name"]["alias"] = CICD_EVENT_NAME_ALIAS.get(event_name_value, event_name_value)
+            # 设置 startTime 别名
+            if detail.get("startTime"):
+                detail["startTime"]["alias"] = self.set_start_time_alias(cicd_info)
+            # 设置 duration 别名
+            if detail.get("duration"):
+                detail["duration"]["alias"] = self.set_duration_alias(cicd_info)
             processed_events.append(processed_event)
 
         # 设置 pipelineName
-        pipelines = self.pipeline_context.fetch(pipeline_ids_to_query)
-
+        pipelines = self.pipeline_context.fetch(pipeline_entities)
         for processed_event in processed_events:
             processed_event["event.content"]["detail"]["pipelineName"] = self.set_pipeline_name(
                 create_cicd_info(
@@ -85,6 +105,14 @@ class CicdEventProcessor(BaseEventProcessor):
         return processed_events
 
     @classmethod
+    def set_detail_with_cicd_info(cls, cicd_info: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            field: cicd_info[field]
+            for field in ["trigger", "triggerUser", "status", "startTime", "duration"]
+            if cicd_info[field]["value"]
+        }
+
+    @classmethod
     def generate_url(cls, cicd_info):
         return "{base_url}/console/pipeline/{project_id}/{pipeline_id}/detail/{build_id}/executeDetail".format(
             base_url=settings.BKCI_HOST,
@@ -94,12 +122,14 @@ class CicdEventProcessor(BaseEventProcessor):
         )
 
     @classmethod
-    def set_duration(cls, cicd_info):
-        if cicd_info["duration"]["value"]:
-            duration = "{:.2f}s".format(float(cicd_info["duration"]["value"]) / 1000)
-            cicd_info["duration"]["value"] = duration
-            cicd_info["duration"]["alias"] = duration
-        return cicd_info["duration"]
+    def set_start_time_alias(cls, cicd_info: Dict[str, Any]) -> str:
+        return datetime.datetime.fromtimestamp(int(cicd_info["startTime"]["value"]) // 1000).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+    @classmethod
+    def set_duration_alias(cls, cicd_info):
+        return hms_string(int(cicd_info["duration"]["value"]) // 1000)
 
     @classmethod
     def set_target(cls, cicd_info):

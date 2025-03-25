@@ -247,7 +247,7 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "triggerUser": _("触发用户"),
         "status": _("任务状态"),
         "duration": _("耗时"),
-        "start_time": _("启动时间"),
+        "startTime": _("启动时间"),
     },
 }
 

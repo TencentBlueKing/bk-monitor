@@ -57,7 +57,6 @@ class SystemClusterContext(BaseContext):
         self, entities: List[EntityT], get_key: Callable[[EntityT], str] = lambda _e: _e.get("id", "")
     ) -> Dict[str, EntityT]:
         clusters = {}
-
         for entity in entities:
             bk_cloud_id = entity["bk_cloud_id"]
             if bk_cloud_id in self._cache:
@@ -87,7 +86,6 @@ class CicdPipelineContext(BaseContext):
     ) -> Dict[str, EntityT]:
         pipelines = {}
         pipeline_ids = set()
-
         for entity in entities:
             pipeline_id = entity["pipeline_id"]
             if pipeline_id in self._cache:
@@ -97,15 +95,15 @@ class CicdPipelineContext(BaseContext):
 
         if pipeline_ids:
             # 查询 pipeline_name 并更新缓存
-            timestamp = [int(entity["time"]) for entity in entities]
+            timestamps = [int(entity["time"]) for entity in entities]
             one_hour_ms = 3600 * 1000
             new_pipelines = {
                 pipeline["pipelineId"]: {"pipeline_name": pipeline["pipelineName"]}
                 for pipeline in list(
                     UnifyQuerySet()
                     .scope(bk_biz_id=entities[0]["bk_biz_id"])
-                    .start_time(min(timestamp) - one_hour_ms)
-                    .end_time(max(timestamp) + one_hour_ms)
+                    .start_time(min(timestamps) - one_hour_ms)
+                    .end_time(max(timestamps) + one_hour_ms)
                     .time_agg(False)
                     .instant()
                     .add_query(
