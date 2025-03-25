@@ -106,7 +106,7 @@
   };
 </script>
 <template>
-  <div class="field-select-config">
+  <div class="field-select-config-v2">
     <div
       class="dropdown-trigger-text"
       @click="handleDropContent"
