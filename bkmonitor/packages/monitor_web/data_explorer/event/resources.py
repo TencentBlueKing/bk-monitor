@@ -41,10 +41,15 @@ from .constants import (
 )
 from .core.processors import (
     BaseEventProcessor,
+    CicdEventProcessor,
     HostEventProcessor,
     OriginEventProcessor,
 )
-from .core.processors.context import BcsClusterContext, SystemClusterContext
+from .core.processors.context import (
+    BcsClusterContext,
+    CicdPipelineContext,
+    SystemClusterContext,
+)
 from .core.processors.k8s import K8sEventProcessor
 from .mock_data import (
     API_LOGS_RESPONSE,
@@ -104,7 +109,6 @@ class EventLogsResource(Resource):
         ]:
             queryset = queryset.add_query(query.order_by("-time"))
         try:
-            # unify-query 查询失败
             events: List[Dict[str, Any]] = list(queryset)
         except Exception as exc:
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
@@ -114,6 +118,7 @@ class EventLogsResource(Resource):
             OriginEventProcessor(),
             K8sEventProcessor(BcsClusterContext()),
             HostEventProcessor(SystemClusterContext()),
+            CicdEventProcessor(CicdPipelineContext()),
         ]
         for processor in processors:
             events = processor.process(events)

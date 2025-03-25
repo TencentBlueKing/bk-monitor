@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from .base import BaseEventProcessor
+from .cicd import CicdEventProcessor
 from .origin import OriginEventProcessor
 from .system import HostEventProcessor
 
-__all__ = ["BaseEventProcessor", "OriginEventProcessor", "HostEventProcessor"]
+__all__ = ["BaseEventProcessor", "OriginEventProcessor", "HostEventProcessor", "CicdEventProcessor"]

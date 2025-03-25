@@ -76,6 +76,10 @@ def create_host_info(origin_data, fields: List[str]):
     return create_event_info(origin_data, fields, EventCategory.SYSTEM_EVENT.value)
 
 
+def create_cicd_info(origin_data, fields: List[str]):
+    return create_event_info(origin_data, fields, EventCategory.CICD_EVENT.value)
+
+
 def create_event_info(origin_data, fields: List[str], data_label: str):
     event_detail: Dict[str, Any] = {}
     for field in fields:
