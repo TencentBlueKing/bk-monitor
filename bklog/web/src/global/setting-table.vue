@@ -64,12 +64,12 @@
                   v-bk-overflow-tips
                 >
                   <span 
-                    v-if="props.row.field_name === 'ext' && !props.row.expand" 
+                    v-if="props.row.children?.length && !props.row.expand" 
                     @click="expandObject(props.row,true)" 
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
                   </span>
                   <span 
-                    v-if="props.row.field_name === 'ext' && props.row.expand" 
+                    v-if="props.row.children?.length && props.row.expand" 
                     @click="expandObject(props.row,false)" 
                     class="ext-btn bklog-icon bklog-arrow-down-filled">
                   </span>

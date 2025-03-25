@@ -141,7 +141,9 @@ WHERE_CLAUSE_CASE = [
     "title:Pyth?n",
     "(name:John AND name: 6 OR name: \"7\") AND (python OR \"django\")",
     "__ext.bcs_id: 1 OR __ext.bcs_id: \"ts\"",
-    "NOT log: \"ts\" AND NOT a : \"b\"",
+    "NOT log: \"ts\" AND -a : \"b\"",
+    "span_id:(6cee80d18 OR \"c866d58ac1\") AND (-log:\"a\" OR NOT a:b)",
+    "(index: >=200 OR index: <100) AND id: <10 AND age: >18",
 ]
 WHERE_CLAUSE_RESULT = [
     "log LIKE '%'",
@@ -154,6 +156,8 @@ WHERE_CLAUSE_RESULT = [
     "(name LIKE '%John%' AND name LIKE '%6%' OR name = \"7\") AND (log LIKE '%python%' OR log MATCH_PHRASE \"django\")",
     "CAST(__ext['bcs_id'] AS TEXT) LIKE '%1%' OR CAST(__ext['bcs_id'] AS TEXT) = \"ts\"",
     "NOT log MATCH_PHRASE \"ts\" AND NOT a = \"b\"",
+    "(span_id LIKE '%6cee80d18%' OR span_id = \"c866d58ac1\") AND (NOT log MATCH_PHRASE \"a\" OR NOT a LIKE '%b%')",
+    "(index >=200 OR index <100) AND id <10 AND age >18",
 ]
 
 
