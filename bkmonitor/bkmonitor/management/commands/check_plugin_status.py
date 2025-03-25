@@ -14,8 +14,6 @@ import traceback
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from monitor_web.commons.data_access import PluginDataAccessor
-from monitor_web.models import CollectorPluginMeta
 
 from metadata.models import (
     DataSource,
@@ -25,6 +23,8 @@ from metadata.models import (
     TimeSeriesMetric,
 )
 from metadata.utils import consul_tools
+from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.models import CollectorPluginMeta
 
 logger = logging.getLogger("metadata")
 
@@ -86,10 +86,10 @@ class Command(BaseCommand):
         return result, correct_flag
 
     def handle(self, *args, **options):
-        if settings.ROLE != "api":
-            print("try with: ./bin/api_manage.sh change_plugin_biz --arguments")
-            return
         plugin_id = options["plugin_id"]
+        if settings.ROLE != "api":
+            print(f"try with: ./bin/api_manage.sh check_plugin_status --plugin_id={plugin_id}")
+            return
         # 获取 plugin 信息
         try:
             plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)

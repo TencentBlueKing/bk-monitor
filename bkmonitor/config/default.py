@@ -701,6 +701,10 @@ ALARM_DISABLE_STRATEGY_RULES = []
 # access模块数据拉取延迟时间
 ACCESS_DATA_TIME_DELAY = 10
 
+# access模块延迟上报
+ACCESS_LATENCY_INTERVAL_FACTOR = 1
+ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
+
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
 
@@ -1074,6 +1078,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
@@ -1091,6 +1096,7 @@ BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 # 用户信息
 BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
+BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
@@ -1346,6 +1352,8 @@ ENABLE_INFLUXDB_STORAGE = True
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
 
+BK_API_URL_TMPL = os.getenv("BK_API_URL_TMPL")
+
 # 内网collector域名
 INNER_COLLOCTOR_HOST = ""
 
@@ -1476,6 +1484,8 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 支持来源 APIGW 列表
 FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
+# 网关环境，prod 表示生产环境，stage 表示测试环境
+APIGW_STAGE = os.getenv("APIGW_STAGE", "prod")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {
@@ -1545,3 +1555,10 @@ ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_expo
 HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
 # 首页告警图图表数量限制
 HOME_PAGE_ALARM_GRAPH_LIMIT = 10
+
+# 是否启用多租户模式
+ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# 是否启用全局租户（blueapps依赖）
+IS_GLOBAL_TENANT = True
+# 已经初始化的租户列表
+INITIALIZED_TENANT_LIST = ["system"]

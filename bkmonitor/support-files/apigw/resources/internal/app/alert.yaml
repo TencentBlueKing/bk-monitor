@@ -24,7 +24,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get_experience
+        descriptionEn: get alert experience
   /app/alert/search_by_event/:
     post:
       operationId: search_alert_by_event

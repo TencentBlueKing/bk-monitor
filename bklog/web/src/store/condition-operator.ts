@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-type ConsitionItem = {
+export type ConsitionItem = {
   field: string;
   operator: string;
   value: string[];
@@ -145,7 +146,7 @@ class ConditionOperator {
         relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: this.item.value,
+        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
       };
     }
   }
@@ -171,7 +172,7 @@ class ConditionOperator {
           relation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: this.item.value,
+          value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
         };
       }
 
@@ -183,7 +184,7 @@ class ConditionOperator {
         relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: this.item.value,
+        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
       };
     }
 
@@ -192,7 +193,7 @@ class ConditionOperator {
       relation,
       operator,
       field,
-      value,
+      value: Array.isArray(value) ? value : [value],
       isInclude,
     };
   }
@@ -204,7 +205,7 @@ class ConditionOperator {
     return {
       field: this.item.field,
       operator: this.FormatOpetatorFrontToApi(),
-      value: this.item.value,
+      value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
     };
   }
 }

@@ -26,9 +26,7 @@ from django.utils.module_loading import import_string
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.log_databus.constants import (
-    ETLProcessorChoices,
-)
+from apps.log_databus.constants import ETLProcessorChoices
 from apps.log_databus.exceptions import (
     CollectorPluginNameDuplicateException,
     CollectorPluginNotExistException,
@@ -134,6 +132,7 @@ class CollectorPluginHandler:
         is_allow_alone_data_id = params["is_allow_alone_data_id"]
         is_allow_alone_etl_config = params["is_allow_alone_etl_config"]
         is_allow_alone_storage = params["is_allow_alone_storage"]
+        is_create_storage = params.get("is_create_storage", True)
         model_fields = {
             "collector_plugin_name": collector_plugin_name,
             "description": description,
@@ -143,23 +142,28 @@ class CollectorPluginHandler:
             "is_allow_alone_etl_config": is_allow_alone_etl_config,
             "is_allow_alone_storage": is_allow_alone_storage,
             "storage_cluster_id": params.get("storage_cluster_id"),
-            "retention": params.get("retention", 1),
-            "allocation_min_days": params.get("allocation_min_days", 0),
-            "storage_replies": params.get("storage_replies", 1),
-            "storage_shards_nums": params.get("storage_shards_nums", 1),
-            "storage_shards_size": params.get("storage_shards_size", 10),
             "etl_config": params.get("etl_config"),
             "etl_params": params.get("etl_params", {}),
             "fields": params.get("fields", []),
             "params": params.get("params", []),
             "index_settings": params.get("index_settings", {}),
+            "is_create_storage": is_create_storage,
         }
+        if is_create_storage:
+            model_fields.update(
+                {
+                    "retention": params.get("retention", 1),
+                    "allocation_min_days": params.get("allocation_min_days", 0),
+                    "storage_replies": params.get("storage_replies", 1),
+                    "storage_shards_nums": params.get("storage_shards_nums", 1),
+                    "storage_shards_size": params.get("storage_shards_size", 10),
+                }
+            )
 
         is_create_public_data_id = params.get("is_create_public_data_id", False)
 
         # 创建插件
         if not self.collector_plugin:
-
             # 创建后不允许更新的参数
             bk_biz_id = params["bk_biz_id"]
             collector_plugin_name_en = params["collector_plugin_name_en"]
@@ -209,7 +213,6 @@ class CollectorPluginHandler:
 
         # 更新插件
         else:
-
             # 更新字段
             for key, val in model_fields.items():
                 setattr(self.collector_plugin, key, val)
@@ -228,7 +231,7 @@ class CollectorPluginHandler:
             self._update_or_create_etl_storage(params, is_create)
 
         # 独立存储
-        if not is_allow_alone_storage:
+        if not is_allow_alone_storage and is_create_storage:
             self._create_metadata_result_table()
 
         self.collector_plugin.save()

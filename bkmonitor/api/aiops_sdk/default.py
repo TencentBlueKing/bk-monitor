@@ -15,6 +15,7 @@ from core.drf_resource import APIResource
 
 class SdkResource(APIResource):
     TIMEOUT = 300
+    METRIC_REPORT_NOW = False
 
     # 模块名
     module_name = "aiops_sdk"

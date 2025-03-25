@@ -297,6 +297,7 @@
           {
             size: 50,
             zero: this.zero,
+            dtEventTimeStamp: this.logParams.dtEventTimeStamp,
           },
           this.params,
         );

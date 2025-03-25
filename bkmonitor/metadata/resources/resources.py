@@ -23,6 +23,7 @@ from confluent_kafka import Consumer as ConfluentConsumer
 from confluent_kafka import KafkaError, KafkaException
 from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.utils.translation import gettext as _
@@ -50,7 +51,12 @@ from metadata.models.bcs import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
-from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.constants import (
+    DT_TIME_STAMP_NANO,
+    NANO_FORMAT,
+    NON_STRICT_NANO_ES_FORMAT,
+    DataIdCreatedFromSystem,
+)
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -320,6 +326,7 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
     def perform_request(self, request_data):
         table_id = request_data.pop("table_id")
@@ -2284,3 +2291,98 @@ class QueryResultTableStorageDetailResource(Resource):
             bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
         )
         return source.get_detail()
+
+
+class NotifyEsDataLinkAdaptNano(Resource):
+    """
+    通知监控平台，V4日志链路变更为纳秒，需要进行特殊适配操作
+    新增dtEventTimeStampNanos，且其为 strict_date_optional_time_nanos||epoch_millis
+    调整原有的dtEventTimeStamp,其es_format变为 strict_date_optional_time_nanos||epoch_millis
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        force_rotate = serializers.BooleanField(required=False, default=False, label="是否强制轮转索引")
+
+    def perform_request(self, validated_request_data):
+        table_id = validated_request_data.get("table_id", None)
+        bk_data_id = validated_request_data.get("bk_data_id", None)
+        force_rotate = validated_request_data.get("force_rotate", False)
+
+        if not table_id and not bk_data_id:
+            raise ValidationError(_("table_id和bk_data_id不能同时为空"))
+
+        if table_id:
+            pass
+        elif bk_data_id:
+            table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+
+        logger.info("NotifyEsDataLinkAdaptNano: table_id->[%s] changes to date_nanos,will adapt metadata", table_id)
+
+        result_table = models.ResultTable.objects.filter(table_id=table_id).first()
+        if not result_table:
+            raise ValidationError(_("结果表不存在"))
+
+        # 更改元数据
+        try:
+            with transaction.atomic():
+                # ResultTableField新增 dtEventTimestampNanos
+                models.ResultTableField.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    field_type='timestamp',
+                    description='数据时间',
+                    tag='dimension',
+                    is_config_by_user=True,
+                )
+
+                # 为dtEventTimestampNanos配置对应的Option
+                models.ResultTableFieldOption.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    name='es_type',
+                    value=NANO_FORMAT,
+                    value_type='string',
+                )
+
+                models.ResultTableFieldOption.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    name='es_format',
+                    value=NON_STRICT_NANO_ES_FORMAT,
+                    value_type='string',
+                )
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='time', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
+                table_id,
+                e,
+            )
+            raise e
+
+        # 索引轮转
+        logger.info(
+            "NotifyEsDataLinkAdaptNano: table_id->[%s] now try to rotate index,force_rotate->[%s]",
+            table_id,
+            force_rotate,
+        )
+
+        try:
+            es_storage = models.ESStorage.objects.get(table_id=table_id)
+            es_storage.update_index_v2(force_rotate=force_rotate)
+            es_storage.create_or_update_aliases(force_rotate=force_rotate)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]', table_id, e
+            )
+            raise e
+
+        return result_table.to_json().get('field_list')

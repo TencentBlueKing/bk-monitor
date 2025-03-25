@@ -16,6 +16,7 @@ import pytz
 from django.db import models
 
 from bkmonitor.utils.model_manager import AbstractRecordModel
+from constants.common import DEFAULT_TENANT_ID
 
 TokenTypeViews = {
     "grafana": lambda x: x.startswith("monitor_web.grafana."),
@@ -64,6 +65,7 @@ class ApiAuthToken(AbstractRecordModel):
         (AuthType.Incident, "Incident"),
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     name = models.CharField("令牌名称", max_length=64, unique=True)
     token = models.CharField("鉴权令牌", max_length=32, db_index=True, unique=True, default=partial(token_hex, 16))
     # 所属项目列表 biz#2,project#5
