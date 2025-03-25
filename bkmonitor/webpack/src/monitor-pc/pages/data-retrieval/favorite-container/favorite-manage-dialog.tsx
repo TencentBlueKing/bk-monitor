@@ -31,6 +31,8 @@ import { createFavoriteGroup } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
+import FavoriteDetail from './favorite-detail';
+
 import type { IFavList } from '../typings';
 
 import './favorite-manage-dialog.scss';
@@ -137,6 +139,13 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
     };
   }
 
+  get groups() {
+    return this.localFavoriteList.map(item => ({
+      id: item.id,
+      name: item.name,
+    }));
+  }
+
   @Watch('favoriteList')
   watchFavoriteListChange(val: IFavList.favGroupList[]) {
     this.splitFavoriteList(val);
@@ -183,19 +192,26 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
   handleSelectGroupChange(id: number | string) {
     this.curSelectGroup = id;
     this.selectFavoriteList = [];
+    let curSelectGroupFavorites = [];
     switch (id) {
       case 'all':
-        this.curSelectGroupFavorites = this.allGroupList;
+        curSelectGroupFavorites = this.allGroupList;
         break;
       case 'noGroup':
-        this.curSelectGroupFavorites = this.noGroupList;
+        curSelectGroupFavorites = this.noGroupList;
         break;
       case 'private':
-        this.curSelectGroupFavorites = this.privateFavorite;
+        curSelectGroupFavorites = this.privateFavorite;
         break;
       default:
-        this.curSelectGroupFavorites = this.otherGroupList.find(item => item.id === id)?.favorites || [];
+        curSelectGroupFavorites = this.otherGroupList.find(item => item.id === id)?.favorites || [];
     }
+    this.curSelectGroupFavorites = curSelectGroupFavorites.map(favorite => ({
+      ...favorite,
+      editName: false,
+      editGroup: false,
+      groupName: this.localFavoriteList.find(item => item.id === favorite.group_id)?.name,
+    }));
     this.handleFavoriteSearch();
   }
 
@@ -258,7 +274,10 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
   favoriteNameScopedSlots({ row }) {
     if (!row.edit)
       return (
-        <div class='edit-cell'>
+        <div
+          class='edit-cell'
+          // onClick={() => this.handleRowClick(row)}
+        >
           <span class='text name'>{row.name}</span>
           <i class='icon-monitor icon-bianji' />
         </div>
@@ -292,6 +311,10 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         filter-multiple
       />,
     ];
+  }
+
+  handleDetailUpdate(params) {
+    this.curClickRow = params;
   }
 
   render() {
@@ -506,7 +529,16 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
               </bk-table>
             </div>
           </div>
-          <div class='favorite-detail-container' />
+          {this.curClickRow ? (
+            <div class='favorite-detail-container'>
+              <FavoriteDetail
+                favoriteType={this.favoriteType}
+                groups={this.groups as any[]}
+                value={this.curClickRow}
+                onSuccess={this.handleDetailUpdate}
+              />
+            </div>
+          ) : undefined}
         </div>
       </MonitorDialog>
     );
