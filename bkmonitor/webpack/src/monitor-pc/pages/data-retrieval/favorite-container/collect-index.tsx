@@ -31,7 +31,8 @@ import { Debounce, deepClone } from 'monitor-common/utils';
 
 import CollectContainer from './collect-container';
 import SharedDialog from './component/shared-dialog';
-import ManageGroupDialog from './manage-group-dialog';
+import FavoriteManageDialog from './favorite-manage-dialog';
+// import ManageGroupDialog from './manage-group-dialog';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { FavoriteIndexType, IFavList } from '../typings';
@@ -280,6 +281,10 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     localStorage.setItem(VIEW_DATA_ID_KEY, String(check));
   }
 
+  favoriteManageDialogChange(show: boolean) {
+    this.isShowManageDialog = show;
+  }
+
   render() {
     return (
       <div class='retrieve-collect-index-comp'>
@@ -431,10 +436,17 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>
-        <ManageGroupDialog
+        {/* <ManageGroupDialog
           v-model={this.isShowManageDialog}
           favoriteSearchType={this.favoriteSearchType}
           onSubmit={(value: boolean) => value && this.handleEmitOperateChange('request-query-history')}
+        /> */}
+        <FavoriteManageDialog
+          favoriteList={this.favoritesList}
+          favoriteType={this.favoriteSearchType}
+          show={this.isShowManageDialog}
+          onOperateChange={this.handleEmitOperateChange}
+          onShowChange={this.favoriteManageDialogChange}
         />
         <SharedDialog
           v-model={this.isShowSharedDialog}
