@@ -213,8 +213,8 @@
         box-shadow: none;
 
         .basic-detail {
-          padding-right: 22px;
-          padding-left: 22px;
+          padding-right: 16px;
+          padding-left: 16px;
           background: #fafbfd;
 
           .basic-left {
@@ -255,9 +255,10 @@
 
       .event-detail-tab {
         margin-top: 0;
+        box-shadow: 0 -1px 3px 0 #0000000f;
 
         .tab-panel-main {
-          padding: 0 40px;
+          padding: 0 32px;
         }
 
         .aiops-container {

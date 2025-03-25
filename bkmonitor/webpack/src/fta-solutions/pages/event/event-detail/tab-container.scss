@@ -4,13 +4,14 @@
   position: relative;
   margin-top: 16px;
   background: #fff;
+  box-shadow: 0 -1px 3px 0 #0000000f;
 
   .aiops-container {
     padding: 20px;
   }
 
   .bk-tab-header {
-    padding: 0 20px;
+    padding: 0 16px;
     background-image: linear-gradient(transparent 47px, #dcdee5 0);
   }
 
@@ -25,11 +26,15 @@
     justify-content: center;
     height: 100%;
     font-size: 13px;
-    color: #313238;
   }
 
   .bk-tab-label-wrapper .bk-tab-label-list .bk-tab-label-item {
     height: 100%;
+    color: #313238;
+
+    &.active {
+      color: #3a84ff;
+    }
   }
 
   .bk-tab-section {

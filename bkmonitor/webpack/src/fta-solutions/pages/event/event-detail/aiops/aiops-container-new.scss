@@ -123,12 +123,33 @@
     }
 
     .aiops-tab-title-message {
-      display: block;
+      display: flex;
+      align-items: center;
+      height: 20px;
       font-size: 12px;
-      line-height: 20px;
       color: #4d4f56;
 
+      .vis-show {
+        display: inline-flex;
+        align-items: center;
+        line-height: 14px;
+
+        span {
+          display: inline-flex;
+          align-items: center;
+          line-height: 14px;
+        }
+      }
+
+      .inline-skeleton {
+        display: inline-block;
+        width: 40px;
+        height: 14px;
+        margin: 0 4px;
+      }
+
       font {
+        margin: 0 3px;
         font-size: 12px;
         font-weight: 700;
         color: rgba(234, 54, 54, 1);

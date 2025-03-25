@@ -67,12 +67,17 @@ interface IPanelModel extends PanelModel {
   feedback?: IFeedback;
   recommend_info?: IRecommendInfo;
   anomaly_score?: number;
+  anomaly_level?: number;
   enable_threshold?: boolean;
   src_metric_id?: string;
   class?: string;
   bk_biz_id?: string;
 }
-
+const AnomalyLevelColorMap = {
+  1: '#E71818',
+  2: '#E38B02',
+  3: '#979BA5',
+};
 export enum ETabNames {
   dimension = 'dimension',
   index = 'index',
@@ -485,7 +490,14 @@ export default class AiopsDimensionLine extends LineChart {
     }
     return (
       <span class='aiops-dimension-drill-down-right'>
-        {this.$t('异常分值')}：<font>{this.panel.anomaly_score}</font>
+        {this.$t('异常分值')}：
+        <font
+          style={{
+            color: AnomalyLevelColorMap[this.panel.anomaly_level] || AnomalyLevelColorMap[3],
+          }}
+        >
+          {this.panel.anomaly_score}
+        </font>
       </span>
     );
   }

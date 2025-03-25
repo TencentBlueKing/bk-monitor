@@ -204,7 +204,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   /** 是否需要展示右侧的AI相关的视图 */
   get isShowAiopsView() {
-    return !!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel;
+    return !!(window as any).enable_aiops;
   }
 
   /* 权限校验 */
@@ -619,7 +619,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         <bk-resize-layout
           class='detail-resize-view'
           auto-minimize={true}
-          initial-divide={'32%'}
+          initial-divide={500}
           max={660}
           min={480}
           placement={'right'}

@@ -337,7 +337,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         title: this.$t('维度信息'),
         content: this.getDimensionsInfo() || '--',
-        extCls: 'flex-wrap dimensions-wrap',
+        extCls: this.getDimensionsInfo() === '--' ? 'flex-wrap' : 'flex-wrap dimensions-wrap',
       },
       { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap content-break-spaces' },
       {

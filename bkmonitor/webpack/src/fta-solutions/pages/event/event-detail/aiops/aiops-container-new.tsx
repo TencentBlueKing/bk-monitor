@@ -108,7 +108,9 @@ export default class AiopsContainer extends tsc<IProps> {
   timeRange = 3;
 
   showDimensionDrill = false;
+  dimensionDrillTips = '';
   showMetricRecommendation = false;
+  metricRecommendationTips = '';
   /** 是否上报了view 数据 */
   hasReportView = false;
   hasReportClick = false;
@@ -151,6 +153,7 @@ export default class AiopsContainer extends tsc<IProps> {
           }
         },
         tipsRenderer: this.renderDiagnosisTips,
+        tips: '',
       },
       {
         name: 'dimension',
@@ -159,6 +162,7 @@ export default class AiopsContainer extends tsc<IProps> {
         loading: this.dimensionDrillDownLoading,
         isShow: this.showDimensionDrill,
         error: this.dimensionDrillDownErr,
+        tips: this.dimensionDrillTips,
         tipsRenderer: this.renderDimensionTips,
         contentRender: this.renderDimensionAndIndexView,
       },
@@ -168,6 +172,7 @@ export default class AiopsContainer extends tsc<IProps> {
         titleKey: '关联指标',
         loading: this.metricRecommendationLoading,
         isShow: this.showMetricRecommendation,
+        tips: this.metricRecommendationTips,
         error: this.metricRecommendationErr,
         contentRender: this.renderDimensionAndIndexView,
         tipsRenderer: this.renderMetricTips,
@@ -246,14 +251,12 @@ export default class AiopsContainer extends tsc<IProps> {
     }
     return anomalyDimensions;
   }
-  /** 获取数据 */
-  @Watch('displayConditions')
-  handleChangeShow(val) {
-    val && !this.isDataInit && this.getTabData();
-  }
-  @Watch('detail.id')
-  handleAiopsTopoData(val) {
-    val && this.getAiopsTopoData();
+  @Watch('detail.id', { immediate: true })
+  handleAiopsTopoData(val: string) {
+    if (val) {
+      this.getTabData();
+      this.getAiopsTopoData();
+    }
   }
   /** 挂载实例事件 */
   mounted() {
@@ -375,12 +378,15 @@ export default class AiopsContainer extends tsc<IProps> {
   async getTabData() {
     const { dimension_drill, metric_recommend } = await fetchAiSetting({
       bk_biz_id: this.detail.bk_biz_id,
+      alert_id: this.detail.id,
     }).catch(() => ({
       dimension_drill: {
         is_enabled: false,
+        is_supported: false,
       },
       metric_recommend: {
         is_enabled: false,
+        is_supported: false,
       },
     }));
     const params = {
@@ -390,9 +396,15 @@ export default class AiopsContainer extends tsc<IProps> {
     this.isDataInit = true;
     const catchFn = () => (this.isDataInit = false);
     this.showDimensionDrill = !!dimension_drill.is_enabled;
-    if (dimension_drill.is_enabled) {
+    if (!dimension_drill.is_supported) {
+      this.dimensionDrillTips = this.$tc('当前告警不支持维度下钻功能');
+    } else if (!dimension_drill.is_enabled) {
+      this.dimensionDrillTips = this.$tc('当前空间未开启维度下钻功能');
+    }
+    if (dimension_drill.is_supported && dimension_drill.is_enabled) {
       /** 维度下钻数据 */
       this.dimensionDrillDownLoading = true;
+      this.dimensionDrillTips = '';
       dimensionDrillDown(params, { needMessage: false })
         .then(res => {
           this.tabData.dimension = res || {};
@@ -410,8 +422,14 @@ export default class AiopsContainer extends tsc<IProps> {
         });
     }
     this.showMetricRecommendation = !!metric_recommend.is_enabled;
-    if (metric_recommend.is_enabled) {
+    if (!metric_recommend.is_supported) {
+      this.metricRecommendationTips = this.$tc('当前告警不支持关联指标功能');
+    } else if (!metric_recommend.is_enabled) {
+      this.metricRecommendationTips = this.$tc('当前空间未开启关联指标功能');
+    }
+    if (metric_recommend.is_supported && metric_recommend.is_enabled) {
       /** 关联指标 */
+      this.metricRecommendationTips = '';
       this.metricRecommendationLoading = true;
       if (!this.showDimensionDrill) {
         this.tabActive = ETabNames.index;
@@ -523,7 +541,7 @@ export default class AiopsContainer extends tsc<IProps> {
     );
   }
   /** 异常维度的信息提示 */
-  renderDimensionTips() {
+  renderDimensionTips(isLoading = true) {
     const isExitDimensionInfo = Object.keys(this.info?.dimensionInfo || {}).length > 0;
     return [
       <span
@@ -531,8 +549,11 @@ export default class AiopsContainer extends tsc<IProps> {
         class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
       >
         {this.$t('异常维度')}
-        <font> {this.info?.dimensionInfo.anomaly_dimension_count}</font>
-        {isExitDimensionInfo ? ',' : ''}
+        {isLoading ? (
+          <div class='skeleton-element inline-skeleton' />
+        ) : (
+          [<font key='font'> {this.info?.dimensionInfo.anomaly_dimension_count}</font>, isExitDimensionInfo ? ',' : '']
+        )}
       </span>,
       <span
         key='dimension-count-text'
@@ -540,12 +561,16 @@ export default class AiopsContainer extends tsc<IProps> {
         class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
       >
         {this.$t('异常维度值')}
-        <font> {this.info?.dimensionInfo.anomaly_dimension_value_count}</font>
+        {!isLoading ? (
+          <font> {this.info?.dimensionInfo.anomaly_dimension_value_count}</font>
+        ) : (
+          <div class='skeleton-element inline-skeleton' />
+        )}
       </span>,
     ];
   }
   /** 关联指标的信息提示 */
-  renderMetricTips() {
+  renderMetricTips(isLoading) {
     const isExitIndexInfo = Object.keys(this.info?.indexInfo || {}).length > 0;
     return [
       <span
@@ -553,7 +578,11 @@ export default class AiopsContainer extends tsc<IProps> {
         class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
       >
         <i18n path='{0} 个指标'>
-          <font>{this.info?.indexInfo.recommended_metric || 0} </font>
+          {!isLoading ? (
+            <font>{this.info?.indexInfo.recommended_metric || 0} </font>
+          ) : (
+            <div class='skeleton-element inline-skeleton' />
+          )}
         </i18n>
         {isExitIndexInfo ? ',' : ''}
       </span>,
@@ -563,24 +592,23 @@ export default class AiopsContainer extends tsc<IProps> {
         class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
       >
         <i18n path='{0} 个维度'>
-          <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
+          {!isLoading ? (
+            <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
+          ) : (
+            <div class='skeleton-element inline-skeleton' />
+          )}
         </i18n>
       </span>,
     ];
   }
   /** 绘制collapse头部需要展示的内容 */
   renderStatusTips(config) {
-    const { isShow, loading, error, name } = config;
+    const { isShow, loading, error, name, tips } = config;
+    if (tips) {
+      return <div>{tips}</div>;
+    }
     return isShow || loading ? (
-      <span
-        class={['aiops-tab-title-message', { 'aiops-tab-title-index-message': name === 'index' }]}
-        v-bkloading={{
-          isLoading: loading,
-          theme: 'primary',
-          size: 'mini',
-          extCls: 'metric_loading',
-        }}
-      >
+      <span class={['aiops-tab-title-message', { 'aiops-tab-title-index-message': name === 'index' }]}>
         {[
           error ? (
             <span
@@ -592,8 +620,9 @@ export default class AiopsContainer extends tsc<IProps> {
                 {this.$t('模型输出异常')}
               </span>
             </span>
-          ) : undefined,
-          config.tipsRenderer(),
+          ) : (
+            config.tipsRenderer(loading)
+          ),
         ]}
       </span>
     ) : (
@@ -701,6 +730,7 @@ export default class AiopsContainer extends tsc<IProps> {
                   ? 'cursor-allowed'
                   : '',
               ]}
+              disabled={config.loading || !!config.tips}
               name={config.name}
             >
               <div class='aiops-container-menu-item-head'>
@@ -716,7 +746,7 @@ export default class AiopsContainer extends tsc<IProps> {
                 class='aiops-container-menu-item-content'
                 slot='content'
               >
-                {this.tabActive === config.name && config.contentRender()}
+                {!config.loading && this.tabActive === config.name && config.contentRender()}
               </div>
             </bk-collapse-item>
           ))}
