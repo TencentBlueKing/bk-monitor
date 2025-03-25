@@ -462,7 +462,7 @@ export default ({ onSegmentClick }) => {
         let left = 0;
         // 换行产生的偏移量
         let offsetWidth = 0;
-        (wordList || []).forEach((item, index) => {
+        wordList.forEach((item, index) => {
           if (isDisposeing) {
             return;
           }

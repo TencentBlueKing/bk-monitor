@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import * as alertStrategy from './alert_strategy';
 import * as archive from './archive';
 import * as auth from './auth';
 import * as authorization from './authorization';
@@ -55,6 +54,7 @@ import * as retrieve from './retrieve';
 import * as source from './source';
 import * as unionSearch from './union-search';
 import * as userInfo from './userInfo';
+
 const getMyProjectList = {
   url: '/meta/projects/mine/',
   method: 'get',
@@ -109,5 +109,4 @@ export default {
   unionSearch,
   newReport,
   graphAnalysis,
-  alertStrategy,
 };

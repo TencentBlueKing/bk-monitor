@@ -64,12 +64,12 @@
                   v-bk-overflow-tips
                 >
                   <span 
-                    v-if="props.row.children?.length && !props.row.expand" 
+                    v-if="props.row.field_name === 'ext' && !props.row.expand" 
                     @click="expandObject(props.row,true)" 
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
                   </span>
                   <span 
-                    v-if="props.row.children?.length && props.row.expand" 
+                    v-if="props.row.field_name === 'ext' && props.row.expand" 
                     @click="expandObject(props.row,false)" 
                     class="ext-btn bklog-icon bklog-arrow-down-filled">
                   </span>
@@ -1050,7 +1050,7 @@
         fieldsObjectData.forEach(item => {
           let name = item.field_name.split('.')[0]
           item.is_objectKey = true
-          this.tableAllList.forEach( builtField => {
+          this.builtFields.forEach( builtField => {
             if(builtField.field_type === "object" && name.includes(builtField.field_name)){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];

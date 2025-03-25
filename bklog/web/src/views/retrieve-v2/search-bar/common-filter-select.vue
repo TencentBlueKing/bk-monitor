@@ -1,17 +1,16 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed } from 'vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, deepClone } from '@/common/util';
+  import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
-  const debouncedHandleChange = debounce(() => handleChange(), 300);
+
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -25,19 +24,7 @@
 
   const commonFilterAddition = computed({
     get() {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      // 将本地存储的JSON字符串解析为对象并创建映射
-      const parsedValueMap = additionValue
-        ? additionValue.value.reduce((acc, item) => {
-            acc[item.field] = item.value;
-            return acc;
-          }, {})
-        : {};
-      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
-      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
-        ...commonItem,
-        value: parsedValueMap[commonItem.field] || commonItem.value,
-      }));
+      const filterAddition = store.getters.common_filter_addition || [];
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
         return (
@@ -64,21 +51,7 @@
       });
     },
   });
-  watch(
-    () => store.state.indexId,
-    () => {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      if(additionValue?.indexId !== store.state.indexId){
-        localStorage.removeItem('commonFilterAddition');
-      }
-      else{
-        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
-        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
-        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
-      }
-    },
-    { immediate: true }
-  );
+
   const activeIndex = ref(-1);
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -110,75 +83,47 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const { requestFieldEgges } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      isRequesting.value = true;
-      requestFieldEgges(
-        item,
-        null,
-        resp => {
-          if (typeof resp === 'boolean') {
-            return;
-          }
-          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-        },
-        () => {
-          isRequesting.value = false;
-        },
-      );
-    }
-  };
-
-  const handleInputVlaueChange = (value, item, index) => {
-    activeIndex.value = index;
-    isRequesting.value = true;
-    requestFieldEgges(
-      item,
-      value,
-      resp => {
+      const { requestFieldEgges } = useFieldEgges();
+      requestFieldEgges(item, null, resp => {
         if (typeof resp === 'boolean') {
           return;
         }
         commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      },
-      () => {
-        isRequesting.value = false;
-      },
-    );
-  };
-
-  // 新建提交逻辑
-  const updateCommonFilterAddition = async() => {
-    try {
-      const Additionvalue = deepClone(commonFilterAddition.value);
-      const target = Additionvalue.map(item => {
-        if (!isShowConditonValueSetting(item.operator)) {
-          item.value = [];
-        }
-        item.value = [];
-        return item;
       });
-
-      const param = {
-        filterAddition: target,
-        isUpdate: true
-      };
-      const res = await store.dispatch('userFieldConfigChange', param);
-      const { data: { index_set_config } } = res;
-      index_set_config.filterAddition = commonFilterAddition.value;
-      store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
-    } catch (error) {
-      console.error('Failed to change user field config:', error);
     }
   };
 
+  const handleInputVlaueChange = (value, item, index) => {
+    const { requestFieldEgges } = useFieldEgges();
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
+  };
+
+  // 新建提交逻辑
+  const updateCommonFilterAddition = () => {
+    const target = commonFilterAddition.value.map(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+
+      return item;
+    });
+
+    const param = {
+      filterAddition: target,
+    };
+
+    store.dispatch('userFieldConfigChange', param);
+  };
+
   const handleChange = () => {
-    localStorage.setItem('commonFilterAddition', JSON.stringify({
-      indexId: store.state.indexId,
-      value: commonFilterAddition.value
-    }));
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
@@ -222,7 +167,7 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="debouncedHandleChange"
+          @change="handleChange"
         >
           <template #trigger>
             <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
@@ -244,7 +189,7 @@
             multiple
             searchable
             :fix-height="true"
-            @change="debouncedHandleChange"
+            @change="handleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>

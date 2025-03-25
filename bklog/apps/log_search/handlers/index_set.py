@@ -620,29 +620,27 @@ class IndexSetHandler(APIModel):
         """
         from apps.log_unifyquery.handler import UnifyQueryHandler
 
-        multi_execute_func = MultiExecuteFunc(max_workers=10)
+        multi_execute_func = MultiExecuteFunc(max_workers=5)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
-        for index_set_obj in index_set_objs:
-            try:
-                index_set_id = index_set_obj.index_set_id
-                multi_execute_func.append(
-                    result_key=f"indices_info_{index_set_id}",
-                    func=IndexSetHandler(index_set_id).indices,
-                )
 
-                # 获取24小时的日志条数
-                current_time = arrow.now()
-                params = {
-                    "bk_biz_id": bk_biz_id,
-                    "index_set_ids": [index_set_id],
-                    "start_time": int(current_time.shift(days=-1).timestamp()),
-                    "end_time": int(current_time.timestamp()),
-                }
-                multi_execute_func.append(
-                    result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception("query storage usage info error, index_set_id->%s, reason: %s", index_set_id, e)
+        for index_set_obj in index_set_objs:
+            index_set_id = index_set_obj.index_set_id
+            multi_execute_func.append(
+                result_key=f"indices_info_{index_set_id}",
+                func=IndexSetHandler(index_set_id).indices,
+            )
+
+            # 获取24小时的日志条数
+            current_time = arrow.now()
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "index_set_ids": [index_set_id],
+                "start_time": int(current_time.shift(days=-1).timestamp()),
+                "end_time": int(current_time.timestamp()),
+            }
+            multi_execute_func.append(
+                result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
+            )
 
         indices_info_dict = {}
         daily_usage_dict = {}

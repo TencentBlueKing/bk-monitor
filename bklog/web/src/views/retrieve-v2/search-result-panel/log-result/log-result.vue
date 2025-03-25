@@ -181,7 +181,6 @@
           const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
 
-          Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
           // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
           if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
             fieldParamsKey.forEach(field => {
@@ -200,7 +199,6 @@
           } else {
             Object.assign(dialogNewParams, row);
           }
-
           this.openLogDialog(dialogNewParams, event);
         } else if (event === 'webConsole') this.openWebConsole(row);
         else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');

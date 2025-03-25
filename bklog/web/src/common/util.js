@@ -530,10 +530,9 @@ export function formatDateNanos(val) {
 /**
  * 格式化文件大小
  * @param {Number | String} size
- * @param {boolean} dropFractionIfInteger - 如果为 true，整数不保留小数
  * @return {String}
  */
-export function formatFileSize(size, dropFractionIfInteger = false) {
+export function formatFileSize(size) {
   const value = Number(size);
   if (size && !isNaN(value)) {
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
@@ -545,8 +544,7 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
         index = index + 1;
       }
     }
-    const formattedSize = dropFractionIfInteger && k % 1 === 0 ? k.toFixed(0) : k.toFixed(2);
-    return `${formattedSize}${units[index]}`;
+    return `${k.toFixed(2)}${units[index]}`;
   }
   return '0';
 }
@@ -1166,7 +1164,6 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const contextHighlightColor = [
   {
     dark: '#FFB401',

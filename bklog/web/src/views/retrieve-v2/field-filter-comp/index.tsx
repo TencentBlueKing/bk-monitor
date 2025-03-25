@@ -33,7 +33,7 @@ import VueDraggable from 'vuedraggable';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-import { builtInInitHiddenList } from '@/const/index.js'
+
 import './index.scss';
 
 @Component
@@ -61,8 +61,16 @@ export default class FieldFilterComp extends tsc<object> {
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
-  builtInInitHiddenList = builtInInitHiddenList ;
-  
+  builtInInitHiddenList = [
+    'gseIndex',
+    'iterationIndex',
+    '__dist_01',
+    '__dist_03',
+    '__dist_05',
+    '__dist_07',
+    '__dist_09',
+    '__ipv6__',
+  ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -105,8 +113,7 @@ export default class FieldFilterComp extends tsc<object> {
     const builtInHiddenFields = [];
     const indexHiddenFields = [];
     this.hiddenFields.forEach(item => {
-      // if (item.field_type === '__virtual__' || item.is_built_in) {
-      if (this.builtInInitHiddenList.includes(item.field_name)) {
+      if (item.field_type === '__virtual__' || item.is_built_in) {
         builtInHiddenFields.push(item);
         return;
       }
@@ -238,16 +245,16 @@ export default class FieldFilterComp extends tsc<object> {
       !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
-      isShowBuiltExpandBtn: visibleBuiltLength || hiddenFieldVisible,
+      isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
       builtInShowFields:
-        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
+        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
     };
   }
-  getIsShowIndexSetExpand() { 
-    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.') ).length > 10;
+  getIsShowIndexSetExpand() {
+    return this.indexSetFields().filter(item => item.filterVisible).length > 10;
   }
-  /** 展示的可选字段 */
+  /** 展示的内置字段 */
   get showIndexSetFields() {
     if (this.searchKeyword) return this.objectHierarchy(this.indexSetFields());
     const result = this.objectHierarchy(
@@ -603,7 +610,7 @@ export default class FieldFilterComp extends tsc<object> {
                 </ul>
               </div>
             )}
-            {/* 内置字段 */}
+
             {!!this.builtInFields().length && (
               <div class='fields-container not-selected'>
                 <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>

@@ -353,8 +353,6 @@ class EtlHandler(object):
                 category_id=self.data.category_id,
                 collector_config_id=self.collector_config_id,
                 username=username,
-                sort_fields=sort_fields,
-                target_fields=target_fields,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config

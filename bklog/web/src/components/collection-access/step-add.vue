@@ -1282,7 +1282,6 @@
                 }
                 this.cancel();
               } else {
-                this.$emit('update:container-loading', false);
                 this.$emit('step-change');
               }
             }

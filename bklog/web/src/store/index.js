@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
@@ -60,6 +58,7 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
+// import axios from 'axios';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 
@@ -1020,7 +1019,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-
+        
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1464,7 +1463,7 @@ const store = new Vuex.Store({
         return state.visibleFields?.find(item => item.field_name === field);
       };
 
-      const getFieldType = field => {
+      const getFieldType = field => {        
         return getTargetField(field)?.field_type ?? '';
       };
 
@@ -1583,8 +1582,8 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = `\"${value[0]}\"`;
+            if (targetField?.is_virtual_obj_node) { 
+              newSearchValue = [value];
             } else{
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
@@ -1694,20 +1693,12 @@ const store = new Vuex.Store({
       // 用于后续逻辑判定使用
       commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
     },
-    /**
-     * 更新 Vuex 状态中的用户字段配置。
-     *
-     * @param {Object} userConfig 要更新的用户配置对象。
-     * @param {boolean} userConfig.isUpdate 标志是否仅为更新操作。如果为 `true`，表示仅为更新操作，在成功响应后不会提交新的配置到 Vuex。
-     * @return {Promise} 一个 Promise，解析为 HTTP 请求的响应。
-     */
     userFieldConfigChange({ state, getters, commit }, userConfig) {
       return new Promise(async (resolve, reject) => {
         const indexSetConfig = {
           ...state.retrieve.catchFieldCustomConfig,
           ...userConfig,
         };
-        delete indexSetConfig.isUpdate
         const queryParams = {
           index_set_id: state.indexId,
           index_set_type: getters.isUnionSearch ? 'union' : 'single',
@@ -1721,7 +1712,7 @@ const store = new Vuex.Store({
           const res = await http.request('retrieve/updateUserFiledTableConfig', {
             data: queryParams,
           });
-          if (res.code === 0 && !userConfig.isUpdate) {
+          if (res.code === 0) {
             const userConfig = res.data.index_set_config;
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }

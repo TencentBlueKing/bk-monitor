@@ -184,6 +184,7 @@ async function getPromise(method, url, data, userConfig = {}) {
  */
 function handleResponse({ config, response, resolve, reject, status }) {
   const { code } = response;
+
   if (code === undefined) {
     if (status === 200) {
       resolve(response, config);
@@ -203,6 +204,7 @@ function handleResponse({ config, response, resolve, reject, status }) {
       resolve(config.originalResponse ? response : response.data, config);
     }
   }
+
 
   http.queue.delete(config.requestId);
 }

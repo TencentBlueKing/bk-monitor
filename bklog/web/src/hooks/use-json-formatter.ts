@@ -29,13 +29,11 @@ import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
-import { optimizedSplit, setScrollLoadCell } from './hooks-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
   fields: any[];
   jsonValue: any;
-  field: any;
   onSegmentClick: (args: any) => void;
   options?: Record<string, any>;
 };
@@ -80,7 +78,7 @@ export default class UseJsonFormatter {
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: target ?? currentValue,
+      value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
       depth,
     };
 
@@ -103,7 +101,7 @@ export default class UseJsonFormatter {
 
   getCurrentFieldRegStr(field: any) {
     /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t';
+    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
     if (field.tokenize_on_chars) {
       return field.tokenize_on_chars;
     }
@@ -117,6 +115,45 @@ export default class UseJsonFormatter {
 
   isAnalyzed(field: any) {
     return field?.is_analyzed ?? false;
+  }
+
+  splitParticipleWithStr(str: string, delimiterPattern: string) {
+    if (!str) return [];
+    // 转义特殊字符，并构建用于分割的正则表达式
+    const regexPattern = delimiterPattern
+      .split('')
+      .map(delimiter => `\\${delimiter}`)
+      .join('|');
+
+    // 构建正则表达式以找到分隔符或分隔符周围的文本
+    const regex = new RegExp(`(${regexPattern})`);
+
+    // 先根据高亮标签分割
+    const markSplitRes = str.match(/(<mark>.*?<\/mark>|.+?(?=<mark|$))/gs);
+
+    // 在高亮分割数组基础上再以分隔符分割数组
+    const parts = markSplitRes.reduce((list, item) => {
+      if (/^<mark>.*?<\/mark>$/.test(item)) {
+        list.push(item);
+      } else {
+        const arr = item.split(regex);
+        arr.forEach(i => i && list.push(i));
+      }
+      return list;
+    }, []);
+
+    // 转换结果为对象数组，包含分隔符标记
+    const result = parts
+      .filter(part => part?.length)
+      .map(part => {
+        return {
+          text: part,
+          isNotParticiple: regex.test(part),
+          isMark: /^<mark>.*?<\/mark>$/.test(part),
+        };
+      });
+
+    return result;
   }
 
   escapeString(val: string) {
@@ -139,7 +176,7 @@ export default class UseJsonFormatter {
     const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
       // 这里进来的都是开了分词的情况
-      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
+      return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
     }
 
     return [
@@ -164,7 +201,7 @@ export default class UseJsonFormatter {
       return mrkNode;
     }
 
-    if (!item.isNotParticiple && !item.isBlobWord) {
+    if (!item.isNotParticiple) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
       validTextNode.innerText = item.text;
@@ -177,10 +214,22 @@ export default class UseJsonFormatter {
     return textNode;
   }
 
-  creatSegmentNodes = () => {
+  creatSegmentNodes = (values: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
-    segmentNode.classList.add('bklog-scroll-cell');
+    const tagItems = values.slice(0, 500);
+
+    tagItems.forEach(item => {
+      segmentNode.append(this.getChildItem(item));
+    });
+
+    const staticItems = values.slice(500);
+    if (staticItems.length > 0) {
+      const textNode = document.createElement('span');
+      textNode.classList.add('others-text');
+      textNode.innerText = staticItems.map(item => item.text).join('');
+      segmentNode.append(textNode);
+    }
 
     return segmentNode;
   };
@@ -197,17 +246,6 @@ export default class UseJsonFormatter {
     }
   }
 
-  addWordSegmentClick(root: HTMLElement) {
-    if (!root.hasAttribute('data-word-segment-click')) {
-      root.setAttribute('data-word-segment-click', '1');
-      root.addEventListener('click', e => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
-        }
-      });
-    }
-  }
-
   setNodeValueWordSplit(
     target: HTMLElement,
     fieldName,
@@ -215,28 +253,21 @@ export default class UseJsonFormatter {
     textValue?: string,
     appendText?: SegmentAppendText,
   ) {
-    this.addWordSegmentClick(target);
-    target.querySelectorAll(valueSelector).forEach((element: HTMLElement) => {
+    // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
+    target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = textValue ?? element.innerHTML;
+        const text = textValue ?? (element as HTMLDivElement).innerHTML;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
         element.innerHTML = '';
-
-        const segmentContent = this.creatSegmentNodes();
-
-        const { setListItem, removeScrollEvent } = setScrollLoadCell(
-          vlaues,
-          element,
-          segmentContent,
-          this.getChildItem,
-        );
-        removeScrollEvent();
-
-        element.append(segmentContent);
-        setListItem(600);
+        element.append(this.creatSegmentNodes(vlaues));
+        element.addEventListener('click', e => {
+          if ((e.target as HTMLElement).classList.contains('valid-text')) {
+            this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+          }
+        });
 
         if (appendText) {
           const appendElement = document.createElement('span');
@@ -257,10 +288,11 @@ export default class UseJsonFormatter {
 
   handleExpandNode(args) {
     if (args.isExpand) {
-      // const target = args.targetElement as HTMLElement;
-      // const rootElement = args.rootElement as HTMLElement;
-      // const fieldName = (rootElement.parentNode.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-      // this.setNodeValueWordSplit(target, fieldName, '.bklog-json-field-value');
+      const target = args.targetElement as HTMLElement;
+      const rootElement = args.rootElement as HTMLElement;
+
+      const fieldName = (rootElement.parentNode.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(target, fieldName, '.bklog-json-field-value');
     }
   }
 
@@ -286,40 +318,18 @@ export default class UseJsonFormatter {
   initEditor(depth) {
     if (this.getTargetRoot()) {
       this.localDepth = depth;
-      this.editor = new JsonView(this.getTargetRoot(), {
-        onNodeExpand: this.handleExpandNode.bind(this),
-        depth,
-        field: this.config.field,
-        segmentRender: (value: string, rootNode: HTMLElement) => {
-          const vlaues = this.getSplitList(this.config.field, value);
-          const segmentContent = this.creatSegmentNodes();
-          rootNode.append(segmentContent);
-
-          if (!rootNode.classList.contains('bklog-scroll-box')) {
-            rootNode.classList.add('bklog-scroll-box');
-          }
-
-          const { setListItem, removeScrollEvent } = setScrollLoadCell(
-            vlaues,
-            rootNode,
-            segmentContent,
-            this.getChildItem,
-          );
-          removeScrollEvent();
-          setListItem(600);
-        },
-      });
-
-      this.editor.initClickEvent(e => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
-        }
-      });
+      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this), depth });
+      this.editor.initClickEvent();
     }
   }
 
   setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
+    const root = this.getTargetRoot();
+    if (root) {
+      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(root, fieldName);
+    }
   }
 
   setValue(depth) {

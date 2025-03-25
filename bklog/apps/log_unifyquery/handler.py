@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 from typing import Any, Dict, List, Union
 
-import arrow
 from dateutil import parser
 from django.conf import settings
 
@@ -188,9 +187,7 @@ class UnifyQueryHandler(object):
         if not self.start_time or not self.end_time:
             # 兼容查询时间段为默认近十五分钟的情况
             return "1m"
-
-        # 兼容毫秒查询
-        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds() / 3600
+        hour_interval = (int(self.end_time) - int(self.start_time)) / 3600
         if hour_interval <= 1:
             return "1m"
         elif hour_interval <= 6:
@@ -570,8 +567,12 @@ class UnifyQueryHandler(object):
         series = data["series"]
         total_count = self.get_total_count()
         return sorted(
-            [[s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)] for s in
-             series[:limit]], key=lambda x: x[1], reverse=True
+            [
+                [s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)]
+                for s in series[:limit]
+            ],
+            key=lambda x: x[1],
+            reverse=True,
         )
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):

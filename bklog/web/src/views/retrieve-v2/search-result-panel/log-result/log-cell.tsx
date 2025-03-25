@@ -51,12 +51,7 @@ export default defineComponent({
       }
       return {
         width: `${props.width}px`,
-        minWidth:
-          typeof props.minWidth === 'number'
-            ? Number(props.width) < Number(props.minWidth)
-              ? `${props.width}px`
-              : `${props.minWidth}px`
-            : `${props.width}px`,
+        minWidth: typeof props.minWidth === 'number' ? `${props.minWidth}px` : `${props.width}px`,
       };
     });
 

@@ -273,7 +273,6 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
-        const trace_id =  String(this.data[field]).replace(/<mark>/g, '').replace(/<\/mark>/g, '')
         let path = '';
         switch (key) {
           // trace检索
@@ -281,7 +280,7 @@
           case 'traceid':
             if (this.apmRelation.is_active) {
               const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
-              path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${trace_id}`;
+              path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${this.data[field]}`;
             } else {
               this.$bkMessage({
                 theme: 'warning',
@@ -294,7 +293,7 @@
           case 'ip':
           case 'bk_host_id':
             {
-              const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
+              const endStr = `${this.data[field]}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
               path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
             }
             break;

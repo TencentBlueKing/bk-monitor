@@ -29,7 +29,6 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
 
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
-import useIntersectionObserver from '../../../../hooks/use-intersection-observer';
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
   const searchInRoot = root => {
@@ -53,7 +52,7 @@ function deepQueryShadowSelector(selector) {
   return searchInRoot(document.body);
 }
 
-export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
+export default ({ loadMoreFn, container, rootElement }) => {
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
@@ -120,12 +119,6 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
 
   const debounceComputeRect = debounce(computeRect, 120);
 
-  useIntersectionObserver(refLoadMoreElement, inter => {
-    if (inter.isIntersecting) {
-      loadMoreFn?.();
-    }
-  });
-
   useResizeObserve(getCurrentElement, () => {
     debounceComputeRect();
   });
@@ -135,12 +128,12 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
   });
 
   onMounted(() => {
-    // getScrollElement()?.addEventListener('scroll', handleScrollEvent);
+    getScrollElement()?.addEventListener('scroll', handleScrollEvent);
     calculateOffsetTop();
   });
 
   onBeforeUnmount(() => {
-    // getScrollElement()?.removeEventListener('scroll', handleScrollEvent);
+    getScrollElement()?.removeEventListener('scroll', handleScrollEvent);
   });
 
   return {

@@ -284,7 +284,7 @@
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
           const { getFieldNames, getFieldName } = useFieldNameHook({ store: this.$store });
-          this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item));
+          this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item))
           this.totalFieldNames = getFieldNames(res.data.fields);
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
@@ -301,7 +301,6 @@
           {
             size: 50,
             zero: this.zero,
-            dtEventTimeStamp: this.logParams.dtEventTimeStamp,
           },
           this.params,
         );
@@ -387,7 +386,7 @@
       async confirmConfig(list) {
         this.isConfigLoading = true;
         const { changeFieldName } = useFieldNameHook({ store: this.$store });
-        const copyList = list.map(item => changeFieldName(item));
+        const copyList = list.map(item => changeFieldName(item))
         const data = { display_fields: copyList };
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {

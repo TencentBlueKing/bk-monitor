@@ -2,8 +2,6 @@
   import { defineEmits, defineProps, computed, watch, ref } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
-  import $http from '@/api';
-
   const { $t } = useLocale();
   const store = useStore();
   const props = defineProps({
@@ -20,8 +18,6 @@
   const indexSetItem = computed(() =>
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
-
-  const retrieveParams = computed(() => store.getters.retrieveParams);
 
   const chartParams = computed(() => store.state.indexItem.chart_params);
 
@@ -108,55 +104,13 @@
     });
   });
 
-  const handleAddAlertPolicy = async () => {
-    const params = {
-      bizId: store.state.bkBizId,
-      indexSetId: indexSetId.value,
-      scenarioId: '',
-      indexStatement: retrieveParams.value.keyword, // 查询语句
-      dimension: [], // 监控维度
-      condition: [], // 监控条件
-    };
-    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
-    if (indexSet) {
-      params.scenarioId = indexSet.category_id;
-    }
-
-    if (retrieveParams.value.addition.length) {
-      const resp = await $http.request('retrieve/generateQueryString', {
-        data: {
-          addition: retrieveParams.value.addition,
-        },
-      });
-
-      if (resp.result) {
-        params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
-          .filter(item => item.length > 0 && item !== '*')
-          .join(' AND ');
-      }
-    }
-
-    const urlArr = [];
-    for (const key in params) {
-      if (key === 'dimension' || key === 'condition') {
-        urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
-      } else {
-        urlArr.push(`${key}=${params[key]}`);
-      }
-    }
-    window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
-  };
-
   const handleActive = panel => {
     isUserAction.value = true;
     emit('input', panel);
   };
 </script>
 <template>
-  <div
-    class="retrieve-tab"
-    style="position: relative"
-  >
+  <div class="retrieve-tab">
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"
@@ -164,16 +118,6 @@
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
-    <div
-      class="btn-alert-policy"
-      @click="handleAddAlertPolicy"
-    >
-      <span
-        class="bklog-icon bklog--celve"
-        style="font-size: 16px"
-      ></span>
-      <span>{{ $t('添加告警策略') }}</span>
-    </div>
   </div>
 </template>
 <style lang="scss">

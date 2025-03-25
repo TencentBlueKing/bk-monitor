@@ -32,7 +32,6 @@ type RootFieldOperator = {
   ref: Ref<HTMLElement>;
   value: boolean | number | object | string;
   editor?: UseJsonFormatter;
-  field: any;
 };
 
 type RootField = {
@@ -41,7 +40,6 @@ type RootField = {
     isJson: boolean;
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
-    field: any;
   };
 };
 
@@ -58,7 +56,6 @@ export default ({ fields, onSegmentClick }) => {
             fields,
             jsonValue: value.value,
             onSegmentClick,
-            field: value.field,
           });
         }
 
@@ -86,7 +83,6 @@ export default ({ fields, onSegmentClick }) => {
           fields,
           jsonValue: value.value,
           onSegmentClick,
-          field: value.field,
         });
       }
 
@@ -120,7 +116,6 @@ export default ({ fields, onSegmentClick }) => {
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
-          field: formatter.field,
         });
 
         rootFieldOperator.get(name).editor?.update({
@@ -128,14 +123,12 @@ export default ({ fields, onSegmentClick }) => {
           fields,
           jsonValue: formatter.value,
           onSegmentClick,
-          field: formatter.field,
         });
       } else {
         rootFieldOperator.set(name, {
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
-          field: formatter.field,
         });
       }
     });

@@ -8,13 +8,14 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import WarningSetting from './warning-setting.vue';
+
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import { bus } from '@/common/bus';
 
   const props = defineProps({
     showFavorites: {
@@ -146,7 +147,6 @@
     <div class="box-right-option">
       <VersionSwitch version="v2" />
       <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
-      <WarningSetting></WarningSetting>
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
       <div

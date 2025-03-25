@@ -1438,15 +1438,6 @@ class QueryMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
-class SQLGenerateMode(Enum):
-    """
-    SQL生成模式
-    """
-
-    COMPLETE = "complete"
-    WHERE_CLAUSE = "where_clause"
-
-
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1664,8 +1655,8 @@ SEARCH_OPTION_HISTORY_NUM = 20
 MAX_FIELD_VALUE_LIST_NUM = 10000
 
 # SQL模板
-SQL_PREFIX = "SELECT minute1, COUNT(*) AS log_count"
-SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 100"
+SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
+SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
 
 # 日志检索条件到sql操作符的映射
 SQL_CONDITION_MAPPINGS = {
@@ -1720,18 +1711,3 @@ ES_RESERVED_CHARACTERS = [
 class DataFlowResourceUsageType(object):
     online = "log_clustering_online"
     agg = "log_clustering_agg"
-
-
-class AlertStatusEnum(ChoicesEnum):
-    ALL = "ALL"
-    NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
-    MY_ASSIGNEE = "MY_ASSIGNEE"
-
-    _choices_labels = (
-        (ALL, _("全部")),
-        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
-        (MY_ASSIGNEE, _("我收到的")),
-    )
-
-
-MAX_WORKERS = 5

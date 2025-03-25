@@ -890,9 +890,6 @@ BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 # 是否关闭权限中心校验
 IGNORE_IAM_PERMISSION = os.environ.get("BKAPP_IGNORE_IAM_PERMISSION", False)
 
-# 是否开启过期时间处理
-DEAL_RETENTION_TIME = os.getenv("BKAPP_DEAL_RETENTION_TIME", "on") == "on"
-
 # 日志采集器配置
 # 日志文件多久没更新则不再读取
 COLLECTOR_CLOSE_INACTIVE = 86400

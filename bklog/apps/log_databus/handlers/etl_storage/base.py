@@ -573,8 +573,8 @@ class EtlStorage(object):
                 field["option"]["es_norms"] = False
 
         # 别名配置
-        query_alias_settings = []
         if alias_settings:
+            query_alias_settings = []
             for item in alias_settings:
                 field_alias = {
                     "field_name": item["field_name"],
@@ -582,7 +582,7 @@ class EtlStorage(object):
                     "path_type": item["path_type"],
                 }
                 query_alias_settings.append(field_alias)
-        params.update({"query_alias_settings": query_alias_settings})
+            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:

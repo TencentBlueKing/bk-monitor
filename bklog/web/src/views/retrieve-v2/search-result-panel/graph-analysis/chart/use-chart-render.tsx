@@ -96,11 +96,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const getDateTimeFormatValue = value => {
-    // 如果是12位长度的格式，是后端返回的一个特殊格式 yyyyMMddHHmm
-    if (`${value}`.length === 12 && /^\d+$/.test(value)) {
-      return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)} ${value.substring(8, 10)}:${value.substring(10, 12)}`;
-    }
-
     const timestamp = /^\d+$/.test(value) ? Number(value) : value;
     const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
     return timeValue || value;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,20 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage } from '@/common/util';
-
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
-  segmentRegStr?: string;
-  field?: any;
-  segmentRender?: (value: string, rootNode: HTMLElement) => void;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
-  rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
@@ -143,14 +137,8 @@ export default class JsonView {
     if (nodeType === 'object') {
       node.append(...this.createObjectNode(target, depth));
     } else {
+      node.append(target);
       node.classList.add('bklog-json-field-value');
-      if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
-        setTimeout(() => {
-          this.options.segmentRender(target, node);
-        });
-      } else {
-        node.append(target);
-      }
     }
 
     return node;
@@ -211,8 +199,6 @@ export default class JsonView {
         copyMessage(JSON.stringify(target) || '', window.$t?.('复制成功'));
       }
     }
-
-    this.rootElClick?.(e);
   }
 
   public setValue(val: any) {
@@ -220,8 +206,7 @@ export default class JsonView {
     this.setJsonViewSchema(val);
   }
 
-  public initClickEvent(fn?: (...args) => void) {
-    this.rootElClick = fn;
+  public initClickEvent() {
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
   }
 

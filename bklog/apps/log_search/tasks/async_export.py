@@ -301,25 +301,21 @@ class AsyncExportUtils(object):
         return storage_cluster_ids
 
     def _async_export(self, search_handler, file_path):
-        try:
-            max_result_window = search_handler.index_set.result_window
-            result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
-            # 判断是否成功
-            if result["_shards"]["total"] != result["_shards"]["successful"]:
-                logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
-                raise PreCheckAsyncExportException()
-            with open(file_path, "a+", encoding="utf-8") as f:
-                result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
-                for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
-                if search_handler.scenario_id == Scenario.ES:
-                    generate_result = search_handler.scroll_result(result)
-                else:
-                    generate_result = search_handler.search_after_result(result, self.sorted_fields)
-                self.write_file(f, generate_result)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception("async export error: index_set_id: %s, reason: %s", search_handler.index_set_id, e)
-            raise e
+        max_result_window = search_handler.index_set.result_window
+        result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+        # 判断是否成功
+        if result["_shards"]["total"] != result["_shards"]["successful"]:
+            logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
+            raise PreCheckAsyncExportException()
+        with open(file_path, "a+", encoding="utf-8") as f:
+            result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
+            for item in result_list:
+                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+            if search_handler.scenario_id == Scenario.ES:
+                generate_result = search_handler.scroll_result(result)
+            else:
+                generate_result = search_handler.search_after_result(result, self.sorted_fields)
+            self.write_file(f, generate_result)
 
         return file_path
 
@@ -351,7 +347,7 @@ class AsyncExportUtils(object):
         with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
             for result_key, result in multi_result.items():
                 if isinstance(result, Exception):
-                    logger.exception("async export error: %s -- %s, reason: %s", self.file_name, result_key, result)
+                    logger.error(f"{self.file_name}_cluster_{result_key}_error: {result}\n")
                 else:
                     self.file_path_list.append(result)
                     # 读取文件内容并写入汇总文件
@@ -368,7 +364,9 @@ class AsyncExportUtils(object):
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
-                logger.exception("quick export error: %s -- %s, reason: %s", self.file_name, idx, result)
+                logger.error(
+                    f"{self.file_name}_slice_{idx}_cluster_{search_handler.storage_cluster_id}error: {result}\n"
+                )
             else:
                 self.file_path_list.append(result)
 
@@ -472,7 +470,7 @@ class AsyncExportUtils(object):
         """
         获取文件大小 单位：m，保留小数2位
         """
-        return max(round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2), 0.01)
+        return round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2)
 
     @classmethod
     def init_notify_type(cls):

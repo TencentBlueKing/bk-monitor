@@ -1024,7 +1024,7 @@
         return target ? target.field_type : '';
       },
       // 添加过滤条件
-      async addFilterCondition(field, operator, value, isLink = false) {
+      addFilterCondition(field, operator, value, isLink = false) {
         const isExist = this.additionIsExist({ field, operator, value });
         // 已存在相同条件
         if (isExist) {
@@ -1037,7 +1037,7 @@
         if (!isLink) {
           this.retrieveParams.addition.splice(startIndex, 0, newAddition);
           this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-          await this.$refs.searchCompRef.setRouteParams({}, false, null, true);
+          this.$refs.searchCompRef.setRouteParams();
           this.retrieveLog();
         } else {
           this.additionLinkOpen([newAddition]);

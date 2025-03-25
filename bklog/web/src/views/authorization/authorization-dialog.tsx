@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -293,7 +292,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       data: {
         space_uid: this.spaceUid,
         ...rest,
-        authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '').trim()),
+        authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '')),
 
         ...(expire_time ? { expire_time } : {}),
         authorizer: this.authorizer,

@@ -104,17 +104,6 @@
             </template>
           </bk-table-column>
           <bk-table-column
-            :label="$t('日用量/总用量')"
-            :render-header="$renderHeader"
-            min-width="180"
-          >
-            <template #default="props">
-              <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-                {{ formatUsage(props.row.daily_usage, props.row.total_usage) }}
-              </span>
-            </template>
-          </bk-table-column>
-          <bk-table-column
             :label="$t('监控对象')"
             :render-header="$renderHeader"
             prop="category_name"
@@ -354,7 +343,7 @@
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
-  import { formatBytes, requestStorageUsage } from '../util';
+
   import * as authorityMap from '../../../../common/authority-map';
 
   export default {
@@ -401,24 +390,6 @@
     mounted() {
       !this.authGlobalInfo && this.initLabelSelectList();
       !this.authGlobalInfo && this.search();
-    },
-    watch:{
-      collectList:{
-        handler(val) {
-          if (val) {
-            const callbackFn = (item, key, value) => {
-                this.$set(item, key, value[key]);
-            };
-            requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch((error) => {
-                console.error('Error loading data:', error);
-              })
-              .finally(() => {
-                this.isTableLoading = false;
-              });
-          }
-        },
-      }
     },
     methods: {
       search() {
@@ -604,9 +575,6 @@
           this.selectLabelList = [];
         }
       },
-      formatUsage(dailyUsage, totalUsage) {
-        return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
     },
   };
 </script>

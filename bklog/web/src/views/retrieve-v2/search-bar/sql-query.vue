@@ -81,9 +81,6 @@
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
     emit('input', val);
-    nextTick(() => {
-      emit('change', val);
-    });
     if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
       delayShowInstance(refEditorParent.value);
     }
@@ -163,28 +160,12 @@
   });
 </script>
 <template>
-  <div
-    class="search-sql-query"
-    @click="handleEditorClick"
-  >
-    <div
-      ref="refEditorParent"
-      class="search-sql-editor"
-    ></div>
-    <span
-      class="empty-placeholder-text"
-      v-show="isEmptySqlString"
-      >{{ placeholderText }}</span
-    >
+  <div class="search-sql-query" @click="handleEditorClick">
+    <div ref="refEditorParent" class="search-sql-editor"></div>
+    <span class="empty-placeholder-text" v-show="isEmptySqlString">{{ placeholderText }}</span>
     <div style="display: none">
-      <SqlQueryOptions
-        ref="refSqlQueryOption"
-        :value="modelValue"
-        @active-change="handleSqlParamsActiveChange"
-        @cancel="handleCancel"
-        @change="handleQueryChange"
-        @retrieve="closeAndRetrieve"
-      ></SqlQueryOptions>
+      <SqlQueryOptions ref="refSqlQueryOption" :value="modelValue" @active-change="handleSqlParamsActiveChange"
+        @cancel="handleCancel" @change="handleQueryChange" @retrieve="closeAndRetrieve"></SqlQueryOptions>
     </div>
   </div>
 </template>

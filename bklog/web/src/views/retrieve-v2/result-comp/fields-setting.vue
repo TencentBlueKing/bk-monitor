@@ -98,15 +98,6 @@
             </template>
           </bk-tab>
         </div>
-        <bk-input
-          ref="menuSearchInput"
-          class="menu-select-search"
-          :clearable="false"
-          :placeholder="$t('搜索')"
-          :value="keyword"
-          @change="searchChange"
-        >
-        </bk-input>
         <div class="fields-list-container">
           <div class="total-fields-list">
             <div class="title">
@@ -120,7 +111,7 @@
             </div>
             <ul class="select-list">
               <li
-                v-for="item in filterShadowTotal"
+                v-for="item in shadowTotal"
                 style="cursor: pointer"
                 class="select-item"
                 v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
@@ -305,7 +296,6 @@
           'ghost-class': 'sortable-ghost-class',
         },
         isSortFieldChanged: false,
-        keyword:''
       };
     },
     computed: {
@@ -314,14 +304,6 @@
       },
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
-      },
-      filterShadowTotal() {
-        const fields = this.$store.state.indexFieldInfo.fields;
-        return fields.filter(item => {
-          const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
-          const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
-          return matchesKeyword && !isInShadowVisible;
-        });
       },
       showFieldAlias() {
         return this.$store.state.showFieldAlias;
@@ -334,9 +316,6 @@
         return fieldAliasMap;
       },
       toSelectLength() {
-        if(this.keyword){
-          return this.filterShadowTotal.length;
-        }
         if (this.activeFieldTab === 'visible') {
           return this.shadowTotal.length - this.shadowVisible.length;
         }
@@ -717,9 +696,6 @@
       setPopperInstance(status) {
         this.$emit('set-popper-instance', status);
       },
-      searchChange(v){
-        this.keyword = v
-      }
     },
   };
 </script>
@@ -851,17 +827,11 @@
       padding: 0px 10px 0 10px;
     }
 
-    .menu-select-search{
-      width: 340px;
-      padding-left: 10px;
-      margin-top: -30px;
-    }
-
     .fields-list-container {
       display: flex;
       width: 723px;
       padding: 0 10px 14px 10px;
-      margin-top: 10px;
+      margin-top: -30px;
 
       .total-fields-list,
       .visible-fields-list,

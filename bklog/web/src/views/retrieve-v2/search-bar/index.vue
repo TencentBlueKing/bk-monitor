@@ -88,6 +88,8 @@
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 
+  const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
+
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
     return indexFieldInfo.value.is_loading;
@@ -194,10 +196,7 @@
         ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
       });
 
-      if (route.query.tab !== 'graphAnalysis') {
-        store.dispatch('requestIndexSetQuery');
-      }
-
+      store.dispatch('requestIndexSetQuery');
       setRouteParams();
     }
   };
@@ -208,14 +207,6 @@
     });
 
     store.dispatch('requestIndexSetQuery');
-    setRouteParams();
-  };
-
-  const handleSqlQueryChange = value => {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
-
     setRouteParams();
   };
 
@@ -265,7 +256,7 @@
   );
 
   const matchSQLStr = computed(() => {
-    if (props.activeFavorite?.index_set_id !== store.state.indexId) {
+    if(props.activeFavorite?.index_set_id !== store.state.indexId ){
       return false;
     }
     if (activeIndex.value === 0) {
@@ -289,8 +280,16 @@
     if (matchSQLStr.value) {
       return;
     }
-    const { name, group_id, display_fields, visible_type, is_enable_display_fields, index_set_type } =
-      props.activeFavorite;
+    const {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      index_set_names,
+      index_set_type,
+      index_set_ids,
+    } = props.activeFavorite;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
     const searchParams =
@@ -317,10 +316,10 @@
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
       });
-    } else {
+    }else{
       Object.assign(data, {
         index_set_id: store.state.indexId,
-        index_set_type: 'single',
+        index_set_type: 'single'
       });
     }
     try {
@@ -371,6 +370,13 @@
     }
   };
 
+  // const handleMouseenterInputSection = () => {
+  //   popToolInstance.show(refPopTraget.value);
+  // };
+
+  // const handleMouseleaveInputSection = () => {
+  // };
+
   useResizeObserve(refRootElement, () => {
     if (refRootElement.value) {
       handleHeightChange(refRootElement.value.offsetHeight);
@@ -386,14 +392,14 @@
       if (activeIndex.value === 0) {
         const { common_filter_addition } = store.getters;
         if (common_filter_addition.length) {
-          window.mainComponent.messageSuccess($t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
+          window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
             ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
               ...item,
               isCommonFixed: true,
             })),
           );
-          localStorage.removeItem('commonFilterAddition');
+
           store.commit('updateIndexItemParams', {
             addition: uiQueryValue.value.filter(val => !val.is_focus_input),
             keyword: sqlQueryValue.value ?? '',
@@ -427,9 +433,9 @@
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper']"
+    :class="['search-bar-wrapper', { readonly: isChartMode }]"
   >
-    <div :class="['search-bar-container']">
+    <div :class="['search-bar-container', { readonly: isChartMode }]">
       <div
         class="search-options"
         @click="handleQueryTypeChange"
@@ -450,7 +456,6 @@
           v-if="activeIndex === 1"
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
-          @change="handleSqlQueryChange"
         ></SqlQuery>
         <div
           class="hidden-focus-pointer"

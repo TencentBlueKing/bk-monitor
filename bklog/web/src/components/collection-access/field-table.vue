@@ -111,7 +111,7 @@
               <template #default="props">
                 <div class="source-box">
                   <span
-                    v-if="builtInInitHiddenList.includes(props.row.field_name) || builtInInitHiddenList.includes(props.row.alias_name)"
+                    v-if="props.row.is_built_in"
                     class="source-built"
                     >{{ $t('内置') }}</span
                   >
@@ -602,7 +602,6 @@
 <script>
   import { mapGetters } from 'vuex';
   import { deepClone } from '../../common/util';
-  import { builtInInitHiddenList } from '@/const/index.js'
   export default {
     name: 'FieldTable',
     props: {
@@ -733,7 +732,6 @@
             },
           ],
         },
-        builtInInitHiddenList ,
       };
     },
     computed: {

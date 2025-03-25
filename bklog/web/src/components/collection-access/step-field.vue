@@ -919,7 +919,7 @@
   import AuthContainerPage from '@/components/common/auth-container-page';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
-import { builtInInitHiddenList } from '@/const/index.js'
+
   import * as authorityMap from '../../common/authority-map';
   import { deepClone, deepEqual } from '../../common/util';
   import fieldTable from './field-table';
@@ -1145,8 +1145,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
         isDebugLoading: false,
         builtFieldShow:false,
         fieldsObjectData: [],
-        alias_settings:[],
-        builtInInitHiddenList,
+        alias_settings:[]
       };
     },
     computed: {
@@ -1360,8 +1359,8 @@ import { builtInInitHiddenList } from '@/const/index.js'
           this.savaFormData();
         }else{
           const allFields = this.$refs.fieldTable.getData();
-          const builtFields = allFields.filter( item => this.builtInInitHiddenList.includes(item.field_name) || this.builtInInitHiddenList.includes(item.alias_name))
-          this.formData.fields = allFields.filter( item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name))
+          const builtFields = allFields.filter( item => item.is_built_in)
+          this.formData.fields = allFields.filter( item => !item.is_built_in)
           if(builtFields.length){
             this.copyBuiltField = builtFields;
           }
@@ -1537,7 +1536,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
           .then(res => {
             const fields = res.data?.fields || [];
             this.formData.etl_params?.metadata_fields.push(...fields);
-            
           })
           .finally(() => {
             this.isDebugLoading = false;
@@ -1590,7 +1588,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
             path_type: item.field_type
           }
         })
-        data.etl_fields = data.etl_fields.filter( item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name))
+        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1970,11 +1968,10 @@ import { builtInInitHiddenList } from '@/const/index.js'
                 }
               : {},
           ),
-          fields: copyFields.filter(item => !this.builtInInitHiddenList.includes(item.field_name) && !this.builtInInitHiddenList.includes(item.alias_name)),
+          fields: copyFields.filter(item => !item.is_built_in),
         });
-        
         if (!this.copyBuiltField.length) {
-          this.copyBuiltField = copyFields.filter(item => this.builtInInitHiddenList.includes(item.field_name) || this.builtInInitHiddenList.includes(item.alias_name || ''));
+          this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
@@ -2079,7 +2076,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
                 } else {
                   // 否则 - 将对table已修改值-> newFields进行操作
                   if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
-                    
                     const list = dataFields.reduce((arr, item) => {
                       const child = newFields.find(field => {
                         // return  !field.is_built_in && (field.field_name === item.field_name || field.alias_name === item.field_name)
@@ -2101,7 +2097,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
-                    
                     list.forEach((item, itemIndex) => {
                       item.field_index = itemIndex;
                     });
@@ -2123,7 +2118,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                     if (index) {
                       newFields.forEach((item, idx) => {
                         // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index  === item.field_index + 1);
+                        const child = dataFields.find(data => data.field_index === item.field_index);
                         item.value = child ? child.value : ''; // 修改value值(预览值)
                         if (index > idx && !item.is_delete) {
                           // 将未删除的存进数组
@@ -2152,7 +2147,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
                 this.formatResult = true; // 此时才能将结果设置为成功
                 this.savaFormData();
               } else {
-                
                 // 仅做预览赋值操作，不改变结果
                 newFields.forEach(field => {
                   const child = dataFields.find(item => {
@@ -2327,14 +2321,10 @@ import { builtInInitHiddenList } from '@/const/index.js'
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
               this.concatenationQueryAlias(etlFields)
-              // this.formData.fields.splice(0, this.formData.fields.length);
+              this.formData.fields.splice(0, this.formData.fields.length);
+
               this.params.etl_config = clean_type;
               const logTimeOption = {};
-              
-              const existingFields = this.formData.fields || [];
-              const existingFieldsMap = new Map(
-                existingFields.map(field => [field.field_name, field])
-              );
               const previousStateFields = etlFields.map(item => {
                 if (item.is_time) {
                   Object.assign(logTimeOption, {
@@ -2345,23 +2335,16 @@ import { builtInInitHiddenList } from '@/const/index.js'
                   });
                 }
                 return {
-                  ...existingFieldsMap.get(item.field_name), // 这里保留现有字段的值
                   ...item,
                   participleState: item.tokenize_on_chars ? 'custom' : 'default',
                 };
-              });
-              existingFields.forEach(field => {
-                if (!existingFieldsMap.has(field.field_name) || !etlFields.some(e => e.field_name === field.field_name)) {
-                  previousStateFields.push(field);
-                }
               });
               Object.assign(this.params.etl_params, {
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
-
               this.fieldType = clean_type;
-              this.enableMetaData = !!etlParams.path_regexp;
+              this.enableMetaData = etlParams.path_regexp ? true : false;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2644,7 +2627,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
             item.field_type = typeConversion[item.field_type]
             item.is_objectKey = true
             item.is_delete = false
-            this.formData.fields.forEach( builtField => {
+            this.copyBuiltField.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
                 if (!Array.isArray(builtField.children)) {
                   builtField.children = [];
@@ -2779,10 +2762,10 @@ import { builtInInitHiddenList } from '@/const/index.js'
     }
 
     .switcher-tips{
+      color: #979BA5;
+      font-size: 12px;
       position: absolute;
       top: 20px;
-      font-size: 12px;
-      color: #979BA5;
     }
 
     .text-nav {
@@ -2939,7 +2922,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
         display: flex;
         align-items: center;
         margin: 10px 0 0;
-
         .bklog-button{
           font-size: 12px;
         }

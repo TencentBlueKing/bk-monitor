@@ -600,7 +600,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.$http
       .request('retrieve/getIndexSetList', {
         query: {
-          space_uid: this.$store.state.space.space_uid,
+          space_uid: this.$route.query.spaceUid,
         },
       })
       .then(response => {

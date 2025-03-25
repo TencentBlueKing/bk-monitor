@@ -1026,7 +1026,4 @@ export default {
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
-  收藏成功: 'Favorite successfully',
-  '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
-    '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
 };
