@@ -185,11 +185,22 @@ export default class CollectIndex extends tsc<IProps> {
           group_name,
           group_type,
           favorites: favorites.filter(item => {
+            console.log(item);
+            // 当前索引集为联合索引
             if (this.isUnionSearch) {
-              return (item.index_set_ids ?? []).some(id => this.unionIndexList.includes(`${id}`));
+              // 收藏为单个索引
+              if (item.index_set_type === 'single') {
+                return this.unionIndexList.includes(`${item.index_set_id}`);
+              }
+              // 收藏为联合索引
+              return (item.index_set_ids ?? []).every(id => this.unionIndexList.includes(`${id}`));
             }
-
-            return `${item.index_set_id}` === this.indexSetId;
+            // 当前索引集为单个索引
+            if (item.index_set_type === 'single') {
+              return `${item.index_set_id}` === this.indexSetId;
+            } else {
+              return (item.index_set_ids ?? []).some(id => this.indexSetId === `${id}`);
+            }
           }),
         };
       });
