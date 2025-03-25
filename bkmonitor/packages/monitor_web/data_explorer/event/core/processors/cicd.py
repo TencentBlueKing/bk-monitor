@@ -17,7 +17,9 @@ from django.conf import settings
 from bkmonitor.utils.time_tools import hms_string
 
 from ...constants import (
-    CICD_EVENT_NAME_ALIAS,
+    CicdEventName,
+    CicdStatus,
+    CicdTrigger,
     DisplayFieldType,
     EventDomain,
     EventScenario,
@@ -81,9 +83,12 @@ class CicdEventProcessor(BaseEventProcessor):
             detail.update(self.set_detail_with_cicd_info(cicd_info))
             # 设置 target
             processed_event["target"] = self.set_target(cicd_info)
-            # 设置 event_name
-            event_name_value = cicd_info["event_name"]["value"]
-            processed_event["event_name"]["alias"] = CICD_EVENT_NAME_ALIAS.get(event_name_value, event_name_value)
+            # 设置 event_name 别名
+            processed_event["event_name"]["alias"] = CicdEventName.from_value(cicd_info["event_name"]["value"]).label
+            if detail.get("trigger"):
+                detail["trigger"]["alias"] = CicdTrigger.from_value(cicd_info["trigger"]["value"]).label
+            if detail.get("status"):
+                detail["status"]["alias"] = CicdStatus.from_value(cicd_info["status"]["value"]).label
             # 设置 startTime 别名
             if detail.get("startTime"):
                 detail["startTime"]["alias"] = self.set_start_time_alias(cicd_info)

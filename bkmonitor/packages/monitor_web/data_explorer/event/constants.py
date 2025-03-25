@@ -246,7 +246,7 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "trigger": _("触发类型"),
         "triggerUser": _("触发用户"),
         "status": _("任务状态"),
-        "duration": _("耗时"),
+        "duration": _("持续时间"),
         "startTime": _("启动时间"),
     },
 }
@@ -479,12 +479,116 @@ SYSTEM_EVENT_TRANSLATIONS = {
 }
 
 
-class CicdEventNameEnum(Enum):
+class CicdEventName(CachedEnum):
     PIPELINE_STATUS_INFO: str = "pipeline_status_info"
     PIPELINE_STEP_STATUS_INFO: str = "pipeline_step_status_info"
 
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.PIPELINE_STATUS_INFO.value, cls.PIPELINE_STATUS_INFO.value),
+            (cls.PIPELINE_STEP_STATUS_INFO.value, cls.PIPELINE_STEP_STATUS_INFO.value),
+        ]
 
-CICD_EVENT_NAME_ALIAS = {
-    CicdEventNameEnum.PIPELINE_STATUS_INFO.value: _("流水线执行"),
-    CicdEventNameEnum.PIPELINE_STEP_STATUS_INFO.value: _("流水线 Stage 执行"),
-}
+    @cached_property
+    def label(self):
+        return str(
+            {
+                self.PIPELINE_STATUS_INFO: _("流水线执行"),
+                self.PIPELINE_STEP_STATUS_INFO: _("流水线 Stage 执行"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default
+
+
+class CicdTrigger(CachedEnum):
+    """流水线任务类型"""
+
+    TIME_TRIGGER: str = "TIME_TRIGGER"
+    MANUAL: str = "MANUAL"
+    WEB_HOOK: str = "WEB_HOOK"
+    SERVICE: str = "SERVICE"
+    PIPELINE: str = "PIPELINE"
+    REMOTE: str = "REMOTE"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.TIME_TRIGGER.value, cls.TIME_TRIGGER.value),
+            (cls.MANUAL.value, cls.MANUAL.value),
+            (cls.WEB_HOOK.value, cls.WEB_HOOK.value),
+            (cls.SERVICE.value, cls.SERVICE.value),
+            (cls.PIPELINE.value, cls.PIPELINE.value),
+            (cls.REMOTE.value, cls.REMOTE.value),
+        ]
+
+    @cached_property
+    def label(self):
+        return str(
+            {
+                self.TIME_TRIGGER: _("定时"),
+                self.MANUAL: _("手动"),
+                self.WEB_HOOK: _("代码变更"),
+                self.SERVICE: _("第三方启动"),
+                self.PIPELINE: _("流水线"),
+                self.REMOTE: _("远程触发"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default
+
+
+class CicdStatus(CachedEnum):
+    """流水线任务状态"""
+
+    QUEUE: str = "QUEUE"
+    QUEUE_CACHE: str = "QUEUE_CACHE"
+    RUNNING: str = "RUNNING"
+    SUCCEED: str = "SUCCEED"
+    FAILED: str = "FAILED"
+    TERMINATE: str = "TERMINATE"
+    QUEUE_TIMEOUT: str = "QUEUE_TIMEOUT"
+    STAGE_SUCCESS: str = "STAGE_SUCCESS"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.QUEUE.value, cls.QUEUE.value),
+            (cls.QUEUE_CACHE.value, cls.QUEUE_CACHE.value),
+            (cls.RUNNING.value, cls.RUNNING.value),
+            (cls.SUCCEED.value, cls.SUCCEED.value),
+            (cls.FAILED.value, cls.FAILED.value),
+            (cls.TERMINATE.value, cls.TERMINATE.value),
+            (cls.QUEUE_TIMEOUT.value, cls.QUEUE_TIMEOUT.value),
+            (cls.STAGE_SUCCESS.value, cls.STAGE_SUCCESS.value),
+        ]
+
+    @cached_property
+    def label(self):
+        return str(
+            {
+                self.QUEUE: _("排队"),
+                self.QUEUE_CACHE: _("排队待处理"),
+                self.RUNNING: _("运行中"),
+                self.SUCCEED: _("成功"),
+                self.FAILED: _("失败"),
+                self.TERMINATE: _("终止"),
+                self.QUEUE_TIMEOUT: _("排队超时"),
+                self.STAGE_SUCCESS: _("阶段性完成"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default

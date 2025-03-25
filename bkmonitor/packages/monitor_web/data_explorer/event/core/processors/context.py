@@ -14,7 +14,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 
-from ...constants import CicdEventNameEnum, EventCategory
+from ...constants import CicdEventName, EventCategory
 from .base import BaseContext, EntityT
 
 
@@ -113,7 +113,7 @@ class CicdPipelineContext(BaseContext):
                         .metric(field="pipelineId", method="COUNT", alias="a")
                         .filter(
                             pipelineId__eq=list(pipeline_ids),
-                            event_name__eq=CicdEventNameEnum.PIPELINE_STATUS_INFO.value,
+                            event_name__eq=CicdEventName.PIPELINE_STATUS_INFO.value,
                         )
                     )
                     .limit(len(pipeline_ids))
