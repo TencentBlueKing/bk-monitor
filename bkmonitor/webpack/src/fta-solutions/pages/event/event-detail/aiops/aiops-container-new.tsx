@@ -662,12 +662,14 @@ export default class AiopsContainer extends tsc<IProps> {
   /** 跳转至故障详情页面 */
   goToIncidentDetail(e: MouseEvent) {
     e.stopPropagation();
-    this.$router.push({
+    const { href } = this.$router.resolve({
       name: 'incident-detail',
       params: {
         id: this.troubleShootingData.id,
       },
     });
+    const { bk_biz_id } = this.detail;
+    window.open(`/?bizId=${bk_biz_id}${href}`, '_blank');
   }
 
   render() {
@@ -693,6 +695,7 @@ export default class AiopsContainer extends tsc<IProps> {
                     : '52px',
               }}
               class={[
+                `aiops-container-menu-item-${config.name}`,
                 'aiops-container-menu-item',
                 config.name === 'diagnosis' && (!this.hasTroubleShootingAuth || this.troubleShootingNoData)
                   ? 'cursor-allowed'
