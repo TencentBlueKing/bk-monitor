@@ -1134,10 +1134,12 @@ class CallerLineChart extends CommonSimpleChart {
     }
   }
   handleChartBlur() {
-    this.customMenuPosition = {
-      left: 0,
-      top: 0,
-    };
+    this.$nextTick(() => {
+      this.customMenuPosition = {
+        left: 0,
+        top: 0,
+      };
+    });
   }
   handleEventAnalyzeChange() {
     this.eventConfig.is_enabled_metric_tags = !this.eventConfig.is_enabled_metric_tags;

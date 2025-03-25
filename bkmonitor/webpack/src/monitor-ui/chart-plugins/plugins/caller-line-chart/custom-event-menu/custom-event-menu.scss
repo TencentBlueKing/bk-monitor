@@ -13,6 +13,11 @@
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 #00000029;
 
+  .is-url {
+    color: #699df4;
+    cursor: pointer;
+  }
+
   .no-data {
     display: flex;
     align-items: center;
@@ -67,18 +72,11 @@
       white-space: nowrap;
     }
 
-    .bk-button-text.detail-btn {
+    .detail-btn {
       display: inline-flex;
-      flex: 0 0 40px;
       align-items: center;
-      margin: 0;
       margin-left: auto;
       font-size: 12px;
-
-      * {
-        display: flex;
-        align-items: center;
-      }
 
       .detail-icon {
         display: flex;
@@ -128,11 +126,6 @@
       margin-left: 6px;
       color: #313238;
       word-break: break-all;
-
-      .is-url {
-        color: #699df4;
-        cursor: pointer;
-      }
     }
 
     &-content {

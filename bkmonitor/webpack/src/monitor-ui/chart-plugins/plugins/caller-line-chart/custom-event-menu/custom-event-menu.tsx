@@ -91,7 +91,7 @@ export default class CustomEventMenu extends tsc<IProps> {
   handleTabChange(tab: EventTab) {
     this.activeTab = tab;
   }
-  createApmEventExploreHref(startTime: number, eventName = '') {
+  createApmEventExploreHref(startTime: number, eventName = '', defaultWhere: Record<string, any>[] = []) {
     const targets = [
       {
         data: {
@@ -108,6 +108,8 @@ export default class CustomEventMenu extends tsc<IProps> {
                       value: [eventName],
                       method: 'eq',
                     },
+                    ...this.eventItem.where,
+                    ...defaultWhere,
                   ]
                 : [],
               query_string: '',
@@ -136,7 +138,9 @@ export default class CustomEventMenu extends tsc<IProps> {
   }
   handleListGotoEventDetail(event: MouseEvent, item: ICustomEventDetail['list'][number]) {
     event.preventDefault();
-    this.createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value);
+    this.createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value, [
+      { key: 'time', value: [item.time?.value], method: 'eq', condition: 'and' },
+    ]);
   }
   handleTopKGotoEventDetail(event: MouseEvent, item: ICustomEventDetail['topk'][number]) {
     event.preventDefault();
@@ -156,18 +160,17 @@ export default class CustomEventMenu extends tsc<IProps> {
             v-bk-tooltips={{ content: source.alias }}
           />
           <div class='event-name'>{event_name.alias}</div>
-          <bk-button
-            class='detail-btn'
+          <span
+            class='detail-btn is-url'
             v-bk-tooltips={{
               content: this.$t('查看事件详情'),
               allowHTML: false,
             }}
-            text
-            onClick={e => this.handleListGotoEventDetail(e, list[0])}
+            onMousedown={e => this.handleListGotoEventDetail(e, list[0])}
           >
             <i class='icon-monitor icon-xiangqing1 detail-icon' />
             {this.$t('详情')}
-          </bk-button>
+          </span>
         </div>
       );
     }
@@ -248,16 +251,16 @@ export default class CustomEventMenu extends tsc<IProps> {
                 />
                 <div class='content-item-content'>
                   {item.event_name.alias}
-                  <bk-link
+                  <span
+                    class='is-url '
                     v-bk-tooltips={{
                       content: this.$t('查看资源'),
                       allowHTML: false,
                     }}
-                    theme='primary'
-                    onClick={() => item.target.url && window.open(item.target.url, '_blank')}
+                    onMousedown={() => item.target.url && window.open(item.target.url, '_blank')}
                   >
                     （{item.target.alias}）
-                  </bk-link>
+                  </span>
                 </div>
                 <i
                   class='icon-monitor icon-xiangqing1 link-icon'
