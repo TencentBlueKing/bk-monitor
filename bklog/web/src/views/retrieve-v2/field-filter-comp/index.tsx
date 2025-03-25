@@ -573,12 +573,7 @@ export default class FieldFilterComp extends tsc<object> {
           <div class='field-filter-roll'>
             {!!this.indexSetFields().length && (
               <div class='fields-container not-selected'>
-                <div
-                  style='margin-bottom:5px'
-                  class='title'
-                >
-                  {this.$t('可选字段')}
-                </div>
+                <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item, index) =>
                     item.children?.length ? (
@@ -612,12 +607,7 @@ export default class FieldFilterComp extends tsc<object> {
             {/* 内置字段 */}
             {!!this.builtInFields().length && (
               <div class='fields-container not-selected'>
-                <div
-                  style='margin-bottom:5px'
-                  class='title'
-                >
-                  {(this.$t('label-内置字段') as string).replace('label-', '')}
-                </div>
+                <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
                 <ul class='filed-list'>
                   {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
                     item.children?.length ? (

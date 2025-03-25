@@ -2,13 +2,14 @@
 
 .field-filter-box {
   overflow: hidden;
+
   > .form-container {
+    box-sizing: content-box;
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 32px;
     padding: 12px;
-    box-sizing: content-box;
 
     .king-input {
       width: 100%;
@@ -110,6 +111,7 @@
 
       .title {
         padding: 0 12px;
+        margin-bottom: 8px;
         font-size: 12px;
         font-weight: 700;
         color: #313238;
