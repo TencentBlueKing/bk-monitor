@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, onMounted, computed } from 'vue';
+  import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -59,49 +59,42 @@
     return refEditorParent.value?.contains(e.target) ?? false;
   };
 
-  const {
-    modelValue,
-    delayShowInstance,
-    isDocumentMousedown,
-    getTippyInstance,
-    handleContainerClick,
-    hideTippyInstance,
-  } = useFocusInput(props, {
-    onHeightChange: handleHeightChange,
-    formatModelValueItem,
-    refContent: refSqlQueryOption,
-    arrow: false,
-    newInstance: false,
-    addInputListener: false,
-    tippyOptions: {
-      maxWidth: 'none',
-      offset: [0, 15],
-    },
-    onShowFn: instance => {
-      emit('popup-change', { isShow: true });
+  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
+    props,
+    {
+      onHeightChange: handleHeightChange,
+      formatModelValueItem,
+      refContent: refSqlQueryOption,
+      arrow: false,
+      newInstance: false,
+      addInputListener: false,
+      tippyOptions: {
+        maxWidth: 'none',
+        offset: [0, 15],
+        hideOnClick: false,
+      },
+      onShowFn: instance => {
+        emit('popup-change', { isShow: true });
 
-      if (isSelectedText) {
+        if (isSelectedText) {
+          return false;
+        }
+
+        if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+          instance.popper?.style.setProperty('width', '100%');
+          refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
+          return true;
+        }
+
         return false;
-      }
-
-      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
-        instance.popper?.style.setProperty('width', '100%');
-        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
+      },
+      onHiddenFn: () => {
+        emit('popup-change', { isShow: false });
         return true;
-      }
-
-      return false;
+      },
+      handleWrapperClick: handleWrapperClickCapture,
     },
-    onHiddenFn: () => {
-      if (isDocumentMousedown.value) {
-        return false;
-      }
-
-      emit('popup-change', { isShow: false });
-      return true;
-    },
-    handleWrapperClick: handleWrapperClickCapture,
-  });
+  );
 
   /**
    * 编辑器内容改变回掉事件
@@ -189,9 +182,9 @@
   };
 
   const handleQueryChange = (value, retrieve, replace = true) => {
-    const { from, to } = getSelectionRenage(value, replace);
+    const { from } = getSelectionRenage(value, replace);
     if (modelValue.value !== value) {
-      setEditorContext(value, from, to);
+      setEditorContext(value, from);
       nextTick(() => {
         handleContainerClick();
         if (retrieve) {
@@ -206,7 +199,6 @@
   };
 
   const handleCancel = (force = false) => {
-    isDocumentMousedown.value = false;
     hideTippyInstance();
 
     if (!force) {
@@ -214,8 +206,25 @@
     }
   };
 
+  const handleDocumentClick = e => {
+    if (
+      refEditorParent?.value?.contains(e.target) ||
+      refSqlQueryOption.value?.$el.contains(e.target) ||
+      e.target?.parentElement?.hasAttribute('data-bklog-v3-pop-click-item')
+    ) {
+      return;
+    }
+
+    hideTippyInstance();
+  };
+
   onMounted(() => {
     createEditorInstance();
+    document.addEventListener('click', handleDocumentClick);
+  });
+
+  onBeforeUnmount(() => {
+    document.removeEventListener('click', handleDocumentClick);
   });
 </script>
 <template>

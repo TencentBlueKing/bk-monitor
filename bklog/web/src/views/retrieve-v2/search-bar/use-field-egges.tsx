@@ -39,6 +39,10 @@ export default () => {
     isRequesting.value = val;
   };
 
+  const isValidateEgges = field => {
+    return ['keyword'].includes(field.field_type);
+  };
+
   const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
     if (
       taskPool.some(task => {
@@ -57,13 +61,12 @@ export default () => {
       return [];
     };
 
-    if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
+    if (value !== undefined && value !== null && !isValidateEgges(field)) {
       setIsRequesting(false);
       return;
     }
 
-    const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
-
+    const size = value?.length > 0 ? 50 : 100;
     requestTimer && clearTimeout(requestTimer);
     requestTimer = setTimeout(() => {
       setIsRequesting(true);
@@ -114,10 +117,6 @@ export default () => {
           finallyFn?.();
         });
     }, 300);
-  };
-
-  const isValidateEgges = field => {
-    return ['keyword', 'text'].includes(field.field_type);
   };
 
   return { requestFieldEgges, isValidateEgges, isRequesting, setIsRequesting };

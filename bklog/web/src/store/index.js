@@ -1390,7 +1390,7 @@ const store = new Vuex.Store({
         !state.indexFieldInfo.aggs_items[field.field_name]?.length &&
         field.es_doc_values &&
         filterBuildIn(field) &&
-        ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
+        ['keyword'].includes(field.field_type) &&
         !/^__dist_/.test(field.field_name);
 
       const mapFn = field => field.field_name;

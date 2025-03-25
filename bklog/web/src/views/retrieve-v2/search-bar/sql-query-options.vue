@@ -232,7 +232,7 @@
         return;
       }
 
-      emits('cancel', true);
+      showWhichDropdown();
       return;
     }
 
@@ -248,7 +248,7 @@
         return;
       }
 
-      emits('cancel', true);
+      showWhichDropdown();
       return;
     }
 
@@ -266,9 +266,7 @@
       return;
     }
 
-    requestAnimationFrame(() => {
-      emits('cancel', true);
-    });
+    showWhichDropdown();
   };
 
   /**
@@ -410,8 +408,8 @@
     });
 
     return (
-      (showOption.value.showFields && fieldList.value.length) ||
-      (showOption.value.showValue && valueList.value.length) ||
+      showOption.value.showFields ||
+      showOption.value.showValue ||
       showOption.value.showColon ||
       showOption.value.showContinue ||
       (showOption.value.showOperator && operatorSelectList.value.length)
@@ -503,6 +501,7 @@
             <li
               v-for="item in fieldList"
               class="list-item field-list-item"
+              data-bklog-v3-pop-click-item
               :key="item"
               @click="handleClickField(item)"
             >
@@ -525,6 +524,7 @@
             <li
               v-for="item in valueList"
               class="list-item value-list-item"
+              data-bklog-v3-pop-click-item
               :key="item"
               @click="handleClickValue(item)"
             >
@@ -545,6 +545,7 @@
           <div class="control-list">
             <li
               class="list-item colon-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickColon(':')"
             >
               <div class="item-type-icon">
@@ -562,6 +563,7 @@
             </li>
             <li
               class="list-item colon-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickColon(': *')"
             >
               <div class="item-type-icon">
@@ -585,6 +587,7 @@
             <li
               v-for="(item, key) in operatorSelectList"
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               :key="key"
               @click="handleClickColon(item.operator)"
             >
@@ -608,6 +611,7 @@
           <div class="control-list">
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('AND')"
             >
               <div class="item-type-icon">
@@ -625,6 +629,7 @@
             </li>
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('OR')"
             >
               <div class="item-type-icon">
@@ -642,6 +647,7 @@
             </li>
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('AND NOT')"
             >
               <div class="item-type-icon">

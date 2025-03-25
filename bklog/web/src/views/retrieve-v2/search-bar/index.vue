@@ -583,12 +583,12 @@
           <div
             v-bk-tooltips="$t('复制当前查询')"
             :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"
+            @click="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
             :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"
+            @click="handleClearBtnClick"
           ></div>
           <div
             v-bk-tooltips="$t('常用查询设置')"
@@ -608,7 +608,7 @@
         </div>
         <div
           class="search-tool search-btn"
-          @click.stop="handleBtnQueryClick"
+          @click="handleBtnQueryClick"
         >
           <bk-button
             :loading="isInputLoading"
