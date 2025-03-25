@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { updateFavorite } from 'monitor-api/modules/model';
 
+import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { isEn } from '../../../i18n/lang';
 
 import type { IFavList } from '../typings';
@@ -144,7 +145,7 @@ export default class FavoriteDetail extends tsc<IProps> {
         return (
           <div class='json-wrap'>
             <VueJsonPretty
-              data={{ where: queryConfig.where }}
+              data={{ where: mergeWhereList(queryConfig.where, queryConfig.commonWhere || []) }}
               deep={5}
             />
           </div>
