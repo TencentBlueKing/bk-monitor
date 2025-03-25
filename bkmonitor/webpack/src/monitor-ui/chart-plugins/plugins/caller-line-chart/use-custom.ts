@@ -90,7 +90,7 @@ function scaleArrayToRange(inputArray: number[], minRange = 4, maxRange = 16): n
 export const getDefaultDefaultTagConfig = () => {
   return {};
 };
-export const getCustomEventSeriesParams = (params: IEventTagsItem, config: Partial<EventTagConfig>) => {
+export const createCommonWhere = (config: Partial<EventTagConfig>) => {
   const where = [];
   if (!config.source?.is_select_all) {
     where.push({
@@ -108,6 +108,10 @@ export const getCustomEventSeriesParams = (params: IEventTagsItem, config: Parti
       value: config.type?.list || [],
     });
   }
+  return where;
+};
+export const getCustomEventSeriesParams = (params: IEventTagsItem, config: Partial<EventTagConfig>) => {
+  const where = createCommonWhere(config);
   return {
     app_name: params.app_name,
     service_name: params.service_name,

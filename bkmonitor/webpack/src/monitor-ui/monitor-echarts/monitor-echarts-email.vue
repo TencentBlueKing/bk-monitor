@@ -203,7 +203,6 @@ export default class MonitorEcharts extends Vue {
     default: () => [
       '#7EB26D', // 0: pale green
       '#EAB839', // 1: mustard
-      '#6ED0E0', // 2: light blue
       '#EF843C', // 3: orange
       '#E24D42', // 4: red
       '#1F78C1', // 5: ocean
@@ -257,6 +256,7 @@ export default class MonitorEcharts extends Vue {
       '#BADFF4',
       '#F9D9F9',
       '#DEDAF7',
+      '#6ED0E0', // 2: light blue
     ],
   })
   // 图标系列颜色集合

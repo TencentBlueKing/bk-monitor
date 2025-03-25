@@ -72,7 +72,7 @@ export default class CustomEventMenu extends tsc<IProps> {
             data_type_label: 'event',
             table: 'builtin',
             filter_dict: {},
-            where: [],
+            where: this.eventItem.where || [],
             query_string: '*',
             group_by: [],
             interval: this.eventItem.interval,
@@ -83,7 +83,7 @@ export default class CustomEventMenu extends tsc<IProps> {
       });
       this.warningData = Warning;
       this.allData = All;
-      this.activeTab = this.warningData.total > 0 ? EventTab.Warning : EventTab.All;
+      this.activeTab = this.warningData?.total > 0 ? EventTab.Warning : EventTab.All;
       this.loading = false;
     }
   }
@@ -153,6 +153,7 @@ export default class CustomEventMenu extends tsc<IProps> {
           <span
             style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || 'bcs']})` }}
             class='event-icon'
+            v-bk-tooltips={{ content: source.alias }}
           />
           <div class='event-name'>{event_name.alias}</div>
           <bk-button
@@ -162,6 +163,7 @@ export default class CustomEventMenu extends tsc<IProps> {
               allowHTML: false,
             }}
             text
+            onClick={e => this.handleListGotoEventDetail(e, list[0])}
           >
             <i class='icon-monitor icon-xiangqing1 detail-icon' />
             {this.$t('详情')}
@@ -174,10 +176,16 @@ export default class CustomEventMenu extends tsc<IProps> {
       return (
         <div class='custom-event-menu-title'>
           <div class='event-name'>
-            <i18n path={'共 {0} 个事件，展示 Top{1}'}>
-              <span style='font-weight: bold;color:#313238;'> {this.menuData.total} </span>
-              <span style='font-weight: bold;color:#313238;'> {data.length} </span>
-            </i18n>
+            {list?.length > 0 ? (
+              <i18n path={'共 {0} 个事件，展示 Top{1}'}>
+                <span style='font-weight: bold;color:#313238;'> {this.menuData.total} </span>
+                <span style='font-weight: bold;color:#313238;'> {data.length} </span>
+              </i18n>
+            ) : (
+              <i18n path={'共 {0} 个事件，已按事件名汇总'}>
+                <span style='font-weight: bold;color:#313238;'> {this.menuData.total} </span>
+              </i18n>
+            )}
           </div>
           <span
             style='color: #979BA5;'
@@ -204,7 +212,20 @@ export default class CustomEventMenu extends tsc<IProps> {
                 class='content-item'
               >
                 <div class='content-item-label'>{item.label}:</div>
-                <div class={`content-item-value ${item.link ? 'is-url' : ''}`}>{item.alias || item.value}</div>
+                <div class={'content-item-value'}>
+                  {item.url ? (
+                    <a
+                      class='is-url'
+                      href={item.url}
+                      rel='noreferrer'
+                      target='_blank'
+                    >
+                      {item.alias || item.value}
+                    </a>
+                  ) : (
+                    item.value
+                  )}
+                </div>
               </div>
             );
           })}
@@ -223,6 +244,7 @@ export default class CustomEventMenu extends tsc<IProps> {
                 <span
                   style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
                   class='event-icon'
+                  v-bk-tooltips={{ content: item?.source.alias }}
                 />
                 <div class='content-item-content'>
                   {item.event_name.alias}
@@ -232,6 +254,7 @@ export default class CustomEventMenu extends tsc<IProps> {
                       allowHTML: false,
                     }}
                     theme='primary'
+                    onClick={() => item.target.url && window.open(item.target.url, '_blank')}
                   >
                     （{item.target.alias}）
                   </bk-link>
@@ -264,9 +287,12 @@ export default class CustomEventMenu extends tsc<IProps> {
                   <span
                     style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
                     class='event-icon'
+                    v-bk-tooltips={{ content: item?.source.alias }}
                   />
                   {item.event_name.alias}
+                  <span class='proportions-num'>{item.count}</span>
                   <i
+                    style={{ marginLeft: '0px' }}
                     class='icon-monitor icon-xiangqing1 link-icon'
                     v-bk-tooltips={{
                       content: this.$t('查看事件详情'),
@@ -298,7 +324,7 @@ export default class CustomEventMenu extends tsc<IProps> {
     );
   }
   createHeaderRender() {
-    if (!this.warningData.total || this.loading || !this.menuData?.total) return undefined;
+    if (!this.warningData?.total || this.loading || !this.menuData?.total) return undefined;
     return (
       <div class='custom-event-menu-header'>
         {[EventTab.Warning, EventTab.All].map(level => {
@@ -323,7 +349,8 @@ export default class CustomEventMenu extends tsc<IProps> {
     );
   }
   createContentMore() {
-    if (this.menuData?.list?.length < 6 || this.menuData?.topk?.length < 6) return undefined;
+    if (this.menuData?.list?.length >= this.menuData.total && this.menuData?.topk?.length >= this.menuData.total)
+      return undefined;
     return (
       <div
         class='common-more'

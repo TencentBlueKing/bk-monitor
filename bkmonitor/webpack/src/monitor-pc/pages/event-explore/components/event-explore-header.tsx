@@ -233,9 +233,12 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
               class='data-id-select-trigger'
               slot='trigger'
             >
-              <span>
-                <span class='prefix'>{this.$t('数据ID')}：</span>
-                <span class='name'>{this.selectDataIdName}</span>
+              <span class='data-prefix'>{this.$t('数据ID')}：</span>
+              <span
+                class='data-name'
+                v-bk-overflow-tips
+              >
+                {this.selectDataIdName}
               </span>
               <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
               <span class={`icon-monitor icon-mc-arrow-down ${this.dataIdToggle ? 'expand' : ''}`} />

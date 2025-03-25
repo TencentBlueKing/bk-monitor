@@ -12,7 +12,7 @@
 
     .favorite-container {
       padding: 10px 8px;
-      border-right: 1px solid #EAEBF0;
+      border-right: 1px solid #eaebf0;
 
       .favorite-btn {
         width: 32px;
@@ -23,7 +23,7 @@
         cursor: pointer;
         background: #f0f1f5;
         border-radius: 2px;
-  
+
         &.active {
           color: #3a84ff;
           background: #e1ecff;
@@ -93,9 +93,16 @@
       line-height: 32px;
       color: #313238;
 
-      .prefix {
+      .data-prefix {
+        min-width: fit-content;
         margin-right: 4px;
         color: #979ba5;
+      }
+
+      .data-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .select-shortcut-keys {
@@ -141,13 +148,13 @@
       .bk-option-content {
         padding: 0 12px;
       }
-  
+
       .bk-option {
-        color: #4D4F56;
+        color: #4d4f56;
 
         &:hover {
-          color: #4D4F56;
-          background-color: #F5F7FA;
+          color: #4d4f56;
+          background-color: #f5f7fa;
 
           .platform-tag {
             background-color: #fff;
@@ -155,15 +162,15 @@
         }
 
         &.is-selected {
-          color: #3A84FF;
-          background: #E1ECFF;
+          color: #3a84ff;
+          background: #e1ecff;
 
           .platform-tag {
             background-color: #fff;
           }
         }
       }
-    } 
+    }
   }
 
   .event-item-name {
@@ -180,7 +187,7 @@
     &.is_top {
       .thumbtack {
         display: inline-block;
-        color: #3A84FF;
+        color: #3a84ff;
       }
     }
 

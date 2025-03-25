@@ -53,6 +53,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
 import {
+  createCommonWhere,
   type EventTagColumn,
   type EventTagConfig,
   getCustomEventAnalysisConfig,
@@ -1100,6 +1101,9 @@ class CallerLineChart extends CommonSimpleChart {
   handleClick(event) {
     if (event.seriesType === 'scatter') {
       this.$el.focus?.();
+      this.$refs.baseChart?.instance?.dispatchAction({
+        type: 'hideTip',
+      });
       const {
         value,
         event: {
@@ -1125,6 +1129,7 @@ class CallerLineChart extends CommonSimpleChart {
         service_name: this.viewOptions.filters?.service_name,
         interval: Math.ceil((end_time - start_time) / 12),
         start_time: value[0] / 1000,
+        where: createCommonWhere(this.eventConfig),
       };
     }
   }
@@ -1146,7 +1151,6 @@ class CallerLineChart extends CommonSimpleChart {
   }
   checkedGroupChange(v: string[], type: string) {
     const config = this.eventConfig[type];
-    if (config.is_select_all) return;
     config.list = v;
     config.is_select_all = false;
   }
@@ -1277,7 +1281,6 @@ class CallerLineChart extends CommonSimpleChart {
                               {column.list?.map(item => (
                                 <bk-checkbox
                                   key={item.value}
-                                  disabled={config.is_select_all}
                                   size='small'
                                   value={item.value}
                                 >
@@ -1290,31 +1293,33 @@ class CallerLineChart extends CommonSimpleChart {
                       })}
                     </div>
                   )}
-                  <div class='event-footer'>
-                    <bk-button
-                      size='small'
-                      theme='primary'
-                      onClick={this.handleEventAnalyzeConfirm}
-                    >
-                      {this.$t('确定')}
-                    </bk-button>
-                    <bk-button
-                      style={{ width: '108px' }}
-                      outline={true}
-                      size='small'
-                      theme='primary'
-                      onClick={this.handleUpdateAnalyzeConfig}
-                    >
-                      {this.$t('保存为服务配置')}
-                    </bk-button>
-                    <bk-button
-                      size='small'
-                      theme='default'
-                      onClick={this.handleEventAnalyzeCancel}
-                    >
-                      {this.$t('取消')}
-                    </bk-button>
-                  </div>
+                  {(this.cacheEventConfig.is_enabled_metric_tags || this.eventConfig.is_enabled_metric_tags) && (
+                    <div class='event-footer'>
+                      <bk-button
+                        size='small'
+                        theme='primary'
+                        onClick={this.handleEventAnalyzeConfirm}
+                      >
+                        {this.$t('确定')}
+                      </bk-button>
+                      <bk-button
+                        style={{ width: '108px' }}
+                        outline={true}
+                        size='small'
+                        theme='primary'
+                        onClick={this.handleUpdateAnalyzeConfig}
+                      >
+                        {this.$t('保存为服务配置')}
+                      </bk-button>
+                      <bk-button
+                        size='small'
+                        theme='default'
+                        onClick={this.handleEventAnalyzeCancel}
+                      >
+                        {this.$t('取消')}
+                      </bk-button>
+                    </div>
+                  )}
                 </div>
               </bk-popover>
             )}
