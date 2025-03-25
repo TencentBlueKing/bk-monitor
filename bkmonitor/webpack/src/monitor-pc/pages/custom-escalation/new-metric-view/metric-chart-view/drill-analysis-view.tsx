@@ -51,6 +51,7 @@ import './drill-analysis-view.scss';
 /** 下钻分析 */
 interface IDrillAnalysisViewProps {
   dimensionsList?: IDimensionItem[];
+  currentMethod?: string;
 }
 interface IDrillAnalysisViewEvents {
   onClose?: void;
@@ -59,6 +60,8 @@ interface IDrillAnalysisViewEvents {
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
+  /** 当前汇聚方法 */
+  @Prop({ default: 'SUM' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -396,6 +399,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
                 key={this.chartKey}
                 style={{ height: `${this.drag.height - 30}px` }}
                 chartHeight={this.drag.height}
+                currentMethod={this.currentMethod}
                 isShowLegend={true}
                 isToolIconShow={false}
                 panel={this.panelData}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, InjectReactive } from 'vue-property-decorator';
+import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -45,7 +45,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { timeToDayNum, handleSetFormatterFunc, handleYxisLabelFormatter, handleTimeOffset } from './utils';
+import { timeToDayNum, handleSetFormatterFunc, handleYxisLabelFormatter } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type {
@@ -77,9 +77,16 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: true }) isToolIconShow: boolean;
   /** 是否展示图例 */
   @Prop({ default: false }) isShowLegend: boolean;
+  /** 当前汇聚方法 */
+  @Prop({ default: 'SUM' }) currentMethod: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
+  // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+  @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
+  @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
@@ -123,6 +130,8 @@ class NewMetricChart extends CommonSimpleChart {
   formatterFunc = null;
   method = 'SUM';
   loading = false;
+  // 是否展示复位按钮
+  showRestore = false;
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
@@ -150,12 +159,19 @@ class NewMetricChart extends CommonSimpleChart {
   handleHeightChange() {
     this.handleResize();
   }
+  @Watch('panel')
+  handlePanelChange() {
+    this.getPanelData();
+  }
+  @Watch('showRestoreInject')
+  handleShowRestoreInject(v: boolean) {
+    this.showRestore = v;
+  }
   /** 重新拉取数据 */
-  // @Watch('panel')
-  // handlePanelChange() {
-  //   console.log('getPanelData ----');
-  //   this.getPanelData();
-  // }
+  @Watch('currentMethod', { immediate: true })
+  handleCurrentMethod() {
+    this.method = this.currentMethod;
+  }
   /** 切换计算的Method */
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
     this.method = method;
@@ -163,6 +179,7 @@ class NewMetricChart extends CommonSimpleChart {
       method,
     };
     this.getPanelData();
+    this.$emit('methodChange', method);
   }
   removeTrailingZeros(num: number | string) {
     if (num && num !== '0') {
@@ -239,6 +256,7 @@ class NewMetricChart extends CommonSimpleChart {
         totalSource: 0,
         metricField: item.metricField,
         dimensions: item.dimensions,
+        timeOffset: item.timeOffset,
       };
       // 动态单位转换
       const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
@@ -262,7 +280,12 @@ class NewMetricChart extends CommonSimpleChart {
           legendItem.max = Math.max(+legendItem.max, y);
           legendItem.min = legendItem.min === '' ? y : Math.min(+legendItem.min, y);
           legendItem.total = +legendItem.total + y;
-
+          if (seriesItem[1] === legendItem.max) {
+            legendItem.maxTime = seriesItem[0];
+          }
+          if (seriesItem[1] === legendItem.min) {
+            legendItem.minTime = seriesItem[0];
+          }
           // 是否为孤立的点
           const hasNoBrother =
             (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
@@ -289,6 +312,7 @@ class NewMetricChart extends CommonSimpleChart {
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
       legendItem.latest = item.data[latestInd][1];
+      legendItem.latestTime = latestVal;
 
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
@@ -336,18 +360,36 @@ class NewMetricChart extends CommonSimpleChart {
     this.legendData = result;
     return tranformSeries;
   }
+
+  convertJsonObject(obj) {
+    const keys = Object.keys(obj);
+    const parts = [];
+    for (const key of keys) {
+      parts.push(`${key}=${obj[key]}`);
+    }
+    const separator = '|';
+    return parts.join(separator);
+  }
+  formatTimeStr(timeStr) {
+    if (timeStr === 'current') {
+      return this.$t('当前');
+    }
+    const matches = timeStr.match(/(\d+)([dh])/);
+    const number = parseInt(matches[1], 10);
+    const unit = matches[2];
+    if (unit === 'd') {
+      return `${number}天前`;
+    } else if (unit === 'h') {
+      return `${number}小时前`;
+    }
+  }
   handleSeriesName(item: DataQuery, set) {
-    const { dimensions = {}, dimensions_translation = {} } = set;
-    if (!item.alias)
-      return set.time_offset
-        ? handleTimeOffset(set.time_offset)
-        : Object.values({
-            ...dimensions,
-            ...dimensions_translation,
-          }).join('|');
-    const aliasFix = Object.values(dimensions).join('|');
-    if (!aliasFix.length) return item.alias;
-    return `${item.alias}-${aliasFix}`;
+    const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
+    const { metric = {} } = item;
+    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}-` : '';
+    const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation });
+    const outputStr = output ? `(${output})` : '';
+    return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
   }
 
   handleTime() {
@@ -395,9 +437,7 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const timeShiftList = [...(this.filterOption?.compare?.offset || [])];
       const list = this.panel.targets.map(item => {
-        console.log(item, '===');
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => (metric.method = this.method));
         });
@@ -427,11 +467,11 @@ class NewMetricChart extends CommonSimpleChart {
             res.metrics && metrics.push(...res.metrics);
             res.series &&
               series.push(
-                ...res.series.map((set, ind) => {
-                  const name = set.target;
+                ...res.series.map(set => {
+                  const name = this.handleSeriesName(item, set) || set.target;
                   this.legendSorts.push({
                     name,
-                    timeShift: timeShiftList[ind] || '',
+                    timeShift: set.time_offset || '',
                   });
                   return {
                     ...set,
@@ -471,6 +511,7 @@ class NewMetricChart extends CommonSimpleChart {
             z: 1,
             traceData: item.trace_data ?? '',
             dimensions: item.dimensions ?? {},
+            timeOffset: item.time_offset ?? '',
           })) as any
         );
         seriesList = seriesList.map((item: any) => ({
@@ -522,7 +563,6 @@ class NewMetricChart extends CommonSimpleChart {
         const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
-
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -557,6 +597,7 @@ class NewMetricChart extends CommonSimpleChart {
             series: seriesList,
             tooltip: {
               extraCssText: 'max-width: 50%',
+              order: 'valueDesc',
             },
             customData: {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
@@ -600,6 +641,21 @@ class NewMetricChart extends CommonSimpleChart {
         downFile(dataUrl, `${title}.png`);
       })
       .catch(() => {});
+  }
+  dataZoom(startTime: string, endTime: string) {
+    this.showRestore = startTime ? true : false;
+    if (this.enableSelectionRestoreAll) {
+      this.handleChartDataZoom([startTime, endTime]);
+    } else {
+      this.getPanelData(startTime, endTime);
+    }
+  }
+  handleRestore() {
+    if (this.enableSelectionRestoreAll) {
+      this.handleRestoreEvent();
+    } else {
+      this.dataZoom(undefined, undefined);
+    }
   }
   // 生成随机的dashboardId
   generateRandomDashboardId() {
@@ -787,7 +843,10 @@ class NewMetricChart extends CommonSimpleChart {
                   width={this.width}
                   height={this.chartHeight}
                   groupId={this.panel.dashboardId}
+                  showRestore={this.showRestore}
                   options={this.options}
+                  onDataZoom={this.dataZoom}
+                  onRestore={this.handleRestore}
                 />
               ) : (
                 <div class='skeleton-loading-chart'>

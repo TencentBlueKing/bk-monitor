@@ -91,12 +91,12 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        display: flex;
+        font-family: '微软雅黑', '苹方', Arial, sans-serif;
+        display: inline-block;
         align-items: center;
         height: 20px;
         overflow: hidden;
         font-size: 14px;
-        font-weight: 400;
         line-height: 20px;
         color: #313238;
         text-overflow: ellipsis;
@@ -136,7 +136,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         min-width: 20px;
         // margin-left: 8px;
         height: 20px;
-        margin-right: 10px;
+        margin-right: 8px;
         font-size: 14px;
         color: #c4c6cc;
 
@@ -150,7 +150,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         color: #4d4f56;
 
         @extend %tips-icon;
-
+        margin-right: 0;
         &:hover {
           background-color: #f0f1f5;
           // background-color: #e1ecff;
