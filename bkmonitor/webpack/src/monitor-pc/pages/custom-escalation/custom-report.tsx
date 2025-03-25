@@ -378,6 +378,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @return {*}
    */
   handleOperate(v: 'delete' | 'view' | 'manage', row: IEventItem) {
+    const { customMetricV2EnableList, bizId } = this.$store.getters;
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
@@ -388,7 +389,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       },
       [CUSTOM_METRIC]: () => {
         this.$router.push({
-          name: 'new-custom-escalation-view',
+          name: customMetricV2EnableList.includes(bizId) ? 'new-custom-escalation-view' : 'custom-escalation-view',
           params: { id: String(row.time_series_group_id) },
           query: { name: row.name },
         });

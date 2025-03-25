@@ -27,9 +27,11 @@ import { Component, Ref, Prop, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { toPng } from 'html-to-image';
 import { random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
+import { downFile } from 'monitor-ui/chart-plugins/utils';
 
 import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
@@ -137,6 +139,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /** 维度下钻 */
   handelDrillDown(chart: IPanelModel, ind: number) {
     this.showDrillDown = true;
+    (chart.targets[ind]?.query_configs || []).map(item => {
+      const { common_filter = {}, group_filter = {} } = item.filter_dict;
+      const concatFilter = {};
+      Object.keys(group_filter || {}).map(key => {
+        concatFilter[`${key}__eq`] = [group_filter[key]];
+      });
+      item.filter_dict.concat_filter = { ...common_filter, ...concatFilter };
+    });
     this.currentChart = {
       ...chart,
       targets: [chart.targets[ind]],
@@ -173,6 +183,21 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       });
     });
     this.currentMethod = method;
+  }
+  /** 下载图片到本地 */
+  handleDownImage(title: string, targetEl?: HTMLElement, customSave = false) {
+    let el = this.$el as HTMLElement;
+    if (!this.isShowStatisticalValue) {
+      el = targetEl || (this.$el as HTMLElement);
+    } else {
+      el = el.querySelector('.layout-chart-table-main') as HTMLElement;
+    }
+    return toPng(el)
+      .then(dataUrl => {
+        if (customSave) return dataUrl;
+        downFile(dataUrl, `${title}.png`);
+      })
+      .catch(() => {});
   }
 
   /** 表格渲染 */
@@ -292,6 +317,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         currentMethod={this.currentMethod}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
+        onDownImage={this.handleDownImage}
         onDrillDown={this.handelDrillDown}
         onFullScreen={this.handleFullScreen}
         onLegendData={this.handleLegendData}
@@ -326,7 +352,6 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         ) : (
           <div class='main-chart'>{renderChart()}</div>
         )}
-
         <div
           class='layout-dragging'
           onMousedown={this.startDragging}

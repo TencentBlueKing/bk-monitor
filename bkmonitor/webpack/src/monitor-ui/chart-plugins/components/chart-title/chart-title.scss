@@ -150,7 +150,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         color: #4d4f56;
 
         @extend %tips-icon;
-        margin-right: 0;
+        margin-right: 2px;
         &:hover {
           background-color: #f0f1f5;
           // background-color: #e1ecff;

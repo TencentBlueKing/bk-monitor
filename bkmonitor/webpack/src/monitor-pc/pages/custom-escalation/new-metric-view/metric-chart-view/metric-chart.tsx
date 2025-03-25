@@ -634,6 +634,11 @@ class NewMetricChart extends CommonSimpleChart {
    * @param {*} customSave 自定义保存图片
    */
   handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
+    /** 在不显示图例展示表格的情况下 */
+    if (!this.isShowLegend) {
+      this.$emit('downImage', title, targetEl, customSave);
+      return;
+    }
     const el = targetEl || (this.$el as HTMLElement);
     return toPng(el)
       .then(dataUrl => {

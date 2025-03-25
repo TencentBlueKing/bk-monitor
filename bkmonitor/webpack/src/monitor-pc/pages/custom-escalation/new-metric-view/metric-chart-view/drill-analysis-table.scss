@@ -3,6 +3,12 @@
   height: 100%;
   display: flex;
   margin-top: 8px;
+  .custom-header-main {
+    .custom-header-tips {
+      padding-bottom: 2px;
+      border-bottom: 1px dashed #979ba5;
+    }
+  }
   .table-left {
     width: 240px;
     height: 100%;

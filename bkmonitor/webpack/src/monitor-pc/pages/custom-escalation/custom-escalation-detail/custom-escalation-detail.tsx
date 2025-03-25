@@ -233,8 +233,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return (
         (leng1
           ? this.groupFilterList.some(
-            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-          ) && isMetric
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            ) && isMetric
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -248,18 +248,18 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
-            const monitorType = {
-              指标: 'metric',
-              维度: 'dimension',
-            };
-            return (
-              item.monitor_type === t ||
-              monitorType?.[t] === item.monitor_type ||
-              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-              fuzzyMatch(item.name, t) ||
-              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-            );
-          })
+              const monitorType = {
+                指标: 'metric',
+                维度: 'dimension',
+              };
+              return (
+                item.monitor_type === t ||
+                monitorType?.[t] === item.monitor_type ||
+                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+                fuzzyMatch(item.name, t) ||
+                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+              );
+            })
           : true)
       );
     });
@@ -272,40 +272,40 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     const dimensions = this.dimensions.length
       ? this.dimensions
       : [
-        {
-          name: 'dimension1',
-          type: 'dimension',
-          description: '',
-          disabled: true,
-          common: true,
-        },
-      ];
+          {
+            name: 'dimension1',
+            type: 'dimension',
+            description: '',
+            disabled: true,
+            common: true,
+          },
+        ];
     const metrics = this.metricData.length
       ? this.metricData
       : [
-        {
-          name: 'metric1',
-          type: 'metric',
-          description: '',
-          disabled: false,
-          unit: '',
-          hidden: false,
-          aggregate_method: '',
-          function: {},
-          interval: 0,
-          label: [],
-          dimensions: ['dimension1'],
-        },
-      ];
+          {
+            name: 'metric1',
+            type: 'metric',
+            description: '',
+            disabled: false,
+            unit: '',
+            hidden: false,
+            aggregate_method: '',
+            function: {},
+            interval: 0,
+            label: [],
+            dimensions: ['dimension1'],
+          },
+        ];
     const groupRules = this.groupList
       ? this.groupList
       : [
-        {
-          name: '测试分组',
-          manual_list: ['metric1'],
-          auto_rules: ['rule1'],
-        },
-      ];
+          {
+            name: '测试分组',
+            manual_list: ['metric1'],
+            auto_rules: ['rule1'],
+          },
+        ];
     const template = {
       dimensions,
       metrics,
@@ -412,8 +412,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           }
         }
         this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
-          } ${this.detailData.name}`;
+        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
+          this.detailData.time_series_group_id
+        } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
         this.dimensions = metricData?.dimensions || [];
         // this.metricList =
@@ -449,8 +450,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
-          }`;
+        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
+          this.detailData.name
+        }`;
       }
       this.$store.commit('app/SET_NAV_TITLE', title);
       this.handleDetailData(this.detailData);
@@ -732,13 +734,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const ExistPass =
       this.type === 'customEvent'
         ? await validateCustomEventGroupLabel({
-          data_label: this.copyDataLabel,
-          bk_event_group_id: this.detailData.bk_event_group_id,
-        }).catch(() => false)
+            data_label: this.copyDataLabel,
+            bk_event_group_id: this.detailData.bk_event_group_id,
+          }).catch(() => false)
         : await validateCustomTsGroupLabel({
-          data_label: this.copyDataLabel,
-          time_series_group_id: this.detailData.time_series_group_id,
-        }).catch(() => false);
+            data_label: this.copyDataLabel,
+            time_series_group_id: this.detailData.time_series_group_id,
+          }).catch(() => false);
     if (!ExistPass) {
       return;
     }
@@ -762,17 +764,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const res =
       this.type === 'customEvent'
         ? await this.$store
-          .dispatch('custom-escalation/validateCustomEventName', {
-            params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
-          })
-          .then(res => res.result ?? true)
-          .catch(() => false)
+            .dispatch('custom-escalation/validateCustomEventName', {
+              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false)
         : await this.$store
-          .dispatch('custom-escalation/validateCustomTimetName', {
-            params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
-          })
-          .then(res => res.result ?? true)
-          .catch(() => false);
+            .dispatch('custom-escalation/validateCustomTimetName', {
+              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -877,6 +879,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
 
   handleJump() {
+    const { customMetricV2EnableList, bizId } = this.$store.getters;
     const toView = {
       customEvent: () => {
         this.$router.push({
@@ -887,7 +890,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       },
       customTimeSeries: () => {
         this.$router.push({
-          name: 'new-custom-escalation-view',
+          name: customMetricV2EnableList.includes(bizId) ? 'new-custom-escalation-view' : 'custom-escalation-view',
           // name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
           query: { name: this.detailData.name },

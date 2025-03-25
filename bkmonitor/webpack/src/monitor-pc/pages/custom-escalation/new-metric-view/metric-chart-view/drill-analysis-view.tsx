@@ -99,6 +99,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     function: {
       time_compare: [],
     },
+    commonConditions: [],
   };
   /** 自动刷新定时器 */
   timer = null;
@@ -172,6 +173,14 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       this.filterConfig.function = timeCompare?.time_compare ? timeCompare : { time_compare: [] };
 
       (item.query_configs || []).map(query => {
+        let commonConditions = [];
+        Object.keys(query.filter_dict.concat_filter || {}).map(key =>
+          commonConditions.push({
+            key: key.split('__')[0],
+            method: key.split('__')[1],
+            value: query.filter_dict.concat_filter[key],
+          })
+        );
         metrics = query.metrics.map(metrics => metrics.field);
         this.filterConfig = {
           ...this.filterConfig,
@@ -184,6 +193,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             limit: query.functions[0]?.params[0]?.value || 10,
             function: query.functions[0]?.id || 'top',
           },
+          commonConditions,
         };
       });
     });
@@ -331,6 +341,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         <div class='drill-analysis-filter'>
           <div class='filter-left'>
             <WhereCondition
+              commonConditionValue={this.filterConfig.commonConditions}
               value={this.filterConfig.where}
               onChange={this.handleConditionChange}
             />

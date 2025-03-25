@@ -67,6 +67,7 @@ const getters = {
   isEnableK8sV2: state => state.app.k8sV2EnableList.some(id => (id === 0 ? true : +id === +state.app.bizId)),
   defaultBizId: state => state.app.defaultBizId,
   defaultBizIdApiId: state => state.app.defaultBizIdApiId,
+  customMetricV2EnableList: state => state.app.customMetricV2EnableList,
 };
 
 export default getters;

@@ -23,13 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
+
+import { generateTimeStrings } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 
@@ -57,6 +60,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   @Prop({ default: false }) loading: boolean;
   @Prop({ default: false }) tableLoading: boolean;
   @Prop({ type: Object, default: () => {} }) filterConfig: IFilterConfig;
+  @InjectReactive('timeRange') timeRange: TimeRangeType;
 
   typeEnums = {
     '1h': this.$t('1小时前'),
@@ -284,6 +288,34 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     const color = row[prop] >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: row[prop] ? color : '#313238' }}>{row[prop] ? `${row[prop]}%` : '--'}</span>;
   }
+  /** 自定义表格头部渲染 */
+  renderHeader(h, { column }: any, item: any) {
+    const tipsKey = ['1h', '1d', '7d', '30d'];
+    const timeUnit = item.prop.split('_')[0];
+    const hasEndFix = (fieldName: string) => {
+      return ['value'].some(pre => fieldName.endsWith(pre));
+    };
+
+    const hasTips = (fieldName: string) => {
+      return tipsKey.some(pre => fieldName.startsWith(pre));
+    };
+    const tips = tipsKey.includes(timeUnit) && hasTips(item.prop) ? generateTimeStrings(timeUnit, this.timeRange) : '';
+    return (
+      <span class='custom-header-main'>
+        <span
+          class={[{ 'item-txt': !hasEndFix(item.prop) }, { 'item-txt-no': hasEndFix(item.prop) }]}
+          v-bk-overflow-tips
+        >
+          <span
+            class={{ 'custom-header-tips': hasEndFix(item.prop) && hasTips(item.prop) }}
+            v-bk-tooltips={hasEndFix(item.prop) && hasTips(item.prop) ? { content: tips } : { disabled: true }}
+          >
+            {item.label}
+          </span>
+        </span>
+      </span>
+    );
+  }
 
   /** 绘制表格内容 */
   renderTableColumn() {
@@ -337,6 +369,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             },
           }}
           label={this.$t(item.label)}
+          renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
           sortable={item.sortable}
         ></bk-table-column>
       );
@@ -409,8 +442,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
   }
   handleSort({ column, order }) {
-    const sortColumn = this.sortColumn.find(item => item.label === column.label);
-    this.sortProp = sortColumn.prop;
+    const sortColumn = this.sortColumn.find(item => item.label === column?.label);
+    this.sortProp = sortColumn?.prop || '';
     this.sortOrder = order;
   }
   /** 维度表格 end */
