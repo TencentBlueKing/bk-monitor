@@ -40,6 +40,7 @@ interface IProps {
   needLayout?: boolean;
   showCollapse?: boolean;
   title: string;
+  headerTips: string;
   info: IInfo;
   valueCount?: number;
   valueTotal?: number;
@@ -53,6 +54,7 @@ interface IProps {
 export default class AiopsMetricsCollapse extends tsc<IProps> {
   @Prop({ type: Object, default: () => {} }) info: IInfo;
   @Prop({ type: String, default: '' }) title: string;
+  @Prop({ type: String, default: '' }) headerTips: string;
   /** 图表布局方式 0: 一栏 1: 二栏 2: 三栏 */
   @Prop({ default: 0, type: Number }) layoutActive: number;
   /** 是否需要图表分栏布局按钮 */
@@ -135,6 +137,11 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
               'correlation-metrics-collapse-head',
               `correlation-metrics-collapse-head-${!this.showCollapse ? 'hide' : 'show'}`,
             ]}
+            v-bk-tooltips={{
+              disabled: !this.headerTips,
+              placement: 'left',
+              content: this.headerTips,
+            }}
             onClick={() => this.handleToggleCollapse(false)}
           >
             <i

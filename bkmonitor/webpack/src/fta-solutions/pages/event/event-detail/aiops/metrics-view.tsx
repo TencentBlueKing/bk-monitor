@@ -26,6 +26,10 @@
 import { Component, InjectReactive, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  createAnomalyDimensionTips,
+  createGroupAnomalyDimensionTips,
+} from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
@@ -233,7 +237,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
               key='wrap-panels'
               class={['correlation-metric-panels']}
             >
-              {chartList.map((item, index) => this.renderMetricsCollapse(item, index))}
+              {chartList.map(item => this.renderMetricsCollapse(item))}
             </div>,
             // <div
             //   key='wrap-bg'
@@ -272,6 +276,11 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         id={`${item.metric_name}_collapse`}
         key={`${item.metric_name}_collapse`}
         ref={`${item.metric_name}_collapse`}
+        headerTips={
+          this.isCorrelationMetrics
+            ? createAnomalyDimensionTips(item, true)
+            : createGroupAnomalyDimensionTips(item, false)
+        }
         info={this.info}
         layoutActive={this.layoutActive}
         needLayout={true}

@@ -1772,7 +1772,6 @@ export default {
   备注说明: 'Note',
   空间筛选: 'Spaces',
   '业务筛选:': 'Business:',
-  从属关系: 'Dependency Relationship',
   集群属性: 'set',
   模块属性: 'module',
   主机属性: 'host',

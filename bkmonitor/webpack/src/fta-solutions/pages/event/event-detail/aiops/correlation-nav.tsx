@@ -26,7 +26,10 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
+import {
+  createAnomalyDimensionTips,
+  createGroupAnomalyDimensionTips,
+} from 'monitor-common/tips/anomaly-dimension-tips';
 
 import { EventReportType } from './types';
 
@@ -75,15 +78,6 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
     }
     this.isCollapse = !this.isCollapse;
   }
-  getGroupTips(item) {
-    if (this.isCorrelationMetrics)
-      return `<div>${this.$t('分类名')}: ${item.result_table_label_name}</div>
-            <div>${this.$t('指标数')}: ${item.metrics?.length}</div>
-          `;
-    return `<div>${this.$t('异常维度')}: ${item.result_table_label_name}</div>
-                  <div>${this.$t('异常比例')}: ${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}</div>
-                `;
-  }
   renderClassification(item) {
     return (
       <div class='correlation-nav-classification'>
@@ -91,7 +85,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
           class='classification-title'
           v-bk-tooltips={{
             placement: 'left',
-            content: this.getGroupTips(item),
+            content: createGroupAnomalyDimensionTips(item, this.isCorrelationMetrics),
           }}
         >
           <i

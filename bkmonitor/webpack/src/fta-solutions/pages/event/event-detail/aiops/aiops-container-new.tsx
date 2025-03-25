@@ -277,7 +277,6 @@ export default class AiopsContainer extends tsc<IProps> {
   setTabActive(active) {
     this.tabActive = active[0];
     this.isCorrelationMetrics = this.tabActive === ETabNames.index;
-    console.info(active, this.isCorrelationMetrics);
     this.selectActive = this.tabActive;
     this.troubleShootingLoading = false;
   }

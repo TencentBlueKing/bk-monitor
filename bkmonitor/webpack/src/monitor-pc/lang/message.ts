@@ -516,4 +516,7 @@ export default {
   后匹配: 'match after',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
   无请求数据: 'No request data',
+  '无维度，已汇聚为1条曲线': 'No dimensions, aggregated into 1 curve',
+  故障诊断: 'Fault diagnosis',
+  异常比例: 'Exception ratio',
 };

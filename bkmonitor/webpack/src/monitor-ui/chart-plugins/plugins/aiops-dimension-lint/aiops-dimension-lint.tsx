@@ -598,13 +598,14 @@ export default class AiopsDimensionLine extends LineChart {
               subTitle: () => this.getSubTitle(),
               title: () => (
                 <div
+                  style={{ color: this.panel.title ? 'initial' : '#979ba5' }}
                   v-bk-tooltips={{
                     content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
                     placement: 'left',
                     delay: 200,
                   }}
                 >
-                  {this.panel.title}
+                  {this.panel.title || this.$t('无维度，已汇聚为1条曲线')}
                 </div>
               ),
             }}
