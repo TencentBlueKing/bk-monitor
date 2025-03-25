@@ -148,9 +148,11 @@
     refTarget: refHiddenFocus,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    onShowFn: () => {
+    onShowFn: instance => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
+      isInputFocus.value =
+        instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
       emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {

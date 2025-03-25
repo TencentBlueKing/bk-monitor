@@ -43,6 +43,7 @@
   const { t } = useLocale();
   const searchValue = ref('');
   const refConditionInput = ref(null);
+  const refFullTexarea = ref(null);
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
@@ -352,6 +353,12 @@
     isConditionValueInputFocus.value = false;
   };
 
+  const setFullTextFocus = () => {
+    if (activeFieldItem.value.field_name === '*' && !isConditionValueInputFocus.value) {
+      refFullTexarea?.value?.focus();
+    }
+  };
+
   /**
    * 字段列表点击事件
    * @param item 当前字段信息
@@ -376,29 +383,35 @@
       restoreFieldAndCondition();
     }
 
-    if (activeCondition && isValidateEgges(item)) {
-      setIsRequesting(true);
+    if (activeCondition) {
+      handleConditionValueClick({ target: refConditionInput.value }, true);
 
-      if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
-        requestFieldEgges(item, null, () => {
-          if (!conditionValueInstance.repositionTippyInstance()) {
-            if (!isOperatorInstanceActive()) {
-              const target = refConditionInput.value?.parentNode;
-              if (target) {
-                conditionValueInstance.show(target, true);
+      if (isValidateEgges(item)) {
+        setIsRequesting(true);
+
+        if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+          requestFieldEgges(item, null, () => {
+            if (!conditionValueInstance.repositionTippyInstance()) {
+              if (!isOperatorInstanceActive()) {
+                const target = refConditionInput.value?.parentNode;
+                if (target) {
+                  conditionValueInstance.show(target, true);
+                }
               }
             }
-          }
-        });
-      } else {
-        conditionValueInstance.hide(100);
-        setIsRequesting(false);
+          });
+        } else {
+          conditionValueInstance.hide(100);
+          setIsRequesting(false);
+        }
       }
     }
 
     if (!isValidateEgges(item)) {
       conditionValueInstance.hide(100);
     }
+
+    setFullTextFocus();
   };
 
   const handleCancelBtnClick = () => {
@@ -510,7 +523,7 @@
     conditionValueActiveIndex.value = null;
 
     if (autoFocus) {
-      refValueTagInput.value.focus();
+      refValueTagInput?.value?.focus();
       conditionValueActiveIndex.value = 0;
     }
 
@@ -748,15 +761,10 @@
         refValueTagInput.value.value = '';
         return;
       }
-
-      // if (condition.value.value.length) {
-      //   handelSaveBtnClick();
-      // }
-
       return;
     }
 
-    // handelSaveBtnClick();
+    setFullTextFocus();
   };
 
   /**
@@ -797,7 +805,6 @@
   const handleArrowUpKeyEvent = () => {
     if (isConditionValueFocus()) {
       setConditionValueActiveIndex(false);
-      // activeConditionValueOption();
       return;
     }
 
@@ -814,7 +821,6 @@
   const handleArrowDownKeyEvent = () => {
     if (isConditionValueFocus()) {
       setConditionValueActiveIndex(true);
-      // activeConditionValueOption();
       return;
     }
 
@@ -1148,6 +1154,7 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
+                ref="refFullTexarea"
                 class="ui-value-search-textarea"
                 v-model="condition.value[0]"
                 :rows="12"
