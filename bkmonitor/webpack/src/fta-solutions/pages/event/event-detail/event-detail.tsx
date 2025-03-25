@@ -597,7 +597,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           on-quick-shield={this.quickShieldChange}
           onAlarmDispatch={this.handleAlarmDispatch}
         />
-        <div class='basicinfo-bottom-border' />
         <TabContainer
           actions={this.actions}
           activeTab={this.activeTab}
@@ -622,15 +621,14 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           auto-minimize={true}
           initial-divide={'32%'}
           max={660}
-          min={400}
+          min={480}
           placement={'right'}
         >
-          <div slot='aside'>
-            <AiopsContainer
-              detail={this.basicInfo}
-              show={true}
-            />
-          </div>
+          <AiopsContainer
+            slot='aside'
+            detail={this.basicInfo}
+            show={true}
+          />
           <div
             class='event-detail-aiops'
             slot='main'

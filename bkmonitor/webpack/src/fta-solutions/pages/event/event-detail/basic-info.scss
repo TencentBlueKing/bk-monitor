@@ -4,7 +4,7 @@
   white-space: nowrap;
 }
 
-$green: #2dcb56;
+$green: #2caf5e;
 $red: #ff5656;
 $grey: #c4c6cc;
 $blue: #3a84ff;
@@ -20,76 +20,82 @@ $grey-bg: #eaebf0;
 
 .event-detail-basic {
   width: 100%;
-  margin-top: 24px;
+  margin-top: 12px;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+
   .blue-txt {
+    font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
-    font-size: 12px;
   }
+
   .bar-recovered,
   .bar-abnormal,
   .bar-closed,
   .bar-shielded,
   .bar-small {
     height: 36px;
-    border-left: 4px solid transparent;
     padding-left: 16px;
+    border-left: 4px solid transparent;
   }
 
   .bar-recovered {
+    color: $green;
     background: $green-bg;
     border-color: $green;
-    color: $green;
   }
 
   .bar-abnormal {
+    color: $red;
     background: $red-bg;
     border-color: $red;
-    color: $red;
   }
 
   .bar-closed {
+    color: $text;
     background: $grey-bg;
     border-color: $grey;
-    color: $text;
   }
+
   .bar-shielded {
+    color: $text;
     background: $grey-bg;
     border-color: $red;
-    color: $text;
   }
 
   .bar-small {
     // background: $grey-bg;
     // color: $text;
   }
+
   .right-status {
+    position: relative;
     display: flex;
     align-items: center;
     height: 100%;
-    position: relative;
 
     .status-icon {
       display: flex;
       align-items: center;
 
       .icon-monitor {
-        font-size: 16px;
-        margin-right: 5px;
         display: inline-block;
+        margin-right: 5px;
+        font-size: 16px;
       }
 
       .status-text {
         display: inline-block;
         font-size: 13px;
         font-weight: 400;
+
         .right-icon {
           margin-left: 8px;
           color: $red;
           cursor: pointer;
+
           &.icon-tishi {
             font-size: 16px;
           }
@@ -97,17 +103,19 @@ $grey-bg: #eaebf0;
       }
     }
   }
+
   .status-operate-btn {
-    display: flex;
-    align-items: center;
     position: absolute;
     right: 16px;
-    color: #3a84ff;
+    display: flex;
+    align-items: center;
     font-size: 12px;
+    color: #3a84ff;
     cursor: pointer;
+
     .icon-monitor {
-      font-size: 13px;
       margin-right: 5px;
+      font-size: 13px;
     }
   }
 
@@ -116,16 +124,18 @@ $grey-bg: #eaebf0;
     align-items: center;
     justify-content: center;
     color: $text;
+
     .status-operate-line {
       display: inline-block;
       width: 1px;
       height: 12px;
-      background: $grey;
       margin: 0 8px;
+      background: $grey;
     }
+
     .close-tips {
-      color: #979ba5;
       font-size: 12px;
+      color: #979ba5;
     }
 
     .operate-click {
@@ -162,7 +172,7 @@ $grey-bg: #eaebf0;
 
   .basic-detail {
     display: flex;
-    padding: 12px 0 24px 32px;
+    padding: 8px 0 24px 32px;
 
     .basic-left {
       display: flex;
@@ -218,8 +228,8 @@ $grey-bg: #eaebf0;
       .detail-form {
         position: relative;
         width: 100%;
-        margin-top: 16px;
         padding-right: 34px;
+        margin-top: 16px;
 
         .item-col {
           display: flex;
@@ -255,6 +265,7 @@ $grey-bg: #eaebf0;
             flex: 0 0 84px;
             align-items: center;
             justify-content: flex-end;
+            line-height: 16px;
 
             /* stylelint-disable-next-line declaration-no-important */
             color: #757880 !important;
@@ -272,32 +283,36 @@ $grey-bg: #eaebf0;
             line-height: 16px;
             color: $text;
             word-break: break-all;
+
             .dimensions-item {
-              background: #eaebf0;
-              border-radius: 2px;
               padding: 4px 5px;
               margin-right: 4px;
               margin-bottom: 6px;
+              background: #eaebf0;
+              border-radius: 2px;
+
               .name,
               .eq {
                 color: #757880;
               }
+
               .eq {
                 margin: 0 2px;
               }
+
               .content {
-                margin-left: 0;
                 display: block;
-                margin-top: 3px;
                 padding-bottom: 2px;
+                margin-top: 3px;
+                margin-left: 0;
               }
             }
 
             .item-time-zone {
-              height: 20px;
+              height: 16px;
               padding: 0 4px;
               margin-left: 10px;
-              line-height: 20px;
+              line-height: 16px;
               color: #4d4f56;
               background: #eaebf0;
               border-radius: 2px;
@@ -315,8 +330,8 @@ $grey-bg: #eaebf0;
               }
 
               &.icon-chuli {
-                font-size: 12px;
                 margin-right: 5px;
+                font-size: 12px;
               }
             }
 
@@ -363,8 +378,8 @@ $grey-bg: #eaebf0;
             cursor: pointer;
 
             .icon-fenpai {
-              font-size: 12px;
               margin-right: 5px;
+              font-size: 12px;
             }
           }
         }
@@ -385,6 +400,12 @@ $grey-bg: #eaebf0;
           width: 100%;
           margin-top: 14px;
         }
+      }
+    }
+
+    .dimensions-wrap {
+      .item-content {
+        margin-top: -5px;
       }
     }
 

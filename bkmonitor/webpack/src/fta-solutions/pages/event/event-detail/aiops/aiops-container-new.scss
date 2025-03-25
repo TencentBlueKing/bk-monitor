@@ -1,5 +1,6 @@
 /* stylelint-disable declaration-no-important */
-.aiops-container {
+.aiops-container-new {
+  height: 100%;
   background-color: #f0f3fa;
 
   &.aiops-container-show {
@@ -21,7 +22,23 @@
   }
 
   .aiops-container-menu {
+    display: flex;
+    flex-direction: column;
     width: 100%;
+    height: 100%;
+
+    .bk-collapse-item-content {
+      height: 100%;
+      overflow-y: auto;
+
+      .bk-collapse-item-detail {
+        height: 100%;
+
+        .aiops-container-menu-item-content {
+          height: 100%;
+        }
+      }
+    }
 
     .bk-collapse-item .bk-collapse-item-hover:hover {
       color: #4d4f56 !important;
@@ -33,6 +50,7 @@
 
     .bk-collapse-item-header {
       height: 52px;
+      padding: 0 8px;
       padding-right: 4px;
       line-height: 20px;
       background: #dfe4f0;
@@ -53,6 +71,8 @@
     }
 
     .aiops-container-menu-item {
+      z-index: 99;
+      flex: 0 0 52px;
       width: 100%;
       margin-bottom: 5px;
 
@@ -111,16 +131,16 @@
       .diagnosis-info-text {
         display: flex;
         align-items: center;
+      }
 
-        .diagnosis-text_blue {
-          display: inline-block;
-          max-width: 174px;
-          padding: 0 4px;
-          overflow: hidden;
-          color: #3a84ff;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+      .diagnosis-text_blue {
+        display: inline-block;
+        max-width: 60%;
+        padding: 0 4px;
+        overflow: hidden;
+        color: #3a84ff;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
 
@@ -139,8 +159,7 @@
     }
 
     .aiops-container-menu-item-content {
-      // max-height: calc(100vh - 228px);
-      padding: 0 10px;
+      padding-left: 8px;
     }
   }
 }

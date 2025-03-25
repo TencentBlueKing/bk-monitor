@@ -31,10 +31,10 @@ import dayjs from 'dayjs';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
 import { toPerformanceDetail } from '../../../common/go-link';
+import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
 import type { IDetail } from './type';
-import EventDetail from '../../../store/modules/event-detail';
 
 import './basic-info.scss';
 
@@ -229,11 +229,17 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       <span>
         {stage_display || '--'}
         {!this.readonly && [
-          <span onClick={() => this.$emit('manual-process')}>
+          <span
+            key='manual-process'
+            onClick={() => this.$emit('manual-process')}
+          >
             <span class='icon-monitor icon-chuli' />
             <span class='blue-txt'>{this.$t('手动处理')}</span>
           </span>,
-          <span onClick={this.handleAlarmDispatch}>
+          <span
+            key='manual-dispatch'
+            onClick={this.handleAlarmDispatch}
+          >
             <span class='alarm-dispatch'>
               <span class='icon-monitor icon-fenpai' />
             </span>
@@ -331,12 +337,12 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         title: this.$t('维度信息'),
         content: this.getDimensionsInfo() || '--',
-        extCls: 'flex-wrap',
+        extCls: 'flex-wrap dimensions-wrap',
       },
       { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap content-break-spaces' },
       {
         title: this.$t('关联信息'),
-        content: relation_info || '--',
+        content: relation_info?.trim() ? relation_info : '--',
         extCls: 'no-flex',
       },
     ] as any;
@@ -431,7 +437,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           class='shielded-link mr10'
           on-click={this.handleQuickShield}
         >
-          <i class='icon-monitor icon-mc-notice-shield'></i>
+          <i class='icon-monitor icon-mc-notice-shield' />
           {this.$t('快捷屏蔽')}
         </span>
       );
@@ -470,13 +476,19 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         iconColor = '#979ba5';
         iconText = `${this.$t('未恢复')}(${this.$t('已屏蔽')})`;
         operateDom = this.basicInfo.shield_id && [
-          <div class='status-operate'>
-            <span class='status-operate-line'></span>
+          <div
+            key={'status-operate'}
+            class='status-operate'
+          >
+            <span class='status-operate-line' />
             <span class='shielded-text'>{this.$t('屏蔽时间剩余')}：</span>
             <span class='shielded-time'>{shield_left_time}</span>
           </div>,
           !this.readonly ? (
-            <div class='status-operate-btn'>
+            <div
+              key={'status-operate-btn'}
+              class='status-operate-btn'
+            >
               <div
                 class='shielded-link'
                 onClick={this.handleToShield}
@@ -501,7 +513,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       iconText = `${this.$t('已失效')}`;
       operateDom = null;
       this.getEventLog().then(res => {
-        this.operateDesc = res[0]?.contents && res[0]?.contents[0] ? res[0].contents[0] : this.$t('告警已失效');
+        this.operateDesc = res[0]?.contents?.[0] ? res[0].contents[0] : this.$t('告警已失效');
         this.showReason = true;
       });
     }
@@ -517,13 +529,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           </div>
           {this.showReason ? (
             <div class='status-operate'>
-              <span class='status-operate-line'></span>
+              <span class='status-operate-line' />
               <span class='close-tips'>{this.operateDesc}</span>
             </div>
           ) : undefined}
           {eventStatus !== status[2] && this.basicInfo?.duration && !isShielded && (
             <div class='status-operate'>
-              <span class='status-operate-line'></span>
+              <span class='status-operate-line' />
               <span class='shielded-text'>{this.$t('持续时间')}：</span>
               <span>{duration}</span>
             </div>

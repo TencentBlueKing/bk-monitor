@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils/utils';
@@ -175,7 +175,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         {item.showMore ? (
           <span
             class='add-more'
-            onClick={this.handleLoadPanels.bind(this, item)}
+            onClick={() => this.handleLoadPanels(item)}
           >
             {this.$t('加载更多')}
           </span>
@@ -189,9 +189,13 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   handleActive(item) {
     clearTimeout(this.scrollActiveTime);
     this.scrollActiveFlag = true;
-    const key = `${item.metric_name}_collapse`;
-    const current = document.getElementById(key);
-    const detailWrapper = document.querySelector('.correlation-metric-panels');
+    let current: HTMLElement | null = null;
+    if (this.isCorrelationMetrics) {
+      current = document.getElementById(`${item.metric_name}_collapse`);
+    } else {
+      current = document.getElementById(`${CSS.escape(item.id)}__key__`);
+    }
+    const detailWrapper = document.querySelector('.bk-collapse-item-active .correlation-metric-panels');
     if (!current) {
       return;
     }
@@ -231,10 +235,10 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             >
               {chartList.map((item, index) => this.renderMetricsCollapse(item, index))}
             </div>,
-            <div
-              key='wrap-bg'
-              class='correlation-metric-nav-wrap-bg'
-            />,
+            // <div
+            //   key='wrap-bg'
+            //   class='correlation-metric-nav-wrap-bg'
+            // />,
             <div
               key='wrap-nav'
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
@@ -242,13 +246,14 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             >
               <CorrelationNav
                 ref='correlationNav'
+                isCorrelationMetrics={this.isCorrelationMetrics}
                 list={this.panelMap[key]}
                 onActive={this.handleActive}
               />
             </div>,
           ]
         ) : (
-          <div class={`bk-table-empty-block`}>
+          <div class={'bk-table-empty-block'}>
             <bk-exception
               scene='part'
               type={this.metricRecommendationErr ? '500' : 'empty'}
@@ -261,23 +266,18 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
     );
   }
 
-  renderMetricsCollapse(item, index) {
-    const panelLen = this.recommendedMetricPanels.length;
+  renderMetricsCollapse(item) {
     return (
       <MetricsCollapse
         id={`${item.metric_name}_collapse`}
         key={`${item.metric_name}_collapse`}
         ref={`${item.metric_name}_collapse`}
-        class={[panelLen > 1 && index !== panelLen - 1 ? 'mb10' : '']}
-        titleNum={
-          item?.dimension_anomaly_value_count
-            ? `${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}`
-            : ''
-        }
         info={this.info}
         layoutActive={this.layoutActive}
         needLayout={true}
         title={!this.isCorrelationMetrics ? item.anomaly_dimension_alias : `【${item.title}】${item.metric_name_alias}`}
+        valueCount={item?.dimension_anomaly_value_count || item.panels?.length}
+        valueTotal={item?.dimension_value_total_count || 0}
         {...{
           on: {
             // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
