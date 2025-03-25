@@ -266,6 +266,16 @@
       return;
     }
 
+    // 开始输入字段【nam】
+    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
+    if (inputField) {
+      fieldList.value = originFieldList().filter(item => item.includes(inputField));
+      if (fieldList.value.length) {
+        showWhichDropdown(OptionItemType.Fields);
+        return;
+      }
+    }
+
     showWhichDropdown();
   };
 

@@ -129,5 +129,10 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     }
   };
 
-  return { state, view, appendText, setValue };
+
+  const setFocus = () => {
+    view.focus();
+  };
+
+  return { state, view, appendText, setValue, setFocus };
 };

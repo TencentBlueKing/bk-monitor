@@ -84,6 +84,9 @@
         if (refSqlQueryOption.value?.beforeShowndFn?.()) {
           instance.popper?.style.setProperty('width', '100%');
           refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
+          requestAnimationFrame(() => {
+            editorInstance?.setFocus();
+          });
           return true;
         }
 

@@ -62,7 +62,7 @@ import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-import {isAiAssistantActive} from './helper';
+import { isAiAssistantActive } from './helper';
 
 Vue.use(Vuex);
 const stateTpl = {
@@ -173,7 +173,7 @@ const stateTpl = {
   clusterParams: null,
   features: {
     isAiAssistantActive: false,
-  }
+  },
 };
 
 const store = new Vuex.Store({
@@ -294,7 +294,7 @@ const store = new Vuex.Store({
     resultTableStaticWidth: state => {
       return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
     },
-    isAiAssistantActive: state => state.features.isAiAssistantActive
+    isAiAssistantActive: state => state.features.isAiAssistantActive,
   },
   // 公共 mutations
   mutations: {
@@ -1596,7 +1596,7 @@ const store = new Vuex.Store({
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
               newSearchValue = `\"${value[0]}\"`;
-            } else{
+            } else {
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }
@@ -1718,7 +1718,7 @@ const store = new Vuex.Store({
           ...state.retrieve.catchFieldCustomConfig,
           ...userConfig,
         };
-        delete indexSetConfig.isUpdate
+        delete indexSetConfig.isUpdate;
         const queryParams = {
           index_set_id: state.indexId,
           index_set_type: getters.isUnionSearch ? 'union' : 'single',
@@ -1741,6 +1741,34 @@ const store = new Vuex.Store({
           reject(err);
         }
       });
+    },
+
+    toggleFieldVisible({ state }, { visible, field }) {
+      const displayFieldNames = state.visibleFields.map(item => item.field_name);
+      if (visible) {
+        // 需要显示字段
+        displayFieldNames.push(field.field_name);
+      } else {
+        // 需要隐藏字段
+        const index = state.visibleFields.findIndex(item => field.field_name === item.field_name);
+        displayFieldNames.splice(index, 1);
+      }
+      if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
+      http
+        .request('retrieve/postFieldsConfig', {
+          params: { index_set_id: state.indexId },
+          data: {
+            display_fields: displayFieldNames,
+            sort_list: state.indexFieldInfo.sort_list,
+            config_id: state.retrieve.filedSettingConfigID,
+            index_set_id: state.indexId,
+            index_set_ids: state.unionIndexList,
+            index_set_type: state.isUnionSearch ? 'union' : 'single',
+          },
+        })
+        .catch(e => {
+          console.warn(e);
+        });
     },
   },
 });
