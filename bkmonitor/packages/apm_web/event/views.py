@@ -12,6 +12,7 @@ from typing import Any, Dict
 
 from rest_framework.decorators import action
 
+from apm_web.decorators import user_visit_record
 from apm_web.event import resources
 from apm_web.event.serializers import EventDownloadTopKRequestSerializer
 from apm_web.models import Application
@@ -42,12 +43,16 @@ class EventViewSet(ResourceViewSet):
         ResourceRoute("POST", resources.EventTopKResource, endpoint="topk"),
         ResourceRoute("POST", resources.EventTotalResource, endpoint="total"),
         ResourceRoute("POST", resources.EventViewConfigResource, endpoint="view_config"),
-        ResourceRoute("POST", resources.EventTimeSeriesResource, endpoint="time_series"),
+        ResourceRoute(
+            "POST", resources.EventTimeSeriesResource, endpoint="time_series", decorators=[user_visit_record]
+        ),
         ResourceRoute("POST", resources.EventTagsResource, endpoint="tags"),
-        ResourceRoute("POST", resources.EventTagDetailResource, endpoint="tag_detail"),
+        ResourceRoute("POST", resources.EventTagDetailResource, endpoint="tag_detail", decorators=[user_visit_record]),
         ResourceRoute("POST", resources.EventGetTagConfigResource, endpoint="get_tag_config"),
         ResourceRoute("POST", resources.EventTagStatisticsResource, endpoint="tag_statistics"),
-        ResourceRoute("POST", resources.EventUpdateTagConfigResource, endpoint="update_tag_config"),
+        ResourceRoute(
+            "POST", resources.EventUpdateTagConfigResource, endpoint="update_tag_config", decorators=[user_visit_record]
+        ),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
