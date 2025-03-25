@@ -26,6 +26,8 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
+
 import { EventReportType } from './types';
 
 import './correlation-nav.scss';
@@ -82,32 +84,6 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                   <div>${this.$t('异常比例')}: ${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}</div>
                 `;
   }
-  getGroupItemTips(metric) {
-    if (this.isCorrelationMetrics)
-      return `<div>${this.$t('分类名')}: ${metric.metric_name_alias}</div>
-                  <div>${this.$t('指标数')}: ${metric.totalPanels?.length}</div>
-                `;
-    let dimensionsHtml = '';
-    for (const [key, val] of Object.entries(metric.dimensions)) {
-      dimensionsHtml += `<div class='tips-item'>
-                <span class='tips-item-label'>${key}:</span>
-                <span class='tips-item-value'>${val}</span>
-              </div>`;
-    }
-    return `<div class='anomaly-dimension-tips'>
-              <div class='dimension-tips-header'>
-                ${this.$t('异常维度值')}:
-                <span class='anomaly-score'>
-                  ${this.$t('异常分值')}
-                  <span class='score-num'>${metric.anomaly_score}</span>
-                </span>
-              </div>
-              <div class='dimension-tips-content'>
-                  ${dimensionsHtml}
-              </div>
-            </div>
-`;
-  }
   renderClassification(item) {
     return (
       <div class='correlation-nav-classification'>
@@ -142,7 +118,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                 key={metric.metric_name}
                 class={['classification-list-item', { active: this.active === metric.metric_name }]}
                 v-bk-tooltips={{
-                  content: this.getGroupItemTips(metric),
+                  content: createAnomalyDimensionTips(metric, this.isCorrelationMetrics),
                   placement: 'left',
                   onShown: () => {
                     this.reportEventLog?.(EventReportType.Tips);

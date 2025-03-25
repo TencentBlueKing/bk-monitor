@@ -35,7 +35,7 @@ export const createAnomalyDimensionTips = (metric: Record<string, any>, isCorrel
                 <div>${window.i18n.tc('指标数')}: ${metric.totalPanels?.length}</div>
               `;
   let dimensionsHtml = '';
-  for (const [key, val] of Object.entries(metric.dimensions)) {
+  for (const [key, val] of Object.entries(metric?.dimensions || {})) {
     dimensionsHtml += `<div class='tips-item'>
               <span class='tips-item-label'>${key}:</span>
               <span class='tips-item-value'>${val}</span>
