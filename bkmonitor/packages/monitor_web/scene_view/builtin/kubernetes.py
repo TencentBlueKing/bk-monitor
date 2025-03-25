@@ -375,7 +375,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
     @classmethod
     def get_pod_view_config(cls, view: SceneViewModel, view_config: Dict):
         view_config["panels"] = []
-        default_detail_config = DEFAULT_POD_DETAIL
+        default_detail_config = copy.deepcopy(DEFAULT_POD_DETAIL)
         default_where = [
             {
                 "key": "bcs_cluster_id",
@@ -394,7 +394,16 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             },
         ]
         # 设置视图面板的显示位置
-        view_config["order"] = cls.get_order(view, default_detail_config)
+        for group in default_detail_config:
+            group["hidden"] = False
+            if "panels" in group and isinstance(group["panels"], list):
+                for panel in group["panels"]:
+                    panel.pop("target", None)
+                    panel["hidden"] = False
+            else:
+                continue
+
+        view_config["order"] = default_detail_config
         # 根据面板位置配置，添加前端显示的面板配置
         cls.patch_group_panels(default_detail_config, default_where, view_config)
         # 设置概览视图的面板
