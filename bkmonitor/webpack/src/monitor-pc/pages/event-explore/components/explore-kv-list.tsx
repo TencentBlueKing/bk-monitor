@@ -36,7 +36,7 @@ import { ExploreObserver, type ExploreSubject } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
-import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem } from '../typing';
+import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem, KVSplitItem } from '../typing';
 
 import './explore-kv-list.scss';
 
@@ -47,7 +47,7 @@ export interface KVFieldList {
   /** 字段的类型 */
   type: DimensionType;
   /** kv 面板中的 value */
-  value: string;
+  value: KVSplitItem[] | string;
   /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
   sourceName: string;
   /** 点击 name 是否能够弹出 统计面板popover */
@@ -110,15 +110,15 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   ];
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
-  /** 当前激活触发弹出 popover 的列 */
-  activeColumn: 'key' | 'value' = null;
+  /** 当前激活触发弹出 popover 的列或者激活的分词下标 */
+  activeColumnOrIndex: 'key' | 'value' | number = null;
   /** 统计面板的 抽屉页展示状态 */
   statisticsSliderShow = false;
   /** 容器滚动 popover 弹窗关闭 观察者 */
   scrollPopoverHideObserver: ExploreObserver;
 
   get activeColumnIsKey() {
-    return this.activeColumn === 'key';
+    return this.activeColumnOrIndex === 'key';
   }
 
   @Emit('conditionChange')
@@ -156,7 +156,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         this.popoverInstance?.destroy?.();
         this.popoverInstance = null;
         this.fieldTarget = null;
-        this.activeColumn = null;
+        this.activeColumnOrIndex = null;
       },
     });
     await this.$nextTick();
@@ -169,7 +169,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     this.popoverInstance = null;
     if (resetFieldTarget) {
       this.fieldTarget = null;
-      this.activeColumn = null;
+      this.activeColumnOrIndex = null;
     }
   }
 
@@ -178,7 +178,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    * @param {MouseEvent} e
    * @param {KVFieldList} item
    */
-  handleValueTextClick(e: MouseEvent, item: KVFieldList) {
+  handleValueTextClick(e: MouseEvent, item: KVFieldList, activeIndex?: number) {
     const currentName = this.fieldTarget?.name;
     if (this.popoverInstance) {
       this.handlePopoverHide();
@@ -187,7 +187,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       return;
     }
     this.fieldTarget = item;
-    this.activeColumn = 'value';
+    this.activeColumnOrIndex = activeIndex ?? 'value';
 
     this.handlePopoverShow(e);
   }
@@ -208,7 +208,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       return;
     }
     this.fieldTarget = item;
-    this.activeColumn = 'key';
+    this.activeColumnOrIndex = 'key';
 
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
@@ -224,7 +224,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         this.popoverInstance = null;
         if (!this.statisticsSliderShow) {
           this.fieldTarget = null;
-          this.activeColumn = null;
+          this.activeColumnOrIndex = null;
         }
       },
       interactive: true,
@@ -233,11 +233,23 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description 获取当前激活menu 弹窗popover的 value
+   * 由于存在分词，所以 fieldTarget 的 value 并不一定是最终激活的 value
+   */
+  getActiveValue() {
+    const { value } = this.fieldTarget;
+    if (!Array.isArray(value)) {
+      return value;
+    }
+    return value?.[this.activeColumnOrIndex]?.value;
+  }
+
+  /**
    * @description 处理复制事件
    *
    */
   handleCopy() {
-    copyText(this.fieldTarget.value || '--', msg => {
+    copyText(this.getActiveValue() || '--', msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error',
@@ -266,7 +278,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     const targetsList = targets ? JSON.parse(decodeURIComponent(targets as string)) : [];
     const sourceTarget = targetsList?.[0] || {};
     const queryConfig = sourceTarget?.data?.query_configs?.[0] || {};
-    const { name, sourceName, value } = this.fieldTarget;
+    const { name, sourceName } = this.fieldTarget;
+    const value = this.getActiveValue();
     let queryString = '';
     const where = [];
     const actualMethod = method || EMethod.eq;
@@ -321,7 +334,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     this.conditionChange({
       key: this.fieldTarget?.sourceName,
       method: method,
-      value: this.fieldTarget?.value,
+      value: this.getActiveValue(),
     });
     this.handlePopoverHide();
   }
@@ -356,6 +369,21 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       window.open(url, '_blank');
     }
   }
+  /**
+   * @description kv 值渲染
+   * @param {KVFieldList} item
+   *
+   */
+  transformValue(item: KVFieldList) {
+    const { value } = item;
+    if (value == null || value === '') {
+      return '--';
+    }
+    if (item.type === 'date') {
+      return dayjs(Number(item.value)).format('YYYY-MM-DD HH:mm:ss');
+    }
+    return value;
+  }
 
   /**
    * @description 容器/主机 跳转链接入口渲染
@@ -375,19 +403,35 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
-   * @description kv 值渲染
+   * @description kv 值渲染-分两种模式（value 为字符串则直接渲染，如为数组则是进行了 分词 操作的，需遍历）
    * @param {KVFieldList} item
-   *
    */
-  transformValue(item: KVFieldList) {
+  valueTextRender(item: KVFieldList) {
     const { value } = item;
-    if (value == null || value === '') {
-      return '--';
+    if (!Array.isArray(value)) {
+      return (
+        <span
+          class={{
+            'value-text': true,
+            'disable-click': !item.canClick,
+            'active-column': !this.activeColumnIsKey,
+          }}
+          onClick={e => this.handleValueTextClick(e, item)}
+        >
+          {`${this.transformValue(item)}`}
+        </span>
+      );
     }
-    if (item.type === 'date') {
-      return dayjs(Number(item.value)).format('YYYY-MM-DD HH:mm:ss');
-    }
-    return value;
+
+    return value.map((splitItem, index) => (
+      <span
+        key={`${splitItem.value}-${index}`}
+        class={`value-${splitItem.type} ${this.activeColumnOrIndex === index ? 'active-column' : ''}`}
+        onClick={e => this.handleValueTextClick(e, item, index)}
+      >
+        {splitItem.value}
+      </span>
+    ));
   }
 
   /**
@@ -485,16 +529,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             </div>
             <div class='item-value'>
               {this.jumpLinkRender(item)}
-              <span
-                class={{
-                  'value-text': true,
-                  'disable-click': !item.canClick,
-                  'active-column': !this.activeColumnIsKey,
-                }}
-                onClick={e => this.handleValueTextClick(e, item)}
-              >
-                {this.transformValue(item)}
-              </span>
+              {this.valueTextRender(item)}
             </div>
           </div>
         ))}
