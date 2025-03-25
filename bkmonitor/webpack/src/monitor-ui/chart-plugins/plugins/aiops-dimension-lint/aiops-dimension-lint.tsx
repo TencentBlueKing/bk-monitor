@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
+import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -556,7 +557,6 @@ export default class AiopsDimensionLine extends LineChart {
     const { self = '', good = 0, bad = 0 } = this.panel.feedback || {};
     const activeGood = self === EEvaluation.good;
     const activeBad = self === EEvaluation.bad;
-    return;
     return (
       <div class='aiops-correlation-link-position'>
         <span class='aiops-correlation-link'>
@@ -594,10 +594,19 @@ export default class AiopsDimensionLine extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            {...{
-              scopedSlots: {
-                subTitle: () => this.getSubTitle(),
-              },
+            scopedSlots={{
+              subTitle: () => this.getSubTitle(),
+              title: () => (
+                <div
+                  v-bk-tooltips={{
+                    content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
+                    placement: 'left',
+                    delay: 200,
+                  }}
+                >
+                  {this.panel.title}
+                </div>
+              ),
             }}
             customArea={this.isCorrelationMetrics}
             descrition={this.panel.descrition}

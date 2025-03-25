@@ -23,5 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import 'monitor-pc/shims.d.ts';
+/**
+ *
+ * @param metric 指标信息
+ * @param isCorrelationMetrics 是否是关联指标
+ * @returns
+ */
+export const createAnomalyDimensionTips = (metric: Record<string, any>, isCorrelationMetrics: boolean) => {
+  if (isCorrelationMetrics)
+    return `<div>${window.i18n.tc('分类名')}: ${metric.metric_name_alias}</div>
+                <div>${window.i18n.tc('指标数')}: ${metric.totalPanels?.length}</div>
+              `;
+  let dimensionsHtml = '';
+  for (const [key, val] of Object.entries(metric.dimensions)) {
+    dimensionsHtml += `<div class='tips-item'>
+              <span class='tips-item-label'>${key}:</span>
+              <span class='tips-item-value'>${val}</span>
+            </div>`;
+  }
+  return `<div class='anomaly-dimension-tips'>
+            <div class='dimension-tips-header'>
+              ${window.i18n.tc('异常维度值')}:
+              <span class='anomaly-score'>
+                ${window.i18n.tc('异常分值')}
+                <span class='score-num'>${metric.anomaly_score}</span>
+              </span>
+            </div>
+            <div class='dimension-tips-content'>
+                ${dimensionsHtml}
+            </div>
+          </div>
+`;
+};

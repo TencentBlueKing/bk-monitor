@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionTypes, EventReportType } from './types';
+import { EventReportType } from './types';
 
 import './correlation-nav.scss';
 
@@ -36,11 +36,13 @@ interface IEvent {
 
 interface IProps {
   list?: any[];
+  isCorrelationMetrics?: boolean;
 }
 
 @Component({})
 export default class CorrelationNav extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) list: any[];
+  @Prop({ type: Boolean, default: false }) isCorrelationMetrics: boolean;
   @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
 
   /** 当前选中指标 */
@@ -71,10 +73,51 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
     }
     this.isCollapse = !this.isCollapse;
   }
+  getGroupTips(item) {
+    if (this.isCorrelationMetrics)
+      return `<div>${this.$t('分类名')}: ${item.result_table_label_name}</div>
+            <div>${this.$t('指标数')}: ${item.metrics?.length}</div>
+          `;
+    return `<div>${this.$t('异常维度')}: ${item.result_table_label_name}</div>
+                  <div>${this.$t('异常比例')}: ${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}</div>
+                `;
+  }
+  getGroupItemTips(metric) {
+    if (this.isCorrelationMetrics)
+      return `<div>${this.$t('分类名')}: ${metric.metric_name_alias}</div>
+                  <div>${this.$t('指标数')}: ${metric.totalPanels?.length}</div>
+                `;
+    let dimensionsHtml = '';
+    for (const [key, val] of Object.entries(metric.dimensions)) {
+      dimensionsHtml += `<div class='tips-item'>
+                <span class='tips-item-label'>${key}:</span>
+                <span class='tips-item-value'>${val}</span>
+              </div>`;
+    }
+    return `<div class='anomaly-dimension-tips'>
+              <div class='dimension-tips-header'>
+                ${this.$t('异常维度值')}:
+                <span class='anomaly-score'>
+                  ${this.$t('异常分值')}
+                  <span class='score-num'>${metric.anomaly_score}</span>
+                </span>
+              </div>
+              <div class='dimension-tips-content'>
+                  ${dimensionsHtml}
+              </div>
+            </div>
+`;
+  }
   renderClassification(item) {
     return (
       <div class='correlation-nav-classification'>
-        <p class='classification-title'>
+        <p
+          class='classification-title'
+          v-bk-tooltips={{
+            placement: 'left',
+            content: this.getGroupTips(item),
+          }}
+        >
           <i
             class={[
               'bk-icon bk-card-head-icon collapse-icon',
@@ -85,7 +128,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
           <span class='classification-text'>{item.result_table_label_name}</span>
           <span class='classification-num'>
             {item?.dimension_anomaly_value_count
-              ? `${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}`
+              ? [<strong key={'1'}>{item.dimension_anomaly_value_count}</strong>, '/', item.dimension_value_total_count]
               : item.metrics?.length}
           </span>
         </p>
@@ -98,23 +141,19 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
               <li
                 key={metric.metric_name}
                 class={['classification-list-item', { active: this.active === metric.metric_name }]}
-                onClick={this.handleActive.bind(this, metric)}
+                v-bk-tooltips={{
+                  content: this.getGroupItemTips(metric),
+                  placement: 'left',
+                  onShown: () => {
+                    this.reportEventLog?.(EventReportType.Tips);
+                  },
+                }}
+                onClick={() => this.handleActive(metric)}
               >
+                <span class={{ 'level-icon': !!metric.anomaly_level, [`level-${metric.anomaly_level}`]: true }} />
                 <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
                 {(metric.totalPanels || []).length > 0 && (
-                  <span
-                    class='classification-list-item-num'
-                    v-bk-tooltips={{
-                      content: this.$t('共 {slot0} 个维度', {
-                        slot0: metric.totalPanels.length,
-                      }),
-                      onShown: () => {
-                        this.reportEventLog?.(EventReportType.Tips);
-                      },
-                    }}
-                  >
-                    {metric.totalPanels.length}
-                  </span>
+                  <span class='classification-list-item-num'>{metric.totalPanels.length}</span>
                 )}
               </li>
             ))}

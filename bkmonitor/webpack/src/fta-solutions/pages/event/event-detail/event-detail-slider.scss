@@ -6,6 +6,7 @@
 
     .event-detail-container {
       min-width: auto;
+
       .container-group {
         padding: 0;
       }
@@ -184,9 +185,11 @@
       }
     }
   }
+
   .detail-resize-view {
     height: calc(100vh - 50px) !important;
   }
+
   .event-detail-content {
     max-height: calc(100vh - 60px);
     padding: 0;
@@ -210,8 +213,8 @@
         box-shadow: none;
 
         .basic-detail {
-          padding-right: 40px;
-          padding-left: 40px;
+          padding-right: 22px;
+          padding-left: 22px;
           background: #fafbfd;
 
           .basic-left {
@@ -227,6 +230,7 @@
 
             .detail-form {
               padding-right: 0px;
+
               .alert-name {
                 max-width: 145px;
               }
@@ -251,6 +255,7 @@
 
       .event-detail-tab {
         margin-top: 0;
+
         .tab-panel-main {
           padding: 0 40px;
         }
@@ -339,5 +344,10 @@
         }
       }
     }
+  }
+
+  .bk-sideslider-title {
+    padding-right: 0px !important;
+    padding-left: 40px !important;
   }
 }

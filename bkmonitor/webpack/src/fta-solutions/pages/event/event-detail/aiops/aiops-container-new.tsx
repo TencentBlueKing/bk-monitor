@@ -32,6 +32,7 @@ import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/al
 import { frontendReportEvent } from 'monitor-api/modules/commons';
 import { alertIncidentDetail } from 'monitor-api/modules/incident';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
 
 import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
@@ -42,9 +43,8 @@ import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo, type I
 
 import type { IDetail } from '../type';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
-import { ETagsType } from 'monitor-pc/components/biz-select/list';
 
-import './aiops-container.scss';
+import './aiops-container-new.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
 
 interface IPanel {
@@ -277,6 +277,7 @@ export default class AiopsContainer extends tsc<IProps> {
   setTabActive(active) {
     this.tabActive = active[0];
     this.isCorrelationMetrics = this.tabActive === ETabNames.index;
+    console.info(active, this.isCorrelationMetrics);
     this.selectActive = this.tabActive;
     this.troubleShootingLoading = false;
   }
@@ -674,7 +675,7 @@ export default class AiopsContainer extends tsc<IProps> {
     return (
       <div
         ref='aiopsContainer'
-        class={['aiops-container', { 'aiops-container-show': this.displayConditions && this.show }]}
+        class={['aiops-container-new', { 'aiops-container-show': this.displayConditions && this.show }]}
         onClick={this.handleReportClick}
       >
         <bk-collapse
@@ -686,6 +687,12 @@ export default class AiopsContainer extends tsc<IProps> {
           {this.tabConfigs.map(config => (
             <bk-collapse-item
               key={config.name}
+              style={{
+                maxHeight:
+                  this.tabActive === config.name && config.isShow
+                    ? `calc(100% - ${(this.tabConfigs.length - 1) * 60}px)`
+                    : '52px',
+              }}
               class={[
                 'aiops-container-menu-item',
                 config.name === 'diagnosis' && (!this.hasTroubleShootingAuth || this.troubleShootingNoData)

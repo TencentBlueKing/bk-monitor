@@ -8,13 +8,14 @@
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+
   .event-detail-head-container {
     width: 100%;
     min-height: 52px;
-    background: #ffffff;
-    box-shadow: 0 2px 4px 0 #1919291f;
-    border-radius: 2px;
     padding-left: 8px;
+    background: #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919291f;
   }
 
   .chat-btn,
@@ -47,20 +48,26 @@
       display: none;
     }
   }
+
   .detail-resize-view {
     width: 100%;
     height: calc(100vh - 104px);
     border: none;
+
     .container-group {
       padding: 0 16px;
     }
+
     .bk-resize-layout-aside {
       background: #f0f3fa;
     }
   }
+
   .event-detail-aiops {
     height: 100%;
-    // overflow-x: auto;
-    background: #f0f3fa;
+  }
+
+  .bk-resize-layout-aside-content {
+    background-color: #f0f3fa;
   }
 }

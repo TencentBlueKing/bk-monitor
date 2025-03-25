@@ -24,7 +24,8 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    font-size: 12px;
+    font-size: 13px;
+    color: #313238;
   }
 
   .bk-tab-label-wrapper .bk-tab-label-list .bk-tab-label-item {
@@ -88,9 +89,9 @@
     margin: 15px 20px 22px 24px;
 
     .tool-popover-content-item {
+      flex-shrink: 0;
       flex-basis: 33.33%;
       flex-flow: 0;
-      flex-shrink: 0;
       max-width: 200px;
       margin: 8px 0;
 
