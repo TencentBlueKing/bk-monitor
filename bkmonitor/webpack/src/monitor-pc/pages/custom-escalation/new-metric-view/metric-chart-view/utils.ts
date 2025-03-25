@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 export const refreshList = [
   // 刷新间隔列表
@@ -186,4 +188,21 @@ export const chunkArray = <T extends any[]>(array: T, chunkSize: number): T[] =>
   }
 
   return result;
+};
+
+// 处理时间范围字符串
+export const generateTimeStrings = (tipsKey: string, timeRange: TimeRangeType) => {
+  const formatStr = 'MM-DD HH:mm:ss';
+  const [startTime, endTime] = handleTransformToTimestamp(timeRange);
+  const timeDiffs = {
+    '1h': 3600000,
+    '1d': 86400000,
+    '7d': 7 * 86400000,
+    '30d': 30 * 86400000,
+  };
+  const diff = timeDiffs[tipsKey];
+  const start = startTime * 1000 - diff;
+  const end = endTime * 1000;
+  const year = new Date(start).getFullYear();
+  return `${year}（${dayjs(start).format(formatStr)} ~ ${dayjs(end).format(formatStr)}）`;
 };

@@ -120,6 +120,10 @@ if (hasRouteHash) {
           jobUrl: window.bk_job_url,
           k8sV2EnableList: (!data.K8S_V2_BIZ_LIST?.length ? [] : data.K8S_V2_BIZ_LIST).slice(),
           defaultBizId: window.default_biz_id || '',
+          customMetricV2EnableList: (!data.ENABLE_CUSTOM_TS_V2_BIZ_LIST?.length
+            ? []
+            : data.ENABLE_CUSTOM_TS_V2_BIZ_LIST
+          ).slice(),
         });
         window.mainComponent = new Vue({
           el: '#app',
