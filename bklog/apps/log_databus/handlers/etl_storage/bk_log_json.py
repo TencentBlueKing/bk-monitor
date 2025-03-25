@@ -84,7 +84,7 @@ class BkLogJsonEtlStorage(EtlStorage):
                     "next": None,
                     "subtype": "assign_obj",
                     "label": "labela2dfe3",
-                    "assign": [self._to_bkdata_assign(field) for field in fields_no_type_object],
+                    "assign": [self._to_bkdata_assign(field, etl_config=self.etl_config) for field in fields_no_type_object],
                     "type": "assign",
                 }
             )
