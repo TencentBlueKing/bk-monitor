@@ -167,6 +167,15 @@
     return 0;
   };
 
+  const isConditionValEmptyShow = computed(() => {
+    return (
+      isValidateEgges(activeFieldItem.value) &&
+      !activeItemMatchList.value.length &&
+      !isRequesting.value &&
+      !conditionValueInputVal.value.length
+    );
+  });
+
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -1218,7 +1227,7 @@
                     class="condition-value-options"
                   >
                     <li
-                      v-if="!activeItemMatchList.length && !isRequesting && !conditionValueInputVal.length"
+                      v-if="isConditionValEmptyShow"
                       class="empty-section"
                     >
                       <bk-exception
