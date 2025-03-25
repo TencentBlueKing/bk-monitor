@@ -198,11 +198,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     ).finally(() => {
       this.downloadLoading = false;
     });
-    const {
-      query_configs: [{ data_source_label, data_type_label, table }],
-    } = this.commonParams;
     try {
-      downloadFile(data, 'txt', `${data_source_label}_${data_type_label}_${table}_${this.selectField}.txt`);
+      console.log(data);
+      downloadFile(data.data, 'txt', data.filename);
     } catch {}
   }
 

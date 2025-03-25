@@ -157,7 +157,8 @@
 
         .bk-table-row {
           &.row-hover {
-            background: #F5F7FA;
+            cursor: pointer;
+            background: #f5f7fa;
 
             .icon-bianji {
               display: block;
@@ -172,9 +173,11 @@
             font-size: 13px;
           }
 
+          .edit-favorite-group {
+            background-color: #fff;
+          }
         }
 
-        
         .edit-cell {
           display: flex;
           align-items: center;

@@ -165,4 +165,7 @@ export default {
   全部添加: 'Add all',
   检索内容: 'Retrieval content',
   分组名称: 'Group name',
+  收藏管理: 'Favorite Management',
+  全部收藏: 'All Favorites',
+  '已选择以下{0}个收藏对象': 'You have selected {0} favorite objects',
 };
