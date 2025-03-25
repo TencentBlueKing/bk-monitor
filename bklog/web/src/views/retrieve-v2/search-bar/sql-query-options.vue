@@ -186,7 +186,7 @@
   };
 
   // 如果是当前位置 AND | OR | AND NOT 结尾
-  const regExpAndOrNot = /(AND|OR|AND\s+NOT)$/gi;
+  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)$/gi;
 
   // 如果当前位置是 : 结尾，说明需要显示字段值列表
   const regExpFieldValue = /(:\s*)$/;
