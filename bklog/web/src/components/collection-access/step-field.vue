@@ -1536,10 +1536,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
           .request('collect/getEtlPreview', updateData)
           .then(res => {
             const fields = res.data?.fields || [];
-            console.log(fields);
-            
             this.formData.etl_params?.metadata_fields.push(...fields);
-            console.log(this.formData.etl_params?.metadata_fields);
             
           })
           .finally(() => {
@@ -2057,8 +2054,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
         this.$http
           .request(requestUrl, updateData)
           .then(res => {
-            console.log(res);
-            
             // 以下为整个页面关键逻辑
             /**
              * 只有点击调试按钮，并且成功了，才会改变原有的fields列表，否则只是结果失败，不做任何操作
@@ -2082,11 +2077,8 @@ import { builtInInitHiddenList } from '@/const/index.js'
                   }, []);
                   this.formData.fields.splice(0, fields.length, ...list);
                 } else {
-                  console.log(4);
-                  
                   // 否则 - 将对table已修改值-> newFields进行操作
                   if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
-                    console.log(5);
                     
                     const list = dataFields.reduce((arr, item) => {
                       const child = newFields.find(field => {
@@ -2100,7 +2092,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
                       return arr;
                     }, []);
                     if (etl_config === 'bk_log_json') {
-                      console.log(6);
                       // json方式下已删除操作的需要拿出来合并到新的field列表里
                       const deletedFileds = newFields.reduce((arr, field) => {
                         if (field.is_delete && !dataFields.find(item => item.field_name === field.field_name)) {
@@ -2121,7 +2112,7 @@ import { builtInInitHiddenList } from '@/const/index.js'
                     // 分隔符逻辑较特殊，需要单独拎出来
                     let index;
                     newFields.forEach((item, idx) => {
-                      // 找到最后一个field_name不为空的下标s  
+                      // 找到最后一个field_name不为空的下标
                       if (item.field_name && !item.is_delete) {
                         index = idx + 1;
                       }
@@ -2147,7 +2138,6 @@ import { builtInInitHiddenList } from '@/const/index.js'
                         }
                       });
                     } else {
-                      console.log(8);
                       dataFields.reduce((arr, item) => {
                         const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
                         arr.push(field);
