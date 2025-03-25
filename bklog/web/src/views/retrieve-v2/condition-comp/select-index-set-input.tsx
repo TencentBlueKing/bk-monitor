@@ -132,6 +132,8 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   render() {
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    const shortcutKey = isMac ? 'Cmd+O' : 'Ctrl+O';
     const inputShowDom = () => {
       if (this.isAloneType) {
         return (
@@ -149,6 +151,7 @@ export default class SelectIndexSetInput extends tsc<object> {
               }}
               class='bklog-icon bklog-arrow-down-filled'
             ></span>
+            {!this.isShowSelectPopover && <span class='shortcut'>{shortcutKey}</span>}
           </div>
         );
       }
