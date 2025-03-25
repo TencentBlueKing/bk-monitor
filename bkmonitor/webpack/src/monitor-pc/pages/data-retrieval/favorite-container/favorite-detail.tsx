@@ -25,7 +25,7 @@
  */
 
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { updateFavorite } from 'monitor-api/modules/model';
@@ -60,6 +60,14 @@ export default class FavoriteDetail extends tsc<IProps> {
   showGroupInput = false;
   groupInput: number | object | string = '';
   groupLoading = false;
+
+  @Watch('value')
+  handleWatchValue() {
+    this.showNameInput = false;
+    this.showGroupInput = false;
+    this.nameLoading = false;
+    this.groupLoading = false;
+  }
 
   /**
    * @description 收藏名称
@@ -97,13 +105,13 @@ export default class FavoriteDetail extends tsc<IProps> {
     this.showGroupInput = false;
     if (this.groupInput && this.groupInput !== this.value.group_id) {
       this.groupLoading = true;
+      const groupName = this.groups.find(item => String(item.id) === String(this.groupInput))?.name;
       const params = {
         ...this.value,
-        group_id: this.groupInput,
+        group_id: this.groupInput === 'null' ? null : this.groupInput,
       };
       const success = await this.handleUpdateFavorite(params);
       this.groupLoading = false;
-      const groupName = this.groups.find(item => item.id === this.groupInput)?.name;
       if (success) {
         this.$emit('success', {
           ...params,
@@ -226,12 +234,13 @@ export default class FavoriteDetail extends tsc<IProps> {
                 <bk-select
                   class='edit-input-wrap'
                   v-model={this.groupInput}
+                  clearable={false}
                   onChange={this.handleUpdateGroup}
                 >
                   {this.groups.map(item => (
                     <bk-option
-                      id={item.id}
-                      key={item.id}
+                      id={String(item.id)}
+                      key={String(item.id)}
                       name={item.name}
                     />
                   ))}
