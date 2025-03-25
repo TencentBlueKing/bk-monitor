@@ -79,6 +79,10 @@
           &:hover {
             background: #e1ecff;
           }
+
+          &.is-hidden-item {
+            display: none;
+          }
         }
       }
     }

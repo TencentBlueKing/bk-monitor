@@ -65,6 +65,7 @@
       onHeightChange: handleHeightChange,
       formatModelValueItem,
       refContent: refSqlQueryOption,
+      refTarget: refEditorParent,
       arrow: false,
       newInstance: false,
       addInputListener: false,
@@ -89,6 +90,7 @@
         return false;
       },
       onHiddenFn: () => {
+        refSqlQueryOption.value?.beforeHideFn?.();
         emit('popup-change', { isShow: false });
         return true;
       },

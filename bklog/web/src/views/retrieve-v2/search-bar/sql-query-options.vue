@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, Ref } from 'vue';
+  import { computed, ref, watch, nextTick, Ref, onBeforeUnmount } from 'vue';
 
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
@@ -352,7 +352,8 @@
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
     const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
-      e.preventDefault();
+      stopEventPreventDefault(e);
+
       if (hasHover && !activeIndex.value) {
         activeIndex.value = 0;
       }
@@ -365,11 +366,11 @@
           handleRetrieve();
         });
       }
-
-      stopEventPreventDefault(e);
     }
 
     if (code === 'ArrowUp') {
+      stopEventPreventDefault(e);
+
       if (hasHover) {
         activeIndex.value = 0;
         hasHover?.classList.remove('is-hover');
@@ -382,6 +383,8 @@
     }
 
     if (code === 'ArrowDown') {
+      stopEventPreventDefault(e);
+
       if (hasHover) {
         activeIndex.value = 0;
         hasHover?.classList.remove('is-hover');
@@ -398,7 +401,6 @@
   };
 
   const beforeShowndFn = () => {
-    // activeIndex.value = null;
     document.addEventListener('keydown', handleKeydown);
     showWhichDropdown();
     calculateDropdown();
@@ -468,6 +470,10 @@
       setOptionActive();
     });
   }, 100);
+
+  onBeforeUnmount(() => {
+    beforeHideFn();
+  });
 
   defineExpose({
     beforeShowndFn,

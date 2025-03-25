@@ -187,10 +187,8 @@ export default (
     if (isModifierPressed && isSlashKey) {
       // 阻止浏览器默认行为（如打开浏览器搜索栏）
       event.preventDefault();
-
       const targetElement = getPopTarget();
 
-      console.log('targetElement', targetElement);
       if (refTarget?.value && isElement(refTarget.value)) {
         delayShowInstance(targetElement);
         return;
