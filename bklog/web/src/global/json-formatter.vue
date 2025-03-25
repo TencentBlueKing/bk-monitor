@@ -71,10 +71,10 @@
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
-      const originValue = val.replace(/<\/?mark>/gim, '');
-      if (/^(\{|\[)/.test(originValue)) {
+      // const originValue = val.replace(/<\/?mark>/gim, '');
+      if (/^(\{|\[)/.test(val)) {
         try {
-          return JSON.parse(originValue);
+          return JSON.parse(val);
         } catch (e) {
           return val;
         }
@@ -106,10 +106,12 @@
       field,
     };
   };
+
   const getFieldName = field => {
     const { getFieldName } = useFieldNameHook({ store });
     return getFieldName(field);
   };
+
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({
@@ -153,17 +155,6 @@
     line-height: 20px;
     color: var(--table-fount-color);
     text-align: left;
-
-    &:not(.is-json) {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: auto;
-          will-change: transform;
-          transform: translateZ(0); /* 强制开启GPU加速 */
-        }
-      }
-    }
 
     .bklog-scroll-box {
       max-height: 50vh;
@@ -214,7 +205,16 @@
         }
       }
     }
-
+    &:not(.is-json) {
+      .bklog-root-field {
+        .field-value {
+          max-height: 50vh;
+          overflow: auto;
+          will-change: transform;
+          transform: translateZ(0); /* 强制开启GPU加速 */
+        }
+      }
+    }
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);

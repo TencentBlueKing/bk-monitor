@@ -80,7 +80,7 @@ export default class UseJsonFormatter {
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      value: target ?? currentValue,
       depth,
     };
 
@@ -103,7 +103,7 @@ export default class UseJsonFormatter {
 
   getCurrentFieldRegStr(field: any) {
     /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
+    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t';
     if (field.tokenize_on_chars) {
       return field.tokenize_on_chars;
     }
@@ -197,6 +197,17 @@ export default class UseJsonFormatter {
     }
   }
 
+  addWordSegmentClick(root: HTMLElement) {
+    if (!root.hasAttribute('data-word-segment-click')) {
+      root.setAttribute('data-word-segment-click', '1');
+      root.addEventListener('click', e => {
+        if ((e.target as HTMLElement).classList.contains('valid-text')) {
+          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+        }
+      });
+    }
+  }
+
   setNodeValueWordSplit(
     target: HTMLElement,
     fieldName,
@@ -204,6 +215,7 @@ export default class UseJsonFormatter {
     textValue?: string,
     appendText?: SegmentAppendText,
   ) {
+    this.addWordSegmentClick(target);
     target.querySelectorAll(valueSelector).forEach((element: HTMLElement) => {
       if (!element.getAttribute('data-has-word-split')) {
         const text = textValue ?? element.innerHTML;
@@ -224,13 +236,8 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        element.addEventListener('click', e => {
-          if ((e.target as HTMLElement).classList.contains('valid-text')) {
-            this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
-          }
-        });
-
         setListItem(600);
+
         if (appendText) {
           const appendElement = document.createElement('span');
           appendElement.innerText = appendText.text;
@@ -250,11 +257,10 @@ export default class UseJsonFormatter {
 
   handleExpandNode(args) {
     if (args.isExpand) {
-      const target = args.targetElement as HTMLElement;
-      const rootElement = args.rootElement as HTMLElement;
-
-      const fieldName = (rootElement.parentNode.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-      this.setNodeValueWordSplit(target, fieldName, '.bklog-json-field-value');
+      // const target = args.targetElement as HTMLElement;
+      // const rootElement = args.rootElement as HTMLElement;
+      // const fieldName = (rootElement.parentNode.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      // this.setNodeValueWordSplit(target, fieldName, '.bklog-json-field-value');
     }
   }
 
@@ -303,17 +309,17 @@ export default class UseJsonFormatter {
           setListItem(600);
         },
       });
-      this.editor.initClickEvent();
+
+      this.editor.initClickEvent(e => {
+        if ((e.target as HTMLElement).classList.contains('valid-text')) {
+          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+        }
+      });
     }
   }
 
   setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
-    // const root = this.getTargetRoot();
-    // if (root) {
-    //   const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-    //   this.setNodeValueWordSplit(root, fieldName);
-    // }
   }
 
   setValue(depth) {
