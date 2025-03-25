@@ -76,7 +76,6 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   @Watch('graphConfigPayload')
   graphConfigPayloadChange() {
-    console.log('============================================= from graphConfigPayloadChange');
     this.$router.replace({
       query: {
         ...this.$route.query,

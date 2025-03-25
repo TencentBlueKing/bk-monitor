@@ -78,7 +78,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   @Watch('config', { deep: true })
   handleConfigChange(val) {
     this.filterOption = deepClone(val);
-    this.timeRange = [val.start_time, val.end_time];
+    // this.timeRange = [val.start_time, val.end_time];
     val && this.getGroupList();
   }
   /** 展示的个数发生变化时 */

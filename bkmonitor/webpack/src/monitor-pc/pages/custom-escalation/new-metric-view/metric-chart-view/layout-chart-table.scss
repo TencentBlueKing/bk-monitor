@@ -28,11 +28,22 @@
           font-size: 12px;
         }
       }
+      .color-name {
+        display: flex;
+        align-items: center;
+      }
       .color-box {
         display: inline-block;
         width: 8px;
         height: 4px;
         margin-right: 4px;
+      }
+      .num-cell {
+        .gray-text {
+          color: #a8b5cf;
+          font-size: 12px;
+          margin-left: 2px;
+        }
       }
 
       &.bk-table {

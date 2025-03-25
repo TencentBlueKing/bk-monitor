@@ -51,6 +51,7 @@ import './drill-analysis-view.scss';
 /** 下钻分析 */
 interface IDrillAnalysisViewProps {
   dimensionsList?: IDimensionItem[];
+  currentMethod?: string;
 }
 interface IDrillAnalysisViewEvents {
   onClose?: void;
@@ -59,6 +60,8 @@ interface IDrillAnalysisViewEvents {
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
+  /** 当前汇聚方法 */
+  @Prop({ default: 'SUM' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -113,6 +116,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   mounted() {
+    window.addEventListener('keydown', this.handleKeydown);
     this.refreshList = refreshList;
     this.$nextTick(() => {
       /** 初始化数据 */
@@ -144,6 +148,13 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
   beforeDestroy() {
     this.timer && clearInterval(this.timer);
+    window.removeEventListener('keydown', this.handleKeydown);
+  }
+
+  handleKeydown(event) {
+    if (event.key === 'Escape') {
+      this.handleClose();
+    }
   }
 
   /** 获取当前可选的维度值 */
@@ -203,7 +214,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       })
     );
     this.filterConfig.drill_group_by = activeKey;
-    this.setPanelConfigAndRefresh('filter_dict.drill_filter', list);
+
+    const drillFilter = {};
+    list.map(item => (drillFilter[item.key] = item.value));
+    this.setPanelConfigAndRefresh('filter_dict.drill_filter', drillFilter);
   }
   /** 设置panel的值 */
   setPanelConfigAndRefresh(keys: string, value) {
@@ -385,6 +399,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
                 key={this.chartKey}
                 style={{ height: `${this.drag.height - 30}px` }}
                 chartHeight={this.drag.height}
+                currentMethod={this.currentMethod}
                 isShowLegend={true}
                 isToolIconShow={false}
                 panel={this.panelData}

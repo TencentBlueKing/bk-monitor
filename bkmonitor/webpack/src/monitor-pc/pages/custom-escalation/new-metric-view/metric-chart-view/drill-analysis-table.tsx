@@ -79,6 +79,9 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   isShowDetail = false;
   /** 显示维度趋势图 维度id */
   filterDimensionValue = '';
+  sortProp: null | string = null;
+  sortOrder: 'ascending' | 'descending' | null = null;
+  sortColumn: IColumnItem[] = [];
 
   /** 需要展示的维度列 */
   get dimensionsColumn() {
@@ -112,6 +115,18 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       }
     }
     return Array.from(options.values());
+  }
+  get showTableList() {
+    let list = this.tableList || [];
+    if (this.sortProp && this.sortOrder && list.length) {
+      list = list.toSorted((a, b) => {
+        if (this.sortOrder === 'ascending') {
+          return a[this.sortProp] > b[this.sortProp] ? 1 : -1;
+        }
+        return a[this.sortProp] < b[this.sortProp] ? 1 : -1;
+      });
+    }
+    return list;
   }
 
   getDimensionId(dimensions: Record<string, string>) {
@@ -304,6 +319,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         ];
       });
     }
+    this.sortColumn = [...baseColumn, ...compareColumn];
 
     const columnList = [...this.dimensionsColumn, ...baseColumn, ...compareColumn];
     return columnList.map((item: IColumnItem, ind: number) => {
@@ -392,6 +408,11 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       </div>
     );
   }
+  handleSort({ column, order }) {
+    const sortColumn = this.sortColumn.find(item => item.label === column.label);
+    this.sortProp = sortColumn.prop;
+    this.sortOrder = order;
+  }
   /** 维度表格 end */
 
   render() {
@@ -441,10 +462,11 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           ) : (
             <bk-table
               ext-cls='dimensions-table'
-              data={this.tableList}
+              data={this.showTableList}
               header-border={false}
               outer-border={false}
               stripe={true}
+              on-sort-change={this.handleSort}
             >
               {this.renderTableColumn()}
             </bk-table>

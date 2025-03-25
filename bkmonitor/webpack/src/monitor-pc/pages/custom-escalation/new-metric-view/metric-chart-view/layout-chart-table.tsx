@@ -26,6 +26,7 @@
 import { Component, Ref, Prop, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
@@ -85,14 +86,15 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /** 查看大图参数配置 */
   viewQueryConfig = {};
   currentChart = {};
+  currentMethod = 'SUM';
 
   /** 对比工具栏数据 */
   get compareValue() {
     const { compare } = this.filterOption;
     return {
       compare: {
-        type: compare.type,
-        value: compare.offset,
+        type: compare?.type,
+        value: compare?.offset,
       },
       tools: {
         timeRange: this.timeRange,
@@ -163,6 +165,16 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.showViewDetail = false;
     this.viewQueryConfig = {};
   }
+
+  handleMethodChange(method: string) {
+    this.panel.targets.map(item => {
+      (item.query_configs || []).map(config => {
+        (config.metrics || []).map(metric => (metric.method = method));
+      });
+    });
+    this.currentMethod = method;
+  }
+
   /** 表格渲染 */
   renderIndicatorTable() {
     if (this.loading) {
@@ -184,7 +196,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           scopedSlots={{
             default: ({ row }) => (
-              <span>
+              <span class='color-name'>
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
@@ -202,30 +214,48 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           show-overflow-tooltip={true}
         />
         <bk-table-column
-          width={80}
           scopedSlots={{
-            default: ({ row }) => row.max || '--',
+            default: ({ row }) => (
+              <span class='num-cell'>
+                {row.max || '--'}
+                <span class='gray-text'>@{dayjs(row.maxTime).format('HH:mm')}</span>
+              </span>
+            ),
           }}
           label={this.$t('最大值')}
+          min-width={120}
           prop='max'
+          show-overflow-tooltip
           sortable
         />
         <bk-table-column
-          width={80}
           scopedSlots={{
-            default: ({ row }) => row.min || '--',
+            default: ({ row }) => (
+              <span class='num-cell'>
+                {row.min || '--'}
+                <span class='gray-text'>@{dayjs(row.minTime).format('HH:mm')}</span>
+              </span>
+            ),
           }}
           label={this.$t('最小值')}
+          min-width={120}
           prop='min'
+          show-overflow-tooltip
           sortable
         />
         <bk-table-column
-          width={80}
           scopedSlots={{
-            default: ({ row }) => row.latest || '--',
+            default: ({ row }) => (
+              <span class='num-cell'>
+                {row.latest || '--'}
+                <span class='gray-text'>@{dayjs(row.latestTime).format('HH:mm')}</span>
+              </span>
+            ),
           }}
           label={this.$t('最新值')}
+          min-width={120}
           prop='latest'
+          show-overflow-tooltip
           sortable
         />
         <bk-table-column
@@ -235,6 +265,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           }}
           label={this.$t('平均值')}
           prop='avg'
+          show-overflow-tooltip
           sortable
         />
         <bk-table-column
@@ -244,6 +275,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           }}
           label={this.$t('累计值')}
           prop='total'
+          show-overflow-tooltip
           sortable
         />
         <div slot='empty'>{this.$t('暂无数据')}</div>
@@ -257,11 +289,13 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         key={this.chartKey}
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
+        currentMethod={this.currentMethod}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
         onDrillDown={this.handelDrillDown}
         onFullScreen={this.handleFullScreen}
         onLegendData={this.handleLegendData}
+        onMethodChange={this.handleMethodChange}
       />
     );
     return (
@@ -301,6 +335,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         </div>
         {this.showDrillDown && (
           <DrillAnalysisView
+            currentMethod={this.currentMethod}
             panel={this.currentChart}
             onClose={() => (this.showDrillDown = false)}
           />

@@ -188,6 +188,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   get showAddStrategy() {
     return !this.$route.name.includes('strategy');
   }
+  get isMac() {
+    return /Macintosh|Mac/.test(navigator.userAgent);
+  }
   @Watch('metrics', { immediate: true })
   async handleMetricChange(v, o) {
     if (this.metrics?.length !== 1) return;
@@ -364,6 +367,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               />
             ) : undefined}
             <div
+              style={{ fontWeight: this.isMac ? 500 : 600 }}
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
                 interactive: this.showTitleIcon,
