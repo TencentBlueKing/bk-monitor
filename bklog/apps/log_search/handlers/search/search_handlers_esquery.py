@@ -467,8 +467,21 @@ class SearchHandler(object):
 
     @fields_config("apm_relation")
     def apm_relation(self):
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
         try:
-            res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
+            if qs.exists():
+                collector_config = qs.first()
+                res = MonitorApi.query_log_relation(
+                    params={
+                        "index_set_id": int(self.index_set_id),
+                        "bk_data_id": int(collector_config.bk_data_id),
+                        "bk_biz_id": collector_config.bk_biz_id,
+                        "start_time": self.start_time,
+                        "end_time": self.end_time,
+                    }
+                )
+            else:
+                res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
         except ApiRequestError as e:
             logger.warning(f"fail to request log relation => index_set_id: {self.index_set_id}, exception => {e}")
             return False
