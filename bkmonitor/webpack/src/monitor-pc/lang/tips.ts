@@ -333,4 +333,6 @@ export default {
   提交查询: 'Submit query',
   '异常事件 ({0})': 'Exception event ({0})',
   '全部事件 ({0})': 'All events ({0})',
+  '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorite item?',
+  '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be recovered, please operate carefully!',
 };

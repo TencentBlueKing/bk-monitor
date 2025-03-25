@@ -27,10 +27,11 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { createFavoriteGroup } from 'monitor-api/modules/model';
+import { createFavoriteGroup, updateFavorite } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
+import BatchOperationMenu from './batch-operation-menu';
 import FavoriteDetail from './favorite-detail';
 
 import type { IFavList } from '../typings';
@@ -55,6 +56,8 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
 
   @Ref('addGroupPopover') addGroupPopoverRef;
   @Ref('checkInputForm') checkInputFormRef;
+  @Ref('editFavoriteNameInput') editFavoriteNameInputRef;
+  @Ref('favoriteTable') favoriteTableRef;
 
   /** 所有的分组和收藏 */
   localFavoriteList: IFavList.favGroupList[] = [];
@@ -246,15 +249,19 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         name: this.addGroupData.name,
       });
       this.handleAddGroupPopoverHidden();
-      this.$emit('operateChange', 'request-query-history');
+      this.handleOperateChange('request-query-history');
     });
   }
 
   /** 隐藏添加分组popover */
-  handleAddGroupPopoverHidden() {
+  handleAddGroupPopoverHidden(close = true) {
     this.addGroupData.name = '';
     this.checkInputFormRef?.clearError();
-    this.addGroupPopoverRef?.hideHandler();
+    close && this.addGroupPopoverRef?.hideHandler();
+  }
+
+  handleTableSelectionChange(selection: IFavList.favList[]) {
+    this.selectFavoriteList = selection;
   }
 
   /** 表格行点击触发 */
@@ -270,33 +277,112 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
     return styles.join(' ');
   }
 
+  handleEditFavoriteName(val: string, row) {
+    if (val !== row.name) {
+      this.handleUpdateFavorite({
+        id: row.id,
+        group_id: row.group_id,
+        name: val,
+        config: row.config,
+      }).then(() => {
+        row.editName = false;
+      });
+    } else {
+      row.editName = false;
+    }
+  }
+
+  handleEditFavoriteGroup(val, row) {
+    if (val === String(row.group_id)) {
+      row.editGroup = false;
+    } else {
+      this.handleUpdateFavorite({
+        id: row.id,
+        group_id: JSON.parse(val),
+        name: row.name,
+        config: row.config,
+      }).then(() => {
+        row.editName = false;
+      });
+    }
+  }
+
+  handleUpdateFavorite(data) {
+    return updateFavorite(data.id, {
+      group_id: data.group_id,
+      name: data.name,
+      type: this.favoriteType,
+      config: data.config,
+    }).then(() => {
+      this.handleOperateChange('request-query-history');
+    });
+  }
+
   /** 自定义收藏名称展示 */
   favoriteNameScopedSlots({ row }) {
-    if (!row.edit)
+    const handleEditName = () => {
+      row.editName = true;
+      row.editGroup = false;
+      this.$nextTick(() => {
+        this.favoriteTableRef?.$refs?.editFavoriteNameInput?.focus();
+      });
+    };
+
+    if (!row.editName)
       return (
         <div
           class='edit-cell'
-          // onClick={() => this.handleRowClick(row)}
+          onClick={handleEditName}
         >
           <span class='text name'>{row.name}</span>
           <i class='icon-monitor icon-bianji' />
         </div>
       );
+
+    return (
+      <bk-input
+        ref='editFavoriteNameInput'
+        value={row.name}
+        onBlur={val => this.handleEditFavoriteName(val, row)}
+        onEnter={val => this.handleEditFavoriteName(val, row)}
+      />
+    );
   }
 
   /** 自定义所属组展示 */
   groupScopedSlots({ row }) {
-    if (!row.edit)
+    if (!row.editGroup)
       return (
-        <div class='edit-cell'>
-          <span class='text'>{this.tableFilters.groups.find(item => item.value === row.group_id)?.text}</span>
+        <div
+          class='edit-cell'
+          onClick={() => {
+            row.editGroup = true;
+          }}
+        >
+          <span class='text'>{row.groupName}</span>
           <i class='icon-monitor icon-bianji' />
         </div>
       );
+    return (
+      <bk-select
+        class='edit-favorite-group'
+        clearable={false}
+        value={row.group_id}
+        onSelected={val => this.handleEditFavoriteGroup(val, row)}
+      >
+        {this.localFavoriteList.map(item => (
+          <bk-option
+            id={String(item.id)}
+            key={item.id}
+            name={item.name}
+          />
+        ))}
+      </bk-select>
+    );
   }
 
-  handleDeleteFavorite(row) {
-    this.$emit('operateChange', 'delete-favorite', row);
+  handleOperateChange(type: string, data?: any) {
+    this.$emit('operateChange', type, data);
   }
 
   renderEventColumns() {
@@ -315,6 +401,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
 
   handleDetailUpdate(params) {
     this.curClickRow = params;
+    this.handleOperateChange('request-query-history');
   }
 
   render() {
@@ -378,6 +465,9 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                   theme: 'light',
                 }}
                 placement='bottom-start'
+                on-hide={() => {
+                  this.handleAddGroupPopoverHidden(false);
+                }}
               >
                 <div class='add-group-btn'>
                   <i class='icon-monitor icon-a-1jiahao' />
@@ -402,7 +492,6 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                       <bk-input
                         vModel={this.addGroupData.name}
                         placeholder={this.$t('输入组名,30个字符')}
-                        clearable
                       />
                     </bk-form-item>
                   </bk-form>
@@ -453,9 +542,12 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
           </div>
           <div class='favorite-table-container'>
             <div class='table-header-operation'>
-              <bk-button disabled={this.selectFavoriteList.length === 0}>
-                {this.$t('批量操作')} <i class='icon-monitor icon-arrow-down' />
-              </bk-button>
+              <BatchOperationMenu
+                favoriteGroupList={this.localFavoriteList}
+                favoriteType={this.favoriteType}
+                selectFavoriteList={this.selectFavoriteList}
+                onOperateChange={this.handleOperateChange}
+              />
               <bk-input
                 class='favorite-search-input'
                 v-model={this.favoriteSearchValue}
@@ -469,12 +561,14 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
             </div>
             <div class='table-content'>
               <bk-table
+                ref='favoriteTable'
                 data={this.searchResultFavorites}
                 max-height={525}
                 row-class-name={this.getRowClassName}
                 on-row-click={row => (this.curClickRow = row)}
                 on-row-mouse-enter={index => (this.curHoverRowIndex = index)}
                 on-row-mouse-leave={() => (this.curHoverRowIndex = -1)}
+                on-selection-change={this.handleTableSelectionChange}
               >
                 <bk-table-column
                   width='45'
@@ -494,7 +588,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                   filter-method={(value, row) => row.group_id === value}
                   filters={this.tableFilters.groups}
                   label={this.$t('所属组')}
-                  prop='group_id'
+                  prop='groupName'
                   filter-multiple
                 />
                 {this.favoriteType === 'event' && this.renderEventColumns()}
@@ -517,7 +611,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                     default: ({ row }) => (
                       <span
                         class='del-btn'
-                        onClick={() => this.handleDeleteFavorite(row)}
+                        onClick={() => this.handleOperateChange('delete-favorite', row)}
                       >
                         {this.$t('删除')}
                       </span>
