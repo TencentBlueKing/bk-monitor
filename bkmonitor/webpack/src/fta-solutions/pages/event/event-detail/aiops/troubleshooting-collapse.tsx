@@ -41,13 +41,30 @@ interface IProps {
     message: string;
   };
   loading: boolean;
-  onToIncidentDetail: Function;
+  onToIncidentDetail: () => void;
   spaceId: string;
 }
 
 // 最大做小缩放倍率
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
+const STATUS_MAP = {
+  recovered: {
+    iconName: 'icon-mc-check-fill',
+    iconColor: '#2dcb56',
+    iconText: '已恢复',
+  },
+  abnormal: {
+    iconName: 'icon-mind-fill',
+    iconColor: '#ff5656',
+    iconText: '未恢复',
+  },
+  closed: {
+    iconName: 'icon-mc-close-fill',
+    iconColor: '#979BA5',
+    iconText: '已失效',
+  },
+};
 @Component({
   directives: {
     resize,
@@ -78,12 +95,20 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
     },
     status: {
       label: this.$t('故障状态'),
-      renderFn: (status: any) => (
-        <span class={`info-status ${status}`}>
-          <i class='icon-monitor icon-mind-fill' />
-          {status}
-        </span>
-      ),
+      renderFn: (status: any, detail: Record<string, any>) => {
+        console.log(status, 'statusstatus', detail, this.data);
+        if (!status) return '';
+        const statusInfo = STATUS_MAP[detail.status];
+        return (
+          <span
+            style={{ color: statusInfo.iconColor }}
+            class={`status-icon info-status ${status}`}
+          >
+            <i class={['icon-monitor', statusInfo.iconName]} />
+            <span class='status-text'>{detail.status_alias}</span>
+          </span>
+        );
+      },
     },
     time: {
       label: this.$t('持续时间'),
@@ -139,7 +164,7 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
   handleClick() {
     this.zoomImage.showImg();
   }
-  formatTimestamp(timestamp: string | number | Date) {
+  formatTimestamp(timestamp: Date | number | string) {
     // 将时间戳从秒转换为毫秒
     const date = new Date(timestamp);
     // 获取年月日时分秒
@@ -219,7 +244,7 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
               >
                 <span class='info-label'>{this.$t(info.label)}：</span>
                 <span class='info-txt'>
-                  {info?.renderFn ? info.renderFn(this.detailConfig[key]) : this.detailConfig[key] || '--'}
+                  {info?.renderFn ? info.renderFn(this.detailConfig[key], this.data) : this.detailConfig[key] || '--'}
                 </span>
               </div>
             );

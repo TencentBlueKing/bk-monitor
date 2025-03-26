@@ -631,8 +631,8 @@ export default class AiopsContainer extends tsc<IProps> {
   }
   /** 绘制collapse头部异常的内容 */
   renderStatusTipsErr(name) {
-    if (name === 'diagnosis' && this.troubleShootingNoData) {
-      return <div key='diagnosis-info-err-text'>{this.$t('当前告警不属于任何故障')}</div>;
+    if (name === 'diagnosis' && this.troubleShootingNoData && this.hasTroubleShootingAuth) {
+      return <div key='diagnosis-info-err-text'>{this.$t('当前告警无关联故障')}</div>;
     }
     return (
       <div class='aiops-tab-title-message aiops-tab-title-no-auth'>
