@@ -9,8 +9,8 @@
   }
 
   .bklog-icon {
-    font-size: 14px;
-    color: #c4c6cc;
+    font-size: 16px;
+    color: #a3b1cc;
   }
 
   .group-cur {
@@ -61,7 +61,10 @@
       display: inline-block;
       min-width: 20px;
       height: 16px;
+      font-family: RobotoMono-Medium;
+      font-weight: 500;
       line-height: 16px;
+      color: #a3b1cc;
       text-align: center;
 
       /* stylelint-disable-next-line declaration-no-important */

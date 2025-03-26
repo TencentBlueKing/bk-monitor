@@ -170,7 +170,7 @@
     :on-show="() => handlePopShow(true)"
     animation="slide-toggle"
     placement="bottom-center"
-    theme="light bk-select-dropdown"
+    theme="light bk-select-dropdown bk-select-dropdown-expand"
     trigger="click"
   >
     <slot name="trigger">
@@ -179,7 +179,10 @@
         class="more-operation"
       >
         {{ $t('更多') }}
-        <span class="bklog-icon bklog-arrow-down-filled" :class="isPopoverShow?'transform':''"></span>
+        <span
+          class="bklog-icon bklog-arrow-down-filled"
+          :class="isPopoverShow ? 'transform' : ''"
+        ></span>
       </div>
     </slot>
     <template #content>
@@ -213,7 +216,7 @@
       font-size: 14px;
     }
 
-    .transform{
+    .transform {
       transform: rotate(180deg);
     }
   }
