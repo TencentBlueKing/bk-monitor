@@ -87,7 +87,7 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) groupSelectList: IListItem[];
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => [], type: Array }) dimensionTable;
-  @Prop({ default: () => {} }) allDataPreview;
+  @Prop({ default: () => { } }) allDataPreview;
   @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
@@ -258,21 +258,18 @@ export default class IndicatorTable extends tsc<any, any> {
     this.showDetail = true;
   }
 
-  @Emit('handleSelectGroup')
   handleSelectGroup(v: string[], index: number, row) {
+    this.$emit('handleSelectGroup', [v, index, row.name]);
     // 处理分组选择逻辑
-    return [v, index, row.name];
+    this.$nextTick(() => {
+      this.handleGroupSelectToggle(row, v);
+    });
   }
 
-  handleGroupSelectToggle(isShow, row) {
+  handleGroupSelectToggle(row, value) {
     // 处理切换逻辑
-    if (isShow) return;
     this.groupActiveIndex = -1;
-    this.$emit(
-      'handleSelectToggle',
-      row.labels.map(label => label.name),
-      row.name
-    );
+    this.$emit('handleSelectToggle', value, row.name);
   }
 
   /* 分组tag tip展示 */
@@ -323,7 +320,6 @@ export default class IndicatorTable extends tsc<any, any> {
         multiple
         searchable
         onChange={(v: string[]) => this.handleSelectGroup(v, index, row)}
-        onToggle={v => this.handleGroupSelectToggle(v, row)}
       >
         {this.groupSelectList.map(item => (
           <bk-option

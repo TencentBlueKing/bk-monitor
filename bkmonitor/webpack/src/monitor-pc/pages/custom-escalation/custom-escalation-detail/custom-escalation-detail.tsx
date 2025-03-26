@@ -179,7 +179,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     dataLabel: false,
   };
 
-
   get computedWidth() {
     return window.innerWidth < 2560 ? 960 : 1200;
   }
@@ -247,8 +246,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return (
         (leng1
           ? this.groupFilterList.some(
-              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            ) && isMetric
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          ) && isMetric
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -262,18 +261,18 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
-              const monitorType = {
-                指标: 'metric',
-                维度: 'dimension',
-              };
-              return (
-                item.monitor_type === t ||
-                monitorType?.[t] === item.monitor_type ||
-                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-                fuzzyMatch(item.name, t) ||
-                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-              );
-            })
+            const monitorType = {
+              指标: 'metric',
+              维度: 'dimension',
+            };
+            return (
+              item.monitor_type === t ||
+              monitorType?.[t] === item.monitor_type ||
+              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+              fuzzyMatch(item.name, t) ||
+              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+            );
+          })
           : true)
       );
     });
@@ -286,40 +285,40 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     const dimensions = this.dimensions.length
       ? this.dimensions
       : [
-          {
-            name: 'dimension1',
-            type: 'dimension',
-            description: '',
-            disabled: true,
-            common: true,
-          },
-        ];
+        {
+          name: 'dimension1',
+          type: 'dimension',
+          description: '',
+          disabled: true,
+          common: true,
+        },
+      ];
     const metrics = this.metricData.length
       ? this.metricData
       : [
-          {
-            name: 'metric1',
-            type: 'metric',
-            description: '',
-            disabled: false,
-            unit: '',
-            hidden: false,
-            aggregate_method: '',
-            function: {},
-            interval: 0,
-            label: [],
-            dimensions: ['dimension1'],
-          },
-        ];
+        {
+          name: 'metric1',
+          type: 'metric',
+          description: '',
+          disabled: false,
+          unit: '',
+          hidden: false,
+          aggregate_method: '',
+          function: {},
+          interval: 0,
+          label: [],
+          dimensions: ['dimension1'],
+        },
+      ];
     const groupRules = this.groupList
       ? this.groupList
       : [
-          {
-            name: '测试分组',
-            manual_list: ['metric1'],
-            auto_rules: ['rule1'],
-          },
-        ];
+        {
+          name: '测试分组',
+          manual_list: ['metric1'],
+          auto_rules: ['rule1'],
+        },
+      ];
     const template = {
       dimensions,
       metrics,
@@ -426,9 +425,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           }
         }
         this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
-          this.detailData.time_series_group_id
-        } ${this.detailData.name}`;
+        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
+          } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
         this.dimensions = metricData?.dimensions || [];
         // this.metricList =
@@ -463,9 +461,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
         await this.getGroupList();
       } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
-          this.detailData.name
-        }`;
+        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
+          }`;
       }
       this.$store.commit('app/SET_NAV_TITLE', title);
       this.handleDetailData(this.detailData);
@@ -1114,7 +1111,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   async saveSelectGroup(selectedGroups, metricName) {
     try {
       const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
-
+      console.log('change', changes);
+      console.log(selectedGroups, this.metricGroupsMap);
       await Promise.all([
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
