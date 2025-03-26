@@ -124,4 +124,5 @@ export default {
   存储: 'Storage',
   容量: 'Capacity',
   成本: 'Cost',
+  '生成 “{0}” 选项': 'Generate "{0}" Options',
 };
