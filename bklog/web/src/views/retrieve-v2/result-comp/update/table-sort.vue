@@ -18,9 +18,10 @@
             auto-focus
             filterable
           >
+            <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
               v-for="option in selectList"
-              class="custom-option"
+              class="custom-option bklog-v3-popover-tag"
               :id="option.field_name"
               :key="option.field_name"
               :name="option.field_name"
@@ -47,7 +48,9 @@
             style="width: 75px"
             v-model="item[1]"
           >
+            <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
+              class="bklog-v3-popover-tag"
               v-for="option in orderList"
               :id="option.id"
               :key="option.id"
@@ -95,6 +98,7 @@
   ];
   const store = useStore();
   const shadowSort = ref([]);
+
   const selectList = computed(() => {
     const data = store.state.indexFieldInfo.fields;
     const filterFn = field => field.field_type !== '__virtual__';

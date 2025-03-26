@@ -45,7 +45,7 @@
   const queryParams = ['ui', 'sql'];
   const route = useRoute();
   const router = useRouter();
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, (val) => {
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
     activeFavorite.value = val;
   });
 
@@ -304,7 +304,7 @@
     if (search_mode === 'ui') {
       sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
     } else {
-      sourceSQLStr.value = params.keyword;
+      sourceSQLStr.value = params?.keyword ?? '';
     }
   };
   watch(

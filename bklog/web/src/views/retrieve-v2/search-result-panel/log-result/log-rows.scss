@@ -554,7 +554,7 @@
           &.right {
             position: sticky;
             right: var(--scroll-left);
-            transform: translateX(-8px);
+            // transform: translateX(-8px);
             z-index: 1;
           }
         }

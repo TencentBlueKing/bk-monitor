@@ -114,23 +114,11 @@
               :init-data="shadowSort"
             />
           </div>
-          <!-- <bk-tab
-            :active.sync="activeFieldTab"
-            :label-height="42"
-            type="unborder-card"
-          >
-            <template v-for="(panel, index) in fieldTabPanels">
-              <bk-tab-panel
-                :key="index"
-                v-bind="panel"
-              ></bk-tab-panel>
-            </template>
-          </bk-tab> -->
         </div>
       </div>
     </div>
     <div
-    :style="{ 'justify-content': !isShowLeft ? 'space-between' : 'flex-end' }"
+      :style="{ 'justify-content': !isShowLeft ? 'space-between' : 'flex-end' }"
       class="fields-button-container"
     >
       <div
@@ -299,7 +287,22 @@
       this.currentClickConfigID = this.configTabPanels.length ? this.filedSettingConfigID : 0;
       this.initRequestConfigListShow();
     },
+    mounted() {
+      window.addEventListener('click', this.handleDocumentClick);
+    },
+    unmounted() {
+      window.removeEventListener('click', this.handleDocumentClick);
+    },
     methods: {
+      handleDocumentClick(e) {
+        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+          return;
+        }
+
+        if (!this.$el.contains(e.target)) {
+          this.$emit('cancel');
+        }
+      },
       getFiledDisplayByFieldName(name) {
         const field = this.shadowTotal.find(item => item.field_name === name);
         return this.getFiledDisplay(field);

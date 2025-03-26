@@ -224,7 +224,7 @@
           </li>
         </ul>
         <div
-          class="dropdown-setting"
+          class="dropdown-setting bklog-v3-popover-tag"
           @click="handleFieldSettingPopoverShow"
         >
           <span class="bklog-icon bklog-shezhi" />

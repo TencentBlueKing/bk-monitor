@@ -216,6 +216,8 @@
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
         tippyOptions: {
+          appendTo: () => document.body,
+          boundary: 'body',
           hideOnClick: false,
         },
       };

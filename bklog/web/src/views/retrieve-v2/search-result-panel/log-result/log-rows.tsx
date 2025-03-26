@@ -805,7 +805,7 @@ export default defineComponent({
       const operatorWidth = operatorToolsWidth.value;
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
 
-      return operatorWidth + diff;
+      return operatorWidth + (diff > 0 ? diff : 0);
     });
 
     const setHeaderStyle = () => {
