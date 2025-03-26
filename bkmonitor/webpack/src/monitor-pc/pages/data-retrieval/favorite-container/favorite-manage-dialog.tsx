@@ -289,6 +289,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         config: row.config,
       }).then(() => {
         row.editName = false;
+        row.name = val;
         this.curClickRow = row;
       });
     } else {
