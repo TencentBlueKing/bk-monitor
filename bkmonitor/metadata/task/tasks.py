@@ -889,7 +889,21 @@ def sync_bkbase_v4_metadata(key):
     ).inc()
 
     bkbase_redis = bkbase_redis_client()
-    bk_data_id = key.split(":")[-1]  # 提取 bk_data_id
+
+    bk_base_data_id = key.split(":")[-1]  # 提取 bk_data_id
+
+    try:
+        vm_record = models.AccessVMRecord.objects.filter(bk_base_data_id=bk_base_data_id)
+        if vm_record.exists():  # 若接入VM记录存在,说明是指标链路,常规流程,通过table_id获取监控平台DataId
+            table_id = vm_record.first().result_table_id
+            # 兼容 DataId--RT 一对多的边缘场景
+            bk_data_id = models.DataSourceResultTable.objects.filter(table_id=table_id).first().bk_data_id
+        else:  # 否则,说明是日志链路,日志链路中,无论是纯V4还是V3->V4,DataId是一样的
+            bk_data_id = bk_base_data_id
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("sync_bkbase_v4_metadata: failed to get bk_data_id and table_id for key->[%s],error->[%s]", key, e)
+        return
+
     bkbase_redis_data = bkbase_redis.hgetall(key)
     bkbase_metadata_dict = {
         key.decode('utf-8'): json.loads(value.decode('utf-8')) for key, value in bkbase_redis_data.items()
