@@ -78,7 +78,7 @@ class NewMetricChart extends CommonSimpleChart {
   /** 是否展示图例 */
   @Prop({ default: false }) isShowLegend: boolean;
   /** 当前汇聚方法 */
-  @Prop({ default: 'SUM' }) currentMethod: string;
+  @Prop({ default: '' }) currentMethod: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -128,7 +128,7 @@ class NewMetricChart extends CommonSimpleChart {
   emptyText = window.i18n.tc('暂无数据');
   // x轴格式化函数
   formatterFunc = null;
-  method = 'SUM';
+  method = '';
   loading = false;
   // 是否展示复位按钮
   showRestore = false;
@@ -439,7 +439,9 @@ class NewMetricChart extends CommonSimpleChart {
 
       const list = this.panel.targets.map(item => {
         (item?.query_configs || []).map(config => {
-          config.metrics.map(metric => (metric.method = this.method));
+          config.metrics.map(metric => {
+            metric.method = this.method || metric.method;
+          });
         });
         const newParams = {
           ...variablesService.transformVariables(item, {

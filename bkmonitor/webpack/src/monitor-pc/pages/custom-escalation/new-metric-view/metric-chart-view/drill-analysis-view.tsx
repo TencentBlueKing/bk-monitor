@@ -61,7 +61,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
   /** 当前汇聚方法 */
-  @Prop({ default: 'SUM' }) currentMethod: string;
+  @Prop({ default: '' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -101,6 +101,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     },
     commonConditions: [],
   };
+  defaultCommonConditions = [];
   /** 自动刷新定时器 */
   timer = null;
   /** 默认的图表配置 */
@@ -181,6 +182,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             value: query.filter_dict.concat_filter[key],
           })
         );
+        this.defaultCommonConditions = query.filter_dict.concat_filter;
         metrics = query.metrics.map(metrics => metrics.field);
         this.filterConfig = {
           ...this.filterConfig,
@@ -324,6 +326,12 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 修改过滤条件 */
   handleConditionChange(payload: { where: IResultItem['where']; common_conditions: IResultItem['common_conditions'] }) {
     this.setPanelConfigAndRefresh('where', payload.where);
+    const concatFilter = deepClone(this.defaultCommonConditions);
+    payload.common_conditions.map(item => {
+      const key = `${item.key}__${item.method}`;
+      concatFilter[key] = item.value;
+    });
+    this.setPanelConfigAndRefresh('filter_dict.concat_filter', concatFilter);
   }
   render() {
     return (
