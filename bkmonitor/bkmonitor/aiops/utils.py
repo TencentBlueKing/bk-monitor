@@ -151,11 +151,14 @@ class ReadOnlyAiSetting:
             METRIC_RECOMMEND: self.metric_recommend.to_dict(),
         }
 
-        for query_config in query_configs:
-            if query_config["data_type_label"] != DataTypeLabel.TIME_SERIES:
+        if len(query_configs) > 1:
+            results[DIMENSION_DRILL]["is_supported"] = False
+            results[METRIC_RECOMMEND]["is_supported"] = False
+        else:
+            if query_configs[0]["data_type_label"] != DataTypeLabel.TIME_SERIES:
                 results[DIMENSION_DRILL]["is_supported"] = False
                 results[METRIC_RECOMMEND]["is_supported"] = False
-            elif query_config["data_source_label"] not in (
+            elif query_configs[0]["data_source_label"] not in (
                 DataSourceLabel.BK_MONITOR_COLLECTOR,
                 DataSourceLabel.BK_DATA,
                 DataSourceLabel.CUSTOM,
