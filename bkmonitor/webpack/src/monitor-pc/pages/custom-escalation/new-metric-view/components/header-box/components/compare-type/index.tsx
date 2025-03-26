@@ -91,9 +91,9 @@ export default class CompareType extends tsc<IProps, IEmit> {
   }
 
   triggerChange() {
-    if (this.localType === 'time' && this.localOffset.length < 1) {
-      return;
-    }
+    // if (this.localType === 'time' && this.localOffset.length < 1) {
+    //   return;
+    // }
     const result = {
       type: this.localType,
       offset: this.localOffset,

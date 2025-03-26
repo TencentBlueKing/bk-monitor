@@ -30,8 +30,6 @@ import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-selector';
 
-import './edit-box.scss';
-
 interface IProps {
   data: {
     key: string;
@@ -89,7 +87,6 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   render() {
     return (
       <KvSelector
-        class='filter-conditions-commonly-used-edit-box'
         fieldInfo={{
           field: this.data.key,
           alias: this.data.key,
