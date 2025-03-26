@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, InjectReactive } from 'vue-property-decorator';
+import { Component, Ref, Prop, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -88,8 +88,15 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /** 查看大图参数配置 */
   viewQueryConfig = {};
   currentChart = {};
-  currentMethod = 'SUM';
+  currentMethod = '';
 
+  @Watch('filterOption', { immediate: true })
+  handleFilterOptionChange(val) {
+    const { compare } = val;
+    if (compare?.type !== 'metric') {
+      this.currentMethod = 'SUM';
+    }
+  }
   /** 对比工具栏数据 */
   get compareValue() {
     const { compare } = this.filterOption;
