@@ -545,8 +545,8 @@ class AccessDataProcess(BaseAccessDataProcess):
             else:
                 none_point_counts += 1
 
-        # 如果当前数据延迟超过一定值，则上报延迟埋点
-        if max_data_time > 0:
+        # 如果当前数据延迟超过一定值，则上报延迟埋点(batch_pull相关逻辑并非流式数据，until_timestamp为None，不太有延迟的概念)
+        if max_data_time > 0 and self.until_timestamp:
             agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
             max_latency = self.until_timestamp - max_data_time - agg_interval
             threshold = (
