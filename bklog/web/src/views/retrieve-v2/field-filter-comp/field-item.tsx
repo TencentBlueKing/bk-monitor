@@ -189,6 +189,9 @@ export default class FieldItem extends tsc<object> {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
+  getFieldIconTextColor = type => {
+    return this.fieldTypeMap?.[type]?.textColor;
+  };
   downloadFieldStatistics() {
     this.btnLoading = true;
     const indexSetIDs = this.isUnionSearch
@@ -254,6 +257,7 @@ export default class FieldItem extends tsc<object> {
                   backgroundColor: this.fieldItem.is_full_text
                     ? false
                     : this.getFieldIconColor(this.fieldItem.field_type),
+                  color: this.fieldItem.is_full_text ? false : this.getFieldIconTextColor(this.fieldItem.field_type),
                 }}
                 class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
                 v-bk-tooltips={{

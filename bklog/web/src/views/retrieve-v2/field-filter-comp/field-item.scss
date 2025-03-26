@@ -3,16 +3,19 @@
 
 .filed-item {
   padding: 0px 12px 0px 0px;
+
   .hidden-icon {
     &.bklog-drag-dots {
       visibility: hidden;
     }
   }
+
   .bklog-drag-dots-box {
     width: 12px;
+
     .bklog-drag-dots {
-      font-size: 12px;
       padding-left: 2px;
+      font-size: 12px;
       color: #979ba5;
       text-align: left;
       cursor: move;
@@ -35,8 +38,8 @@
     position: relative;
     display: flex;
     width: 100%;
-    line-height: 16px;
     padding: 6px 0;
+    line-height: 16px;
     cursor: pointer;
     border-radius: 2px;
 
@@ -83,10 +86,6 @@
 
     .bklog-field-icon {
       height: 100%;
-
-      .bklog-icon {
-        height: 100%;
-      }
     }
 
     .field-name {
@@ -116,8 +115,8 @@
 
     .operation-text {
       position: absolute;
-      right: 0;
       top: 0px;
+      right: 0;
       z-index: 999;
 
       /* stylelint-disable-next-line declaration-no-important */
@@ -138,9 +137,11 @@
           color: #979ba5 !important;
         }
       }
+
       .operation-icon-box:not(:last-child) {
         margin-right: 8px;
       }
+
       .operation-icon-box {
         width: 20px;
         height: 20px;
