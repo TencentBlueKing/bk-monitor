@@ -194,9 +194,6 @@ class AddNullDataProcessor:
         if not interval:
             return data
 
-        if not params.get("time_alignment", True):
-            return data
-
         # 获取降采样周期
         interval *= 1000
         if params.get("down_sample_range"):
@@ -214,6 +211,14 @@ class AddNullDataProcessor:
         start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
         end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
 
+        # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
+        time_alignment: bool = params.get("time_alignment", True)
+        if not time_alignment:
+            if start_time > params["start_time"] * 1000:
+                start_time -= interval
+            if end_time < params["end_time"] * 1000:
+                end_time += interval
+
         for row in data:
             time_to_value = defaultdict(lambda: None)
             for point in row["datapoints"]:
@@ -223,6 +228,11 @@ class AddNullDataProcessor:
             last_datapoint_timestamp = None
             for timestamp in range(start_time, end_time, interval):
                 if time_to_value[timestamp] is None:
+                    if not time_alignment:
+                        # 补 0 代替补 Null
+                        row["datapoints"].append([0, timestamp])
+                        continue
+
                     # 如果当前点没有值且和开始时间相同，则补充空点
                     if timestamp == start_time:
                         row["datapoints"].append([None, timestamp])
