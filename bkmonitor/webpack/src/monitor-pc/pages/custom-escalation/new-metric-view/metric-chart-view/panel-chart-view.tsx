@@ -58,6 +58,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   @Prop({ type: Number, default: 3 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  // 刷新间隔
+  @ProvideReactive('refleshInterval') refleshInterval = -1;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
     interval: 'auto',

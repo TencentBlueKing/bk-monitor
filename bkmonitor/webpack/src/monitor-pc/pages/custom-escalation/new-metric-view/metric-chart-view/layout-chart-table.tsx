@@ -90,11 +90,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   currentChart = {};
   currentMethod = '';
 
-  @Watch('filterOption', { immediate: true })
+  @Watch('panel', { immediate: true })
   handleFilterOptionChange(val) {
-    const { compare } = val;
-    if (compare?.type !== 'metric') {
-      this.currentMethod = 'SUM';
+    if (val) {
+      const { query_configs = [] } = val.targets[0];
+      this.currentMethod = query_configs[0]?.metrics[0]?.method;
     }
   }
   /** 对比工具栏数据 */

@@ -57,7 +57,7 @@ import type {
 } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
-const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN'];
+const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'COUNT'];
 
 interface INewMetricChartProps {
   chartHeight?: number;
@@ -93,7 +93,7 @@ class NewMetricChart extends CommonSimpleChart {
   }));
   customScopedVars: Record<string, any> = {};
   width = 300;
-  init = false;
+  inited = false;
   metrics = [];
   collectIntervalDisplay = '1m';
   cancelTokens = [];
@@ -408,7 +408,7 @@ class NewMetricChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.legendData = [];
     this.legendSorts = [];
-    this.init = false;
+    this.inited = false;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
@@ -419,7 +419,7 @@ class NewMetricChart extends CommonSimpleChart {
       return;
     }
     this.formatterFunc = generateFormatterFunc(this.timeRange);
-    if (this.init) this.handleLoadingChange(true);
+    if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     this.loading = true;
     try {
@@ -437,7 +437,7 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const list = this.panel.targets.map(item => {
+      const list = [this.panel.targets[0]].map(item => {
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => {
             metric.method = this.method || metric.method;
@@ -608,13 +608,13 @@ class NewMetricChart extends CommonSimpleChart {
             },
           })
         );
-        this.init = true;
+        this.inited = true;
         this.empty = false;
         setTimeout(() => {
           this.handleResize();
         }, 100);
       } else {
-        this.init = this.metrics.length > 0;
+        this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -844,7 +844,7 @@ class NewMetricChart extends CommonSimpleChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.init ? (
+              {this.inited ? (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
