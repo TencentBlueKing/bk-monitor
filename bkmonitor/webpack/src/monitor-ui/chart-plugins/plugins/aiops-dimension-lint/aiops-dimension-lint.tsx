@@ -610,7 +610,10 @@ export default class AiopsDimensionLine extends LineChart {
               subTitle: () => this.getSubTitle(),
               title: () => (
                 <div
-                  style={{ color: this.panel.title ? 'initial' : '#979ba5' }}
+                  style={{
+                    color: this.panel.title ? 'initial' : '#979ba5',
+                    fontSize: '12px',
+                  }}
                   v-bk-tooltips={{
                     content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
                     placement: 'left',
