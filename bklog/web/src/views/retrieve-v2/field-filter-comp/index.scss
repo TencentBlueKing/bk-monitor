@@ -125,8 +125,12 @@
         color: #63656e;
       }
 
+      .filed-item + .expand-all {
+        margin-top: 6px;
+      }
+
       .expand-all {
-        margin-left: 22px;
+        margin-left: 12px;
         color: #3a84ff;
         cursor: pointer;
       }
