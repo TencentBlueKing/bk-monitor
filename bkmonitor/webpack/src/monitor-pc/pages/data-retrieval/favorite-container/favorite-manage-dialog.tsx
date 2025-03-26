@@ -308,6 +308,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         config: row.config,
       }).then(() => {
         row.editName = false;
+        row.group_id = JSON.parse(val);
         row.groupName = this.groups.find(item => item.id === JSON.parse(val))?.name;
         this.curClickRow = row;
       });
