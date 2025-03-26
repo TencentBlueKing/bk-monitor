@@ -766,7 +766,7 @@ export default class AiopsContainer extends tsc<IProps> {
                 </span>
               </div>
               <div
-                class='aiops-container-menu-item-content'
+                class={['aiops-container-menu-item-content', `aiops-container-menu-item-content-${config.name}`]}
                 slot='content'
               >
                 {!config.loading && this.tabActive === config.name && config.contentRender()}
