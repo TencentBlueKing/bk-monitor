@@ -34,6 +34,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
   K8sConvergeTypeEnum,
@@ -617,9 +618,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     // 资源类型
     const resourceType = this.resourceType;
 
+    const { timeRange, ...filterCommonParams } = this.filterCommonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
+
     /** 获取资源列表请求接口参数 */
     const requestParam = {
-      ...this.filterCommonParams,
+      ...filterCommonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       ...pageRequestParam,
       resource_type: resourceType,
       with_history: true,
@@ -730,9 +736,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       }
       const controller = new AbortController();
       this.abortControllerQueue.add(controller);
+      const { timeRange, ...filterCommonParams } = this.filterCommonParams;
+      const formatTimeRange = handleTransformToTimestamp(timeRange);
       resourceTrend(
         {
-          ...this.filterCommonParams,
+          ...filterCommonParams,
+          start_time: formatTimeRange[0],
+          end_time: formatTimeRange[1],
           column: field,
           method: this.metricsForConvergeMap[field] || K8sConvergeTypeEnum.SUM,
           resource_type: resourceType,

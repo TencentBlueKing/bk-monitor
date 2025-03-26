@@ -25,6 +25,8 @@
  * IN THE SOFTWARE.
  */
 
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+
 export enum EDimensionKey {
   container = 'container',
   namespace = 'namespace',
@@ -173,8 +175,7 @@ export interface K8sDimensionParams extends ICommonParams {
 export interface ICommonParams {
   scenario: SceneEnum;
   bcs_cluster_id: string;
-  start_time: number;
-  end_time: number;
+  timeRange: TimeRangeType;
 }
 
 export interface IK8SMetricItem {

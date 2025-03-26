@@ -30,7 +30,7 @@ import { random } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
@@ -189,14 +189,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return {
       scenario: this.scene,
       bcs_cluster_id: this.cluster,
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
+      timeRange: this.timeRange,
     };
-  }
-
-  @ProvideReactive('formatTimeRange')
-  get formatTimeRange() {
-    return handleTransformToTimestamp(this.timeRange);
   }
 
   get tableCommonParam() {

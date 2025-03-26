@@ -25,6 +25,7 @@
  */
 import { listK8sResources, workloadOverview } from 'monitor-api/modules/k8s';
 
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { sceneDimensionMap } from '../../k8s-dimension';
 import { EDimensionKey } from '../../typings/k8s-new';
 export interface IFilterByItem {
@@ -96,8 +97,12 @@ export class FilterByOptions {
           setData(countData);
         });
       } else {
+        const { timeRange, ...commonParams } = this.commonParams;
+        const formatTimeRange = handleTransformToTimestamp(timeRange);
         listK8sResources({
-          ...this.commonParams,
+          ...commonParams,
+          start_time: formatTimeRange[0],
+          end_time: formatTimeRange[1],
           resource_type: dimension,
           page: 1,
           page_size: 1,
@@ -115,8 +120,12 @@ export class FilterByOptions {
   async getNextPageData(dimension: EDimensionKey, categoryDim?: string) {
     this.nextPage(dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),
@@ -174,8 +183,12 @@ export class FilterByOptions {
   async initOfType(dimension: EDimensionKey, categoryDim?: string) {
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),
@@ -233,8 +246,12 @@ export class FilterByOptions {
     this.commonParams.query_string = search;
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),
