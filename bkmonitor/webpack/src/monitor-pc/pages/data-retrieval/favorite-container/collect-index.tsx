@@ -283,6 +283,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
 
   favoriteManageDialogChange(show: boolean) {
     this.isShowManageDialog = show;
+    if (!show) {
+      this.handleEmitOperateChange('request-query-history');
+    }
   }
 
   render() {

@@ -76,13 +76,13 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
   /** 搜索结束后展示的组列表 */
   searchResultGroupList: IFavList.favGroupList[] = [];
   /** 当前选择分组的收藏列表 */
-  curSelectGroupFavorites: IFavList.favList[] = [];
+  curSelectGroupFavorites: IFavList.favTableList[] = [];
   /** 筛选后展示的收藏列表 */
-  searchResultFavorites: IFavList.favList[] = [];
+  searchResultFavorites: IFavList.favTableList[] = [];
   /** 收藏查询关键字 */
   favoriteSearchValue = '';
   /** 已勾选的收藏列表 */
-  selectFavoriteList: IFavList.favList[] = [];
+  selectFavoriteList: IFavList.favTableList[] = [];
   /** 当前点击的行 */
   curClickRow = null;
   /** 当前hover的行 */
@@ -163,6 +163,8 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
     } else {
       this.groupSearchValue = '';
       this.favoriteSearchValue = '';
+      this.curClickRow = null;
+      this.curHoverRowIndex = -1;
       this.curSelectGroup = 'all';
     }
   }
@@ -184,6 +186,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
       }
       this.allGroupList = this.allGroupList.concat(group.favorites || []);
     }
+    this.handleGroupSearch();
   }
 
   @Emit('showChange')
@@ -286,6 +289,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         config: row.config,
       }).then(() => {
         row.editName = false;
+        this.curClickRow = row;
       });
     } else {
       row.editName = false;
@@ -303,6 +307,8 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         config: row.config,
       }).then(() => {
         row.editName = false;
+        row.groupName = this.groups.find(item => item.id === JSON.parse(val))?.name;
+        this.curClickRow = row;
       });
     }
   }
@@ -351,13 +357,20 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
 
   /** 自定义所属组展示 */
   groupScopedSlots({ row }) {
+    const handleEditGroup = () => {
+      row.editGroup = true;
+      for (const favorite of this.searchResultFavorites) {
+        if (favorite.id !== row.id) {
+          favorite.editGroup = false;
+        }
+      }
+    };
+
     if (!row.editGroup)
       return (
         <div
           class='edit-cell'
-          onClick={() => {
-            row.editGroup = true;
-          }}
+          onClick={handleEditGroup}
         >
           <span class='text'>{row.groupName}</span>
           <i class='icon-monitor icon-bianji' />
@@ -525,7 +538,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
               />
             </div>
             <div class='group-list'>
-              {this.otherGroupList.map(group => (
+              {this.searchResultGroupList.map(group => (
                 <div
                   key={group.id}
                   class={['group-item', { active: this.curSelectGroup === group.id }]}
