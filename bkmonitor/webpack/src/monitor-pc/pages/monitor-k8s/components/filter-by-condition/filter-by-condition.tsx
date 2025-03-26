@@ -98,6 +98,8 @@ export default class FilterByCondition extends tsc<IProps> {
   resizeObserver = null;
   overflowCountRenderDebounce = null;
   overflowCountTip = [];
+  /* 是否选中了自定义选项 */
+  customOptionChecked = false;
 
   handleValueOptionsScrollThrottle = _v => {};
 
@@ -307,6 +309,7 @@ export default class FilterByCondition extends tsc<IProps> {
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
+        this.customOptionChecked = false;
       },
     });
     await this.$nextTick();
@@ -370,6 +373,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @returns
    */
   async handleSearchChange(value: string) {
+    this.customOptionChecked = !!this.addValueSelected.get(this.groupSelected)?.has?.(value);
     this.searchValue = value;
     this.valueLoading = true;
     const params = {
@@ -461,8 +465,24 @@ export default class FilterByCondition extends tsc<IProps> {
         otherIds.push(t);
       }
     }
+    const addValueSelectedTagsFn = () => {
+      const tags = [];
+      for (const [id, valueSets] of this.addValueSelected) {
+        tags.push({
+          key: random(8),
+          id: id,
+          name: id,
+          values: Array.from(valueSets).map(v => ({
+            id: v,
+            name: v,
+          })),
+        });
+      }
+      return tags;
+    };
     if (!curSelected.length) {
       const delIndex = this.tagList.findIndex(item => item.id === this.groupSelected);
+      const tags = addValueSelectedTagsFn();
       if (delIndex > -1) {
         if (otherIds.length) {
           this.tagList[delIndex].values = otherIds.map(id => ({
@@ -470,8 +490,14 @@ export default class FilterByCondition extends tsc<IProps> {
             name: id,
           }));
         } else {
-          this.tagList.splice(delIndex, 1);
+          if (tags.length) {
+            this.tagList.push(...tags);
+          } else {
+            this.tagList.splice(delIndex, 1);
+          }
         }
+      } else {
+        this.tagList.push(...tags);
       }
     } else {
       if (this.updateActive) {
@@ -513,18 +539,7 @@ export default class FilterByCondition extends tsc<IProps> {
         }
       } else {
         // 添加
-        const tags = [];
-        for (const [id, valueSets] of this.addValueSelected) {
-          tags.push({
-            key: random(8),
-            id: id,
-            name: id,
-            values: Array.from(valueSets).map(v => ({
-              id: v,
-              name: v,
-            })),
-          });
-        }
+        const tags = addValueSelectedTagsFn();
         this.tagList.push(...tags);
       }
     }
@@ -709,6 +724,7 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleSelectGroupProxy(id: string) {
     this.handleSelectGroup(id);
     this.searchValue = '';
+    this.customOptionChecked = false;
     await this.handleSearchChange(this.searchValue);
   }
 
@@ -808,7 +824,65 @@ export default class FilterByCondition extends tsc<IProps> {
       }
     });
   }
+
+  /**
+   * @description 选择自定义选项
+   * @param item
+   */
+  handleCheckCustom(item: IValueItem) {
+    this.addValueSelectedSet({
+      ...item,
+      checked: !this.customOptionChecked,
+    });
+    this.customOptionChecked = !!this.addValueSelected.get(this.groupSelected)?.has?.(item.id);
+  }
+  /**
+   * @description 搜索输入框回车自定义选项选中
+   */
+  handleSearchEnter() {
+    if (this.searchValue) {
+      this.handleCheckCustom({
+        id: this.searchValue,
+        name: this.searchValue,
+      } as any);
+    }
+  }
+
   valuesWrap() {
+    const hasCustomOption =
+      !this.valueOptions.some(item => item.id === this.searchValue) && this.searchValue && !this.isSelectedWorkload;
+    const customOption = hasCustomOption
+      ? {
+          id: this.searchValue,
+          name: this.searchValue,
+        }
+      : null;
+    /* 自定义选项 */
+    const customOptionRender = () => {
+      return (
+        <div
+          key={this.searchValue}
+          class={['value-item', { checked: this.customOptionChecked }]}
+          onClick={() => this.handleCheckCustom(customOption as any)}
+        >
+          <span
+            class='value-item-name'
+            v-bk-overflow-tips={{ content: customOption.id }}
+          >
+            {this.customOptionChecked ? (
+              customOption.name
+            ) : (
+              <i18n path='生成 “{0}” 选项'>
+                <span class='light-text'>{customOption.name}</span>
+              </i18n>
+            )}
+          </span>
+          <span class='value-item-checked'>
+            {this.customOptionChecked && <span class='icon-monitor icon-mc-check-small' />}
+          </span>
+        </div>
+      );
+    };
     return (
       <div
         ref='valueItems'
@@ -816,25 +890,30 @@ export default class FilterByCondition extends tsc<IProps> {
         onScroll={this.handleValueOptionsScrollThrottle}
       >
         {this.valueOptions.length ? (
-          this.valueOptions.map((item, index) => (
-            <div
-              key={`${item.id}_${index}`}
-              class={['value-item', { checked: item.checked }]}
-              onClick={() => this.handleCheck(item)}
-            >
-              <span
-                class='value-item-name'
-                v-bk-overflow-tips={{ content: item.id }}
+          [
+            customOption ? customOptionRender() : undefined,
+            this.valueOptions.map((item, index) => (
+              <div
+                key={`${item.id}_${index}`}
+                class={['value-item', { checked: item.checked }]}
+                onClick={() => this.handleCheck(item)}
               >
-                {item.name}
-              </span>
-              {!this.isSelectedWorkload && (
-                <span class='value-item-checked'>
-                  {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+                <span
+                  class='value-item-name'
+                  v-bk-overflow-tips={{ content: item.id }}
+                >
+                  {item.name}
                 </span>
-              )}
-            </div>
-          ))
+                {!this.isSelectedWorkload && (
+                  <span class='value-item-checked'>
+                    {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+                  </span>
+                )}
+              </div>
+            )),
+          ]
+        ) : customOption ? (
+          customOptionRender()
         ) : (
           <EmptyStatus
             type={this.searchValue ? 'search-empty' : 'empty'}
@@ -1020,6 +1099,7 @@ export default class FilterByCondition extends tsc<IProps> {
                       placeholder={this.$t('请输入关键字')}
                       value={this.searchValue}
                       onChange={this.handleSearchChangeDebounce}
+                      onEnter={this.handleSearchEnter}
                     />
                   </div>
                   {this.valueLoading ? (
