@@ -284,6 +284,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     const list = await getDataSourceConfig({
       data_source_label: this.dataSourceLabel,
       data_type_label: this.dataTypeLabel,
+      return_dimensions: false,
     }).catch(() => []);
     this.dataIdList = list;
     if (init) {

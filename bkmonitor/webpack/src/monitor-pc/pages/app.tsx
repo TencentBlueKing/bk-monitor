@@ -490,7 +490,7 @@ export default class App extends tsc<object> {
             if (navId.startsWith('k8s')) {
               routeName = this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s';
             } else {
-              routeName = this.$store.getters.isEnableK8sV2 ? 'event-explore' : 'event-retrieval';
+              routeName = this.$store.getters.isEnableEventExploreV2 ? 'event-explore' : 'event-retrieval';
             }
             this.$router.push({ name: routeName, query: {} }).finally(() => {
               this.routeViewKey = random(10);
@@ -878,10 +878,11 @@ export default class App extends tsc<object> {
                     .filter(item => {
                       if (item.hidden) return false;
                       if (item.id === 'event-retrieval' || item.id === 'event-explore') {
+                        console.info(item.id, this.$route.name);
                         if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
                           return this.$route.name === item.id;
                         }
-                        if (this.$store.getters.k8sV2EnableList && item.id === 'event-explore') return true;
+                        if (this.$store.getters.eventExploreV2EnableList && item.id === 'event-explore') return true;
                         return false;
                       }
                       return true;
