@@ -919,10 +919,13 @@ class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
     action = "/app/custom_metric/detail/"
     method = "GET"
 
+    ignore_error_msg_list = ["custom time series table not found"]
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         model_only = serializers.BooleanField(required=False, default=False)
+        empty_if_not_found = serializers.BooleanField(required=False, default=False)
 
 
 class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
