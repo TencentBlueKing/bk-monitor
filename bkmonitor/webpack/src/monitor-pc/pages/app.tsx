@@ -482,15 +482,19 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
-    } else if (navId === 'k8s' || navId === 'k8s-new') {
+    } else if (['k8s', 'k8s-new', 'event-retrieval', 'event-explore'].includes(navId)) {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
-            this.$router
-              .push({ name: this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s', query: {} })
-              .finally(() => {
-                this.routeViewKey = random(10);
-              });
+            let routeName = '';
+            if (navId.startsWith('k8s')) {
+              routeName = this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s';
+            } else {
+              routeName = this.$store.getters.isEnableEventExploreV2 ? 'event-explore' : 'event-retrieval';
+            }
+            this.$router.push({ name: routeName, query: {} }).finally(() => {
+              this.routeViewKey = random(10);
+            });
           }
         });
         window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -871,7 +875,17 @@ export default class App extends tsc<object> {
                   {...{ props: APP_NAV_COLORS }}
                 >
                   {this.menuList
-                    .filter(item => !item.hidden)
+                    .filter(item => {
+                      if (item.hidden) return false;
+                      if (item.id === 'event-retrieval' || item.id === 'event-explore') {
+                        if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
+                          return this.$route.name === item.id;
+                        }
+                        if (this.$store.getters.eventExploreV2EnableList && item.id === 'event-explore') return true;
+                        return false;
+                      }
+                      return true;
+                    })
                     .map(item =>
                       item?.children?.length ? (
                         <bk-navigation-menu-group

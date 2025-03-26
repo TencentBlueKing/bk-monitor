@@ -54,7 +54,7 @@ interface IDrillAnalysisViewProps {
   currentMethod?: string;
 }
 interface IDrillAnalysisViewEvents {
-  onClose?: void;
+  onClose?: () => void;
 }
 @Component
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
@@ -138,7 +138,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     });
     document.body.appendChild(this.rootRef);
     this.$once('hook:beforeDestroy', () => {
-      this.rootRef.parentElement.removeChild(this.rootRef);
+      this.rootRef?.parentNode?.removeChild(this.rootRef);
     });
   }
   beforeUnmount() {
@@ -202,7 +202,9 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
     this.dimensionsList = list?.dimensions || [];
     if (this.dimensionsList.length > 0) {
-      this.dimensionsList.map(item => (item.checked = false));
+      for (const item of this.dimensionsList) {
+        item.checked = false;
+      }
       this.dimensionsList[0].checked = true;
       this.filterConfig.drill_group_by = [this.dimensionsList[0].name];
     }

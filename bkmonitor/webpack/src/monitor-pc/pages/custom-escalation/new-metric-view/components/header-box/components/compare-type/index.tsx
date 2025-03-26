@@ -51,6 +51,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly exclude: IProps['exclude'];
 
   @Ref('popoverRef') popoverRef: any;
+  @Ref('offsetRef') offsetRef: any;
 
   typeList = Object.freeze([
     {
@@ -119,7 +120,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
       <div class='new-metric-view-compare-type'>
         <div
           class='label'
-          role='param-label'
+          data-role='param-label'
         >
           <div>{this.$t('对比')}</div>
         </div>
@@ -158,6 +159,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
         </bk-popover>
         {this.isShowEditOffset && (
           <EditOffset
+            ref='offsetRef'
             value={this.value.offset}
             onChange={this.handleOffsetChange}
           />

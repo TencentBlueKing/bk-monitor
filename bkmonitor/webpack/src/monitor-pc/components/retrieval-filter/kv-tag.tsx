@@ -106,7 +106,7 @@ export default class KvTag extends tsc<IProps> {
       await this.delay(200);
       this.isSetting = false;
       await this.delay(200);
-      this.isSetting = true;
+      this.isSetting = false;
     } else {
       this.isSetting = false;
     }
@@ -142,7 +142,7 @@ export default class KvTag extends tsc<IProps> {
                   key={`${index}_condition`}
                   class='value-condition'
                 >
-                  AND
+                  OR
                 </span>
               ),
               <span

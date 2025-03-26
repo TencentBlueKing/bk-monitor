@@ -41,6 +41,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
   searchKey = '';
+  isExpandAll = false;
 
   get currentSelectedMetricNameList() {
     return customEscalationViewStore.currentSelectedMetricNameList;
@@ -51,8 +52,13 @@ export default class HeaderFilter extends tsc<object, IEmit> {
     this.$emit('reset');
   }
 
-  handleFlodAllGround() {
-    this.metricGroupRef.foldAll();
+  handleFlodAllGroup() {
+    this.isExpandAll = false;
+    this.metricGroupRef.expandAll(false);
+  }
+  handleExpandAllGroup() {
+    this.isExpandAll = true;
+    this.metricGroupRef.expandAll(true);
   }
 
   render() {
@@ -62,37 +68,47 @@ export default class HeaderFilter extends tsc<object, IEmit> {
           <bk-input
             v-model={this.searchKey}
             placeholder={this.$t('搜索 指标组、指标')}
+            right-icon='bk-icon icon-search'
           />
           <div class='action-box'>
-            <bk-button
-              style='padding: 0'
-              disabled={this.currentSelectedMetricNameList.length < 1}
-              size='small'
-              theme='primary'
-              text
+            <router-link
+              style='color: #3a84ff;'
+              to={{
+                name: 'custom-detail-timeseries',
+                id: this.$route.params.id,
+              }}
+              target='_blank'
+            >
+              <i class='icon-monitor icon-mc-goto' />
+              {this.$t('指标管理')}
+            </router-link>
+            <router-link
+              style='color: #3a84ff; margin-left: 16px;'
+              to={{
+                name: 'data-retrieval',
+              }}
+              target='_blank'
             >
               <i class='icon-monitor icon-mc-goto' />
               {this.$t('指标计算')}
-            </bk-button>
-            {this.currentSelectedMetricNameList.length > 0 && (
-              <bk-button
-                style='margin-left: 16px; padding: 0'
-                size='small'
-                theme='primary'
-                text
-                onClick={this.handleClearChecked}
+            </router-link>
+            {this.isExpandAll ? (
+              <div
+                style='display: inline-block; margin-left: auto; cursor: pointer'
+                v-bk-tooltips={this.$t('全部收起')}
+                onClick={this.handleFlodAllGroup}
               >
-                <i class='icon-monitor icon-a-3yuan-bohui' />
-                {this.$t('取消选中')}
-              </bk-button>
+                <i class='icon-monitor icon-shouqi3' />
+              </div>
+            ) : (
+              <div
+                style='display: inline-block; margin-left: auto; cursor: pointer'
+                v-bk-tooltips={this.$t('全部展开')}
+                onClick={this.handleExpandAllGroup}
+              >
+                <i class='icon-monitor icon-zhankai2' />
+              </div>
             )}
-            <div
-              style='display: inline-block; margin-left: auto; cursor: pointer'
-              v-bk-tooltips={this.$t('全部收起')}
-              onClick={this.handleFlodAllGround}
-            >
-              <i class='icon-monitor icon-zhankai' />
-            </div>
           </div>
         </div>
         <RenderMetricsGroup

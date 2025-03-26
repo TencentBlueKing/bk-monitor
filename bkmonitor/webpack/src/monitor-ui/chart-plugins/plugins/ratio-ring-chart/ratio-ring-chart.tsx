@@ -328,7 +328,7 @@ class RatioRingChart extends CommonSimpleChart {
           showMore={false}
           title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='ratio-ring-chart-content'>

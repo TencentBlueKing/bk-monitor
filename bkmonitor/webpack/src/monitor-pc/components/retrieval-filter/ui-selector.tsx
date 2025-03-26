@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
+import { isEn } from '../../i18n/lang';
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
@@ -46,6 +47,7 @@ import './ui-selector.scss';
 interface IProps {
   fields: IFilterField[];
   value?: IFilterItem[];
+  clearKey?: string;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
 }
@@ -63,6 +65,7 @@ export default class UiSelector extends tsc<IProps> {
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ type: Array, default: () => [] }) value: IFilterItem[];
+  @Prop({ type: String, default: '' }) clearKey: string;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -89,8 +92,13 @@ export default class UiSelector extends tsc<IProps> {
     }
   }
 
+  @Watch('clearKey')
+  handleWatchClearKey() {
+    this.handleClear();
+  }
+
   mounted() {
-    this.handleAddKeyDownSlash();
+    document.addEventListener('keydown', this.handleKeyDownSlash);
   }
   beforeDestroy() {
     document.removeEventListener('keydown', this.handleKeyDownSlash);
@@ -115,6 +123,7 @@ export default class UiSelector extends tsc<IProps> {
       followCursor: false,
       onHidden: () => {
         this.destroyPopoverInstance();
+        document.addEventListener('keydown', this.handleKeyDownSlash);
       },
     });
     await this.$nextTick();
@@ -161,9 +170,9 @@ export default class UiSelector extends tsc<IProps> {
     this.localValue = localValue;
     this.destroyPopoverInstance();
     this.hideInput();
-    setTimeout(() => {
-      this.handleClickComponent();
-    }, 300);
+    // setTimeout(() => {
+    //   this.handleClickComponent();
+    // }, 300);
     this.handleChange();
   }
 
@@ -213,8 +222,8 @@ export default class UiSelector extends tsc<IProps> {
   /**
    * @description 清空
    */
-  handleClear(event: MouseEvent) {
-    event.stopPropagation();
+  handleClear(event?: MouseEvent) {
+    event?.stopPropagation?.();
     this.localValue = [];
     this.updateActive = -1;
     this.hideInput();
@@ -306,14 +315,11 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   handleKeyDownSlash(event) {
-    if (event.key === '/') {
+    if (event.key === '/' && !this.inputValue && !this.showSelector) {
+      event.preventDefault();
       this.handleClickComponent();
       document.removeEventListener('keydown', this.handleKeyDownSlash);
     }
-  }
-  handleAddKeyDownSlash() {
-    document.removeEventListener('keydown', this.handleKeyDownSlash);
-    document.addEventListener('keydown', this.handleKeyDownSlash);
   }
 
   render() {
@@ -338,11 +344,11 @@ export default class UiSelector extends tsc<IProps> {
             onUpdate={event => this.handleUpdateTag(event, index)}
           />
         ))}
-        <div class='kv-placeholder'>
+        <div class={['kv-placeholder', { 'is-en': isEn }]}>
           <AutoWidthInput
             height={40}
             isFocus={this.inputFocus}
-            placeholder={`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}
+            placeholder={`${this.$t('快捷键 / ，请输入...')}`}
             value={this.inputValue}
             onBlur={this.handleBlur}
             onEnter={this.handleEnter}
@@ -361,7 +367,7 @@ export default class UiSelector extends tsc<IProps> {
           ) : (
             <span class='placeholder-text'>{`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}</span>
           )} */}
-          {!!this.localValue.length && !this.showSelector && (
+          {/* {!!this.localValue.length && !this.showSelector && (
             <div class='hover-btn-wrap'>
               <div
                 class='operate-btn'
@@ -384,7 +390,7 @@ export default class UiSelector extends tsc<IProps> {
                 <span class='icon-monitor icon-mc-copy' />
               </div>
             </div>
-          )}
+          )} */}
         </div>
         <div style='display: none;'>
           <div ref='selector'>

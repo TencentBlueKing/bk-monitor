@@ -361,7 +361,7 @@ class SQLChartHandler(ChartHandler):
             raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
         parsed_sql = matches.group(1) + f" FROM {doris_table_id}\n"
         if matches.group(2):
-            where_condition = matches.group(2) + f"AND {where_clause}\n"
+            where_condition = matches.group(2) + f" AND {where_clause}\n"
         else:
             where_condition = f"WHERE {where_clause}\n"
         parsed_sql += where_condition

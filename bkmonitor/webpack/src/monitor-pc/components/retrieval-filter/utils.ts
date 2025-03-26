@@ -45,6 +45,8 @@ export enum EFieldType {
   text = 'text',
 }
 
+export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
+
 export const METHOD_MAP = {
   [EMethod.eq]: '=',
   [EMethod.exclude]: window.i18n.tc('不包含'),
@@ -55,31 +57,31 @@ export const METHOD_MAP = {
 export const fieldTypeMap = {
   all: {
     name: window.i18n.tc('数字'),
-    icon: '*',
+    icon: 'icon-monitor icon-a-',
     color: '#979BA5',
     bgColor: '#E8EAF0',
   },
   integer: {
     name: window.i18n.tc('数字'),
-    icon: 'icon-monitor icon-number',
+    icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   keyword: {
     name: window.i18n.tc('字符串'),
-    icon: 'icon-monitor icon-string',
+    icon: 'icon-monitor icon-Str',
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
   text: {
     name: window.i18n.tc('文本'),
-    icon: 'icon-monitor icon-text',
+    icon: 'icon-monitor icon-text1',
     color: '#508CC8',
     bgColor: '#E1E7F2',
   },
   date: {
     name: window.i18n.tc('时间'),
-    icon: 'icon-monitor icon-mc-time',
+    icon: 'icon-monitor icon-Time',
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },
@@ -297,4 +299,26 @@ export enum EQueryStringTokenType {
 
 export function isNumeric(str) {
   return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+}
+
+/**
+ * @description 格式化where条件，调整一些不支持的的连接符
+ * @param where
+ * @returns
+ */
+export function whereFormatter(where: IWhereItem[]) {
+  const result: IWhereItem[] = [];
+  const methods = Object.entries(METHOD_MAP);
+  const methodNames = methods.map(item => item[1]);
+  for (const item of where) {
+    let method = item.method;
+    if (methodNames.includes(item.method)) {
+      method = methods.find(m => m[1] === item.method)[0];
+    }
+    result.push({
+      ...item,
+      method,
+    });
+  }
+  return result;
 }

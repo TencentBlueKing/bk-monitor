@@ -28,7 +28,6 @@ import type { MonitorEchartOptions } from '../typings';
 export const COLOR_LIST = [
   '#F0AE69',
   '#689DF3',
-  '#6ED0E0',
   '#EF843C',
   '#E24D42',
   '#1F78C1',
@@ -82,6 +81,7 @@ export const COLOR_LIST = [
   '#BADFF4',
   '#F9D9F9',
   '#DEDAF7',
+  '#6ED0E0',
 ];
 
 export const COLOR_LIST_BAR = ['#4051A3', ...COLOR_LIST];

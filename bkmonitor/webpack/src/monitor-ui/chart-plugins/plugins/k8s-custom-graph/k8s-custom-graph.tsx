@@ -181,6 +181,7 @@ class K8SCustomChart extends CommonSimpleChart {
     if (!(await this.beforeGetPanelData())) {
       return;
     }
+    if (!this.$el?.clientWidth) return;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.inited) this.handleLoadingChange(true);

@@ -91,6 +91,10 @@ export default class NewMetricView extends tsc<object> {
   handleTimeRangeChange(timeRange: TimeRangeType) {
     customEscalationViewStore.updateTimeRange(timeRange);
   }
+  // 刷新视图
+  handleImmediateReflesh() {
+    this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
+  }
 
   handleDimensionParamsChange(payload: any) {
     this.dimenstionParams = Object.freeze(payload);
@@ -104,8 +108,8 @@ export default class NewMetricView extends tsc<object> {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
     this.state = {
-      viewColumn: parseInt(routerQuery.viewColumn) || 3,
-      showStatisticalValue: routerQuery.showStatisticalValue === 'true' ? true : false,
+      viewColumn: Number.parseInt(routerQuery.viewColumn) || 3,
+      showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
   }
 
@@ -117,6 +121,7 @@ export default class NewMetricView extends tsc<object> {
             isSplitPanel={false}
             showListMenu={false}
             timeRange={[this.startTime, this.endTime]}
+            onImmediateReflesh={this.handleImmediateReflesh}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>

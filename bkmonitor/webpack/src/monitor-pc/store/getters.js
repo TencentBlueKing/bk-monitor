@@ -65,6 +65,9 @@ const getters = {
   paddingRoute: state => state.app.paddingRoute,
   k8sV2EnableList: state => state.app.k8sV2EnableList,
   isEnableK8sV2: state => state.app.k8sV2EnableList.some(id => (id === 0 ? true : +id === +state.app.bizId)),
+  eventExploreV2EnableList: state => state.app.eventExploreV2EnableList,
+  isEnableEventExploreV2: state =>
+    state.app.eventExploreV2EnableList.some(id => (id === 0 ? true : +id === +state.app.bizId)),
   defaultBizId: state => state.app.defaultBizId,
   defaultBizIdApiId: state => state.app.defaultBizIdApiId,
   customMetricV2EnableList: state => state.app.customMetricV2EnableList,

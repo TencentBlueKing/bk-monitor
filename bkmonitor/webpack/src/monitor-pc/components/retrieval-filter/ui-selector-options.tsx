@@ -73,6 +73,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: String, default: '' }) keyword: string;
 
   @Ref('allInput') allInputRef;
+  @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
+  @Ref('searchInput') searchInputRef;
   /* 搜索值 */
   searchValue = '';
   searchLocalFields: IFilterField[] = [];
@@ -89,7 +91,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   /* 是否使用通配符 */
   isWildcard = false;
   rightRefreshKey = random(8);
-  isShowDropDown = false;
+  rightFocus = false;
+  cacheCheckedName = '';
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -139,12 +142,21 @@ export default class UiSelectorOptions extends tsc<IProps> {
         for (const item of this.fields) {
           if (item.name === id) {
             const checkedItem = JSON.parse(JSON.stringify(item));
-            this.handleCheck(checkedItem, this.value.method.id, this.value.value, !!this.value?.options?.is_wildcard);
+            this.handleCheck(
+              checkedItem,
+              this.value.method.id,
+              this.value.value,
+              !!this.value?.options?.is_wildcard,
+              true
+            );
             break;
           }
         }
       } else {
         this.handleCheck(this.fields[0]);
+        setTimeout(() => {
+          this.searchInputRef?.focus();
+        }, 200);
       }
     }
   }
@@ -157,6 +169,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.method = '';
     this.values = [];
     this.isWildcard = false;
+    this.rightFocus = false;
+    this.cacheCheckedName = '';
     this.handleWatchFields();
   }
 
@@ -164,7 +178,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
    * @description 选中
    * @param item
    */
-  handleCheck(item: IFilterField, method = '', value = [], isWildcard = false) {
+  handleCheck(item: IFilterField, method = '', value = [], isWildcard = false, isFocus = false) {
     this.checkedItem = JSON.parse(JSON.stringify(item));
     this.values = value || [];
     this.method = method || item?.supported_operations?.[0]?.value || '';
@@ -172,12 +186,19 @@ export default class UiSelectorOptions extends tsc<IProps> {
     const index = this.searchLocalFields.findIndex(f => f.name === item.name) || 0;
     if (this.checkedItem.name === '*') {
       this.queryString = value[0]?.id || '';
-      setTimeout(() => {
-        this.allInputRef?.focus();
-      }, 50);
     } else {
-      this.rightRefreshKey = random(8);
+      if (this.cacheCheckedName !== item.name) {
+        this.rightRefreshKey = random(8);
+      }
+      this.cacheCheckedName = item.name;
+      if (isFocus) {
+        this.$nextTick(() => {
+          this.valueSelectorRef?.focusFn?.();
+          this.rightFocus = true;
+        });
+      }
     }
+    console.log(index);
     this.cursorIndex = index;
   }
 
@@ -259,14 +280,14 @@ export default class UiSelectorOptions extends tsc<IProps> {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.handleCancel();
-    } else if (event.key === 'Enter' && event.ctrlKey) {
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       if (!this.isIntegerError) {
         this.handleConfirm();
       }
       return;
     }
-    if (this.isShowDropDown) {
+    if (this.rightFocus) {
       return;
     }
     switch (event.key) {
@@ -278,6 +299,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = this.searchLocalFields.length - 1;
         }
         this.updateSelection();
+        this.enterSelectionDebounce();
         break;
       }
 
@@ -288,11 +310,12 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = 0;
         }
         this.updateSelection();
+        this.enterSelectionDebounce();
         break;
       }
       case 'Enter': {
         event.preventDefault();
-        this.enterSelection();
+        this.enterSelectionDebounce(true);
         break;
       }
     }
@@ -312,19 +335,23 @@ export default class UiSelectorOptions extends tsc<IProps> {
   /**
    * @description 回车选中项
    */
-  enterSelection() {
+  enterSelection(isFocus = false) {
     const item = this.searchLocalFields[this.cursorIndex];
     if (item) {
       if (item.name === '*') {
         if (!this.keyword) this.allInputRef?.focus();
       } else {
         this.queryString = '';
-        this.handleCheck(item);
+        this.handleCheck(item, '', [], false, isFocus);
       }
     }
   }
 
-  @Debounce(300)
+  @Debounce(500)
+  enterSelectionDebounce(isFocus = false) {
+    this.enterSelection(isFocus);
+  }
+
   handleSearchChange() {
     this.cursorIndex = -1;
     if (!this.searchValue) {
@@ -344,8 +371,16 @@ export default class UiSelectorOptions extends tsc<IProps> {
     });
   }
 
-  handleDropDownChange(v: boolean) {
-    this.isShowDropDown = v;
+  @Debounce(300)
+  handleSearchChangeDebounce() {
+    this.handleSearchChange();
+  }
+
+  handleValueSelectorBlur() {
+    this.rightFocus = false;
+  }
+  handleSelectorFocus() {
+    this.rightFocus = true;
   }
 
   getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
@@ -403,7 +438,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
             <div
               key={'method'}
               class='form-item mt-34'
-              onClick={e => e.stopPropagation()}
+              // onClick={e => e.stopPropagation()}
             >
               <div class='form-item-label'>{this.$t('条件')}</div>
               <div class='form-item-content mt-6'>
@@ -445,11 +480,13 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-content mt-6'>
                 <ValueTagSelector
                   key={this.rightRefreshKey}
+                  ref='valueSelector'
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
                   value={this.values}
                   onChange={this.handleValueChange}
-                  onDropDownChange={this.handleDropDownChange}
+                  onSelectorBlur={this.handleValueSelectorBlur}
+                  onSelectorFocus={this.handleSelectorFocus}
                 />
               </div>
               {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
@@ -463,11 +500,12 @@ export default class UiSelectorOptions extends tsc<IProps> {
           <div class='component-top-left'>
             <div class='search-wrap'>
               <bk-input
+                ref='searchInput'
                 v-model={this.searchValue}
                 behavior='simplicity'
                 left-icon='bk-icon icon-search'
                 placeholder={this.$t('请输入关键字')}
-                onChange={this.handleSearchChange}
+                onChange={this.handleSearchChangeDebounce}
               />
             </div>
             <div class='options-wrap'>
@@ -482,7 +520,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       { cursor: index === this.cursorIndex },
                     ]}
                     onClick={() => {
-                      this.handleCheck(item);
+                      this.handleCheck(item, '', [], false, true);
                     }}
                   >
                     <span
@@ -492,11 +530,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       }}
                       class='option-icon'
                     >
-                      {item.name === '*' ? (
-                        <span class='option-icon-xing'>*</span>
-                      ) : (
-                        <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
-                      )}
+                      <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
                     </span>
                     <span class='option-name-title'>{title}</span>
                     {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}
@@ -536,7 +570,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               theme='primary'
               onClick={() => this.handleConfirm()}
             >
-              {`${this.$t('确定')} Ctrl+ Enter`}
+              {`${this.$t('确定')} Ctrl + Enter`}
             </bk-button>
             <bk-button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</bk-button>
           </div>

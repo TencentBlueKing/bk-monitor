@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
-import EditPanel, { type IValue, type IMetrics } from './components/edit-panel/index';
+import EditPanel, { type IValue, type IMetrics, methodMap } from './components/edit-panel/index';
 
 import './index.scss';
 
@@ -105,12 +105,14 @@ export default class ValueTag extends tsc<IProps, IEmit> {
 
     const nextMetricsList: IMetrics[] = [];
 
-    // 一定会显示共有维度分组
-    nextMetricsList.push({
-      alias: this.$t('共用维度') as string,
-      metric_name: this.$t('共用维度') as string,
-      dimensions: _.uniqBy(commonDimensionList, item => item.name),
-    });
+    // 选择指标数至少有 2 个时一定会显示共有维度分组
+    if (this.currentSelectedMetricList.length >= 2) {
+      nextMetricsList.push({
+        alias: this.$t('共用维度') as string,
+        metric_name: this.$t('共用维度') as string,
+        dimensions: _.uniqBy(commonDimensionList, item => item.name),
+      });
+    }
 
     if (otherDimensionList.length > 0) {
       nextMetricsList.push({
@@ -205,12 +207,12 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                 >
                   <div class='dimension-header'>
                     <div class='dimension-key'>{item.key}</div>
-                    <div class='dimension-method'>{item.method}</div>
+                    <div class='dimension-method'>{methodMap[item.method]}</div>
                   </div>
                   <div class='dimension-value-wrapper'>
                     {item.value.slice(0, 3).map((valueText, index) => (
                       <div
-                        key={index}
+                        key={`${valueText}#${index}`}
                         class='dimension-value'
                       >
                         {index > 0 && <span style='color: #F59500; padding: 0 2px; font-weight: bold'>,</span>}

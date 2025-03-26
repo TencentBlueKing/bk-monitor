@@ -94,7 +94,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 通过数据库直查
         filters = {}
         if "id" in params:
-            filters["space_id"] = params["id"]
+            filters["id"] = params["id"]
         elif "space_uid" in params:
             filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__")
         space_info = cls.list_spaces_dict(using_cache=False, filters=filters)
@@ -106,7 +106,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 由于一开始缺乏 bk_tenant_id 信息，需要先查询数据库才能继续查询 metadata
         if space_info["space_type_id"] != SpaceTypeEnum.BKCC.value:
             space_info = api.metadata.get_space_detail(
-                space_uid=params["space_uid"], bk_tenant_id=space_info["bk_tenant_id"]
+                space_uid=f"{space_info['space_type_id']}__{space_info['space_id']}",
+                bk_tenant_id=space_info["bk_tenant_id"],
             )
 
         # 补充miss 的 space_uid 信息（非cmdb 空间）

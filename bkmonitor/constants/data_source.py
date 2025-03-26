@@ -39,6 +39,15 @@ class DataTypeLabel(object):
     TRACE = "trace"
 
 
+DATA_TYPE_LABEL_ALIAS = {
+    DataTypeLabel.TIME_SERIES: _lazy("时序数据"),
+    DataTypeLabel.EVENT: _lazy("事件数据"),
+    DataTypeLabel.LOG: _lazy("日志数据"),
+    DataTypeLabel.ALERT: _lazy("关联告警"),
+    DataTypeLabel.TRACE: _lazy("Trace数据"),
+}
+
+
 DATA_SOURCE_LABEL_CHOICE = (
     (DataTypeLabel.TIME_SERIES, _lazy("时序数据")),
     (DataTypeLabel.EVENT, _lazy("事件")),
@@ -208,6 +217,7 @@ RECOVERY = "recovery"
 UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [

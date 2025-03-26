@@ -80,7 +80,7 @@
     }
 
     .auto-width-input-component {
-      min-width: 180px;
+      min-width: 100px;
 
       input {
         position: relative;
@@ -90,6 +90,12 @@
       input::placeholder {
         font-size: 12px;
         color: #c4c6cc;
+      }
+    }
+
+    &.is-en {
+      .auto-width-input-component {
+        min-width: 145px;
       }
     }
   }
