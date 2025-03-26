@@ -27,6 +27,7 @@ from apm_web.handlers.trace_handler.query import (
     SpanQueryTransformer,
     TraceQueryTransformer,
 )
+from apm_web.handlers.trace_handler.view_config import TraceViewConfigManager
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
@@ -59,7 +60,6 @@ from .mock_data import (
     API_GRAPH_DATA,
     API_INFO_DATA,
     API_TOPK_DATA,
-    API_VIEW_CONFIG_DATA,
 )
 
 logger = logging.getLogger(__name__)
@@ -1272,7 +1272,26 @@ class ListTraceViewConfigResource(Resource):
         app_name = serializers.CharField(label="应用名称")
 
     def perform_request(self, validated_request_data):
-        return API_VIEW_CONFIG_DATA
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+
+        view_config_manager = TraceViewConfigManager(bk_biz_id=bk_biz_id, app_name=app_name)
+
+        default_config_template_obj = view_config_manager.default_config.default_config_template_obj
+        # trace 视角的视图配置
+        trace_config = {
+            "default_config": default_config_template_obj.trace_config,
+            "fields": view_config_manager.fields_handler.get_fields_by_mode(QueryMode.TRACE),
+        }
+        # 获取 span 视角的视图配置
+        span_config = {
+            "default_config": default_config_template_obj.span_config,
+            "fields": view_config_manager.fields_handler.get_fields_by_mode(QueryMode.SPAN),
+        }
+        return {
+            "trace_config": trace_config,
+            "span_config": span_config,
+        }
 
 
 class TraceFieldsTopKResource(Resource):
