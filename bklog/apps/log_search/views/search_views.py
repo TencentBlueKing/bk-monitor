@@ -501,8 +501,13 @@ class SearchViewSet(APIViewSet):
         data = request.data
         data.update({"search_type_tag": "tail"})
         # search_handler = SearchHandler(index_set_id, data)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_tail_f())
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            params = UnifyQueryHandler.build_params(data)
+            query_handler = UnifyQueryHandler(params)
+            return Response(query_handler.search_tail_f())
+        else:
+            search_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(search_handler.search_tail_f())
 
     @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):
