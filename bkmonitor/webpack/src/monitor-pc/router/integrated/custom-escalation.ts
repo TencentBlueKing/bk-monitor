@@ -30,10 +30,6 @@ import type { RouteConfig } from 'vue-router';
 
 const CustomEscalationSet = () =>
   import(/* webpackChunkName: 'CustomEscalationAdd' */ '@page/custom-escalation/custom-escalation-set.vue');
-const CustomEscalationDetailNew = () =>
-  import(
-    /* web  packChunkName: 'CustomEscalationDetail' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
-  );
 const CustomEscalationDetail = () =>
   import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
 const CustomEscalationView = () =>
@@ -44,6 +40,11 @@ const CustomEscalationEventView = () =>
 const NewCustomEscalationView = () =>
   import(
     /* webpackChunkName: 'NewCustomEscalationView' */ '../../pages/custom-escalation/new-metric-view/new-metric-view'
+  );
+// 新版自定义指标详情
+const CustomEscalationDetailNew = () =>
+  import(
+    /* web  packChunkName: 'CustomEscalationDetailNew' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
   );
 export default [
   {
@@ -121,7 +122,7 @@ export default [
       noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetailNew,
+      noCache: CustomEscalationDetail,
     },
     meta: {
       title: '详情',
@@ -209,6 +210,31 @@ export default [
       route: {
         parent: 'custom-metric',
       },
+    },
+  },
+  /** 新版自定义指标详情页 */
+  {
+    path: '/new-custom-escalation-detail/timeseries/:id/:activeTab?',
+    name: 'new-custom-detail-timeseries',
+    props: {
+      noCache: true,
+    },
+    components: {
+      noCache: CustomEscalationDetailNew,
+    },
+    meta: {
+      title: '新版自定义详情页面',
+      navId: 'custom-metric',
+      needBack: true,
+      authority: {
+        map: customAuth,
+        page: customAuth.VIEW_CUSTOM_METRIC,
+      },
+      route: {
+        parent: 'custom-metric',
+      },
+      needCopyLink: true,
+      noNavBar: true,
     },
   },
 ] as RouteConfig[];

@@ -346,7 +346,11 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @return {*}
    */
   handleGotoDetail(row: IEventItem) {
-    const name = detailRouteName[this.getRouterName];
+    let name = detailRouteName[this.getRouterName];
+    const { customMetricV2EnableList, bizId } = this.$store.getters;
+    if (this.getRouterName === CUSTOM_METRIC && customMetricV2EnableList.includes(bizId)) {
+      name = 'new-custom-detail-timeseries';
+    }
     this.$router.push({
       name,
       params: {
@@ -511,7 +515,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     return (
       <div
         class='custom-report-page'
-        // v-bkloading={{ isLoading: this.loading }}
+      // v-bkloading={{ isLoading: this.loading }}
       >
         <div class='content-left'>
           <PageTips
@@ -625,7 +629,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           },
                         ],
                       }}
-                      onOptionClick={(v: 'delete' | 'view' | 'manage') => this.handleOperate(v, row)}
+                      onOptionClick={(v: 'delete' | 'manage' | 'view') => this.handleOperate(v, row)}
                     />
                   ),
                 }}
