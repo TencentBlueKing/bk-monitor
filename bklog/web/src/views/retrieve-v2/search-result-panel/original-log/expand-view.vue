@@ -79,7 +79,7 @@
 </template>
 
 <script>
-  import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+  import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
@@ -137,7 +137,7 @@
     },
     methods: {
       handleCopy() {
-        alert('复制开发中~');
+        copyMessage(JSON.stringify(this.jsonShowData));
       },
     },
   };

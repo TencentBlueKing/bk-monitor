@@ -1084,10 +1084,8 @@
         <template v-else-if="showFulltextMsg">
           <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
-            <div class="full-text-sub-title">
-              <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
-            </div>
-            <div class="full-text-content">{{ $t('输入文本后按 [Enter] 键进行检索') }}</div>
+            <div class="full-text-sub-title"><img :src="svgImg.imgEnterKey" /><span>Ctrl+ Enter</span></div>
+            <div class="full-text-content">{{ $t('输入文本后按 [Ctrl+ Enter] 键进行检索') }}</div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
             </div>
