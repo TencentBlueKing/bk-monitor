@@ -26,7 +26,7 @@
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import FuctionalDependency from '@blueking/functional-dependency/vue2';
+import FunctionalDependency from '@blueking/functional-dependency/vue2';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
@@ -107,10 +107,15 @@ export default class AiopsContainer extends tsc<IProps> {
   /** 告警前后时间 */
   timeRange = 3;
 
-  showDimensionDrill = false;
-  dimensionDrillTips = '';
-  showMetricRecommendation = false;
-  metricRecommendationTips = '';
+  // showDimensionDrill = false;
+  // dimensionDrillTips = '';
+  // showMetricRecommendation = false;
+  // metricRecommendationTips = '';
+
+  dimensionDrillAiSetting: Record<string, any> = {};
+  metricRecommendationAiSetting: Record<string, any> = {};
+  wxCsLink = '';
+
   /** 是否上报了view 数据 */
   hasReportView = false;
   hasReportClick = false;
@@ -160,22 +165,22 @@ export default class AiopsContainer extends tsc<IProps> {
         icon: 'icon-yichangweidu',
         titleKey: '异常维度',
         loading: this.dimensionDrillDownLoading,
-        isShow: this.showDimensionDrill,
+        isShow: this.dimensionDrillAiSetting.is_enabled,
         error: this.dimensionDrillDownErr,
-        tips: this.dimensionDrillTips,
         tipsRenderer: this.renderDimensionTips,
         contentRender: this.renderDimensionAndIndexView,
+        aiSettings: this.dimensionDrillAiSetting,
       },
       {
         name: 'index',
         icon: 'icon-mc-correlation-metrics',
         titleKey: '关联指标',
         loading: this.metricRecommendationLoading,
-        isShow: this.showMetricRecommendation,
-        tips: this.metricRecommendationTips,
+        isShow: this.metricRecommendationAiSetting.is_enabled,
         error: this.metricRecommendationErr,
         contentRender: this.renderDimensionAndIndexView,
         tipsRenderer: this.renderMetricTips,
+        aiSettings: this.metricRecommendationAiSetting,
       },
     ];
   }
@@ -376,7 +381,7 @@ export default class AiopsContainer extends tsc<IProps> {
   }
   /** 请求数据 */
   async getTabData() {
-    const { dimension_drill, metric_recommend } = await fetchAiSetting({
+    const { dimension_drill, metric_recommend, wx_cs_link } = await fetchAiSetting({
       bk_biz_id: this.detail.bk_biz_id,
       alert_id: this.detail.id,
     }).catch(() => ({
@@ -388,6 +393,7 @@ export default class AiopsContainer extends tsc<IProps> {
         is_enabled: false,
         is_supported: false,
       },
+      wx_cs_link: '',
     }));
     const params = {
       bk_biz_id: this.detail.bk_biz_id,
@@ -395,16 +401,11 @@ export default class AiopsContainer extends tsc<IProps> {
     };
     this.isDataInit = true;
     const catchFn = () => (this.isDataInit = false);
-    this.showDimensionDrill = !!dimension_drill.is_enabled;
-    if (!dimension_drill.is_supported) {
-      this.dimensionDrillTips = this.$tc('当前告警不支持维度下钻功能');
-    } else if (!dimension_drill.is_enabled) {
-      this.dimensionDrillTips = this.$tc('当前空间未开启维度下钻功能');
-    }
+    this.dimensionDrillAiSetting = dimension_drill;
+    this.wxCsLink = wx_cs_link;
     if (dimension_drill.is_supported && dimension_drill.is_enabled) {
       /** 维度下钻数据 */
       this.dimensionDrillDownLoading = true;
-      this.dimensionDrillTips = '';
       dimensionDrillDown(params, { needMessage: false })
         .then(res => {
           this.tabData.dimension = res || {};
@@ -421,17 +422,11 @@ export default class AiopsContainer extends tsc<IProps> {
           this.dimensionDrillDownLoading = false;
         });
     }
-    this.showMetricRecommendation = !!metric_recommend.is_enabled;
-    if (!metric_recommend.is_supported) {
-      this.metricRecommendationTips = this.$tc('当前告警不支持关联指标功能');
-    } else if (!metric_recommend.is_enabled) {
-      this.metricRecommendationTips = this.$tc('当前空间未开启关联指标功能');
-    }
+    this.metricRecommendationAiSetting = metric_recommend;
     if (metric_recommend.is_supported && metric_recommend.is_enabled) {
       /** 关联指标 */
-      this.metricRecommendationTips = '';
       this.metricRecommendationLoading = true;
-      if (!this.showDimensionDrill) {
+      if (!metric_recommend.is_enabled) {
         this.tabActive = ETabNames.index;
       }
       metricRecommendation(params, { needMessage: false })
@@ -439,16 +434,16 @@ export default class AiopsContainer extends tsc<IProps> {
           const maxPanels = [];
           let recommendedMetric = 0;
           if (res?.info) {
-            res.recommended_metrics.forEach(item => {
+            for (const item of res.recommended_metrics) {
               item.indicators = 0;
               recommendedMetric += item.metrics.length;
-              item.metrics.forEach(metric => {
+              for (const metric of item.metrics) {
                 const panelsLen = metric.panels.length;
                 item.indicators = item.indicators + panelsLen;
                 maxPanels.push(panelsLen);
                 this.setMorePanels(metric, item.result_table_label_name);
-              });
-            });
+              }
+            }
             res.info.recommended_metric = recommendedMetric;
             /** 判断所有纬度图表数据长度，设置默认列数 */
             res.info.default_column = Math.max(...maxPanels);
@@ -473,17 +468,17 @@ export default class AiopsContainer extends tsc<IProps> {
    * @description 设置aiops容器的观察
    */
   setOberverInservation() {
-    if (this.showDimensionDrill || this.showMetricRecommendation) {
+    if (this.dimensionDrillAiSetting.is_enabled || this.metricRecommendationAiSetting.is_enabled) {
       if (this.observer) return;
       this.observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
+        for (const entry of entries) {
           if (entry.isIntersecting) {
             this.reportEventLog(EventReportType.View);
             this.observer.disconnect();
             this.observer.unobserve(this.aiopsContainerRef);
             this.observer = null;
           }
-        });
+        }
       });
       this.observer.observe(this.aiopsContainerRef);
     }
@@ -497,9 +492,9 @@ export default class AiopsContainer extends tsc<IProps> {
   /** 维度下钻和关联指标视图 */
   renderDimensionAndIndexView() {
     const isDimension = this.tabActive === ETabNames.dimension;
-    return (!this.showDimensionDrill && isDimension) ||
-      (!this.showMetricRecommendation && this.tabActive === ETabNames.index) ? (
-      <FuctionalDependency
+    return (!this.dimensionDrillAiSetting.is_enabled && isDimension) ||
+      (!this.metricRecommendationAiSetting.is_enabled && this.tabActive === ETabNames.index) ? (
+      <FunctionalDependency
         functionalDesc={this.$t('启用 AI 功能，将支持维度下钻、关联指标事件展示等功能。')}
         guideDescList={[this.$t('1. 基础计算平台：将 AI 相关的模型导入到该环境运行')]}
         guideTitle={this.$t('如需使用该功能，需要部署：')}
@@ -603,9 +598,30 @@ export default class AiopsContainer extends tsc<IProps> {
   }
   /** 绘制collapse头部需要展示的内容 */
   renderStatusTips(config) {
-    const { isShow, loading, error, name, tips } = config;
-    if (tips) {
-      return <div>{tips}</div>;
+    const { isShow, loading, error, name, aiSettings } = config;
+    if (aiSettings) {
+      if (!aiSettings.is_supported) {
+        return (
+          <div>
+            {!aiSettings.error_msg
+              ? this.$t('当前告警 不支持 {0} 功能', [config.titleKey])
+              : this.$t('{0} 不支持 {1} 功能', [aiSettings.error_msg, config.titleKey])}
+          </div>
+        );
+      }
+      if (!aiSettings.is_enabled) {
+        return (
+          <div>
+            {this.$t('当前空间未开启{0}功能', [config.titleKey])}, {this.$t('请联系')}{' '}
+            <span
+              class='bk-assistant-link'
+              onClick={e => this.handleToBkAssistant(e, this.wxCsLink)}
+            >
+              {this.$t('BK助手')}
+            </span>
+          </div>
+        );
+      }
     }
     return isShow || loading ? (
       <span class={['aiops-tab-title-message', { 'aiops-tab-title-index-message': name === 'index' }]}>
@@ -684,8 +700,11 @@ export default class AiopsContainer extends tsc<IProps> {
     return space_type_id === ETagsType.BKCC ? `(#${id})` : `(${space_id || space_code})`;
   }
   /** 跳转打开bk助手 */
-  handleToBkAssistant(e: MouseEvent) {
+  handleToBkAssistant(e: MouseEvent, url?: string) {
     e.stopPropagation();
+    if (url) {
+      return window.open(url, '__blank');
+    }
     this.incidentWxCsLink && window.open(this.incidentWxCsLink, '__blank');
   }
   /** 跳转至故障详情页面 */
@@ -730,7 +749,11 @@ export default class AiopsContainer extends tsc<IProps> {
                   ? 'cursor-allowed'
                   : '',
               ]}
-              disabled={config.loading || !!config.tips}
+              disabled={
+                config.loading ||
+                (['dimension', 'index'].includes(config.name) &&
+                  (!config.aiSettings.is_enabled || !config.aiSettings.is_supported))
+              }
               name={config.name}
             >
               <div class='aiops-container-menu-item-head'>

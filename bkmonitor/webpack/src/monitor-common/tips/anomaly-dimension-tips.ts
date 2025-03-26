@@ -46,7 +46,7 @@ export const createAnomalyDimensionTips = (metric: Record<string, any>, isCorrel
               ${window.i18n.tc('异常维度值')}:
               <span class='anomaly-score'>
                 ${window.i18n.tc('异常分值')}
-                <span class='score-num'>${metric.anomaly_score}</span>
+                <span class='score-num status-${metric.anomaly_level}'>${metric.anomaly_score}</span>
               </span>
             </div>
             <div class='dimension-tips-content'>

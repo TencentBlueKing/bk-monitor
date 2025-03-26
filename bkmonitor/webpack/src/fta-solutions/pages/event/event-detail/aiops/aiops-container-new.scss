@@ -178,15 +178,16 @@
     }
 
     .aiops-tab-title-no-auth {
-      .bk-assistant-link {
-        padding-left: 2px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
     }
 
     .aiops-container-menu-item-content {
       padding-left: 8px;
     }
+  }
+
+  .bk-assistant-link {
+    padding-left: 2px;
+    color: #3a84ff;
+    cursor: pointer;
   }
 }

@@ -329,4 +329,7 @@ export default {
   添加为筛选项: 'Add as filter',
   移除该筛选项: 'Remove this filter',
   点击加载更多: 'Click to load more',
+  '当前空间未开启{0}功能': 'The current space has not enabled the {0} feature',
+  '当前告警 不支持 {0} 功能': 'The current alarm does not support the {0} feature',
+  '{0} 不支持 {1} 功能': '{0} does not support the {1} feature',
 };

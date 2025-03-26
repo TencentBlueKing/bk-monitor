@@ -580,7 +580,19 @@
       .score-num {
         display: inline-flex;
         margin-left: 2px;
-        color: #f59500;
+        color: #979ba5;
+
+        &.status-1 {
+          color: #e71818;
+        }
+
+        &.status-2 {
+          color: #e38b02;
+        }
+
+        &.status-3 {
+          color: #979ba5;
+        }
       }
     }
   }
