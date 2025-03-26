@@ -890,7 +890,7 @@ def sync_bkbase_v4_metadata(key):
 
     bkbase_redis = bkbase_redis_client()
 
-    bk_base_data_id = key.split(":")[-1]  # 提取 bk_data_id
+    bk_base_data_id = key.split(":")[-1]  # 提取 bk_base_data_id
 
     try:
         vm_record = models.AccessVMRecord.objects.filter(bk_base_data_id=bk_base_data_id)
