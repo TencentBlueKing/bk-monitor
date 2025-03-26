@@ -944,7 +944,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               class='row-content'
               v-bk-overflow-tips
             >
-              {this.copyIsPlatform === false ? this.$t('本业务') : this.$t('全平台')}
+              {this.copyIsPlatform === false ? this.$t('本空间') : this.$t('全局')}
             </span>
           </div>{' '}
           <div class='detail-information-row'>

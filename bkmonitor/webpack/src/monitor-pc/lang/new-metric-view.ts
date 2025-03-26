@@ -82,8 +82,7 @@ export default {
   关联维度: 'Associated Dimensions',
   上报周期: 'Reporting Cycle',
   指标与维度: 'Metrics and Dimensions',
-  '打开后，除了采集启用的指标，还会采集未来新增的指标':
-    'When enabled, newly added metrics will be collected in addition to activated ones.',
+  '启用后，将自动发现新增指标/维度': 'Once enabled, new metrics/dimensions will be automatically discovered.',
   '分组 用于指标归类，建议拥有相同维度的指标归到一个组里。':
     'Grouping: Categorizes metrics. Group those with shared dimensions.',
   '搜索 自定义分组名称': 'Search Custom Group Names',
