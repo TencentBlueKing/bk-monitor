@@ -85,7 +85,7 @@
   }
 
   .field-filter-container-new {
-    height: calc(100vh - var(--offset-search-bar) - 210px);
+    height: calc(100vh - var(--top-searchbar-height) - 210px);
 
     overflow-y: auto;
     font-size: 12px;

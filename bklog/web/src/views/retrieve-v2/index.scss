@@ -162,12 +162,12 @@
       &.flex {
         .field-list-sticky {
           &.is-show {
-            height: calc(100vh - var(--offset-search-bar) - 60px);
+            height: calc(100vh - var(--top-searchbar-height) - 60px);
 
             .search-field-filter-new {
               .field-filter-box {
                 .field-filter-container-new {
-                  height: calc(100vh - var(--offset-search-bar) - 128px);
+                  height: calc(100vh - var(--top-searchbar-height) - 128px);
                 }
               }
             }
