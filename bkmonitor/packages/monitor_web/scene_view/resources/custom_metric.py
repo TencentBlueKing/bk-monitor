@@ -249,7 +249,7 @@ class GetCustomTsGraphConfig(Resource):
                 all_metric_dimensions = set(metric.config.get("dimensions", []))
                 query_config = {
                     "metrics": [
-                        {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
+                        {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
                     "interval": "auto",
                     "table": table.table_id,
@@ -336,7 +336,11 @@ class GetCustomTsGraphConfig(Resource):
                 for metric in metric_list:
                     query_config = {
                         "metrics": [
-                            {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
+                            {
+                                "field": metric.name,
+                                "method": metric.config.get("aggregate_method") or "AVG",
+                                "alias": "a",
+                            }
                         ],
                         "interval": "auto",
                         "table": table.table_id,
