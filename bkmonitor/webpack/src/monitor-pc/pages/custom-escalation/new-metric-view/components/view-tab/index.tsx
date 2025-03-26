@@ -228,7 +228,9 @@ export default class ViewTab extends tsc<IProps, IEmit> {
                   name={item.id}
                 >
                   <template slot='label'>
-                    <i class='icon-monitor icon-mc-tuozhuai drag-flag' />
+                    <div class='drag-flag'>
+                      <i class='icon-monitor icon-mc-tuozhuai' />
+                    </div>
                     <span>{item.name}</span>
                     <RemoveConfirm
                       data={item}
@@ -243,14 +245,15 @@ export default class ViewTab extends tsc<IProps, IEmit> {
               ))}
             </bk-tab>
           )}
-          <ViewSave
-            class='view-save'
-            payload={this.graphConfigPayload}
-            sceneId={this.sceneId}
-            viewId={this.viewTab}
-            viewList={this.viewList}
-            onSuccess={this.handleViewSaveSuccess}
-          />
+          <div class='extend-action'>
+            <ViewSave
+              payload={this.graphConfigPayload}
+              sceneId={this.sceneId}
+              viewId={this.viewTab}
+              viewList={this.viewList}
+              onSuccess={this.handleViewSaveSuccess}
+            />
+          </div>
         </div>
         <div v-bkloading={{ isLoading: this.isViewDetailLoading }}>{this.$slots.default}</div>
       </div>

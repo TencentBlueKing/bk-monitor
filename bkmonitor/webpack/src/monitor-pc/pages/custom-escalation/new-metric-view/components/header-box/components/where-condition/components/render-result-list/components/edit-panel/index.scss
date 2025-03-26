@@ -1,46 +1,52 @@
 .tippy-tooltip.filter-conditions-value-edit-panel-theme {
   padding: 0;
 }
+
 .filter-conditions-value-edit-panel {
   .layout-wrapper {
     display: flex;
     overflow: hidden;
+
     .layout-left {
-      width: 300px;
+      width: 340px;
       border-right: 1px solid #dcdee5;
     }
+
     .layout-right {
-      width: 340px;
+      width: 360px;
       padding: 4px 12px;
     }
   }
+
   .layout-footer {
-    background-color: #fafbfd;
-    padding: 0 24px 0 8px;
-    height: 48px;
     display: flex;
     align-items: center;
-    box-shadow: 0 -1px 0 0 #dcdee5;
-    color: #7a8599;
+    height: 48px;
+    padding: 0 24px 0 8px;
     font-size: 12px;
+    color: #7a8599;
+    background-color: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
     .desc-box {
       & ~ .desc-box {
         margin-left: 16px;
       }
     }
+
     .desc-tag {
-      background: #a3b1cc29;
-      border: 1px solid #a3b1cc4d;
-      border-radius: 2px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       height: 16px;
+      padding: 0 2px;
+      margin-right: 4px;
       font-size: 11px;
       font-weight: bold;
-      margin-right: 4px;
-      padding: 0 2px;
       color: #a3b1cc;
+      background: #a3b1cc29;
+      border: 1px solid #a3b1cc4d;
+      border-radius: 2px;
     }
   }
 }

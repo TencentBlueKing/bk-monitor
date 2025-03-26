@@ -112,7 +112,6 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
   render() {
     return (
       <div
-        key={this.data.metric_name}
         class={{
           'render-metric-group-item': true,
           'is-active': this.isActive,
@@ -136,6 +135,7 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
             theme: 'light edit-metric-alias-name',
             trigger: 'click',
             hideOnClick: true,
+            zIndex: 99999,
             onShow: this.handleEditShow,
             onHidden: this.handleEditHidden,
           }}

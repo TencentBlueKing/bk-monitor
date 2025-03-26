@@ -1,10 +1,12 @@
 .new-metric-view-metrics-group {
+  height: calc(100% - 118px);
   padding: 0 8px 0 10px;
   margin-top: 8px;
-  height: calc(100% - 118px);
   overflow-y: auto;
+
   .metrics-select-box {
     position: relative;
+
     & ~ .metrics-select-box {
       margin-top: 6px;
     }
@@ -13,21 +15,20 @@
   .metrics-select-item-header {
     display: flex;
     align-items: center;
-    font-size: 14px;
     height: 32px;
-    border-radius: 2px;
+    padding-right: 8px;
+    padding-left: 20px;
+    margin-bottom: 2px;
+    font-family: PingFangSC-Medium;
+    font-size: 12px;
+    font-weight: 500;
     color: #313238;
     cursor: pointer;
+    border-radius: 2px;
     transition: all 0.15s;
-    font-family: PingFangSC-Medium;
-    font-weight: 500;
-    margin-bottom: 2px;
-    padding-left: 20px;
-    padding-right: 8px;
 
     .group-expand-flag {
       position: absolute;
-      font-size: 12px;
       top: 0;
       left: 0;
       display: flex;
@@ -35,9 +36,11 @@
       justify-content: center;
       width: 20px;
       height: 20px;
-      transition: transform 0.15s;
       margin-top: 6px;
+      font-size: 12px;
       color: #a3b1cc;
+      transition: transform 0.15s;
+
       &.is-expanded {
         transform: rotateZ(90deg);
       }
@@ -45,44 +48,50 @@
 
     &:hover {
       background: #f5f7fa;
+
       .metric-demension-count {
         color: #3a84ff;
+
         .select-all {
           display: block;
         }
       }
     }
   }
+
   .metric-group-name {
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     flex: 1;
-    line-height: 32px;
     padding-left: 4px;
-  }
-  .metric-demension-count {
-    margin-left: auto;
-    color: #a3b1cc;
-    font-weight: bold;
+    overflow: hidden;
     font-size: 12px;
+    line-height: 32px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .metric-demension-count {
     display: flex;
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: bold;
+    color: #a3b1cc;
+
     .select-all {
       display: none;
       padding-left: 10px;
     }
   }
+
   .metrics-select-item-content {
     position: relative;
 
     &:after {
-      content: '';
       position: absolute;
+      top: 0;
       bottom: 0;
       left: 27px;
-      top: 0;
       width: 1px;
+      content: '';
       background: #dcdee5;
     }
   }

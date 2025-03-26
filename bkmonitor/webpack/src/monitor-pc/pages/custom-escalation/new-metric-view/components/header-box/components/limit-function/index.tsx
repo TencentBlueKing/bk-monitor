@@ -87,7 +87,7 @@ export default class LimitFunction extends tsc<IProps, IEmit> {
       <div class='new-metric-view-limit-function'>
         <div
           class='label'
-          role='param-label'
+          data-role='param-label'
         >
           <div>{this.$t('限制')}</div>
         </div>

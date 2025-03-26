@@ -66,12 +66,12 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
   get demensionList() {
     const demenesionNameMap = {};
     return this.currentSelectedMetricList.reduce<{ name: string }[]>((result, item) => {
-      item.dimensions.forEach(demesionItem => {
+      for (const demesionItem of item.dimensions) {
         if (!demenesionNameMap[demesionItem.name]) {
           result.push(demesionItem);
           demenesionNameMap[demesionItem.name] = true;
         }
-      });
+      }
       return result;
     }, []);
   }
@@ -110,10 +110,12 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
         const labelWidth = 80;
         const tipsTagPlaceholderWidth = 45;
         const selectBtnWidth = 60;
+        const clearBtnWidth = 30;
 
         const allTagEleList = Array.from(this.calcTagListRef!.querySelectorAll('.value-item'));
         if (
-          this.calcTagListRef!.getBoundingClientRect().width + selectBtnWidth + labelWidth <= maxWidth ||
+          this.calcTagListRef!.getBoundingClientRect().width + selectBtnWidth + labelWidth + clearBtnWidth <=
+            maxWidth ||
           this.localValueList.length === 1
         ) {
           this.renderTagNum = this.localValueList.length;
@@ -124,7 +126,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
           for (let i = 0; i < allTagEleList.length; i++) {
             const { width: tagWidth } = allTagEleList[i].getBoundingClientRect();
             totalTagWidth += tagWidth + tagMargin;
-            if (totalTagWidth + tipsTagPlaceholderWidth + selectBtnWidth + labelWidth <= maxWidth) {
+            if (totalTagWidth + tipsTagPlaceholderWidth + selectBtnWidth + labelWidth + clearBtnWidth <= maxWidth) {
               renderTagCount = renderTagCount + 1;
             } else {
               break;
@@ -176,6 +178,11 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
     this.triggerChange();
   }
 
+  handleClear() {
+    this.localValueList = [];
+    this.triggerChange();
+  }
+
   mounted() {
     this.calcWholeLine();
     this.calcRenderTagNum();
@@ -206,7 +213,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
         >
           <div
             class='label'
-            role='param-label'
+            data-role='param-label'
           >
             <div>{this.$t('聚合维度')}</div>
           </div>
@@ -214,7 +221,10 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
             {this.renderValueList.map((item, index) => (
               <div
                 key={item.field}
-                class='value-item'
+                class={{
+                  'value-item': true,
+                  'is-split': item.split,
+                }}
               >
                 {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
                 {item.field}
@@ -277,6 +287,15 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
             value={this.localValueList as IProps['value']}
             onChange={this.handleChange}
           />
+          {this.localValueList.length > 0 && (
+            <div
+              class='clear-btn'
+              v-bk-tooltips={this.$t('清空')}
+              onClick={this.handleClear}
+            >
+              <i class='icon-monitor icon-a-Clearqingkong' />
+            </div>
+          )}
         </div>
       </div>
     );

@@ -135,13 +135,21 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
   // 实例方法
   foldAll() {
     const latestGroupFlodMap = { ...this.groupExpandMap };
-    this.renderMetricGroupList.forEach(item => {
+    for (const item of this.renderMetricGroupList) {
       latestGroupFlodMap[item.name] = false;
-    });
+    }
     this.groupExpandMap = Object.freeze(latestGroupFlodMap);
   }
-  expandAll() {
-    this.groupExpandMap = {};
+  expandAll(flag: boolean) {
+    if (flag) {
+      const latestGroupFlodMap = { ...this.groupExpandMap };
+      for (const item of this.renderMetricGroupList) {
+        latestGroupFlodMap[item.name] = true;
+      }
+      this.groupExpandMap = Object.freeze(latestGroupFlodMap);
+    } else {
+      this.groupExpandMap = {};
+    }
   }
 
   triggerChange() {
@@ -158,13 +166,13 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
 
   handleGroupChecked(checked: boolean, group: TCustomTsMetricGroups['metric_groups'][number]) {
     const latestGroupCheeckMap = { ...this.groupCheeckMap };
-    group.metrics.forEach(metricItem => {
+    for (const metricItem of group.metrics) {
       if (checked) {
         latestGroupCheeckMap[metricItem.metric_name] = true;
       } else {
         delete latestGroupCheeckMap[metricItem.metric_name];
       }
-    });
+    }
     this.groupCheeckMap = Object.freeze(latestGroupCheeckMap);
     this.triggerChange();
   }
@@ -211,8 +219,8 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
 
   render() {
     const renderGroup = (groupItem: TCustomTsMetricGroups['metric_groups'][number]) => {
-      let isChecked = _.every(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
-      let isIndeterminateChecked = isChecked
+      const isChecked = _.every(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
+      const isIndeterminateChecked = isChecked
         ? false
         : _.some(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
 
@@ -258,6 +266,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
           >
             {groupItem.metrics.map(metricsItem => (
               <RenderMetric
+                key={metricsItem.metric_name}
                 checked={this.groupCheeckMap[metricsItem.metric_name]}
                 data={metricsItem}
                 onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, metricsItem)}

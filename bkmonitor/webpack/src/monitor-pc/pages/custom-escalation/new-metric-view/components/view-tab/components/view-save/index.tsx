@@ -54,6 +54,7 @@ export default class ViewSave extends tsc<IProps, IEmit> {
 
   @Ref('popoverRef') readonly popoverRef: any;
   @Ref('createFormRef') readonly createFormRef: any;
+  @Ref('inputRef') readonly inputRef: any;
 
   isCreateSubmiting = false;
   isActive = false;
@@ -68,14 +69,14 @@ export default class ViewSave extends tsc<IProps, IEmit> {
         {
           required: true,
           message: this.$t('必填项'),
-          trigger: 'blur',
+          trigger: 'change',
         },
         {
           validator: (value: string) => {
             return _.every(this.viewList, item => item.name !== value);
           },
           message: this.$t('视图名称重复'),
-          trigger: 'blur',
+          trigger: 'change',
         },
       ],
     });
@@ -102,6 +103,9 @@ export default class ViewSave extends tsc<IProps, IEmit> {
   handleShowCreate() {
     this.isShowCreateDialog = true;
     this.createFormData.name = '';
+    setTimeout(() => {
+      this.inputRef.focus();
+    });
   }
   handleCancelCreate() {
     this.isShowCreateDialog = false;
@@ -213,7 +217,12 @@ export default class ViewSave extends tsc<IProps, IEmit> {
               property='name'
               required
             >
-              <bk-input v-model={this.createFormData.name} />
+              <bk-input
+                ref='inputRef'
+                v-model={this.createFormData.name}
+                maxlength={30}
+                show-word-limit={true}
+              />
             </bk-form-item>
           </bk-form>
           <div slot='footer'>

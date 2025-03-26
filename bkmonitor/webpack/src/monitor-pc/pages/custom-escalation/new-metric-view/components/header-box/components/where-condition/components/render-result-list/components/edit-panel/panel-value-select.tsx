@@ -28,6 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
+import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
+
+import { methodMap } from './index';
 
 import './panel-value-select.scss';
 
@@ -42,27 +45,20 @@ interface IEmit {
   onValueChange: (value: string[]) => void;
 }
 
-const methodList = [
-  { id: 'eq', name: '=' },
-  { id: 'gt', name: '>' },
-  { id: 'gte', name: '>=' },
-  { id: 'lt', name: '<' },
-  { id: 'lte', name: '<=' },
-  { id: 'neq', name: '!=' },
-  { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' },
-];
-
 @Component
-export default class ValueSelect extends tsc<IProps, IEmit> {
+export default class PanelValueSelect extends tsc<IProps, IEmit> {
   @Prop({ type: String }) readonly keyName: IProps['keyName'];
   @Prop({ type: String }) readonly method: IProps['method'];
   @Prop({ type: Array }) readonly value: IProps['value'];
 
   @Ref('valueTagInputRef') readonly valueTagInputRef: any;
 
-  isLoading = false;
-  valueList: { id: string; name: string }[] = [];
+  methodList = Object.freeze(
+    Object.keys(methodMap).map(key => ({
+      id: key,
+      name: methodMap[key],
+    }))
+  );
 
   get currentSelectedMetricNameList() {
     return customEscalationViewStore.currentSelectedMetricNameList;
@@ -70,41 +66,47 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
 
   @Watch('keyName', { immediate: true })
   keyNameChangeCallback() {
-    this.isLoading = false;
     this.$nextTick(() => {
       if (this.keyName) {
-        this.fetchValue();
-        this.valueTagInputRef.focusInputer();
+        // this.valueTagInputRef.focusInputer();
+        console.log('from watac');
       }
     });
   }
 
-  async fetchValue() {
-    try {
-      this.isLoading = true;
-      const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
-      const result = await getCustomTsDimensionValues({
-        time_series_group_id: Number(this.$route.params.id),
-        dimension: this.keyName,
-        start_time: startTime || 0,
-        end_time: endTime || 0,
-        metrics: this.currentSelectedMetricNameList,
-      });
-      this.valueList = result.map(item => ({
+  async getValueCallback() {
+    if (!this.keyName) {
+      return {
+        count: 0 as const,
+        list: [],
+      };
+    }
+    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+    const result = await getCustomTsDimensionValues({
+      time_series_group_id: Number(this.$route.params.id),
+      dimension: this.keyName,
+      start_time: startTime || 0,
+      end_time: endTime || 0,
+      metrics: this.currentSelectedMetricNameList,
+    });
+    return {
+      count: 0 as const,
+      list: result.map(item => ({
         id: item.name,
         name: item.name,
-      }));
-    } finally {
-      this.isLoading = false;
-    }
+      })),
+    };
   }
 
   handleMethodChange(value: string) {
     this.$emit('methondChange', value);
   }
 
-  handleValueChange(value: string[]) {
-    this.$emit('valueChange', value);
+  handleValueChange(payload: { id: string; name: string }[]) {
+    this.$emit(
+      'valueChange',
+      payload.map(item => item.id)
+    );
   }
 
   render() {
@@ -112,30 +114,36 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
       <div class='edit-panel-value-select'>
         <div class='value-title'>{this.$t('运算符')}</div>
         <bk-select
+          popover-options={{
+            appendTo: 'parent',
+          }}
           disabled={!this.keyName}
           value={this.method}
           onChange={this.handleMethodChange}
         >
-          {methodList.map(methodItem => (
+          {this.methodList.map(methodItem => (
             <bk-option
               id={methodItem.id}
+              key={methodItem.id}
               name={methodItem.name}
             />
           ))}
         </bk-select>
         <div class='value-title'>{this.$t('筛选值')}</div>
-        <div v-bkloading={{ 'is-loading': this.isLoading }}>
-          <bk-tag-input
-            ref='valueTagInputRef'
-            allow-create={true}
-            disabled={!this.keyName}
-            has-delete-icon={true}
-            list={this.valueList}
-            trigger='focus'
-            value={this.value}
-            onChange={this.handleValueChange}
-          />
-        </div>
+        <ValueTagSelector
+          fieldInfo={{
+            field: this.keyName,
+            alias: this.keyName,
+            methods: [{ id: this.method, name: this.method }],
+            isEnableOptions: true,
+          }}
+          value={this.value.map(item => ({
+            id: item,
+            name: item,
+          }))}
+          getValueFn={this.getValueCallback}
+          onChange={this.handleValueChange}
+        />
       </div>
     );
   }
