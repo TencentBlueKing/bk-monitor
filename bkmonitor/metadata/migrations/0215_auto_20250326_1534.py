@@ -31,7 +31,7 @@ def sync_event_es_router(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0210_spacerelatedstorageinfo"),
+        ("metadata", "0214_auto_20250321_1601"),
     ]
 
     operations = [migrations.RunPython(code=sync_event_es_router)]
