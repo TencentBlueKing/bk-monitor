@@ -154,12 +154,15 @@ export default class ValueTagSelector extends tsc<IProps> {
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
     }
+    this.isChecked = false;
   }
   /**
    * @description 输入框失去焦点事件
    */
   handleBlur() {
-    this.inputValue = '';
+    setTimeout(() => {
+      this.inputValue = '';
+    }, 300);
   }
   /**
    * @description 输入框enter事件
