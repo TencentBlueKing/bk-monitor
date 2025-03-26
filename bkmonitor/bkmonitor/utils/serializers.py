@@ -173,7 +173,6 @@ class BkBizIdSerializer(serializers.Serializer):
 class TenantIdField(serializers.CharField):
     """
     租户ID字段
-
     如果传入的值为空，则使用当前请求的租户ID
     """
 
@@ -198,7 +197,7 @@ class TenantIdField(serializers.CharField):
             data = get_request_tenant_id(peaceful=True)
 
         # 如果租户ID为空，则抛出异常
-        if not data and not self._allow_empty:
+        if not data and not self._allow_blank:
             raise ValidationError(_("tenant_id is required"))
 
         return super().to_internal_value(data)

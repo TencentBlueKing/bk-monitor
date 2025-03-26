@@ -30,12 +30,12 @@ from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
-APP_CODE_TOKENS = {}
+APP_CODE_TOKENS: dict[str, list[str]] = {}
 APP_CODE_UPDATE_TIME = None
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
 
 
-def is_match_api_token(request, app_code: str, token: str) -> bool:
+def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
     """
     校验API鉴权
     """
@@ -49,11 +49,11 @@ def is_match_api_token(request, app_code: str, token: str) -> bool:
     # 更新缓存
     if APP_CODE_UPDATE_TIME is None or time.time() - APP_CODE_UPDATE_TIME > APP_CODE_TOKEN_CACHE_TIME:
         result = {}
-        records = ApiAuthToken.objects.filter(type=AuthType.API)
+        records = ApiAuthToken.objects.filter(type=AuthType.API, bk_tenant_id=bk_tenant_id)
         for record in records:
             if not record.params.get("app_code"):
                 continue
-            result[record.params["app_code"]] = (record.token, record.namespaces)
+            result[record.params["app_code"]] = record.namespaces
         APP_CODE_UPDATE_TIME = time.time()
         APP_CODE_TOKENS = result
 
@@ -61,11 +61,7 @@ def is_match_api_token(request, app_code: str, token: str) -> bool:
     if app_code not in APP_CODE_TOKENS:
         return True
 
-    auth_token, namespaces = APP_CODE_TOKENS[app_code]
-
-    # 校验token
-    if token != auth_token:
-        return False
+    namespaces = APP_CODE_TOKENS[app_code]
 
     # 校验命名空间
     if "biz#all" in namespaces or f"biz#{request.biz_id}" in namespaces:
@@ -147,15 +143,15 @@ class KernelSessionAuthentication(SessionAuthentication):
 
 class AppWhiteListModelBackend(ModelBackend):
     # 经过esb 鉴权， bktoken已经丢失，因此不再对用户名进行校验。
-    def authenticate(self, request=None, username=None, tenant_id=None, **kwargs):
+    def authenticate(self, request=None, username=None, bk_tenant_id=None, **kwargs):
         if username is None:
             return None
         try:
-            user_model = get_user_model()
-            user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
-            # 覆盖租户id
-            if tenant_id != user.tenant_id:
-                user.tenant_id = tenant_id
+            user, _ = get_user_model().objects.get_or_create(username=username, defaults={"nickname": username})
+
+            # 如果用户没有租户id，则设置租户id
+            if not user.tenant_id or (not settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != DEFAULT_TENANT_ID):
+                user.tenant_id = bk_tenant_id
                 user.save()
         except Exception as e:
             logger.error("Auto create & update UserModel fail, username: {}, error: {}".format(username, e))
@@ -225,21 +221,24 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
             app_code = request.jwt.app.app_code
             username = request.jwt.user.username
-            tenant_id = request.jwt.app.get("tenant_id") or DEFAULT_TENANT_ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = request.jwt.app.get("tenant_id") or DEFAULT_TENANT_ID
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
-            tenant_id = DEFAULT_TENANT_ID
+            bk_tenant_id = DEFAULT_TENANT_ID
 
-        # 后台仪表盘渲染豁免，TODO: 多租户支持验证
+        # 后台仪表盘渲染豁免
+        # TODO: 多租户支持验证
         if "/grafana/" in request.path and not app_code:
-            request.user = auth.authenticate(username="admin", tenant_id=tenant_id)
+            request.user = auth.authenticate(username="admin", bk_tenant_id=bk_tenant_id)
             return
 
-        # 校验app_code及token
-        token = request.META.get("HTTP_X_BKMONITOR_TOKEN")
-        if app_code and is_match_api_token(request, app_code, token):
-            request.user = auth.authenticate(username=username, tenant_id=tenant_id)
+        # 校验app_code权限范围
+        if app_code and is_match_api_token(request, bk_tenant_id, app_code):
+            request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             return
 
         return HttpResponseForbidden()

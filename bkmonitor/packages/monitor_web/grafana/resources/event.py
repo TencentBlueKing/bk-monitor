@@ -10,7 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import time
+from typing import Any, Dict, List
 
+from django.db.models import Max, QuerySet
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -27,26 +29,48 @@ class GetDataSourceConfigResource(Resource):
     获取数据源配置信息
     """
 
+    _TABLE_ALIAS_MAP: Dict[str, str] = {"gse_system_event": _("主机事件")}
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         data_source_label = serializers.CharField(label="数据来源")
         data_type_label = serializers.CharField(label="数据类型")
+        # 对于不需要返回维度数据的场景，设置 return_dimensions=false，减少接口返回
+        return_dimensions = serializers.BooleanField(label="是否返回维度", default=True)
+
+    @classmethod
+    def _fetch_metrics(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+        return list(
+            qs.values(
+                "bk_biz_id",
+                "result_table_id",
+                "result_table_name",
+                "related_name",
+                "extend_fields",
+                "dimensions",
+                "metric_field",
+                "metric_field_name",
+            )
+        )
+
+    @classmethod
+    def _fetch_metrics_without_dimensions(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+        metric_row_ids = list(
+            metric_info["max_id"] for metric_info in qs.values("result_table_id").annotate(max_id=Max("id")).order_by()
+        )
+        return cls._fetch_metrics(qs.filter(id__in=metric_row_ids))
 
     def perform_request(self, params):
         data_source_label = params["data_source_label"]
         data_type_label = params["data_type_label"]
-        metrics = MetricListCache.objects.filter(
+
+        qs = MetricListCache.objects.filter(
             data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, params["bk_biz_id"]]
-        ).values(
-            "bk_biz_id",
-            "result_table_id",
-            "result_table_name",
-            "related_name",
-            "extend_fields",
-            "dimensions",
-            "metric_field",
-            "metric_field_name",
         )
+        if params.get("return_dimensions"):
+            metrics = self._fetch_metrics(qs)
+        else:
+            metrics = self._fetch_metrics_without_dimensions(qs)
 
         metric_dict = {}
         table_dimension_mapping = {}
@@ -60,6 +84,9 @@ class GetDataSourceConfigResource(Resource):
                 elif (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
                     name = metric["result_table_name"]
                     bk_data_id = metric["extend_fields"].get("bk_data_id", "")
+
+                if table_id in self._TABLE_ALIAS_MAP:
+                    name = _("{alias}（{name}）").format(alias=self._TABLE_ALIAS_MAP[table_id], name=name)
 
                 metric_dict[table_id] = {
                     "id": table_id,

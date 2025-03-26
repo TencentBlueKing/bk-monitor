@@ -35,7 +35,9 @@ class ApiTokenAuthBackend(ModelBackend):
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
             # 如果用户没有租户id，则设置租户id
-            if not user.tenant_id:
+            if not user.tenant_id or (
+                not settings.ENABLE_MULTI_TENANT_MODE and tenant_id and tenant_id != user.tenant_id
+            ):
                 user.tenant_id = tenant_id
                 user.save()
         except Exception:
@@ -82,18 +84,20 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
     def process_view(self, request, view, *args, **kwargs):
         # 如果请求头中携带了token，则进行token鉴权
         if "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer "):
-            return self.api_token_auth(request, view, *args, **kwargs)
+            result = self.api_token_auth(request, view, *args, **kwargs)
         else:
             result = super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
 
-            # 在不开启租户的情况下，确保user.tenant_id不为空，确保后续处理逻辑的统一性
-            if request.user:
-                if not getattr(request.user, "tenant_id", None):
-                    request.user.tenant_id = DEFAULT_TENANT_ID
+        # 在不开启租户的情况下，确保user.tenant_id为system，确保后续处理逻辑的统一性
+        if request.user:
+            if not getattr(request.user, "tenant_id", None) or (
+                not settings.ENABLE_MULTI_TENANT_MODE and request.user.tenant_id != DEFAULT_TENANT_ID
+            ):
+                request.user.tenant_id = DEFAULT_TENANT_ID
 
                 if request.user.is_authenticated:
                     request.user.save()
-            return result
+        return result
 
 
 class SettingsExternalPublicKeyProvider(PublicKeyProvider):

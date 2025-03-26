@@ -135,6 +135,7 @@ class QueryCustomEventGroup(Resource):
         page_size = serializers.IntegerField(default=10, label="获取的条数")
         page = serializers.IntegerField(default=1, label="页数")
         is_platform = serializers.BooleanField(required=False)
+        table_id = serializers.CharField(label="结果表 ID", required=False)
 
     @classmethod
     def get_strategy_count_for_each_group(cls, table_ids, request_bk_biz_id: Optional[int] = None):
@@ -175,12 +176,17 @@ class QueryCustomEventGroup(Resource):
         ).order_by("-update_time")
         context = {"request_bk_biz_id": params["bk_biz_id"]}
 
-        # 过滤条件
-        if params.get("is_platform"):
-            # 只查全平台, 不关注业务
+        if params.get("table_id"):
+            # 1）单 Table ID 查询场景
+            queryset = queryset.filter(table_id=params["table_id"]).filter(
+                Q(bk_biz_id=params.get("bk_biz_id", 0)) | Q(is_platform=True)
+            )
+        elif params.get("is_platform"):
+            # 2）只查全平台, 不关注业务
             queryset = queryset.filter(is_platform=True)
+
         elif params.get("bk_biz_id"):
-            # 非全平台，查当前业务(0表示全部业务)
+            # 3）非全平台，查当前业务(0表示全部业务)
             queryset = queryset.filter(bk_biz_id=params["bk_biz_id"])
 
         # 搜索

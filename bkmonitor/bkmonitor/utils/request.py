@@ -23,7 +23,7 @@ def get_request_tenant_id(peaceful=False) -> Optional[str]:
     """
     获取当前请求的租户id
     """
-    request = get_request(peaceful)
+    request = get_request(peaceful=True)
     if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
         if peaceful:
             return None

@@ -2279,11 +2279,6 @@ class AIOpsBaseResource(Resource, metaclass=ABCMeta):
             self.set_cache_results(alert.id, request_result)
             cache_result = request_result
 
-        cache_result["wx_cs_link"] = ""
-        for item in settings.BK_DATA_ROBOT_LINK_LIST:
-            if item["icon_name"] == "icon-kefu":
-                cache_result["wx_cs_link"] = item["link"]
-
         return cache_result
 
     def fetch_aiops_result(self, alert):

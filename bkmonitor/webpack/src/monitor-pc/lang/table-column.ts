@@ -164,4 +164,6 @@ export default {
   workload_type: 'workload_type',
   container: 'container',
   内存使用率: 'Memory Usage',
+  变更人: 'Changed by',
+  变更时间: 'Changed at',
 };

@@ -80,6 +80,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     IS_STANDARD_FORMAT = True
     METRIC_REPORT_NOW = True
 
+    ignore_error_msg_list = []
+
     @property
     @abc.abstractmethod
     def base_url(self):
@@ -198,7 +200,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             else:
                 headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
         else:
-            headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
+            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
+            headers["X-Bk-Tenant-Id"] = "default"
         return headers
 
     def perform_request(self, validated_request_data):
@@ -213,7 +216,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             if "bk_tenant_id" in validated_request_data:
                 # 如果传递了租户ID，则直接使用
                 self.bk_tenant_id = validated_request_data["bk_tenant_id"]
-            elif validated_request_data.get("bk_biz_id") or validated_request_data.get("space_uid"):
+            elif (
+                validated_request_data.get("bk_biz_id") and isinstance(validated_request_data.get("bk_biz_id"), int)
+            ) or (validated_request_data.get("space_uid") and isinstance(validated_request_data.get("space_uid"), str)):
                 # 如果传递了业务ID或空间ID，则获取关联的租户ID
                 space: Optional[Space] = SpaceApi.get_space_detail(
                     bk_biz_id=validated_request_data.get("bk_biz_id", 0),
@@ -311,14 +316,20 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             errors = result_json.get("errors", "")
             if errors:
                 msg = f"{msg}(detail:{errors})"
-            request_id = result_json.pop("request_id", "") or result.headers.get("x-bkapi-request-id", "")
-            logger.error(
-                "【Module: " + self.module_name + "】【Action: " + self.action + "】(%s) get error：%s",
-                request_id,
-                msg,
-                extra=dict(module_name=self.module_name, url=request_url),
-            )
-            self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
+
+            # 忽略某些错误信息，避免过多日志
+            for ignore_msg in self.ignore_error_msg_list:
+                if ignore_msg in msg:
+                    break
+            else:
+                request_id = result_json.pop("request_id", "") or result.headers.get("x-bkapi-request-id", "")
+                logger.error(
+                    "【Module: " + self.module_name + "】【Action: " + self.action + "】(%s) get error：%s",
+                    request_id,
+                    msg,
+                    extra=dict(module_name=self.module_name, url=request_url),
+                )
+                self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
             # 调试使用
             # msg = u"【模块：%s】接口【%s】返回结果错误：%s###%s" % (
             #     self.module_name, request_url, validated_request_data, result_json)

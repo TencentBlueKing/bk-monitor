@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from django.db import models
 from django.db.transaction import atomic
@@ -99,6 +99,9 @@ class CustomGroupBase(models.Model):
 
     @classmethod
     def default_result_table_options(cls):
+        pass
+
+    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
         pass
 
     @classmethod
@@ -224,6 +227,7 @@ class CustomGroupBase(models.Model):
             operator,
         )
 
+        # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
         # 1. 参数检查
         filter_kwargs = cls.pre_check(
             label=label,
@@ -263,9 +267,10 @@ class CustomGroupBase(models.Model):
 
         if default_storage_config is not None:
             default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
-
         else:
             default_storage_config = cls.DEFAULT_STORAGE_CONFIG
+
+        cls.process_default_storage_config(custom_group, default_storage_config)
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
