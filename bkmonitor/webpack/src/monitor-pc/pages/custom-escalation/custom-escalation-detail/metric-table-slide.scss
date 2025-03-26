@@ -6,7 +6,7 @@
     }
     .slider-table {
       margin-bottom: 32px;
-      max-height: calc(90vh - 100px);
+      max-height: calc(90vh - 90px);
       overflow: scroll;
       td {
         height: 40px;
@@ -92,10 +92,9 @@
             height: auto;
             min-height: 37px;
             position: absolute;
-            top: 0;
             right: 0;
             left: 0;
-            bottom: -10px;
+            bottom: 3px;
             z-index: 9999;
           }
           .bk-tag-selector {
@@ -103,12 +102,12 @@
               padding: 0;
               border: 1px solid transparent;
               .tag-list {
-                height: 40px;
+                padding: 0 4px;
                 width: 100%;
                 border: none;
+                max-height: 10000px;
               }
               &.active {
-                z-index: 9999;
                 .tag-list {
                   height: auto;
                   border: 1px solid #3A84FF;

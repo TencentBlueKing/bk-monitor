@@ -90,7 +90,7 @@ export default class DimensionTabDetail extends tsc<any> {
     this.canEditName = false;
     if (this.copyDescription === row.description) return;
     this.updateDimensionField(row.name, 'description', this.copyDescription);
-    row.description = this.copyDescription;
+    this.$set(row, 'description', this.copyDescription);
   }
 
   // 处理状态切换
@@ -102,7 +102,7 @@ export default class DimensionTabDetail extends tsc<any> {
 
   // 处理常用维度切换
   async handleCommonChange(row: DimensionDetail, val: boolean) {
-    row.common = val;
+    this.$set(row, 'common', val);
     await this.updateDimensionField(row.name, 'common', val);
   }
 
@@ -119,12 +119,14 @@ export default class DimensionTabDetail extends tsc<any> {
           },
         ],
       });
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      this.$emit('dimensionChange');
     } catch (e) {
       console.error('Update dimension failed:', e);
-      // this.$bkMessage({
-      //   message: this.$t('更新失败'),
-      //   theme: 'error',
-      // });
+      this.$bkMessage({
+        message: this.$t('更新失败'),
+        theme: 'error',
+      });
     }
   }
 
@@ -163,32 +165,32 @@ export default class DimensionTabDetail extends tsc<any> {
           ),
         },
       },
-      {
-        id: 'status',
-        width: 200,
-        label: this.$t('状态'),
-        scopedSlots: {
-          default: (props: { row: DimensionDetail }) => (
-            <div
-              class='status-wrap clickable'
-              onClick={() => this.handleClickDisabled(props.row)}
-            >
-              {this.statusPoint(statusMap.get(props.row.disabled).color1, statusMap.get(props.row.disabled).color2)}
-              <span>{statusMap.get(props.row.disabled).name}</span>
-            </div>
-          ),
-        },
-      },
+      // {
+      //   id: 'status',
+      //   width: 200,
+      //   label: this.$t('启/停'),
+      //   scopedSlots: {
+      //     default: (props: { row: DimensionDetail }) => (
+      //       <div
+      //         class='status-wrap clickable'
+      //         onClick={() => this.handleClickDisabled(props.row)}
+      //       >
+      //         {this.statusPoint(statusMap.get(props.row.disabled).color1, statusMap.get(props.row.disabled).color2)}
+      //         <span>{statusMap.get(props.row.disabled).name}</span>
+      //       </div>
+      //     ),
+      //   },
+      // },
       {
         id: 'common',
         width: 150,
         label: this.$t('常用维度'),
         scopedSlots: {
           default: (props: { row: DimensionDetail }) => (
-            <bk-switcher
-              v-model={props.row.common}
-              size='small'
-              theme='primary'
+            <bk-checkbox
+              false-value={false}
+              true-value={true}
+              value={props.row.common}
               onChange={(val: boolean) => this.handleCommonChange(props.row, val)}
             />
           ),
@@ -255,7 +257,7 @@ export default class DimensionTabDetail extends tsc<any> {
               theme='primary'
               onClick={this.showDimensionSlider}
             >
-              {this.$t('编辑')}
+              {this.$t('管理')}
             </bk-button>
           </div>
           <bk-input

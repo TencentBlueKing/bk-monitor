@@ -45,10 +45,10 @@ interface IDimensionItem {
 
 // 表格配置
 const FIELD_SETTINGS = {
-  name: { label: '名称', width: 200 },
-  description: { label: '别名', width: 200 },
-  disabled: { label: '启/停', width: 120 },
-  common: { label: '是否常用', width: 140 },
+  name: { label: '名称', width: 280 },
+  description: { label: '别名', width: 280 },
+  // disabled: { label: '启/停', width: 120 },
+  common: { label: '常用维度', width: 140 },
   set: { label: '操作', width: 80 },
 };
 @Component
@@ -124,8 +124,9 @@ export default class DimensionTableSlide extends tsc<any> {
                       case 'description':
                         return this.renderInputColumn(props, key);
                       case 'disabled':
-                      case 'common':
                         return this.renderSwitch(props.row, key);
+                      case 'common':
+                        return this.renderCheckbox(props.row, key);
                       case 'set':
                         return this.renderOperations(props);
                       default:
@@ -235,12 +236,22 @@ export default class DimensionTableSlide extends tsc<any> {
   }
 
   // 渲染开关
-  private renderSwitch(row: IDimensionItem, field: 'common' | 'disabled') {
+  private renderSwitch(row: IDimensionItem, field: 'disabled') {
     return (
       <bk-switcher
         v-model={row[field]}
         size='small'
         theme='primary'
+      />
+    );
+  }
+  // 渲染checkbox
+  private renderCheckbox(row: IDimensionItem, field: 'common') {
+    return (
+      <bk-checkbox
+        v-model={row[field]}
+        false-value={false}
+        true-value={true}
       />
     );
   }

@@ -30,12 +30,12 @@ import dayjs from 'dayjs';
 import {
   customTsGroupingRuleList,
   importCustomTimeSeriesFields,
-  validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
 import { getFunctions } from 'monitor-api/modules/grafana';
 
 import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
+import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
@@ -174,6 +174,15 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   autoDiscover = false;
 
+  rule = {
+    dataLabelTips: '',
+    dataLabel: false,
+  };
+
+  get computedWidth() {
+    return window.innerWidth < 2560 ? 960 : 1200;
+  }
+
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
   }
@@ -185,6 +194,10 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   //  指标数量
   get metricNum() {
     return this.metricData.filter(item => item.monitor_type === 'metric').length;
+  }
+
+  get metricNameList() {
+    return this.metricData.map(item => ({ name: item.name, description: item.description }));
   }
 
   //  维度数量
@@ -233,8 +246,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return (
         (leng1
           ? this.groupFilterList.some(
-              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            ) && isMetric
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          ) && isMetric
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -248,18 +261,18 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
-              const monitorType = {
-                指标: 'metric',
-                维度: 'dimension',
-              };
-              return (
-                item.monitor_type === t ||
-                monitorType?.[t] === item.monitor_type ||
-                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-                fuzzyMatch(item.name, t) ||
-                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-              );
-            })
+            const monitorType = {
+              指标: 'metric',
+              维度: 'dimension',
+            };
+            return (
+              item.monitor_type === t ||
+              monitorType?.[t] === item.monitor_type ||
+              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+              fuzzyMatch(item.name, t) ||
+              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+            );
+          })
           : true)
       );
     });
@@ -272,40 +285,40 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     const dimensions = this.dimensions.length
       ? this.dimensions
       : [
-          {
-            name: 'dimension1',
-            type: 'dimension',
-            description: '',
-            disabled: true,
-            common: true,
-          },
-        ];
+        {
+          name: 'dimension1',
+          type: 'dimension',
+          description: '',
+          disabled: true,
+          common: true,
+        },
+      ];
     const metrics = this.metricData.length
       ? this.metricData
       : [
-          {
-            name: 'metric1',
-            type: 'metric',
-            description: '',
-            disabled: false,
-            unit: '',
-            hidden: false,
-            aggregate_method: '',
-            function: {},
-            interval: 0,
-            label: [],
-            dimensions: ['dimension1'],
-          },
-        ];
+        {
+          name: 'metric1',
+          type: 'metric',
+          description: '',
+          disabled: false,
+          unit: '',
+          hidden: false,
+          aggregate_method: '',
+          function: {},
+          interval: 0,
+          label: [],
+          dimensions: ['dimension1'],
+        },
+      ];
     const groupRules = this.groupList
       ? this.groupList
       : [
-          {
-            name: '测试分组',
-            manual_list: ['metric1'],
-            auto_rules: ['rule1'],
-          },
-        ];
+        {
+          name: '测试分组',
+          manual_list: ['metric1'],
+          auto_rules: ['rule1'],
+        },
+      ];
     const template = {
       dimensions,
       metrics,
@@ -372,8 +385,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   }
 
   //  获取详情
-  async getDetailData() {
-    this.loading = true;
+  async getDetailData(needLoading = true) {
+    this.loading = needLoading;
     this.$store.commit('app/SET_NAV_TITLE', this.$t('加载中...'));
     const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
     let title = '';
@@ -412,9 +425,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           }
         }
         this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
-          this.detailData.time_series_group_id
-        } ${this.detailData.name}`;
+        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
+          } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
         this.dimensions = metricData?.dimensions || [];
         // this.metricList =
@@ -448,11 +460,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         ];
 
         await this.getGroupList();
-        await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
-          this.detailData.name
-        }`;
+        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
+          }`;
       }
       this.$store.commit('app/SET_NAV_TITLE', title);
       this.handleDetailData(this.detailData);
@@ -577,20 +587,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
 
-  /* 获取所有数据预览数据 */
-  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
-    const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
-    const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
-      result_table_id: tableId,
-      fields_list: fieldList,
-    });
-    this.allDataPreview = data?.fields_value || {};
-    this.detailData.last_time =
-      typeof data?.last_time === 'number'
-        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
-        : data?.last_time;
-  }
-
   /* 获取分组管理数据 */
   async getGroupList() {
     const data = await customTsGroupingRuleList({
@@ -686,6 +682,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /** 点击显示英文名的编辑 */
   handleShowEditDataLabel() {
     this.isShowEditDataLabel = true;
+    this.rule.dataLabelTips = '';
+    this.rule.dataLabel = false;
     this.$nextTick(() => {
       this.dataLabelInput.focus();
     });
@@ -728,20 +726,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       return;
     }
     if (/[\u4e00-\u9fa5]/.test(this.copyDataLabel)) {
-      this.$bkMessage({ theme: 'error', message: this.$tc('输入非中文符号') });
+      this.rule.dataLabelTips = this.$tc('输入非中文符号');
+      this.rule.dataLabel = true;
       return;
     }
-    const ExistPass =
-      this.type === 'customEvent'
-        ? await validateCustomEventGroupLabel({
-            data_label: this.copyDataLabel,
-            bk_event_group_id: this.detailData.bk_event_group_id,
-          }).catch(() => false)
-        : await validateCustomTsGroupLabel({
-            data_label: this.copyDataLabel,
-            time_series_group_id: this.detailData.time_series_group_id,
-          }).catch(() => false);
-    if (!ExistPass) {
+    const { message: errorMsg } = await validateCustomTsGroupLabel(
+      {
+        data_label: this.copyDataLabel,
+        time_series_group_id: this.detailData.time_series_group_id,
+      },
+      {
+        needMessage: false,
+      }
+    ).catch(err => err);
+    if (errorMsg) {
+      this.rule.dataLabelTips = this.$t(errorMsg) as string;
+      this.rule.dataLabel = true;
       return;
     }
     await this.handleEditFiled({
@@ -761,20 +761,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
     //  名字是否重复校验
     let isOkName = true;
-    const res =
-      this.type === 'customEvent'
-        ? await this.$store
-            .dispatch('custom-escalation/validateCustomEventName', {
-              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false)
-        : await this.$store
-            .dispatch('custom-escalation/validateCustomTimetName', {
-              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false);
+    const res = await this.$store
+      .dispatch('custom-escalation/validateCustomTimetName', {
+        params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+      })
+      .then(res => res.result ?? true)
+      .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -806,7 +798,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   // 编辑描述
   async handleEditDescribe() {
-    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
+    if (this.copyDescribe.trim() === this.detailData.desc) {
       this.copyDescribe = this.detailData.desc || '';
       this.isShowEditDesc = false;
       return;
@@ -928,7 +920,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               class='row-content'
               v-bk-overflow-tips
             >
-              {'scenario'}
+              {this.detailData.scenario}
             </span>
           </div>
           <div class='detail-information-row'>
@@ -956,7 +948,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>{' '}
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('别名')}: </span>
+            <span class='row-label'>{this.$t('数据标签')}: </span>
             {!this.isShowEditDataLabel ? (
               <div style='display: flex; min-width: 0'>
                 <span
@@ -973,12 +965,21 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 )}
               </div>
             ) : (
-              <bk-input
-                ref='dataLabelInput'
-                style='width: 240px'
-                v-model={this.copyDataLabel}
-                onBlur={this.handleEditDataLabel}
-              />
+              <VerifyInput
+                show-validate={this.rule.dataLabel}
+                validator={{ content: this.rule.dataLabelTips }}
+              >
+                <bk-input
+                  ref='dataLabelInput'
+                  style='width: 240px'
+                  v-model={this.copyDataLabel}
+                  onBlur={this.handleEditDataLabel}
+                  onInput={() => {
+                    this.rule.dataLabel = false;
+                    this.rule.dataLabelTips = '';
+                  }}
+                />
+              </VerifyInput>
             )}
           </div>
           <div class='detail-information-row'>
@@ -1073,6 +1074,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       });
       this.updateCheckValue();
       this.getDetailData();
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
     } catch (error) {
       console.error(`Batch group ${groupName} update failed:`, error);
     }
@@ -1109,7 +1111,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   async saveSelectGroup(selectedGroups, metricName) {
     try {
       const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
-
       await Promise.all([
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
@@ -1196,6 +1197,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       delete_fields: delArray,
     });
     this.getDetailData();
+    this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
   render() {
     return (
@@ -1236,7 +1238,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           </i18n>
         </bk-alert>
         <div class='custom-detail-page'>
-          <div class='custom-detail'>
+          <div
+            style={{ minWidth: `${this.computedWidth}px` }}
+            class='custom-detail'
+          >
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
@@ -1255,6 +1260,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   groupsMap={this.groupsMap}
                   metricGroupsMap={this.metricGroupsMap}
                   metricList={this.metricData}
+                  metricNameList={this.metricNameList}
                   metricNum={this.metricNum}
                   metricTable={this.metricTable}
                   nameList={this.groupNameList}
@@ -1262,6 +1268,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
                   onChangeGroup={this.changeGroupFilterList}
+                  onDimensionChange={() => {
+                    this.getDetailData(false);
+                  }}
                   onGroupDelByName={this.handleDelGroup}
                   onGroupListOrder={tab => (this.groupList = tab)}
                   onGroupSubmit={this.handleSubmitGroup}
