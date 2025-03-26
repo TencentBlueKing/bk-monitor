@@ -11,7 +11,7 @@
     <bk-badge
       v-if="badgeCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
-      :count="badgeCount"
+      :val="badgeCount"
       theme="danger"
     />
 

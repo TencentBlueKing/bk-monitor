@@ -316,4 +316,13 @@ export default {
   '该指标在当前级别({0})不可用': 'This indicator is not available at the current level ({0})',
   '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
     'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
+  新建收藏分组: 'Add favorite group',
+  调整排序: 'Adjust order',
+  收起收藏夹: 'Collapse favorite folder',
+  展开收藏夹: 'Expand favorite folder',
+  收起查询: 'Collapse query',
+  即将上线: 'Coming soon',
+  '该维度暂无数据，无法进行统计分析': 'This dimension has no data and cannot be statistically analyzed',
+  '新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看':
+    'New version event search has not fully covered the old version features yet. If needed, you can switch to the old version to view them',
 };

@@ -16,7 +16,7 @@ from abc import ABCMeta
 from collections import defaultdict
 from functools import reduce
 from itertools import product
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from django.conf import settings
 from django.db.models import Q
@@ -31,7 +31,9 @@ from bkm_space.define import SpaceTypeEnum
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
+    Function,
     Functions,
+    Params,
     SubQueryFunctions,
 )
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
@@ -61,12 +63,14 @@ logger = logging.getLogger(__name__)
 allowed_interval = [10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 10800]
 
 
-def get_auto_interval(collect_interval: int, start_time: int, end_time: int):
+def get_auto_interval(collect_interval: int, start_time: int, end_time: int, factor: int = 1):
     """
     自动周期计算
     """
     # 以2880个为预期聚合后点数计算汇聚周期
     expect_interval = (end_time - start_time) / collect_interval / 1440 * 60
+    # 缩放期望的 interval
+    expect_interval *= factor
 
     # 如果预期周期比采集周期小，则直接使用采集周期
     if expect_interval <= collect_interval:
@@ -386,6 +390,126 @@ def _filter_dict_to_conditions(filter_dict: Dict, conditions: List[Dict]) -> Lis
         del result[0]["condition"]
 
     return result
+
+
+def _parse_conditions(
+    filter_dict: Dict[str, Any],
+    where: List[Dict[str, Any]],
+    operator_mapping: Dict[str, str],
+) -> Dict[str, List[Any]]:
+    conditions: Dict[str, List[Any]] = {"field_list": [], "condition_list": []}
+    for condition in _filter_dict_to_conditions(filter_dict, where):
+        if conditions["field_list"]:
+            conditions["condition_list"].append(condition.get("condition", "and"))
+
+        value: List[Any] = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
+        value = [str(v) for v in value]
+        operator: str = operator_mapping.get(condition["method"], condition["method"])
+        if operator in ["include", "exclude"]:
+            value = [re.escape(v) for v in value]
+
+        options: Dict[str, Any] = condition.get("options") or {}
+        conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator, **options})
+    return conditions
+
+
+def _check_function_support_or_raise(name: str):
+    # 函数不支持在多指标计算中使用
+    unsupported_functions: Set[str] = {"top", "bottom"}
+    if name in unsupported_functions:
+        raise FunctionNotSupportedError(func_name=name)
+
+
+def _check_function_exists_or_raise(name: str):
+    # 函数不存在
+    if name not in Functions:
+        raise FunctionNotFoundError(func_name=name)
+
+
+def _check_histogram_dimensions_or_raise(name: str, dimensions: List[str]):
+    # 分位数计算必须存在 le 维度
+    if name == "histogram_quantile" and "le" not in dimensions:
+        raise ParamRequiredError(func_name=name, param_name="le")
+
+
+def _parse_value_from_params_or_raise(params: Dict[str, Any], func_params: Params) -> Union[int, float]:
+    value = params[func_params.id]
+    if func_params.type == "int":
+        return int(value)
+    elif func_params.type == "float":
+        return float(value)
+    else:
+        raise ValueError(f"Unknown value type -> {func_params.type}")
+
+
+def _parse_func_from_sub_query_or_raise(name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    function: Function = SubQueryFunctions[name]
+    processed_function: Dict[str, Any] = {"method": function.id, "is_sub_query": True}
+    for param in function.params:
+        if param.id not in params:
+            raise ParamRequiredError(func_name=name, param_name=param.id)
+        processed_function[param.id] = params[param.id]
+    return processed_function
+
+
+def _is_time_agg_func(function: Function) -> bool:
+    return True if function.time_aggregation else False
+
+
+def _parse_function_params(
+    functions: List[Dict[str, Any]], group_by: List[str]
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    time_aggregation: Dict[str, Any] = {}
+    processed_functions: List[Dict[str, Any]] = []
+    for function_params in functions:
+        name: str = function_params["id"]
+        params: Dict[str, Any] = {param["id"]: param["value"] for param in function_params["params"]}
+
+        if name in SubQueryFunctions:
+            processed_functions.append(_parse_func_from_sub_query_or_raise(name, params))
+            continue
+
+        _check_function_support_or_raise(name)
+        _check_function_exists_or_raise(name)
+        _check_histogram_dimensions_or_raise(name, group_by)
+
+        function: Function = Functions[name]
+        is_time_agg_func: bool = _is_time_agg_func(function)
+        if is_time_agg_func and time_aggregation:
+            # 不能有多个时间函数
+            raise MultipleTimeAggregateFunctionError()
+
+        window: Optional[str] = None
+        vargs_list: List[Union[int, float]] = []
+        for param in function.params:
+            if param.id not in params:
+                raise ParamRequiredError(func_name=name, param_name=param.id)
+
+            # 事件窗口参数特殊处理
+            if is_time_agg_func and param.id == "window":
+                window = params[param.id]
+                continue
+
+            try:
+                vargs_list.append(_parse_value_from_params_or_raise(params, param))
+            except ValueError:
+                pass
+
+        config: Dict[str, Any] = {"vargs_list": vargs_list, "position": function.position or 0}
+        if is_time_agg_func:
+            config["function"] = function.id
+            if window is not None:
+                config["window"] = window
+            time_aggregation = config
+        else:
+            config["method"] = function.id
+            processed_functions.append(config)
+
+        # 是否是维度聚合函数
+        if function.with_dimensions:
+            config["dimensions"] = group_by
+
+    return time_aggregation, processed_functions
 
 
 class DataSource(metaclass=ABCMeta):
@@ -1576,8 +1700,15 @@ class BkMonitorLogDataSource(DataSource):
                 new_filter_dict[key] = self._add_dimension_prefix(value)
                 continue
 
+            lookup = ""
+            if "__" in key:
+                key, lookup = key.rsplit("__", 2)
+
             if self.is_dimensions_field(key):
                 key = f"dimensions.{key}"
+
+            if lookup:
+                key = f"{key}__{lookup}"
 
             new_filter_dict[key] = value
         return new_filter_dict
@@ -1817,14 +1948,87 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
-    def __init__(self, *args, **kwargs):
+    OPERATOR_MAPPING: Dict[str, str] = {
+        "neq": "ne",
+        "exists": "eq",
+        "nexists": "ne",
+        "include": "contains",
+        "exclude": "ncontains",
+    }
+
+    def __init__(self, *args, reference_name: Optional[str] = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.use_full_index_names = True
+        self.reference_name: str = reference_name
+        self.use_full_index_names: bool = True
+
+    def _get_unify_query_table(self) -> str:
+        def _rt_id_to_index(_rt_id: str) -> str:
+            return _rt_id.replace(".", "_")
+
+        return _rt_id_to_index(self.table)
+
+    def to_unify_query_config(self) -> List[Dict]:
+        query_list = []
+        base_query: Dict[str, Any] = {
+            "driver": "influxdb",
+            "data_source": "bkapm",
+            "table_id": self._get_unify_query_table(),
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field,
+            "dimensions": self.group_by,
+            "query_string": self.query_string or "*",
+            "conditions": _parse_conditions(self.filter_dict, self.where, self.OPERATOR_MAPPING),
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "order_by": [],
+        }
+
+        for metric in self.metrics:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric["method"].lower()
+            function: Dict[str, Any] = {"method": method, "dimensions": self.group_by}
+            if method in CpAggMethods:
+                cp_agg_method = CpAggMethods[method]
+                function["vargs_list"] = cp_agg_method.vargs_list
+                query["time_aggregation"]["position"] = cp_agg_method.position
+                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+            # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+            agg_func_name: str = "{method}_over_time".format(method={"sum": "count"}[method])
+            query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+
+            query["field_name"] = metric["field"]
+            query["reference_name"] = (self.reference_name or metric.get("alias") or metric["field"]).lower()
+            query["function"].append(function)
+
+            time_aggregation, functions = _parse_function_params(self.functions, self.group_by)
+            query["function"].extend(functions)
+            if time_aggregation:
+                query["time_aggregation"].update(time_aggregation)
+
+            query_list.append(query)
+
+        if not query_list:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = self.reference_name or "a"
+
+            # 原始数据保留字段
+            for select_field in self.select:
+                if "(" in select_field and ")" in select_field:
+                    continue
+                query["keep_columns"].append(select_field)
+
+            query_list.append(query)
+
+        return query_list
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, *args, **kwargs):
         return cls(
             table=query_config["table"],
+            reference_name=query_config.get("reference_name"),
             time_field=query_config["time_field"],
             select=query_config.get("select") or [],
             distinct=query_config.get("distinct"),
@@ -1913,6 +2117,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
     data_source_label = DataSourceLabel.CUSTOM
     data_type_label = DataTypeLabel.EVENT
     INNER_DIMENSIONS = ["target", "event_name"]
+    NEED_AUTO_FILTER = True
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, name="", *args, **kwargs):
@@ -1945,15 +2150,17 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        for metric in self.metrics:
-            if metric["field"] == "event.count":
-                metric["method"] = "SUM"
-            else:
-                metric["field"] = "_index"
-                metric["method"] = "COUNT"
+        if kwargs.get("is_time_agg", True):
+            for metric in self.metrics:
+                if metric["field"] == "event.count":
+                    metric["method"] = "SUM"
+                else:
+                    metric["field"] = "_index"
+                    metric["method"] = "COUNT"
 
-        # 平台级且业务不等于绑定的平台业务
-        self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
+        if self.NEED_AUTO_FILTER:
+            # 平台级且业务不等于绑定的平台业务
+            self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
 
     def add_recovery_filter(self, datasource):
         """
@@ -2006,6 +2213,115 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         records = self._filter_by_advance_method(records)
         records = self._format_time_series_records(records)
         return records[:limit]
+
+
+class NewCustomEventDataSource(CustomEventDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.EVENT
+    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
+    # 查询路由下沉到 metadata
+    NEED_AUTO_FILTER = False
+
+    OPERATOR_MAPPING: Dict[str, str] = {
+        "neq": "ne",
+        "exists": "eq",
+        "nexists": "ne",
+        "include": "contains",
+        "exclude": "ncontains",
+    }
+
+    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
+        self.time_alignment: bool = kwargs.get("time_alignment", True)
+        self.reference_name: str = kwargs.get("reference_name") or "a"
+
+    def _get_unify_query_table(self) -> str:
+        if self.table in {"system_event", "k8s_event", "cicd_event"}:
+            return self.table
+        return f"{self.table}.__default__"
+
+    def process_unify_query_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        records: List[Dict[str, Any]] = self._remove_dimensions_prefix(records)
+        records: List[Dict[str, Any]] = self._filter_by_advance_method(records)
+        return records
+
+    def to_unify_query_config(self) -> List[Dict]:
+        group_by: List[str] = self._get_group_by()
+        where: List[Dict[str, Any]] = self._get_where()
+        filter_dict: Dict[str, Any] = self._get_filter_dict()
+        base_query: Dict[str, Any] = {
+            "driver": "influxdb",
+            "data_source": "bkapm",
+            "table_id": self._get_unify_query_table(),
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field,
+            "dimensions": group_by,
+            "query_string": self.query_string or "*",
+            "conditions": _parse_conditions(filter_dict, where, self.OPERATOR_MAPPING),
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "order_by": [],
+        }
+
+        query_list: List[Dict[str, Any]] = []
+        for metric in self.metrics:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric["method"].lower()
+            # 非时间聚合，直接使用传入的方法
+            func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
+            function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
+            if method in CpAggMethods:
+                cp_agg_method = CpAggMethods[method]
+                function["vargs_list"] = cp_agg_method.vargs_list
+                query["time_aggregation"]["position"] = cp_agg_method.position
+                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+            query["function"].append(function)
+
+            if self.is_time_agg:
+                if self.time_alignment:
+                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+                    agg_func_name: str = "{method}_over_time".format(method=method)
+                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+                else:
+                    query["function"].append(
+                        {"method": "date_histogram", "dimensions": group_by, "window": f"{self.interval}s"}
+                    )
+
+            field: str = metric["field"]
+            if self.is_dimensions_field(field) and field != "_index":
+                query["field_name"] = f"dimensions.{field}"
+            else:
+                query["field_name"] = field
+
+            query["reference_name"] = (metric.get("alias") or field).lower()
+
+            if self.is_time_agg and self.time_alignment:
+                time_aggregation, functions = _parse_function_params(self.functions, group_by)
+                query["function"].extend(functions)
+                if time_aggregation:
+                    query["time_aggregation"].update(time_aggregation)
+
+            query_list.append(query)
+
+        if not query_list:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = self.reference_name or "a"
+
+            # 原始数据保留字段
+            for select_field in self.select:
+                if "(" in select_field and ")" in select_field:
+                    continue
+                query["keep_columns"].append(select_field)
+
+            query_list.append(query)
+
+        return query_list
 
 
 class BkMonitorEventDataSource(DataSource):
@@ -2336,6 +2652,7 @@ def load_data_source(data_source_label: str, data_type_label: str) -> Type[DataS
         BkFtaAlertDataSource,
         BkFtaEventDataSource,
         BkApmTraceDataSource,
+        NewCustomEventDataSource,
         BkApmTraceTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]

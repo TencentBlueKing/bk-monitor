@@ -579,7 +579,7 @@
                   : '',
               },
               etl_config: formData.value.etl_config,
-              fields: indexfieldTable.value.getData(),
+              fields: indexfieldTable.value.getData().filter(item => !item.is_built_in),
               alias_settings: [
                 ...indexfieldTableData.map(item => {
                   return {

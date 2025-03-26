@@ -227,7 +227,7 @@ class EventLogChart extends CommonSimpleChart {
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         <div
           style={{ height: `${this.height}px` }}
