@@ -246,10 +246,10 @@ export default class CollectIndex extends tsc<IProps> {
       };
     };
     if (this.currentCollectionType === 'origin') {
-      return this.originFavoriteList.map(mapFn).filter(item => item.favorites.length);
+      return this.originFavoriteList.map(mapFn).filter(item => this.isShowCurrentIndexList !== 'yes'|| item.favorites.length);
     }
 
-    return this.chartFavoriteList.map(mapFn).filter(item => item.favorites.length);
+    return this.chartFavoriteList.map(mapFn).filter(item => this.isShowCurrentIndexList !== 'yes'|| item.favorites.length);
   }
 
   get groupList() {
