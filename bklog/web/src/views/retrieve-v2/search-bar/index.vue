@@ -23,12 +23,12 @@
   import { withoutValueConditionList } from './const.common';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   const props = defineProps({
-    activeFavorite: {
-      default: null,
-      type: Object,
-    },
+    // activeFavorite: {
+    //   default: null,
+    //   type: Object,
+    // },
     showFavorites: {
       type: Boolean,
       default: false,
@@ -45,6 +45,9 @@
   const queryParams = ['ui', 'sql'];
   const route = useRoute();
   const router = useRouter();
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, (val) => {
+    activeFavorite.value = val;
+  });
 
   const getDefaultActiveIndex = () => {
     if (route.query.search_mode) {
@@ -74,6 +77,7 @@
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
+  const activeFavorite = ref({});
 
   const refPopTraget = ref(null);
 
@@ -304,16 +308,16 @@
     }
   };
   watch(
-    () => props.activeFavorite?.id,
+    () => activeFavorite.value?.id,
     () => {
-      if (!props.activeFavorite) return;
-      initSourceSQLStr(props.activeFavorite.params, props.activeFavorite.search_mode);
+      if (!activeFavorite.value) return;
+      initSourceSQLStr(activeFavorite.value.params, activeFavorite.value.search_mode);
     },
     { immediate: true },
   );
 
   const matchSQLStr = computed(() => {
-    if (props.activeFavorite?.index_set_id !== store.state.indexId) {
+    if (activeFavorite.value?.index_set_id !== store.state.indexId) {
       return false;
     }
     if (activeIndex.value === 0) {
@@ -338,7 +342,7 @@
       return;
     }
     const { name, group_id, display_fields, visible_type, is_enable_display_fields, index_set_type } =
-      props.activeFavorite;
+      activeFavorite.value;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
     const searchParams =
@@ -373,7 +377,7 @@
     }
     try {
       const res = await $http.request('favorite/updateFavorite', {
-        params: { id: props.activeFavorite?.id },
+        params: { id: activeFavorite.value?.id },
         data,
       });
       if (res.result) {
@@ -596,7 +600,7 @@
             @click="handleFilterSecClick"
           />
           <BookmarkPop
-            :active-favorite="!props.activeFavorite"
+            :active-favorite="!activeFavorite"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"
