@@ -878,7 +878,6 @@ export default class App extends tsc<object> {
                     .filter(item => {
                       if (item.hidden) return false;
                       if (item.id === 'event-retrieval' || item.id === 'event-explore') {
-                        console.info(item.id, this.$route.name);
                         if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
                           return this.$route.name === item.id;
                         }
