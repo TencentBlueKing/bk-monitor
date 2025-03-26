@@ -14,6 +14,7 @@ import json
 import pytest
 
 from metadata import models
+from metadata.models.data_source import ResultTableField
 from metadata.resources import NotifyEsDataLinkAdaptNano
 from metadata.tests.common_utils import consul_client
 
@@ -67,6 +68,31 @@ def create_or_delete_records(mocker):
     models.DataSourceResultTable.objects.filter(bk_data_id=100111).delete()
 
 
+def es_mapping_same(es_properties, current_mapping, alias_field_list):
+    for field_name, database_config in list(es_properties.items()):
+        if field_name in alias_field_list:
+            continue
+        try:
+            current_config = current_mapping[field_name]
+        except KeyError:
+            return False
+        # 判断具体的内容是否一致，只要判断具体的四个内容
+        for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer", "path"]:
+            database_value = database_config.get(field_config, None)
+            current_value = current_config.get(field_config, None)
+
+            if field_config == "type" and current_value is None:
+                current_field_properties = current_config.get("properties", None)
+                # object 字段动态写入数据后 不再有type这个字段 只有 properties
+                if current_field_properties and database_value != ResultTableField.FIELD_TYPE_OBJECT:
+                    return False
+                continue
+
+            if database_value != current_value:
+                return False
+    return True
+
+
 @pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_notify_es_data_link_adapt_nano(create_or_delete_records):
     data = NotifyEsDataLinkAdaptNano().request(table_id=table_id)
@@ -97,3 +123,100 @@ def test_notify_es_data_link_adapt_nano(create_or_delete_records):
         },
     ]
     assert json.dumps(data) == json.dumps(expected)
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_es_mapping_same(create_or_delete_records):
+    es_properties = {
+        '__ext': {'type': 'object'},
+        'bk_host_id': {'type': 'integer'},
+        'cloudId': {'type': 'integer'},
+        'dtEventTimeStamp': {'type': 'date', 'format': 'epoch_millis'},
+        'gseIndex': {'type': 'long'},
+        'iterationIndex': {'type': 'integer'},
+        'log': {'type': 'text', 'norms': False},
+        'path': {'type': 'keyword'},
+        'serverIp': {'type': 'keyword'},
+        'time': {'type': 'date', 'format': 'epoch_millis'},
+        'cluster_id': {'type': 'alias', 'path': '__ext.bk_bcs_cluster_id'},
+        'container_id': {'type': 'alias', 'path': '__ext.container_id'},
+        'image_name': {'type': 'alias', 'path': '__ext.container_image'},
+        'container_name': {'type': 'alias', 'path': '__ext.container_name'},
+        'pod_name': {'type': 'alias', 'path': '__ext.io_kubernetes_pod'},
+        'pod_ip': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_ip'},
+        'namespace': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_namespace'},
+        'pod_uid': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_uid'},
+        'workload_name': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_name'},
+        'workload_type': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_type'},
+        '__ext.bk_bcs_cluster_id': {'type': 'keyword'},
+        '__ext.container_id': {'type': 'keyword'},
+        '__ext.container_image': {'type': 'keyword'},
+        '__ext.container_name': {'type': 'keyword'},
+        '__ext.io_kubernetes_pod': {'type': 'keyword'},
+        '__ext.io_kubernetes_pod_ip': {'type': 'keyword'},
+        '__ext.io_kubernetes_pod_namespace': {'type': 'keyword'},
+        '__ext.io_kubernetes_pod_uid': {'type': 'keyword'},
+        '__ext.io_kubernetes_workload_name': {'type': 'keyword'},
+        '__ext.io_kubernetes_workload_type': {'type': 'keyword'},
+    }
+
+    current_mapping = {
+        '__ext': {
+            'properties': {
+                'bk_bcs_cluster_id': {'type': 'keyword'},
+                'container_id': {'type': 'keyword'},
+                'container_image': {'type': 'keyword'},
+                'container_name': {'type': 'keyword'},
+                'io_kubernetes_pod': {'type': 'keyword'},
+                'io_kubernetes_pod_ip': {'type': 'keyword'},
+                'io_kubernetes_pod_namespace': {'type': 'keyword'},
+                'io_kubernetes_pod_uid': {'type': 'keyword'},
+                'io_kubernetes_workload_name': {'type': 'keyword'},
+                'io_kubernetes_workload_type': {'type': 'keyword'},
+                'labels': {
+                    'properties': {
+                        'agones_dev_gameserver': {'type': 'keyword'},
+                        'agones_dev_role': {'type': 'keyword'},
+                        'agones_dev_safe_to_evict': {'type': 'keyword'},
+                        'component': {'type': 'keyword'},
+                        'part_of': {'type': 'keyword'},
+                    }
+                },
+            }
+        },
+        'bk_host_id': {'type': 'integer'},
+        'cloudId': {'type': 'integer'},
+        'cluster_id': {'type': 'alias', 'path': '__ext.bk_bcs_cluster_id'},
+        'container_id': {'type': 'alias', 'path': '__ext.container_id'},
+        'container_name': {'type': 'alias', 'path': '__ext.container_name'},
+        'dtEventTimeStamp': {'type': 'date', 'format': 'epoch_millis'},
+        'gseIndex': {'type': 'long'},
+        'image_name': {'type': 'alias', 'path': '__ext.container_image'},
+        'iterationIndex': {'type': 'integer'},
+        'log': {'type': 'text', 'norms': False},
+        'namespace': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_namespace'},
+        'path': {'type': 'keyword'},
+        'pod_ip': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_ip'},
+        'pod_name': {'type': 'alias', 'path': '__ext.io_kubernetes_pod'},
+        'pod_uid': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_uid'},
+        'serverIp': {'type': 'keyword'},
+        'time': {'type': 'date', 'format': 'epoch_millis'},
+        'workload_name': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_name'},
+        'workload_type': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_type'},
+    }
+
+    alias_field_list = [
+        '__ext.bk_bcs_cluster_id',
+        '__ext.container_id',
+        '__ext.container_name',
+        '__ext.container_image',
+        '__ext.io_kubernetes_pod_namespace',
+        '__ext.io_kubernetes_pod_ip',
+        '__ext.io_kubernetes_pod',
+        '__ext.io_kubernetes_pod_uid',
+        '__ext.io_kubernetes_workload_name',
+        '__ext.io_kubernetes_workload_type',
+    ]
+    assert es_mapping_same(
+        es_properties=es_properties, current_mapping=current_mapping, alias_field_list=alias_field_list
+    )

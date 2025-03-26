@@ -265,7 +265,7 @@ class PercentageBarChart extends CommonSimpleChart {
           showMore={false}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='avr-chart-main'>

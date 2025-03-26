@@ -9,11 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.core.exceptions import FieldError
 from django.core.paginator import Paginator
-from django.db.models import Count
+from django.db.models import Count, Q, QuerySet
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
@@ -81,6 +81,90 @@ class WorkloadOverview(Resource):
         return [[key, value] for key, value in kind_map.items()]
 
 
+class NamespaceWorkloadOverview(Resource):
+    class RequestSerializer(SpaceRelatedSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id = serializers.CharField(required=True, label="集群id")
+        query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
+        page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
+        page = serializers.IntegerField(required=False, default=1, label="页数")
+
+    @classmethod
+    def _get_workload_count(cls, workload_overview: List[List[int]]) -> int:
+        return sum([item[1] for item in workload_overview])
+
+    @classmethod
+    def _get_workload_count_by_queryset(cls, queryset: QuerySet[BCSWorkload]) -> int:
+        queryset = queryset.values("type").annotate(count=Count("name", distinct=True))
+        return sum([item["count"] for item in queryset])
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
+        query_string: str = validated_request_data["query_string"]
+
+        workload_count: int = 0
+        filter_dict: Dict[str, List[str]] = {}
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
+        queryset: QuerySet[BCSWorkload] = BCSWorkload.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        if query_string:
+            namespaces: List[str] = []
+            queryset = queryset.filter(Q(namespace__icontains=query_string) | Q(name__icontains=query_string))
+            for item in queryset.values("type", "namespace").order_by().annotate(count=Count("name", distinct=True)):
+                namespaces.append(item["namespace"])
+                workload_count += item["count"]
+
+            filter_dict["namespace"] = list(set(namespaces))
+        else:
+            workload_count: int = self._get_workload_count_by_queryset(queryset)
+
+        namespace_page: Dict[str, Any] = ListK8SResources().perform_request(
+            {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "resource_type": "namespace",
+                "scenario": "performance",
+                "query_string": "",
+                "filter_dict": filter_dict,
+                "page": page,
+                "page_size": page_size,
+                "page_type": "scrolling",
+                "with_history": False,
+                "start_time": 0,
+                "end_time": 0,
+            }
+        )
+        namespace_page["workload_count"] = workload_count
+
+        for namespace_info in namespace_page.get("items", []):
+            query_kwargs: Dict[str, Any] = {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "namespace": namespace_info["namespace"],
+            }
+            workload_overview: List[List[int]] = WorkloadOverview().perform_request(
+                {
+                    **query_kwargs,
+                    "query_string": query_string,
+                }
+            )
+            namespace_workload_count: int = self._get_workload_count(workload_overview)
+
+            query_from: str = "workload"
+            if not namespace_workload_count and query_string:
+                query_from: str = "namespace"
+                # 获取不到说明关键字仅命中 Namespace，去掉关键字再请求一遍 Workload
+                workload_overview = WorkloadOverview().perform_request(query_kwargs)
+                namespace_workload_count = self._get_workload_count(workload_overview)
+
+            namespace_info["query_from"] = query_from
+            namespace_info["workload_overview"] = workload_overview
+            namespace_info["workload_count"] = namespace_workload_count
+
+        return namespace_page
+
+
 class ScenarioMetricList(Resource):
     """
     获取场景下指标列表
@@ -140,13 +224,15 @@ class GetResourceDetail(Resource):
         bcs_cluster_id: str = serializers.CharField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container", "cluster"], label="资源类型"
+            required=True, choices=["pod", "workload", "container", "cluster", "service", "ingress"], label="资源类型"
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
         container_name: str = serializers.CharField(required=False, allow_null=True)
         workload_name: str = serializers.CharField(required=False, allow_null=True)
         workload_type: str = serializers.CharField(required=False, allow_null=True)
+        service_name: str = serializers.CharField(required=False, allow_null=True)
+        ingress_name: str = serializers.CharField(required=False, allow_null=True)
 
     def validate_request_data(self, request_data: Dict):
         resource_type = request_data["resource_type"]
@@ -159,6 +245,12 @@ class GetResourceDetail(Resource):
             self.validate_field_exist(resource_type, fields, request_data)
         elif resource_type == "container":
             fields = ["pod_name", "container_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "service":
+            fields = ["service_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "ingress":
+            fields = ["ingress_name"]
             self.validate_field_exist(resource_type, fields, request_data)
 
         return super().validate_request_data(request_data)
@@ -195,6 +287,8 @@ class GetResourceDetail(Resource):
             "pod": [resource.scene_view.get_kubernetes_pod, ["namespace", "pod_name"]],
             "workload": [resource.scene_view.get_kubernetes_workload, ["namespace", "workload_name", "workload_type"]],
             "container": [resource.scene_view.get_kubernetes_container, ["namespace", "pod_name", "container_name"]],
+            "service": [resource.scene_view.get_kubernetes_service, ["namespace", "service_name"]],
+            "ingress": [resource.scene_view.get_kubernetes_ingress, ["namespace", "ingress_name"]],
         }
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}

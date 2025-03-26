@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import DashboardTools from '../dashboard-tools';
+import GotoOldVersion from './goto-old';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
@@ -189,27 +190,10 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
           >
             {this.$slots.dashboardTools}
           </DashboardTools>
-          <div class='goto-old'>
-            <div
-              class='goto-old-wrap'
-              v-bk-tooltips={{
-                content: this.$t('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看'),
-                placements: ['bottom-end'],
-                zIndex: 9999,
-              }}
-              onClick={this.handleGotoOld}
-            >
-              <div class='icon'>
-                <i class='icon-monitor icon-zhuanhuan' />
-              </div>
-              <bk-badge
-                theme='warning'
-                val='!'
-              >
-                <span>{this.$t('回到旧版')}</span>
-              </bk-badge>
-            </div>
-          </div>
+          <GotoOldVersion
+            tips={this.$tc('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看')}
+            onClick={this.handleGotoOld}
+          />
         </div>
       </div>
     );

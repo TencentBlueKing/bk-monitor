@@ -166,4 +166,6 @@ export default {
   ingress: 'ingress',
   service: 'service',
   内存使用率: 'Memory Usage',
+  变更人: 'Changed by',
+  变更时间: 'Changed at',
 };

@@ -233,6 +233,30 @@ export const commonPageSizeGet = () => {
   return 10;
 };
 
+export const downloadFile = (data, type, filename) => {
+  const blob = new Blob([data], { type: type });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
+  const platform = navigator.platform;
+  if (platform.startsWith('Win')) return 'Windows';
+  if (platform.startsWith('Mac')) return 'Mac';
+
+  const userAgent = navigator.userAgent;
+  if (userAgent.includes('Windows NT')) return 'Windows';
+  if (userAgent.includes('Mac OS X') || userAgent.includes('macOS')) return 'Mac';
+  return 'Unknown';
+};
+
+export * from './colorHelpers';
 export * from './constant';
 export * from './utils';
 export * from './xss';

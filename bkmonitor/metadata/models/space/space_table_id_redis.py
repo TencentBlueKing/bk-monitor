@@ -764,11 +764,10 @@ class SpaceTableIDRedis:
             if tid.startswith(BKCI_1001_TABLE_ID_PREFIX):
                 continue
 
-            # NOTE: 特殊逻辑，针对 `dbm_system` 开头的结果表，设置过滤条件为空
-            if tid.startswith(DBM_1001_TABLE_ID_PREFIX):
-                # 如果不允许访问，则需要跳过
-                if f"{space_type}__{space_id}" not in settings.ACCESS_DBM_RT_SPACE_UID:
-                    continue
+            # NOTE: 特殊逻辑，针对 `dbm_system` 开头的结果表，开放给DBM业务访问全量数据
+            space_uid = f"{space_type}__{space_id}"
+            if tid.startswith(DBM_1001_TABLE_ID_PREFIX) and space_uid in settings.ACCESS_DBM_RT_SPACE_UID:
+                logger.info("table_id->[%s] is dbm_system, open to all for dbm space->[%s]", tid, space_uid)
                 _values[tid] = {"filters": []}
                 continue
 

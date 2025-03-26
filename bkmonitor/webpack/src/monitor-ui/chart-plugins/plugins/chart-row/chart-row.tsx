@@ -44,7 +44,7 @@ export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {
     if (!this.panel.draging) {
       this.$emit('collapse', !this.panel.collapsed);
     }
-    this.panel.updateDraging(false);
+    this.panel.updateDragging(false);
   }
   handleClickIcon(e: MouseEvent) {
     if (this.panel.collapsed && e.target === e.currentTarget) {

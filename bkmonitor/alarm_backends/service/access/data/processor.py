@@ -523,8 +523,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 have_priority = True
                 break
 
+        max_data_time = 0
         for record in reversed(points):
             point = DataRecord(self.items, record)
+
             if point.value is not None:
                 # 去除重复数据
                 if dup_obj.is_duplicate(point):
@@ -536,8 +538,32 @@ class AccessDataProcess(BaseAccessDataProcess):
                 else:
                     dup_obj.add_record(point)
                     records.append(point)
+
+                    # 只观察非重复数据
+                    if point.time > max_data_time:
+                        max_data_time = point.time
             else:
                 none_point_counts += 1
+
+        # 如果当前数据延迟超过一定值，则上报延迟埋点
+        if max_data_time > 0:
+            agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+            max_latency = self.until_timestamp - max_data_time - agg_interval
+            threshold = (
+                agg_interval * settings.ACCESS_LATENCY_INTERVAL_FACTOR + settings.ACCESS_LATENCY_THRESHOLD_CONSTANT
+            )
+            if max_latency > threshold:
+                logger.warning(
+                    "[data source delay]big latency %s,  strategy(%s)",
+                    max_latency,
+                    first_item.strategy.id,
+                )
+                metrics.PROCESS_BIG_LATENCY.labels(
+                    strategy_id=first_item.strategy.id,
+                    strategy_name=first_item.strategy.name,
+                    bk_biz_id=first_item.strategy.bk_biz_id,
+                    module="data_delay",
+                ).observe(max_latency)
 
         dup_obj.refresh_cache()
         self.record_list = records

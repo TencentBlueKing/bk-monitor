@@ -107,7 +107,7 @@ export default class TraceInfo extends tsc<IProps> {
   }
 
   mounted() {
-    bus.$on('switch_scenes_type', this.handleToSceneDetil);
+    bus.$on('switch_scenes_type', this.handleToSceneDetail);
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
 
@@ -116,7 +116,7 @@ export default class TraceInfo extends tsc<IProps> {
     bus.$off('switch_to_overview');
   }
 
-  handleToSceneDetil(data) {
+  handleToSceneDetail(data) {
     window.open(`${location.origin}${location.pathname}${location.search}#/apm${data.url}`);
   }
   handleToSceneOverview(data) {
