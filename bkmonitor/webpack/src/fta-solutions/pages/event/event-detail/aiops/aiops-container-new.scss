@@ -129,6 +129,13 @@
       font-size: 12px;
       color: #4d4f56;
 
+      .tooltips-icon {
+        display: inline-flex;
+        margin-right: 4px;
+        font-size: 16px;
+        color: #ea3636;
+      }
+
       .vis-show {
         display: inline-flex;
         align-items: center;
@@ -145,7 +152,8 @@
         display: inline-block;
         width: 40px;
         height: 14px;
-        margin: 0 4px;
+        margin: 2px 4px;
+        vertical-align: middle;
       }
 
       font {

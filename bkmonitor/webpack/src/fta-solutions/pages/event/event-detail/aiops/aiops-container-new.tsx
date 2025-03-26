@@ -602,7 +602,7 @@ export default class AiopsContainer extends tsc<IProps> {
     if (aiSettings) {
       if (!aiSettings.is_supported) {
         return (
-          <div>
+          <div style='color: #63656e'>
             {!aiSettings.error_msg
               ? this.$t('当前告警 不支持 {0} 功能', [config.titleKey])
               : this.$t('{0} 不支持 {1} 功能', [aiSettings.error_msg, config.titleKey])}
@@ -611,7 +611,7 @@ export default class AiopsContainer extends tsc<IProps> {
       }
       if (!aiSettings.is_enabled) {
         return (
-          <div>
+          <div style='color: #63656e'>
             {this.$t('当前空间未开启{0}功能', [config.titleKey])}, {this.$t('请联系')}{' '}
             <span
               class='bk-assistant-link'

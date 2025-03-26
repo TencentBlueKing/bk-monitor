@@ -28,6 +28,7 @@ import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
 import { toPerformanceDetail } from '../../../common/go-link';
@@ -220,6 +221,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       stage_display, // 处理阶段
       appointee,
     } = this.basicInfo;
+    const bizItem = this.bizList?.find(item => item.id === bk_biz_id);
+    const bizIdName =
+      bizItem?.space_type_id === ETagsType.BKCC ? `#${bizItem?.id}` : bizItem?.space_id || bizItem?.space_code || '';
     // 处理阶段 优先级: is_shielded > is_ack > is_handled
     // const handleStatus = () => (is_shielded ? this.$t('已屏蔽') : false)
     //   || (is_ack ? this.$t('已确认') : false)
@@ -249,6 +253,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       </span>
     );
     let alertInfoList: any = [];
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(alert_info || {}).forEach(key => {
       const count = alert_info[key];
       if (count > 0) {
@@ -269,7 +274,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     const topItems = [
       {
         children: [
-          { title: this.$t('所属空间'), content: this.bizList?.find(item => item.id === bk_biz_id)?.text },
+          { title: this.$t('所属空间'), content: bizItem ? `${bizItem?.text} (${bizIdName})` : '--' },
           {
             title: this.$t('处理状态'),
             content: alertInfoList,
