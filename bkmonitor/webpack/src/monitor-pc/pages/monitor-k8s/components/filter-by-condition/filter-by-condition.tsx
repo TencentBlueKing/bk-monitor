@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
@@ -52,6 +52,8 @@ interface IProps {
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {
+  @InjectReactive('refleshImmediate') refreshImmediate;
+
   @Prop({ type: [Array, Object], default: () => [] }) filterBy: IFilterByItem[] | TFilterByDict;
   @Prop({ type: Object, default: () => ({}) }) commonParams: ICommonParams;
   @Ref('selector') selectorRef: HTMLDivElement;
@@ -100,6 +102,11 @@ export default class FilterByCondition extends tsc<IProps> {
   overflowCountTip = [];
 
   handleValueOptionsScrollThrottle = _v => {};
+
+  @Watch('refreshImmediate')
+  handleRefreshImmediateChange() {
+    this.initData();
+  }
 
   @Watch('commonParams', { deep: true, immediate: true })
   handleWatchScene() {

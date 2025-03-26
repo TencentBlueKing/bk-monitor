@@ -25,6 +25,7 @@
  */
 import { listK8sResources, workloadOverview } from 'monitor-api/modules/k8s';
 
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import {
   type GroupListItem,
   type K8sDimensionParams,
@@ -149,8 +150,12 @@ export class K8sDimension extends K8sDimensionBase {
    * @param params 请求参数
    */
   async getDimensionData({ resource_type, ...params }) {
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type,
       page: this.pageMap[resource_type] || 1,
       ...params,
@@ -172,11 +177,15 @@ export class K8sDimension extends K8sDimensionBase {
    * @description 获取workload维度下某个分类的数据
    */
   async getWorkloadChildrenData(params) {
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const { filter_dict, ...otherParams } = params;
     const { workload: workloadParams } = filter_dict;
     const [category] = workloadParams.split(':');
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: EDimensionKey.workload,
       page: this.pageMap[category],
       filter_dict,
@@ -200,10 +209,13 @@ export class K8sDimension extends K8sDimensionBase {
   async init(params = {}) {
     this.pageMap = {};
     const pageMap = {};
-    const workloadCategory = await workloadOverview({
-      bcs_cluster_id: this.commonParams.bcs_cluster_id,
-      query_string: this.commonParams.query_string,
-    }).catch(() => []);
+    let workloadCategory = [];
+    if (this.commonParams.scenario === SceneEnum.Performance) {
+      workloadCategory = await workloadOverview({
+        bcs_cluster_id: this.commonParams.bcs_cluster_id,
+        query_string: this.commonParams.query_string,
+      }).catch(() => []);
+    }
 
     const promiseList = this.originDimensionData.map(async item => {
       if (item.id === EDimensionKey.workload) {
@@ -234,7 +246,6 @@ export class K8sDimension extends K8sDimensionBase {
         pageMap[item.id] = 1;
       }
     });
-
     this.pageMap = pageMap;
     await Promise.all(promiseList);
   }

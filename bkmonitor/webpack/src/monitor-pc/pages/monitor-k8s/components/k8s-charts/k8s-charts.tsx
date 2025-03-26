@@ -31,6 +31,7 @@ import { Debounce } from 'monitor-common/utils';
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, type IK8SMetricItem } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
@@ -60,7 +61,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
-  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   @Prop({ type: String, default: '' }) activeMetricId: string;
   @Prop({ type: Array, default: () => [] }) resourceListData: Record<K8sTableColumnKeysEnum, string>[];
@@ -417,10 +418,14 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
+      const { timeRange, ...filterCommonParams } = this.filterCommonParams;
+      const formatTimeRange = handleTransformToTimestamp(timeRange);
       data = this.isDetailMode
         ? this.resourceListData
         : await listK8sResources({
-            ...this.filterCommonParams,
+            ...filterCommonParams,
+            start_time: formatTimeRange[0],
+            end_time: formatTimeRange[1],
             with_history: true,
             page_size: Math.abs(this.limit),
             page: 1,
