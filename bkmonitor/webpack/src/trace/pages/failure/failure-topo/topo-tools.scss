@@ -6,10 +6,12 @@
   padding-right: 0px;
   padding-left: 12px;
   color: white;
-  background-color: #454547;
+  background-color: #494c52;
 
   &-agg {
     margin-left: auto;
+    padding-left: 16px;
+    border-left: 1px solid #14161A;
   }
 
   .topo-tools-list {
@@ -22,6 +24,6 @@
     font-size: 14px;
     color: #c4c6cc;
     cursor: pointer;
-    border-left: 1px solid #313238;
+    border-left: 1px solid #14161A;
   }
 }

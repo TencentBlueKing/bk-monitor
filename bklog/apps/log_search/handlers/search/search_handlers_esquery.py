@@ -467,8 +467,21 @@ class SearchHandler(object):
 
     @fields_config("apm_relation")
     def apm_relation(self):
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
         try:
-            res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
+            if qs.exists():
+                collector_config = qs.first()
+                res = MonitorApi.query_log_relation(
+                    params={
+                        "index_set_id": int(self.index_set_id),
+                        "bk_data_id": int(collector_config.bk_data_id),
+                        "bk_biz_id": collector_config.bk_biz_id,
+                        "start_time": self.start_time,
+                        "end_time": self.end_time,
+                    }
+                )
+            else:
+                res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
         except ApiRequestError as e:
             logger.warning(f"fail to request log relation => index_set_id: {self.index_set_id}, exception => {e}")
             return False
@@ -2143,6 +2156,8 @@ class SearchHandler(object):
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
+            else:
+                log = self.convert_keys(log)
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
@@ -2198,6 +2213,36 @@ class SearchHandler(object):
         agg_dict = result_dict.get("aggregations", {})
         result.update({"aggs": agg_dict})
         return result
+
+    def convert_keys(self, data):
+        new_dict = {}
+
+        for key, value in data.items():
+            # 如果值是字典，递归调用
+            if isinstance(value, dict):
+                value = self.convert_keys(value)  # 递归处理嵌套字典
+            # 如果值是列表，处理列表中的每个字典
+            elif isinstance(value, list):
+                value = [self.convert_keys(item) if isinstance(item, dict) else item for item in value]
+
+            # 如果键中有点，进行转换
+            if '.' in key:
+                # 分割键
+                parts = key.split('.')
+                nested_dict = new_dict
+
+                for part in parts[:-1]:  # 所有部分，除了最后一部分
+                    if part not in nested_dict:
+                        nested_dict[part] = {}
+                    nested_dict = nested_dict[part]
+
+                # 设置最后一个部分的值
+                nested_dict[parts[-1]] = value
+            else:
+                # 如果没有点，直接赋值
+                new_dict[key] = value
+
+        return new_dict
 
     @classmethod
     def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:

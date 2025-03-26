@@ -28,9 +28,12 @@ from django.utils.translation import gettext as _
 from luqum.parser import parser
 from luqum.tree import (
     AndOperation,
+    FieldGroup,
     Group,
+    Not,
     OrOperation,
     Phrase,
+    Prohibit,
     Range,
     Regex,
     SearchField,
@@ -60,6 +63,9 @@ from apps.utils.lucene import EnhanceLuceneAdapter
 
 
 class ChartHandler(object):
+    AND = "AND"
+    OR = "OR"
+
     def __init__(self, index_set_id):
         self.index_set_id = index_set_id
         try:
@@ -119,7 +125,7 @@ class ChartHandler(object):
                     field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
                     field_name = f"CAST({field_name} AS TEXT)"
                 expr = node.expr
-                if isinstance(node.expr, Phrase):
+                if isinstance(expr, Phrase):
                     # 处理带引号的短语
                     value = expr.value.replace("'", "''")
                     op = "MATCH_PHRASE" if field_name == "log" else "="
@@ -135,16 +141,38 @@ class ChartHandler(object):
                     return f"{field_name} BETWEEN {low} AND {high}"
                 elif isinstance(expr, Term):
                     # 处理不带引号的术语,替换通配符
+                    value = expr.value
+                    if (
+                        value.startswith(">")
+                        or value.startswith(">=")
+                        or value.startswith("<")
+                        or value.startswith("<=")
+                    ):
+                        return f"{field_name} {value}"
                     value = cls.to_like_syntax(expr.value)
                     return f"{field_name} LIKE '{value}'"
+                elif isinstance(expr, FieldGroup):
+                    # 处理 FieldGroup 节点，例如 ("a" AND b)
+                    conditions = []
+                    op = cls.AND
+                    if isinstance(expr.children[0], OrOperation):
+                        op = cls.OR
+                    for child in expr.children[0].children:
+                        search_field = SearchField(name=f"{field_name}", expr=child)
+                        condition = build_condition(search_field)
+                        if condition:
+                            conditions.append(condition)
+                    result = f" {op} ".join(conditions)
+                    return f"({result})" if op == cls.OR else result
+
             elif isinstance(node, OrOperation):
                 # 处理 OR 操作
                 conditions = [build_condition(child) for child in node.children]
-                return " OR ".join(cond for cond in conditions if cond if not None)
+                return " OR ".join(cond for cond in conditions if cond is not None)
             elif isinstance(node, AndOperation):
                 # 处理 AND 操作
                 conditions = [build_condition(child) for child in node.children]
-                return " AND ".join(cond for cond in conditions if cond if not None)
+                return " AND ".join(cond for cond in conditions if cond is not None)
             elif isinstance(node, Group):
                 # 处理 Group 节点，例如 (author:John OR author:Jane)
                 return f"({build_condition(node.children[0])})"
@@ -155,6 +183,9 @@ class ChartHandler(object):
                 # 处理不带引号的短语
                 value = cls.to_like_syntax(node.value)
                 return f"log LIKE '{value}'"
+            elif isinstance(node, Not) or isinstance(node, Prohibit):
+                # 处理 NOT 操作
+                return f"NOT {build_condition(node.children[0])}"
 
         return build_condition(query_tree)
 
