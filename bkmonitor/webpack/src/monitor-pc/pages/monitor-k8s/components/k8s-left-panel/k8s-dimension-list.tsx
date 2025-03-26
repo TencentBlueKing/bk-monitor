@@ -109,7 +109,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   @Watch('localCommonParams')
   handleCommonParamsChange() {
-    console.log(123);
     this.init();
   }
 
