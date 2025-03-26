@@ -1743,7 +1743,7 @@ const store = new Vuex.Store({
       });
     },
 
-    toggleFieldVisible({ state }, { visible, field }) {
+    toggleFieldVisible({ commit, state }, { visible, field }) {
       const displayFieldNames = state.visibleFields.map(item => item.field_name);
       if (visible) {
         // 需要显示字段
@@ -1754,6 +1754,7 @@ const store = new Vuex.Store({
         displayFieldNames.splice(index, 1);
       }
       if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
+
       http
         .request('retrieve/postFieldsConfig', {
           params: { index_set_id: state.indexId },
@@ -1769,6 +1770,8 @@ const store = new Vuex.Store({
         .catch(e => {
           console.warn(e);
         });
+      commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
+      commit('updateIsSetDefaultTableColumn', false);
     },
   },
 });

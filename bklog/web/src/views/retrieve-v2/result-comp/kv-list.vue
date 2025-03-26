@@ -37,6 +37,28 @@
           class="field-label"
         >
           <span
+            v-if="hiddenFieldsSet.has(field)"
+            class="field-eye-icon bklog-icon bklog-eye-slash"
+            v-bk-tooltips="{ content: $t('隐藏') }"
+            @click="
+              e => {
+                e.stopPropagation();
+                handleShowOrHiddenItem(true, field);
+              }
+            "
+          ></span>
+          <span
+            v-else
+            class="field-eye-icon bklog-icon bklog-eye"
+            v-bk-tooltips="{ content: $t('展示') }"
+            @click="
+              e => {
+                e.stopPropagation();
+                handleShowOrHiddenItem(false, field);
+              }
+            "
+          ></span>
+          <span
             :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
@@ -189,6 +211,9 @@
       },
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+      },
+      hiddenFieldsSet() {
+        return new Set(this.hiddenFields);
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -367,6 +392,10 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+      // 显示或隐藏字段
+      handleShowOrHiddenItem(visible, field) {
+        this.$store.dispatch('toggleFieldVisible', { visible, field });
+      },
     },
   };
 </script>
@@ -390,7 +419,7 @@
       align-items: center;
       justify-content: center;
       min-height: 24px;
-      padding-left: 24px;
+      padding-left: 8px;
 
       &:hover {
         cursor: pointer;
@@ -412,6 +441,22 @@
         align-items: baseline;
         height: 100%;
         margin-right: 18px;
+
+        .field-eye-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 12px;
+          height: 12px;
+          margin-right: 8px;
+          font-size: 12px;
+          color: #4d4f56;
+          border-radius: 2px;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
 
         .field-type-icon {
           display: inline-flex;
