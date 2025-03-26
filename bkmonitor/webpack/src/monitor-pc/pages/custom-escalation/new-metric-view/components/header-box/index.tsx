@@ -89,6 +89,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   @Ref('rootRef') rootRef: HTMLElement;
 
+  isExpaned = true;
   params = createDefaultParams();
 
   @Watch('dimenstionParams', { immediate: true })
@@ -144,7 +145,6 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.params.where = payload.where;
     this.params.common_conditions = payload.common_conditions;
     this.triggerChange();
-    console.log('from handleConditionChange = ', payload);
   }
 
   handleGroupByChange(payload: IResult['group_by']) {
@@ -161,6 +161,11 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.params.compare = payload;
     this.triggerChange();
   }
+
+  handleToogleExpand() {
+    this.isExpaned = !this.isExpaned;
+  }
+
   mounted() {
     this.calcLableWidth();
   }
@@ -171,29 +176,42 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
         ref='rootRef'
         class='bk-monitor-new-metric-view-header-box'
       >
-        <WhereCondition
-          commonConditionValue={this.params.common_conditions}
-          commonDimensionEnable={true}
-          value={this.params.where}
-          onChange={this.handleConditionChange}
-        />
-        <div class='mult-item-box'>
-          <GroupBy
-            splitable={true}
-            value={this.params.group_by}
-            onChange={this.handleGroupByChange}
-          />
-          {this.params.group_by.length > 0 && (
-            <LimitFunction
-              value={this.params.limit}
-              onChange={this.handleLimitChange}
+        <bk-transition name='collapse'>
+          <div v-show={this.isExpaned}>
+            <WhereCondition
+              commonConditionValue={this.params.common_conditions}
+              commonDimensionEnable={true}
+              value={this.params.where}
+              onChange={this.handleConditionChange}
             />
-          )}
-          <CompareType
-            value={this.params.compare}
-            onChange={this.handleComparTypeChange}
-          />
-          <div class='action-extend'>{this.$slots.actionExtend}</div>
+            <div class='mult-item-box'>
+              <GroupBy
+                splitable={true}
+                value={this.params.group_by}
+                onChange={this.handleGroupByChange}
+              />
+              {this.params.group_by.length > 0 && (
+                <LimitFunction
+                  value={this.params.limit}
+                  onChange={this.handleLimitChange}
+                />
+              )}
+              <CompareType
+                value={this.params.compare}
+                onChange={this.handleComparTypeChange}
+              />
+              <div class='action-extend'>{this.$slots.actionExtend}</div>
+            </div>
+          </div>
+        </bk-transition>
+        <div
+          class={{
+            'toggle-btn': true,
+            'is-expaned': this.isExpaned,
+          }}
+          onClick={this.handleToogleExpand}
+        >
+          <i class='bk-icon icon-angle-left' />
         </div>
       </div>
     );

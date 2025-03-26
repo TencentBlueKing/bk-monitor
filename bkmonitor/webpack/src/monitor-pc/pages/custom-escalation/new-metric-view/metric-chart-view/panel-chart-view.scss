@@ -54,28 +54,27 @@
 
         &:hover {
           .chart-title {
-            .hover-show,
+            .status-tab-view,
             .title-icon-list {
-              display: flex;
-              visibility: visible;
+              display: block !important;
+            }
+
+            .strategy-icon {
+              display: flex !important;
             }
           }
         }
 
         .chart-title {
           .title-name {
-            // display: initial;
-            // flex: 1;
+            display: initial;
           }
 
-          .hover-show,
-          .title-icon-list {
-            display: none;
+          .title-icon-list,
+          .status-tab-view,
+          .strategy-icon {
+            display: none !important;
             visibility: visible;
-          }
-
-          .tips-icon {
-            margin-right: auto;
           }
         }
 
