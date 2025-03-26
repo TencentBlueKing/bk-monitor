@@ -63,12 +63,14 @@ logger = logging.getLogger(__name__)
 allowed_interval = [10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 10800]
 
 
-def get_auto_interval(collect_interval: int, start_time: int, end_time: int):
+def get_auto_interval(collect_interval: int, start_time: int, end_time: int, factor: int = 1):
     """
     自动周期计算
     """
     # 以2880个为预期聚合后点数计算汇聚周期
     expect_interval = (end_time - start_time) / collect_interval / 1440 * 60
+    # 缩放期望的 interval
+    expect_interval *= factor
 
     # 如果预期周期比采集周期小，则直接使用采集周期
     if expect_interval <= collect_interval:
@@ -2115,6 +2117,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
     data_source_label = DataSourceLabel.CUSTOM
     data_type_label = DataTypeLabel.EVENT
     INNER_DIMENSIONS = ["target", "event_name"]
+    NEED_AUTO_FILTER = True
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, name="", *args, **kwargs):
@@ -2155,8 +2158,9 @@ class CustomEventDataSource(BkMonitorLogDataSource):
                     metric["field"] = "_index"
                     metric["method"] = "COUNT"
 
-        # 平台级且业务不等于绑定的平台业务
-        self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
+        if self.NEED_AUTO_FILTER:
+            # 平台级且业务不等于绑定的平台业务
+            self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
 
     def add_recovery_filter(self, datasource):
         """
@@ -2215,6 +2219,8 @@ class NewCustomEventDataSource(CustomEventDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
     INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
+    # 查询路由下沉到 metadata
+    NEED_AUTO_FILTER = False
 
     OPERATOR_MAPPING: Dict[str, str] = {
         "neq": "ne",
@@ -2229,10 +2235,11 @@ class NewCustomEventDataSource(CustomEventDataSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_time_agg: bool = kwargs.get("is_time_agg", True)
+        self.time_alignment: bool = kwargs.get("time_alignment", True)
         self.reference_name: str = kwargs.get("reference_name") or "a"
 
     def _get_unify_query_table(self) -> str:
-        if self.table in {"system_event", "k8s_event"}:
+        if self.table in {"system_event", "k8s_event", "cicd_event"}:
             return self.table
         return f"{self.table}.__default__"
 
@@ -2266,7 +2273,7 @@ class NewCustomEventDataSource(CustomEventDataSource):
             query: Dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             # 非时间聚合，直接使用传入的方法
-            func_method: str = (method, "sum")[self.is_time_agg]
+            func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
             function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
             if method in CpAggMethods:
                 cp_agg_method = CpAggMethods[method]
@@ -2274,10 +2281,17 @@ class NewCustomEventDataSource(CustomEventDataSource):
                 query["time_aggregation"]["position"] = cp_agg_method.position
                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
 
+            query["function"].append(function)
+
             if self.is_time_agg:
-                # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
-                agg_func_name: str = "{method}_over_time".format(method=method)
-                query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+                if self.time_alignment:
+                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+                    agg_func_name: str = "{method}_over_time".format(method=method)
+                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+                else:
+                    query["function"].append(
+                        {"method": "date_histogram", "dimensions": group_by, "window": f"{self.interval}s"}
+                    )
 
             field: str = metric["field"]
             if self.is_dimensions_field(field) and field != "_index":
@@ -2286,9 +2300,8 @@ class NewCustomEventDataSource(CustomEventDataSource):
                 query["field_name"] = field
 
             query["reference_name"] = (metric.get("alias") or field).lower()
-            query["function"].append(function)
 
-            if self.is_time_agg:
+            if self.is_time_agg and self.time_alignment:
                 time_aggregation, functions = _parse_function_params(self.functions, group_by)
                 query["function"].extend(functions)
                 if time_aggregation:
@@ -2570,9 +2583,6 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> Dict[str, Any]:
 
     need_add_filter = is_build_in_process_data_source(table_id=table_id)
     if need_add_filter:
-        return biz_filter
-
-    if table_id in ["k8s_event", "system_event"]:
         return biz_filter
 
     if settings.ENVIRONMENT == "development":

@@ -1530,6 +1530,9 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
+# 事件检索新版灰度列表
+EVENT_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 

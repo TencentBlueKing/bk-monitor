@@ -58,7 +58,12 @@ from .mock_data import (
     API_TOTAL_RESPONSE,
     API_VIEW_CONFIG_RESPONSE,
 )
-from .utils import get_data_labels_map, get_field_alias, get_q_from_query_config
+from .utils import (
+    get_data_labels_map,
+    get_field_alias,
+    get_q_from_query_config,
+    get_qs_from_req_data,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +98,7 @@ class EventLogsResource(Resource):
 
         # 构建统一查询集
         queryset = (
-            UnifyQuerySet()
-            .scope(bk_biz_id=validated_request_data["bk_biz_id"])
-            .start_time(1000 * validated_request_data["start_time"])
-            .end_time(1000 * validated_request_data["end_time"])
+            get_qs_from_req_data(validated_request_data)
             .time_agg(False)
             .instant()
             .limit(validated_request_data["limit"])
@@ -241,14 +243,7 @@ class EventTopKResource(Resource):
         if total == 0:
             return [{"total": total, "field": field, "distinct_count": 0, "list": []} for field in fields]
 
-        queryset = (
-            UnifyQuerySet()
-            .scope(bk_biz_id=validated_request_data["bk_biz_id"])
-            .start_time(1000 * validated_request_data["start_time"])
-            .end_time(1000 * validated_request_data["end_time"])
-            .time_agg(False)
-            .instant()
-        )
+        queryset = get_qs_from_req_data(validated_request_data).time_agg(False).instant()
         need_empty: bool = validated_request_data.get("need_empty") or False
         limit = validated_request_data["limit"]
         query_configs = validated_request_data["query_configs"]
@@ -489,15 +484,7 @@ class EventTotalResource(Resource):
         ]
 
         # 构建统一查询集
-        query_set = (
-            UnifyQuerySet()
-            .scope(bk_biz_id=validated_request_data["bk_biz_id"])
-            .start_time(1000 * validated_request_data["start_time"])
-            .end_time(1000 * validated_request_data["end_time"])
-            .expression(alias)
-            .time_agg(False)
-            .instant()
-        )
+        query_set = get_qs_from_req_data(validated_request_data).expression(alias).time_agg(False).instant()
 
         # 添加查询到查询集中
         for query in queries:

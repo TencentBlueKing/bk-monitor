@@ -176,6 +176,7 @@ class QueryReferenceResource(UnifyQueryAPIResource):
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
         order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+        look_back_delta = serializers.CharField(required=False, default="1m")
 
 
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
