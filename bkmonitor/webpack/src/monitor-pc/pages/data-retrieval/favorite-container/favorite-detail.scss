@@ -60,6 +60,7 @@
 
         .edit-input-wrap {
           width: 248px;
+          background: #fff;
         }
 
         .query-content-wrap {
@@ -83,6 +84,14 @@
               .vjs-value-string {
                 tab-size: 3;
                 white-space: pre-wrap;
+              }
+
+              .vjs-value__string {
+                color: #1F6D89;
+              }
+
+              .vjs-key {
+                color: #9D694C;
               }
             }
           }

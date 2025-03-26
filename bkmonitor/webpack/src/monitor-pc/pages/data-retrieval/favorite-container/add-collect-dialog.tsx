@@ -343,6 +343,9 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             <span class='string-json view-content'>
               <VueJsonPretty
                 data={{
+                  data_source_label: this.keyword.queryConfig?.data_source_label || '',
+                  data_type_label: this.keyword.queryConfig?.data_type_label || '',
+                  table: this.keyword.queryConfig?.result_table_id || '',
                   where: mergeWhereList(this.keyword.queryConfig.where, this.keyword.queryConfig?.commonWhere || []),
                 }}
                 deep={5}
