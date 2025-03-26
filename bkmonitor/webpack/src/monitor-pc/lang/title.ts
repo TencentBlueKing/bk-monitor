@@ -158,4 +158,14 @@ export default {
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8S object',
+
+  去重后的字段统计: 'Field statistics after deduplication',
+  '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
+  待选列表: 'To be selected list',
+  全部添加: 'Add all',
+  检索内容: 'Retrieval content',
+  分组名称: 'Group name',
+  收藏管理: 'Favorite Management',
+  全部收藏: 'All Favorites',
+  '已选择以下{0}个收藏对象': 'You have selected {0} favorite objects',
 };

@@ -128,6 +128,15 @@ export const getRouteConfig = () => {
           canStore: true,
         },
         {
+          name: '事件检索',
+          icon: 'icon-monitor icon-shijianjiansuo menu-icon',
+          navName: '事件检索',
+          id: 'event-explore',
+          path: '/event-explore',
+          href: '#/event-explore',
+          canStore: true,
+        },
+        {
           name: 'Tracing 检索',
           icon: 'icon-monitor menu-icon icon-Tracing',
           navName: 'Tracing 检索',
