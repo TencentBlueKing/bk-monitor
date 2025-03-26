@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, ref } from 'vue';
+  import Vue, { computed, ref, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -33,16 +33,37 @@
 
   import $http from '@/api';
 
+  import FieldsSetting from '../../result-comp/update/fields-setting';
+
   const store = useStore();
   const route = useRoute();
   const { $t } = useLocale();
+  const { $bkPopover } = Vue.prototype;
 
   const emit = defineEmits(['select-fields-config']);
 
-  const isDropdownShow = ref(false);
+  let popoverInstance = null;
+
+  const showFieldsSetting = ref(false);
   const isLoading = ref(false);
   const configList = ref([]);
   const searchKeyword = ref('');
+  const dropdownRef = ref(null);
+  const settingRef = ref(null);
+  const popoverLazyLoaded = ref({
+    dropdown: false,
+    setting: false,
+  });
+
+  const unionIndexList = computed(() => store.state.unionIndexList);
+  const isUnionSearch = computed(() => store.state.isUnionSearch);
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const fieldAliasMap = computed(() => {
+    return (store.state.indexFieldInfo.fields ?? []).reduce(
+      (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+      {},
+    );
+  });
   const searchConfigList = computed(() => {
     return configList.value.filter(item => {
       // 确保 item.name 是一个字符串
@@ -51,21 +72,80 @@
       return name.includes(searchKeyword.value);
     });
   });
-  const unionIndexList = computed(() => store.state.unionIndexList);
-  const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const handleDropContent = () => {
-    isDropdownShow.value = !isDropdownShow.value;
-    if (isDropdownShow.value) {
-      getFiledConfigList();
+
+  /**
+   * @description 打开字段模板 menu popover
+   */
+  async function handleDropdownPopoverShow(e) {
+    if (popoverInstance) {
+      return;
     }
-  };
-  // const dropdownHide = () => {
-  //   console.log('222');
-  //   const dropdownElement = document.querySelector('.bk-dropdown-content');
-  //   if (!dropdownElement?.contains(document.activeElement)) {
-  //     isDropdownShow.value = false;
-  //   }
-  // };
+    if (!popoverLazyLoaded.value.dropdown) {
+      popoverLazyLoaded.value.dropdown = true;
+      await nextTick();
+    }
+    popoverInstance = $bkPopover(e.currentTarget, {
+      content: dropdownRef.value,
+      trigger: 'click',
+      animateFill: false,
+      placement: 'bottom-start',
+      theme: 'light field-template-menu',
+      arrow: false,
+      interactive: true,
+      boundary: 'viewport',
+      onHidden: () => {
+        popoverInstance?.destroy?.();
+        popoverInstance = null;
+      },
+    });
+    await nextTick();
+    popoverInstance?.show(100);
+    getFiledConfigList();
+  }
+
+  /**
+   * @description 打开 字段设置 popover
+   */
+  async function handleFieldSettingPopoverShow(e) {
+    if (popoverInstance) {
+      handlePopoverHide();
+    }
+    if (!popoverLazyLoaded.value.setting) {
+      popoverLazyLoaded.value.setting = true;
+      await nextTick();
+    }
+    const triggerDom = document.querySelector('.dropdown-trigger');
+    popoverInstance = $bkPopover(triggerDom, {
+      content: settingRef.value,
+      trigger: 'click',
+      animation: 'slide-toggle',
+      animateFill: false,
+      placement: 'bottom-start',
+      theme: 'light bk-select-dropdown field-template-menu',
+      arrow: false,
+      interactive: true,
+      boundary: 'viewport',
+      hideOnClick: false,
+      zIndex: 3000,
+      onHidden: () => {
+        showFieldsSetting.value = false;
+        popoverInstance?.destroy?.();
+        popoverInstance = null;
+      },
+    });
+    await nextTick();
+    showFieldsSetting.value = true;
+    popoverInstance?.show(100);
+  }
+
+  /**
+   * @description 关闭 popover
+   */
+  function handlePopoverHide() {
+    popoverInstance?.hide?.();
+    popoverInstance?.destroy?.();
+    popoverInstance = null;
+  }
 
   const getFiledConfigList = async () => {
     isLoading.value = true;
@@ -85,12 +165,9 @@
       isLoading.value = false;
     }
   };
-  const handleClickManagementConfig = () => {
-    store.commit('updateShowFieldsConfigPopoverNum', 1);
-    localStorage.setItem('fieldSettingsIsShowLeft', true);
-  };
 
   const handleClickSelectConfig = item => {
+    handlePopoverHide();
     store.commit('updateIsSetDefaultTableColumn', false);
     store
       .dispatch('userFieldConfigChange', {
@@ -102,109 +179,79 @@
         store.commit('updateIsSetDefaultTableColumn');
         emit('select-fields-config', item.display_fields);
       });
-    isDropdownShow.value = false;
   };
 </script>
 <template>
   <div class="field-select-config-v2">
     <div
-      class="dropdown-trigger-text"
-      @click="handleDropContent"
+      class="dropdown-trigger"
+      @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
       <span> {{ $t('字段模板') }} </span>
     </div>
-    <div
-      v-if="isDropdownShow"
-      class="dropdown-content"
-    >
-      <div style="margin-top: 4px">
-        <bk-input
-          class="field-input"
-          v-model="searchKeyword"
-          left-icon="icon-search"
-          placeholder="搜索 模板名称"
-          clearable
-        />
-      </div>
-      <div class="underline-box"></div>
-      <ul
-        class="bk-dropdown-list"
-        v-bkloading="{ isLoading: isLoading, size: 'small' }"
+    <div style="display: none">
+      <div
+        v-if="popoverLazyLoaded.dropdown"
+        class="dropdown-content"
+        :ref="
+          vm => {
+            dropdownRef = vm;
+          }
+        "
       >
-        <li
-          v-for="(item, index) in searchConfigList"
-          :key="index"
-        >
-          <span @click="() => handleClickSelectConfig(item)">
-            {{ item.name }}
-          </span>
-        </li>
-      </ul>
-      <div class="manage-setting">
-        <psan
-          style="font-size: 16px"
-          class="bklog-icon bklog-shezhi"
-        ></psan>
-        <span @click="handleClickManagementConfig">
-          {{ $t('管理配置') }}
-        </span>
-      </div>
-    </div>
-    <!-- <bk-dropdown-menu
-      ref="dropdown"
-      trigger="click"
-      @hide="dropdownHide"
-      @show="dropdownShow"
-    >
-      <template #dropdown-trigger>
-        <div class="dropdown-trigger-text">
-          <span class="bklog-icon bklog-overview1"></span>
-          <span> {{ $t('字段模板') }} </span>
-        </div>
-      </template>
-      <template #dropdown-content>
-        <div
-          style="margin-top: 4px"
-          class="field-container"
-        >
+        <div class="dropdown-search">
           <bk-input
             class="field-input"
             v-model="searchKeyword"
             left-icon="icon-search"
-            placeholder="搜索 字段名"
+            placeholder="搜索 模板名称"
             clearable
-            @focus.stop
-            @input.stop
           />
         </div>
+        <div class="underline-box"></div>
         <ul
-          class="bk-dropdown-list"
+          class="dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
         >
           <li
-            v-for="(item, index) in configList"
-            :key="index"
+            class="dropdown-item"
+            v-for="item in searchConfigList"
+            :key="item.name"
+            @click="() => handleClickSelectConfig(item)"
           >
-            <a
-              href="javascript:;"
-              @click="() => handleClickSelectConfig(item)"
-            >
-              {{ item.name }}
-            </a>
-          </li>
-          <li>
-            <a
-              style="color: #3a84ff; background-color: #fafbfd"
-              href="javascript:;"
-              @click="handleClickManagementConfig"
-            >
-              {{ $t('管理配置') }}
-            </a>
+            <span> {{ item.name }} </span>
           </li>
         </ul>
-      </template>
-    </bk-dropdown-menu> -->
+        <div
+          class="dropdown-setting"
+          @click="handleFieldSettingPopoverShow"
+        >
+          <span class="bklog-icon bklog-shezhi" />
+          <span>
+            {{ $t('管理配置') }}
+          </span>
+        </div>
+      </div>
+      <div
+        v-if="popoverLazyLoaded.setting"
+        class="fields-setting-container"
+        :ref="
+          vm => {
+            settingRef = vm;
+          }
+        "
+      >
+        <fields-setting
+          v-if="showFieldsSetting"
+          :field-alias-map="fieldAliasMap"
+          :is-show-left="true"
+          :retrieve-params="retrieveParams"
+          @cancel="handlePopoverHide"
+          @set-popper-instance="() => {}"
+        />
+      </div>
+    </div>
   </div>
 </template>
 <style lang="scss">
