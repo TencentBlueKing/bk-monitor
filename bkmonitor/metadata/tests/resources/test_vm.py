@@ -12,9 +12,46 @@ specific language governing permissions and limitations under the License.
 import pytest
 from rest_framework.exceptions import ValidationError
 
-from metadata.resources.vm import QueryVmRtBySpace
+from metadata import models
+from metadata.resources.vm import NotifyDataLinkVmChange, QueryVmRtBySpace
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def create_or_delete_records():
+    models.ClusterInfo.objects.create(
+        domain_name='test1.vm.db',
+        cluster_name='test1',
+        cluster_id=12345,
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        port=1111,
+        is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        domain_name='test2.vm.db',
+        cluster_name='test2',
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        cluster_id=12346,
+        port=1111,
+        is_default_cluster=False,
+    )
+    models.AccessVMRecord.objects.create(
+        vm_result_table_id='1001_test_vm', vm_cluster_id=11111111, bk_base_data_id=11111123
+    )
+    yield
+    models.AccessVMRecord.objects.all().delete()
+    models.ClusterInfo.objects.all().delete()
+
+
+@pytest.mark.django_db(databases=['default', 'monitor_api'])
+def test_notify_data_link_vm_change(create_or_delete_records):
+    NotifyDataLinkVmChange().request(cluster_name='test1', vmrt='1001_test_vm')
+    record = models.AccessVMRecord.objects.get(vm_result_table_id='1001_test_vm')
+    assert record.vm_cluster_id == 12345
+
+    with pytest.raises(ValidationError):
+        NotifyDataLinkVmChange().request(cluster_name='test1', vmrt='1002_test_vm')
 
 
 @pytest.mark.django_db(databases=['default', 'monitor_api'])

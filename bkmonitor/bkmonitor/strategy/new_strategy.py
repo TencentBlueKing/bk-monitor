@@ -100,7 +100,6 @@ from constants.strategy import (
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
-    AdvanceConditionMethod,
     DataTarget,
     TargetFieldType,
 )
@@ -2496,14 +2495,22 @@ class Strategy(AbstractConfig):
         if getattr(query_config, "result_table_id", None):
             # 4.3.2 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
             if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
-                for condition in query_config.agg_condition:
-                    if condition["method"] in AdvanceConditionMethod:
-                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
                 need_access = True
 
         # 4.4 如果不需要走bkbase接入流程或者配置使用SDK进行检测，则更新query_config中关于使用sdk的配置
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
-        default_switch = True if algorithm_plan_id == settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION else False
+        default_switch = (
+            True
+            if (
+                algorithm_plan_id == settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION
+                or algorithm_name
+                in (
+                    AlgorithmModel.AlgorithmChoices.AbnormalCluster,
+                    AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting,
+                )
+            )
+            else False
+        )
         # 如果已经配置了使用SDK，则不再走bkbase接入的方式，默认使用SDK的方式进行检测
         if (
             intelligent_detect.get("use_sdk", default_switch)

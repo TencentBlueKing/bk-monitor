@@ -74,6 +74,8 @@ const SpanBarProps = {
 };
 
 function toPercent(value: number) {
+  const percentCount = (value * 100).toFixed(1);
+  if (+percentCount < 1) return '3px';
   return `${(value * 100).toFixed(1)}%`;
 }
 
@@ -141,7 +143,7 @@ export default defineComponent({
         <div
           style={{
             backgroundColor: color,
-            left: toPercent(viewStart),
+            left: viewStart > 0.98 ? 'calc(100% - 3px)' : toPercent(viewStart),
             width: toPercent(viewEnd - viewStart),
           }}
           class={{ 'span-bar': true, 'is-infer': isVirtual }}
@@ -181,7 +183,7 @@ export default defineComponent({
           <div
             style={{
               background: rpc.color,
-              left: toPercent(rpc.viewStart),
+              left: rpc.viewStart > 0.98 ? 'calc(100% - 3px)' : toPercent(rpc.viewStart),
               width: toPercent(rpc.viewEnd - rpc.viewStart),
             }}
             class='span-bar-rpc'

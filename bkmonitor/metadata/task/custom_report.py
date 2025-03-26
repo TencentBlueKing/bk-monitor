@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 import time
 import traceback
@@ -303,3 +302,12 @@ def check_custom_event_group_sleep():
     ).observe(cost_time)
     metrics.report_all()
     logger.info("check_custom_event_group_sleep:end, cost_time->[%s] seconds" % cost_time)
+
+
+def report_custom_metrics():
+    """
+    上报自定义指标
+    """
+    logger.info("report_custom_metrics:start")
+    metrics.report_all()
+    logger.info("report_custom_metrics:end")

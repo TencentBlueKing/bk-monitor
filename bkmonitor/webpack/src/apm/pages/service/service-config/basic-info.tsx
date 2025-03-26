@@ -33,26 +33,27 @@ import {
   serviceUrlList,
   uriregularVerify,
 } from 'monitor-api/modules/apm_service';
-import ChangeRcord from 'monitor-pc/components/change-record/change-record';
+import ChangeRecord from 'monitor-pc/components/change-record/change-record';
 
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
+import {
+  type IAppInfoItem,
+  type IBaseParams,
+  type ICmdbInfoItem,
+  type ICmdbRelation,
+  type IIndexSetItem,
+  type IApplicationItem,
+  type ILocationRelation,
+  type ILogInfoItem,
+  type IServiceInfo,
+  type IBaseServiceInfo,
+  RelationEventType,
+} from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
+import RelationSelectPanel from './components/relation-select-panel';
 import DebuggerDialog from './debugger-dialog';
 import { languageIconBase64 } from './utils';
-
-import type {
-  IAppInfoItem,
-  IBaseParams,
-  ICmdbInfoItem,
-  ICmdbRelation,
-  IIndexSetItem,
-  IApplicationItem,
-  ILocationRelation,
-  ILogInfoItem,
-  IServiceInfo,
-  IBaseServiceInfo,
-} from '../../../typings';
 
 import './basic-info.scss';
 
@@ -131,6 +132,7 @@ export default class BasicInfo extends tsc<object> {
       icon: '',
     },
   };
+
   /** 所属应用列表 */
   applicationLoading = false;
   applicationList: IApplicationItem[] = [];
@@ -189,6 +191,12 @@ export default class BasicInfo extends tsc<object> {
         trigger: 'blur',
       },
     ],
+  };
+
+  /** 事件关联 */
+  eventRelation = {
+    relationK8s: [],
+    isAutoRelation: true,
   };
 
   get bizSelectList() {
@@ -267,6 +275,7 @@ export default class BasicInfo extends tsc<object> {
     const data = await logList(this.params).catch(() => []);
     this.logsInfoList = data;
   }
+
   /**
    * @desc: 切换关联日志
    */
@@ -321,6 +330,7 @@ export default class BasicInfo extends tsc<object> {
       log_relation: logRelation,
       app_relation: appRelation,
       apdex_relation: apdexRelation,
+      event_relation: eventRelation,
     } = this.serviceInfo.relation;
 
     if (cmdbRelation.template_id) {
@@ -348,6 +358,16 @@ export default class BasicInfo extends tsc<object> {
     }
     // Apdex
     this.localRelationInfo.apdex = apdexRelation?.apdex_value;
+    // 事件关联
+    if (eventRelation?.length) {
+      const k8sRelation = eventRelation.find(item => item.table === RelationEventType.K8s);
+      this.eventRelation.isAutoRelation = !!k8sRelation.options.is_auto;
+      this.eventRelation.relationK8s = (k8sRelation.relations || []).map(
+        ({ bcs_cluster_id = '', namespace = '', kind = '', name = '' }) => {
+          return `${bcs_cluster_id}/${namespace}/${kind}/${name}`.replace(/\/{2,4}/g, '/').replace(/\/$/, '');
+        }
+      );
+    }
   }
   /**
    * @desc: CMDB关联变更
@@ -427,7 +447,7 @@ export default class BasicInfo extends tsc<object> {
   /**
    * @desc uri调试
    */
-  async handlDebugger() {
+  async handleDebugger() {
     const uris = this.uriList.filter(item => item.trim?.());
     const urlSourceList = this.urlResource.split(/[(\r\n)\r\n]+/).filter(val => val) || [];
     const params = {
@@ -535,11 +555,37 @@ export default class BasicInfo extends tsc<object> {
         relate_app_name: appId,
       };
     }
+    // 事件关联
+    const { isAutoRelation, relationK8s } = this.eventRelation;
+    // 容器事件
+    const k8sEvent = {
+      table: RelationEventType.K8s,
+      relations: isAutoRelation
+        ? []
+        : relationK8s.map(key => {
+            const [bcs_cluster_id, namespace, kind, name] = key.split('/');
+            return {
+              bcs_cluster_id,
+              namespace,
+              kind,
+              name,
+            };
+          }),
+      options: {
+        is_auto: !!isAutoRelation,
+      },
+    };
+    // todo: 系统事件关联
+    params.event_relation = [k8sEvent];
+
     // uri 信息
     if (this.uriList.length) {
       params.uri_relation = this.uriList.filter(val => val?.trim() !== '');
     }
     return params;
+  }
+  handleRelationTypeChange() {
+    this.eventRelation.isAutoRelation = !this.eventRelation.isAutoRelation;
   }
   /** 提交保存 */
   async handleSubmit() {
@@ -567,6 +613,9 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 授权按钮 */
   handleAuthorization() {}
+  handleRelationWorkloadChange(workloads: string[]) {
+    this.eventRelation.relationK8s = workloads || [];
+  }
   /** 渲染基础信息 */
   renderBaseInfo() {
     const renderText = () => {
@@ -969,6 +1018,90 @@ export default class BasicInfo extends tsc<object> {
       </div>
     );
   }
+  /** 事件关联 */
+  renderEventLink() {
+    const bizName =
+      this.$store.getters.bizList.find(item => +item.bk_biz_id === (+this.localRelationInfo?.bizId || window.cc_biz_id))
+        ?.name || this.localRelationInfo.bizId;
+    return (
+      <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
+        <div class='event-link-item container-event'>
+          <div class='title'>{this.$t('容器事件')}</div>
+          <p class='desc'>{this.$t('关联后，会自动获取相关的事件数据。')}</p>
+          {this.isLoading ? undefined : this.eventRelation.isAutoRelation ? (
+            <div class='tips'>
+              <i class='icon-monitor icon-tishi' />
+              <i18n
+                class='text'
+                path='当前空间「{0}」 使用了 BCS 集群，已自动关联；'
+              >
+                <span>{bizName}</span>
+              </i18n>
+              {this.isEditing && (
+                <i18n
+                  class='text'
+                  path='如需精确，用户可 {0}'
+                >
+                  <span
+                    class='link'
+                    onClick={this.handleRelationTypeChange}
+                  >
+                    {this.$t('手动关联具体 Workload')}
+                  </span>
+                </i18n>
+              )}
+            </div>
+          ) : (
+            this.renderEventDetail()
+          )}
+        </div>
+      </div>
+    );
+  }
+  renderEventDetail() {
+    if (!this.isEditing) {
+      return [
+        <div
+          key={'title'}
+          class='event-detail-title'
+        >
+          {this.$t('关联项')}
+        </div>,
+        <div
+          key={'list'}
+          class='event-detail-list'
+        >
+          {this.eventRelation.relationK8s.map(id => (
+            <div
+              key={id}
+              class='list-item'
+            >
+              {id}
+            </div>
+          ))}
+        </div>,
+      ];
+    }
+    return (
+      <div class='manual-relation'>
+        <div class='label'>{this.$t('关联 Workload')}</div>
+        <div class='content'>
+          <div
+            class='auto-relation-btn'
+            onClick={this.handleRelationTypeChange}
+          >
+            <i class='icon-monitor icon-a-3yuan-bohui' />
+            <span>{this.$t('恢复自动关联')}</span>
+          </div>
+
+          <RelationSelectPanel
+            value={this.eventRelation.relationK8s}
+            onChange={this.handleRelationWorkloadChange}
+          />
+        </div>
+      </div>
+    );
+  }
   /** appdex信息 */
   renderApdex() {
     return [
@@ -1154,7 +1287,7 @@ export default class BasicInfo extends tsc<object> {
                 size='small'
                 theme='primary'
                 outline
-                onClick={() => this.handlDebugger()}
+                onClick={() => this.handleDebugger()}
               >
                 {this.$t('调试')}
               </bk-button>
@@ -1199,6 +1332,7 @@ export default class BasicInfo extends tsc<object> {
         <PanelItem title={this.$t('基础信息')}>{this.renderBaseInfo()}</PanelItem>
         {/* <PanelItem title={this.$t('代码关联')}>{this.renderCodeLink()}</PanelItem> */}
         <PanelItem title={this.$t('数据关联')}>{this.renderDataLink()}</PanelItem>
+        <PanelItem title={this.$t('事件关联')}>{this.renderEventLink()}</PanelItem>
         <PanelItem
           class='tips-panel-item'
           flexDirection='column'
@@ -1251,7 +1385,7 @@ export default class BasicInfo extends tsc<object> {
         ) : (
           <div />
         )}
-        <ChangeRcord
+        <ChangeRecord
           recordData={this.record.data}
           show={this.record.show}
           onUpdateShow={v => (this.record.show = v)}

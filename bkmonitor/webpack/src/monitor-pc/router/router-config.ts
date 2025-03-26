@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 // global feature
-export const GLOAB_FEATURE_LIST = [
+export const GLOBAL_FEATURE_LIST = [
   {
     id: 'global-config',
     name: '全局设置',
@@ -125,6 +125,15 @@ export const getRouteConfig = () => {
           id: 'event-retrieval',
           path: '/event-retrieval',
           href: '#/event-retrieval',
+          canStore: true,
+        },
+        {
+          name: '事件检索',
+          icon: 'icon-monitor icon-shijianjiansuo menu-icon',
+          navName: '事件检索',
+          id: 'event-explore',
+          path: '/event-explore',
+          href: '#/event-explore',
           canStore: true,
         },
         {
@@ -536,7 +545,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
 COMMON_ROUTE_LIST.push({
   id: 'global-feature',
   name: '平台设置',
-  children: [...GLOAB_FEATURE_LIST],
+  children: [...GLOBAL_FEATURE_LIST],
 });
 
 // 路由id是否存在于常用路由列表

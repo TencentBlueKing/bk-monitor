@@ -122,3 +122,7 @@ class CustomEnum(Enum):
         if excludes is None:
             excludes = []
         return [(m.value, m.alias) for m in cls.__members__.values() if m.value not in excludes]
+
+
+# 为了统一多租户和非多租户场景的逻辑，默认使用system租户
+DEFAULT_TENANT_ID = "system"

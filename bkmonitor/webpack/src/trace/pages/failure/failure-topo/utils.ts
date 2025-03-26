@@ -88,10 +88,10 @@ const errorNodeAttrs = {
     fill: '#313238',
   },
   textAttrs: {
-    fill: '#fff',
+    fill: '#EAEBF0',
   },
   textNameAttrs: {
-    fill: '#FD9C9C',
+    fill: '#FF7575',
   },
 };
 
@@ -102,14 +102,14 @@ const normalNodeAttrs = {
     stroke: '#979BA5',
   },
   rectAttrs: {
-    stroke: '#EAEBF0',
+    stroke: '#979BA5',
     fill: '#313238',
   },
   textAttrs: {
-    fill: '#fff',
+    fill: '#EAEBF0',
   },
   textNameAttrs: {
-    fill: '#979BA5',
+    fill: '#DCDEE5',
   },
 };
 /** 根据优先级返回 */
@@ -157,7 +157,76 @@ export const truncateText = (text, maxWidth, fontSize, fontFamily) => {
 /** 获取apm类型节点 */
 export const getApmServiceType = (entity: IEntity) => {
   if (entity.entity_type === 'APMService') {
-    return entity.dimensions?.apm_service_category ?? '';
+    return entity.dimensions?.apm_service_category ?? 'Service';
   }
-  return entity.entity_type;
+  return entity.entity_type || 'Service';
+};
+
+/**
+ * 手动裁剪文本内容，支持换行，最多3行
+ * @param {string} text - 原始文本
+ * @param {number} maxWidth - 最大宽度
+ * @returns {string} - 换行、裁剪后的文本
+ * @returns {number} - 占用行数
+ */
+export const truncateTextWithWrap = (text: string, maxWidth: number = 80): [string, number] => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  let result = '';
+  let currentLine = '';
+  let currentWidth = 0;
+  let lineCount = 1; // 至少有一行
+  const MAX_LINES = 3; // 最多三行
+
+  for (const char of text) {
+    const charWidth = context.measureText(char).width;
+
+    // 情况1：当前行还能容纳字符
+    if (currentWidth + charWidth <= maxWidth) {
+      currentLine += char;
+      currentWidth += charWidth;
+      continue;
+    }
+
+    // 情况2：未达最大行数，换行
+    if (lineCount < MAX_LINES) {
+      result += currentLine + '\n';
+      currentLine = char;
+      currentWidth = charWidth;
+      lineCount++;
+      continue;
+    }
+
+    // 情况3：已达最大行数，处理截断
+    const ellipsis = '...';
+    const ellipsisWidth = context.measureText(ellipsis).width;
+    let lastLine = currentLine;
+
+    // 尝试追加当前字符（可能失败）
+    if (currentWidth + charWidth + ellipsisWidth <= maxWidth) {
+      lastLine += char;
+      currentWidth += charWidth;
+    }
+
+    // 移除字符直到能放下省略号
+    while (context.measureText(lastLine + ellipsis).width > maxWidth && lastLine.length > 0) {
+      lastLine = lastLine.slice(0, -1);
+    }
+
+    return [result + lastLine + ellipsis, lineCount];
+  }
+
+  // 循环结束未触发截断的情况
+  return [result + currentLine, lineCount];
+};
+
+export const getOffset = (root, lines) => {
+  switch (lines) {
+    case 1:
+      return root ? 48 : 40;
+    case 2:
+      return root ? 56 : 48;
+    case 3:
+      return root ? 62 : 54;
+  }
 };

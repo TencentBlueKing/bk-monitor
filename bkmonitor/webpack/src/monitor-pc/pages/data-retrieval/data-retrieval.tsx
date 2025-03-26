@@ -54,6 +54,8 @@ import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-comm
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+import { LETTERS } from '../../constant/constant';
+
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
 import {
@@ -86,6 +88,7 @@ import {
   type IFilterCondition,
   type TEditMode,
 } from './typings';
+
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import type { EmptyStatusType } from '../../components/empty-status/types';
 import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
@@ -312,7 +315,8 @@ export default class DataRetrieval extends tsc<object> {
 
   // 自动刷新
   refreshInstance = null;
-
+  // 事件类型
+  eventType = 'custom_event';
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -518,6 +522,11 @@ export default class DataRetrieval extends tsc<object> {
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
+  }
+
+  get dataId() {
+    if (this.tabActive === 'event') return this.eventMetricParams?.result_table_id;
+    return '';
   }
 
   beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
@@ -2291,13 +2300,15 @@ export default class DataRetrieval extends tsc<object> {
       }
       return promqlData;
     }
-    for (const target of targets) {
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
       if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
         const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
           filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
+          alias: q.alias || LETTERS.at(i),
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2727,6 +2738,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param data
    */
   handleEventDataChange(data) {
+    this.eventType = data.eventType || '';
     const targets = [
       {
         data: {
@@ -3073,7 +3085,14 @@ export default class DataRetrieval extends tsc<object> {
       this.refleshNumber += 1;
     }, v);
   }
-
+  handleGotoNew() {
+    this.$router.push({
+      name: 'event-explore',
+      query: {
+        ...this.$route.query,
+      },
+    });
+  }
   destroyed() {
     window.clearInterval(this.refreshInstance);
     this.refreshInstance = null;
@@ -3476,45 +3495,56 @@ export default class DataRetrieval extends tsc<object> {
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
-                  {
-                    // url 带有 onlyShowView=false 的时候，不显示该按钮
-                    <div
-                      class='left-show-icon-container'
-                      slot='pre'
-                    >
-                      <div class='icon-container'>
-                        <div
-                          class={[
-                            'result-icon-box',
-                            {
-                              'light-icon': !this.isShowFavorite,
-                              'disable-icon': this.needUseCollectGuide,
-                            },
-                          ]}
-                          v-bk-tooltips={{
-                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
-                            placements: ['bottom'],
-                            delay: 200,
-                            disabled: this.needUseCollectGuide,
-                          }}
-                          onClick={() => this.handleClickResultIcon('favorite')}
-                        >
-                          <span class='bk-icon icon-star' />
-                        </div>
-                        <div
-                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
-                          v-bk-tooltips={{
-                            content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
-                            placements: ['bottom'],
-                            delay: 200,
-                          }}
-                          onClick={() => this.handleClickResultIcon('search')}
-                        >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
-                        </div>
+                  {/* // url 带有 onlyShowView=false 的时候，不显示该按钮 */}
+                  <div
+                    class='left-show-icon-container'
+                    slot='pre'
+                  >
+                    <div class='icon-container'>
+                      <div
+                        class={[
+                          'result-icon-box',
+                          {
+                            'light-icon': !this.isShowFavorite,
+                            'disable-icon': this.needUseCollectGuide,
+                          },
+                        ]}
+                        v-bk-tooltips={{
+                          content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
+                          placements: ['bottom'],
+                          delay: 200,
+                          disabled: this.needUseCollectGuide,
+                        }}
+                        onClick={() => this.handleClickResultIcon('favorite')}
+                      >
+                        <span class='bk-icon icon-star' />
+                      </div>
+                      <div
+                        class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
+                        v-bk-tooltips={{
+                          content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
+                          placements: ['bottom'],
+                          delay: 200,
+                        }}
+                        onClick={() => this.handleClickResultIcon('search')}
+                      >
+                        <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                       </div>
                     </div>
-                  }
+                  </div>
+                  {this.eventType === 'custom_event' && (
+                    <bk-button
+                      style={{ marginTop: '8px' }}
+                      slot='center'
+                      onClick={this.handleGotoNew}
+                    >
+                      <i
+                        style={{ margin: '4px 5px 0 0' }}
+                        class='icon-monitor icon-mc-change-version'
+                      />
+                      {this.$t('切换新版')}
+                    </bk-button>
+                  )}
                 </PanelHeader>
               )}
               <div class='data-retrieval-main'>
@@ -3536,11 +3566,15 @@ export default class DataRetrieval extends tsc<object> {
                 >
                   <FavoriteIndex
                     ref='favoriteIndex'
+                    dataId={this.dataId}
                     favCheckedValue={this.favCheckedValue}
                     favoriteLoading={this.favoriteLoading}
                     favoriteSearchType={this.favoriteSearchType}
                     favoritesList={this.curFavList}
                     isShowFavorite={this.isShowFavorite}
+                    onClose={() => {
+                      this.isShowFavorite = false;
+                    }}
                     onGetFavoritesList={this.getListByGroupFavorite}
                     onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                   />
@@ -3635,11 +3669,11 @@ export default class DataRetrieval extends tsc<object> {
                     onCompareValueChange={this.handleCompareValueChange}
                     onDrillKeywordsSearch={val => (this.drillKeywords = val)}
                     onEventIntervalChange={this.handleEventIntervalChange}
+                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                     onShowLeft={this.handleLeftHiddenAndShow}
                     onSplitChange={this.handleSplitChange}
                     onTimeRangeChange={this.handleToolsTimeRangeChange}
                     onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                   />
                 </div>
                 {/* 指标选择器 */}

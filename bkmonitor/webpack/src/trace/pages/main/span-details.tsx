@@ -1454,8 +1454,8 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
-              <div>
-                <span>{info.title}</span>
+              <div class={['sideslider-hd', { 'show-flip-button': props.isShowPrevNextButtons }]}>
+                <span class='sideslider-title'>{info.title}</span>
                 {props.isShowPrevNextButtons ? (
                   <>
                     <div

@@ -1,8 +1,6 @@
 .bklog-text-segment {
   position: relative;
   width: 100%;
-  max-height: 60px;
-  overflow: hidden;
   font:
     12px Menlo,
     Monaco,
@@ -12,9 +10,15 @@
     'Microsoft Yahei',
     monospace;
   font-size: 12px;
-  text-align: left;
-  word-break: break-all;
-  white-space: pre-line;
+
+  .bklog-word-segment {
+    will-change: transform;
+    transform: translateZ(0); /* 强制开启GPU加速 */
+    text-align: left;
+    word-break: break-all;
+    white-space: pre-line;
+    overflow: hidden;
+  }
 
   &.is-wheeling {
     .canvas-konva-front {
@@ -22,38 +26,16 @@
     }
   }
 
-  .static-text {
-    position: relative;
-    width: 100%;
-    line-height: 20px;
-    cursor: pointer;
-  }
-
-  .canvas-konva-background,
-  .canvas-konva-front {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    pointer-events: none;
-    background: transparent;
-
-    canvas,
-    div {
-      background: transparent;
-      opacity: 1;
-      transition: opacity 0.3s;
+  &.is-expand-all {
+    .bklog-word-segment {
+      overflow-y: auto;
     }
   }
 
-  &.is-expand-all {
-    max-height: max-content;
-  }
-
   &.is-show-long {
-    max-height: max-content;
-
+    .bklog-word-segment {
+      overflow-y: auto;
+    }
     .btn-more-action {
       display: none;
     }
@@ -72,12 +54,16 @@
           'PingFang SC',
           'Microsoft Yahei',
           monospace;
+
+        content-visibility: auto;
+        // contain-intrinsic-size: 20px 40px; /* 预估初始高度 */
       }
 
       .last-placeholder {
         &:last-child {
-          display: inline-block;
-          min-width: 120px;
+          display: inline-flex;
+          min-width: 80px;
+          min-height: 1px;
         }
       }
     }

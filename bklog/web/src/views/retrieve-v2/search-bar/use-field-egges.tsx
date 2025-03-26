@@ -33,7 +33,7 @@ export default () => {
   let requestTimer;
   const isRequesting = ref(false);
   const taskPool = [];
-  const requestFieldEgges = (field, value?, callback?) => {
+  const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
     const getConditionValue = () => {
       if (['keyword'].includes(field.field_type)) {
         return [`*${value}*`];
@@ -87,6 +87,7 @@ export default () => {
           }
           const index = taskPool.findIndex(t => t === taskArgs);
           taskPool.splice(index, 1);
+          finallyFn?.();
         });
     }, 300);
   };

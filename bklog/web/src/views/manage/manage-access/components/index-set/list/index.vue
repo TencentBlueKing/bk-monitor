@@ -96,11 +96,22 @@
       <bk-table-column
         :label="$t('采集项')"
         :render-header="$renderHeader"
-        min-width="200"
+        min-width="180"
         prop="index_set_id"
       >
         <template #default="props">
           <span>{{ props.row.indexes.map(item => item.result_table_id).join('; ') }}</span>
+        </template>
+      </bk-table-column>
+          <bk-table-column
+        :label="$t('日用量/总用量')"
+        :render-header="$renderHeader"
+        min-width="80"
+      >
+        <template #default="props">
+          <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+            {{ formatUsage(props.row.daily_usage, props.row.total_usage)  }}
+          </span>
         </template>
       </bk-table-column>
       <bk-table-column
@@ -212,11 +223,11 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages} from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import { mapGetters } from 'vuex';
-
+  import { formatBytes, requestStorageUsage } from '../../../util';
   import * as authorityMap from '../../../../../../common/authority-map';
 
   export default {
@@ -326,6 +337,7 @@
               is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
             this.pagination.count = res.data.total;
+            this.loadData()
           })
           .catch(() => {
             this.emptyType = '500';
@@ -340,6 +352,18 @@
               });
             this.isInit = false;
           });
+      },
+      loadData() {
+        const callbackFn = (item, key, value) => {
+            this.$set(item, key, value[key]);
+        };
+        requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
+          .catch((error) => {
+            console.error('Error loading data:', error);
+          })
+          .finally(() => {
+            this.isTableLoading = false;
+        });
       },
       /**
        * 分页变换
@@ -538,6 +562,9 @@
           this.selectLabelList = [];
         }
       },
+      formatUsage(dailyUsage, totalUsage) {
+        return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
+      }
     },
   };
 </script>
