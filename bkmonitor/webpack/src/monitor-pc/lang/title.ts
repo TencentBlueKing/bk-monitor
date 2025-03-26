@@ -158,4 +158,5 @@ export default {
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8S object',
+  '共有 {0} 个服务': 'There are {0} services',
 };
