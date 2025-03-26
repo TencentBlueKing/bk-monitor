@@ -157,6 +157,10 @@ export default {
   智能检测一切正常: 'Intelligent detection is normal',
   '当前空间暂不支持该功能，如需使用请联系管理员':
     'The current space does not support this function. If you need to use it, please contact the administrator',
+  '当前空间暂不支持该功能，请联系': 'The current space does not support this function. please contact',
+  BK助手: 'BK Assistant',
+  当前告警被包含在故障: 'The current alert is included in fault',
+  当前告警不属于任何故障: 'The current alert does not belong to any fault',
   当前无异常事件: 'Currently no abnormal events',
   '异常事件获取来源\n1. events.attributes.exception_stacktrace 字段\n2. status.message 字段':
     'Abnormal event acquisition source\n1. events.attributes.exception_stacktrace field\n2. status.message field',

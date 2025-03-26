@@ -95,5 +95,8 @@
       "vue-tsx-support": "^3.2.0",
       "vuex-module-decorators": "^1.2.0"
     }
+  },
+  "dependencies": {
+    "@blueking/aiops-topo": "0.0.1-beta.4"
   }
 }
