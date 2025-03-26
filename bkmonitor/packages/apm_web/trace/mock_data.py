@@ -13,7 +13,7 @@ API_VIEW_CONFIG_DATA = {
                 ],
             }
         ],
-        "default_configs": {
+        "default_config": {
             "display_fields": [
                 {"name": "trace_id"},
                 {"name": "min_start_time"},
@@ -47,7 +47,7 @@ API_VIEW_CONFIG_DATA = {
                 ],
             }
         ],
-        "default_configs": {
+        "default_config": {
             "display_field": [
                 {"name": "span_id"},
                 {"name": "span_name"},
