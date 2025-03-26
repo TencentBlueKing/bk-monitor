@@ -177,13 +177,7 @@ ul.search-items {
 
         &.match-name {
           .match-name-label {
-            font-family:
-              Roboto,
-              PingFang SC,
-              Microsoft Yahei,
-              Helvetica,
-              Aria,
-              sans-serif;
+            font-family: var(--bklog-v3-row-lbl-font);
             color: #757880;
           }
 
@@ -215,15 +209,7 @@ ul.search-items {
               display: inline-block;
               max-width: 140px;
               overflow: hidden;
-              font-family:
-                'Roboto Mono',
-                Menlo,
-                Monaco,
-                Consolas,
-                Courier,
-                PingFang SC,
-                Microsoft Yahei,
-                monospace;
+              font-family: var(--bklog-v3-row-ctx-font);
               line-height: 16px;
               text-overflow: ellipsis;
               white-space: nowrap;
