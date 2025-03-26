@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from bkmonitor.data_source import get_auto_interval
 from constants.data_source import DataSourceLabel
 
 
@@ -74,7 +75,22 @@ class BaseEventRequestSerializer(serializers.Serializer):
 
 class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     expression = serializers.CharField(label="查询表达式", allow_blank=True)
+    # 事件/日志场景，无论最后一个点的数据是否完整都需要返回，所以默认不做时间对齐。
+    time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=False)
     query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
+
+    query_method = serializers.CharField(label="查询方法", required=False)
+
+    def validate(self, attrs):
+        time_alignment: bool = attrs.get("time_alignment", False)
+        attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+
+        # interval 自适应
+        for query_config in attrs["query_configs"]:
+            if "interval" not in query_config:
+                query_config["interval"] = get_auto_interval(60, attrs["start_time"], attrs["end_time"], factor=10)
+                print(query_config["interval"])
+        return attrs
 
 
 class EventLogsRequestSerializer(BaseEventRequestSerializer):

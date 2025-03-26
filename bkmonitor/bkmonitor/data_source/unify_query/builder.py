@@ -175,7 +175,7 @@ class QueryHelper:
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
             instant=query_body["instant"],
-            time_alignment=["is_time_align"],
+            time_alignment=query_body["is_time_align"],
         )
         return data
 
@@ -188,7 +188,7 @@ class QueryHelper:
             offset=query_body["offset"],
             instant=query_body["instant"],
             order_by=query_body["order_by"],
-            time_alignment=["is_time_align"],
+            time_alignment=query_body["is_time_align"],
         )
         return data
 
@@ -352,6 +352,7 @@ class UnifyQueryConfig:
         obj.bk_biz_id = self.bk_biz_id
         obj.instant = self.instant
         obj.is_time_agg = self.is_time_agg
+        obj.is_time_align = self.is_time_align
         obj.expression = self.expression
         obj.functions = self.functions[:]
         obj.query_configs = self.query_configs[:]
@@ -457,6 +458,7 @@ class CompilerMixin:
             "expression": params["expression"],
             "start_time": params["start_time"],
             "end_time": params["end_time"],
+            "time_alignment": params.get("time_alignment", True),
         }
 
 

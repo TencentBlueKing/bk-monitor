@@ -18,7 +18,7 @@ from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
-from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from metadata.models import ResultTable
 from packages.monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
@@ -50,6 +50,17 @@ def get_q_from_query_config(query_config: Dict[str, Any]) -> QueryConfigBuilder:
         .conditions(query_config.get("where", []))
         .filter(conditions_to_q(filter_dict_to_conditions(query_config.get("filter_dict") or {}, [])))
         .query_string(query_config.get("query_string") or "")
+    )
+
+
+def get_qs_from_req_data(req_data: Dict[str, Any]) -> UnifyQuerySet:
+    return (
+        UnifyQuerySet()
+        # 事件检索场景，不需要 drop 最后一个点
+        .time_align(False)
+        .scope(bk_biz_id=req_data["bk_biz_id"])
+        .start_time(1000 * req_data["start_time"])
+        .end_time(1000 * req_data["end_time"])
     )
 
 
