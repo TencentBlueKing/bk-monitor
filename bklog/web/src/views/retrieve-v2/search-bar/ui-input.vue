@@ -28,7 +28,15 @@
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
-  const inputPlaceholder = $t('/ 快速定位到搜索，请输入关键词...');
+
+  // 动态设置placeHolder
+  const inputPlaceholder = computed(() => {
+    if (uiInputValue.value.length === 0) {
+      return $t('/ 快速定位到搜索，请输入关键词...');
+    }
+
+    return '';
+  });
 
   const bkBizId = computed(() => store.state.bkBizId);
 
@@ -90,6 +98,9 @@
   const refHiddenFocus = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
+
+  // ui模式直接键入时，input键入值
+  const uiInputValue = ref('');
 
   // 表示是否来自input输入的点击弹出
   // 弹出组件依赖此属性展示内容会改变
@@ -491,6 +502,7 @@
         ref="refSearchInput"
         class="tag-option-focus-input"
         type="text"
+        v-model="uiInputValue"
         @click.stop="handleInputTextClick"
         @blur="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"

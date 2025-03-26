@@ -195,8 +195,8 @@
           color: #16171a;
           background-color: #ebeef5;
           border-radius: 2px;
-          font-weight: 600;
-          font-family: 'RobotoMono-Medium';
+          font-weight: 500;
+          font-family: var(--bklog-v3-row-tag-font);
         }
 
         &::after {
@@ -224,14 +224,14 @@
       }
     }
     .segment-content {
-      font-family: var(--table-fount-family);
+      font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
       line-height: 22px;
 
       span {
         width: max-content;
         min-width: 4px;
-        font-family: var(--table-fount-family);
+        font-family: var(--bklog-v3-row-ctx-font);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
       }
@@ -296,7 +296,7 @@
 <style lang="scss">
   .bklog-text-segment {
     .segment-content {
-      font-family: var(--table-fount-family);
+      font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
       line-height: 22px;
 

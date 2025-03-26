@@ -214,14 +214,7 @@
 
       &.segment-content {
         span {
-          font:
-            12px Menlo,
-            Monaco,
-            Consolas,
-            Courier,
-            'PingFang SC',
-            'Microsoft Yahei',
-            monospace;
+          font: var(--bklog-v3-row-ctx-font);
         }
 
         .btn-more-action {
