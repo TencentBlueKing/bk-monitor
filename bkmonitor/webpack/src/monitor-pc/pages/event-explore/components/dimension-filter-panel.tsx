@@ -74,6 +74,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
   @InjectReactive('commonParams') commonParams;
+  // 是否立即刷新
+  @InjectReactive('refleshImmediate') refreshImmediate: string;
 
   emptyStatus: EmptyStatusType = 'empty';
 
@@ -89,6 +91,11 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   popoverInstance = null;
 
   topKCancelFn = null;
+
+  @Watch('refreshImmediate')
+  async watchRefreshImmediate() {
+    await this.getFieldCount();
+  }
 
   /** 条件切换后，维度count需要重新获取 */
   @Watch('condition')
