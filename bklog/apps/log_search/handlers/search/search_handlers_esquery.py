@@ -36,7 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
-from apps.exceptions import ApiRequestError, ApiResultError
+from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
@@ -482,7 +482,7 @@ class SearchHandler(object):
                 )
             else:
                 res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
-        except ApiRequestError as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"fail to request log relation => index_set_id: {self.index_set_id}, exception => {e}")
             return False
 
