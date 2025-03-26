@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
+import { copyText } from 'monitor-common/utils/utils';
 
 import './index.scss';
 
@@ -51,12 +52,35 @@ export default class PageHeader extends tsc<object> {
     this.customTimeSeriesList = Object.freeze(result.list);
   }
 
+  handleRouterBack() {
+    this.$router.push({
+      name: 'custom-metric',
+    });
+  }
+
   handleSeriesChange(id: number) {
     this.$router.replace({
       params: {
         id: `${id}`,
       },
     });
+  }
+
+  handleCopyLink() {
+    let hasErr = false;
+    copyText(window.location.href, errMsg => {
+      this.$bkMessage({
+        message: errMsg,
+        theme: 'error',
+      });
+      hasErr = !!errMsg;
+    });
+    if (!hasErr) {
+      this.$bkMessage({
+        theme: 'success',
+        message: this.$t('复制成功'),
+      });
+    }
   }
 
   created() {
@@ -67,9 +91,12 @@ export default class PageHeader extends tsc<object> {
   render() {
     return (
       <div class='new-metric-view-page-header'>
-        <div class='page-title'>
-          <i class='icon-monitor icon-back-left navigation-bar-back' />
-          <div class='app-name'>
+        <div class='custom-time-series-box'>
+          <i
+            class='icon-monitor icon-back-left navigation-bar-back'
+            onClick={this.handleRouterBack}
+          />
+          <div class='custom-time-series-switcher'>
             <bk-select
               v-model={this.currentCustomTimeSeriesId}
               clearable={false}
@@ -77,7 +104,7 @@ export default class PageHeader extends tsc<object> {
               onChange={this.handleSeriesChange}
             >
               <div
-                class='app-select-value'
+                class='custom-time-series-select-value'
                 slot='trigger'
               >
                 {this.currentCustomTimeSeriesName}
@@ -89,6 +116,7 @@ export default class PageHeader extends tsc<object> {
               {this.customTimeSeriesList.map(item => (
                 <bk-option
                   id={item.time_series_group_id}
+                  key={item.time_series_group_id}
                   name={item.name}
                 />
               ))}
@@ -96,7 +124,14 @@ export default class PageHeader extends tsc<object> {
           </div>
         </div>
         {this.currentSelectedMetricList.length > 0 && (
-          <div class='index-tag'>
+          <div
+            class='index-tag'
+            v-bk-tooltips={{
+              content: this.$t('复制链接'),
+              placement: 'right',
+            }}
+            onClick={this.handleCopyLink}
+          >
             {this.currentSelectedMetricList.length === 1 && (
               <span>
                 {this.$t('指标：')}

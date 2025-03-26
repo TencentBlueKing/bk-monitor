@@ -140,8 +140,16 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
     }
     this.groupExpandMap = Object.freeze(latestGroupFlodMap);
   }
-  expandAll() {
-    this.groupExpandMap = {};
+  expandAll(flag: boolean) {
+    if (flag) {
+      const latestGroupFlodMap = { ...this.groupExpandMap };
+      for (const item of this.renderMetricGroupList) {
+        latestGroupFlodMap[item.name] = true;
+      }
+      this.groupExpandMap = Object.freeze(latestGroupFlodMap);
+    } else {
+      this.groupExpandMap = {};
+    }
   }
 
   triggerChange() {

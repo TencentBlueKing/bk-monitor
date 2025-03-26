@@ -106,11 +106,11 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
       return;
     }
 
-    Object.keys(this.params).forEach(key => {
+    for (const key of Object.keys(this.params)) {
       if (this.dimenstionParams[key]) {
         this.params[key] = Object.freeze(this.dimenstionParams[key]);
       }
-    });
+    }
   }
 
   triggerChange() {
@@ -122,20 +122,21 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   calcLableWidth() {
     const resizeObserver = new ResizeObserver(() => {
       const rootElLeft = this.rootRef.getBoundingClientRect().left;
-      const labelElList = Array.from(this.rootRef.querySelectorAll('[role="param-label"]')) as HTMLElement[];
+      const labelElList = Array.from(this.rootRef.querySelectorAll('[data-role="param-label"]')) as HTMLElement[];
       let maxWidth = 0;
       const fitLeftEl: HTMLElement[] = [];
-      labelElList.forEach(itemEl => {
+
+      for (const itemEl of labelElList) {
         if (itemEl.getBoundingClientRect().left - 10 < rootElLeft) {
           maxWidth = Math.max(maxWidth, itemEl.querySelector('div').getBoundingClientRect().width);
           fitLeftEl.push(itemEl);
         } else {
           itemEl.style.width = 'auto';
         }
-      });
-      fitLeftEl.forEach(item => {
+      }
+      for (const item of fitLeftEl) {
         item.style.width = `${maxWidth + 30}px`;
-      });
+      }
     });
     resizeObserver.observe(this.rootRef);
     this.$once('hook:beforeDestroy', () => {

@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
-import type { IMetrics } from './edit-panel';
+import type { IMetrics } from './index';
 
 import './panel-key-select.scss';
 
@@ -42,13 +42,15 @@ interface IEmit {
 }
 
 @Component
-export default class KeySelect extends tsc<IProps, IEmit> {
+export default class PanelKeySelect extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
   @Prop({ type: String, default: '' }) readonly value: IProps['value'];
 
   @Ref('rootRef') rootRef: HTMLDivElement;
-  @Ref('wrapperRef') wrapperRef: HTMLInputElement;
+  @Ref('wrapperRef') wrapperRef: HTMLDivElement;
+  @Ref('inputRef') inputRef: any;
 
+  isFocused = false;
   activeIndex = -1;
   filterKey = '';
   renderMetricsList: Readonly<IProps['metricsList']> = [];
@@ -59,10 +61,19 @@ export default class KeySelect extends tsc<IProps, IEmit> {
     return _.every(this.renderMetricsList, item => item.dimensions.length < 1);
   }
 
-  @Watch('metricsList')
+  @Watch('metricsList', { immediate: true })
   metricsListChange() {
     this.filterKey = '';
     this.renderMetricsList = Object.freeze(this.metricsList);
+  }
+
+  handleInputFocus() {
+    this.activeIndex = -1;
+    this.isFocused = true;
+  }
+
+  handleInputBlur() {
+    this.isFocused = false;
   }
 
   handleChange(value: string) {
@@ -71,9 +82,10 @@ export default class KeySelect extends tsc<IProps, IEmit> {
 
   handleMouseleave() {
     setTimeout(() => {
-      this.wrapperRef.querySelectorAll('.is-hover').forEach(ele => {
+      const eleList = Array.from(this.wrapperRef.querySelectorAll('.is-hover'));
+      for (const ele of eleList) {
         ele.classList.remove('is-hover');
-      });
+      }
     }, 100);
   }
 
@@ -92,13 +104,13 @@ export default class KeySelect extends tsc<IProps, IEmit> {
 
   mounted() {
     const handleKeydown = _.throttle((event: KeyboardEvent) => {
-      if (!this.rootRef || this.value) {
+      if (!this.rootRef || (this.value && !this.isFocused)) {
         return;
       }
 
       this.activeIndex = -1;
 
-      const resultItemElList = this.rootRef.querySelectorAll('.key-item');
+      const resultItemElList = Array.from(this.rootRef.querySelectorAll('.key-item'));
       if (resultItemElList.length < 1) {
         return;
       }
@@ -129,7 +141,9 @@ export default class KeySelect extends tsc<IProps, IEmit> {
       }
 
       this.activeIndex = nextIndex;
-      resultItemElList.forEach(ele => ele.classList.remove('is-hover'));
+      for (const ele of resultItemElList) {
+        ele.classList.remove('is-hover');
+      }
       if (nextIndex > -1) {
         resultItemElList[nextIndex].classList.add('is-hover');
       }
@@ -138,12 +152,12 @@ export default class KeySelect extends tsc<IProps, IEmit> {
       const wraperHeight = this.rootRef.getBoundingClientRect().height;
 
       setTimeout(() => {
-        const activeOffsetTop = (this.rootRef!.querySelector('.is-hover') as HTMLElement).offsetTop;
+        const activeOffsetTop = (this.rootRef?.querySelector('.is-hover') as HTMLElement).offsetTop;
 
         if (activeOffsetTop + 32 > wraperHeight) {
-          this.wrapperRef!.scrollTop = activeOffsetTop - wraperHeight + 64;
+          this.wrapperRef.scrollTop = activeOffsetTop - wraperHeight + 64;
         } else if (activeOffsetTop <= 42) {
-          this.wrapperRef!.scrollTop = 0;
+          this.wrapperRef.scrollTop = 0;
         }
       });
     }, 30);
@@ -151,33 +165,44 @@ export default class KeySelect extends tsc<IProps, IEmit> {
     const handleMousemove = _.throttle((event: Event) => {
       const target = event.target as HTMLElement;
       if (target.classList.contains('key-item')) {
-        const resultItemElList = this.rootRef!.querySelectorAll('.key-item');
-        resultItemElList.forEach(ele => ele.classList.remove('is-hover'));
+        const resultItemElList = Array.from(this.rootRef.querySelectorAll('.key-item'));
+        for (const ele of resultItemElList) {
+          ele.classList.remove('is-hover');
+        }
         target.classList.add('is-hover');
         this.activeIndex = _.findIndex(resultItemElList, ele => ele === target);
       }
     }, 100);
 
     document.body.addEventListener('keydown', handleKeydown);
-    this.rootRef!.addEventListener('mousemove', handleMousemove);
+    this.rootRef?.addEventListener('mousemove', handleMousemove);
 
     this.$once('hook:beforeDestroy', () => {
       document.body.removeEventListener('keydown', handleKeydown);
-      this.rootRef!.removeEventListener('mousemove', handleMousemove);
+      this.rootRef?.removeEventListener('mousemove', handleMousemove);
     });
+    setTimeout(() => {
+      this.inputRef.focus();
+    }, 100);
   }
 
   render() {
     return (
       <div
         ref='rootRef'
-        class='edit-panel-key-select'
+        class={{
+          'edit-panel-key-select': true,
+          'is-single': this.metricsList.length < 2,
+        }}
       >
         <div style='padding: 4px 8px 0;'>
           <bk-input
+            ref='inputRef'
             v-model={this.filterKey}
             behavior='simplicity'
+            onBlur={this.handleInputBlur}
             onChange={this.handleFilter}
+            onFocus={this.handleInputFocus}
           />
         </div>
         <div

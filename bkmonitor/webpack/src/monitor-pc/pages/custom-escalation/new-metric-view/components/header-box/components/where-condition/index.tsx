@@ -31,8 +31,9 @@ import _ from 'lodash';
 import { Debounce } from 'monitor-common/utils';
 
 import RenderCommonList from './components/render-common-list/index';
-import { type IValue } from './components/render-result-list/components/edit-panel';
 import RenderResultList from './components/render-result-list/index';
+
+import type { IValue } from './components/render-result-list/components/edit-panel';
 
 import './index.scss';
 
@@ -144,7 +145,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   }
 
   created() {
-    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] === 'true' ? true : false;
+    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] === 'true';
   }
 
   render() {
@@ -152,7 +153,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
       <div class='bk-monitor-new-metric-view-where-condition'>
         <div
           class='filter-label'
-          role='param-label'
+          data-role='param-label'
         >
           <div>{this.$t('过滤条件')}</div>
         </div>
@@ -177,7 +178,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
             v-bk-tooltips={this.$t('展示/隐藏常用条件')}
             onClick={this.handleToggleCommonlyUsedList}
           >
-            <i class='icon-monitor icon-dimension-line' />
+            <i class='icon-monitor icon-a-configurationpeizhi' />
           </div>
         )}
       </div>

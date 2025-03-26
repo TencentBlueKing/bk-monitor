@@ -26,6 +26,7 @@
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import Dayjs from 'dayjs';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
@@ -67,12 +68,16 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     },
   ]);
 
-  isHiddePopover = true;
+  isPopoverShown = true;
   isCustom = false;
   customDate = '';
   tempCustomDate = ''; // 自定义日期编辑状态缓存值
   localValue: string[] = [];
   tempEditValue: string[] = []; // 偏移日期编辑状态缓存值
+
+  get timeRangTimestamp() {
+    return customEscalationViewStore.timeRangTimestamp;
+  }
 
   get resultList() {
     const valueMap = makeMap(this.localValue);
@@ -87,8 +92,47 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     const customDay = _.find(this.value, item => !constValueMap[item]);
     if (customDay) {
       this.isCustom = true;
-      this.customDate = Dayjs().subtract(parseInt(customDay), 'day').format('YYYY-MM-DD');
+      this.customDate = Dayjs().subtract(Number.parseInt(customDay), 'day').format('YYYY-MM-DD');
     }
+  }
+
+  disabledDateMethod(value: any) {
+    const [, endTime] = this.timeRangTimestamp;
+    if (Dayjs(value).isAfter(Dayjs.unix(endTime))) {
+      return true;
+    }
+    const tempValueMap = makeMap(this.tempEditValue);
+    if (tempValueMap['1h'] && Dayjs(value).isSame(Dayjs(), 'day')) {
+      return true;
+    }
+
+    const compareDay = (day: string) => {
+      return Dayjs(value).isSame(Dayjs().subtract(Number.parseInt(day), 'day'), 'day');
+    };
+
+    if (tempValueMap['1d'] && compareDay('1d')) {
+      return true;
+    }
+    if (tempValueMap['7d'] && compareDay('7d')) {
+      return true;
+    }
+    if (tempValueMap['30d'] && compareDay('30d')) {
+      return true;
+    }
+    return false;
+  }
+
+  calcDateRang(offset: string) {
+    const [startTime, endTime] = this.timeRangTimestamp;
+    const format = (value: Dayjs.Dayjs) => value.format('YYYY-MM-DD HH:mm:ss');
+    if (offset === '1h') {
+      return `${format(Dayjs.unix(startTime).subtract(1, 'hour'))} ~ ${format(Dayjs.unix(endTime).subtract(1, 'hour'))}`;
+    }
+    if (['1d', '7d', '30d'].includes(offset)) {
+      const dayOffset = Number.parseInt(offset);
+      return `${format(Dayjs.unix(startTime).subtract(dayOffset, 'day'))} ~ ${format(Dayjs.unix(endTime).subtract(dayOffset, 'day'))}`;
+    }
+    return '';
   }
 
   triggerChange() {
@@ -99,25 +143,8 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     this.$emit('change', result);
   }
 
-  disabledDateMethod(value: any) {
-    const tempValueMap = makeMap(this.tempEditValue);
-    if (tempValueMap['1h'] && Dayjs(value).isSame(Dayjs(), 'day')) {
-      return true;
-    }
-    if (tempValueMap['1d'] && Dayjs(value).isSame(Dayjs().subtract(1, 'day'), 'day')) {
-      return true;
-    }
-    if (tempValueMap['7d'] && Dayjs(value).isSame(Dayjs().subtract(7, 'day'), 'day')) {
-      return true;
-    }
-    if (tempValueMap['30d'] && Dayjs(value).isSame(Dayjs().subtract(30, 'day'), 'day')) {
-      return true;
-    }
-    return Dayjs(value).isAfter(Dayjs());
-  }
-
   handleHideEdit(event: Event) {
-    if (this.isHiddePopover) {
+    if (!this.isPopoverShown) {
       return;
     }
     if (
@@ -134,13 +161,13 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   }
 
   handleShowEdit() {
-    this.isHiddePopover = false;
+    this.isPopoverShown = true;
     this.tempEditValue = [...this.localValue];
     this.tempCustomDate = this.customDate;
   }
 
   handleSubmitEdit() {
-    this.isHiddePopover = true;
+    this.isPopoverShown = false;
     this.localValue = [...this.tempEditValue];
     this.customDate = this.tempCustomDate;
     this.triggerChange();
@@ -149,12 +176,16 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   handleRemove(id: string) {
     this.localValue = _.filter(this.localValue, item => item !== id);
     this.triggerChange();
+    if (this.localValue.length < 1) {
+      this.popoverRef.showHandler();
+    }
   }
 
   handleRemoveCustom() {
     this.isCustom = false;
     this.customDate = '';
     this.triggerChange();
+    this.popoverRef.showHandler();
   }
 
   handleCustomDateChange(day: string) {
@@ -225,18 +256,25 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             class='wrapper'
             slot='content'
           >
-            <bk-checkbox-group v-model={this.tempEditValue}>
-              {this.offsetList.map(offsetItem => (
-                <div
-                  key={offsetItem.id}
-                  class='time-item'
-                >
-                  <bk-checkbox value={offsetItem.id}>
-                    <div>{offsetItem.name}</div>
-                  </bk-checkbox>
-                </div>
-              ))}
-            </bk-checkbox-group>
+            {this.isPopoverShown && (
+              <bk-checkbox-group v-model={this.tempEditValue}>
+                {this.offsetList.map(offsetItem => (
+                  <div
+                    key={offsetItem.id}
+                    class='time-item'
+                  >
+                    <bk-checkbox value={offsetItem.id}>
+                      <div
+                        class='time-description'
+                        v-bk-tooltips={this.calcDateRang(offsetItem.id)}
+                      >
+                        {offsetItem.name}
+                      </div>
+                    </bk-checkbox>
+                  </div>
+                ))}
+              </bk-checkbox-group>
+            )}
             <div class='time-item'>
               <bk-checkbox v-model={this.isCustom}>{this.$t('自定义')}</bk-checkbox>
               {this.isCustom && (

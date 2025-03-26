@@ -47,6 +47,17 @@ export interface IMetrics {
   }[];
 }
 
+export const methodMap = {
+  eq: '=',
+  gt: '>',
+  gte: '>=',
+  lt: '<',
+  lte: '<=',
+  neq: '!=',
+  reg: 'regex',
+  nreg: 'nregex',
+};
+
 interface IProps {
   value?: IValue;
   metricsList: IMetrics[];
@@ -63,6 +74,8 @@ const genDefaultVallue = (payload: Partial<IProps['value']> = {}) => ({
   condition: payload.condition || 'and',
 });
 
+const isMacOs = /Mac OS X ([\d_]+)/.test(navigator.userAgent);
+
 let triggerHandler: HTMLElement;
 let instance: any;
 
@@ -71,22 +84,25 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: genDefaultVallue }) readonly value: IProps['value'];
   @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
 
-  @Ref('rootRef') rootRef: HTMLDivElement;
   @Ref('popoverRef') popoverRef: HTMLDivElement;
 
   currentKey = '';
   localValue: IProps['value'] = genDefaultVallue();
+  isShown = false;
+
+  get isSubmitDisabled() {
+    return this.localValue.value.length < 1;
+  }
 
   // 实例方法，外部通过实例调用
   show(handlerEl: HTMLElement) {
     if (instance) {
       if (triggerHandler === handlerEl) {
         return;
-      } else {
-        instance.hide();
-        instance.destroy();
-        instance = undefined;
       }
+      instance.hide();
+      instance.destroy();
+      instance = undefined;
     }
 
     triggerHandler = handlerEl;
@@ -103,12 +119,16 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
         zIndex: 1000,
         distance: 16,
         trigger: 'manual',
-        hideOnClick: false,
+        hideOnClick: true,
+        onShow: () => {
+          this.isShown = true;
+        },
         onHidden: () => {
           if (instance) {
             instance.destroy();
             instance = undefined;
           }
+          this.isShown = false;
         },
       });
       this.localValue = genDefaultVallue(this.value);
@@ -159,13 +179,16 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
   }
 
   handleQuickOperation(event: KeyboardEvent) {
-    if (!instance) {
+    if (!instance || this.isSubmitDisabled) {
       return;
     }
-    if (event.ctrlKey && event.code === 'Enter') {
-      this.handleConfirm();
-      return;
+    if (event.code === 'Enter') {
+      if ((isMacOs && event.metaKey) || (!isMacOs && event.ctrlKey)) {
+        this.handleConfirm();
+        return;
+      }
     }
+
     if (event.code === 'Escape') {
       this.handleCancel();
     }
@@ -193,27 +216,29 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
           ref='popoverRef'
           class='filter-conditions-value-edit-panel'
         >
-          <div class='layout-wrapper'>
-            <div class='layout-left'>
-              <KeySelect
-                metricsList={this.metricsList}
-                value={this.localValue.key}
-                onChange={this.handleKeyChange}
-              />
+          {this.isShown && (
+            <div class='layout-wrapper'>
+              <div class='layout-left'>
+                <KeySelect
+                  metricsList={this.metricsList}
+                  value={this.localValue.key}
+                  onChange={this.handleKeyChange}
+                />
+              </div>
+              <div
+                key={this.localValue.key}
+                class='layout-right'
+              >
+                <ValueSelect
+                  keyName={this.localValue.key}
+                  method={this.localValue.method}
+                  value={this.localValue.value}
+                  onMethondChange={this.handleMethodChange}
+                  onValueChange={this.handleValueChange}
+                />
+              </div>
             </div>
-            <div
-              key={this.localValue.key}
-              class='layout-right'
-            >
-              <ValueSelect
-                keyName={this.localValue.key}
-                method={this.localValue.method}
-                value={this.localValue.value}
-                onMethondChange={this.handleMethodChange}
-                onValueChange={this.handleValueChange}
-              />
-            </div>
-          </div>
+          )}
           <div class='layout-footer'>
             <div class='desc-box'>
               <div class='desc-tag'>
@@ -233,15 +258,16 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
               {this.$t('收起查询')}
             </div>
             <div class='desc-box'>
-              <div class='desc-tag'>Ctrl + Enter</div>
+              <div class='desc-tag'> {isMacOs ? 'Cmd + Enter' : 'Ctrl + Enter'}</div>
               {this.$t('提交查询')}
             </div>
             <bk-button
               style='margin-left: auto'
+              disabled={this.isSubmitDisabled}
               theme='primary'
               onClick={this.handleConfirm}
             >
-              {this.$t('确定 Ctrl + Enter')}
+              {isMacOs ? this.$t('确定 Cmd + Enter') : this.$t('确定 Ctrl + Enter')}
             </bk-button>
             <bk-button
               style='margin-left: 8px'
