@@ -189,6 +189,7 @@ class GetCustomTsGraphConfig(Resource):
                     query_configs = serializers.ListField(label="查询配置")
                     function = serializers.DictField(label="图表函数", allow_null=True, default={})
                     metric = serializers.DictField(label="指标", allow_null=True, default={})
+                    unit = serializers.CharField(label="单位", allow_blank=True, default="")
 
                 targets = TargetSerializer(label="目标", many=True)
 
