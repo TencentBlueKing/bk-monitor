@@ -78,6 +78,12 @@ export declare namespace IFavList {
     deleteFav?: number;
     selectFav?: any;
   }
+
+  interface favTableList extends favList {
+    editName?: boolean;
+    editGroup?: boolean;
+    groupName?: string;
+  }
 }
 
 // 指标检索类型

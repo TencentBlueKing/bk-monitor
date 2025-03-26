@@ -172,16 +172,17 @@ export default class EventExplore extends tsc<
     return `${this.source}_${this.commonParams.app_name}_${this.commonParams.service_name}_${RESIDENT_SETTING}`;
   }
 
+  formatTimeRange = [];
+
   /** 公共参数 */
   @ProvideReactive('commonParams')
   get commonParams() {
-    const formatTimeRange = handleTransformToTimestamp(this.timeRange);
     return {
       query_configs: [this.queryConfig],
       app_name: this.viewOptions?.filters?.app_name,
       service_name: this.viewOptions?.filters?.service_name,
-      start_time: formatTimeRange[0],
-      end_time: formatTimeRange[1],
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
     };
   }
 
@@ -236,6 +237,11 @@ export default class EventExplore extends tsc<
     }, []);
   }
 
+  @Watch('refreshImmediate')
+  handleRefleshImmediateChange() {
+    this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
+  }
+
   @Watch('dataId')
   handleDataIdChange() {
     this.getViewConfig();
@@ -271,6 +277,7 @@ export default class EventExplore extends tsc<
 
   @Watch('timeRange')
   handleTimeRangeChange() {
+    this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     this.getViewConfig();
   }
 
@@ -321,7 +328,6 @@ export default class EventExplore extends tsc<
       return;
     }
     this.loading = true;
-    const formatTimeRange = handleTransformToTimestamp(this.timeRange);
 
     const data = await getEventViewConfig(
       {
@@ -334,8 +340,8 @@ export default class EventExplore extends tsc<
         ],
         app_name: this.viewOptions?.filters?.app_name,
         service_name: this.viewOptions?.filters?.service_name,
-        start_time: formatTimeRange[0],
-        end_time: formatTimeRange[1],
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
         ...(this.eventSourceType.length && !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
           ? { sources: this.eventSourceType }
           : {}),
@@ -364,7 +370,6 @@ export default class EventExplore extends tsc<
   }
 
   async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
-    const formatTimeRange = handleTransformToTimestamp(this.timeRange);
     return getEventTopK(
       {
         limit: params?.limit || 5,
@@ -382,8 +387,8 @@ export default class EventExplore extends tsc<
         app_name: this.viewOptions?.filters?.app_name,
         service_name: this.viewOptions?.filters?.service_name,
         fields: params?.fields || [],
-        start_time: formatTimeRange[0],
-        end_time: formatTimeRange[1],
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
       },
       this.source
     )
