@@ -237,7 +237,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
-        format
+        format,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -1198,6 +1198,7 @@ const store = new Vuex.Store({
         end_time,
         addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
       };
+      console.log(2333);
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
@@ -1497,7 +1498,6 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
-
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1572,7 +1572,6 @@ const store = new Vuex.Store({
           const { field, operator, value } = item;
           const targetField = getTargetField(field);
 
-
           let newSearchValue = null;
           if (searchMode === 'ui') {
             if (targetField?.is_virtual_obj_node) {
@@ -1585,7 +1584,7 @@ const store = new Vuex.Store({
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
               newSearchValue = `\"${value[0]}\"`;
-            } else{
+            } else {
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }
@@ -1707,7 +1706,7 @@ const store = new Vuex.Store({
           ...state.retrieve.catchFieldCustomConfig,
           ...userConfig,
         };
-        delete indexSetConfig.isUpdate
+        delete indexSetConfig.isUpdate;
         const queryParams = {
           index_set_id: state.indexId,
           index_set_type: getters.isUnionSearch ? 'union' : 'single',
