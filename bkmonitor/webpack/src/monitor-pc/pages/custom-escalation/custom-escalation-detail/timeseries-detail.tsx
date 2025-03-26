@@ -34,7 +34,6 @@ import './timeseries-detail.scss';
 
 @Component
 export default class TimeseriesDetailNew extends tsc<any, any> {
-  // @Prop({ default: () => [] }) metricTable;
   @Prop({ default: () => [] }) unitList;
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: () => [] }) customGroups;
@@ -69,7 +68,6 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
         <MetricTabDetail
           customGroups={this.customGroups}
           metricNum={this.metricNum}
-          // metricTable={this.metricTable}
           {...{
             attrs: this.$attrs,
             on: {

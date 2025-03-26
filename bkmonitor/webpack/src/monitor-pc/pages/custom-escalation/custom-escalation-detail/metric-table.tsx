@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
@@ -36,7 +36,6 @@ import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
-import GroupSearchMultiple from './group-search-multiple';
 import { fuzzyMatch } from './metric-table-slide';
 
 import './metric-table.scss';
@@ -73,9 +72,6 @@ interface IMetricDetail {
   description: string;
   interval: number;
 }
-interface GroupLabel {
-  name: string;
-}
 
 interface IListItem {
   id: string;
@@ -91,7 +87,7 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) groupSelectList: IListItem[];
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => [], type: Array }) dimensionTable;
-  @Prop({ default: () => { } }) allDataPreview;
+  @Prop({ default: () => {} }) allDataPreview;
   @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
@@ -135,7 +131,8 @@ export default class IndicatorTable extends tsc<any, any> {
 
   fieldSettingData: any = {};
   showDetail = false;
-  activeIndex = -1;
+  groupActiveIndex = -1;
+  detailActiveIndex = -1;
   tableInstance = {
     data: [],
     page: 1,
@@ -151,6 +148,12 @@ export default class IndicatorTable extends tsc<any, any> {
   };
   editingIndex = -1;
   search = '';
+
+  emptyType = 'empty'; // 空状态
+
+  get computedWidth() {
+    return window.innerWidth < 1920 ? 388 : 456;
+  }
 
   get selectionLeng() {
     const selectionList = this.metricTableVal.filter(item => item.selection);
@@ -171,8 +174,6 @@ export default class IndicatorTable extends tsc<any, any> {
   get groups() {
     return Array.from(this.groupsMap.keys());
   }
-
-  emptyType = 'empty'; // 空状态
 
   created() {
     this.fieldSettingData = {
@@ -195,7 +196,7 @@ export default class IndicatorTable extends tsc<any, any> {
         id: 'group',
       },
       status: {
-        checked: true,
+        checked: false, // TODO: 暂不支持配置
         disable: false,
         name: this.$t('状态'),
         id: 'status',
@@ -253,7 +254,7 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   showMetricDetail(props) {
-    this.activeIndex = props.$index;
+    this.detailActiveIndex = props.$index;
     this.showDetail = true;
   }
 
@@ -266,6 +267,7 @@ export default class IndicatorTable extends tsc<any, any> {
   handleGroupSelectToggle(isShow, row) {
     // 处理切换逻辑
     if (isShow) return;
+    this.groupActiveIndex = -1;
     this.$emit(
       'handleSelectToggle',
       row.labels.map(label => label.name),
@@ -311,34 +313,28 @@ export default class IndicatorTable extends tsc<any, any> {
     );
   }
 
-  getGroupCpm(row, index, showFoot = true) {
+  getGroupCpm(row, index) {
     return (
-      <GroupSearchMultiple
-        groups-map={this.groupsMap}
-        list={this.groupSelectList}
-        metric-name={row.name}
-        value={row.labels.map((item: GroupLabel) => item.name)}
+      <bk-select
+        autoHeight={false}
+        clearable={false}
+        value={row.labels?.map(item => item.name)}
+        displayTag
+        multiple
+        searchable
         onChange={(v: string[]) => this.handleSelectGroup(v, index, row)}
         onToggle={v => this.handleGroupSelectToggle(v, row)}
       >
-        {row.labels?.length ? (
-          <div class='table-group-tags'>
-            {row.labels.map(item => (
-              <span
-                key={item.name}
-                class='table-group-tag'
-                onMouseenter={e => this.handleGroupTagTip(e, item.name)}
-                onMouseleave={this.handleRemoveGroupTip}
-              >
-                {item.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <div class='table-group-select'>{this.$t('未分组')}</div>
-        )}
-
-        {showFoot && (
+        {this.groupSelectList.map(item => (
+          <bk-option
+            id={item.name}
+            key={item.name}
+            name={item.name}
+          >
+            {item.name}
+          </bk-option>
+        ))}
+        {
           <div
             class='edit-group-manage'
             slot='extension'
@@ -347,8 +343,8 @@ export default class IndicatorTable extends tsc<any, any> {
             <i class='icon-monitor icon-jia' />
             <span>{this.$t('新建分组')}</span>
           </div>
-        )}
-      </GroupSearchMultiple>
+        }
+      </bk-select>
     );
   }
 
@@ -400,7 +396,7 @@ export default class IndicatorTable extends tsc<any, any> {
       ),
     };
     const groupSlot = {
-      /* 分组 */ default: ({ row, $index }) => this.getGroupCpm(row, $index),
+      /* 分组 */ default: ({ row, $index }) => <div class='table-group-box'>{this.getGroupCpm(row, $index)}</div>,
     };
     const statusSlot = {
       /* 状态 */ default: props => {
@@ -572,17 +568,24 @@ export default class IndicatorTable extends tsc<any, any> {
     return true;
   }
 
-  async updateCustomFields(k, v, metricName) {
-    await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
-      time_series_group_id: this.$route.params.id,
-      update_fields: [
-        {
-          type: 'metric',
-          [k]: v,
-          name: metricName,
-        },
-      ],
-    });
+  async updateCustomFields(k, v, metricName, showMsg = false) {
+    try {
+      await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
+        time_series_group_id: this.$route.params.id,
+        update_fields: [
+          {
+            type: 'metric',
+            [k]: v,
+            name: metricName,
+          },
+        ],
+      });
+      if (showMsg) {
+        this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      }
+    } catch (error) {
+      console.log('error', error);
+    }
   }
 
   /** 编辑名称 ↓ */
@@ -690,13 +693,13 @@ export default class IndicatorTable extends tsc<any, any> {
   /** 切换显示 */
   handleEditHidden(v, metricInfo) {
     metricInfo.hidden = !metricInfo.hidden;
-    this.updateCustomFields('hidden', !v, metricInfo.name);
+    this.updateCustomFields('hidden', !v, metricInfo.name, true);
   }
   /** 切换状态 */
   handleClickDisabled(metricInfo) {
     if (this.autoDiscover) return;
     metricInfo.disabled = !metricInfo.disabled;
-    this.updateCustomFields('disabled', metricInfo.disabled, metricInfo.name);
+    this.updateCustomFields('disabled', metricInfo.disabled, metricInfo.name, true);
   }
   getDetailCmp() {
     const renderInfoItem = (props: { label: string; value?: any }, readonly = false) => {
@@ -708,7 +711,7 @@ export default class IndicatorTable extends tsc<any, any> {
       );
     };
 
-    const metricData: IMetricDetail = this.metricTableVal[this.activeIndex] || {};
+    const metricData: IMetricDetail = this.metricTableVal[this.detailActiveIndex] || {};
     if (!metricData?.name) {
       this.showDetail = false;
       return;
@@ -745,10 +748,11 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
             <div class='info-item'>
               <span class='info-label'>{this.$t('分组')}：</span>
-              <div class='info-content group-list'>{this.getGroupCpm(metricData, this.activeIndex, false)}</div>
+              <div class='info-content group-list'>{this.getGroupCpm(metricData, this.detailActiveIndex, false)}</div>
             </div>
 
-            <div class='info-item'>
+            {/* TODO: 暂不支持配置 */}
+            {/* <div class='info-item'>
               <span class='info-label'>{this.$t('状态')}：</span>
               <div class='info-content'>
                 <span
@@ -762,7 +766,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   <span>{statusMap.get(Boolean(metricData?.disabled)).name}</span>
                 </span>
               </div>
-            </div>
+            </div> */}
 
             <div class='info-item'>
               <span class='info-label'>{this.$t('单位')}：</span>
@@ -953,7 +957,7 @@ export default class IndicatorTable extends tsc<any, any> {
               theme='primary'
               onClick={this.handleClickSlider}
             >
-              {this.$t('编辑')}
+              {this.$t('管理')}
             </bk-button>
             <bk-popover
               ext-cls='header-select-btn-popover'
@@ -1002,6 +1006,8 @@ export default class IndicatorTable extends tsc<any, any> {
             {this.showAutoDiscover && (
               <div class='list-header-button'>
                 <bk-switcher
+                  // TODO: 暂只支持开启，不支持关闭
+                  disabled={this.autoDiscover}
                   preCheck={this.handChangeSwitcher}
                   theme='primary'
                   value={this.autoDiscover}
@@ -1049,6 +1055,7 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
           )}
           <div
+            style={{ width: `${this.computedWidth}px` }}
             class='detail'
             v-show={this.showDetail}
           >
@@ -1056,6 +1063,7 @@ export default class IndicatorTable extends tsc<any, any> {
           </div>
         </div>
         <bk-dialog
+          ext-cls=''
           v-model={this.isShowDialog}
           headerPosition='left'
           title={this.$t('确认关闭？')}

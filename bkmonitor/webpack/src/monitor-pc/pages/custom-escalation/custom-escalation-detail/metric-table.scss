@@ -99,31 +99,45 @@ $border-color: #d9d9d9;
         .name {
           color: #3A84FF;
         }
-        .btn-content {
-          display: flex;
-          overflow: hidden;
-          padding: 4px 5px 6px;
-          &:hover {
-            background-color: #EAEBF0;
+        .table-group-box {
+          .bk-select {
+            border: none;
+            .icon-angle-down {
+              display: none;
+            }
           }
-          .table-group-tags {
-            display: flex;
-            align-items: center;
-            .table-group-tag {
-              height: 22px;
-              padding: 1px 8px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              white-space: nowrap;
-              margin-right: 8px;
-              font-size: 12px;
-              color: #4D4F56;
-              text-align: left;
-              line-height: 22px;
-              background: #FAFBFD;
-              border: 1px solid #DCDEE5;
-              border-radius: 2px;
+          &:has(.tippy-active) {
+            .bk-select {
+              border: 1px solid #3a84ff;
+            }
+          }
+          .bk-select-tag {
+            height: 24px;
+            display: inline-flex;
+            max-width: 140px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #4D4F56;
+            text-align: left;
+            line-height: 22px;
+            background: #FAFBFD;
+            border: 1px solid #DCDEE5;
+            border-radius: 2px;
+          }
+          .bk-select-overflow-tag {
+            background: #FAFBFD;
+            border: 1px solid #DCDEE5;
+            &.gray {
+              background: #f0f1f5;
+              border: 0px;
+            }
+
+            &.count {
+              width: 28px;
+              padding: 0;
+              line-height: 24px;
+              text-align: center;
             }
           }
         }
@@ -151,7 +165,7 @@ $border-color: #d9d9d9;
       .list-pagination {
         padding: 14px 16px;
         border: 1px solid #dfe0e5;
-        border-top: none;
+        margin-top: -1px;
         .page-button {
           border: none;
           background-color: #fff;
@@ -196,7 +210,6 @@ $border-color: #d9d9d9;
 
     }
     .detail {
-      width: 456px;
       border: 1px solid #DCDEE5;
       border-left: none;
       background: #F5F7FA;
@@ -270,6 +283,47 @@ $border-color: #d9d9d9;
                     line-height: 22px;
                   }
                 }
+                .bk-select {
+                  width: 100%;
+                  border: none;
+                  .icon-angle-down {
+                    display: none;
+                  }
+                }
+                &:has(.tippy-active) {
+                  .bk-select {
+                    border: 1px solid #3a84ff;
+                  }
+                }
+                .bk-select-tag {
+                  height: 24px;
+                  display: inline-flex;
+                  max-width: 140px;
+                  margin-right: 4px;
+                  margin-bottom: 4px;
+                  font-size: 12px;
+                  color: #4D4F56;
+                  text-align: left;
+                  line-height: 22px;
+                  background: #FAFBFD;
+                  border: 1px solid #DCDEE5;
+                  border-radius: 2px;
+                }
+                .bk-select-overflow-tag {
+                  background: #FAFBFD;
+                  border: 1px solid #DCDEE5;
+                  &.gray {
+                    background: #f0f1f5;
+                    border: 0px;
+                  }
+
+                  &.count {
+                    width: 28px;
+                    padding: 0;
+                    line-height: 24px;
+                    text-align: center;
+                  }
+                }
               }
               .btn-content {
                 display: flex;
@@ -287,7 +341,7 @@ $border-color: #d9d9d9;
                     align-items: center;
                     justify-content: center;
                     white-space: nowrap;
-                    margin-right: 8px;
+                    margin-right: 4px;
                     font-size: 12px;
                     color: #4D4F56;
                     text-align: left;
@@ -343,6 +397,8 @@ $border-color: #d9d9d9;
             }
             .dimension-content {
               width: 100%;
+              top: -5px;
+              left: -3px;
               background-color: #fff;
             }
           }

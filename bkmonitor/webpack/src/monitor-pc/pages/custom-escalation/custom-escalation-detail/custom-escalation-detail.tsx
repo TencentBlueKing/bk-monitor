@@ -179,6 +179,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     dataLabel: false,
   };
 
+
+  get computedWidth() {
+    return window.innerWidth < 2560 ? 960 : 1200;
+  }
+
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
   }
@@ -190,6 +195,10 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   //  指标数量
   get metricNum() {
     return this.metricData.filter(item => item.monitor_type === 'metric').length;
+  }
+
+  get metricNameList() {
+    return this.metricData.map(item => ({ name: item.name, description: item.description }));
   }
 
   //  维度数量
@@ -377,8 +386,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   }
 
   //  获取详情
-  async getDetailData() {
-    this.loading = true;
+  async getDetailData(needLoading = true) {
+    this.loading = needLoading;
     this.$store.commit('app/SET_NAV_TITLE', this.$t('加载中...'));
     const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
     let title = '';
@@ -1068,6 +1077,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       });
       this.updateCheckValue();
       this.getDetailData();
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
     } catch (error) {
       console.error(`Batch group ${groupName} update failed:`, error);
     }
@@ -1191,6 +1201,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       delete_fields: delArray,
     });
     this.getDetailData();
+    this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
   render() {
     return (
@@ -1231,7 +1242,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           </i18n>
         </bk-alert>
         <div class='custom-detail-page'>
-          <div class='custom-detail'>
+          <div
+            style={{ minWidth: `${this.computedWidth}px` }}
+            class='custom-detail'
+          >
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
@@ -1250,6 +1264,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   groupsMap={this.groupsMap}
                   metricGroupsMap={this.metricGroupsMap}
                   metricList={this.metricData}
+                  metricNameList={this.metricNameList}
                   metricNum={this.metricNum}
                   metricTable={this.metricTable}
                   nameList={this.groupNameList}
@@ -1257,6 +1272,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
                   onChangeGroup={this.changeGroupFilterList}
+                  onDimensionChange={() => {
+                    this.getDetailData(false);
+                  }}
                   onGroupDelByName={this.handleDelGroup}
                   onGroupListOrder={tab => (this.groupList = tab)}
                   onGroupSubmit={this.handleSubmitGroup}

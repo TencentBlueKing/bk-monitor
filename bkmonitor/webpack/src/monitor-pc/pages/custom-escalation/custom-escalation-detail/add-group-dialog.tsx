@@ -39,6 +39,7 @@ enum EPreviewFlag {
 interface IGroupInfo {
   name: string;
   rules: string;
+  manualList: string[];
 }
 interface IGroupConfig {
   name: string;
@@ -53,8 +54,9 @@ export default class AddGroupDialog extends tsc<any> {
   @Prop({ default: () => ({ name: '', rules: '' }), type: Object as PropType<IGroupInfo> }) groupInfo;
   @Prop({ default: () => [] }) nameList;
   @Prop({ default: () => [] }) metricList;
+  @Prop({ default: () => [] }) metricNameList;
   @Ref() groupRef;
-  localGroupInfo: IGroupInfo = { name: '', rules: '' };
+  localGroupInfo: IGroupInfo = { name: '', rules: '', manualList: [] };
 
   matchedMetrics = [];
 
@@ -160,16 +162,10 @@ export default class AddGroupDialog extends tsc<any> {
   handleSubmit() {
     const config: IGroupConfig = {
       name: this.localGroupInfo.name,
+      manual_list: this.localGroupInfo.manualList,
     };
     if (this.localGroupInfo.rules) {
       config.auto_rules = [this.localGroupInfo.rules];
-    }
-    if (
-      this.localGroupInfo.rules &&
-      this.matchedMetrics.length &&
-      this.previewBtnFlag === EPreviewFlag.Preview_Started
-    ) {
-      config.manual_list = this.matchedMetrics;
     }
     this.$emit('groupSubmit', config);
     this.clear();
@@ -186,6 +182,7 @@ export default class AddGroupDialog extends tsc<any> {
     this.localGroupInfo = {
       name: '',
       rules: '',
+      manualList: [],
     };
     this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
   }
@@ -279,6 +276,28 @@ export default class AddGroupDialog extends tsc<any> {
                   onChange={this.handleRulesChange}
                 />
                 <div class='tip-msg'>{this.$t('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</div>
+              </bk-form-item>
+            }
+            {
+              <bk-form-item
+                ext-cls='name'
+                label={this.$t('手动添加')}
+                property='manualList'
+              >
+                <bk-select
+                  v-model={this.localGroupInfo.manualList}
+                  displayTag
+                  multiple
+                  searchable
+                >
+                  {this.metricNameList.map(item => (
+                    <bk-option
+                      id={item.name}
+                      key={item.name}
+                      name={item.name}
+                    />
+                  ))}
+                </bk-select>
               </bk-form-item>
             }
           </bk-form>

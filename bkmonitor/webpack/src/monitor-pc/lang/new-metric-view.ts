@@ -110,9 +110,10 @@ export default {
   '展示/隐藏常用条件': 'Show/Hide Common Conditions',
   'UI 模式': 'UI Mode',
   语句模式: 'SQL Mode',
-    'After opening, you can quickly expand it in [Filter Conditions] of [Visualization]:',
   '关闭后，在可视化视图里，将被隐藏': 'After closing, it will be hidden in the visual view.',
   数据标签: 'Data Label',
   '自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名':
     'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
+  手动添加: 'Manually add',
+  '-': '-',
 };
