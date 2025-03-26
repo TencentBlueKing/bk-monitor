@@ -1,8 +1,16 @@
-.retrieve-tab {
-  margin: 8px 8px 0 0;
+.retrieve2-tab {
+  padding-top: 8px;
+  margin: 0px 8px 0 0;
   background: #f0f1f5;
   border-radius: 2px 2px 0 0;
   box-shadow: 0 2px 4px 0 #1919290d;
+  position: relative;
+
+  span {
+    &:not(:last-child) {
+      margin-right: 8px;
+    }
+  }
 
   .btn-alert-policy {
     position: absolute;
@@ -18,32 +26,21 @@
   .retrieve-panel {
     position: relative;
     display: inline-block;
-    height: 42px;
-    padding: 0 14px;
-    font-size: 14px;
-    line-height: 42px;
-    color: #63656e;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 32px;
+    color: #313238;
     text-align: center;
     cursor: pointer;
-    border-top-left-radius: 5px; /* 设置左上角圆角 */
-    border-top-right-radius: 5px; /* 设置右上角圆角 */
+    background-color: #dcdee5;
+    border-top-left-radius: 4px; /* 设置左上角圆角 */
+    border-top-right-radius: 4px; /* 设置右上角圆角 */
 
     &.active {
       font-weight: 700;
       color: #3a84ff;
       background: #ffffff;
-    }
-
-    &.border-left {
-      &::after {
-        position: absolute; /* 绝对定位 */
-        top: calc(50% - 10px);
-        right: 100%;
-        width: 1px; /* 边框宽度 */
-        height: 20px; /* 边框高度，可以根据需要调整 */
-        content: ''; /* 伪元素内容为空 */
-        background-color: #c9cbd0; /* 边框颜色 */
-      }
     }
   }
 }

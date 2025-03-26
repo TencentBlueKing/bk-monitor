@@ -68,6 +68,10 @@
         background-color: #f4f6fa;
       }
     }
+
+    &.is-hover {
+      background-color: #f4f6fa;
+    }
   }
 
   /* 字段 icon 样式 */
@@ -78,7 +82,8 @@
     }
 
     &:hover,
-    &.active {
+    &.active,
+    &.is-hover {
       .item-type-icon {
         color: #010101;
         background-color: #fdedcc;
@@ -107,8 +112,8 @@
   .continue-list-item.list-item {
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
-      color: #7800a6;
-      background-color: #f2e6f6;
+      color: #7C609E;
+      background-color: #F3F1F8;
     }
 
     &:hover,
@@ -124,7 +129,7 @@
   .colon-list-item.list-item {
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
-      color: #006bb4;
+      color: #016BB4;
       background-color: #e6f0f8;
     }
 

@@ -42,8 +42,8 @@
   import useScroll from '../../hooks/use-scroll';
   import $http from '@/api';
 
-  import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
   import useResizeObserve from '../../hooks/use-resize-observe';
+  import RetrieveHelper from '../retrieve-helper';
   import useRetrieveHook from './use-retrieve-hook';
 
   const store = useStore();
@@ -53,6 +53,9 @@
   const showFavorites = ref(false);
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
+
+  RetrieveHelper.setScrollSelector();
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -261,12 +264,12 @@
 </script>
 <template>
   <div
-    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
     :style="stickyStyle"
+    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
   >
     <div class="sub-head">
       <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
+        :style="{ width: `${showFavorites ? favoriteWidth : 42}px` }"
         class="box-favorites"
         @click="handleFavoritesClick"
       >
@@ -288,30 +291,36 @@
           ></span>
         </div>
         <template v-else>
-          <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
+          <div class="collection-box">
+            <span
+              style="font-size: 18px"
+              :class="['bklog-icon bklog-shoucangjia', { active: showFavorites }]"
+            ></span>
+          </div>
         </template>
       </div>
       <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px` }"
         show-favorites
       />
     </div>
     <div
-      :class="['retrieve-v2-body']"
       :style="contentStyle"
+      :class="['retrieve-v2-body']"
     >
       <CollectFavorites
         ref="favoriteRef"
+        :style="favoritesStlye"
         class="collect-favorites"
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-        :style="favoritesStlye"
         @update-active-favorite="updateActiveFavorite"
       ></CollectFavorites>
       <div class="retrieve-v2-content">
         <SearchBar
           :active-favorite="activeFavorite"
+          :show-favorites="showFavorites"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         >
@@ -332,4 +341,16 @@
 </style>
 <style lang="scss">
   @import './segment-pop.scss';
+
+  .retrieve-v2-index {
+    .collection-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+  }
 </style>

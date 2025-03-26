@@ -69,7 +69,7 @@
   word-break: break-all;
 
   .segment-content {
-    line-height: 20px;
+    line-height: 22px;
     white-space: normal;
   }
 
@@ -80,6 +80,7 @@
 
   .valid-text {
     cursor: pointer;
+    padding: 2px;
 
     &.focus-text,
     &:hover {

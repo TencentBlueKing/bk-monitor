@@ -13,12 +13,12 @@
     },
   });
 
-  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change']);
+  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change']);
   const handleHeightChange = height => {
     emit('height-change', height);
   };
 
-  const placeholderText = 'log: error AND "name=bklog"';
+  const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
 
@@ -59,19 +59,22 @@
       offset: [0, 15],
     },
     onShowFn: instance => {
+      emit('popup-change', { isShow: true });
+
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {
         instance.popper?.style.setProperty('width', '100%');
+        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
         return true;
       }
-
       return false;
     },
     onHiddenFn: () => {
+      emit('popup-change', { isShow: false });
       if (isDocumentMousedown.value) {
         setIsDocumentMousedown(false);
         return false;
       }
-
+      refSqlQueryOption.value?.$el?.querySelector('.list-item ')?.classList.remove('is-hover');
       refSqlQueryOption.value?.beforeHideFn?.();
       return true;
     },
@@ -198,6 +201,7 @@
       position: absolute;
       top: 50%;
       left: 14px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       font-size: 12px;
       line-height: 30px;
       color: #c4c6cc;
@@ -224,6 +228,16 @@
 
           .cm-line {
             width: fit-content;
+            color: #b17313;
+
+            .ͼb {
+              color: #7c609e;
+            }
+
+            .ͼi,
+            .ͼf {
+              color: #02776e;
+            }
           }
 
           .cm-gutters {

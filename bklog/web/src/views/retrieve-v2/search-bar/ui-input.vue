@@ -2,8 +2,10 @@
   import { ref, computed, set } from 'vue';
 
   import { getOperatorKey, formatDateTimeField } from '@/common/util';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -15,8 +17,6 @@
   import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import useFieldNameHook from '@/hooks/use-field-name';
-  import { cloneDeep } from 'lodash';
   const props = defineProps({
     value: {
       type: Array,
@@ -25,7 +25,7 @@
     },
   });
 
-  const emit = defineEmits(['input', 'change', 'height-change']);
+  const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
 
@@ -39,9 +39,17 @@
     if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
-
+    item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
     return { disabled: false, ...(item ?? {}) };
+  };
+
+  /**
+   * tag数量溢出是否展示所有
+   * @param {*} item
+   */
+  const handleShowAll = item => {
+    item.showAll = !item.showAll;
   };
 
   const handleHeightChange = height => {
@@ -133,8 +141,11 @@
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
+      emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
+      emit('popup-change', { isShow: false });
+
       if (isDocumentMousedown.value) {
         setIsDocumentMousedown(false);
         return false;
@@ -312,11 +323,11 @@
   };
 
   const handleFullTextInputBlur = e => {
-    if (!isInstanceShown()) {
-      handleInputBlur(e);
-      inputValueLength = 0;
-      queryItem.value = '';
-    }
+    // if (!isInstanceShown()) {
+    handleInputBlur(e);
+    inputValueLength = 0;
+    queryItem.value = '';
+    // }
   };
 
   const handleInputValueChange = e => {
@@ -361,34 +372,71 @@
 
   //   return modelValue.value;
   // })
-
-
 </script>
 
 <template>
-  <ul ref="refUlRoot" class="search-items">
-    <li class="search-item btn-add" @click.stop="handleAddItem">
+  <ul
+    ref="refUlRoot"
+    class="search-items"
+  >
+    <li
+      class="search-item btn-add"
+      @click.stop="handleAddItem"
+    >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
-    <li v-for="(item, index) in modelValue"
+    <li
+      v-for="(item, index) in modelValue"
       :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
-      :key="`${item.field}-${index}`" @click.stop="e => handleTagItemClick(e, item, index)">
+      :key="`${item.field}-${index}`"
+      @click.stop="e => handleTagItemClick(e, item, index)"
+    >
       <div class="tag-row match-name">
-        {{ getMatchName(item.field) }}
-        <span class="symbol" :data-operator="item.operator">{{ getOperatorLabel(item) }}</span>
+        <span class="match-name-label">{{ getMatchName(item.field) }}</span>
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+          >{{ getOperatorLabel(item) }}</span
+        >
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
-          <span class="match-value-text">
-            <IPSelector v-model="item.value[0]" :bk-biz-id="bkBizId" :is-show.sync="showIpSelector"
-              @change="handleIPChange"></IPSelector>
+          <span :class="['match-value-text', { 'is-show-tooltip': item.value.length > 20 }]">
+            <IPSelector
+              v-model="item.value[0]"
+              :bk-biz-id="bkBizId"
+              :is-show.sync="showIpSelector"
+              @change="handleIPChange"
+            ></IPSelector>
           </span>
         </template>
         <template v-else-if="Array.isArray(item.value)">
-          <span v-for="(child, childInex) in item.value" :key="childInex">
-            <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
-            <span v-if="childInex < item.value.length - 1" class="match-value-relation">{{ item.relation }}</span>
+          <span
+            v-for="(child, childIndex) in item.value"
+            :key="childIndex"
+          >
+            <template v-if="item.showAll ? true : childIndex < 3">
+              <span
+                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
+              >
+                {{ formatDateTimeField(child, item.field_type) }}
+              </span>
+              <span
+                v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
+                class="match-value-relation"
+              >
+                {{ item.relation }}
+              </span>
+            </template>
+          </span>
+          <span
+            v-if="item.value.length > 3 && !item.showAll"
+            style="color: #f59500"
+            @click.stop="handleShowAll(item)"
+          >
+            +{{ item.value.length - 3 }}
           </span>
         </template>
         <template v-else>
@@ -396,21 +444,41 @@
         </template>
       </div>
       <div class="tag-options">
-        <span :class="[
-          'bklog-icon',
-          { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
-        ]" @click.stop="e => handleDisabledTagItem(item, e)"></span>
-        <span class="bk-icon icon-close" @click.stop="() => handleDeleteTagItem(index, item)"></span>
+        <span
+          :class="[
+            'bklog-icon',
+            { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
+          ]"
+          @click.stop="e => handleDisabledTagItem(item, e)"
+        />
+        <span
+          class="bklog-icon bklog-shanchu tag-options-close"
+          @click.stop="handleDeleteTagItem(index, item)"
+        />
       </div>
     </li>
+    <li class="search-item-focus hidden-pointer"></li>
     <li class="search-item is-focus-input">
-      <input ref="refSearchInput" class="tag-option-focus-input" type="text" @blur="handleFullTextInputBlur"
-        @focus.stop="handleFocusInput" @input="handleInputValueChange" @keyup.delete="handleDeleteItem"
-        @keyup.enter="handleInputValueEnter" />
+      <input
+        ref="refSearchInput"
+        class="tag-option-focus-input"
+        :placeholder="$t('请输入关键词...')"
+        type="text"
+        @blur="handleFullTextInputBlur"
+        @focus.stop="handleFocusInput"
+        @input="handleInputValueChange"
+        @keyup.delete="handleDeleteItem"
+        @keyup.enter="handleInputValueEnter"
+      />
     </li>
     <div style="display: none">
-      <UiInputOptions ref="refPopInstance" :is-input-focus="isInputFocus" :value="queryItem" @cancel="handleCancelClick"
-        @save="handleGlobalSaveQueryClick"></UiInputOptions>
+      <UiInputOptions
+        ref="refPopInstance"
+        :is-input-focus="isInputFocus"
+        :value="queryItem"
+        @cancel="handleCancelClick"
+        @save="handleGlobalSaveQueryClick"
+      ></UiInputOptions>
     </div>
   </ul>
 </template>
@@ -421,9 +489,10 @@
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
-      color: #63656e;
-      background-color: #fff;
+      color: #4d4f56;
+      background-color: #ffffff;
       box-shadow: 0 2px 6px 0 #0000001a;
+      transform: translateY(-4px);
 
       .tippy-content {
         padding: 0;

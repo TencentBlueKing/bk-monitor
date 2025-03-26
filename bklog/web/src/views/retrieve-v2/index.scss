@@ -1,5 +1,5 @@
 .retrieve-v2-index {
-  background-color: #f4f7fa;
+  background-color: #f0f1f5;
 
   &.scroll-y {
     height: calc(100vh - 52px);
@@ -71,7 +71,7 @@
     position: relative;
     z-index: 5;
     display: flex;
-    height: 48px;
+    height: 52px;
     margin-bottom: 8px;
 
     .box-favorites {
@@ -79,25 +79,20 @@
       flex: 1;
       align-items: center;
       justify-content: center;
-      min-width: 94px;
       height: 100%;
+      padding-left: 8px;
       font-size: 14px;
       color: #63656e;
       cursor: pointer;
 
       background: #ffffff;
       box-shadow: 0 3px 4px 0 #4070cb0f;
-
-      .bklog-icon {
-        font-size: 22px;
-        transform: rotate(90deg);
-      }
     }
   }
 
   .retrieve-v2-body {
     display: flex;
-    background-color: #fafbfd;
+    background-color: #f0f1f5;
 
     .retrieve-collect-index {
       position: relative;

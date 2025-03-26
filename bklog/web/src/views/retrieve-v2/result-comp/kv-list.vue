@@ -37,18 +37,18 @@
           class="field-label"
         >
           <span
+            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
             :class="getFieldIcon(field.field_name)"
-            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
           ></span>
           <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
-              :jsonValue="formatterStr(data, field.field_name)"
               :fields="getFieldItem(field.field_name)"
+              :json-value="formatterStr(data, field.field_name)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </template>
@@ -63,10 +63,10 @@
           </span>
           <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
             <text-segmentation
+              :auto-width="true"
               :content="formatterStr(data, field.field_name)"
               :field="getFieldItem(field.field_name)"
-              :forceAll="true"
-              :autoWidth="true"
+              :force-all="true"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             />
           </template>
@@ -78,12 +78,13 @@
 
 <script>
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  import JsonFormatter from '@/global/json-formatter.vue';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
-  import JsonFormatter from '@/global/json-formatter.vue';
+
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -273,7 +274,9 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
-        const trace_id =  String(this.data[field]).replace(/<mark>/g, '').replace(/<\/mark>/g, '')
+        const trace_id = String(this.data[field])
+          .replace(/<mark>/g, '')
+          .replace(/<\/mark>/g, '');
         let path = '';
         switch (key) {
           // trace检索
@@ -374,10 +377,33 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
 
+    .log-item:nth-child(even) {
+      background-color: #f5f7fa;
+    }
+
+    .log-item:nth-child(odd) {
+      background-color: #ffffff;
+    }
+
     .log-item {
       display: flex;
-      align-items: start;
+      align-items: center;
+      justify-content: center;
       min-height: 24px;
+      padding-left: 24px;
+
+      &:hover {
+        cursor: pointer;
+        background-color: #f0f1f5;
+
+        .field-text,
+        .field-value {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #498eff !important;
+          text-decoration: underline; /* 悬停时添加下划线 */
+          text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+        }
+      }
 
       .field-label {
         display: flex;
@@ -394,7 +420,7 @@
           min-width: 16px;
           height: 16px;
           margin: 0 5px 0 0;
-          font-size: 12px;
+          font-size: 14px;
           color: #63656e;
           background: #dcdee5;
           border-radius: 2px;
@@ -404,6 +430,7 @@
           display: block;
           width: auto;
           overflow: hidden;
+          color: #313238;
           word-break: normal;
           word-wrap: break-word;
         }
@@ -417,12 +444,14 @@
 
       .field-value {
         display: flex;
+        color: #16171a;
         word-break: break-all;
       }
     }
 
     .relation-monitor-btn {
       min-width: fit-content;
+      padding-top: 1px;
       padding-right: 6px;
       // margin-left: 12px;
       font-size: 12px;

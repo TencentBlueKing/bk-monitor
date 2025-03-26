@@ -108,6 +108,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
     return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
   }
 
+  handleGroupHidden() {
+    this.isHiddenList = true;
+  }
   render() {
     const groupDropdownSlot = groupName => {
       return !this.isCannotChange ? (
@@ -131,7 +134,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve2-collect-group'>
         <div
           class={[
             'group-title fl-jcsb',
@@ -144,16 +147,22 @@ export default class CollectGroup extends tsc<ICollectProps> {
           onMouseleave={() => this.handleHoverTitle(false)}
         >
           <span
+            style='padding: 0px 12px'
             class='group-cur'
             onClick={() => (this.isHiddenList = !this.isHiddenList)}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span>
-            <span class={'bklog-icon bklog-folder-fill'}></span>
+            {/* <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span> */}
+            <span
+              class={`bklog-icon bklog-${this.collectItem.group_type === 'private' ? 'file-personal' : this.isHiddenList ? 'file-close' : 'folder-fill'}`}
+            ></span>
             <span class='group-str'>{this.collectItem.group_name}</span>
           </span>
-          {groupDropdownSlot(this.collectItem.group_name)}
+          <span style='padding-right:12px'> {groupDropdownSlot(this.collectItem.group_name)}</span>
         </div>
-        <div class={['group-list', { 'list-hidden': this.isHiddenList }]}>
+        <div
+          style='padding: 0px 12px;'
+          class={['group-list', { 'list-hidden': this.isHiddenList }]}
+        >
           {this.collectItem.favorites.map((item, index) => (
             <div
               key={index}

@@ -26,8 +26,9 @@
 
 <script setup>
   import { computed, ref } from 'vue';
-  import useStore from '@/hooks/use-store';
+
   import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
   import { useRoute } from 'vue-router/composables';
 
   import $http from '@/api';
@@ -91,45 +92,45 @@
 <template>
   <div class="field-select-config">
     <bk-dropdown-menu
-      trigger="click"
-      align="left"
       ref="dropdown"
-      @show="dropdownShow"
+      align="left"
+      trigger="click"
       @hide="dropdownHide"
+      @show="dropdownShow"
     >
-      <div
-        class="dropdown-trigger-text"
-        slot="dropdown-trigger"
-      >
-        <span> {{ $t('字段配置模板') }} </span>
-        <i :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
-      </div>
-      <ul
-        v-bkloading="{ isLoading: isLoading, size: 'small' }"
-        class="bk-dropdown-list"
-        slot="dropdown-content"
-      >
-        <li
-          v-for="(item, index) in configList"
-          :key="index"
+      <template #dropdown-trigger>
+        <div class="dropdown-trigger-text">
+          <span class="bklog-icon bklog-overview1"></span>
+          <span> {{ $t('字段模板') }} </span>
+        </div>
+      </template>
+      <template #dropdown-content>
+        <ul
+          class="bk-dropdown-list"
+          v-bkloading="{ isLoading: isLoading, size: 'small' }"
         >
-          <a
-            href="javascript:;"
-            @click="() => handleClickSelectConfig(item)"
+          <li
+            v-for="(item, index) in configList"
+            :key="index"
           >
-            {{ item.name }}
-          </a>
-        </li>
-        <li>
-          <a
-            href="javascript:;"
-            style="color: #3a84ff; background-color: #fafbfd"
-            @click="handleClickManagementConfig"
-          >
-            {{ $t('管理配置') }}
-          </a>
-        </li>
-      </ul>
+            <a
+              href="javascript:;"
+              @click="() => handleClickSelectConfig(item)"
+            >
+              {{ item.name }}
+            </a>
+          </li>
+          <li>
+            <a
+              style="color: #3a84ff; background-color: #fafbfd"
+              href="javascript:;"
+              @click="handleClickManagementConfig"
+            >
+              {{ $t('管理配置') }}
+            </a>
+          </li>
+        </ul>
+      </template>
     </bk-dropdown-menu>
   </div>
 </template>

@@ -1,14 +1,16 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
+
+  import { getOperatorKey, deepClone } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import useLocale from '@/hooks/use-locale';
+  import { debounce } from 'lodash';
+
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, deepClone } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
   const debouncedHandleChange = debounce(() => handleChange(), 300);
@@ -25,7 +27,7 @@
 
   const commonFilterAddition = computed({
     get() {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
+      const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
       // 将本地存储的JSON字符串解析为对象并创建映射
       const parsedValueMap = additionValue
         ? additionValue.value.reduce((acc, item) => {
@@ -67,17 +69,16 @@
   watch(
     () => store.state.indexId,
     () => {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      if(additionValue?.indexId !== store.state.indexId){
+      const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
+      if (additionValue?.indexId !== store.state.indexId) {
         localStorage.removeItem('commonFilterAddition');
-      }
-      else{
+      } else {
         const currentConfig = store.state.retrieve.catchFieldCustomConfig;
         const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
-        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
+        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig);
       }
     },
-    { immediate: true }
+    { immediate: true },
   );
   const activeIndex = ref(-1);
   let requestTimer = null;
@@ -150,7 +151,7 @@
   };
 
   // 新建提交逻辑
-  const updateCommonFilterAddition = async() => {
+  const updateCommonFilterAddition = async () => {
     try {
       const Additionvalue = deepClone(commonFilterAddition.value);
       const target = Additionvalue.map(item => {
@@ -163,10 +164,12 @@
 
       const param = {
         filterAddition: target,
-        isUpdate: true
+        isUpdate: true,
       };
       const res = await store.dispatch('userFieldConfigChange', param);
-      const { data: { index_set_config } } = res;
+      const {
+        data: { index_set_config },
+      } = res;
       index_set_config.filterAddition = commonFilterAddition.value;
       store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
     } catch (error) {
@@ -175,10 +178,13 @@
   };
 
   const handleChange = () => {
-    localStorage.setItem('commonFilterAddition', JSON.stringify({
-      indexId: store.state.indexId,
-      value: commonFilterAddition.value
-    }));
+    localStorage.setItem(
+      'commonFilterAddition',
+      JSON.stringify({
+        indexId: store.state.indexId,
+        value: commonFilterAddition.value,
+      }),
+    );
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
@@ -207,8 +213,8 @@
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
-        @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
+        @focus.capture="e => handleRowFocus(index, e)"
       >
         <div
           class="title"
@@ -237,21 +243,21 @@
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bk-select
             class="value-select"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
             v-model="commonFilterAddition[index].value"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
+            :fix-height="true"
             allow-create
             display-tag
             multiple
             searchable
-            :fix-height="true"
             @change="debouncedHandleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>
               <bk-input
-                behavior="simplicity"
                 :clearable="true"
                 :left-icon="'bk-icon icon-search'"
+                behavior="simplicity"
                 @input="e => handleInputVlaueChange(e, item, index)"
               ></bk-input>
             </template>
@@ -286,9 +292,9 @@
       0 1px 0 0 #eaebf0;
 
     .filter-setting-btn {
-      width: 83px;
+      min-width: 83px;
       height: 40px;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 40px;
       color: #3880f8;
       cursor: pointer;
@@ -296,8 +302,7 @@
 
     .empty-tips {
       font-size: 12px;
-      line-height: 40px;
-      color: #a1a5ae;
+      color: #979ba5;
     }
   }
 
@@ -305,15 +310,16 @@
     display: flex;
     flex-wrap: wrap;
     width: calc(100% - 80px);
+    margin-top: 4px;
   }
 
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 120px;
+    min-width: 180px;
     max-width: 560px;
-    margin: 4px 0;
-    margin-right: 8px;
+    margin-right: 4px;
+    margin-bottom: 4px;
     border: 1px solid #dbdde1;
     border-radius: 3px;
 
@@ -336,7 +342,8 @@
       .operator-label {
         display: inline-block;
         width: 100%;
-        padding: 4px;
+        // padding: 4px;
+        padding-left: 2px;
         color: #3a84ff;
         white-space: nowrap;
       }
@@ -347,10 +354,12 @@
     }
 
     .value-select {
-      min-width: 200px;
+      min-width: 120px;
       max-width: 460px;
 
       :deep(.bk-select-dropdown .bk-select-tag-container) {
+        padding-left: 4px;
+
         .bk-select-tag {
           &.width-limit-tag {
             max-width: 200px;
@@ -360,6 +369,10 @@
             }
           }
         }
+      }
+
+      :deep(.bk-select-tag-input) {
+        min-width: 0;
       }
 
       &.bk-select {

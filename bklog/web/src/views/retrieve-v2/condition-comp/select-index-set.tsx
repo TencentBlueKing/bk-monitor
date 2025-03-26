@@ -108,7 +108,7 @@ export default class SelectIndexSet extends tsc<object> {
     {
       name: 'history',
       icon: 'bklog-icon bklog-lishijilu',
-      label: window.mainComponent.$t('历史记录'),
+      label: window.mainComponent.$t('历史查询'),
     },
     {
       name: 'favorite',
@@ -310,7 +310,7 @@ export default class SelectIndexSet extends tsc<object> {
     }
     const unionHeight = this.isTagHave2Rows ? '222px' : '248px';
     return {
-      height: isUnion ? unionHeight : '314px',
+      height: isUnion ? unionHeight : '390px',
     };
   }
 
@@ -850,7 +850,7 @@ export default class SelectIndexSet extends tsc<object> {
     const labelFilter = () => {
       return (
         <div
-          class={['label-filter', { 'not-label': !this.labelSelectList.length }]}
+          class={['label-filter', 'custom-btn', { 'not-label': !this.labelSelectList.length }]}
           v-en-class='en-label-btn'
         >
           {!window?.__IS_MONITOR_TRACE__ && (
@@ -869,6 +869,7 @@ export default class SelectIndexSet extends tsc<object> {
             <div class='label-tag-container'>
               <div
                 ref='tagBox'
+                style={{ color: '#4D4F56' }}
                 class='tag-box'
               >
                 {this.showLabelSelectList().map(item => (
@@ -943,16 +944,21 @@ export default class SelectIndexSet extends tsc<object> {
             <div class='top-clear'>
               <span>{`${this.historyListNum}/10`}</span>
               <span
+                style={{ color: '#4D4F56' }}
                 class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class='bklog-icon bklog-brush' />
+                <i
+                  style={{ fontSize: '14px', marginTop: '1px' }}
+                  class='bklog-icon bklog-saoba'
+                />
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
           )}
           {this.isAloneType ? (
             <ul
+              style={{ color: '#4D4F56' }}
               class='history-alone-list'
               v-bkloading={{ isLoading: this.historyLoading }}
             >
@@ -1025,7 +1031,7 @@ export default class SelectIndexSet extends tsc<object> {
         <div class='favorite-and-history'>
           <bk-tab
             active={this.activeTab}
-            type='unborder-card'
+            type='card'
             on-tab-change={this.handleTabChange}
           >
             {this.tabPanels.map((panel, index) => (
@@ -1151,7 +1157,7 @@ export default class SelectIndexSet extends tsc<object> {
       if (this.isAloneType) {
         return !window.__IS_MONITOR_COMPONENT__ ? (
           <span
-            class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
+            class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star no-show-star']}
             onClick={e => this.handleCollection(item, e)}
           />
         ) : undefined;
@@ -1168,7 +1174,7 @@ export default class SelectIndexSet extends tsc<object> {
       return (
         <div
           style={this.groupListStyle}
-          class='group-list'
+          class='group-list custom-group'
         >
           {this.renderOptionList.map(group => (
             <bk-option-group
@@ -1177,7 +1183,10 @@ export default class SelectIndexSet extends tsc<object> {
               scopedSlots={{
                 'group-name': () => {
                   return group.name && group.children.length ? (
-                    <div class='group-title'>
+                    <div
+                      style={{ color: '#4D4F56' }}
+                      class='group-title'
+                    >
                       <span>{group.name}</span>
                       <span>{group.children[0].no_data_check_time}</span>
                     </div>
@@ -1203,6 +1212,7 @@ export default class SelectIndexSet extends tsc<object> {
                         {indexHandDom(item)}
                         {item.isNotVal && <i class='not-val' />}
                         <span
+                          style={{ color: '#4D4F56' }}
                           class='index-name'
                           onMouseenter={e => this.handleHoverIndexName(e, item)}
                         >
@@ -1271,11 +1281,11 @@ export default class SelectIndexSet extends tsc<object> {
         clearable={false}
         data-test-id='dataQuery_div_indexSetSelect'
         display-tag={!this.isAloneType}
-        ext-popover-cls='retrieve-index-select-popover'
+        ext-popover-cls='retrieve2-index-select-popover'
         placeholder={this.placeholderText}
         popover-min-width={600}
         popover-options={{ boundary: 'window', ...(this.popoverOptions ?? {}) }}
-        scroll-height={400}
+        scroll-height={440}
         multiple
         searchable
         onSelected={this.handleSelectIndex}

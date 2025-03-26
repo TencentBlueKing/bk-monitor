@@ -4,18 +4,18 @@
       class="field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting"></span>{{ t('索引集配置') }}
+      <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
       :quick-close="true"
-      :title="$t('索引集配置')"
+      :title="$t('索引配置')"
       :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
         <div>
-          {{ t('索引集配置') }}
+          {{ t('索引配置') }}
           <bk-button
             v-if="!isEdit"
             class="mt10 fr"
@@ -244,7 +244,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import { builtInInitHiddenList } from '@/const/index.js'
+  import { builtInInitHiddenList } from '@/const/index.js';
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
@@ -276,7 +276,7 @@
       original_text_is_case_sensitive: '',
     },
     etl_config: '',
-    fields:[]
+    fields: [],
   });
   const isEdit = ref(false);
   const isEditConfigName = ref(false);
@@ -309,7 +309,7 @@
     participleState: 'default',
     is_edit: true,
   });
-  const alias_settings = ref([])
+  const alias_settings = ref([]);
   const batchAddField = () => {
     if (!collectorConfigId.value) return;
     // router.replace({
@@ -443,19 +443,23 @@
         },
       })
       .then(res => {
-        const keys = Object.keys(res.data.alias_settings || {}); 
-        const arr = keys.map( key => {
+        const keys = Object.keys(res.data.alias_settings || {});
+        const arr = keys.map(key => {
           return {
-          query_alias : key,
-          field_name : res.data.alias_settings[key].path
-          } 
-        })
-        alias_settings.value = arr
-        concatenationQueryAlias( res.data.fields)
+            query_alias: key,
+            field_name: res.data.alias_settings[key].path,
+          };
+        });
+        alias_settings.value = arr;
+        concatenationQueryAlias(res.data.fields);
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
-        indexBuiltField.value = collectData?.fields.filter(item => builtInInitHiddenList.includes(item.field_name) || builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data');
+        indexBuiltField.value = collectData?.fields.filter(
+          item =>
+            builtInInitHiddenList.includes(item.field_name) ||
+            (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data'),
+        );
         originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
       });
 
@@ -468,9 +472,7 @@
       .then(res => {
         const etlFields = res?.data?.etl_fields || [];
         const existingFields = formData.value.fields || [];
-        const existingFieldsMap = new Map(
-          existingFields.map(field => [field.field_name, field])
-        );
+        const existingFieldsMap = new Map(existingFields.map(field => [field.field_name, field]));
         const mergedFields = [];
 
         // 遍历 etlFields，将其添加到结果数组中
@@ -485,29 +487,34 @@
           mergedFields.push(existingField);
         });
         mergedFields.forEach(field => {
-          const matchingAlias = alias_settings.value.find(alias =>
-            field.field_name === alias.field_name || field.alias_name === alias.field_name
+          const matchingAlias = alias_settings.value.find(
+            alias => field.field_name === alias.field_name || field.alias_name === alias.field_name,
           );
           if (matchingAlias) {
             field.query_alias = matchingAlias.query_alias;
           }
         });
-        
-        tableField.value = mergedFields.filter(item => !builtInInitHiddenList.includes(item.field_name) && !builtInInitHiddenList.includes(item.alias_name) && !item.is_delete);
+
+        tableField.value = mergedFields.filter(
+          item =>
+            !builtInInitHiddenList.includes(item.field_name) &&
+            !builtInInitHiddenList.includes(item.alias_name) &&
+            !item.is_delete,
+        );
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;
   };
   // 拼接query_alias
-  const concatenationQueryAlias = (fields) => {
+  const concatenationQueryAlias = fields => {
     fields.forEach(item => {
       alias_settings.value.forEach(item2 => {
-        if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
-          item.query_alias = item2.query_alias
+        if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+          item.query_alias = item2.query_alias;
         }
-      })
-    })
-  }
+      });
+    });
+  };
   const storageList = ref([]);
   const getStorage = async () => {
     try {
@@ -539,7 +546,7 @@
   const confirmLoading = ref(false);
   // 字段表格校验
   const checkFieldsTable = () => {
-    return indexfieldTable.value.validateFieldTable()
+    return indexfieldTable.value.validateFieldTable();
     // return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
   };
 
@@ -550,14 +557,14 @@
       if (res) {
         const promises = [];
         // if (formData.value.etl_config === 'bk_log_json') {
-          promises.splice(1, 0, ...checkFieldsTable());
+        promises.splice(1, 0, ...checkFieldsTable());
         // }
         Promise.all(promises).then(
           async () => {
             confirmLoading.value = true;
             sliderLoading.value = true;
             const originfieldTableData = originfieldTable.value?.getData();
-            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
+            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item => item.query_alias);
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
@@ -574,11 +581,12 @@
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData(),
               alias_settings: [
-                ...indexfieldTableData.map(item =>{
-                  return  {
+                ...indexfieldTableData.map(item => {
+                  return {
                     field_name: item.alias_name || item.field_name,
-                    query_alias: item.query_alias, 
-                    path_type:  item.field_type}
+                    query_alias: item.query_alias,
+                    path_type: item.field_type,
+                  };
                 }),
               ],
             };
@@ -634,15 +642,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 108px;
+    width: 90px;
     height: 32px;
-    margin-left: 10px;
-    font-size: 14px;
+    font-size: 12px;
     color: #63656e;
     cursor: pointer;
 
     span {
       margin: 3px 6px 0 0;
+      font-size: 14px;
     }
   }
 

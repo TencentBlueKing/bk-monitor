@@ -39,7 +39,10 @@
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
-      <span class="icon bklog-icon bklog-xiazai"></span>
+      <span
+        class="icon bklog-icon bklog-xiazai"
+        style="font-size: 16px"
+      ></span>
     </div>
 
     <div v-show="false">
@@ -386,7 +389,7 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data,{
+          .post(downRequestUrl, data, {
             originalResponse: true,
           })
           .then(res => {
@@ -514,7 +517,7 @@
     height: 32px;
     margin-left: 10px;
     cursor: pointer;
-    border: 1px solid #c4c6cc;
+    background-color: #f0f1f5;
     border-radius: 2px;
     outline: none;
     transition: boder-color 0.2s;

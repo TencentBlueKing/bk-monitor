@@ -1,12 +1,12 @@
 <template>
   <div
-    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
     ref="refJsonFormatterCell"
+    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
   >
     <template v-for="item in rootList">
       <span
-        :key="item.name"
         class="bklog-root-field"
+        :key="item.name"
       >
         <span class="field-name"
           ><span
@@ -26,11 +26,13 @@
 </template>
 <script setup lang="ts">
   import { computed, ref, watch, onBeforeUnmount } from 'vue';
-  import useJsonRoot from '../hooks/use-json-root';
-  import useStore from '../hooks/use-store';
-  //@ts-ignore
+
+  // @ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
+
+  import useJsonRoot from '../hooks/use-json-root';
+  import useStore from '../hooks/use-store';
   const emit = defineEmits(['menu-click']);
   const store = useStore();
 
@@ -159,12 +161,13 @@
     .bklog-scroll-box {
       max-height: 50vh;
       overflow: auto;
-      will-change: transform;
       transform: translateZ(0); /* 强制开启GPU加速 */
+      will-change: transform;
     }
 
     .bklog-scroll-cell {
       word-break: break-all;
+
       span {
         content-visibility: auto;
         contain-intrinsic-size: 0 60px; /* 预估初始高度 */
@@ -188,9 +191,11 @@
 
         .black-mark {
           width: max-content;
-          padding: 0 2px;
-          background: #e6e6e6;
+          padding: 2px 2px;
+          color: #16171a;
+          background-color: #ebeef5;
           border-radius: 2px;
+          font-weight: 600;
         }
 
         &::after {
@@ -199,12 +204,14 @@
       }
 
       .valid-text {
+        padding: 2px;
         :hover {
           color: #3a84ff;
           cursor: pointer;
         }
       }
     }
+
     &:not(.is-json) {
       .bklog-root-field {
         .field-value {
@@ -218,7 +225,7 @@
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      line-height: 20px;
+      line-height: 22px;
 
       span {
         width: max-content;
@@ -235,10 +242,12 @@
 
       .valid-text {
         cursor: pointer;
+        padding: 2px;
 
         &.focus-text,
         &:hover {
-          color: #3a84ff;
+          background-color: #cddffe;
+          border-radius: 2px;
         }
       }
 
@@ -250,8 +259,8 @@
 
     &.is-inline {
       .bklog-root-field {
-        word-break: break-all;
         display: inline-flex;
+        word-break: break-all;
 
         .segment-content {
           word-break: break-all;
@@ -288,14 +297,15 @@
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      line-height: 20px;
+      line-height: 22px;
 
       .valid-text {
         cursor: pointer;
-
+        padding: 2px;
         &.focus-text,
         &:hover {
-          color: #3a84ff;
+          background-color: #cddffe;
+          border-radius: 2px;
         }
       }
     }

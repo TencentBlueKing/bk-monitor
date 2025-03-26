@@ -7,12 +7,14 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
+  import { bkIcon } from 'bk-magic-vue';
+  import { Props } from 'tippy.js';
+
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
-  import PopInstanceUtil from './pop-instance-util';
+  import { translateKeys } from './const-values';
+  import PopInstanceUtil from '../../../global/pop-instance-util';
   import useFieldEgges from './use-field-egges';
-  import { Props } from 'tippy.js';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -36,6 +38,7 @@
   );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  const isArrowDown = ref(true);
 
   const store = useStore();
   const { t } = useLocale();
@@ -44,10 +47,12 @@
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
+  const locationIndex = ref(0);
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
   // 条件Value选择列表
   const refValueTagInputOptionList = ref(null);
+  const tagInputItemRef = ref(null);
 
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
@@ -90,6 +95,7 @@
     arrow: false,
     newInstance: true,
     onHiddenFn: () => {
+      isArrowDown.value = true;
       operatorActiveIndex.value = 0;
       return true;
     },
@@ -282,6 +288,7 @@
 
   const setDefaultActiveIndex = () => {
     activeIndex.value = searchValue.value.length ? null : 0;
+    locationIndex.value = activeIndex.value || 0;
   };
 
   watch(
@@ -315,6 +322,10 @@
 
   const getFieldIconColor = type => {
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+  };
+
+  const getFieldIconTextColor = type => {
+    return fieldTypeMap.value?.[type]?.textColor;
   };
 
   const resetActiveFieldItem = () => {
@@ -449,7 +460,7 @@
 
   const currentEditTagIndex = ref(null);
 
-  const handleEditTagDBClick = (e, tagContent, tagIndex) => {
+  const handleEditTagClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
 
     currentEditTagIndex.value = tagIndex;
@@ -500,7 +511,7 @@
     }
   };
 
-  const handleInputVlaueChange = e => {
+  const handleInputValueChange = e => {
     const input = e.target;
     const value = input.value;
     const charLen = getCharLength(value);
@@ -522,15 +533,16 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleInputVlaueChange(e);
+    handleInputValueChange(e);
   };
 
-  const hanleDeleteTagItem = index => {
+  const handleDeleteTagItem = index => {
     condition.value.value.splice(index, 1);
   };
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
+    isArrowDown.value = false;
     setTimeout(() => {
       conditionValueInstance.hide();
     });
@@ -563,27 +575,32 @@
   /**
    * 通用方法：根据键盘上下键操作，设置对应参数当前激活Index的值
    */
-  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
+  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true, type: string) => {
     const maxIndex = matchList.length - 1;
     if (objIndex.value === null) {
       objIndex.value = -1;
+      locationIndex.value = -1;
     }
 
     if (isIncrease) {
       if (objIndex.value < maxIndex) {
         objIndex.value++;
+        type === 'list' && locationIndex.value++;
         return;
       }
 
       objIndex.value = 0;
+      if (type === 'list') {
+        locationIndex.value = 0;
+      }
       return;
     }
 
     if (objIndex.value > 0) {
       objIndex.value--;
+      type === 'list' && locationIndex.value--;
       return;
     }
-
     objIndex.value = maxIndex;
   };
 
@@ -591,7 +608,7 @@
    * 设置当前条件值激活Index
    */
   const setConditionValueActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease);
+    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease, 'condition');
   };
 
   /**
@@ -627,7 +644,6 @@
       afterOperatorValueEnter();
       return;
     }
-
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
     if (
@@ -638,9 +654,11 @@
       activeIndex.value >= 0
     ) {
       const instance = conditionValueInstance.getTippyInstance();
-
       // 如果是条件选择下拉已经展开，查询当前选中项
       if (instance?.state.isShown) {
+        if (conditionValueActiveIndex.value === -1 && activeItemMatchList.value?.length > 0) {
+          conditionValueActiveIndex.value = 0;
+        }
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
           handleTagItemClick(val, conditionValueActiveIndex.value);
@@ -651,6 +669,7 @@
 
           // 设置当前行样式，避免Vue实例渲染，这里直接操作DOM进行class赋值
           activeConditionValueOption();
+          refValueTagInput.value?.focus();
           return;
         }
       }
@@ -689,7 +708,7 @@
    * 设置当前条件激活Index
    */
   const setOperatorActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease);
+    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease, 'operator');
     const operator = activeFieldItem.value.field_operator[operatorActiveIndex.value]?.operator;
     if (condition.value.operator !== operator) {
       condition.value.operator = operator;
@@ -705,6 +724,7 @@
    */
   const setFieldListActiveIndex = (isIncrease = true) => {
     setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease);
+    setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease, 'list');
   };
 
   /**
@@ -796,6 +816,13 @@
       return;
     }
 
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if ((e.ctrlKey || e.metaKey) && ['Control', 'Enter'].includes(e?.key)) {
+      stopEventPreventDefault(e);
+      handelSaveBtnClick();
+      return;
+    }
+
     // key esc
     if (e.keyCode === 27) {
       stopEventPreventDefault(e);
@@ -808,7 +835,6 @@
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
     }
-
     operatorInstance.hide();
     afterOperatorValueEnter();
   };
@@ -843,7 +869,7 @@
       appendConditionValue(value);
     }
 
-    handleInputVlaueChange(e);
+    handleInputValueChange(e);
   };
 
   const handleConditionValueInputBlur = e => {
@@ -904,8 +930,7 @@
             :placeholder="$t('请输入关键字')"
             behavior="simplicity"
             left-icon="bk-icon icon-search"
-          >
-          </bk-input>
+          />
         </div>
         <div
           ref="refSearchResultList"
@@ -913,17 +938,22 @@
         >
           <div
             v-for="(item, index) in filterFieldList"
-            :class="['ui-search-result-row', { active: activeIndex === index }]"
+            :class="['ui-search-result-row', { active: activeIndex === index }, { location: locationIndex === index }]"
             :data-tab-index="index"
             :key="item.field_name"
             @click="() => handleFieldItemClick(item, index)"
           >
             <span
-              :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+              :style="{
+                backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+              }"
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
+            <span class="field-alias">
+              {{ item.field_type }}——{{ item.query_alias || item.field_alias || item.field_name }}
+            </span>
             <span
               v-if="!item.is_full_text"
               class="field-name"
@@ -932,7 +962,7 @@
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
-              style="justify-content: center; height: 260px"
+              style="justify-content: center; height: 250px"
               :type="exceptionType"
               scene="part"
             >
@@ -943,7 +973,7 @@
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="isSearchEmpty">
           <bk-exception
-            style="justify-content: center; height: 260px"
+            style="justify-content: center; height: 250px"
             scene="part"
             type="500"
           >
@@ -985,7 +1015,10 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ getOperatorLable(activeOperator.label) }}
+                <span class="operator-content">
+                  {{ getOperatorLable(activeOperator.label) }}
+                </span>
+                <bk-icon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
               </div>
               <div style="display: none">
                 <div
@@ -997,7 +1030,7 @@
                     class="empty-section"
                   >
                     <bk-exception
-                      style="height: 100px"
+                      style="height: 94px"
                       :type="conditionValueEmptyType"
                       scene="part"
                     >
@@ -1029,10 +1062,12 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
+                class="ui-value-search-textarea"
                 v-model="condition.value[0]"
                 :rows="12"
+                maxlength="100"
                 type="textarea"
-              ></bk-input>
+              />
             </template>
             <div
               v-else
@@ -1040,6 +1075,7 @@
             >
               <ul
                 ref="refConditionInput"
+                :style="{ maxHeight: isConditionValueInputFocus ? '300px' : '90px' }"
                 class="condition-value-input"
                 @click.stop="handleConditionValueClick"
               >
@@ -1054,31 +1090,35 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
-                      @input="handleInputVlaueChange"
                       @blur.stop="handleTagInputBlur"
+                      @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
-                  <template>
-                    <span
-                      class="tag-item-text"
-                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
-                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
-                    >
-                    <span
-                      class="tag-item-del bk-icon icon-close"
-                      @click.stop="e => hanleDeleteTagItem(index)"
-                    ></span>
-                  </template>
+                  <span
+                    class="tag-item-text"
+                    @click.stop="e => handleEditTagClick(e, item, index)"
+                  >
+                    {{ formatDateTimeField(item, activeFieldItem.field_type) }}
+                  </span>
+                  <span
+                    class="tag-item-del bk-icon icon-close"
+                    @click.stop="e => handleDeleteTagItem(index)"
+                  />
                 </li>
-                <li>
+                <li
+                  id="tagInputItem"
+                  ref="tagInputItemRef"
+                  class="tag-item no-selected-tag-item"
+                >
                   <input
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
+                    :placeholder="$t('请输入 或 选择')"
                     type="text"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
-                    @input.stop="handleInputVlaueChange"
+                    @input.stop="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
                   />
@@ -1094,7 +1134,7 @@
                       class="empty-section"
                     >
                       <bk-exception
-                        style="height: 100px"
+                        style="height: 94px"
                         :type="conditionValueEmptyType"
                         scene="part"
                       >
@@ -1141,23 +1181,34 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
-        <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
+        <div class="ui-shortcut-item">
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Enter</span>
+          <span class="value">{{ $t('选中') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Esc</span>
+          <span class="value">{{ $t('收起查询') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Ctrl+Enter</span>
+          <span class="value">{{ $t('提交查询') }}</span>
+        </div>
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          class="save-btn"
           :disabled="!isSaveBtnActive"
-          style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
-          >{{ $t('确定') }}</bk-button
         >
-        <bk-button
-          style="width: 64px"
-          @click.stop="handleCancelBtnClick"
-          >{{ $t('取消') }}</bk-button
-        >
+          {{ $t('确定 Ctrl+ Enter') }}
+        </bk-button>
+        <bk-button @click.stop="handleCancelBtnClick">{{ $t('取消') }}</bk-button>
       </div>
     </div>
   </div>

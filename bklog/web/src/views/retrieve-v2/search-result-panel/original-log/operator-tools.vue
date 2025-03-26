@@ -32,7 +32,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle bklog-time ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         >
         </span>
@@ -42,7 +42,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle bklog-document ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
@@ -116,6 +116,9 @@
         <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
       </span>
     </template>
+    <template v-if="isAiAssistanceActive">
+      <span class="handle-card ai-assistant"> </span>
+    </template>
   </div>
 </template>
 
@@ -141,6 +144,7 @@
       },
       handleClick: Function,
     },
+    emits: ['handleAi'],
     data() {
       return {
         showAllHandle: false, // hove操作区域显示全部icon
@@ -156,6 +160,9 @@
       },
       isActiveWebConsole() {
         return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+      },
+      isAiAssistanceActive() {
+        return this.$store.getters.isAiAssistantActive;
       },
       /** 判断webConsole是否能点击 */
       isCanClickWebConsole() {
@@ -209,20 +216,20 @@
 <style lang="scss" scoped>
   .handle-content {
     position: absolute;
-    top: 0;
     right: 0;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     width: 84px;
-    padding: 14px 10px;
     overflow: hidden;
 
     .handle-card {
       display: inline-block;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       margin-left: 10px;
-      width: 14px;
+      font-size: 18px;
+      color: #8b92a5;
     }
   }
 

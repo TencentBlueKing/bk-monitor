@@ -210,7 +210,7 @@
     }
 
     span {
-      line-height: 20px;
+      line-height: 22px;
 
       &.segment-content {
         span {

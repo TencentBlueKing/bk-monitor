@@ -1,6 +1,6 @@
 [data-theme='log-light'] {
   .ui-value-select {
-    width: 338px;
+    width: 318px;
     max-height: 200px;
     overflow: auto;
 
@@ -29,11 +29,9 @@
   .condition-value-options {
     display: inline-flex;
     flex-direction: column;
-    width: 338px;
+    width: 318px;
     max-height: 300px;
     overflow: auto;
-    border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 #0000001a;
 
     > li {
       display: inline-block;
@@ -42,9 +40,7 @@
       height: 32px;
       padding: 6px 8px;
       font-size: 12px;
-      color: #63656e;
       cursor: pointer;
-      background: #ffffff;
 
       > div {
         overflow: hidden;

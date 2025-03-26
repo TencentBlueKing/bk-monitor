@@ -51,6 +51,8 @@ export default class CollectContainer extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) collectLoading: boolean;
   @Prop({ type: Number }) activeFavoriteID: number;
 
+  collectGroupRefs: (CollectGroup | null)[] = [];
+
   dragList: IGroupItem[] = []; // 可拖拽的收藏列表
 
   get isSearchEmpty() {
@@ -69,6 +71,12 @@ export default class CollectContainer extends tsc<IProps> {
       value,
     };
   }
+  // 使用 @Watch 装饰器监听 dragList 的变化
+  @Watch('dragList', { immediate: true, deep: true })
+  onDragListChange(newList: IGroupItem[]) {
+    // 初始化或更新 collectGroupRefs 数组
+    this.collectGroupRefs = newList.map(() => null);
+  }
 
   handleMoveEnd() {
     const dragIDList = this.dragList.map(item => item.group_id);
@@ -82,54 +90,75 @@ export default class CollectContainer extends tsc<IProps> {
     return true;
   }
 
+  handleGroupHidden() {
+    this.collectGroupRefs.forEach(groupRef => {
+      if (groupRef && typeof groupRef.handleGroupHidden === 'function') {
+        groupRef.handleGroupHidden();
+      }
+    });
+  }
+
   @Watch('dataList', { deep: true, immediate: true })
   private handleWatchDataList() {
     this.dragList = JSON.parse(JSON.stringify(this.dataList));
   }
-
+  // 新增方法来渲染空消息
+  private renderEmptyMessage() {
+    return (
+      <div class='data-empty'>
+        <div class='empty-box'>
+          <Exception
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
+          </Exception>
+        </div>
+      </div>
+    );
+  }
   // eslint-disable-next-line @typescript-eslint/member-ordering
   render() {
     return (
-      <div class='retrieve-collect-container'>
+      <div
+        style='backgroundColor:#ebeef5'
+        class='retrieve-collect-container'
+      >
         {this.$slots.default}
         <div
           class='group-container-new'
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (
-            <VueDraggable
-              vModel={this.dragList}
-              animation='150'
-              disabled={true}
-              handle='.group-title'
-              move={this.handleMoveIng}
-              on-end={this.handleMoveEnd}
-            >
-              <transition-group>
-                {this.dragList.map(item => (
-                  <div key={item.group_id}>
-                    <CollectGroup
-                      activeFavoriteID={this.activeFavoriteID}
-                      collectItem={item}
-                      groupList={this.groupList}
-                      isSearchFilter={this.isSearchFilter}
-                    ></CollectGroup>
-                  </div>
-                ))}
-              </transition-group>
-            </VueDraggable>
+            this.dragList.length ? (
+              <VueDraggable
+                vModel={this.dragList}
+                animation='150'
+                disabled={true}
+                handle='.group-title'
+                move={this.handleMoveIng}
+                on-end={this.handleMoveEnd}
+              >
+                <transition-group>
+                  {this.dragList.map((item, index) => (
+                    <div key={item.group_id}>
+                      <CollectGroup
+                        ref={el => (this.collectGroupRefs[index] = el as CollectGroup | null)}
+                        activeFavoriteID={this.activeFavoriteID}
+                        collectItem={item}
+                        groupList={this.groupList}
+                        isSearchFilter={this.isSearchFilter}
+                      ></CollectGroup>
+                    </div>
+                  ))}
+                </transition-group>
+              </VueDraggable>
+            ) : (
+              this.renderEmptyMessage()
+            )
           ) : (
-            <div class='data-empty'>
-              <div class='empty-box'>
-                <Exception
-                  class='exception-wrap-item exception-part'
-                  scene='part'
-                  type='search-empty'
-                >
-                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
-                </Exception>
-              </div>
-            </div>
+            this.renderEmptyMessage()
           )}
         </div>
       </div>

@@ -153,10 +153,7 @@
   };
 </script>
 <template>
-  <div
-    class="retrieve-tab"
-    style="position: relative"
-  >
+  <div class="retrieve2-tab">
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"

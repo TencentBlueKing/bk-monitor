@@ -5,16 +5,17 @@
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import WarningSetting from './warning-setting.vue';
+
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import WarningSetting from './warning-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -141,23 +142,40 @@
         :popover-options="{ offset: '-6,10' }"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
+      <!-- <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div> -->
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
+
     <div class="box-right-option">
-      <VersionSwitch version="v2" />
-      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
-      <WarningSetting></WarningSetting>
-      <TimeSetting></TimeSetting>
-      <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
+      <TimeSetting class="custom-border-right"></TimeSetting>
+      <FieldSetting
+        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        class="custom-border-right"
+      />
+      <WarningSetting class="custom-border-right"></WarningSetting>
+      <ClusterSetting
+        class="custom-border-right"
+        v-model="isShowClusterSetting"
+      ></ClusterSetting>
       <div
-        class="more-setting"
         v-if="!isExternal"
+        class="more-setting"
       >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>
+      <VersionSwitch
+        style="border-left: 1px solid #eaebf0"
+        version="v2"
+      />
     </div>
   </div>
 </template>
 <style lang="scss">
   @import './index.scss';
+
+  .box-right-option {
+    .custom-border-right {
+      border-right: 1px solid #eaebf0;
+    }
+  }
 </style>

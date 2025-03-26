@@ -1,22 +1,20 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
+
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
+  // import imgEnterKey from '@/images/icons/enter-key.svg';
+  // import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import jsCookie from 'js-cookie';
   // @ts-ignore
   import { debounce } from 'lodash';
-  // @ts-ignore
+
+  import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
-
-  import { excludesFields } from './const.common';
-  import jsCookie from 'js-cookie';
-
   import useFieldEgges from './use-field-egges';
-
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
 
   const props = defineProps({
     value: {
@@ -27,7 +25,7 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
-  const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  // const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -362,8 +360,12 @@
     }
 
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
       e.preventDefault();
+      if (hasHover && !activeIndex.value) {
+        activeIndex.value = 0;
+      }
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
@@ -376,6 +378,10 @@
     }
 
     if (code === 'ArrowUp') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value) {
         activeIndex.value -= 1;
       } else {
@@ -384,6 +390,10 @@
     }
 
     if (code === 'ArrowDown') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
         activeIndex.value = 0;
       } else {
@@ -419,9 +429,9 @@
 
   // 查询语法按钮部分
   const isRetractShow = ref(true);
-  const handleRetract = () => {
-    isRetractShow.value = !isRetractShow.value;
-  };
+  // const handleRetract = () => {
+  //   isRetractShow.value = !isRetractShow.value;
+  // };
   const matchList = ref([
     {
       name: $t('精确匹配(支持AND、OR):'),
@@ -487,8 +497,8 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
@@ -571,7 +581,7 @@
               </div>
             </li>
           </div>
-          <template
+          <div
             v-if="showOption.showOperator"
             class="control-list"
           >
@@ -594,7 +604,7 @@
                 </i18n>
               </div>
             </li>
-          </template>
+          </div>
         </template>
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
@@ -665,17 +675,24 @@
         </template> -->
       </ul>
       <FavoriteList
+        :search-value="value"
         @change="handleFavoriteClick"
-        :searchValue="value"
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+        <div class="ui-shortcut-item">
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Enter</span>
+          <span class="value">{{ $t('确认结果') }}</span>
+        </div>
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <span
+      <!-- <span
         class="sql-query-retract"
         @click="handleRetract"
       >
@@ -683,7 +700,7 @@
         <span
           :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
         ></span>
-      </span>
+      </span> -->
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -699,9 +716,10 @@
           <div
             v-for="item in matchList"
             class="sql-query-list"
+            :key="item.value"
           >
-            <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
-            <div>{{ item.value }}</div>
+            <div class="sql-query-name">{{ item.name }}</div>
+            <div class="sql-query-value">{{ item.value }}</div>
           </div>
         </div>
       </div>
@@ -712,46 +730,63 @@
   @import './sql-query-options.scss';
 
   div.sql-query-container {
+    position: relative;
     display: flex;
+    line-height: 1;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    line-height: 1;
-
-    position: relative;
 
     .sql-field-list {
-      width: 100%;
       position: relative;
-      padding-bottom: 38px;
+      width: 100%;
+      // padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
-        padding: 9px 0 7px 15px;
-        background-color: #fafbfd;
-        border-top: 1px solid #ecedf2;
-        height: 38px;
         position: absolute;
         bottom: 0;
-        left: 0;
         width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        line-height: 48px;
+        background-color: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 0 0 0 2px;
 
-        span {
+        .ui-shortcut-item {
           display: inline-flex;
           align-items: center;
           margin-right: 24px;
           font-size: 12px;
-          line-height: 20px;
-          color: #63656e;
-          letter-spacing: 0;
+          line-height: 16px;
 
-          img {
+          .label {
             display: inline-flex;
-            width: 16px;
+            align-items: center;
+            justify-content: center;
             height: 16px;
-            margin-right: 4px;
-            background: #ffffff;
-            border: 1px solid #dcdee5;
+            padding: 0 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #a3b1cc;
+            background-color: #a3b1cc29;
+            border: 1px solid #a3b1cc4d;
             border-radius: 2px;
+
+            &.bklog-arrow-down-filled {
+              padding: 0;
+              font-size: 14px;
+            }
+
+            &.up {
+              margin-right: 2px;
+              transform: rotate(-180deg);
+            }
+          }
+
+          .value {
+            margin-left: 4px;
+            color: #7a8599;
           }
         }
       }
@@ -760,7 +795,8 @@
     .sql-syntax-tips {
       position: relative;
       width: 240px;
-      background: #fafbfd;
+      min-width: 240px;
+      background-color: #f5f7fa;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -785,15 +821,17 @@
         width: 100%;
         height: 100%;
         padding: 12px;
-        background: #fafbfd;
+        background: #f5f7fa;
         border-radius: 0 2px 2px 0;
         outline: 1px solid #dcdee5;
 
-        .sql-query-fold-title {
+        &-title {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 8px;
+          margin-bottom: 16px;
           font-size: 12px;
+          line-height: 20px;
+          color: #313238;
 
           .fold-title-right {
             display: flex;
@@ -810,9 +848,31 @@
         }
 
         .sql-query-list {
+          margin-bottom: 12px;
           overflow-y: auto;
           font-size: 12px;
           white-space: pre-line;
+
+          .sql-query-name {
+            margin-bottom: 2px;
+            font-weight: 700;
+            line-height: 16px;
+            color: #313238;
+          }
+
+          .sql-query-value {
+            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+            font-family: 'Roboto Mono', monospace;
+            line-height: 18px;
+            color: #4d4f56;
+            word-break: break-all;
+          }
+
+          &:first-child {
+            .sql-query-value {
+              line-height: 20px;
+            }
+          }
         }
       }
 

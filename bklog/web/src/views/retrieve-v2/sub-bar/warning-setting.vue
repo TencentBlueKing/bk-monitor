@@ -24,8 +24,8 @@
           style="width: 580px; min-height: 200px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
-          @tab-change="handleTabChange"
           type="card"
+          @tab-change="handleTabChange"
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
@@ -200,11 +200,12 @@
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
   import $http from '@/api';
-  import useLocale from '@/hooks/use-locale';
   import { formatDate } from '@/common/util';
+  import PopInstanceUtil from '@/global/pop-instance-util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import PopInstanceUtil from '../search-bar/pop-instance-util';
   import { bkMessage } from 'bk-magic-vue';
+
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
   // import label from '../../../language/lang/en/label';
@@ -568,13 +569,13 @@
     justify-content: center;
     width: 70px;
     height: 32px;
-    margin-left: 10px;
-    font-size: 14px;
+    font-size: 12px;
     color: #63656e;
     cursor: pointer;
 
     .bklog-icon {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
+      font-size: 14px;
     }
   }
 
