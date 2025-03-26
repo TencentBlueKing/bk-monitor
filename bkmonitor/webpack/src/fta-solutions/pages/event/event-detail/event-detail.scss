@@ -65,10 +65,10 @@
 
   .event-detail-aiops {
     height: 100%;
+    overflow-x: hidden;
     overflow-y: auto;
 
     .container-group {
-      // height: 100%;
       padding: 12px 16px;
 
       .event-detail-basic {
@@ -81,6 +81,37 @@
           top: 0;
           z-index: 99;
           background: #fff;
+        }
+      }
+
+      .view-bottom {
+        position: sticky;
+        bottom: 0;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: calc(100% + 66px);
+        height: 42px;
+        font-size: 12px;
+        background-color: #e1ecff;
+        border-radius: 2px;
+
+        .view-bottom-label {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .link {
+          margin: 0 4px;
+          color: #3a84ff;
+          cursor: pointer;
+
+          .icon-fenxiang {
+            margin: 0 2px;
+            font-size: 12px;
+          }
         }
       }
     }
