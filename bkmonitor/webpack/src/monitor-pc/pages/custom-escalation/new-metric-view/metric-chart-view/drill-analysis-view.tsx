@@ -326,10 +326,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.setPanelConfigAndRefresh('limit', item);
   }
   /** 修改过滤条件 */
-  handleConditionChange(payload: { where: IResultItem['where']; common_conditions: IResultItem['common_conditions'] }) {
+  handleConditionChange(payload: { where: IResultItem['where']; custom_data: IResultItem['common_conditions'] }) {
     this.setPanelConfigAndRefresh('where', payload.where);
     const concatFilter = deepClone(this.defaultCommonConditions);
-    payload.common_conditions.map(item => {
+    payload.custom_data.map(item => {
       const key = `${item.key}__${item.method}`;
       concatFilter[key] = item.value;
     });
@@ -351,7 +351,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         <div class='drill-analysis-filter'>
           <div class='filter-left'>
             <WhereCondition
-              commonConditionValue={this.filterConfig.commonConditions}
+              customData={this.filterConfig.commonConditions}
               value={this.filterConfig.where}
               onChange={this.handleConditionChange}
             />
