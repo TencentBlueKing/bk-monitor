@@ -471,15 +471,15 @@ class SearchHandler(object):
         try:
             if qs.exists():
                 collector_config = qs.first()
-                res = MonitorApi.query_log_relation(
-                    params={
-                        "index_set_id": int(self.index_set_id),
-                        "bk_data_id": int(collector_config.bk_data_id),
-                        "bk_biz_id": collector_config.bk_biz_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                    }
-                )
+                params = {
+                    "index_set_id": int(self.index_set_id),
+                    "bk_data_id": int(collector_config.bk_data_id),
+                    "bk_biz_id": collector_config.bk_biz_id,
+                }
+                if self.start_time and self.end_time:
+                    params["start_time"] = self.start_time
+                    params["end_time"] = self.end_time
+                res = MonitorApi.query_log_relation(params=params)
             else:
                 res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
         except Exception as e:  # pylint: disable=broad-except
