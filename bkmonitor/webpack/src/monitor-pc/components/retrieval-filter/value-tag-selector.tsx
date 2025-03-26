@@ -127,7 +127,6 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
-    console.log(item);
     this.activeIndex = -1;
     if (this.localValue.some(v => v.id === item.id)) return;
     this.localValue.push(item);
