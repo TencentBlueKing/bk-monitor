@@ -51,6 +51,10 @@
     .bk-select {
       background-color: #f0f1f5;
       border: 1px solid transparent;
+
+      &:hover {
+        background-color: #eaebf0;
+      }
     }
 
     .is-focus {
@@ -70,7 +74,7 @@
     justify-content: center;
 
     font-size: 12px;
-    color: #63656e;
+    color: #4d4f56;
 
     .field-setting {
       display: flex;
@@ -107,6 +111,11 @@
       cursor: pointer;
     }
   }
+}
+
+.bk-select-dropdown-expand-theme {
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
 }
 
 .retrieve-setting-container {

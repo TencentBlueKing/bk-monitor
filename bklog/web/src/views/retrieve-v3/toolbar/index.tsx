@@ -53,10 +53,7 @@ export default defineComponent({
 
     return () => (
       <div class='v3-bklog-toolbar'>
-        <div
-          style={{ 'background-color': isFavoriteShown.value ? '#E1ECFF' : '#f0f1f5' }}
-          class='collection-box'
-        >
+        <div class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}>
           <span
             style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
             class='bklog-icon bklog-shoucangjia'

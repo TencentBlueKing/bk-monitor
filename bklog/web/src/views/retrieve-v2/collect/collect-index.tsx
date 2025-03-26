@@ -949,7 +949,7 @@ export default class CollectIndex extends tsc<IProps> {
                   >
                     <span
                       style={{ fontSize: '16px' }}
-                      class='bk-icon icon-sort'
+                      class='bklog-icon bklog-paixu'
                     ></span>
                   </div>
                   <div slot='content'>

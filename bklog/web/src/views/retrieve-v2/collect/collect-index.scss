@@ -18,6 +18,27 @@
     }
   }
 
+  .search-container-new {
+    padding-bottom: 8px;
+
+    .search-tool {
+      padding-bottom: 12px;
+      border-bottom: 1px solid #dcdee5;
+    }
+  }
+
+  .search-container-new-title {
+    .search-container-new-title-num {
+      font-family: RobotoMono-Medium;
+    }
+
+    .search-container-new-title-right {
+      .bklog-shezhi {
+        font-size: 16px;
+      }
+    }
+  }
+
   .search-category {
     margin-top: 8px;
 
@@ -30,6 +51,7 @@
       padding: 3px 3px;
       font-size: 12px;
       background-color: #dde1eb;
+      border: 0;
       border-radius: 4px;
     }
 
@@ -52,6 +74,7 @@
     }
 
     .search-category-num {
+      font-family: RobotoMono-Medium;
       font-size: 12px;
       font-weight: 500;
       color: #a3b1cc;

@@ -645,12 +645,12 @@
     width: 90px;
     height: 32px;
     font-size: 12px;
-    color: #63656e;
     cursor: pointer;
 
     span {
-      margin: 3px 6px 0 0;
+      margin: 0px 6px 0 0;
       font-size: 14px;
+      line-height: 20px;
     }
   }
 

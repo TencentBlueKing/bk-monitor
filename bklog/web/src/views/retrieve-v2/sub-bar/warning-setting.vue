@@ -570,7 +570,6 @@
     width: 70px;
     height: 32px;
     font-size: 12px;
-    color: #63656e;
     cursor: pointer;
 
     .bklog-icon {

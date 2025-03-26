@@ -123,7 +123,7 @@ export default class CollectContainer extends tsc<IProps> {
     return (
       <div
         style='backgroundColor:#ebeef5'
-        class='retrieve-collect-container'
+        class='bklog-v3-retrieve-collect-container'
       >
         {this.$slots.default}
         <div

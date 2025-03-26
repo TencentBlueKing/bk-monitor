@@ -99,9 +99,9 @@ export const fieldTypeMap = {
   },
   object: {
     name: i18n.t('对象'),
-    icon: 'bklog-icon bklog-object',
+    icon: 'bklog-icon bklog-object-2',
     color: '#E8EAF0',
-    textColor: '#AEB1BD',
+    textColor: '#979BA5',
   },
 };
 
