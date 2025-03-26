@@ -32,6 +32,8 @@ export enum STORAGE_KEY {
 }
 
 export enum RetrieveEvent {
+  // 展示收藏内容
+  FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
   // 收藏栏是否展示
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
   // 收藏栏宽度变化
@@ -131,6 +133,14 @@ class RetrieveHelper {
    */
   setScrollSelector(selector?: string) {
     this.globalScrollSelector = selector ?? GLOBAL_SCROLL_SELECTOR;
+  }
+
+  /**
+   * 更新收藏栏选中项
+   * @param favorite
+   */
+  setFavoriteActive(favorite: any) {
+    this.runEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, favorite);
   }
 
   getScrollSelector() {

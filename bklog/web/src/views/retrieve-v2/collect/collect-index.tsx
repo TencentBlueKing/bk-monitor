@@ -34,6 +34,7 @@ import { isEqual } from 'lodash';
 
 import $http from '../../../api';
 import { copyMessage, deepClone } from '../../../common/util';
+import RetrieveHelper from '../../retrieve-helper';
 import AddCollectDialog from './add-collect-dialog';
 import CollectContainer from './collect-container';
 import ManageGroupDialog from './manage-group-dialog';
@@ -246,10 +247,14 @@ export default class CollectIndex extends tsc<IProps> {
       };
     };
     if (this.currentCollectionType === 'origin') {
-      return this.originFavoriteList.map(mapFn).filter(item => this.isShowCurrentIndexList !== 'yes'|| item.favorites.length);
+      return this.originFavoriteList
+        .map(mapFn)
+        .filter(item => this.isShowCurrentIndexList !== 'yes' || item.favorites.length);
     }
 
-    return this.chartFavoriteList.map(mapFn).filter(item => this.isShowCurrentIndexList !== 'yes'|| item.favorites.length);
+    return this.chartFavoriteList
+      .map(mapFn)
+      .filter(item => this.isShowCurrentIndexList !== 'yes' || item.favorites.length);
   }
 
   get groupList() {
@@ -304,6 +309,7 @@ export default class CollectIndex extends tsc<IProps> {
 
   @Watch('activeFavorite', { deep: true })
   changeActiveFavorite(val) {
+    RetrieveHelper.setFavoriteActive(val);
     this.updateActiveFavorite(val);
   }
   @Emit('is-refresh-favorite')

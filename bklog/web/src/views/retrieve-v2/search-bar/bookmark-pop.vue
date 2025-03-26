@@ -59,7 +59,7 @@
     space_uid: -1,
     index_set_id: -1,
     name: '',
-    group_id: privateGroupID,
+    group_id: privateGroupID.value,
     created_by: '',
     params: {
       host_scopes: {
