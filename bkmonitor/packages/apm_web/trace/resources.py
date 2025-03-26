@@ -55,7 +55,6 @@ from .diagram import get_diagrammer
 from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
 from .mock_data import (
-    API_FIELDS_OPTION_VALUE_DATA,
     API_GRAPH_DATA,
     API_INFO_DATA,
     API_TOPK_DATA,
@@ -1045,6 +1044,25 @@ class ListOptionValuesResource(Resource):
     获取Span/Trace表头下拉框候选值
     """
 
+    TRACE_LIST_FIELDS = {
+        QueryMode.TRACE: [
+            "root_service",
+            "root_service_span_name",
+            "root_service_status_code",
+            "root_service_category",
+            "root_span_name",
+            "root_span_service",
+        ],
+        QueryMode.SPAN: [
+            "span_name",
+            "status.code",
+            "kind",
+            "resource.telemetry.sdk.version",
+            "resource.service.name",
+            "resource.bk.instance.id",
+        ],
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
@@ -1054,7 +1072,8 @@ class ListOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_data):
-        return QueryHandler.query_option_values(**validated_data)
+        validated_data["fields"] = self.TRACE_LIST_FIELDS[validated_data["mode"]]
+        return QueryHandler.get_fields_option_values(**validated_data)
 
 
 class GetFieldOptionValuesResource(Resource):
@@ -1094,7 +1113,7 @@ class GetFieldsOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
-        return API_FIELDS_OPTION_VALUE_DATA
+        return QueryHandler.get_fields_option_values(**validated_request_data)
 
 
 class ListSpanStatisticsResource(Resource):
