@@ -3,6 +3,7 @@
   padding: 0 8px 0 10px;
   margin-top: 8px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 
   .metrics-select-box {
     position: relative;
@@ -93,6 +94,15 @@
       width: 1px;
       content: '';
       background: #dcdee5;
+    }
+  }
+
+  .bk-exception {
+    margin-top: 80px;
+    overflow: hidden;
+
+    .bk-exception-text {
+      font-size: 12px;
     }
   }
 }

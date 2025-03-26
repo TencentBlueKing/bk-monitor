@@ -31,6 +31,7 @@ import _ from 'lodash';
 import { Debounce } from 'monitor-common/utils';
 
 import RenderCommonList from './components/render-common-list/index';
+import RenderCustomList from './components/render-custom-list';
 import RenderResultList from './components/render-result-list/index';
 
 import type { IValue } from './components/render-result-list/components/edit-panel';
@@ -41,6 +42,7 @@ interface IProps {
   value?: IValue[];
   commonConditionValue?: Omit<IValue, 'condition'>[];
   commonDimensionEnable?: boolean;
+  customData?: Omit<IValue, 'condition'>[];
 }
 
 interface IEmit {
@@ -56,6 +58,11 @@ interface IEmit {
       method: string;
       value: string[];
     }[];
+    custom_data: {
+      key: string;
+      method: string;
+      value: string[];
+    }[];
   }) => void;
 }
 
@@ -66,10 +73,12 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
   @Prop({ type: Array, default: () => [] }) readonly commonConditionValue: IProps['commonConditionValue'];
   @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
+  @Prop({ type: Array, default: () => [] }) readonly customData: IProps['customData'];
 
   localWhereValueList: Readonly<IProps['value']> = [];
   localCommonConditionValueList: Readonly<IProps['commonConditionValue']> = [];
   isShowCommonlyUsedList = false;
+  localCustomDataValueList: Readonly<IProps['customData']> = [];
 
   get commonDimensionList() {
     return customEscalationViewStore.commonDimensionList;
@@ -90,15 +99,24 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
     this.localWhereValueList = Object.freeze([...this.value]);
   }
 
+  @Watch('customData', { immediate: true })
+  customValueChange() {
+    this.localCustomDataValueList = Object.freeze([...this.customData]);
+  }
+
   triggerChange() {
     this.$emit('change', {
       where: this.localWhereValueList,
       common_conditions: _.filter(this.localCommonConditionValueList, item => item.value.length > 0),
+      custom_data: _.filter(this.localCustomDataValueList, item => item.value.length > 0),
     });
   }
 
   @Debounce(300)
   mergeCommonConditionValue() {
+    if (!this.commonDimensionEnable) {
+      return;
+    }
     const valueMap = this.commonConditionValue.reduce<Record<string, IProps['commonConditionValue'][number]>>(
       (result, item) => {
         if (item.value.length > 0) {
@@ -133,6 +151,10 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
     this.localCommonConditionValueList = Object.freeze(value);
     this.triggerChange();
   }
+  handleCustomDataChange(value: typeof this.localCustomDataValueList) {
+    this.localCustomDataValueList = Object.freeze(value);
+    this.triggerChange();
+  }
 
   handleToggleCommonlyUsedList() {
     this.isShowCommonlyUsedList = !this.isShowCommonlyUsedList;
@@ -162,10 +184,16 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
             value={this.localWhereValueList as IProps['value']}
             onChange={this.handleConditionChange}
           />
-          {this.isShowCommonlyUsedList && (
+          {this.commonDimensionEnable && this.isShowCommonlyUsedList && (
             <RenderCommonList
               data={this.localCommonConditionValueList as IProps['commonConditionValue']}
               onChange={this.handleCommonConditinChange}
+            />
+          )}
+          {this.customData.length > 0 && (
+            <RenderCustomList
+              data={this.localCustomDataValueList as IProps['customData']}
+              onChange={this.handleCustomDataChange}
             />
           )}
         </div>

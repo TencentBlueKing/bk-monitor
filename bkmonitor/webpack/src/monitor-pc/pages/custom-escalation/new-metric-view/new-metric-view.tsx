@@ -135,6 +135,8 @@ export default class NewMetricView extends tsc<object> {
               style='height: calc(100vh - 140px - var(--notice-alert-height))'
               collapsible={true}
               initial-divide={220}
+              max={550}
+              min={200}
             >
               <template slot='aside'>
                 <MetricsSelect onReset={this.handleMetricsSelectReset} />
@@ -143,8 +145,6 @@ export default class NewMetricView extends tsc<object> {
                 <HeaderBox
                   key={this.currentView}
                   dimenstionParams={this.dimenstionParams}
-                  commonDimensionEnable
-                  groupBySplitEnable
                   onChange={this.handleDimensionParamsChange}
                 >
                   <template slot='actionExtend'>
