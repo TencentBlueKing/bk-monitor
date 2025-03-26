@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
@@ -36,6 +36,7 @@ import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import { matchRuleFn } from '../group-manage-dialog';
 import { fuzzyMatch } from './metric-table-slide';
 
 import './metric-table.scss';
@@ -272,23 +273,25 @@ export default class IndicatorTable extends tsc<any, any> {
     this.$emit('handleSelectToggle', value, row.name);
   }
 
-  /* 分组tag tip展示 */
-  handleGroupTagTip(event, groupName) {
-    const groupItem = this.groupsMap.get(groupName);
-    const manualCount = groupItem?.manualList?.length || 0;
-    const matchRules = groupItem?.matchRules || [];
-    this.groupTagInstance = this.$bkPopover(event.target, {
-      placement: 'top',
-      boundary: 'window',
-      arrow: true,
-      content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${this.$t('匹配规则')}：${matchRules.length ? matchRules.join(',') : '--'
-        }</div>`,
-    });
-    this.groupTagInstance.show();
+  /* 是否为匹配规则匹配的选项 */
+  getIsDisable(metricName, key) {
+    if (!metricName) {
+      return false;
+    }
+    return this.groupsMap.get(key)?.matchRulesOfMetrics?.includes?.(metricName) || false;
   }
-  handleRemoveGroupTip() {
-    this.groupTagInstance?.hide?.();
-    this.groupTagInstance?.destroy?.();
+  /* 由匹配规则生成的tip */
+  getDisableTip(metricName, groupName) {
+    const targetGroup = this.groupsMap.get(groupName);
+    let targetRule = '';
+    targetGroup?.matchRules?.forEach(rule => {
+      if (!targetRule) {
+        if (matchRuleFn(metricName, rule)) {
+          targetRule = rule;
+        }
+      }
+    });
+    return targetRule;
   }
 
   @Emit('showAddGroup')
@@ -325,6 +328,17 @@ export default class IndicatorTable extends tsc<any, any> {
           <bk-option
             id={item.name}
             key={item.name}
+            v-bk-tooltips={
+              !this.getIsDisable(row.name, item.id)
+                ? { disabled: true }
+                : {
+                  content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
+                  placements: ['right'],
+                  boundary: 'window',
+                  allowHTML: false,
+                }
+            }
+            disabled={this.getIsDisable(row.name, item.id)}
             name={item.name}
           >
             {item.name}

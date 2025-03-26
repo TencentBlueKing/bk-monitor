@@ -1111,8 +1111,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   async saveSelectGroup(selectedGroups, metricName) {
     try {
       const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
-      console.log('change', changes);
-      console.log(selectedGroups, this.metricGroupsMap);
       await Promise.all([
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
