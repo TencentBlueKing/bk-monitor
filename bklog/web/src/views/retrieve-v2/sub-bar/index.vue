@@ -163,7 +163,7 @@
       >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div> -->
-       <div
+      <div
         v-if="!isExternal"
         class="more-setting"
       >
@@ -181,7 +181,25 @@
 
   .box-right-option {
     .custom-border-right {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      line-height: 20px;
       border-right: 1px solid #eaebf0;
+
+      &.query-params-wrap {
+        .__bk_date_picker__ {
+          color: #4d4f56;
+
+          .date-icon {
+            color: #4d4f56;
+          }
+
+          .date-content {
+            padding: 0;
+          }
+        }
+      }
     }
   }
 </style>

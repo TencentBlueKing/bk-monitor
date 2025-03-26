@@ -39,7 +39,7 @@
     align-items: center;
     justify-content: center;
     width: 90px;
-    height: 32px;
+    height: 100%;
     font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
