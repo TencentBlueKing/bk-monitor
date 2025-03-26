@@ -317,6 +317,7 @@ export default class EventExplore extends tsc<
   }
 
   mounted() {
+    this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     this.getViewConfig();
     this.updateQueryConfig();
   }
@@ -492,6 +493,7 @@ export default class EventExplore extends tsc<
   /** 更新queryConfig */
   @Debounce(100)
   updateQueryConfig() {
+    this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     let queryString = '';
     let where = mergeWhereList(this.where || [], this.commonWhere || []);
     if (this.filterMode === EMode.ui) {
