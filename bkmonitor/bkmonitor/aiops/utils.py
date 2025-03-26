@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Dict, Optional
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.models.aiops import AIFeatureSettings
@@ -24,7 +25,7 @@ from constants.aiops import (
     METRIC_RECOMMEND,
     MULTIVARIATE_ANOMALY_DETECTION,
 )
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DATA_TYPE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("bkmonitor.aiops")
 
@@ -101,6 +102,7 @@ class DimensionDrill(BaseAnomalyConfig):
     # 维度下钻
     is_enabled: bool = field(default=False)
     is_supported: bool = field(default=True)
+    error_msg: str = field(default="")
 
 
 @dataclass
@@ -109,6 +111,7 @@ class MetricRecommend(BaseAnomalyConfig):
     is_enabled: bool = field(default=False)
     result_table_id: str = field(default="")
     is_supported: bool = field(default=True)
+    error_msg: str = field(default="")
 
 
 class ReadOnlyAiSetting:
@@ -151,13 +154,17 @@ class ReadOnlyAiSetting:
             METRIC_RECOMMEND: self.metric_recommend.to_dict(),
         }
 
+        # 多指标不支持
+        not_supported_msg = ""
         if len(query_configs) > 1:
             results[DIMENSION_DRILL]["is_supported"] = False
             results[METRIC_RECOMMEND]["is_supported"] = False
-        else:
+            not_supported_msg = _("多指标计算的指标")
+        elif len(query_configs) == 1:
             if query_configs[0]["data_type_label"] != DataTypeLabel.TIME_SERIES:
                 results[DIMENSION_DRILL]["is_supported"] = False
                 results[METRIC_RECOMMEND]["is_supported"] = False
+                not_supported_msg = DATA_TYPE_LABEL_ALIAS[query_configs[0]["data_type_label"]]
             elif query_configs[0]["data_source_label"] not in (
                 DataSourceLabel.BK_MONITOR_COLLECTOR,
                 DataSourceLabel.BK_DATA,
@@ -165,6 +172,12 @@ class ReadOnlyAiSetting:
             ):
                 results[DIMENSION_DRILL]["is_supported"] = False
                 results[METRIC_RECOMMEND]["is_supported"] = False
+
+            if query_configs[0]["data_source_label"] == DataSourceLabel.PROMETHEUS:
+                not_supported_msg = _("PromSQL查询的指标")
+
+        results[DIMENSION_DRILL]["error_msg"] = not_supported_msg
+        results[METRIC_RECOMMEND]["error_msg"] = not_supported_msg
 
         return results
 
