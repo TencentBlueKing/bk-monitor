@@ -44,6 +44,10 @@
       .bk-collapse-item-detail {
         height: auto;
       }
+
+      .bk-collapse-item-content {
+        height: calc(100% - 52px);
+      }
     }
 
     .bk-collapse-item .bk-collapse-item-hover:hover {
