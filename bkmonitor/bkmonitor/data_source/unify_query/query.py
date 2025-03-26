@@ -366,6 +366,8 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
+        params["timezone"] = timezone.get_current_timezone_name()
+
         for query in params["query_list"]:
             query.update({"limit": limit or 1, "from": offset or 0})
 
@@ -397,6 +399,8 @@ class UnifyQuery:
         params: Dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
         if not params["query_list"]:
             return []
+
+        params["timezone"] = timezone.get_current_timezone_name()
 
         for query in params["query_list"]:
             query.update({"limit": limit or 1, "from": offset or 0})
