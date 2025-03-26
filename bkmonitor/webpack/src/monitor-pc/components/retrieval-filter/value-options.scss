@@ -21,8 +21,9 @@
       position: relative;
       top: 0;
       left: 0;
-      min-height: fit-content;
+      height: fit-content;
       max-height: 130px !important;
+      overflow-y: auto;
 
       .empty-status-container {
         padding: 20px 0;
@@ -90,6 +91,14 @@
           height: 80px;
         }
       }
+    }
+
+    .no-data-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 32px;
     }
   }
 }

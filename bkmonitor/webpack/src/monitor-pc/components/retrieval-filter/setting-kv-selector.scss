@@ -24,7 +24,6 @@
       z-index: 2;
       align-self: flex-start;
       width: fit-content;
-      min-width: fit-content;
       max-width: 120px;
       overflow: hidden;
       line-height: 30px;
@@ -35,7 +34,7 @@
     .method-wrap {
       position: relative;
       align-self: flex-start;
-      padding: 0 2px 0 2px;
+      padding: 0 3px 0 2px;
       margin-left: 2px;
       line-height: 30px;
       color: #3a84ff;
@@ -49,12 +48,16 @@
         z-index: 3;
         width: 4px;
         height: 100%;
-        content: "";
+        content: '';
         background: #fff;
       }
 
       .method-span {
         white-space: nowrap;
+
+        &.red-text {
+          color: #ea3636;
+        }
       }
 
       .method-list-wrap {
@@ -97,30 +100,6 @@
 
       &.tippy-active {
         z-index: 10;
-      }
-
-      .tag-item {
-        display: inline-flex;
-        align-items: center;
-        height: 22px;
-        padding: 0 6px;
-        margin: 0 4px 4px 0;
-        background: #f0f1f5;
-
-        .tag-text {
-          max-width: 200px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .icon-mc-close {
-          cursor: pointer;
-        }
-
-        &:hover {
-          background-color: #dcdee5;
-        }
       }
 
       .hide-count {

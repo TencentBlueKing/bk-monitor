@@ -260,12 +260,12 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
 
   render() {
     return (
-      <div class='retrieval-filter__resident-setting-component'>
+      <div class={['retrieval-filter__resident-setting-component', { 'no-data': !this.localValue.length }]}>
         <span
           class='left-btn'
           onClick={this.handleShowSettingTransfer}
         >
-          <span class='icon-monitor icon-setting' />
+          <span class='icon-monitor icon-shezhi1' />
           <span class='setting-text'>{this.$t('设置筛选')}</span>
         </span>
         <div class='right-content'>

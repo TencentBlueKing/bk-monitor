@@ -138,6 +138,9 @@ export class CommonSimpleChart
       } else {
         width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
       }
+      if (width <= 0) {
+        return undefined;
+      }
       const size = (timeRange[1] - timeRange[0]) / width;
       return size > 0 ? `${Math.ceil(size)}s` : undefined;
     }

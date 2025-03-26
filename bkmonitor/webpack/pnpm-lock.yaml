@@ -171,8 +171,8 @@ importers:
         specifier: ^8.28.2
         version: 8.28.2(vue@2.7.16)
       vue-json-pretty:
-        specifier: 1.8.2
-        version: 1.8.2
+        specifier: 1.9.5
+        version: 1.9.5
       vue-property-decorator:
         specifier: ^9.1.2
         version: 9.1.2(vue-class-component@7.2.6(vue@2.7.16))(vue@2.7.16)
@@ -7926,8 +7926,8 @@ packages:
     peerDependencies:
       vue: ^3.0.0
 
-  vue-json-pretty@1.8.2:
-    resolution: {integrity: sha512-8DbgvyXpBrhDdBzz8RTe+POZ+HI6nSa33DqsPMWhMkv0u0ATklgxErUM3XRRvTzOQ/02Sh1LNWJ/rkqTow2rbA==}
+  vue-json-pretty@1.9.5:
+    resolution: {integrity: sha512-fwbiH/ky/raX1D4MXRZZLFeKm157e9AkumMD7Y+djdLU1Sb0Tp5q2iOPvCnkWNzRpUfxx/zUjONUG+MIWsqx/w==}
     engines: {node: '>= 10.0.0', npm: '>= 5.0.0'}
 
   vue-json-pretty@2.4.0:
@@ -16596,7 +16596,7 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.12(typescript@5.6.3)
 
-  vue-json-pretty@1.8.2: {}
+  vue-json-pretty@1.9.5: {}
 
   vue-json-pretty@2.4.0(vue@3.5.12(typescript@5.6.3)):
     dependencies:

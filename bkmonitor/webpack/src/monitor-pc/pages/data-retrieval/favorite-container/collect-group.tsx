@@ -42,7 +42,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
   @Prop({ default: () => ({}), type: Object }) favCheckedValue: IFavList.favList; // 当前点击的收藏
   @Prop({ type: Array, default: () => [] }) groupList: IFavList.groupList[]; // 组列表
   @Inject('handleUserOperate') handleUserOperate;
-  isClickIcon = false; // 是否点击更多
+  isExpand = true; // 是否展开
   isHoverTitle = false;
   clickDrop = false; // 点击更多icon 防穿透
   favoriteMessageInstance = null; // 收藏更新信息实例
@@ -59,6 +59,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
 
   /** 点击收藏 */
   handleClickCollect(item) {
+    if (item.disabled) return;
     setTimeout(() => {
       this.clickDrop = false;
     }, 100);
@@ -72,23 +73,30 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
     return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
   }
   /** 鼠标移动到名称时 获取更新信息 */
-  handleHoverFavoriteName(e, item) {
-    if (!this.favoriteMessageInstance) {
-      this.favoriteMessageInstance = this.$bkPopover(e.target, {
-        content: `<div style="font-size: 12px;">
-                    <div>${this.$t('创建人')}: ${item.create_user || '--'}</div>
-                    <div>${this.$t('最近更新人')}: ${item.update_user || '--'}</div>
-                    <div>${this.$t('最近更新时间')}: ${this.getShowTime(item.update_time)}</div>
-                  </div>`,
-        arrow: true,
-        placement: 'top',
-        onHidden: () => {
-          this.favoriteMessageInstance?.destroy();
-          this.favoriteMessageInstance = null;
-        },
-      });
-      this.favoriteMessageInstance.show(500);
+  handleHoverFavoriteName(e: Event, item) {
+    if (this.favoriteMessageInstance) {
+      this.favoriteMessageInstance?.destroy();
+      this.favoriteMessageInstance = null;
     }
+    this.favoriteMessageInstance = this.$bkPopover(e.currentTarget, {
+      content: `<div style="font-size: 12px;">
+                  <div>${this.$t('收藏名')}: ${item.name || '--'}</div>
+                  <div>${this.$t('创建人')}: ${item.create_user || '--'}</div>
+                  <div>${this.$t('最近更新人')}: ${item.update_user || '--'}</div>
+                  <div>${this.$t('最近更新时间')}: ${this.getShowTime(item.update_time)}</div>
+                </div>`,
+      arrow: true,
+      placement: 'top',
+      onHidden: () => {
+        this.favoriteMessageInstance?.destroy();
+        this.favoriteMessageInstance = null;
+      },
+    });
+    this.favoriteMessageInstance?.show(200);
+  }
+
+  handleExpand(expand: boolean) {
+    this.isExpand = expand;
   }
 
   render() {
@@ -113,12 +121,12 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve-collect-group-comp'>
         <div
           class={[
             'group-title fl-jcsb',
             {
-              'is-active': !this.isClickIcon,
+              'is-active': this.isExpand,
               'is-move-cur': !this.isSearchFilter && !this.isCannotChange,
             },
           ]}
@@ -127,18 +135,29 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
         >
           <span
             class='group-cur'
-            onClick={() => (this.isClickIcon = !this.isClickIcon)}
+            onClick={() => {
+              this.handleExpand(!this.isExpand);
+            }}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isClickIcon }]} />
+            <span
+              class={[
+                'icon-monitor',
+                {
+                  'icon-file-personal': this.collectItem.id === 0,
+                  'icon-mc-file-close': this.collectItem.id !== 0 && !this.isExpand,
+                  'icon-mc-file-open': this.collectItem.id !== 0 && this.isExpand,
+                },
+              ]}
+            />
             <span class='group-str'>{this.collectItem.name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}
         </div>
-        <div class={['group-list', { 'list-hidden': this.isClickIcon }]}>
+        <div class={['group-list', { 'list-hidden': !this.isExpand }]}>
           {this.collectItem.favorites.map((item, index) => (
             <div
               key={index}
-              class={['group-item', { active: this.isActiveFavorite(item.id) }]}
+              class={['group-item', { active: this.isActiveFavorite(item.id), disabled: item.disabled }]}
               onClick={() => this.handleClickCollect(item)}
             >
               <div
@@ -153,7 +172,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
                 >
                   {item.name}
                 </span>
-                {collectDropdownSlot(item)}
+                {!item.disabled && collectDropdownSlot(item)}
               </div>
             </div>
           ))}

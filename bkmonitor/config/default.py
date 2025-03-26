@@ -344,6 +344,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
     },
@@ -552,6 +553,9 @@ APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
+
+# 蓝盾配置
+BKCI_HOST = ""
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -1533,6 +1537,9 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
+
+# 事件检索新版灰度列表
+EVENT_V2_BIZ_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

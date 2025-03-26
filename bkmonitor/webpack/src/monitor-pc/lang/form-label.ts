@@ -824,6 +824,7 @@ export default {
   新检索: 'New Explore',
   收藏查询: 'Favorite',
   '(仅个人可见)': '(personal)',
+  '（仅个人可见）': '（personal）',
   未分组: 'Default',
   收藏排序: 'Favorite Sorting',
   '按名称 A - Z 排序': 'Sort by name A - Z',
@@ -878,6 +879,10 @@ export default {
   检索: 'Explore',
   检索语句: 'Search statement',
   数据查询: 'Data Query',
+  添加到本次检索: 'Add to this search',
+  从本次检索中排除: 'Exclude from this search',
+  新建检索: 'New Explore',
+  事件来源: 'Event source',
 
   注意: 'Note',
   目录: 'Directory',
@@ -1915,4 +1920,9 @@ export default {
   图表: 'Chart',
   数据明细: 'Data details',
   聚合维度: 'Group by',
+
+  'UI 模式': 'UI mode',
+  语句模式: 'Statement mode',
+  收藏名称: 'Collection name',
+  收藏详情: 'Collection details',
 };

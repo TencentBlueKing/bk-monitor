@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  min-height: 22px;
+  height: 22px;
   padding: 2px 4px;
   margin: 0 4px 4px 0;
   overflow: hidden;
@@ -11,7 +11,6 @@
   background: #f0f1f5;
   border: 1px solid transparent;
   border-radius: 2px;
-
 
   .value-span {
     overflow: hidden;
@@ -26,16 +25,6 @@
     font-size: 16px;
     color: #979ba5;
     cursor: pointer;
-  }
-
-  &.edit-active {
-    padding: 0 4px;
-    background: #e1ecff;
-
-    .value-span {
-      padding: 4px 8px;
-      visibility: hidden;
-    }
   }
 
   .value-span-input {
@@ -58,7 +47,7 @@
       width: 12px; /* Width of the scrollbar */
     }
   }
-  
+
   &:hover {
     cursor: pointer;
     background-color: #dcdee5;
@@ -72,5 +61,28 @@
   &.is-error {
     border-color: red;
     border-style: dashed;
+  }
+
+  &.edit-active {
+    padding: 0 4px;
+    background: #e1ecff;
+
+    .value-span {
+      padding: 4px 8px;
+      visibility: hidden;
+    }
+  }
+
+  &.one-row {
+    .value-span {
+      text-overflow: ellipsis;
+      word-break: normal;
+      white-space: nowrap;
+    }
+
+    .value-span-input {
+      overflow: hidden;
+      white-space: nowrap;
+    }
   }
 }

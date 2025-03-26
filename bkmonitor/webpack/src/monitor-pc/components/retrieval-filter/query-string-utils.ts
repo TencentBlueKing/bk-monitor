@@ -466,11 +466,16 @@ export class QueryStringEditor {
   parseQueryString() {
     const result = [];
     const tokens = parseQueryString(this.queryString);
+    const rightBrackets = ['}', ']', ')'];
+    let i = 0;
     for (const item of tokens) {
-      if (QUERY_STRING_DATA_TYPES.includes(item.type) || ['}', ']', ')'].some(v => v === item.value)) {
+      i += 1;
+      const next = tokens?.[i]?.value;
+      if (QUERY_STRING_DATA_TYPES.includes(item.type) || rightBrackets.some(v => v === item.value)) {
+        const noAddNoSpace = rightBrackets.includes(next) && item.type === EQueryStringTokenType.value;
         result.push({
           ...item,
-          value: `${item.value} `,
+          value: noAddNoSpace ? item.value : `${item.value} `,
         });
       } else if (item.type !== EQueryStringTokenType.split) {
         result.push(item);
@@ -559,6 +564,9 @@ export class QueryStringEditor {
       }
       this.queryString = `${this.queryString} ${value} `;
       this.parseQueryString();
+      // if (this.tokens[this.tokens.length - 1].type === EQueryStringTokenType.value) {
+      //   this.options?.onQuery?.();
+      // }
     }
     this.setTokensToTarget(true);
     this.popUpFn(true);

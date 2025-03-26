@@ -32,14 +32,16 @@ import './value-tag-input.scss';
 
 interface IProps {
   value: string;
+  isOneRow?: boolean;
   onInput?: (v: string) => void;
   onChange?: (v: string) => void;
-  onDelete?: () => void;
+  onDelete?: (e?: MouseEvent) => void;
 }
 
 @Component
 export default class ValueTagInput extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
+  @Prop({ type: Boolean, default: false }) isOneRow: boolean;
   @Ref('input') inputRef: HTMLInputElement;
 
   localValue = '';
@@ -112,14 +114,14 @@ export default class ValueTagInput extends tsc<IProps> {
   handleComponentClick(event) {
     event.stopPropagation();
   }
-  handleDelete() {
-    this.$emit('delete');
+  handleDelete(e) {
+    this.$emit('delete', e);
   }
 
   render() {
     return (
       <div
-        class={['retrieval__value-tag-input-component', { 'edit-active': this.isEdit }]}
+        class={['retrieval__value-tag-input-component', { 'edit-active': this.isEdit }, { 'one-row': this.isOneRow }]}
         onClick={this.handleComponentClick}
       >
         <span

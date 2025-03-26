@@ -75,15 +75,24 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
       const tempSet = new Set(this.value);
       const selectedFields = [];
       const localFields = [];
+      const selectedFieldsMap = new Map();
       for (const item of this.fields) {
         if (tempSet.has(item.name)) {
           selectedFields.push(item);
+          selectedFieldsMap.set(item.name, item);
         } else {
           localFields.push(item);
         }
       }
+      const selected = [];
+      for (const v of this.value) {
+        const item = selectedFieldsMap.get(v);
+        if (item) {
+          selected.push(item);
+        }
+      }
       this.localFields = localFields;
-      this.selectedFields = selectedFields;
+      this.selectedFields = selected;
     }
   }
 

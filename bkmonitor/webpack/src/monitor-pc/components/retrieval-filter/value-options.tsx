@@ -48,6 +48,8 @@ interface IProps {
   show?: boolean;
   isPopover?: boolean;
   width?: number;
+  needUpDownCheck?: boolean;
+  noDataSimple?: boolean;
   onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
   getValueFn?: TGetValueFn;
@@ -72,6 +74,9 @@ export default class ValueOptions extends tsc<IProps> {
   })
   getValueFn: TGetValueFn;
   @Prop({ type: Number, default: 0 }) width: number;
+  /* 是否可上下键切换 */
+  @Prop({ type: Boolean, default: true }) needUpDownCheck: boolean;
+  @Prop({ type: Boolean, default: false }) noDataSimple: boolean;
 
   localOptions: IValue[] = [];
   loading = false;
@@ -134,6 +139,9 @@ export default class ValueOptions extends tsc<IProps> {
   }
 
   handleKeydownEvent(event: KeyboardEvent) {
+    if (!this.needUpDownCheck) {
+      return;
+    }
     const min = this.hasCustomOption ? -1 : 0;
     switch (event.key) {
       case 'ArrowUp': {
@@ -270,9 +278,13 @@ export default class ValueOptions extends tsc<IProps> {
               );
             })}
           </div>
-        ) : !this.localOptions.length && !this.search ? (
+        ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
-            <EmptyStatus type={'empty'} />
+            {this.noDataSimple ? (
+              <span class='no-data-text'>{this.$t('暂无数据')}</span>
+            ) : (
+              <EmptyStatus type={'empty'} />
+            )}
           </div>
         ) : (
           <div
@@ -286,7 +298,7 @@ export default class ValueOptions extends tsc<IProps> {
               <div
                 key={'00'}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
-                onClick={e => {
+                onMousedown={e => {
                   e.stopPropagation();
                   this.handleCheck({ id: this.search, name: this.search });
                 }}

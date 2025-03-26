@@ -1071,6 +1071,7 @@ class RecommendMetricManager(AIOPSManager):
                 base_graph_panel["title"] = "_".join(
                     map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
                 )
+                base_graph_panel["dimensions"] = dimensions
                 base_graph_panel["subTitle"] = metric_name
                 base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
                 base_graph_panel["recommend_info"] = recommend_info
