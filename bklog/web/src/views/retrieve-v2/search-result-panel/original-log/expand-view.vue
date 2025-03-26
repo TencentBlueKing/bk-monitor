@@ -27,18 +27,27 @@
 <template>
   <div class="expand-view-wrapper">
     <div class="view-tab">
-      <span
-        :class="{ activeKv: activeExpandView === 'kv' }"
-        @click="activeExpandView = 'kv'"
-      >
-        KV
-      </span>
-      <span
-        :class="{ activeJson: activeExpandView === 'json' }"
-        @click="activeExpandView = 'json'"
-      >
-        JSON
-      </span>
+      <div class="tab-left">
+        <span
+          :class="{ activeKv: activeExpandView === 'kv' }"
+          @click="activeExpandView = 'kv'"
+        >
+          KV
+        </span>
+        <span
+          :class="{ activeJson: activeExpandView === 'json' }"
+          @click="activeExpandView = 'json'"
+        >
+          JSON
+        </span>
+      </div>
+      <div class="tab-right">
+        <span
+          class="bklog-icon bklog-data-copy"
+          v-bk-tooltips="{ content: $t('复制') }"
+          @click="handleCopy"
+        ></span>
+      </div>
     </div>
     <div
       class="view-content kv-view-content"
@@ -126,6 +135,11 @@
         }, {});
       },
     },
+    methods: {
+      handleCopy() {
+        alert('复制开发中~');
+      },
+    },
   };
 </script>
 
@@ -136,50 +150,70 @@
     background-color: #f5f7fa;
 
     .view-tab {
+      display: flex;
+      justify-content: space-between;
+      padding-right: 15px;
       font-size: 0;
       background-color: #f5f7fa;
 
-      span {
-        display: inline-block;
-        width: 46px;
-        height: 23px;
-        font-size: 12px;
-        line-height: 23px;
-        color: #313238;
-        text-align: center;
-        cursor: pointer;
-
-        border-top: 0;
-
-        &:first-child {
-          border-left: 0;
-        }
-
-        &.activeKv,
-        &.activeJson {
-          position: relative;
+      .tab-left {
+        span {
+          display: inline-block;
+          width: 46px;
+          height: 23px;
           font-size: 12px;
-          font-weight: 700;
-        }
+          line-height: 23px;
+          color: #313238;
+          text-align: center;
+          cursor: pointer;
 
-        &.activeKv::after {
-          position: absolute;
-          top: -2px; /* 确保线条在元素的上方 */
-          left: 14px;
-          width: 17px;
-          height: 2px;
-          content: ''; /* 必须有content属性，即使为空 */
-          background-color: #313238; /* 红色横线 */
-        }
+          border-top: 0;
 
-        &.activeJson::after {
-          position: absolute;
-          top: -2px; /* 确保线条在元素的上方 */
-          left: 10px;
-          width: 30px;
-          height: 2px;
-          content: ''; /* 必须有content属性，即使为空 */
-          background-color: #313238; /* 红色横线 */
+          &:first-child {
+            border-left: 0;
+          }
+
+          &.activeKv,
+          &.activeJson {
+            position: relative;
+            font-size: 12px;
+            font-weight: 700;
+          }
+
+          &.activeKv::after {
+            position: absolute;
+            top: -2px; /* 确保线条在元素的上方 */
+            left: 14px;
+            width: 17px;
+            height: 2px;
+            content: ''; /* 必须有content属性，即使为空 */
+            background-color: #313238; /* 红色横线 */
+          }
+
+          &.activeJson::after {
+            position: absolute;
+            top: -2px; /* 确保线条在元素的上方 */
+            left: 10px;
+            width: 30px;
+            height: 2px;
+            content: ''; /* 必须有content属性，即使为空 */
+            background-color: #313238; /* 红色横线 */
+          }
+        }
+      }
+
+      .tab-right {
+        display: flex;
+        align-items: center;
+
+        .bklog-icon {
+          font-size: 16px;
+          color: #63656e;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
         }
       }
     }
