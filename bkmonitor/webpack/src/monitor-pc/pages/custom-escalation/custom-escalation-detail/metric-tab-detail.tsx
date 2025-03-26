@@ -55,6 +55,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   currentGroupInfo = {
     name: '',
     rules: '',
+    manualList: [],
   };
   isEdit = false;
   /** 当前拖拽id */
@@ -116,6 +117,7 @@ export default class MetricTabDetail extends tsc<any, any> {
         const currentGroupInfo = this.customGroups.filter(item => item.name === groupName)[0];
         if (currentGroupInfo) {
           this.currentGroupInfo.name = currentGroupInfo.name;
+          this.currentGroupInfo.manualList = currentGroupInfo.manualList || [];
           this.currentGroupInfo.rules = currentGroupInfo.matchRules[0] || '';
           this.isEdit = true;
           this.showAddGroupDialog = true;
@@ -145,6 +147,7 @@ export default class MetricTabDetail extends tsc<any, any> {
     this.currentGroupInfo = {
       name: '',
       rules: '',
+      manualList: [],
     };
     this.$nextTick(() => {
       this.isEdit = false;
