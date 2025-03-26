@@ -77,6 +77,10 @@ class RetrieveHelper {
   // 事件列表
   events: Map<string, ((...args) => void)[]>;
 
+  // 正则表达式提取日志级别
+  logLevelRegex =
+    /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/i;
+
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
@@ -95,6 +99,21 @@ class RetrieveHelper {
 
     this.events.set(fnName, [callbackFn]);
     return this;
+  }
+
+  /**
+   * 解析日志级别
+   * @param str
+   * @returns
+   */
+  getLogLevel(str: string) {
+    if (!str || typeof str !== 'string') {
+      return null;
+    }
+
+    const match = str.slice(0, 1000).match(this.logLevelRegex);
+    if (!match) return null;
+    return Object.keys(match.groups).find(level => match.groups[level]);
   }
 
   /**

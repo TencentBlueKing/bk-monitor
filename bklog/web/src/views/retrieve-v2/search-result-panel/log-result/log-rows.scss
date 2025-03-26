@@ -389,31 +389,31 @@
       }
 
       &.normal,
-      &.trace {
+      &.TRACE {
         &::before {
           background: #dcdee5;
         }
       }
 
-      &.debug {
+      &.DEBUG {
         &::before {
           background: #92d4f1;
         }
       }
 
-      &.info {
+      &.INFO {
         &::before {
           background: #6fc5bf;
         }
       }
 
-      &.warn {
+      &.WARN {
         &::before {
           background: #f5c78e;
         }
       }
 
-      &.error {
+      &.ERROR {
         &::before {
           background: #f59789;
         }

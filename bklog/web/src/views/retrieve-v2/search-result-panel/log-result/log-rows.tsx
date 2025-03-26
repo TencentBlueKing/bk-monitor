@@ -66,6 +66,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
+import RetrieveHelper from '../../../retrieve-helper';
 
 import './log-rows.scss';
 
@@ -946,10 +947,12 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
+        const logLevel = RetrieveHelper.getLogLevel(row.item?.log);
+
         return (
           <RowRender
             key={row[ROW_KEY]}
-            class={['bklog-row-container', row[logLevelFieldName.value] ?? 'normal']}
+            class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
           >
             {renderRowCells(row.item, rowIndex)}

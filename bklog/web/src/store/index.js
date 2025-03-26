@@ -1152,6 +1152,13 @@ const store = new Vuex.Store({
       { commit, state, getters, dispatch },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: true },
     ) {
+      if (!payload?.isPagination) {
+        commit('updateIndexSetQueryResult', {
+          origin_log_list: [],
+          list: [],
+        });
+      }
+
       if (
         (!state.indexItem.isUnionIndex && !state.indexId) ||
         (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
