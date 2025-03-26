@@ -109,7 +109,7 @@ export default class AddGroupDialog extends tsc<any> {
       return this.$t('已有规则，请先预览');
     }
     if (this.previewBtnFlag === EPreviewFlag.Preview_Changed) {
-      return this.$t('规则变更，请重新预览');
+      return this.$t('匹配规则已变更，请重新预览。');
     }
     return '';
   }
@@ -141,13 +141,18 @@ export default class AddGroupDialog extends tsc<any> {
     });
     this.previewBtnFlag = EPreviewFlag.Preview_Started;
 
-    this.matchedMetrics = (autoMetrics[0]?.metrics || []).map(metricName => {
-      const filter = this.metricList.filter(metric => metric.name === metricName)[0];
-      return {
-        name: filter.name,
-        description: filter.description,
-      };
+    const autoMetricsMapped = (autoMetrics[0]?.metrics || []).map(metricName => {
+      const metric = this.metricList.find(m => m.name === metricName) || { name: metricName, description: '' };
+      return { name: metric.name, description: metric.description };
     });
+
+    // 合并自动指标和手动选择的列表，并去重（手动列表项优先）
+    const combinedMetrics = [...autoMetricsMapped, ...this.localGroupInfo.manualList.map(name => ({ name }))];
+    const metricMap = new Map();
+    combinedMetrics.forEach(metric => {
+      metricMap.set(metric.name, metric);
+    });
+    this.matchedMetrics = Array.from(metricMap.values());
   }
   /** 规则改变 */
   handleRulesChange() {
