@@ -1,0 +1,43 @@
+.bk-monitor-new-metric-view-where-condition {
+  display: flex;
+  border-bottom: 1px solid #dcdee5;
+  border-left: 1px solid #dcdee5;
+  position: relative;
+  .where-condition-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .filter-label {
+    min-height: 52px;
+    background-color: #ebeef5;
+    font-size: 12px;
+    color: #313238;
+    font-weight: 500;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-right: 1px solid #dcdee5;
+  }
+  .commonly-used-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 2px;
+    transition: all 0.15s ease-in-out;
+    &:hover,
+    &.is-active {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+  }
+}

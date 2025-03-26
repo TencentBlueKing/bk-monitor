@@ -70,6 +70,7 @@ const getters = {
     state.app.eventExploreV2EnableList.some(id => (id === 0 ? true : +id === +state.app.bizId)),
   defaultBizId: state => state.app.defaultBizId,
   defaultBizIdApiId: state => state.app.defaultBizIdApiId,
+  customMetricV2EnableList: state => state.app.customMetricV2EnableList,
 };
 
 export default getters;

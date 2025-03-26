@@ -542,6 +542,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
         time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
+        unit = serializers.CharField(label="单位", default="", allow_blank=True)
 
         @classmethod
         def to_str(cls, value):
@@ -876,6 +877,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         """
         获取单位信息
         """
+        # 如果查询配置中指定了单位，则直接返回
+        if params.get("unit"):
+            return params["unit"]
+
         # 多指标无单位
         if len(params["query_configs"]) > 1 or not metrics:
             return ""

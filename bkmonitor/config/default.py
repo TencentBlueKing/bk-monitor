@@ -1569,3 +1569,6 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 IS_GLOBAL_TENANT = True
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+
+# 新版自定义时序灰度业务列表
+ENABLE_CUSTOM_TS_V2_BIZ_LIST = []

@@ -349,7 +349,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
                 onClick={() => this.handleMetricSelect(item)}
               >
-                <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
+                <i class='icon-monitor icon-a-celve strategy-icon' />
                 <span
                   class='field-name'
                   v-bk-overflow-tips

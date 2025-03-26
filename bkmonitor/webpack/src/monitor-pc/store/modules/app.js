@@ -86,6 +86,7 @@ const state = {
   eventExploreV2EnableList: [],
   defaultBizId: '',
   defaultBizIdApiId: '',
+  customMetricV2EnableList: [],
 };
 
 const mutations = {
