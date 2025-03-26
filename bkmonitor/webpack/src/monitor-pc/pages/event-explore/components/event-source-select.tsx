@@ -51,7 +51,7 @@ export default class EventSourceSelect extends tsc<EventSourceSelectProps, Event
 
   iconMap = {
     [ExploreSourceTypeEnum.BCS]: 'icon-bcs',
-    [ExploreSourceTypeEnum.CICD]: 'icon-landun',
+    [ExploreSourceTypeEnum.BKCI]: 'icon-landun',
     [ExploreSourceTypeEnum.HOST]: 'icon-host',
     [ExploreSourceTypeEnum.DEFAULT]: 'icon-default',
   };
