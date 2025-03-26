@@ -30,12 +30,12 @@ import dayjs from 'dayjs';
 import {
   customTsGroupingRuleList,
   importCustomTimeSeriesFields,
-  validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
 import { getFunctions } from 'monitor-api/modules/grafana';
 
 import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
+import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
@@ -173,6 +173,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   tableAllUnitList = [];
 
   autoDiscover = false;
+
+  rule = {
+    dataLabelTips: '',
+    dataLabel: false,
+  };
 
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
@@ -448,7 +453,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         ];
 
         await this.getGroupList();
-        await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
         title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
           this.detailData.name
@@ -577,20 +581,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
 
-  /* 获取所有数据预览数据 */
-  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
-    const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
-    const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
-      result_table_id: tableId,
-      fields_list: fieldList,
-    });
-    this.allDataPreview = data?.fields_value || {};
-    this.detailData.last_time =
-      typeof data?.last_time === 'number'
-        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
-        : data?.last_time;
-  }
-
   /* 获取分组管理数据 */
   async getGroupList() {
     const data = await customTsGroupingRuleList({
@@ -686,6 +676,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /** 点击显示英文名的编辑 */
   handleShowEditDataLabel() {
     this.isShowEditDataLabel = true;
+    this.rule.dataLabelTips = '';
+    this.rule.dataLabel = false;
     this.$nextTick(() => {
       this.dataLabelInput.focus();
     });
@@ -728,20 +720,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       return;
     }
     if (/[\u4e00-\u9fa5]/.test(this.copyDataLabel)) {
-      this.$bkMessage({ theme: 'error', message: this.$tc('输入非中文符号') });
+      this.rule.dataLabelTips = this.$tc('输入非中文符号');
+      this.rule.dataLabel = true;
       return;
     }
-    const ExistPass =
-      this.type === 'customEvent'
-        ? await validateCustomEventGroupLabel({
-            data_label: this.copyDataLabel,
-            bk_event_group_id: this.detailData.bk_event_group_id,
-          }).catch(() => false)
-        : await validateCustomTsGroupLabel({
-            data_label: this.copyDataLabel,
-            time_series_group_id: this.detailData.time_series_group_id,
-          }).catch(() => false);
-    if (!ExistPass) {
+    const { message: errorMsg } = await validateCustomTsGroupLabel(
+      {
+        data_label: this.copyDataLabel,
+        time_series_group_id: this.detailData.time_series_group_id,
+      },
+      {
+        needMessage: false,
+      }
+    ).catch(err => err);
+    if (errorMsg) {
+      this.rule.dataLabelTips = this.$t(errorMsg) as string;
+      this.rule.dataLabel = true;
       return;
     }
     await this.handleEditFiled({
@@ -761,20 +755,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
     //  名字是否重复校验
     let isOkName = true;
-    const res =
-      this.type === 'customEvent'
-        ? await this.$store
-            .dispatch('custom-escalation/validateCustomEventName', {
-              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false)
-        : await this.$store
-            .dispatch('custom-escalation/validateCustomTimetName', {
-              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
-            })
-            .then(res => res.result ?? true)
-            .catch(() => false);
+    const res = await this.$store
+      .dispatch('custom-escalation/validateCustomTimetName', {
+        params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+      })
+      .then(res => res.result ?? true)
+      .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -806,7 +792,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   // 编辑描述
   async handleEditDescribe() {
-    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
+    if (this.copyDescribe.trim() === this.detailData.desc) {
       this.copyDescribe = this.detailData.desc || '';
       this.isShowEditDesc = false;
       return;
@@ -928,7 +914,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               class='row-content'
               v-bk-overflow-tips
             >
-              {'scenario'}
+              {this.detailData.scenario}
             </span>
           </div>
           <div class='detail-information-row'>
@@ -956,7 +942,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>{' '}
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('别名')}: </span>
+            <span class='row-label'>{this.$t('数据标签')}: </span>
             {!this.isShowEditDataLabel ? (
               <div style='display: flex; min-width: 0'>
                 <span
@@ -973,12 +959,21 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 )}
               </div>
             ) : (
-              <bk-input
-                ref='dataLabelInput'
-                style='width: 240px'
-                v-model={this.copyDataLabel}
-                onBlur={this.handleEditDataLabel}
-              />
+              <VerifyInput
+                show-validate={this.rule.dataLabel}
+                validator={{ content: this.rule.dataLabelTips }}
+              >
+                <bk-input
+                  ref='dataLabelInput'
+                  style='width: 240px'
+                  v-model={this.copyDataLabel}
+                  onBlur={this.handleEditDataLabel}
+                  onInput={() => {
+                    this.rule.dataLabel = false;
+                    this.rule.dataLabelTips = '';
+                  }}
+                />
+              </VerifyInput>
             )}
           </div>
           <div class='detail-information-row'>

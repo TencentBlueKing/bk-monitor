@@ -83,7 +83,7 @@ const actions = {
 
   //  编辑自定义指标配置
   async editCustomTime(_, params) {
-    const data = await modifyCustomTimeSeries(params).catch(() => false);
+    const data = await modifyCustomTimeSeries(params, { needMessage: false }).catch(() => []);
     return transformDataKey(data);
   },
 

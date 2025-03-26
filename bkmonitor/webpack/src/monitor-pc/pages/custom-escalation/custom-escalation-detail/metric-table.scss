@@ -89,6 +89,11 @@ $border-color: #d9d9d9;
         }
       }
       .indicator-table {
+        height: 444px;
+        overflow-y: scroll;
+        overflow: -moz-scrollbars-none;    /* Firefox */
+        scrollbar-width: none;             /* Firefox 64+ */
+        -ms-overflow-style: none;          /* IE/Edge */
         transition: width .5s;
         height: 444px;
         .name {

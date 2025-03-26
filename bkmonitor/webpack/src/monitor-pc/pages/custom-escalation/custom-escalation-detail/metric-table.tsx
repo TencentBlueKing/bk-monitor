@@ -432,88 +432,89 @@ export default class IndicatorTable extends tsc<any, any> {
 
     const { name, status, group, description, hidden } = this.fieldSettingData;
     return (
-      <bk-table
-        class='indicator-table'
-        v-bkloading={{ isLoading: this.table.loading }}
-        empty-text={this.$t('无数据')}
-        on-selection-change={this.handleCheckChange}
-        {...{
-          props: {
-            data: this.metricTableVal,
-          },
-        }}
-      >
-        <div slot='empty'>
-          <EmptyStatus type={this.emptyType} />
-        </div>
-        <bk-table-column
-          scopedSlots={{
-            default: ({ row }) => (
-              <bk-checkbox
-                v-model={row.selection}
-                onChange={this.handleRowCheck}
-              />
-            ),
+      <div class='indicator-table'>
+        <bk-table
+          v-bkloading={{ isLoading: this.table.loading }}
+          empty-text={this.$t('无数据')}
+          on-selection-change={this.handleCheckChange}
+          {...{
+            props: {
+              data: this.metricTableVal,
+            },
           }}
-          align='center'
-          renderHeader={this.renderSelectionHeader}
-          type='selection'
-        />
-        {name.checked && (
+        >
+          <div slot='empty'>
+            <EmptyStatus type={this.emptyType} />
+          </div>
           <bk-table-column
-            key='name'
-            width='150'
-            label={this.$t('名称')}
-            prop='name'
-            scopedSlots={nameSlot}
+            scopedSlots={{
+              default: ({ row }) => (
+                <bk-checkbox
+                  v-model={row.selection}
+                  onChange={this.handleRowCheck}
+                />
+              ),
+            }}
+            align='center'
+            renderHeader={this.renderSelectionHeader}
+            type='selection'
           />
-        )}
-        {description.checked && (
-          <bk-table-column
-            key='description'
-            width='200'
-            label={this.$t('别名')}
-            prop='description'
-            scopedSlots={descriptionSlot}
-          />
-        )}
-        {group.checked && (
-          <bk-table-column
-            key='group'
-            width='200'
-            label={this.$t('分组')}
-            prop='group'
-            scopedSlots={groupSlot}
-          />
-        )}
-        {status.checked && (
-          <bk-table-column
-            key='status'
-            width='125'
-            label={this.$t('状态')}
-            prop='status'
-            scopedSlots={statusSlot}
-          />
-        )}
-        {hidden.checked && (
-          <bk-table-column
-            key='hidden'
-            width='75'
-            renderHeader={() => (
-              <div>
-                <span>{this.$t('显示')}</span>
-                <bk-popover ext-cls='render-header-hidden-popover'>
-                  <bk-icon type='info-circle' />
-                  <div slot='content'>{this.$t('关闭后，在可视化视图里，将被隐藏')}</div>
-                </bk-popover>
-              </div>
-            )}
-            label={this.$t('显示')}
-            prop='hidden'
-            scopedSlots={hiddenSlot}
-          />
-        )}
-      </bk-table>
+          {name.checked && (
+            <bk-table-column
+              key='name'
+              width='150'
+              label={this.$t('名称')}
+              prop='name'
+              scopedSlots={nameSlot}
+            />
+          )}
+          {description.checked && (
+            <bk-table-column
+              key='description'
+              width='200'
+              label={this.$t('别名')}
+              prop='description'
+              scopedSlots={descriptionSlot}
+            />
+          )}
+          {group.checked && (
+            <bk-table-column
+              key='group'
+              width='200'
+              label={this.$t('分组')}
+              prop='group'
+              scopedSlots={groupSlot}
+            />
+          )}
+          {status.checked && (
+            <bk-table-column
+              key='status'
+              width='125'
+              label={this.$t('状态')}
+              prop='status'
+              scopedSlots={statusSlot}
+            />
+          )}
+          {hidden.checked && (
+            <bk-table-column
+              key='hidden'
+              width='75'
+              renderHeader={() => (
+                <div>
+                  <span>{this.$t('显示')}</span>
+                  <bk-popover ext-cls='render-header-hidden-popover'>
+                    <bk-icon type='info-circle' />
+                    <div slot='content'>{this.$t('关闭后，在可视化视图里，将被隐藏')}</div>
+                  </bk-popover>
+                </div>
+              )}
+              label={this.$t('显示')}
+              prop='hidden'
+              scopedSlots={hiddenSlot}
+            />
+          )}
+        </bk-table>
+      </div>
     );
   }
 
@@ -587,7 +588,7 @@ export default class IndicatorTable extends tsc<any, any> {
   /** 编辑名称 ↓ */
   async handleEditDescription(metricInfo) {
     this.canEditName = false;
-    if (!this.copyDescription || this.copyDescription === metricInfo.description) {
+    if (this.copyDescription === metricInfo.description) {
       this.copyDescription = '';
       return;
     }
