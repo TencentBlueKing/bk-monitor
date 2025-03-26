@@ -166,7 +166,9 @@ class CicdEventProcessor(BaseEventProcessor):
                 projectId=cicd_info["projectId"]["value"], pipelineName=pipeline_name
             )
             if pipeline_name
-            else "--",
+            else "{projectId} / {pipelineId}".format(
+                projectId=cicd_info["projectId"]["value"], pipelineId=cicd_info["pipelineId"]["value"]
+            ),
             "scenario": EventScenario.BKCI.value,
             "url": cls.generate_url(cicd_info),
         }
