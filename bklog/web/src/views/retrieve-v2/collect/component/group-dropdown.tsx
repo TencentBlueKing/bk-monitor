@@ -101,9 +101,12 @@ export default class CollectGroup extends tsc<IProps> {
 
   get unPrivateGroupList() {
     // 去掉个人收藏的组列表
-    return this.groupList.filter(g => g.group_type !== 'private');
+    return this.allFavoriteLis.filter(g => g.group_type !== 'private');
   }
-
+  get allFavoriteLis (){
+    // 所有收藏
+   return this.$store.state.favoriteList
+  }
   get userMeta() {
     // 用户信息
     return this.$store.state.userMeta;
@@ -115,7 +118,7 @@ export default class CollectGroup extends tsc<IProps> {
 
   get showGroupList() {
     // 根据用户名判断是否时自己创建的收藏 若不是自己的则去除个人收藏选项
-    return this.userMeta.username !== this.data.created_by ? this.unPrivateGroupList : this.groupList;
+    return this.userMeta.username !== this.data.created_by ? this.unPrivateGroupList : this.allFavoriteLis;
   }
 
   @Watch('showGroupList')
