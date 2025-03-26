@@ -111,85 +111,95 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
 
   render() {
     return (
-      <div
+      <bk-popover
+        style='display: block'
         class={{
-          'render-metric-group-item': true,
+          'metric-select-metric-item': true,
           'is-active': this.isActive,
         }}
-        v-bk-tooltips={{
-          html: `<div>${this.$t('指标名：')}${this.data.metric_name}</div><div>${this.$t('指标别名：')}${this.data.alias || '--'}</div>`,
-          placement: 'right',
-        }}
+        placement='right'
       >
-        <bk-checkbox
-          checked={this.checked}
-          onChange={this.handleChange}
-        >
-          <div class='render-metric-group-name'>{this.data.alias || this.data.metric_name}</div>
-        </bk-checkbox>
-        <bk-popover
-          ref='popoverRef'
-          tippyOptions={{
-            placement: 'bottom-start',
-            distance: 8,
-            theme: 'light edit-metric-alias-name',
-            trigger: 'click',
-            hideOnClick: true,
-            zIndex: 99999,
-            onShow: this.handleEditShow,
-            onHidden: this.handleEditHidden,
-          }}
-        >
-          <div class='metric-edit-btn'>
-            <i class='icon-monitor icon-bianji' />
-          </div>
-          <div slot='content'>
-            <div class='wrapper'>
-              <div class='title'>{this.$t('编辑指标别名')}</div>
-              <div>
-                <span style='color: #63656E;'>{this.$t('指标名：')}</span>
-                <span>{this.data.metric_name}</span>
-              </div>
-              <bk-form
-                ref='fromRef'
-                form-type='vertical'
-                {...{
-                  props: {
-                    model: this.formData,
-                    rules: this.formRules,
-                  },
-                }}
-              >
-                <bk-form-item
-                  class='alias-item-label'
-                  label={this.$t('指标别名：')}
-                  property='description'
+        <div class='content-wrapper'>
+          <bk-checkbox
+            checked={this.checked}
+            onChange={this.handleChange}
+          >
+            <div class='render-metric-name'>{this.data.alias || this.data.metric_name}</div>
+          </bk-checkbox>
+          <bk-popover
+            ref='popoverRef'
+            tippyOptions={{
+              placement: 'bottom-start',
+              distance: 8,
+              theme: 'light edit-metric-alias-name',
+              trigger: 'click',
+              hideOnClick: true,
+              zIndex: 99999,
+              onShow: this.handleEditShow,
+              onHidden: this.handleEditHidden,
+            }}
+          >
+            <div class='metric-edit-btn'>
+              <i class='icon-monitor icon-bianji' />
+            </div>
+            <div slot='content'>
+              <div class='wrapper'>
+                <div class='title'>{this.$t('编辑指标别名')}</div>
+                <div>
+                  <span style='color: #63656E;'>{this.$t('指标名：')}</span>
+                  <span>{this.data.metric_name}</span>
+                </div>
+                <bk-form
+                  ref='fromRef'
+                  form-type='vertical'
+                  {...{
+                    props: {
+                      model: this.formData,
+                      rules: this.formRules,
+                    },
+                  }}
                 >
-                  <bk-input
-                    ref='inputRef'
-                    v-model={this.formData.description}
-                  />
-                </bk-form-item>
-              </bk-form>
+                  <bk-form-item
+                    class='alias-item-label'
+                    label={this.$t('指标别名：')}
+                    property='description'
+                  >
+                    <bk-input
+                      ref='inputRef'
+                      v-model={this.formData.description}
+                    />
+                  </bk-form-item>
+                </bk-form>
+              </div>
+              <div class='footer'>
+                <bk-button
+                  loading={this.isSubmiting}
+                  theme='primary'
+                  onClick={this.handleSubmit}
+                >
+                  {this.$t('确定')}
+                </bk-button>
+                <bk-button
+                  style='margin-left: 8px'
+                  onClick={this.handleCancel}
+                >
+                  {this.$t('取消')}
+                </bk-button>
+              </div>
             </div>
-            <div class='footer'>
-              <bk-button
-                loading={this.isSubmiting}
-                theme='primary'
-                onClick={this.handleSubmit}
-              >
-                {this.$t('确定')}
-              </bk-button>
-              <bk-button
-                style='margin-left: 8px'
-                onClick={this.handleCancel}
-              >
-                {this.$t('取消')}
-              </bk-button>
-            </div>
+          </bk-popover>
+        </div>
+        <div slot='content'>
+          <div>
+            {this.$t('指标名：')}
+            {this.data.metric_name}
           </div>
-        </bk-popover>
-      </div>
+          <div>
+            {this.$t('指标别名：')}
+            {this.data.alias || '--'}
+          </div>
+        </div>
+      </bk-popover>
     );
   }
 }

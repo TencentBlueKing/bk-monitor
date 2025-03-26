@@ -62,8 +62,6 @@ interface IResult {
 
 interface IProps {
   dimenstionParams?: Record<string, any>;
-  commonDimensionEnable?: boolean;
-  groupBySplitEnable?: boolean;
 }
 
 interface IEmit {
@@ -88,8 +86,6 @@ export const createDefaultParams = (): IResult => ({
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
-  @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
-  @Prop({ type: Boolean, default: false }) readonly groupBySplitEnable: IProps['groupBySplitEnable'];
 
   @Ref('rootRef') rootRef: HTMLElement;
 
@@ -148,6 +144,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.params.where = payload.where;
     this.params.common_conditions = payload.common_conditions;
     this.triggerChange();
+    console.log('from handleConditionChange = ', payload);
   }
 
   handleGroupByChange(payload: IResult['group_by']) {
@@ -176,13 +173,13 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
       >
         <WhereCondition
           commonConditionValue={this.params.common_conditions}
-          commonDimensionEnable={this.commonDimensionEnable}
+          commonDimensionEnable={true}
           value={this.params.where}
           onChange={this.handleConditionChange}
         />
         <div class='mult-item-box'>
           <GroupBy
-            splitable={this.groupBySplitEnable}
+            splitable={true}
             value={this.params.group_by}
             onChange={this.handleGroupByChange}
           />

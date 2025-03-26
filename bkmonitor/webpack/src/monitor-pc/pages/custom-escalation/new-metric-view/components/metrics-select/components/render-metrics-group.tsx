@@ -68,7 +68,7 @@ export const encodeRegexp = (paramStr: string) => {
 };
 
 @Component
-export default class IndexSelect extends tsc<IProps, IEmit> {
+export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
 
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];

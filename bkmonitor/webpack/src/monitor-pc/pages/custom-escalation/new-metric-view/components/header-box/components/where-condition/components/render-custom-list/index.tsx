@@ -45,7 +45,7 @@ interface IEmit {
 }
 
 @Component
-export default class FilterConditions extends tsc<IProps, IEmit> {
+export default class RenderCustomList extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
 
   handleChange(payload: IProps['data'][number]) {
@@ -58,7 +58,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
 
   render() {
     return (
-      <div class='filter-conditions-common-list'>
+      <div class='filter-conditions-custom-list'>
         {this.data.map(dimensionItem => (
           <KeyValueSelector
             key={dimensionItem.key}
@@ -67,21 +67,6 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             onChange={this.handleChange}
           />
         ))}
-        {this.data.length < 1 && (
-          <i18n path='(暂无常用维度，请前往 {0} 设置)'>
-            <router-link
-              style='color: #3a84ff;'
-              to={{
-                name: 'custom-detail-timeseries',
-                id: this.$route.params.id,
-                activeTab: 'dimension',
-              }}
-              target='_blank'
-            >
-              {this.$t('维度管理')}
-            </router-link>
-          </i18n>
-        )}
       </div>
     );
   }
