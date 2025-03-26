@@ -49,7 +49,7 @@ const FIELD_SETTINGS = {
   aggregateMethod: { label: '汇聚方法', width: 125 },
   interval: { label: '上报周期', width: 125 },
   func: { label: '函数', width: 125 },
-  dimension: { label: '关联维度', width: 200 },
+  dimension: { label: '关联维度', width: 215 },
   disabled: { label: '启/停', width: 115 },
   hidden: { label: '显示', width: 115 },
   set: { label: '操作', width: 50 },
@@ -92,11 +92,9 @@ export default class IndicatorTableSlide extends tsc<any> {
   @Ref('metricTableRef') metricTableRef: HTMLDivElement;
   @InjectReactive('metricFunctions') metricFunctions;
 
-  // 响应式数据
   localTable: IMetricItem[] = [];
   units: any[] = [];
   inputFocus = -1;
-  loading = false;
   width = 1400;
 
   // 单位配置
@@ -114,14 +112,12 @@ export default class IndicatorTableSlide extends tsc<any> {
       interval: { checked: true, disable: false },
       dimension: { checked: true, disable: false },
       func: { checked: true, disable: false },
-      disabled: { checked: true, disable: false },
+      disabled: { checked: false, disable: false },
       hidden: { checked: true, disable: false },
       set: { checked: true, disable: false },
     },
     search: '',
   };
-
-  handleSearch: (() => void) | null = null;
 
   // 删除列表
   delArray = [];
@@ -129,7 +125,6 @@ export default class IndicatorTableSlide extends tsc<any> {
   // 生命周期钩子
   created() {
     this.initData();
-    // this.handleSearch = debounce(300, this.handleSearchChange);
   }
 
   get dimensions() {
@@ -162,10 +157,6 @@ export default class IndicatorTableSlide extends tsc<any> {
     const validationResults = await Promise.all(
       newRows.map(async row => {
         const isValid = await this.validateName(row);
-        if (!isValid) {
-          // TODO: 错误反馈
-          // this.$bkMessage({ message: row.error, theme: 'error' });
-        }
         return isValid;
       })
     );
@@ -233,70 +224,70 @@ export default class IndicatorTableSlide extends tsc<any> {
               on-change={this.handleSearchChange}
             />
           </div>
+          <div class='slider-table'>
+            <bk-table
+              ref='metricTableRef'
+              v-bkloading={{ isLoading: this.tableConfig.loading }}
+              data={this.localTable}
+              empty-text={this.$t('无数据')}
+              colBorder
+            >
+              {Object.entries(FIELD_SETTINGS).map(([key, config]) => {
+                if (!this.tableConfig.fieldSettings[key].checked) return null;
 
-          <bk-table
-            ref='metricTableRef'
-            class='slider-table'
-            v-bkloading={{ isLoading: this.tableConfig.loading }}
-            data={this.localTable}
-            empty-text={this.$t('无数据')}
-            colBorder
-          >
-            {Object.entries(FIELD_SETTINGS).map(([key, config]) => {
-              if (!this.tableConfig.fieldSettings[key].checked) return null;
-
-              return (
-                <bk-table-column
-                  key={key}
-                  width={config.width}
-                  scopedSlots={{
-                    default: props => {
-                      switch (key) {
-                        case 'name':
-                          return this.renderNameColumn(props);
-                        case 'description':
-                          return this.renderDescriptionColumn(props);
-                        case 'unit':
-                          return this.renderUnitColumn(props);
-                        case 'disabled':
-                        case 'hidden':
-                          return this.renderSwitch(props.row, key);
-                        case 'status':
-                          return this.renderStatusPoint(props.row);
-                        case 'aggregateMethod':
-                          return this.renderAggregateMethod(props.row);
-                        case 'interval':
-                          return this.renderInterval(props.row);
-                        case 'dimension':
-                          return this.renderDimension(props.row);
-                        case 'func':
-                          return this.renderFunction(props.row);
-                        case 'set':
-                          return this.renderOperations(props);
-                        default:
-                          return props.row[key] || '--';
-                      }
-                    },
-                    header:
-                      key === 'unit'
-                        ? () => (
-                          <bk-popover
-                            ref='metricSliderPopover'
-                            placement='bottom-start'
-                            tippyOptions={{ appendTo: 'parent' }}
-                          >
-                            {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
-                            {this.renderUnitConfigPopover()}
-                          </bk-popover>
-                        )
-                        : null,
-                  }}
-                  label={this.$t(config.label)}
-                  prop={key}
-                />
-              );
-            })}
-          </bk-table>
+                return (
+                  <bk-table-column
+                    key={key}
+                    width={config.width}
+                    scopedSlots={{
+                      default: props => {
+                        switch (key) {
+                          case 'name':
+                            return this.renderNameColumn(props);
+                          case 'description':
+                            return this.renderDescriptionColumn(props);
+                          case 'unit':
+                            return this.renderUnitColumn(props);
+                          case 'disabled':
+                          case 'hidden':
+                            return this.renderSwitch(props.row, key);
+                          case 'status':
+                            return this.renderStatusPoint(props.row);
+                          case 'aggregateMethod':
+                            return this.renderAggregateMethod(props.row);
+                          case 'interval':
+                            return this.renderInterval(props.row);
+                          case 'dimension':
+                            return this.renderDimension(props.row, props.$index);
+                          case 'func':
+                            return this.renderFunction(props.row);
+                          case 'set':
+                            return this.renderOperations(props);
+                          default:
+                            return props.row[key] || '--';
+                        }
+                      },
+                      header:
+                        key === 'unit'
+                          ? () => (
+                            <bk-popover
+                              ref='metricSliderPopover'
+                              placement='bottom-start'
+                              tippyOptions={{ appendTo: 'parent' }}
+                            >
+                              {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
+                              {this.renderUnitConfigPopover()}
+                            </bk-popover>
+                          )
+                          : null,
+                    }}
+                    label={this.$t(config.label)}
+                    prop={key}
+                  />
+                );
+              })}
+            </bk-table>
+          </div>
 
           <div class='slider-footer'>
             <bk-button
@@ -512,16 +503,20 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderDimension(row: IMetricItem) {
+  private renderDimension(row: IMetricItem, index) {
     return (
-      <div class='dimension-input'>
+      <div
+        style={index < 5 ? 'top: 0;' : ''}
+        class='dimension-input'
+      >
         <bk-tag-input
           v-model={row.dimensions}
           clearable={false}
-          // trigger='focus'
           disabled={this.autoDiscover}
           list={this.dimensions}
           placeholder={this.$t('请输入')}
+          trigger='focus'
+          allowCreate
           {...{
             props: {
               'has-delete-icon': true,

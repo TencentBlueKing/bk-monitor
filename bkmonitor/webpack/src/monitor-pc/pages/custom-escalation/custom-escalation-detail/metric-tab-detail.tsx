@@ -55,13 +55,14 @@ export default class MetricTabDetail extends tsc<any, any> {
   currentGroupInfo = {
     name: '',
     rules: '',
+    manualList: [],
   };
   isEdit = false;
   /** 当前拖拽id */
   dragId = '';
   dragoverId = '';
   topGroupList: IGroup[] = [
-    { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-mc-all' },
+    { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-all' },
     { id: NULL_LABEL, name: this.$t('未分组') as string, icon: 'icon-FileFold-Close' },
   ];
   isShowRightWindow = true; // 是否显示右侧帮助栏
@@ -116,6 +117,7 @@ export default class MetricTabDetail extends tsc<any, any> {
         const currentGroupInfo = this.customGroups.filter(item => item.name === groupName)[0];
         if (currentGroupInfo) {
           this.currentGroupInfo.name = currentGroupInfo.name;
+          this.currentGroupInfo.manualList = currentGroupInfo.manualList || [];
           this.currentGroupInfo.rules = currentGroupInfo.matchRules[0] || '';
           this.isEdit = true;
           this.showAddGroupDialog = true;
@@ -145,6 +147,7 @@ export default class MetricTabDetail extends tsc<any, any> {
     this.currentGroupInfo = {
       name: '',
       rules: '',
+      manualList: [],
     };
     this.$nextTick(() => {
       this.isEdit = false;
@@ -195,7 +198,7 @@ export default class MetricTabDetail extends tsc<any, any> {
                 >
                   <div class='group-name'>
                     <i class={`icon-monitor ${group.icon}`} />
-                    {group.name}
+                    <span>{group.name}</span>
                   </div>
                   <div class='group-count'>{this.getCountByType(group.id)}</div>
                 </div>
