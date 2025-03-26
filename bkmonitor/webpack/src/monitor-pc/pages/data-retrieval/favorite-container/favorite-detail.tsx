@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { updateFavorite } from 'monitor-api/modules/model';
 
+import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { isEn } from '../../../i18n/lang';
 
 import type { IFavList } from '../typings';
@@ -74,6 +75,7 @@ export default class FavoriteDetail extends tsc<IProps> {
    */
   handleEditName() {
     this.showNameInput = true;
+    this.showGroupInput = false;
     this.nameInput = this.value.name;
   }
 
@@ -82,6 +84,7 @@ export default class FavoriteDetail extends tsc<IProps> {
    */
   handleEditGroup() {
     this.showGroupInput = true;
+    this.showNameInput = false;
     this.groupInput = this.value.group_id;
   }
 
@@ -144,7 +147,12 @@ export default class FavoriteDetail extends tsc<IProps> {
         return (
           <div class='json-wrap'>
             <VueJsonPretty
-              data={{ where: queryConfig.where }}
+              data={{
+                data_source_label: queryConfig?.data_source_label || '',
+                data_type_label: queryConfig?.data_type_label || '',
+                table: queryConfig?.result_table_id || '',
+                where: mergeWhereList(queryConfig.where, queryConfig.commonWhere || []),
+              }}
               deep={5}
             />
           </div>
