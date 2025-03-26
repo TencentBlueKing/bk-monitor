@@ -526,8 +526,6 @@ class AccessDataProcess(BaseAccessDataProcess):
         max_data_time = 0
         for record in reversed(points):
             point = DataRecord(self.items, record)
-            if point.time > max_data_time:
-                max_data_time = point.time
 
             if point.value is not None:
                 # 去除重复数据
@@ -540,6 +538,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 else:
                     dup_obj.add_record(point)
                     records.append(point)
+
+                    # 只观察非重复数据
+                    if point.time > max_data_time:
+                        max_data_time = point.time
             else:
                 none_point_counts += 1
 
