@@ -127,6 +127,7 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
+    console.log(item);
     this.activeIndex = -1;
     if (this.localValue.some(v => v.id === item.id)) return;
     this.localValue.push(item);
@@ -159,7 +160,9 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框失去焦点事件
    */
   handleBlur() {
-    this.inputValue = '';
+    setTimeout(() => {
+      this.inputValue = '';
+    }, 300);
   }
   /**
    * @description 输入框enter事件
