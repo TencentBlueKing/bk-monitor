@@ -1,4 +1,6 @@
+/*stylelint-disable comment-empty-line-before */
 /* stylelint-disable declaration-no-important */
+/* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
@@ -9,10 +11,14 @@
 
 .icon-monitor {
   font-family: 'icon-monitor' !important;
-  font-size: 1em;
+  font-size: 16px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-a-mini-arrowxiaojiantou:before {
+  content: '\e822';
 }
 
 .icon-all:before {
