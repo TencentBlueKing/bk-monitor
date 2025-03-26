@@ -107,8 +107,8 @@ export enum ExploreSourceTypeEnum {
   ALL = 'ALL',
   /** Kubernetes/BCS */
   BCS = 'BCS',
-  /** CICD/蓝盾 */
-  CICD = 'CICD',
+  /** BKCI/蓝盾 */
+  BKCI = 'BKCI',
   /** 其他类型事件来源 */
   DEFAULT = 'DEFAULT',
   /** 系统/主机 */
