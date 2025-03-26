@@ -803,20 +803,19 @@ export default defineComponent({
     const operatorFixRightWidth = computed(() => {
       const operatorWidth = operatorToolsWidth.value;
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
-      return diff > operatorWidth ? 0 : operatorWidth - diff;
+
+      return operatorWidth + diff;
     });
 
     const setHeaderStyle = () => {
       if (refTableHead.value) {
         refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
-        refTableHead.value.style.setProperty('top', `${searchContainerHeight.value}px`);
       }
     };
 
     const setBodyStyle = () => {
       if (refRootElement.value) {
         refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
-        refRootElement.value.style.setProperty('--padding-right', `${operatorToolsWidth.value}px`);
         refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
         refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
         refRootElement.value.style.setProperty(

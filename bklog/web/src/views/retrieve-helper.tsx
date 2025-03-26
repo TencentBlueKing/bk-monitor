@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { random } from '../common/util';
+
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
@@ -34,13 +37,18 @@ export enum STORAGE_KEY {
 export enum RetrieveEvent {
   // 收藏栏是否展示
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
+
   // 收藏栏宽度变化
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
+
   // 左侧字段设置宽度变化
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
 
   // 搜索栏高度变化
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
+
+  // 趋势图高度变化
+  TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
 }
 
 class RetrieveHelper {
@@ -59,6 +67,13 @@ class RetrieveHelper {
   // 收藏栏是否展示
   isFavoriteShown: boolean;
 
+  // 趋势图添加随机类名
+  // 用于监听趋势图高度变化
+  randomTrendGraphClassName: string;
+
+  // 趋势图高度
+  trendGraphHeight: number;
+
   // 事件列表
   events: Map<string, ((...args) => void)[]>;
 
@@ -66,6 +81,7 @@ class RetrieveHelper {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.favoriteWidth = favoriteWidth;
+    this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
   }
 
@@ -79,6 +95,22 @@ class RetrieveHelper {
 
     this.events.set(fnName, [callbackFn]);
     return this;
+  }
+
+  /**
+   * 设置趋势图高度
+   * 检索结果在滚动时需要依赖趋势图高度进行定位
+   * @param height 可选值，如果不设置，则会默认尝试通过 randomTrendGraphClassName 获取高度
+   */
+  setTrendGraphHeight(height?: number) {
+    if (!height) {
+      const trendGraph = document.querySelector(`.${this.randomTrendGraphClassName}`) as HTMLElement;
+      if (trendGraph) {
+        height = trendGraph.offsetHeight;
+      }
+    }
+    this.trendGraphHeight = height;
+    this.runEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height);
   }
 
   /**

@@ -240,11 +240,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     options.series[0].data = chartData;
     options.series[0].stack = 'total';
     // 此处为展示用假数据
-    options.series[0].name = 'error';
-    options.series[1] = deepClone(options.series[0]);
-    options.series[2] = deepClone(options.series[0]);
-    options.series[1].name = 'wran';
-    options.series[2].name = 'info';
+    // options.series[0].name = 'error';
+    // options.series[1] = deepClone(options.series[0]);
+    // options.series[2] = deepClone(options.series[0]);
+    // options.series[1].name = 'wran';
+    // options.series[2].name = 'info';
 
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);

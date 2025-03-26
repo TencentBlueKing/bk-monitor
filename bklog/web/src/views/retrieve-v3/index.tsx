@@ -38,12 +38,15 @@ import './index.scss';
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
-    const { isStickyTop, stickyStyle, contentStyle } = useAppInit();
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle } = useAppInit();
 
     return () => (
       <div
         style={stickyStyle.value}
-        class={['v3-bklog-root', { 'is-sticky-top': isStickyTop.value }]}
+        class={[
+          'v3-bklog-root',
+          { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
+        ]}
       >
         <V3Collection></V3Collection>
         <div
@@ -52,7 +55,12 @@ export default defineComponent({
         >
           <V3Toolbar></V3Toolbar>
           <V3Container>
-            <V3Searchbar class={{ 'is-sticky-top': isStickyTop.value }}></V3Searchbar>
+            <V3Searchbar
+              class={{
+                'is-sticky-top': isSearchContextStickyTop.value,
+                'is-sticky-top-result': isSearchResultStickyTop.value,
+              }}
+            ></V3Searchbar>
             <V3SearchResult></V3SearchResult>
           </V3Container>
         </div>

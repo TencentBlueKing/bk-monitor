@@ -42,6 +42,7 @@ export default () => {
   const leftFieldSettingWidth = ref(0);
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
+  const trendGraphHeight = ref(0);
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -61,6 +62,10 @@ export default () => {
     isFavoriteShown.value = isShown;
   });
 
+  RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
+    trendGraphHeight.value = height;
+  });
+
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
   const stickyStyle = computed(() => {
@@ -68,6 +73,7 @@ export default () => {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
       '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
+      '--trend-graph-height': `${trendGraphHeight.value}px`,
     };
   });
 
@@ -193,13 +199,23 @@ export default () => {
 
   // 顶部二级导航高度，这个高度是固定的
   const subBarHeight = ref(64);
+
+  // 计算滚动时二级导航和检索栏高度差
+  // 这个高度差用来判定是够需要字段设置栏进行吸顶
   const paddingTop = ref(0);
+
   // 滚动容器高度
   const scrollContainerHeight = ref(0);
+
+  // 滚动时，检索结果距离顶部高度
+  const searchResultTop = ref(0);
 
   useScroll(RetrieveHelper.getScrollSelector(), event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+
+    const diff = subBarHeight.value + trendGraphHeight.value;
+    searchResultTop.value = scrollTop > diff ? diff : scrollTop;
   });
 
   useResizeObserve(
@@ -210,8 +226,18 @@ export default () => {
     0,
   );
 
-  const isStickyTop = computed(() => {
+  /**
+   * 计算检索内容的滚动位置，监听是否滚动到顶部
+   */
+  const isSearchContextStickyTop = computed(() => {
     return paddingTop.value === subBarHeight.value;
+  });
+
+  /**
+   * 计算检索结果列表的滚动位置，监听是否滚动到顶部
+   */
+  const isSearchResultStickyTop = computed(() => {
+    return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
   /** * 结束计算 ***/
@@ -221,7 +247,8 @@ export default () => {
   });
 
   return {
-    isStickyTop,
+    isSearchContextStickyTop,
+    isSearchResultStickyTop,
     stickyStyle,
     contentStyle,
     isFavoriteShown,

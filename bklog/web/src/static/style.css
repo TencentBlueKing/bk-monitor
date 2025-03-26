@@ -362,6 +362,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-collapse:before {
 	content: "\e1dd";
 }
+.bklog-download:before {
+	content: "\e205";
+}
 .bklog-invisible:before {
 	content: "\e1e3";
 }
@@ -649,4 +652,10 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-yishixiao:before {
 	content: "\e202";
+}
+.bklog-buer-2:before {
+	content: "\e203";
+}
+.bklog-object-2:before {
+	content: "\e204";
 }

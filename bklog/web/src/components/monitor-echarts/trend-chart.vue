@@ -25,7 +25,7 @@
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
-    dynamicHeight
+    dynamicHeight,
   });
 
   const finishPolling = ref(false);

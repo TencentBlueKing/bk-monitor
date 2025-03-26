@@ -44,6 +44,7 @@
   const heightNum = ref();
 
   RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
+
   const changeTotalCount = count => {
     totalCount.value = count;
   };
@@ -54,6 +55,7 @@
   const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
     heightNum.value = height + 4;
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
   };
 
   const handleFieldsShowChange = status => {
@@ -118,6 +120,7 @@
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
+          :class="RetrieveHelper.randomTrendGraphClassName"
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"

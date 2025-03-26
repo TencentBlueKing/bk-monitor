@@ -767,4 +767,5 @@ export default {
   检索语句: 'Search statement',
   '你可能想输入:': 'You may want to enter',
   '/ 快速定位到搜索，请输入关键词...': '/ Quickly locate the search, please enter keywords...',
+  分级设置: 'Grade setting',
 };
