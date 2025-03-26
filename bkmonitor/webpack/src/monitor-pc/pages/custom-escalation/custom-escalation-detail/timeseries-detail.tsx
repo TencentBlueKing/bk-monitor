@@ -53,6 +53,10 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   ];
   activeTab = this.tabs[0].id;
 
+  created() {
+    this.activeTab = this.$route.params.activeTab || this.tabs[0].id;
+  }
+
   @Emit('handleExport')
   handleDownload() { }
 
