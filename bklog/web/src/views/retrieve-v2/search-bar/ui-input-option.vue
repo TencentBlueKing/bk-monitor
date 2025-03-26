@@ -619,6 +619,7 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
+    handleConditionValueClick(e);
   };
 
   const handleDeleteTagItem = index => {
@@ -859,9 +860,9 @@
   };
 
   const stopEventPreventDefault = e => {
-    e.stopPropagation();
-    e.preventDefault();
-    e.stopImmediatePropagation();
+    e.stopPropagation?.();
+    e.preventDefault?.();
+    e.stopImmediatePropagation?.();
   };
 
   const handleKeydownClick = e => {
@@ -943,11 +944,15 @@
     handleInputValueChange(e);
   };
 
+  let conditionBlurTimer = null;
   const handleConditionValueInputBlur = e => {
-    isConditionValueInputFocus.value = false;
-    conditionValueInputVal.value = '';
-    e.target.value = '';
-    conditionValueInstance.hide(100);
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = setTimeout(() => {
+      isConditionValueInputFocus.value = false;
+      conditionValueInputVal.value = '';
+      e.target.value = '';
+      conditionValueInstance.hide();
+    }, 180);
   };
 
   let needDeleteItem = false;
@@ -985,10 +990,16 @@
     fieldOptionListInstance.uninstallInstance();
   };
 
+  const handleCustomTagItemClick = e => {
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    handleValueInputEnter({ target: refValueTagInput.value });
+  };
+
   const handleDocumentClick = e => {
     if (
       refSearchResultList?.value?.contains(e.target) ||
       refConditionInput?.value?.contains(e.target) ||
+      refValueTagInputOptionList?.value?.contains(e.target) ||
       refValueTagInputOptionList?.value?.contains(e.target)
     ) {
       return;
@@ -1214,7 +1225,7 @@
                     type="text"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
-                    @input.stop="handleInputValueChange"
+                    @input="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
                   />
@@ -1238,6 +1249,7 @@
                     <li
                       v-show="conditionValueInputVal.length > 0"
                       :class="{ active: conditionValueInputVal.length > 0, 'is-custom-tag': true }"
+                      @click.stop="handleCustomTagItemClick"
                     >
                       生成 "{{ conditionValueInputVal }}" Tag
                     </li>

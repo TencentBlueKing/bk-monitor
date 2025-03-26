@@ -242,15 +242,15 @@ ul.search-items {
               position: relative;
               text-decoration: line-through;
 
-              &::after {
-                position: absolute;
-                top: 50%;
-                left: 0;
-                width: 100%;
-                height: 1px;
-                content: '';
-                border-bottom: 1px solid #c4c6cc;
-              }
+              // &::after {
+              //   position: absolute;
+              //   top: 50%;
+              //   left: 0;
+              //   width: 100%;
+              //   height: 1px;
+              //   content: '';
+              //   border-bottom: 1px solid #c4c6cc;
+              // }
             }
           }
         }

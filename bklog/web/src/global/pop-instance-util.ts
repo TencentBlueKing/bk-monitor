@@ -180,6 +180,10 @@ export default class PopInstanceUtil {
   }
 
   show(target, cancelHidding = false) {
+    if (this.isShowing) {
+      return;
+    }
+
     this.isShowing = true;
     cancelHidding && this.cancelHide();
     this.delayShowInstance(target);

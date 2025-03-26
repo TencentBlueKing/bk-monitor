@@ -586,12 +586,12 @@
           </div>
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-copy-4', , { disabled: isInputLoading }]"
             @click="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading }]"
             @click="handleClearBtnClick"
           ></div>
           <div
