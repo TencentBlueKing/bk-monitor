@@ -76,7 +76,7 @@ class GetCustomTsMetricGroups(Resource):
         metric_groups = defaultdict(list)
         for metric in metrics:
             # 如果指标隐藏，则不展示
-            if metric.config.get("hidden", False):
+            if metric.disabled or metric.config.get("hidden", False):
                 continue
 
             labels = metric.config.get("label", [])
