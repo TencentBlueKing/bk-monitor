@@ -1198,7 +1198,6 @@ const store = new Vuex.Store({
         end_time,
         addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
       };
-      console.log(2333);
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
