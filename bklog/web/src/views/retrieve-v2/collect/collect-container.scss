@@ -1,4 +1,4 @@
-.retrieve-collect-container {
+.bklog-v3-retrieve-collect-container {
   width: 100%;
   height: 100%;
   font-size: 12px;
@@ -103,8 +103,7 @@
 
   .icon-box {
     display: inline-block;
-    border: 1px solid #63656e;
-    transform: scale(0.84);
+    color: #4d4f56;
   }
 
   .list-number {
@@ -123,6 +122,22 @@
     width: 100%;
     height: 100%;
     padding-top: 30px;
+
+    .empty-box {
+      flex: 1;
+      min-width: 0;
+
+      .exception-wrap-item.exception-part {
+        .part-img {
+          width: 100%;
+
+          .exception-image {
+            flex: 1;
+            min-width: 0;
+          }
+        }
+      }
+    }
 
     .exception-image {
       height: 175px;
