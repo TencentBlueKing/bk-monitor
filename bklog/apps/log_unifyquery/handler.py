@@ -49,6 +49,11 @@ from apps.log_unifyquery.constants import (
     FLOATING_NUMERIC_FIELD_TYPES,
     REFERENCE_ALIAS,
 )
+from apps.log_unifyquery.context_body_builder import (
+    UnifyQueryDslCreateSearchTailBodyCustomField,
+    UnifyQueryDslCreateSearchTailBodyScenarioBkData,
+    UnifyQueryDslCreateSearchTailBodyScenarioLog,
+)
 from apps.log_unifyquery.utils import transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -104,6 +109,23 @@ class UnifyQueryHandler(object):
         self.start_time, self.end_time = self.deal_time_format(
             self.search_params["start_time"], self.search_params["end_time"]
         )
+
+        # context search
+        self.gseindex: int = params.get("gseindex")
+        self.gseIndex: int = params.get("gseIndex")  # pylint: disable=invalid-name
+        self.serverIp: str = params.get("serverIp")  # pylint: disable=invalid-name
+        self.ip: str = params.get("ip", "undefined")
+        self.path: str = params.get("path", "")
+        self.container_id: str = params.get("container_id", None) or params.get("__ext.container_id", None)
+        self.logfile: str = params.get("logfile", None)
+        self._iteration_idx: str = params.get("_iteration_idx", None)
+        self.iterationIdx: str = params.get("iterationIdx", None)  # pylint: disable=invalid-name
+        self.iterationIndex: str = params.get("iterationIndex", None)  # pylint: disable=invalid-name
+        self.dtEventTimeStamp = params.get("dtEventTimeStamp", None)  # pylint: disable=invalid-name
+        self.bk_host_id = params.get("bk_host_id", None)  # pylint: disable=invalid-name
+
+        # 上下文初始化标记
+        self.zero: bool = params.get("zero", False)
 
         # result fields
         self.field: Dict[str, max_len_dict] = {}
@@ -570,8 +592,12 @@ class UnifyQueryHandler(object):
         series = data["series"]
         total_count = self.get_total_count()
         return sorted(
-            [[s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)] for s in
-             series[:limit]], key=lambda x: x[1], reverse=True
+            [
+                [s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)]
+                for s in series[:limit]
+            ],
+            key=lambda x: x[1],
+            reverse=True,
         )
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
@@ -762,6 +788,118 @@ class UnifyQueryHandler(object):
             tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
+
+    @staticmethod
+    def build_params(params):
+        time_now = arrow.utcnow()
+        params["start_time"] = int(time_now.timestamp())
+        params["end_time"] = int(time_now.shift(days=-1).timestamp())
+        params["bk_biz_id"] = LogIndexSetData.objects.filter(index_set_id=params["index_set_id"]).first().bk_biz_id
+        params["index_set_ids"] = [params["index_set_id"]]
+        return params
+
+    def search_tail_f(self):
+        base_params = copy.deepcopy(self.base_dict)
+        index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
+        scenario_id = index_info["scenario_id"]
+        if scenario_id not in [Scenario.BKDATA, Scenario.LOG, Scenario.ES]:
+            return {"total": 0, "took": 0, "list": []}
+        else:
+            body: Dict = {}
+
+            index_set = LogIndexSet.objects.filter(index_set_id=index_info["index_set_id"]).first()
+            target_fields = index_set.target_fields if index_set else []
+            sort_fields = index_set.sort_fields if index_set else []
+
+            if sort_fields:
+                time_field, _, _ = UnifyQueryHandler.init_time_field(index_info["index_set_id"], scenario_id)
+                body: Dict = UnifyQueryDslCreateSearchTailBodyCustomField(
+                    start=self.search_params.get("start", 0),
+                    size=self.search_params.get("size", 30),
+                    zero=self.zero,
+                    time_field=time_field,
+                    target_fields=target_fields,
+                    sort_fields=sort_fields,
+                    params=self.search_params,
+                    base_params=base_params,
+                ).body
+
+            elif scenario_id == Scenario.BKDATA:
+                body: Dict = UnifyQueryDslCreateSearchTailBodyScenarioBkData(
+                    sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
+                    size=self.search_params.get("size", 30),
+                    start=self.search_params.get("start", 0),
+                    gseindex=self.gseindex,
+                    path=self.path,
+                    ip=self.ip,
+                    bk_host_id=self.bk_host_id,
+                    container_id=self.container_id,
+                    logfile=self.logfile,
+                    zero=self.zero,
+                ).body
+            elif scenario_id == Scenario.LOG:
+                body: Dict = UnifyQueryDslCreateSearchTailBodyScenarioLog(
+                    sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
+                    size=self.search_params.get("size", 30),
+                    start=self.search_params.get("start", 0),
+                    gseIndex=self.gseIndex,
+                    path=self.path,
+                    bk_host_id=self.bk_host_id,
+                    serverIp=self.serverIp,
+                    container_id=self.container_id,
+                    logfile=self.logfile,
+                    zero=self.zero,
+                    base_params=base_params,
+                ).body
+
+            result = UnifyQueryApi.query_ts_raw(body)
+
+            result: dict = self._deal_query_result(result)
+            if self.zero:
+                result.update(
+                    {
+                        "list": list(reversed(result.get("list"))),
+                        "origin_log_list": list(reversed(result.get("origin_log_list"))),
+                    }
+                )
+            result.update(
+                {
+                    "list": self._analyze_empty_log(result.get("list")),
+                    "origin_log_list": self._analyze_empty_log(result.get("origin_log_list")),
+                }
+            )
+            return result
+
+    def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):
+        log_not_empty_list: List[Dict[str, Any]] = []
+        for item in log_list:
+            a_item_dict: Dict[str:Any] = item
+
+            # 只要存在log字段则直接显示
+            if "log" in a_item_dict:
+                log_not_empty_list.append(a_item_dict)
+                continue
+            # 递归打平每条记录
+            new_log_context_list: List[str] = []
+
+            def get_field_and_get_context(_item: dict, fater: str = ""):
+                for key in _item:
+                    _key: str = ""
+                    if isinstance(_item[key], dict):
+                        get_field_and_get_context(_item[key], key)
+                    else:
+                        if fater:
+                            _key = "{}.{}".format(fater, key)
+                        else:
+                            _key = "%s" % key
+                    if _key:
+                        a_context: str = "{}: {}".format(_key, _item[key])
+                        new_log_context_list.append(a_context)
+
+            get_field_and_get_context(a_item_dict)
+            a_item_dict.update({"log": " ".join(new_log_context_list)})
+            log_not_empty_list.append(a_item_dict)
+        return log_not_empty_list
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
         for item in log_list:
