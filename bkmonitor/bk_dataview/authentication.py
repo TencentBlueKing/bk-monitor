@@ -33,9 +33,6 @@ class SessionAuthentication(BaseAuthentication):
         # Get the session-based user from the underlying HttpRequest object
         user = getattr(request, "user", None)
 
-        logger.info(f"grafana_authenticate_request: {request.__dict__ if request else request}")
-        logger.info(f"grafana_authenticate_user: {user.__dict__ if user else user}")
-
         # Unauthenticated, CSRF validation not required
         if not user or not user.is_active:
             return None
