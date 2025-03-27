@@ -385,6 +385,7 @@
         top: 1px;
         bottom: 1px;
         left: 0;
+        transform: translateX(var(--row-offset-left));
         width: 3.09px;
         content: '';
         background: #f59789;

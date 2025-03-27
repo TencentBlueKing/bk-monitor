@@ -205,6 +205,8 @@
       .tab-right {
         display: flex;
         align-items: center;
+        position: sticky;
+        right: calc(var(--scroll-left) + 10px);
 
         .bklog-icon {
           font-size: 16px;

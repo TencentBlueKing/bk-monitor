@@ -817,6 +817,7 @@ export default defineComponent({
     const setBodyStyle = () => {
       if (refRootElement.value) {
         refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
+        refRootElement.value.style.setProperty('--row-offset-left', `${scrollXOffsetLeft.value}px`);
         refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
         refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
         refRootElement.value.style.setProperty(
