@@ -63,19 +63,9 @@
         }
 
         .chart-title {
-          .title-name {
-            // display: initial;
-            // flex: 1;
-          }
-
           .hover-show,
           .title-icon-list {
-            display: none;
-            visibility: visible;
-          }
-
-          .tips-icon {
-            margin-right: auto;
+            visibility: hidden;
           }
         }
 
