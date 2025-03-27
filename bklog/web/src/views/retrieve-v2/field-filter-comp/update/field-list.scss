@@ -29,6 +29,15 @@
   }
 }
 
+.field-template-menu-expand-theme {
+  &.field-template-menu-theme.light-theme {
+    background: #ffffff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
+  }
+}
+
 .field-template-menu-theme.light-theme {
   padding: 0;
   border: 0;
@@ -38,10 +47,6 @@
   .dropdown-content {
     width: 180px;
     font-size: 12px;
-    background: #ffffff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-    box-shadow: 0 2px 6px 0 #0000001a;
 
     .dropdown-search {
       margin-top: 4px;

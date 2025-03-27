@@ -35,49 +35,62 @@
         v-if="isShowLeft"
         class="fields-config-container"
       >
-        <div
-          class="add-fields-config"
-          v-show="!isShowAddInput"
-          @click="handleClickAddNew"
-        >
-          <bk-button
-            style="margin-left: 12px; margin-right: 12px"
-            class="config-btn"
-            :text="true"
+        <div class="config-container-header">
+          <div
+            class="header-config-operation"
+            v-show="!isShowAddInput"
           >
-            <i class="bk-icon icon-plus-circle-shape"></i>
-            <span>{{ $t('新建') }}</span>
-          </bk-button>
-          <bk-button
-            class="config-btn"
-            :text="true"
+            <bk-button
+              class="config-btn"
+              :text="true"
+              @click="handleClickAddNew"
+            >
+              <i class="bk-icon icon-plus-circle-shape" />
+              <span>{{ $t('新建') }}</span>
+            </bk-button>
+            <log-export
+              class="config-btn"
+              :text="true"
+            >
+              <i class="bk-icon bklog-icon bklog-import" />
+              <span>{{ $t('导入') }}</span>
+            </log-export>
+          </div>
+          <div
+            class="header-config-new-input"
+            v-show="isShowAddInput"
           >
-            <i class="bk-icon icon-plus-circle-shape"></i>
-            <span>{{ $t('导入') }}</span>
-          </bk-button>
-        </div>
-        <div
-          class="config-tab-item"
-          v-show="isShowAddInput"
-        >
-          <bk-input
-            v-model="newConfigStr"
-            :class="['config-input', { 'input-error': isInputError }]"
-          >
-          </bk-input>
-          <div class="tab-panel-operate">
-            <i
-              class="bk-icon icon-check-line"
-              @click="handleAddNewConfig"
-            ></i>
-            <i
-              class="bk-icon icon-close-line-2"
-              @click="handleCancelNewConfig"
-            ></i>
+            <bk-input
+              v-model="newConfigStr"
+              :class="['config-new-input', { 'input-error': isInputError }]"
+              size="small"
+            >
+            </bk-input>
+            <div class="new-input-operation">
+              <i
+                class="bk-icon icon-check-line"
+                @click="handleAddNewConfig"
+              ></i>
+              <i
+                class="bk-icon icon-close-line-2"
+                @click="handleCancelNewConfig"
+              ></i>
+            </div>
           </div>
         </div>
+        <!-- <div class="config-container-list config-tab">
+          <div
+            class="list-item"
+            v-for="(panel, index) in configTabPanels"
+          >
+            <fields-setting-operate
+              :configItem="{ ...panel, index }"
+              @operateChange="handleLeftOperateChange"
+              @setPopperInstance="setPopperInstance"
+            />
+          </div>
+        </div> -->
         <bk-tab
-          ref="configTabRef"
           ext-cls="config-tab"
           :active.sync="activeConfigTab"
           :tab-position="'left'"
@@ -104,6 +117,7 @@
             />
           </div>
           <div
+            v-if="!isShowLeft"
             style="padding-left: 12px"
             class="table-sort"
           >
@@ -132,7 +146,7 @@
         当前设置仅对个人生效，可以
         <span style="color: #3a84ff"
           ><span
-            style="font-size: 14px; margin-right: 4px"
+            style="margin-right: 4px; font-size: 14px"
             class="bklog-icon bklog-save"
           ></span
           >另存为模板</span
@@ -165,6 +179,7 @@
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
+  import LogExport from '../../../../components/log-import/log-import';
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
@@ -174,6 +189,8 @@
       VueDraggable,
       fieldSetting,
       tableSort,
+      LogExport,
+      fieldsSettingOperate,
     },
     props: {
       retrieveParams: {
@@ -215,10 +232,6 @@
       };
     },
     computed: {
-      // isLeft() {
-      //   console.log(props.isShowLeft, 'props.isShowLeft')
-      //   return props.isShowLeft;
-      // },
       shadowSort() {
         return this.$store.state.indexFieldInfo.sort_list;
       },
@@ -324,7 +337,7 @@
       },
       /** 保存或应用 */
       async confirmModifyFields() {
-        const currentSortList = this.$refs.tableSortRef.shadowSort;
+        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.shadowSort;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
 
         if (currentVisibleList.length === 0) {
@@ -657,101 +670,101 @@
 
 <style lang="scss" scoped>
   @import '../../../../scss/mixins/scroller';
+
   .update-fields-setting {
     position: relative;
     background: #ffffff;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 #0000001a;
     border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
 
     .fields-container {
       display: flex;
 
       .fields-config-container {
+        width: 150px;
         background-color: #f5f7fa;
-        .bk-tab-label-list-has-bar::after {
-          display: none !important;
+        border-right: 1px solid #dcdee5;
+        %config-input-common {
+          width: 100%;
         }
-        .add-fields-config {
-          height: 42px;
-          color: #3a84ff;
-          cursor: pointer;
-          border-right: 1px solid #dcdee5;
+
+        .config-container-header {
           display: flex;
-          .config-btn {
-            height: 100%;
-            line-height: 100%;
-            .bk-icon {
-              transform: translateY(-2px);
+          align-items: center;
+          justify-content: center;
+          height: 42px;
+
+          .header-config-operation {
+            display: flex;
+            column-gap: 12px;
+            margin-top: 3px;
+            color: #3a84ff;
+            cursor: pointer;
+
+            .config-btn {
+              height: 100%;
+              line-height: 100%;
+
+              .bk-icon {
+                transform: translateY(-2px);
+              }
             }
           }
+
+          .header-config-new-input {
+            --config-padding: 4px;
+            position: relative;
+            padding: 0 var(--config-padding);
+
+            .config-new-input {
+              @extend %config-input-common;
+            }
+
+            .new-input-operation {
+              position: absolute;
+              right: var(--config-padding);
+              bottom: calc(100% + 2px);
+
+              .bk-icon {
+                display: inline-block;
+                width: 28px;
+                height: 28px;
+                font-size: 18px;
+                line-height: 28px;
+                cursor: pointer;
+                background: #fafbfd;
+                border: 1px solid #dcdee5;
+                border-radius: 2px;
+                box-shadow: 0 1px 3px 1px #0000001f;
+
+                &:hover {
+                  background: #f0f1f5;
+                }
+              }
+
+              .icon-check-line {
+                color: hsl(143, 60%, 43%);
+              }
+
+              .icon-close-line-2 {
+                color: hsl(0, 81%, 56%);
+              }
+            }
+          }
+        }
+
+        .bk-tab-label-list-has-bar::after {
+          display: none !important;
         }
 
         .config-tab {
           width: 100%;
           height: calc(100% - 43px);
-          overflow-y: auto;
 
           :deep(.bk-tab-header) {
-            background-color: #f5f7fa;
             padding: 0px;
-          }
-        }
-
-        :deep(.config-tab-item) {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          height: 36px;
-          padding: 0 12px 0 12px;
-
-          .config-input {
-            width: 100px;
-          }
-
-          .input-error {
-            :deep(.bk-form-input) {
-              border: 1px solid #d7473f;
-            }
-          }
-
-          .panel-name {
-            padding-left: 0px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .tab-panel-operate {
-            position: absolute;
-            top: -29px;
-            margin-left: 10px;
-            font-size: 14px;
-            color: #979ba5;
-            cursor: pointer;
-
-            .edit-icon:hover {
-              color: #3a84ff;
-            }
-            i {
-              width: 28px;
-              height: 28px;
-              background: #fafbfd;
-              border: 1px solid #dcdee5;
-              box-shadow: 0 1px 3px 1px #0000001f;
-              border-radius: 2px;
-              display: inline-block;
-              font-size: 18px;
-              line-height: 28px;
-            }
-            .icon-check-line {
-              color: hsl(143, 60%, 43%);
-            }
-
-            .icon-close-line-2 {
-              color: hsl(0, 81%, 56%);
-            }
+            background-color: #f5f7fa;
           }
         }
 
@@ -764,11 +777,24 @@
 
           /* stylelint-disable-next-line declaration-no-important */
           line-height: 36px !important;
-          color: #63656e;
           text-align: left;
 
+          .bk-tab-label {
+            font-size: 12px;
+            color: #4d4f56;
+          }
+
           &:hover {
-            background: #f0f1f5;
+            background: #eaebf0;
+          }
+
+          &.active {
+            /* stylelint-disable-next-line declaration-no-important */
+            background: #e1ecff !important;
+
+            .bk-tab-label {
+              color: #3a84ff;
+            }
           }
         }
 
@@ -784,13 +810,6 @@
           }
         }
 
-        :deep(.active) {
-          color: #3a84ff;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          background: #e1ecff !important;
-        }
-
         :deep(.bk-tab-section) {
           display: none;
         }
@@ -798,21 +817,25 @@
     }
 
     .fields-tab-container {
-      width: 930px;
-      padding: 12px 16px 0px 16px;
       display: flex;
+      max-width: 930px;
+      padding: 12px 16px 0px 16px;
+
       .show-field {
         width: 587px;
       }
+
       .table-sort {
         flex: 1;
       }
+
       .text-type {
-        color: #313238;
         margin-bottom: 8px;
         font-size: 14px;
+        color: #313238;
       }
     }
+
     .fields-button-container {
       display: flex;
       align-items: center;
@@ -829,6 +852,12 @@
 <style lang="scss">
   .update-fields-setting {
     .fields-config-container {
+      .input-error {
+        .bk-form-input {
+          border: 1px solid #d7473f;
+        }
+      }
+
       .config-tab {
         .bk-tab-label-list-has-bar::after {
           display: none;
