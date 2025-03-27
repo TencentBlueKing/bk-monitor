@@ -8,7 +8,9 @@
         class="bklog-root-field"
         :key="item.name"
       >
-        <span class="field-name"
+        <span
+          class="field-name"
+          :data-is-virtual-root="item.__is_virtual_root__"
           ><span
             class="black-mark"
             :data-field-name="item.name"
@@ -60,7 +62,7 @@
       return props.fields;
     }
 
-    return [props.fields];
+    return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
   });
 
   const onSegmentClick = args => {
@@ -120,6 +122,7 @@
       name: f.field_name,
       type: f.field_type,
       formatter: getFieldFormatter(f),
+      __is_virtual_root__: !!f.__is_virtual_root__,
     }));
   });
 
@@ -201,6 +204,10 @@
 
         &::after {
           content: ':';
+        }
+
+        &[data-is-virtual-root='true'] {
+          display: none;
         }
       }
 

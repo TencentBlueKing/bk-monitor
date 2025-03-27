@@ -133,7 +133,7 @@ export default class SelectIndexSetInput extends tsc<object> {
 
   render() {
     const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-    const shortcutKey = isMac ? 'Cmd+O' : 'Ctrl+O';
+    const shortcutKey = isMac ? '⌘+O' : 'Ctrl+O';
     const inputShowDom = () => {
       if (this.isAloneType) {
         return (

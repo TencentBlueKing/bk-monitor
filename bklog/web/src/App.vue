@@ -765,8 +765,8 @@
     align-items: center;
     justify-items: center;
     width: 6px;
-    height: 100px;
-    background-color: #dcdee5;
+    height: 18px;
+    background-color: transparent;
     border-radius: 3px;
     transform: translateY(-50%);
 
@@ -774,9 +774,9 @@
       position: absolute;
       left: 2px;
       width: 0;
-      height: 80px;
+      height: 18px;
       content: ' ';
-      border-left: 2px dotted white;
+      border-left: 2px dotted #979ba5;
     }
 
     &:hover {
