@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import operator
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -22,6 +22,8 @@ from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
     EVENT_ORIGIN_MAPPING,
+    CicdEventName,
+    EventDomain,
     EventSource,
     Operation,
 )
@@ -29,6 +31,18 @@ from monitor_web.data_explorer.event.utils import (
     get_data_labels_map,
     get_q_from_query_config,
 )
+
+
+def cicd_cond_handler(cond: Dict[str, Any]) -> Q:
+    return Q(**{**cond, "event_name": CicdEventName.PIPELINE_STATUS_INFO.value})
+
+
+def default_cond_handler(cond: Dict[str, Any]) -> Q:
+    return Q(**cond)
+
+
+def k8s_cond_handler(cond: Dict[str, Any]) -> Q:
+    return Q(**cond)
 
 
 def filter_tables_by_source(
@@ -72,8 +86,9 @@ def process_query_config(
 
     origin_query_config["where"] = where
     filtered_tables: Set[str] = {relation["table"] for relation in event_relations}
+    data_labels_map: Dict[str, str] = get_data_labels_map(bk_biz_id, filtered_tables)
     if source_cond:
-        filtered_tables = filter_tables_by_source(bk_biz_id, source_cond, filtered_tables)
+        filtered_tables = filter_tables_by_source(bk_biz_id, source_cond, filtered_tables, data_labels_map)
 
     base_q: QueryConfigBuilder = get_q_from_query_config(
         {**origin_query_config, "data_type_label": DataTypeLabel.EVENT, "data_source_label": DataSourceLabel.BK_APM}
@@ -84,14 +99,17 @@ def process_query_config(
     if origin_query_config.get("interval"):
         base_q = base_q.interval(origin_query_config["interval"])
 
+    domain_cond_handler_map: Dict[str, Callable[[Dict[str, Any]], Q]] = {EventDomain.CICD.value: cicd_cond_handler}
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
     for relation in event_relations:
         if relation["table"] not in filtered_tables:
             continue
 
         q: QueryConfigBuilder = base_q.table(relation["table"])
+        domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
+        cond_handler: Callable[[Dict[str, Any]], Q] = domain_cond_handler_map.get(domain, default_cond_handler)
         if relation["relations"]:
-            q = q.filter(Q() | reduce(operator.or_, [Q(**cond) for cond in relation["relations"]]))
+            q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
 
         queryset = queryset.add_query(q)
 

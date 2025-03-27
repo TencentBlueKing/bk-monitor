@@ -44,6 +44,8 @@ def get_order_config(view: SceneViewModel) -> List:
         for label in field.config.get("label", []):
             match_type = set()
             match_rules = []
+            if label not in group_map:
+                continue
             group = group_map[label]
             if field.name in group.manual_list:
                 match_type.add("manual")
@@ -68,7 +70,7 @@ def get_order_config(view: SceneViewModel) -> List:
             "auto_rules": group_map[label].auto_rules,
             "panels": [
                 {
-                    "id": f"{table.table_id}.{field['metric_name']}",
+                    "id": f"{table.data_label or table.table_id}.{field['metric_name']}",
                     "hidden": field["hidden"],
                     "match_type": field["match_type"],
                     "match_rules": field["match_rules"],

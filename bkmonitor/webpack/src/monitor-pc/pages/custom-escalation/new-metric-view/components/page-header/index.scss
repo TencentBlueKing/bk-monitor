@@ -1,0 +1,54 @@
+.new-metric-view-page-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 47px;
+  padding: 0 16px;
+  background: #fff;
+
+  .custom-time-series-box {
+    display: flex;
+    align-items: center;
+
+    .custom-time-series-switcher {
+      .bk-select {
+        border-color: transparent;
+        outline: none;
+        box-shadow: none;
+
+        &.is-focus {
+          border-color: #3a84ff;
+        }
+      }
+    }
+
+    .custom-time-series-select-value {
+      padding: 0 5px;
+      font-size: 16px;
+      color: #313238;
+      border-radius: 2px;
+      transition: all 0.15s;
+
+      &:hover {
+        background: #f0f1f5;
+      }
+    }
+  }
+
+  .index-tag {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 5px;
+    margin-left: 12px;
+    font-size: 12px;
+    color: #63656e;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .page-action-extend {
+    margin-left: auto;
+  }
+}

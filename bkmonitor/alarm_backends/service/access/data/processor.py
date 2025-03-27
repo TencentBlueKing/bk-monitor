@@ -546,24 +546,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                 none_point_counts += 1
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
-        if max_data_time > 0:
-            agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
-            max_latency = self.until_timestamp - max_data_time - agg_interval
-            threshold = (
-                agg_interval * settings.ACCESS_LATENCY_INTERVAL_FACTOR + settings.ACCESS_LATENCY_THRESHOLD_CONSTANT
-            )
-            if max_latency > threshold:
-                logger.warning(
-                    "[data source delay]big latency %s,  strategy(%s)",
-                    max_latency,
-                    first_item.strategy.id,
-                )
-                metrics.PROCESS_BIG_LATENCY.labels(
-                    strategy_id=first_item.strategy.id,
-                    strategy_name=first_item.strategy.name,
-                    bk_biz_id=first_item.strategy.bk_biz_id,
-                    module="data_delay",
-                ).observe(max_latency)
+        # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
+        if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
+            self.observe_big_latency_datasource(first_item, max_data_time)
 
         dup_obj.refresh_cache()
         self.record_list = records
@@ -799,6 +784,28 @@ class AccessDataProcess(BaseAccessDataProcess):
             if last_checkpoint > 0:
                 # 记录检测点 下次从检测点开始重新检查
                 checkpoint.set(last_checkpoint)
+
+    def observe_big_latency_datasource(self, item: Item, max_data_time: int):
+        """上报数据源延迟较大的指标，以此发现告警策略数据源的质量问题.
+
+        :param item: 检测配置
+        :param max_data_time: 当前批次数据最大的数据时间.
+        """
+        agg_interval = min(query_config["agg_interval"] for query_config in item.query_configs)
+        max_latency = self.until_timestamp - max_data_time - agg_interval
+        threshold = agg_interval * settings.ACCESS_LATENCY_INTERVAL_FACTOR + settings.ACCESS_LATENCY_THRESHOLD_CONSTANT
+        if max_latency > threshold:
+            logger.warning(
+                "[data source delay]big latency %s,  strategy(%s)",
+                max_latency,
+                item.strategy.id,
+            )
+            metrics.PROCESS_BIG_LATENCY.labels(
+                strategy_id=item.strategy.id,
+                strategy_name=item.strategy.name,
+                bk_biz_id=item.strategy.bk_biz_id,
+                module="data_delay",
+            ).observe(max_latency)
 
 
 class AccessBatchDataProcess(AccessDataProcess):

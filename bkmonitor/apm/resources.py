@@ -1399,8 +1399,8 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         # 索引集对应采集ID, 不一定有，这里只做尽可能的关联
         bk_data_id = serializers.IntegerField(required=False, label=_("索引集对应采集ID"), default=None)
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
-        start_time = serializers.IntegerField(required=False, label="关联开始时间")
-        end_time = serializers.IntegerField(required=False, label="关联结束时间")
+        start_time = serializers.IntegerField(required=False, label="关联开始时间", default=None, allow_null=True)
+        end_time = serializers.IntegerField(required=False, label="关联结束时间", default=None, allow_null=True)
 
     def perform_request(self, data):
         from apm_web.models import LogServiceRelation

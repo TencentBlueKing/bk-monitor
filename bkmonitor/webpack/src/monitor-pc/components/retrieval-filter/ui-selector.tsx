@@ -183,6 +183,7 @@ export default class UiSelector extends tsc<IProps> {
   handleDeleteTag(index: number) {
     this.localValue.splice(index, 1);
     this.handleChange();
+    this.handleCancel();
   }
 
   /**

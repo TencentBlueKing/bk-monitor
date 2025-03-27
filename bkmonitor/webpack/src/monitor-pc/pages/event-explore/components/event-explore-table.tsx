@@ -91,7 +91,7 @@ enum ExploreTableLoadingEnum {
  */
 const SourceIconMap = {
   [ExploreSourceTypeEnum.BCS]: 'icon-explore-bcs',
-  [ExploreSourceTypeEnum.CICD]: 'icon-explore-landun',
+  [ExploreSourceTypeEnum.BKCI]: 'icon-explore-landun',
   [ExploreSourceTypeEnum.HOST]: 'icon-explore-host',
   [ExploreSourceTypeEnum.DEFAULT]: 'icon-explore-default',
 };

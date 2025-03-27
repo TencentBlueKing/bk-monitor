@@ -246,7 +246,7 @@ EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
         "trigger": _("触发类型"),
         "triggerUser": _("触发用户"),
         "status": _("任务状态"),
-        "duration": _("持续时间"),
+        "duration": _("执行耗时"),
         "startTime": _("启动时间"),
     },
 }
@@ -359,7 +359,7 @@ K8S_EVENT_TRANSLATIONS = {
         "InvalidNodeInfo": _("节点信息无效"),
         "BackOff": _("容器启动/镜像拉取重试中"),
         "TaintManagerEviction": _("污点驱逐"),
-        "Killing": _("镜像终止中"),
+        "Killing": _("容器终止中"),
         "Pulling": _("镜像拉取中"),
         "Pulled": _("镜像拉取"),
         "Created": _("容器创建"),

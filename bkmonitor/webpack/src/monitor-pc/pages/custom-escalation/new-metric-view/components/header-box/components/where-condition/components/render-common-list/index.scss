@@ -1,0 +1,15 @@
+.filter-conditions-common-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 6px;
+  padding-bottom: 4px;
+  background: #ebeef566;
+
+  .selector-item {
+    margin-top: 4px;
+    margin-right: 4px;
+    background: #ffffff;
+  }
+}

@@ -484,6 +484,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
                   value={this.values}
+                  autoFocus
                   onChange={this.handleValueChange}
                   onSelectorBlur={this.handleValueSelectorBlur}
                   onSelectorFocus={this.handleSelectorFocus}

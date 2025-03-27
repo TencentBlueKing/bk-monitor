@@ -224,7 +224,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   renderEventSourceIcon() {
     const iconMap = {
       [ExploreSourceTypeEnum.BCS]: 'icon-bcs',
-      [ExploreSourceTypeEnum.CICD]: 'icon-landun',
+      [ExploreSourceTypeEnum.BKCI]: 'icon-landun',
       [ExploreSourceTypeEnum.HOST]: 'icon-host',
       [ExploreSourceTypeEnum.DEFAULT]: 'icon-default',
     };
