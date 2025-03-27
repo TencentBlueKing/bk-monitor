@@ -389,6 +389,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-circle-minus-filled:before {
 	content: "\e1ea";
 }
+.bklog-import:before {
+	content: "\e206";
+}
 .bklog-setting-line:before {
 	content: "\e1d4";
 }
