@@ -47,7 +47,7 @@ export default class EventRetrieval extends tsc<object> {
   */
   created() {
     this.$nextTick(() => {
-      this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
+      // this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
   beforeRouteLeave(to: Route, from: Route, next: () => void) {

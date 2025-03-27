@@ -31,6 +31,7 @@ import formContent from '../lang/form-content';
 import formLabel from '../lang/form-label';
 import message from '../lang/message';
 import newHome from '../lang/new-home';
+import newMetricView from '../lang/new-metric-view';
 import placeholder from '../lang/placeholder';
 import route from '../lang/route';
 import strategy from '../lang/strategy';
@@ -60,6 +61,7 @@ const MonitorLangData = {
   title,
   strategy,
   newHome,
+  newMetricView,
 };
 
 // 比较两个翻译文件是否多出来的词条

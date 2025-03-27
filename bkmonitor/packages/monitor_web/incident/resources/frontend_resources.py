@@ -1291,25 +1291,26 @@ class AlertIncidentDetailResource(IncidentDetailResource):
         if not alert_doc:
             raise AlertNotFoundError()
 
+        result = {}
         if not alert_doc.incident_id:
-            return {}
+            result["incident"] = {}
+        else:
+            incident_doc = IncidentDocument.get(alert_doc.incident_id)
 
-        incident_doc = IncidentDocument.get(alert_doc.incident_id)
+            snapshot_content = incident_doc.snapshot.content.to_dict()
+            if validated_request_data["filter_one_hop"]:
+                snapshot_content = self.filter_one_hop_snapshot(snapshot_content)
+            snapshot = IncidentSnapshot(copy.deepcopy(snapshot_content))
+            snapshot.aggregate_graph(incident_doc)
 
-        snapshot_content = incident_doc.snapshot.content.to_dict()
-        if validated_request_data["filter_one_hop"]:
-            snapshot_content = self.filter_one_hop_snapshot(snapshot_content)
-        snapshot = IncidentSnapshot(copy.deepcopy(snapshot_content))
-        snapshot.aggregate_graph(incident_doc)
+            incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
+            incident["bk_biz_name"] = resource.cc.get_app_by_id(incident["bk_biz_id"]).name
+            incident["alert_count"] = len(incident["snapshot"]["alerts"])
+            incident["incident_root"] = self.get_incident_root_info(snapshot)
+            incident["current_topology"] = self.generate_topology_data_from_snapshot(incident_doc, snapshot)
+            incident["snapshot"] = snapshot_content
 
-        incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
-        incident["bk_biz_name"] = resource.cc.get_app_by_id(incident["bk_biz_id"]).name
-        incident["alert_count"] = len(incident["snapshot"]["alerts"])
-        incident["incident_root"] = self.get_incident_root_info(snapshot)
-        incident["current_topology"] = self.generate_topology_data_from_snapshot(incident_doc, snapshot)
-        incident["snapshot"] = snapshot_content
-
-        result = {"incident": incident}
+            result["incident"] = incident
 
         result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
         result["wx_cs_link"] = ""

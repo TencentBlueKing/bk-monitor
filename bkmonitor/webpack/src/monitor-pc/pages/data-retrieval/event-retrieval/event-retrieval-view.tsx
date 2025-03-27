@@ -291,7 +291,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 更新图表和表格的数据
    */
   async updateViewData() {
-    await this.backTopRef.handleBackTop();
+    await this.backTopRef?.handleBackTop();
     // this.handleGetTableData()
     this.chartKey = random(8);
     this.noData = false;

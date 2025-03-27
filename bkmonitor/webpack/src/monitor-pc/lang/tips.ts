@@ -332,4 +332,14 @@ export default {
   '当前空间未开启{0}功能': 'The current space has not enabled the {0} feature',
   '当前告警 不支持 {0} 功能': 'The current alarm does not support the {0} feature',
   '{0} 不支持 {1} 功能': '{0} does not support the {1} feature',
+  '当前空间「{0}」 使用了 BCS 集群，已自动关联；':
+    'Current space " {0} project " uses BCS cluster, has been automatically associated;',
+  '如需精确，用户可 {0}': 'If you need to be accurate, users can {0}',
+  移动光标: 'Move the cursor',
+  选中: 'Select',
+  提交查询: 'Submit query',
+  '异常事件 ({0})': 'Exception event ({0})',
+  '全部事件 ({0})': 'All events ({0})',
+  '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorite item?',
+  '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be recovered, please operate carefully!',
 };

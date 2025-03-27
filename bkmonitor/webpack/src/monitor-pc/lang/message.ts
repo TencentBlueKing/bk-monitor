@@ -519,4 +519,6 @@ export default {
   '无维度，已汇聚为1条曲线': 'No dimensions, aggregated into 1 curve',
   故障诊断: 'Fault diagnosis',
   异常比例: 'Exception ratio',
+  成功覆盖当前收藏: 'Successfully covered the current collection',
+  批量移动成功: 'Batch move successful',
 };
