@@ -127,9 +127,7 @@ export default (
 
   const setDefaultInputWidth = () => {
     const input = getTargetInput();
-    if (input !== undefined) {
-      input.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
-    }
+    input?.style?.setProperty?.('width', `${1 * INPUT_MIN_WIDTH}px`);
   };
 
   const hideTippyInstance = () => {

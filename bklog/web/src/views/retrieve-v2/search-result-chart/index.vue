@@ -114,6 +114,11 @@
         return;
       }
 
+      debugger;
+      store.commit('updateIndexSetQueryResult', {
+        origin_log_list: [],
+        list: [],
+      });
       store.commit('updateIsSetDefaultTableColumn', false);
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery', { formChartChange: false });

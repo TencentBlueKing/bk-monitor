@@ -100,7 +100,10 @@
       }
 
       store.commit('updateSqlQueryFieldList', []);
-      store.commit('updateIndexSetQueryResult', []);
+      store.commit('updateIndexSetQueryResult', {
+        origin_log_list: [],
+        list: [],
+      });
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
