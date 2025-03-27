@@ -794,16 +794,10 @@ class EtlStorage(object):
         collector_config["fields"] = sorted(field_list, key=lambda x: x.get("option", {}).get("field_index", 0))
         return collector_config
 
-    def _to_bkdata_assign(self, field, etl_config=None):
-        alias_name = field.get("alias_name")
-        field_name = field.get("field_name")
-        if etl_config == EtlConfig.BK_LOG_JSON:
-            return {
-                "key": field_name,
-                "assign_to": alias_name if alias_name else field_name,
-                "type": self.get_es_field_type(field),
-            }
-        key = alias_name if alias_name else field_name
+    def _to_bkdata_assign(self, field):
+        key = field.get("alias_name")
+        if not key:
+            key = field.get("field_name")
         return {
             "key": key,
             "assign_to": key,

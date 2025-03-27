@@ -74,6 +74,15 @@ class BkLogJsonEtlStorage(EtlStorage):
             "time_option": result_table_fields["time_field"]["option"],
         }
 
+    def _to_bkdata_assign(self, field):
+        alias_name = field.get("alias_name")
+        field_name = field.get("field_name")
+        return {
+            "key": field_name,
+            "assign_to": alias_name if alias_name else field_name,
+            "type": self.get_es_field_type(field),
+        }
+
     def get_bkdata_fields_configs(self, bkdata_fields):
         fields_type_object = [field for field in bkdata_fields if field["field_type"] == "object"]
         fields_no_type_object = [field for field in bkdata_fields if field["field_type"] != "object"]
@@ -84,7 +93,7 @@ class BkLogJsonEtlStorage(EtlStorage):
                     "next": None,
                     "subtype": "assign_obj",
                     "label": "labela2dfe3",
-                    "assign": [self._to_bkdata_assign(field, etl_config=self.etl_config) for field in fields_no_type_object],
+                    "assign": [self._to_bkdata_assign(field) for field in fields_no_type_object],
                     "type": "assign",
                 }
             )
