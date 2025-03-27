@@ -49,11 +49,11 @@ class UnifyQueryDslCreateSearchTailBodyScenarioBkData:
         if zero:
             # 用当前时间往后前5分钟开始查询
             order_use = "desc"
-            base_params["start_time"] = int(time.time() * 1000) - 300000
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000)
+            base_params["end_time"] = str(int(time.time() * 1000))
         elif gseindex:
-            base_params["start_time"] = int(time.time() * 1000) - 300000 * 12
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000 * 12)
+            base_params["end_time"] = str(int(time.time() * 1000))
             base_params["query_list"][0]["conditions"]["field_list"].append(
                 {
                     "field_name": "gseIndex",
@@ -157,11 +157,11 @@ class UnifyQueryDslCreateSearchTailBodyScenarioLog:
         if zero:
             # 用当前时间往后前5分钟开始查询
             order_use = "desc"
-            base_params["start_time"] = int(time.time() * 1000) - 300000
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000)
+            base_params["end_time"] = str(int(time.time() * 1000))
         elif gse_index:
-            base_params["start_time"] = int(time.time() * 1000) - 300000 * 12
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000 * 12)
+            base_params["end_time"] = str(int(time.time() * 1000))
             base_params["query_list"][0]["conditions"]["field_list"].append(
                 {
                     "field_name": "gseIndex",
@@ -263,12 +263,12 @@ class UnifyQueryDslCreateSearchTailBodyCustomField:
             # 用当前时间往后前5分钟开始查询
             order_use = "desc"
 
-            base_params["start_time"] = int(time.time() * 1000) - 300000
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000)
+            base_params["end_time"] = str(int(time.time() * 1000))
 
         elif range_field_value:
-            base_params["start_time"] = int(time.time() * 1000) - 300000 * 12
-            base_params["end_time"] = int(time.time() * 1000)
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000 * 12)
+            base_params["end_time"] = str(int(time.time() * 1000))
             base_params["query_list"][0]["conditions"]["field_list"].append(
                 {
                     "field_name": range_field,
