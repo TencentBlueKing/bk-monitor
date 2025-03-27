@@ -9,7 +9,8 @@
 
     .metric-view-dashboard-container {
       flex: 1;
-      padding: 12px;
+      padding: 0 12px 12px;
+      margin-top: 12px;
       overflow-y: auto;
       scrollbar-gutter: stable;
     }

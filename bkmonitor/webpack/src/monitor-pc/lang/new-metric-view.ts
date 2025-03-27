@@ -116,4 +116,6 @@ export default {
   手动添加: 'Manually add',
   '-': '-',
   全局: 'Global',
+  指标管理: '',
+  '确定 Cmd + Enter': '',
 };

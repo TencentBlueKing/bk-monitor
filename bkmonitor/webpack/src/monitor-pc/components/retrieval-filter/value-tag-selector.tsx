@@ -43,6 +43,7 @@ export interface IValue {
 interface IProps {
   value?: IValue[];
   fieldInfo?: IFieldItem;
+  autoFocus?: boolean;
   onChange?: (v: IValue[]) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
@@ -56,6 +57,7 @@ interface IProps {
 export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IValue[];
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
+  @Prop({ type: Boolean, default: false }) autoFocus: boolean;
   @Prop({
     type: Function,
     default: () =>
@@ -97,8 +99,10 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   mounted() {
-    this.handleShowShowDropDown(true);
     this.activeIndex = this.localValue.length - 1;
+    if (this.autoFocus) {
+      this.focusFn();
+    }
   }
 
   /**
@@ -106,6 +110,7 @@ export default class ValueTagSelector extends tsc<IProps> {
    */
   focusFn() {
     this.isFocus = true;
+    this.handleShowShowDropDown(true);
   }
 
   beforeDestroy() {
