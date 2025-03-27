@@ -42,6 +42,7 @@ def batch_request(
         "nodeman": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "pagesize": _limit}),
         "metadata": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
         "bcs_cc": lambda origin_params, _start, _limit: origin_params.update({"offset": _start, "limit": _limit}),
+        "bk_login": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
     }
 
     data = []
@@ -65,7 +66,7 @@ def batch_request(
     futures = []
     while start <= (count if app in use_offset_app_list else math.ceil(count / limit)):
         refresh_params[app](params, start, limit)
-        futures.append(pool.apply_async(func, kwds=params.copy()))
+        futures.append(pool.apply_async(func, args=(params.copy(),)))
         start += limit if app in use_offset_app_list else 1
 
     pool.close()

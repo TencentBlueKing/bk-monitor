@@ -211,7 +211,7 @@ class PieChart extends CommonSimpleChart {
           showMore={this.showHeaderMoreTool}
           title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='pie-echart-content right-legend'>

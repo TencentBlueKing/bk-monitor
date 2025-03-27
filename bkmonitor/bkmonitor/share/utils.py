@@ -21,6 +21,7 @@ from bkmonitor.share.handler import (
     UptimeCheckApiAuthChecker,
 )
 from bkmonitor.utils.common_utils import camel_to_underscore
+from bkmonitor.utils.request import get_request_tenant_id
 from core.errors.share import TokenValidatedError
 
 checker_list = [
@@ -43,7 +44,7 @@ def check_api_permission(request, request_data):
     if not token:
         return
     try:
-        record = ApiAuthToken.objects.get(token=token)
+        record = ApiAuthToken.objects.get(token=token, bk_tenant_id=get_request_tenant_id())
     except ApiAuthToken.DoesNotExist:
         raise TokenValidatedError
     else:

@@ -1,0 +1,120 @@
+/* stylelint-disable declaration-no-important */
+.favorite-manage___favorite-detail-component {
+  padding: 14px 16px;
+
+  .header-title {
+    margin-bottom: 12px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .detail-items-wrap {
+    .form-item {
+      display: flex;
+      align-items: flex-start;
+
+      .form-item-label {
+        width: 60px;
+        margin: 6px 0;
+        line-height: 20px;
+        color: #4D4F56;
+        text-align: right;
+        
+      }
+
+      .form-item-content {
+        display: flex;
+        align-items: center;
+        line-height: 20px;
+
+        .input-loading {
+          width: 248px;
+          height: 20px;
+          margin-top: 6px;
+        }
+
+        .edit-name-wrap {
+          display: flex;
+          align-items: flex-start;
+          margin-top: 6px;
+
+          .edit-name {
+            line-height: 20px;
+          }
+
+          .icon-bianji {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 4px;
+            font-size: 20px;
+            line-height: 20px;
+            cursor: pointer;
+          }
+        }
+
+        .item-name {
+          margin-top: 6px;
+        }
+
+        .edit-input-wrap {
+          width: 248px;
+          background: #fff;
+        }
+
+        .query-content-wrap {
+          position: relative;
+          width: 440px;
+          padding: 8px 12px;
+          margin-top: 6px;
+          font-size: 12px;
+          line-height: 18px;
+          background: #f0f1f5;
+          border-radius: 2px;
+
+          .json-wrap {
+            width: auto;
+            max-height: 500px;
+            overflow-y: auto;
+
+            .vjs-tree {
+              font-size: 12px !important;
+      
+              .vjs-value-string {
+                tab-size: 3;
+                white-space: pre-wrap;
+              }
+
+              .vjs-value__string {
+                color: #1F6D89;
+              }
+
+              .vjs-key {
+                color: #9D694C;
+              }
+            }
+          }
+
+          .promql-val {
+            width: 100%;
+            word-wrap: break-word;
+          }
+        }
+      }
+    }
+
+    &.is-en {
+      .form-item {
+        .form-item-label {
+          width: 100px;
+          white-space: nowrap;
+        }
+
+        .query-content-wrap {
+          width: 415px;
+        }
+      }
+    }
+  }
+}
