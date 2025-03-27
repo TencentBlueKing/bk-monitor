@@ -115,4 +115,5 @@ export default {
     'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
   手动添加: 'Manually add',
   '-': '-',
+  全局: 'Global',
 };
