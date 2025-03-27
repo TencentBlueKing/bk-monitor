@@ -301,6 +301,7 @@ export default defineComponent({
               cursor: 'pointer', // 手势类型
               r: 20, // 圆半径
               ...nodeAttrs.groupAttrs,
+              fill: isRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
             },
             draggable: true,
             name: 'topo-node-shape',
@@ -326,6 +327,15 @@ export default defineComponent({
               stroke: 'rgba(5, 122, 234, 1)',
             },
             name: 'topo-node-running',
+          });
+          group.addShape('circle', {
+            attrs: {
+              lineWidth: 0,
+              cursor: 'pointer',
+              r: 27,
+              stroke: '#3a84ff4d',
+            },
+            name: 'topo-node-running-shadow',
           });
 
           if (aggregated_nodes?.length) {
@@ -441,6 +451,7 @@ export default defineComponent({
             });
           } else if (name === 'running') {
             const runningShape = group.find(e => e.get('name') === 'topo-node-running');
+            const runningShadowShape = group.find(e => e.get('name') === 'topo-node-running-shadow');
             const rootBorderShape = group.find(e => e.get('name') === 'topo-node-root-border');
             if (value) {
               rootBorderShape?.attr({
@@ -449,6 +460,11 @@ export default defineComponent({
               runningShape.attr({
                 lineWidth: 3,
                 r: 24,
+                strokeOpacity: 1,
+              });
+              runningShadowShape.attr({
+                lineWidth: 3,
+                r: 27,
                 strokeOpacity: 1,
               });
             } else {
@@ -460,6 +476,12 @@ export default defineComponent({
                 cursor: 'pointer', // 手势类型
                 r: 22, // 圆半径
                 stroke: 'rgba(5, 122, 234, 1)',
+              });
+              runningShadowShape.attr({
+                lineWidth: 0,
+                cursor: 'pointer',
+                r: 27,
+                stroke: '#3a84ff4d',
               });
               activeAnimation.forEach(animation => animation?.stop?.());
               activeAnimation = [];
