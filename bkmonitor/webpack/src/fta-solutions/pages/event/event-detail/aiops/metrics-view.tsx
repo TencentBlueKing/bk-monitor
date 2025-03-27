@@ -285,7 +285,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         layoutActive={this.layoutActive}
         needLayout={true}
         title={!this.isCorrelationMetrics ? item.anomaly_dimension_alias : `【${item.title}】${item.metric_name_alias}`}
-        valueCount={item?.dimension_anomaly_value_count || item.panels?.length}
+        valueCount={item.totalPanels?.length}
         valueTotal={item?.dimension_value_total_count || 0}
         {...{
           on: {

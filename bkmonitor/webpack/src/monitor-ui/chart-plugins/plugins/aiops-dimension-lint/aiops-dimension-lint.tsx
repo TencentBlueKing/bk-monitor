@@ -615,6 +615,7 @@ export default class AiopsDimensionLine extends LineChart {
                     fontSize: '12px',
                   }}
                   v-bk-tooltips={{
+                    disabled: !Object.keys(this.panel?.dimensions || {})?.length,
                     content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
                     placement: 'left',
                     delay: 200,

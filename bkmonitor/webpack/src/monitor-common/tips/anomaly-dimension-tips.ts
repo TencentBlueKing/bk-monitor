@@ -49,7 +49,7 @@ export const createAnomalyDimensionTips = (metric: Record<string, any>, isCorrel
                 </div>`;
     }
     return `<div>${window.i18n.tc('指标名')}: ${metric.metric_name_alias}</div>
-                      ${metric.panels?.length ? `<div>${window.i18n.tc('维度数')}: ${(metric.totalPanels || metric.panels)?.length}</div>` : `<div>(${window.i18n.tc('无维度，已汇聚为1条曲线')})</div>`}
+                      ${metric.panels?.some(item => item.title) ? `<div>${window.i18n.tc('维度数')}: ${(metric.totalPanels || metric.panels)?.length}</div>` : `<div>(${window.i18n.tc('无维度，已汇聚为1条曲线')})</div>`}
                     `;
   }
   return `<div class='anomaly-dimension-tips'>
