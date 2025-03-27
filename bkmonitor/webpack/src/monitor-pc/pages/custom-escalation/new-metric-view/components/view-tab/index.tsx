@@ -153,6 +153,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   parseUrlPayload() {
     if (!this.$route.query.viewPayload || !this.isNeedParseUrl) {
+      this.isNeedParseUrl = false;
       return undefined;
     }
     this.isNeedParseUrl = false;
