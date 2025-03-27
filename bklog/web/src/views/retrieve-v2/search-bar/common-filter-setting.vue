@@ -208,16 +208,9 @@
     };
     isLoading.value = true;
 
-    store
-      .dispatch('userFieldConfigChange', param)
-      .then(res => {
-        if (res.result) {
-          window.mainComponent.messageSuccess($t('提交成功'));
-        }
-      })
-      .finally(() => {
-        isLoading.value = false;
-      });
+    store.dispatch('userFieldConfigChange', param).finally(() => {
+      isLoading.value = false;
+    });
   };
 
   const confirmModifyFields = async () => {
