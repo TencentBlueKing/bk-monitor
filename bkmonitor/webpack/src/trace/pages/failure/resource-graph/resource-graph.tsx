@@ -66,6 +66,10 @@ export default defineComponent({
       type: String,
       default: '0#0.0.0.0',
     },
+    entityName: {
+      type: String,
+      default: '',
+    },
     content: {
       type: String,
       default: '',
@@ -75,7 +79,7 @@ export default defineComponent({
       default: () => {},
     },
   },
-  emits: ['toDetail', 'hideToolTips'],
+  emits: ['toDetail', 'hideToolTips', 'collapseResource'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -754,7 +758,7 @@ export default defineComponent({
                   text: cfg.groupName,
                   fontSize: 12,
                   fontWeight: 400,
-                  fill: '#63656E',
+                  fill: '#979BA5',
                 },
                 name: 'resource-combo-title',
               });
@@ -767,8 +771,7 @@ export default defineComponent({
                 textAlign: 'left',
                 text: cfg.title,
                 fontSize: 12,
-                fontWeight: 700,
-                fill: '#fff',
+                fill: '#EAEBF0',
               },
               name: 'resource-combo-text',
             });
@@ -782,7 +785,7 @@ export default defineComponent({
                   text: cfg.anomaly_count,
                   fontSize: 12,
                   fontWeight: 700,
-                  fill: '#F55555',
+                  fill: '#FF6666',
                 },
                 name: 'resource-combo-text',
               });
@@ -796,7 +799,7 @@ export default defineComponent({
                 text: cfg.subTitle,
                 fontSize: 12,
                 fontWeight: 700,
-                fill: '#979BA5',
+                fill: '#EAEBF0',
               },
               name: 'resource-combo-count-text',
             });
@@ -805,9 +808,9 @@ export default defineComponent({
               attrs: {
                 x: -w / 2 + 80,
                 y: -comboxHeight / 2 - 26,
-                width: 2,
+                width: 1,
                 height: comboxHeight + 40,
-                fill: 'rgba(0, 0, 0, 0.3)',
+                fill: '#14161A',
               },
               name: 'resource-combo-bg',
             });
@@ -1162,7 +1165,7 @@ export default defineComponent({
             cursor: 'grab',
             fill: '#292A2B',
             radius: 0,
-            lineWidth: 0,
+            lineWidth: 0.5,
           },
         },
         modes: {
@@ -1186,7 +1189,7 @@ export default defineComponent({
           style: {
             cursor: 'pointer',
             lineAppendWidth: 15,
-            endArrow: isInvoke
+            endArrow: isInvoke && is_anomaly
               ? {
                   path: Arrow.triangle(12, 12, 0),
                   d: 0,
@@ -1479,6 +1482,9 @@ export default defineComponent({
         </Exception>
       );
     };
+    const handleCollapseResource = () => {
+      emit('collapseResource');
+    };
     return {
       graphRef,
       tooltipsRef,
@@ -1491,6 +1497,7 @@ export default defineComponent({
       graph,
       exceptionData,
       handleException,
+      handleCollapseResource,
     };
   },
   render() {
@@ -1501,6 +1508,23 @@ export default defineComponent({
           color='#292A2B'
           loading={this.loading}
         >
+          <div class='graph-title'>
+            <span class='graph-title_label'>{this.$t('从属关系')}</span>
+            {this.entityName && <span class='graph-title_line'></span>}
+            <span
+              class='graph-title_value'
+              v-overflowText={{
+                text: this.entityName,
+              }}
+              key={this.entityName}
+            >
+              {this.entityName}
+            </span>
+
+            <span onClick={this.handleCollapseResource}>
+              <i class='icon-monitor icon-gongneng-shouqi graph-title_icon' />
+            </span>
+          </div>
           {this.exceptionData.showException ? (
             this.handleException()
           ) : (

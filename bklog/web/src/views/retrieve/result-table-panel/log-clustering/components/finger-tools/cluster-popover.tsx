@@ -182,7 +182,7 @@ export default class ClusterPopover extends tsc<object> {
                 class='event-btn'
                 onClick={() => this.handleClick('copy')}
               >
-                <i class='icon log-icon icon-copy'></i>
+                <i class='icon bklog-icon bklog-copy'></i>
                 <span>{$i18n.t('复制')}</span>
               </span>
             </div>
@@ -202,7 +202,7 @@ export default class ClusterPopover extends tsc<object> {
                   this.handleClick('show original', true);
                 }}
               >
-                <i class='log-icon icon-jump'></i>
+                <i class='bklog-icon bklog-jump'></i>
               </div>
             </div>
             {/* <div class='event-box'>

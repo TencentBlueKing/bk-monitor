@@ -143,7 +143,7 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
             onShowChange={val => (this.shwoFav = val)}
           />
         )}
-        <span class='panel-header-center' />
+        <span class='panel-header-center'>{this.$slots.center}</span>
         <span class='panel-header-right'>
           {this.showDownSample && (
             <DropDownMenu

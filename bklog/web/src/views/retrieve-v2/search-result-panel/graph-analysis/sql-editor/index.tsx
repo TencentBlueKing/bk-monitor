@@ -71,20 +71,8 @@ export default defineComponent({
     const { $t } = useLocale();
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
 
-    const editorConfig = ref({
-      height: 400,
-    });
-
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-
-    useResizeObserve(
-      refRootElement,
-      entry => {
-        editorConfig.value.height = entry.target?.offsetHeight ?? 400;
-      },
-      60,
-    );
 
     const requestId = 'graphAnalysis_searchSQL';
 
@@ -100,7 +88,7 @@ export default defineComponent({
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
-      const { start_time, end_time } = retrieveParams.value;
+      const { start_time, end_time, keyword, addition } = retrieveParams.value;
       const params = {
         method: 'post',
         url: `/search/index_set/${indexSetId.value}/chart/`,
@@ -112,6 +100,8 @@ export default defineComponent({
           start_time,
           end_time,
           query_mode: 'sql',
+          keyword,
+          addition,
           sql, // 使用获取到的内容
         },
       };
@@ -203,7 +193,7 @@ export default defineComponent({
             <i class='bk-icon icon-stop-shape' />
             {/* <span>{$t('中止')}</span> */}
           </bk-button>
-          <bk-popconfirm
+          {/* <bk-popconfirm
             width='288'
             content={$t('此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作')}
             trigger='click'
@@ -217,7 +207,7 @@ export default defineComponent({
             >
               <i class='bklog-icon bklog-tongbu'></i>
             </bk-button>
-          </bk-popconfirm>
+          </bk-popconfirm> */}
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
@@ -332,15 +322,23 @@ export default defineComponent({
         .then(resp => {
           previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
           isPreviewSqlShow.value = true;
+        })
+        .catch(err => {
+          console.error('generate-sql error: ', err);
         });
-    }, 300);
+    }, 500);
 
     watch(
-      () => [retrieveParams.value.addition, retrieveParams.value.keyword],
+      () => [
+        retrieveParams.value.addition,
+        retrieveParams.value.keyword,
+        retrieveParams.value.start_time,
+        retrieveParams.value.end_time,
+      ],
       () => {
         debounceSyncAdditionToSQL();
       },
-      { deep: true },
+      { deep: true, immediate: true },
     );
 
     expose({

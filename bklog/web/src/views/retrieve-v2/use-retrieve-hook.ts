@@ -8,15 +8,24 @@ export default () => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
-  const resolveQueryParams = ({ search_mode, addition, keyword }) => {
+
+  /**
+   * 用于处理
+   * @param { search_mode, addition, keyword }
+   * @param ignoreKeywodLength 是否忽略 keyword 长度，如果忽略，则不进行 keyword 的长度校验, 默认为 false
+   * @returns
+   */
+  const resolveQueryParams = ({ search_mode, addition, keyword }, ignoreKeywodLength = false) => {
     // 此时说明来自旧版URL，同时带有 addition 和 keyword
     // 这种情况下需要将 addition 转换为 keyword 进行查询合并
     // 同时设置 search_mode 为 sql
-    if (!search_mode && addition?.length > 4 && keyword?.length > 0) {
+    if (!search_mode && addition?.length > 0 && (ignoreKeywodLength || keyword?.length > 0)) {
       // 这里不好做同步请求，所以直接设置 search_mode 为 sql
       router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
       const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
-      const target = resolver.convertQueryToStore<{ addition: ConsitionItem[] }>();
+      const target = Array.isArray(addition)
+        ? { addition }
+        : resolver.convertQueryToStore<{ addition: ConsitionItem[] }>();
 
       if (target.addition?.length) {
         return $http
@@ -27,7 +36,13 @@ export default () => {
           })
           .then(res => {
             if (res.result) {
-              const newKeyword = `${keyword} AND ${res.data?.querystring}`;
+              let newKeyword = [keyword, res.data?.querystring]
+                .filter(item => item.length > 0 && item !== '*')
+                .join(' AND ');
+              if (newKeyword.length === 0) {
+                newKeyword = '*';
+              }
+
               router.replace({ query: { ...route.query, keyword: newKeyword, addition: [] } });
               store.commit('updateIndexItemParams', { keyword: newKeyword });
               return true;

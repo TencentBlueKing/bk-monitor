@@ -236,7 +236,10 @@
         this.$http
           .request('retrieve/getRealTimeLog', {
             params: { index_set_id: this.$route.params.indexId },
-            data: Object.assign({ order: '-', size: 50, zero: this.zero }, this.params),
+            data: Object.assign(
+              { order: '-', size: 50, zero: this.zero, dtEventTimeStamp: this.logParams.dtEventTimeStamp },
+              this.params,
+            ),
           })
           .then(res => {
             // 通过gseindex 去掉出返回日志， 并加入现有日志

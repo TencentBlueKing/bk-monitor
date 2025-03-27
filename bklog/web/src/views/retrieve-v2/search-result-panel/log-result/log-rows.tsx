@@ -291,7 +291,15 @@ export default defineComponent({
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
-              store.commit('updateIndexFieldInfo', { sort_list: sortList });
+              const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
+                if (sortList.length > 0 && item[0] === field.field_name) {
+                  return sortList[0];
+                } else if (sortList.length === 0 && item[0] === field.field_name) {
+                  return [field.field_name, 'desc'];
+                }
+                return item;
+              });
+              store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
               store.dispatch('requestIndexSetQuery');
             }

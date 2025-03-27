@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
@@ -25,10 +25,10 @@
 
   const commonFilterAddition = computed({
     get() {
-      const additionValue = localStorage.getItem('commonFilterAddition');
+      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
       // 将本地存储的JSON字符串解析为对象并创建映射
       const parsedValueMap = additionValue
-        ? JSON.parse(additionValue).reduce((acc, item) => {
+        ? additionValue.value.reduce((acc, item) => {
             acc[item.field] = item.value;
             return acc;
           }, {})
@@ -38,7 +38,6 @@
         ...commonItem,
         value: parsedValueMap[commonItem.field] || commonItem.value,
       }));
-
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
         return (
@@ -65,7 +64,21 @@
       });
     },
   });
-
+  watch(
+    () => store.state.indexId,
+    () => {
+      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
+      if(additionValue?.indexId !== store.state.indexId){
+        localStorage.removeItem('commonFilterAddition');
+      }
+      else{
+        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
+        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
+        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
+      }
+    },
+    { immediate: true }
+  );
   const activeIndex = ref(-1);
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -137,28 +150,37 @@
   };
 
   // 新建提交逻辑
-  const updateCommonFilterAddition = () => {
-    const Additionvalue = deepClone(commonFilterAddition.value);
-    const target = Additionvalue.map(item => {
-      if (!isShowConditonValueSetting(item.operator)) {
+  const updateCommonFilterAddition = async() => {
+    try {
+      const Additionvalue = deepClone(commonFilterAddition.value);
+      const target = Additionvalue.map(item => {
+        if (!isShowConditonValueSetting(item.operator)) {
+          item.value = [];
+        }
         item.value = [];
-      }
-      item.value = [];
-      return item;
-    });
+        return item;
+      });
 
-    const param = {
-      filterAddition: target,
-      isUpdate: true
-    };
-
-    store.dispatch('userFieldConfigChange', param);
+      const param = {
+        filterAddition: target,
+        isUpdate: true
+      };
+      const res = await store.dispatch('userFieldConfigChange', param);
+      const { data: { index_set_config } } = res;
+      index_set_config.filterAddition = commonFilterAddition.value;
+      store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
+      store.dispatch('requestIndexSetQuery');
+    } catch (error) {
+      console.error('Failed to change user field config:', error);
+    }
   };
 
   const handleChange = () => {
-    localStorage.setItem('commonFilterAddition', JSON.stringify(commonFilterAddition.value));
+    localStorage.setItem('commonFilterAddition', JSON.stringify({
+      indexId: store.state.indexId,
+      value: commonFilterAddition.value
+    }));
     updateCommonFilterAddition();
-    store.dispatch('requestIndexSetQuery');
   };
 
   const focusIndex = ref(null);

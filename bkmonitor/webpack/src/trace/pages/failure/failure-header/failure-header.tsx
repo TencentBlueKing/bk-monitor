@@ -401,7 +401,7 @@ export default defineComponent({
               {this.t('标记已解决')}
             </div>
             <div
-              class='header-btn'
+              class='header-btn header-group-btn'
               onClick={() => this.handleChatGroup()}
             >
               <i class='icon-monitor icon-qiye-weixin btn-icon' />

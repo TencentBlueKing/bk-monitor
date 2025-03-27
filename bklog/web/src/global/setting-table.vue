@@ -64,12 +64,12 @@
                   v-bk-overflow-tips
                 >
                   <span 
-                    v-if="props.row.field_name === 'ext' && !props.row.expand" 
+                    v-if="props.row.children?.length && !props.row.expand" 
                     @click="expandObject(props.row,true)" 
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
                   </span>
                   <span 
-                    v-if="props.row.field_name === 'ext' && props.row.expand" 
+                    v-if="props.row.children?.length && props.row.expand" 
                     @click="expandObject(props.row,false)" 
                     class="ext-btn bklog-icon bklog-arrow-down-filled">
                   </span>
@@ -577,7 +577,6 @@
         this.$emit('reset');
       },
       batchAddField() {
-        console.log(this.collectorConfigId, 'collectorConfigId');
         const indexSetList = this.$store.state.retrieve.indexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
@@ -763,10 +762,9 @@
         });
       },
       checkFieldNameItem(row) {
-        const { field_name, is_delete, field_index } = row;
+        const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
         let result = '';
-
-        if (!is_delete) {
+        if (!is_delete && !is_built_in && !alias_name) {
           if (!field_name) {
             result = this.$t('必填项');
           } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
@@ -789,7 +787,6 @@
         }
         row.fieldErr = result;
         this.$emit('handle-table-data', this.changeTableList);
-
         return result;
       },
       checkFieldName() {
@@ -797,9 +794,13 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (this.checkFieldNameItem(row)) {
-                // 返回 true 的时候未通过
-                result = false;
+              // 如果有别名，不判断字段名，判断别名，如果为内置字段不判断
+              if (!row.is_built_in) {
+                const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
+                const hasFieldNameIssue = this.checkFieldNameItem(row);
+                if (hasAliasNameIssue || hasFieldNameIssue) {
+                  result = false;
+                }
               }
             });
             if (result) {
@@ -831,11 +832,7 @@
             row.aliasErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-          // 字段名与内置字段冲突，必须设置别名
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-          return false;
-        }
+        } 
 
         row.aliasErr = '';
         return true;
@@ -913,6 +910,7 @@
       },
       validateFieldTable() {
         const promises = [];
+        promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
         promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
@@ -1050,7 +1048,7 @@
         fieldsObjectData.forEach(item => {
           let name = item.field_name.split('.')[0]
           item.is_objectKey = true
-          this.builtFields.forEach( builtField => {
+          this.tableAllList.forEach( builtField => {
             if(builtField.field_type === "object" && name.includes(builtField.field_name)){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];

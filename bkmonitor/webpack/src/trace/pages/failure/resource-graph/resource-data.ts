@@ -50,7 +50,7 @@ export const createGraphData = (ranksMap: IRanksMap, edges: IEdge[]): ITopoData 
   const combos = [];
   let nodeDatas = [];
   Object.keys(ranksMap).forEach((ranks, index) => {
-    const fillColor = index % 2 === 1 ? '#292A2B' : '#1B1C1F';
+    const fillColor = '#292A2B';
     if (ranksMap[ranks].length > 0) {
       ranksMap[ranks].forEach((rank, index) => {
         const { rank_category, rank_name, rank_alias, nodes, anomaly_count, total, is_sub_rank } = rank;
@@ -64,7 +64,7 @@ export const createGraphData = (ranksMap: IRanksMap, edges: IEdge[]): ITopoData 
           title: is_sub_rank ? '' : rank_alias,
           style: {
             fill: fillColor,
-            stroke: fillColor,
+            stroke: '#14161A',
           },
         });
         nodes.forEach(node => {
@@ -85,7 +85,7 @@ export const createGraphData = (ranksMap: IRanksMap, edges: IEdge[]): ITopoData 
         title: rank_alias,
         style: {
           fill: fillColor,
-          stroke: fillColor,
+          stroke: '#14161A',
         },
       });
       nodes.forEach(node => {

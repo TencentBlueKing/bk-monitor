@@ -919,7 +919,6 @@
   import AuthContainerPage from '@/components/common/auth-container-page';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
-
   import * as authorityMap from '../../common/authority-map';
   import { deepClone, deepEqual } from '../../common/util';
   import fieldTable from './field-table';
@@ -1145,7 +1144,7 @@
         isDebugLoading: false,
         builtFieldShow:false,
         fieldsObjectData: [],
-        alias_settings:[]
+        alias_settings:[],
       };
     },
     computed: {
@@ -1970,6 +1969,7 @@
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
+
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
@@ -2097,6 +2097,7 @@
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
+
                     list.forEach((item, itemIndex) => {
                       item.field_index = itemIndex;
                     });
@@ -2118,7 +2119,7 @@
                     if (index) {
                       newFields.forEach((item, idx) => {
                         // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index === item.field_index);
+                        const child = dataFields.find(data => data.field_index === item.field_index + 1);
                         item.value = child ? child.value : ''; // 修改value值(预览值)
                         if (index > idx && !item.is_delete) {
                           // 将未删除的存进数组
@@ -2147,6 +2148,7 @@
                 this.formatResult = true; // 此时才能将结果设置为成功
                 this.savaFormData();
               } else {
+
                 // 仅做预览赋值操作，不改变结果
                 newFields.forEach(field => {
                   const child = dataFields.find(item => {
@@ -2344,7 +2346,7 @@
                 separator: etlParams.separator || '',
               });
               this.fieldType = clean_type;
-              this.enableMetaData = etlParams.path_regexp ? true : false;
+              this.enableMetaData = !!etlParams.path_regexp;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2623,21 +2625,14 @@
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
           this.fieldsObjectData.forEach(item => {
-            let name = item.field_name.split('.')[0]
-            item.field_type = typeConversion[item.field_type]
-            item.is_objectKey = true
-            item.is_delete = false
-            this.copyBuiltField.forEach( builtField => {
-              if(builtField.field_type === "object" && name.includes(builtField.field_name)){
-                if (!Array.isArray(builtField.children)) {
-                  builtField.children = [];
-                  this.$set(builtField, 'expand', false);
-                }
-                builtField.children.push(item);
-              }
-            } )
+            let name = item.field_name.split('.')[0];
+            item.field_type = typeConversion[item.field_type];
+            item.is_objectKey = true;
+            item.is_delete = false;
+
+            this.addChildrenToBuiltField(this.copyBuiltField, item, name);
+            this.addChildrenToBuiltField(this.formData.fields, item, name);
           })
-          
         } catch (err) {
           console.warn(err);
         }
@@ -2654,6 +2649,17 @@
             field_name : alias_settings[key].path
           } 
         })
+      },
+      addChildrenToBuiltField(builtFieldList, item, name) {
+        builtFieldList.forEach(builtField => {
+          if (builtField.field_type === "object" && name.includes(builtField.field_name)) {
+            if (!Array.isArray(builtField.children)) {
+              builtField.children = [];
+              this.$set(builtField, 'expand', false);
+            }
+            builtField.children.push(item);
+          }
+        });
       }
     },
   };
@@ -2922,6 +2928,7 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
+
         .bklog-button{
           font-size: 12px;
         }

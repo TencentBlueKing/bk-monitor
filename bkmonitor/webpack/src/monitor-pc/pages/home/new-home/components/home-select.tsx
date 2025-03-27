@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
+import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
@@ -907,7 +908,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {/* {!this.isBarToolShow && this.showKeywordEle && <div class='search-keyboard'>{this.$tc('快捷键')} /</div>} */}
+          {!this.isBarToolShow && this.showKeywordEle && (
+            <div class='search-keyboard'>
+              {this.$tc('快捷键')} {getCmdShortcutKey()} + /
+            </div>
+          )}
           {(this.isBarToolShow || this.showPopover) && (
             <div class='new-home-select-popover'>
               {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
