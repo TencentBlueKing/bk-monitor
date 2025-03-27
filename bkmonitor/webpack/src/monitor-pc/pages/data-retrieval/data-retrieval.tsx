@@ -3532,7 +3532,7 @@ export default class DataRetrieval extends tsc<object> {
                       </div>
                     </div>
                   </div>
-                  {this.eventType === 'custom_event' && (
+                  {this.$route.name === 'event-retrieval' && this.eventType === 'custom_event' && (
                     <bk-button
                       style={{ marginTop: '8px' }}
                       slot='center'
