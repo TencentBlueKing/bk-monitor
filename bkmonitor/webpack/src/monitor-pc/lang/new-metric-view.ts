@@ -114,7 +114,6 @@ export default {
   '自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名':
     'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
   手动添加: 'Manually add',
-  '-': '-',
   全局: 'Global',
   指标管理: '',
   '确定 Cmd + Enter': '',

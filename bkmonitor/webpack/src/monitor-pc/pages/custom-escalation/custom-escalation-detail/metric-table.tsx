@@ -743,7 +743,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   class='info-content'
                   onClick={() => this.handleShowEditDescription(metricData.description)}
                 >
-                  {metricData.description ?? '-'}
+                  {metricData.description || '-'}
                 </div>
               ) : (
                 <bk-input
