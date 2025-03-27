@@ -11,7 +11,7 @@
   >
     <slot name="trigger">
       <div class="operation-icon">
-        <span :class="['bklog-icon bklog-shezhi']"></span>
+        <span :class="['bklog-icon bklog-shezhi setting-icon']"></span>
         设置筛选
       </div>
     </slot>
@@ -29,6 +29,7 @@
             </div>
             <div class="common-filter-search">
               <bk-input
+                ref="commonFilterSearchInputRef"
                 v-model="searchKeyword"
                 :clearable="true"
                 :placeholder="$t('请输入关键字')"
@@ -36,28 +37,41 @@
                 left-icon="bk-icon icon-search"
               ></bk-input>
             </div>
-            <ul class="select-list">
-              <li
-                v-for="item in shadowTotal"
-                style="cursor: pointer"
-                class="select-item"
-                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
-                :key="item.field_name"
-                @click="addField(item)"
+            <template>
+              <ul
+                class="select-list"
+                v-if="shadowTotal.length"
               >
-                <span
-                  :style="{
-                    backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
-                    color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
-                  }"
-                  :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                <li
+                  v-for="item in shadowTotal"
+                  style="cursor: pointer"
+                  class="select-item"
+                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                  :key="item.field_name"
+                  @click="addField(item)"
                 >
-                </span>
-                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-                <span class="field-name">({{ item.field_name }})</span>
-                <span class="icon bklog-icon bklog-filled-right-arrow"></span>
-              </li>
-            </ul>
+                  <span
+                    :style="{
+                      backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                      color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+                    }"
+                    :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                  >
+                  </span>
+                  <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
+                  <span class="field-name">({{ item.field_name }})</span>
+                  <span class="icon bklog-icon bklog-filled-right-arrow"></span>
+                </li>
+              </ul>
+              <bk-exception
+                v-else
+                style="justify-content: center; height: 260px"
+                scene="part"
+                type="500"
+              >
+                搜索为空
+              </bk-exception>
+            </template>
           </div>
           <div class="sort-icon">
             <span class="icon bklog-icon bklog-double-arrow"></span>
@@ -77,7 +91,7 @@
             </div>
             <vue-draggable
               v-bind="dragOptions"
-              class="select-list"
+              class="select-list permanent-list"
               v-model="shadowVisible"
             >
               <transition-group>
@@ -130,7 +144,7 @@
   </bk-popover>
 </template>
 <script setup>
-  import { ref, computed, watch, set } from 'vue';
+  import { ref, computed, nextTick } from 'vue';
 
   import { getRegExp } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -248,8 +262,12 @@
     shadowVisible.value.push(...filterFieldsList.value);
   };
 
+  const commonFilterSearchInputRef = ref(null);
   const handlePopoverShow = () => {
     setDefaultFilterList();
+    nextTick(() => {
+      commonFilterSearchInputRef.value?.focus();
+    });
   };
 </script>
 
@@ -410,6 +428,11 @@
       .visible-fields-list {
         width: 320px;
         border-left: none;
+
+        .permanent-list {
+          /* stylelint-disable-next-line declaration-no-important */
+          height: 290px !important;
+        }
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
@@ -553,6 +576,12 @@
       background-color: #fafbfd;
       border-top: 1px solid #dcdee5;
       border-radius: 0 0 2px 2px;
+    }
+  }
+
+  .common-filter-popper {
+    .setting-icon {
+      font-size: 16px;
     }
   }
 </style>

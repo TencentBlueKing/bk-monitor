@@ -22,6 +22,8 @@
         }
 
         :deep(.bk-form-control) {
+          padding: 0 8px;
+
           .left-icon {
             font-size: 18px;
             color: #979ba5;
@@ -56,13 +58,13 @@
           display: inline-flex;
           align-items: center;
           width: 100%;
+          min-width: 300px;
+          max-width: 358px;
           height: 32px;
           padding: 0 8px;
           font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
           text-overflow: ellipsis;
           white-space: nowrap;
-          min-width: 300px;
-          max-width: 358px;
           cursor: pointer;
 
           &:hover,
