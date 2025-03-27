@@ -60,7 +60,10 @@ logger = logging.getLogger("metadata")
 
 
 class SpaceTableIDRedis:
-    """空间路由结果表数据推送 redis 相关功能"""
+    """
+    空间路由结果表数据推送 redis 相关功能
+    多租户环境下,不允许跨租户推送路由,即每次操作的目标数据,必须是同一租户下的,不能跨租户
+    """
 
     def push_space_table_ids(
         self, space_type: str, space_id: str, is_publish: Optional[bool] = False, can_push_data: Optional[bool] = True
@@ -88,14 +91,25 @@ class SpaceTableIDRedis:
         data_label_list: Optional[List] = None,
         table_id_list: Optional[List] = None,
         is_publish: Optional[bool] = False,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ):
         """推送 data_label 及对应的结果表"""
         logger.info(
-            "start to push data_label table_id data, data_label_list: %s, table_id_list: %s",
+            "start to push data_label table_id data, data_label_list: %s, table_id_list: %s, is_publish: %s,"
+            "bk_tenant_id: %s",
             json.dumps(data_label_list),
             json.dumps(table_id_list),
+            is_publish,
+            bk_tenant_id,
         )
-        data_labels = self._refine_available_data_label(table_id_list, data_label_list)
+        data_labels = self._refine_available_data_label(
+            table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
+        )
+
+        other_filter = {}
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            other_filter = {"bk_tenant_id": bk_tenant_id}
+
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = filter_model_by_in_page(
             model=models.ResultTable,
@@ -103,21 +117,32 @@ class SpaceTableIDRedis:
             filter_data=list(data_labels),
             value_func="values",
             value_field_list=["table_id", "data_label"],
+            other_filter=other_filter,
         )
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
             rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
 
+        # 若开启多租户模式,则data_label和table_id都需要在后面拼接@bk_tenant_id
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            rt_dl_map = {
+                f'{data_label}@{bk_tenant_id}': [f"{table_id}@{bk_tenant_id}" for table_id in table_ids]
+                for data_label, table_ids in rt_dl_map.items()
+            }
+
+        redis_values = {}
         if rt_dl_map:
             redis_values = {
                 data_label: json.dumps([reformat_table_id(table_id) for table_id in table_ids])
                 for data_label, table_ids in rt_dl_map.items()
             }
-            RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
 
+        if redis_values:
+            RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
             if is_publish:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
+
         logger.info("push redis data_label_to_result_table")
 
     def push_es_table_id_detail(
@@ -311,6 +336,7 @@ class SpaceTableIDRedis:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push_table_id_detail： push redis result_table_detail")
 
+    # TODO: BkBase多租户 -- 预计算结果表多租户
     def _compose_record_rule_table_id_detail(self) -> Dict:
         """组装预计算结果表的详情"""
         from metadata.models.record_rule.rules import RecordRule
@@ -953,14 +979,28 @@ class SpaceTableIDRedis:
         return True
 
     def _refine_available_data_label(
-        self, table_id_list: Optional[List] = None, data_label_list: Optional[List] = None
+        self,
+        table_id_list: Optional[List] = None,
+        data_label_list: Optional[List] = None,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ) -> List:
         """获取可以使用的结果表"""
-        tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True).values("table_id", "data_label")
+        logger.info(
+            "_refine_available_data_label: table_id_list->[%s],data_label_list->[%s],bk_tenant_id->[%s]",
+            table_id_list,
+            data_label_list,
+            bk_tenant_id,
+        )
+
+        tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True, bk_tenant_id=bk_tenant_id).values(
+            "table_id", "data_label"
+        )
+
         if table_id_list:
             tids = tids.filter(table_id__in=table_id_list)
         if data_label_list:
             tids = tids.filter(data_label__in=data_label_list)
+
         return [tid["data_label"] for tid in tids if tid["data_label"]]
 
     def _refine_table_ids(self, table_id_list: Optional[List] = None) -> Set:

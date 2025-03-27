@@ -634,6 +634,11 @@ def push_and_publish_space_router(
                 include_es_table_ids=True,
                 bk_tenant_id=space["bk_tenant_id"],
             )
+            space_client.push_data_label_table_ids(
+                table_id_list=space_tid_list,
+                is_publish=is_publish,
+                bk_tenant_id=space["bk_tenant_id"],
+            )
     else:
         table_id_list = []
         if space_id:
