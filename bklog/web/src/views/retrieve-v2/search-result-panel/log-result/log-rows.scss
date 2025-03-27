@@ -128,8 +128,9 @@
           display: flex;
           align-items: flex-start;
           height: 100%;
-          background-color: #fff;
           height: 22px;
+          background-color: #fff;
+
           .handle-content {
             position: relative;
             display: flex;
@@ -167,6 +168,7 @@
           .bklog-header-cell {
             display: flex;
             align-items: center;
+            font-weight: bold;
             line-height: 32px;
             color: #313238;
 
@@ -273,27 +275,27 @@
       }
 
       &::after {
-        content: '';
         position: absolute;
         top: 0;
         right: var(--fix-right-width);
         bottom: 0;
         z-index: 2;
-        pointer-events: none;
         width: 8px;
+        pointer-events: none;
+        content: '';
         background-image: linear-gradient(270deg, #0000000f 0%, #00000000 100%);
       }
 
       &::before {
-        content: '';
         position: absolute;
         top: 0;
         right: 0;
         bottom: 0;
-        pointer-events: none;
         z-index: 1;
-        background-color: #fff;
         width: var(--fix-right-width);
+        pointer-events: none;
+        content: '';
+        background-color: #fff;
       }
     }
 
@@ -355,10 +357,10 @@
         position: absolute;
         top: 4px;
         right: 10px;
+        z-index: 1;
         display: none;
         padding: 2px;
         opacity: 0;
-        z-index: 1;
 
         img {
           width: 20px;
@@ -385,12 +387,12 @@
         top: 1px;
         bottom: 1px;
         left: 0;
-        transform: translateX(var(--row-offset-left));
+        z-index: 1;
         width: 3.09px;
         content: '';
         background: #f59789;
         border-radius: 0 1px 1px 0;
-        z-index: 1;
+        transform: translateX(var(--row-offset-left));
       }
 
       &.normal,

@@ -47,6 +47,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
   @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
+  @Prop({ type: Array, default: () => [] }) defaultExpandedNode: Array<any>;
 
   isExpand = false;
   analysisActive = false;
@@ -270,6 +271,9 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span>
               <span class='field-name'>{this.retuanFieldName()}</span>
+              {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
+              {this.fieldItem.children?.length && <span class='bklog-icon bklog-arrow-down-filled-2'></span>}
+
               {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}
