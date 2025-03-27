@@ -529,8 +529,9 @@
     &[data-theme='log-light'] {
       color: #4d4f56;
       background-color: #ffffff;
-      box-shadow: 0 2px 6px 0 #0000001a;
-      transform: translateY(-4px);
+      border-radius: 2px;
+      box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.16);
+      transform: translateY(-2px);
 
       .tippy-content {
         padding: 0;
@@ -543,14 +544,19 @@
           background-color: #fff;
           box-shadow: 0 2px 6px 0 #0000001a;
         }
+
+        &::before {
+          top: -9px;
+        }
       }
     }
 
     &[data-theme='log-dark'] {
       color: #fff;
       background-color: #4d4f56;
+      border-radius: 2px;
       box-shadow: 0 2px 6px 0 #fff;
-      transform: translateY(-4px);
+      transform: translateY(-2px);
 
       .tippy-content {
         padding: 4px 8px;
@@ -562,6 +568,10 @@
         &::after {
           background-color: #4d4f56;
           box-shadow: 0 2px 6px 0 #fff;
+        }
+
+        &::before {
+          top: -9px;
         }
       }
     }

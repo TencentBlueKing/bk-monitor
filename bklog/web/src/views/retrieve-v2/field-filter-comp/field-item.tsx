@@ -56,6 +56,7 @@ export default class FieldItem extends tsc<object> {
   fieldData = null;
   distinctCount = 0;
   btnLoading = false;
+  expandIconShow = false;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -270,6 +271,14 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span>
               <span class='field-name'>{this.retuanFieldName()}</span>
+              {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
+              {this.fieldItem.children?.length &&
+                (this.expandIconShow ? (
+                  <span class={['bk-icon', 'icon-angle-up', 'expand']}></span>
+                ) : (
+                  <span class={['bk-icon', 'icon-angle-down', 'expand']}></span>
+                ))}
+
               {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}

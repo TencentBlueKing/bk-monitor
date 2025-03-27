@@ -306,6 +306,9 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
+    nextTick(() => {
+      popoverContentRef.value.clearError();
+    })
   };
   // popover组件Ref
   const popoverContentRef = ref();
@@ -322,10 +325,12 @@
   const hidePopover = () => {
     popoverShow.value = false;
     popoverContentRef.value.hideHandler();
-  };
+};
+  const favoriteNameInputRef = ref(null)
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
+      favoriteNameInputRef.value?.focus();
       if (!popoverShow.value) {
         popoverContentRef.value.hideHandler();
       }
@@ -393,7 +398,7 @@
             label="收藏名称"
             required
           >
-            <bk-input v-model="favoriteData.name"></bk-input>
+            <bk-input ref="favoriteNameInputRef" v-model="favoriteData.name"></bk-input>
           </bk-form-item>
           <bk-form-item
             :property="'project'"
