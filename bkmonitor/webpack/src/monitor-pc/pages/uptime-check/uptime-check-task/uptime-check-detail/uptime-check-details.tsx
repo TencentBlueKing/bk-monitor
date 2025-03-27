@@ -58,7 +58,7 @@ export default class UptimeCheckDetail extends tsc<object> {
   menuList: IMenuItem[] = [
     {
       id: 'task-edit',
-      name: window.i18n.tc('数据源管理'),
+      name: window.i18n.tc('编辑任务'),
       show: true,
     },
   ];
