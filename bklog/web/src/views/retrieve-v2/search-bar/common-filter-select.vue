@@ -289,7 +289,6 @@
     align-items: center;
     max-height: 95px;
     padding: 0 10px 0px 10px;
-    overflow: auto;
     background: #ffffff;
     border-radius: 0 0 2px 2px;
     box-shadow: 0 2px 4px 0 #19192914;
@@ -313,7 +312,9 @@
     display: flex;
     flex-wrap: wrap;
     width: calc(100% - 80px);
+    max-height: 90px;
     margin-top: 4px;
+    overflow: auto;
   }
 
   .filter-select-wrap {
