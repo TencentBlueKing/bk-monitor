@@ -357,9 +357,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   'icon-monitor',
                   'alarm-icon',
                   'icon-btn',
-                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-Strategy status-strategy',
+                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
                   this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
-                    'icon-Strategy status-strategy-not-config',
+                    'icon-mc-strategy status-strategy-not-config',
                   this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
                 ]}
                 v-bk-tooltips={this.alarmTips}
@@ -420,14 +420,22 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               >
                 {this.inited && this.$slots?.default}
               </span>,
-              <span class='title-icon-list'>{(this.$scopedSlots as any)?.iconList?.()}</span>,
+              <span
+                key={'title-icon-list'}
+                class='title-icon-list'
+              >
+                {(this.$scopedSlots as any)?.iconList?.()}
+              </span>,
               this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
                   key={'添加策略'}
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
-                  class={['icon-monitor icon-a-celve strategy-icon icon-btn', { 'hover-show': this.isHoverShow }]}
+                  class={[
+                    'icon-monitor icon-mc-add-strategy strategy-icon icon-btn',
+                    { 'hover-show': this.isHoverShow },
+                  ]}
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
                     delay: 200,
