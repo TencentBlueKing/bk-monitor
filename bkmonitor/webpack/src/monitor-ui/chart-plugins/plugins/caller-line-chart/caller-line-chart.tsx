@@ -1207,24 +1207,22 @@ class CallerLineChart extends CommonSimpleChart {
         >
           <div slot='title'>
             {this.enablePanelsSelector ? (
-              <div>
-                <bk-select
-                  class='enable-select'
-                  v-model={this.panelsSelector}
-                  behavior='simplicity'
-                  clearable={false}
-                  size='small'
-                  onChange={this.handlePanelsSelector}
-                >
-                  {(this.childPanelsSelectorVariables || []).map(option => (
-                    <bk-option
-                      id={option.id}
-                      key={option.id}
-                      name={option.title}
-                    />
-                  ))}
-                </bk-select>
-              </div>
+              <bk-select
+                class='enable-select'
+                v-model={this.panelsSelector}
+                behavior='simplicity'
+                clearable={false}
+                size='small'
+                onChange={this.handlePanelsSelector}
+              >
+                {(this.childPanelsSelectorVariables || []).map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.title}
+                  />
+                ))}
+              </bk-select>
             ) : (
               <span>{this.panel.title}</span>
             )}

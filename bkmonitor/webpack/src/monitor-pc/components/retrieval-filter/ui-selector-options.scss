@@ -1,12 +1,11 @@
-
-.retrieval-filter__ui-selector-options-component{
+.retrieval-filter__ui-selector-options-component {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 720px;
   height: 404px;
-  background: #FFFFFF;
-  border: 1px solid #DCDEE5;
+  background: #ffffff;
+  border: 1px solid #dcdee5;
   border-top: none;
   box-shadow: 0 2px 6px 0 #0000001a;
 
@@ -44,7 +43,7 @@
       flex-direction: column;
       width: 50%;
       height: 356px;
-      border-right: 1px solid #DCDEE5;
+      border-right: 1px solid #dcdee5;
 
       .options-wrap {
         flex: 1;
@@ -97,31 +96,31 @@
           }
 
           &.cursor {
-            background: #F5F7FA;
+            background: #f5f7fa;
           }
 
           &.checked {
-            background: #F5F7FA;
+            background: #f5f7fa;
 
             .option-name-title {
-              color: #3A84FF;
+              color: #3a84ff;
             }
 
             .option-name-subtitle {
-              color: #699DF4;
+              color: #699df4;
             }
           }
 
           &:hover {
             cursor: pointer;
-            background: #F0F5FF;
+            background: #f0f5ff;
 
             .option-name-title {
-              color: #3A84FF;
+              color: #3a84ff;
             }
 
             .option-name-subtitle {
-              color: #699DF4;
+              color: #699df4;
             }
           }
         }
@@ -144,9 +143,9 @@
           justify-content: space-between;
           font-size: 12px;
           line-height: 20px;
-          color: #4D4F56;
+          color: #4d4f56;
 
-          .bk-form-checkbox  {
+          .bk-form-checkbox {
             .bk-checkbox-text {
               font-size: 12px;
             }
@@ -156,7 +155,7 @@
         .form-item-content {
           .method-select {
             .bk-select-name {
-              color: #F59500;
+              color: #f59500;
             }
           }
         }
@@ -175,8 +174,8 @@
     align-items: center;
     height: 48px;
     padding: 0 24px 0 6px;
-    background: #FAFBFD;
-    border-top: 1px solid #DCDEE5;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
 
     .desc-item {
       display: flex;
@@ -195,7 +194,7 @@
 
         .icon-mc-arrow-down {
           font-size: 12px;
-          color: #A3B1CC;
+          color: #a3b1cc;
 
           &.up {
             rotate: 180deg;
@@ -206,7 +205,7 @@
       .desc-item-name {
         margin-left: 4px;
         font-size: 12px;
-        color: #7A8599;
+        color: #7a8599;
       }
 
       .desc-item-box {
@@ -217,7 +216,7 @@
         padding: 0 4px;
         font-size: 12px;
         font-weight: 700;
-        color: #A3B1CC;
+        color: #a3b1cc;
         background: #a3b1cc29;
         border: 1px solid #a3b1cc4d;
         border-radius: 2px;

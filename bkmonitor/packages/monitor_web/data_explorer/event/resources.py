@@ -125,7 +125,7 @@ class EventLogsResource(Resource):
         for processor in processors:
             events = processor.process(events)
 
-        return {"list": events}
+        return {"list": sorted(events, key=lambda _e: -_e["_meta"]["_time_"])}
 
 
 class EventViewConfigResource(Resource):

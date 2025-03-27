@@ -1,0 +1,41 @@
+.edit-panel-key-select {
+  &.is-single {
+    .key-title {
+      display: none;
+    }
+
+    .key-item {
+      padding-left: 12px;
+    }
+  }
+
+  .wrapper {
+    height: 300px;
+    margin-top: 8px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 32px;
+    color: #4d4f56;
+  }
+
+  .key-title {
+    padding-left: 12px;
+    color: #979ba5;
+  }
+
+  .key-item {
+    padding-left: 24px;
+    cursor: pointer;
+    transition: background-color 0.1s ease-in-out;
+
+    &:hover,
+    &.is-hover {
+      background-color: #f5f7fa;
+    }
+
+    &.is-selected {
+      color: #3a84ff;
+      background-color: #f5f7fa;
+    }
+  }
+}
