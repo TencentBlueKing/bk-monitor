@@ -226,7 +226,7 @@ export default class CustomEventMenu extends tsc<IProps> {
                       {item.alias || item.value}
                     </a>
                   ) : (
-                    item.value
+                    item.alias || item.value
                   )}
                 </div>
               </div>
