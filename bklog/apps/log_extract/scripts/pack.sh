@@ -113,12 +113,12 @@ match_word () {
       keyword_or)
         # shellcheck disable=SC2001
         local or_pattern=$(echo "${words[@]}" | sed 's/ / \|\| /g')
-        awk "$or_pattern" "$logfile" > "$target_file"
+        awk '/'"$or_pattern"'/' "$logfile" > "$target_file"
         ;;
       keyword_and)
         # shellcheck disable=SC2001
         local and_pattern=$(echo "${words[@]}" | sed 's/ / \&\& /g')
-        awk "$and_pattern" "$logfile" > "$target_file"
+        awk '/'"$and_pattern"'/' "$logfile" > "$target_file"
         ;;
       keyword_not)
         # shellcheck disable=SC2001
