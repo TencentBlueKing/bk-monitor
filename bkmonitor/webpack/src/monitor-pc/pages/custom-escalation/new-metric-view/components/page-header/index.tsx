@@ -48,7 +48,9 @@ export default class PageHeader extends tsc<object> {
   }
 
   async fetchData() {
-    const result = await customTimeSeriesList();
+    const result = await customTimeSeriesList({
+      page_size: 200,
+    });
     this.customTimeSeriesList = Object.freeze(result.list);
   }
 

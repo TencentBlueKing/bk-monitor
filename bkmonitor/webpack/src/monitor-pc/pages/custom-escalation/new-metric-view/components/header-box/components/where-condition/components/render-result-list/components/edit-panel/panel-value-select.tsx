@@ -68,8 +68,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
   keyNameChangeCallback() {
     this.$nextTick(() => {
       if (this.keyName) {
-        // this.valueTagInputRef.focusInputer();
-        console.log('from watac');
+        this.valueTagInputRef.focusFn();
       }
     });
   }
@@ -131,6 +130,8 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
         </bk-select>
         <div class='value-title'>{this.$t('筛选值')}</div>
         <ValueTagSelector
+          ref='valueTagInputRef'
+          style='width: auto'
           fieldInfo={{
             field: this.keyName,
             alias: this.keyName,
