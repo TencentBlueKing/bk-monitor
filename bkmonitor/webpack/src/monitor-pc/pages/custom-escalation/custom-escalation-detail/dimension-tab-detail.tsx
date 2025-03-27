@@ -27,7 +27,6 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import infoSrc from '../../../static/images/png/dimension-guide.png';
-import { statusMap } from './metric-table';
 import { fuzzyMatch } from './metric-table-slide';
 
 import './dimension-tab-detail.scss';
