@@ -413,7 +413,7 @@ export default defineComponent({
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'cursor',
-              text: accumulatedWidth(entity.entity_type),
+              text: accumulatedWidth(entity?.properties?.entity_show_type || entity.entity_type),
               fontSize: 10,
               ...nodeAttrs.textNameAttrs,
             },
@@ -1890,17 +1890,19 @@ export default defineComponent({
         const { showNodes, content } = topoRawDataCache.value.diff[value];
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
-          const showNode = [...showNodes, ...content.nodes].find(item => item.id === id);
+          const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
           const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
           const diffNode = content.nodes.find(item => item.id === id);
+          const diffData = !diffNode && showNode;
+          const updateNode = diffData ? showNode : diffNode;
           if ((!showNode && !diffNode) || deleteNodeIds.includes(id)) {
             const node = graph.findById(id);
             node && graph.hideItem(node);
-          } else if (diffNode) {
-            const node = graph.findById(diffNode.id);
+          } else if (diffNode || diffData) {
+            const node = graph.findById(updateNode.id);
             const model = node?.getModel?.();
             node && graph.showItem(node);
-            node && graph.updateItem(node, { ...diffNode, comboId: model.comboId, subComboId: model.subComboId });
+            node && graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
           }
         });
         const edges = graph.getEdges();
@@ -2299,20 +2301,20 @@ export default defineComponent({
                   class='expand-resource'
                   onClick={this.handleExpandResourceChange}
                 >
-                  <i class={`icon-monitor icon-mc-tree expand-icon`} />
+                  <i class={'icon-monitor icon-mc-tree expand-icon'} />
                 </div>
               )}
             </div>
             {this.showResourceGraph && !this.isPlay && (
               <ResourceGraph
                 ref='resourceGraphRef'
-                entityName={this.nodeEntityName}
                 entityId={this.nodeEntityId}
+                entityName={this.nodeEntityName}
                 modelData={this.topoRawDataCache.complete}
                 resourceNodeId={this.resourceNodeId}
+                onCollapseResource={this.handleExpandResourceChange}
                 onHideToolTips={this.handleHideToolTips}
                 onToDetail={this.handleToDetail}
-                onCollapseResource={this.handleExpandResourceChange}
               />
             )}
           </div>
@@ -2341,7 +2343,7 @@ export default defineComponent({
         <div
           id='combo-label-tooltip'
           class='combo-label-tooltip'
-        ></div>
+        />
       </div>
     );
   },
