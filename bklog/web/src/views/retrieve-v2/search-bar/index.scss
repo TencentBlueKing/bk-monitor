@@ -6,6 +6,7 @@
   .search-bar-container {
     display: flex;
     background-color: #fff;
+    border-radius: 2px;
     box-shadow: 0 2px 4px 0 #19192914;
 
     .search-options {
@@ -77,35 +78,35 @@
         }
 
         &.items {
-          // right: 48px;
-          color: #4d4f56;
           display: flex;
           align-items: center;
           justify-content: space-around;
           // width: 60px;
           padding-right: 4px;
+          // right: 48px;
+          color: #4d4f56;
 
           .bklog-keyword-inspect {
             width: 280px;
+            padding: 12px;
+            cursor: default;
             background: #ffffff;
             border: 1px solid #dcdee5;
             box-shadow: 0 2px 6px 0 #0000001a;
-            padding: 12px;
-            cursor: default;
 
             .inspect-row {
               width: 100%;
               text-align: left;
 
               .inspect-title {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
                 width: 100%;
                 height: 20px;
                 font-size: 12px;
-                color: #313238;
                 line-height: 20px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+                color: #313238;
 
                 .inspect-keyword-replace {
                   font-size: 12px;
@@ -116,18 +117,18 @@
 
               .inspect-message {
                 position: relative;
-                width: 100%;
-                line-height: 20px;
-                padding: 6px 8px;
-                background: #f5f7fa;
-                border-radius: 2px;
-
-                font-size: 12px;
-                color: #e71818;
 
                 display: flex;
-                justify-content: space-between;
                 align-items: flex-start;
+                justify-content: space-between;
+                width: 100%;
+                padding: 6px 8px;
+
+                font-size: 12px;
+                line-height: 20px;
+                color: #e71818;
+                background: #f5f7fa;
+                border-radius: 2px;
               }
 
               &:last-child {
@@ -142,11 +143,11 @@
             justify-content: center;
             width: 24px;
             height: 24px;
+            margin-right: 2px;
             font-size: 18px;
             color: #4d4f56;
             cursor: pointer;
             border-radius: 2px;
-            margin-right: 2px;
 
             &:hover {
               background: #eaebf0;
@@ -179,10 +180,12 @@
           color: #ffffff;
           cursor: pointer;
           background-color: #3a84ff;
+          border-radius: 0 2px 2px 0;
 
           :deep(.bk-button) {
             width: 100%;
             height: 100%;
+            border-radius: 0 2px 2px 0;
 
             .icon-search {
               font-size: 16px;

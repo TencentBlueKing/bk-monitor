@@ -230,7 +230,11 @@
           @change="debouncedHandleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
+            <span
+              class="operator-label"
+              :data-operator="commonFilterAddition[index].operator"
+              >{{ getOperatorLabel(commonFilterAddition[index]) }}</span
+            >
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
@@ -243,6 +247,7 @@
           <bk-select
             class="value-select"
             v-model="commonFilterAddition[index].value"
+            placeholder="请选择 或 输入"
             v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
             :fix-height="true"
             allow-create
@@ -286,9 +291,8 @@
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
-    box-shadow:
-      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
-      0 1px 0 0 #eaebf0;
+    border-radius: 0 0 2px 2px;
+    box-shadow: 0 2px 4px 0 #19192914;
 
     .filter-setting-btn {
       min-width: 83px;
@@ -345,6 +349,12 @@
         padding-left: 2px;
         color: #3a84ff;
         white-space: nowrap;
+
+        &[data-operator^='not contains'],
+        &[data-operator^='does not exists'],
+        &[data-operator^='is false'] {
+          color: #ea3636;
+        }
       }
 
       &.bk-select.is-focus {

@@ -1,13 +1,14 @@
 [data-tippy-root] {
   [data-theme='log-light'] {
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 #0000001a;
     border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
 
     .ui-value-select {
       width: 314px;
       max-height: 200px;
       overflow: auto;
+      font-size: 12px;
 
       .ui-value-option {
         display: flex;
@@ -35,8 +36,8 @@
       display: inline-flex;
       flex-direction: column;
       width: 314px;
-      max-height: 300px;
       min-height: 120px;
+      max-height: 300px;
       overflow: auto;
 
       > li {

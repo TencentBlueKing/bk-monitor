@@ -55,16 +55,17 @@ ul.search-items {
 
       &.is-focus-input {
         position: relative;
+
         &::after {
-          content: attr(data-attr-txt);
-          font-size: 12px;
-          color: #c4c6cc;
-          line-height: 20px;
           position: absolute;
-          pointer-events: none;
           right: 0;
-          transform: translateX(100%);
+          font-size: 12px;
+          line-height: 20px;
+          color: #c4c6cc;
           white-space: nowrap;
+          pointer-events: none;
+          content: attr(data-attr-txt);
+          transform: translateX(100%);
         }
 
         .tag-option-focus-input {
@@ -130,11 +131,11 @@ ul.search-items {
 
       .tag-options {
         position: absolute;
-        top: 4px;
+        top: 2px;
         right: 0;
         bottom: 0;
         display: none;
-        width: 48px;
+        width: 40px;
         height: 18px;
         font-size: 16px;
 
@@ -151,10 +152,10 @@ ul.search-items {
         .bklog-icon {
           width: 18px;
           height: 18px;
-          background: #ffffff;
-          box-shadow: 0 1px 2px 0 #00000014;
-          border-radius: 2px;
           font-size: 12px;
+          background: #ffffff;
+          border-radius: 2px;
+          box-shadow: 0 1px 2px 0 #00000014;
 
           &:hover {
             color: #3a84ff;
@@ -162,8 +163,8 @@ ul.search-items {
         }
 
         .tag-options-close {
-          margin-right: 4px;
-          margin-left: 4px;
+          margin-right: 0px;
+          margin-left: 2px;
           font-size: 14px;
 
           &:hover {
