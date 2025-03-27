@@ -30,16 +30,27 @@
  * @returns
  */
 export const createAnomalyDimensionTips = (metric: Record<string, any>, isCorrelationMetrics: boolean) => {
-  if (isCorrelationMetrics)
-    return `<div>${window.i18n.tc('指标名')}: ${metric.metric_name_alias}</div>
-                ${Object.keys(metric.dimensions || {}).length ? `<div>${window.i18n.tc('维度数')}: ${metric.totalPanels?.length}</div>` : `<div>(${window.i18n.tc('无维度，已汇聚为1条曲线')})</div>`}
-              `;
   let dimensionsHtml = '';
   for (const [key, val] of Object.entries(metric?.dimensions || {})) {
     dimensionsHtml += `<div class='tips-item'>
               <span class='tips-item-label'>${key}:</span>
               <span class='tips-item-value'>${val}</span>
             </div>`;
+  }
+  if (isCorrelationMetrics) {
+    if (dimensionsHtml) {
+      return `<div class='anomaly-dimension-tips'>
+                  <div class='dimension-tips-header'>
+                  ${window.i18n.tc('维度值')}:
+                  </div>
+                  <div class='dimension-tips-content'>
+                      ${dimensionsHtml}
+                  </div>
+                </div>`;
+    }
+    return `<div>${window.i18n.tc('指标名')}: ${metric.metric_name_alias}</div>
+                      ${metric.panels?.length ? `<div>${window.i18n.tc('维度数')}: ${(metric.totalPanels || metric.panels)?.length}</div>` : `<div>(${window.i18n.tc('无维度，已汇聚为1条曲线')})</div>`}
+                    `;
   }
   return `<div class='anomaly-dimension-tips'>
             <div class='dimension-tips-header'>

@@ -604,8 +604,8 @@ export default class AiopsContainer extends tsc<IProps> {
         return (
           <div style='color: #63656e'>
             {!aiSettings.error_msg
-              ? this.$t('当前告警 不支持 {0} 功能', [config.titleKey])
-              : this.$t('{0} 不支持 {1} 功能', [aiSettings.error_msg, config.titleKey])}
+              ? this.$t('当前告警不支持{0}功能', [config.titleKey])
+              : this.$t('{0}不支持{1}功能', [aiSettings.error_msg, config.titleKey])}
           </div>
         );
       }

@@ -330,8 +330,8 @@ export default {
   移除该筛选项: 'Remove this filter',
   点击加载更多: 'Click to load more',
   '当前空间未开启{0}功能': 'The current space has not enabled the {0} feature',
-  '当前告警 不支持 {0} 功能': 'The current alarm does not support the {0} feature',
-  '{0} 不支持 {1} 功能': '{0} does not support the {1} feature',
+  '当前告警不支持{0}功能': 'The current alarm does not support the {0} feature',
+  '{0}不支持{1}功能': '{0} does not support the {1} feature',
   '当前空间「{0}」 使用了 BCS 集群，已自动关联；':
     'Current space " {0} project " uses BCS cluster, has been automatically associated;',
   '如需精确，用户可 {0}': 'If you need to be accurate, users can {0}',
