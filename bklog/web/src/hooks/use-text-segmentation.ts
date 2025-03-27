@@ -27,6 +27,7 @@ import { Ref } from 'vue';
 
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
+import { optimizedSplit } from './hooks-helper';
 
 export type FormatterConfig = {
   onSegmentClick: (args: any) => void;
@@ -187,7 +188,10 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? JSON.parse(this.options.content);
+    // this.options.content值为--时，直接JSON.parse会转义报错
+    const target =
+      this.options.data[this.options.field.field_name] ??
+      (['', '--'].includes(this.options.content) ? this.options.content : JSON.parse(this.options.content));
     const convertObjToArray = (root: object, isValue = false) => {
       const result = [];
 
@@ -226,7 +230,15 @@ export default class UseTextSegmentation {
             isMark: false,
           });
 
-          result.push(...convertObjToArray(value, true));
+          if (result.length < 1000) {
+            result.push(...convertObjToArray(value, true));
+          } else {
+            result.push({
+              text: value,
+              isCursorText: false,
+              isMark: false,
+            });
+          }
         });
 
         const lastRow = result.at(-1);
@@ -289,48 +301,6 @@ export default class UseTextSegmentation {
     return output;
   }
 
-  // Object.assign(item, { startIndex: start, endIndex: start + (text?.length ?? 0) });
-  private splitParticipleWithStr(str: string, delimiterPattern: string) {
-    if (!str) return [];
-    // 转义特殊字符，并构建用于分割的正则表达式
-    const regexPattern = delimiterPattern
-      .split('')
-      .map(delimiter => `\\${delimiter}`)
-      .join('|');
-
-    // 构建正则表达式以找到分隔符或分隔符周围的文本
-    const regex = new RegExp(`(${regexPattern})`);
-
-    // 先根据高亮标签分割
-    const markSplitRes = str.match(/(<mark>.*?<\/mark>|.+?(?=<mark|$))/gs);
-
-    // 在高亮分割数组基础上再以分隔符分割数组
-    const parts = markSplitRes.reduce((list, item) => {
-      if (/^<mark>.*?<\/mark>$/.test(item)) {
-        const formatValue = item.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-        list.push({
-          text: formatValue,
-          isMark: true,
-          isCursorText: true,
-        });
-      } else {
-        const arr = item.split(regex);
-        arr.forEach(text => {
-          if (text) {
-            list.push({
-              text,
-              isMark: false,
-              isCursorText: !regex.test(text),
-            });
-          }
-        });
-      }
-      return list;
-    }, []);
-
-    return parts;
-  }
-
   private escapeString(val: string) {
     const map = {
       '&amp;': '&',
@@ -347,7 +317,6 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
-    debugger;
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
@@ -358,7 +327,7 @@ export default class UseTextSegmentation {
 
     if (this.isAnalyzed(field) || forceSplit) {
       // 这里进来的都是开了分词的情况
-      return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
+      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
     }
 
     const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');

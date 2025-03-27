@@ -487,11 +487,15 @@ class CustomTimeSeriesDetail(Resource):
         model_only = serializers.BooleanField(required=False, default=False, label="是否只查询自定义时序表信息")
         with_target = serializers.BooleanField(required=False, default=False, label="是否查询target")
         with_metrics = serializers.BooleanField(required=False, default=True, label="是否查询指标信息")
+        empty_if_not_found = serializers.BooleanField(required=False, default=False, label="如果自定义时序表不存在，是否返回空数据")
 
     def perform_request(self, params):
         # 获取自定义时序表信息
         config = CustomTSTable.objects.filter(pk=params["time_series_group_id"]).first()
         if not config:
+            # 如果自定义时序表不存在，则返回空数据
+            if params.get("empty_if_not_found"):
+                return {}
             raise ValidationError(
                 f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
@@ -886,7 +890,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
         )
 
         # 分组匹配现存指标
-        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=False)
+        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=True)
 
         return resource.custom_report.custom_ts_grouping_rule_list(time_series_group_id=params["time_series_group_id"])
 

@@ -91,6 +91,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
 
     # 生成仪表盘链接
     url = generate_dashboard_url(config)
+    logger.info(f"fetch_images_by_puppeteer: render dashboard url: {url}")
 
     # 获取浏览器
     browser: Browser = await get_browser()

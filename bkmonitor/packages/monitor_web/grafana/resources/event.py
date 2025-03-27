@@ -10,7 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import time
+from typing import Any, Dict, List
 
+from django.db.models import Max, QuerySet
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -27,57 +29,81 @@ class GetDataSourceConfigResource(Resource):
     获取数据源配置信息
     """
 
+    _TABLE_ALIAS_MAP: Dict[str, str] = {"gse_system_event": _("主机事件")}
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         data_source_label = serializers.CharField(label="数据来源")
         data_type_label = serializers.CharField(label="数据类型")
+        # 对于不需要返回维度数据的场景，设置 return_dimensions=false，减少接口返回
+        return_dimensions = serializers.BooleanField(label="是否返回维度", default=True)
+
+    @classmethod
+    def _fetch_metrics(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+        return list(
+            qs.values(
+                "bk_biz_id",
+                "result_table_id",
+                "result_table_name",
+                "related_name",
+                "extend_fields",
+                "dimensions",
+                "metric_field",
+                "metric_field_name",
+            )
+        )
+
+    @classmethod
+    def _fetch_metrics_without_dimensions(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+        metric_row_ids = list(
+            metric_info["max_id"] for metric_info in qs.values("result_table_id").annotate(max_id=Max("id")).order_by()
+        )
+        return cls._fetch_metrics(qs.filter(id__in=metric_row_ids))
 
     def perform_request(self, params):
         data_source_label = params["data_source_label"]
         data_type_label = params["data_type_label"]
-        metrics = MetricListCache.objects.filter(
-            bk_biz_id__in=[0, params["bk_biz_id"]], data_source_label=data_source_label, data_type_label=data_type_label
-        ).values(
-            "bk_biz_id",
-            "result_table_id",
-            "result_table_name",
-            "related_name",
-            "extend_fields",
-            "dimensions",
-            "metric_field",
-            "metric_field_name",
+
+        qs = MetricListCache.objects.filter(
+            data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, params["bk_biz_id"]]
         )
+        if params.get("return_dimensions"):
+            metrics = self._fetch_metrics(qs)
+        else:
+            metrics = self._fetch_metrics_without_dimensions(qs)
 
         metric_dict = {}
+        table_dimension_mapping = {}
         for metric in metrics:
             table_id = metric["result_table_id"]
             if table_id not in metric_dict:
                 name = bk_data_id = ""
                 if (data_source_label, data_type_label) == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG):
                     name = metric["related_name"]
-                    bk_data_id = metric.result_table_id.split("_", -1)[-1]
+                    bk_data_id = table_id.split("_", -1)[-1]
                 elif (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
                     name = metric["result_table_name"]
                     bk_data_id = metric["extend_fields"].get("bk_data_id", "")
+
+                if table_id in self._TABLE_ALIAS_MAP:
+                    name = _("{alias}（{name}）").format(alias=self._TABLE_ALIAS_MAP[table_id], name=name)
 
                 metric_dict[table_id] = {
                     "id": table_id,
                     "bk_data_id": bk_data_id,
                     "name": name,
                     "metrics": [],
-                    "dimensions": metric["dimensions"],
                     "time_field": "time",
                     "is_platform": metric["bk_biz_id"] == 0,
                 }
             else:
-                # 补全所有字段
-                exists_dimension_fields = {dimension["id"] for dimension in metric_dict[table_id]["dimensions"]}
                 for dimension in metric["dimensions"]:
-                    if dimension["id"] in exists_dimension_fields:
-                        continue
-                    metric_dict[table_id]["dimensions"].append(dimension)
+                    table_dimension_mapping.setdefault(table_id, {})[dimension["id"]] = dimension
 
             metric_dict[table_id]["metrics"].append({"id": metric["metric_field"], "name": metric["metric_field_name"]})
+
+        for table_id, data_source_config in metric_dict.items():
+            data_source_config["dimensions"] = list(table_dimension_mapping.get(table_id, {}).values())
         return list(metric_dict.values())
 
 

@@ -171,8 +171,8 @@ importers:
         specifier: ^8.28.2
         version: 8.28.2(vue@2.7.16)
       vue-json-pretty:
-        specifier: 1.8.2
-        version: 1.8.2
+        specifier: 1.9.5
+        version: 1.9.5
       vue-property-decorator:
         specifier: ^9.1.2
         version: 9.1.2(vue-class-component@7.2.6(vue@2.7.16))(vue@2.7.16)
@@ -481,8 +481,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 1.0.1-beta.5
-        version: 1.0.1-beta.5
+        specifier: 1.0.1-beta.7
+        version: 1.0.1-beta.7
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -602,8 +602,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       '@blueking/monitor-trace-log':
-        specifier: 1.0.0-beta.9
-        version: 1.0.0-beta.9
+        specifier: 1.0.0-beta.11
+        version: 1.0.0-beta.11
       '@dagrejs/dagre':
         specifier: ^1.1.3
         version: 1.1.4
@@ -1444,8 +1444,8 @@ packages:
   '@blueking/login-modal@1.0.5':
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.5':
-    resolution: {integrity: sha512-XguRphdrw+EXs+GSeD+Ul5TkiTZloXq1qvxUJ/DSvVFaEDneYUPqFMgGJYtiIWfH9VXw4F31JGWEdssektMbEg==}
+  '@blueking/monitor-apm-log@1.0.1-beta.7':
+    resolution: {integrity: sha512-Ne3ElhO/0DMQRyKnymQeJvANSnGZulCi2W4m37sMdXKJZAc7qDnG/kAHdMggkKCAUxurmYpbCkzsjaAsC7FvmA==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1453,8 +1453,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@1.0.0-beta.9':
-    resolution: {integrity: sha512-gnSY6srzC9PO6Ee9hAQIwk4Z8YNE2K9Dq6+9vqZLDodOIPTaDwUiuoPSa9tnTNso7yUMt9rQfVdsBqNFmkxhYA==}
+  '@blueking/monitor-trace-log@1.0.0-beta.11':
+    resolution: {integrity: sha512-oQBrst35UGt+8RYnmWUyG96QN6qimoP6MfgonnjyfKXLOFW5ygtp8NIgIqYtxj50tDIhdImr8RIvEXbfbzbWRg==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -7920,8 +7920,8 @@ packages:
     peerDependencies:
       vue: ^3.0.0
 
-  vue-json-pretty@1.8.2:
-    resolution: {integrity: sha512-8DbgvyXpBrhDdBzz8RTe+POZ+HI6nSa33DqsPMWhMkv0u0ATklgxErUM3XRRvTzOQ/02Sh1LNWJ/rkqTow2rbA==}
+  vue-json-pretty@1.9.5:
+    resolution: {integrity: sha512-fwbiH/ky/raX1D4MXRZZLFeKm157e9AkumMD7Y+djdLU1Sb0Tp5q2iOPvCnkWNzRpUfxx/zUjONUG+MIWsqx/w==}
     engines: {node: '>= 10.0.0', npm: '>= 5.0.0'}
 
   vue-json-pretty@2.4.0:
@@ -9429,14 +9429,14 @@ snapshots:
 
   '@blueking/login-modal@1.0.5': {}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.5': {}
+  '@blueking/monitor-apm-log@1.0.1-beta.7': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@1.0.0-beta.9': {}
+  '@blueking/monitor-trace-log@1.0.0-beta.11': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:
@@ -16590,7 +16590,7 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.12(typescript@5.6.3)
 
-  vue-json-pretty@1.8.2: {}
+  vue-json-pretty@1.9.5: {}
 
   vue-json-pretty@2.4.0(vue@3.5.12(typescript@5.6.3)):
     dependencies:
