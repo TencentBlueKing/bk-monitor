@@ -29,9 +29,10 @@
   const store = useStore();
   const { $t } = useLocale();
 
+  const inputValueLength = ref(0);
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
-    if (uiInputValue.value.length === 0) {
+    if (inputValueLength.value === 0) {
       return $t('⌘/Ctrl + / 快速定位到搜索，请输入关键词...');
     }
 
@@ -99,9 +100,6 @@
   const queryItem = ref('');
   const activeIndex = ref(null);
 
-  // ui模式直接键入时，input键入值
-  const uiInputValue = ref('');
-
   // 表示是否来自input输入的点击弹出
   // 弹出组件依赖此属性展示内容会改变
   const isInputFocus = ref(false);
@@ -114,11 +112,9 @@
     return refSearchInput.value?.value ?? '';
   };
 
-  let inputValueLength = 0;
-
   const setSearchInputValue = val => {
     refSearchInput.value.value = val ?? '';
-    inputValueLength = refSearchInput.value?.value?.length ?? 0;
+    inputValueLength.value = refSearchInput.value?.value?.length ?? 0;
   };
 
   const handleWrapperClickCapture = (e, { getTippyInstance }) => {
@@ -321,17 +317,19 @@
   const handleGlobalSaveQueryClick = payload => {
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
+    repositionTippyInstance();
+    refSearchInput.value.style.setProperty('width', '12px');
   };
 
   /**
    * input key enter
    * @param e
    */
-  const handleInputValueEnter = () => {
+  const handleInputValueEnter = e => {
     if (!isGlobalKeyEnter.value) {
-      if (!(getTippyInstance().state.isShown ?? false)) {
-        handleSaveQueryClick(undefined);
-      }
+      handleSaveQueryClick(undefined);
+      repositionTippyInstance();
+      e.target.style.setProperty('width', '12px');
     }
 
     isGlobalKeyEnter.value = false;
@@ -369,14 +367,15 @@
 
   const handleFullTextInputBlur = e => {
     isInputTextFocus = false;
-    handleInputBlur(e);
-    inputValueLength = 0;
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
     queryItem.value = '';
   };
 
   const handleInputValueChange = e => {
-    if (inputValueLength === 0 && e.target.value.length > 0) {
-      inputValueLength = e.target.value.length;
+    if (inputValueLength.value === 0 && e.target.value.length > 0) {
+      inputValueLength.value = e.target.value.length;
       debounceShowInstance();
     }
 
@@ -395,7 +394,7 @@
         if (modelValue.value.length >= 1) {
           modelValue.value.splice(-1, 1);
           emitChange(modelValue.value);
-          closeTippyInstance();
+          repositionTippyInstance();
         }
       }
 
@@ -502,13 +501,12 @@
         ref="refSearchInput"
         class="tag-option-focus-input"
         type="text"
-        v-model="uiInputValue"
         @click.stop="handleInputTextClick"
-        @blur="handleFullTextInputBlur"
+        @blur.stop="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"
         @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
-        @keyup.enter="handleInputValueEnter"
+        @keyup.enter.stop="handleInputValueEnter"
       />
     </li>
     <div style="display: none">

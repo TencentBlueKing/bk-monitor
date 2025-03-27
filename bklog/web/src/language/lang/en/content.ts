@@ -891,7 +891,7 @@ export default {
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '输入文本后按 [⌘/Ctrl + Enter] 键进行检索': 'Enter text and press [⌘/Ctrl + Enter] to search',
+  '输入文本后按 [⌘/Ctrl+ Enter] 键进行检索': 'Enter text and press [⌘/Ctrl + Enter] to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',

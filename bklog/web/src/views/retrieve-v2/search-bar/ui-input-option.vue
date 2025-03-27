@@ -375,12 +375,13 @@
    * @param activeCondition 是否自动激活匹配值
    */
   const handleFieldItemClick = (item, index, activeCondition = true) => {
+    conditionValueInputVal.value = '';
+
     // 避免重复提交设置
     if (!item || activeFieldItem.value.field_name === item?.field_name) {
       return;
     }
 
-    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
