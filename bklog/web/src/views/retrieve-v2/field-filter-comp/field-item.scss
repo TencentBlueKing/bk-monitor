@@ -58,6 +58,16 @@
       }
     }
 
+    &:hover {
+      .bklog-arrow-down-filled-2 {
+        opacity: 1; 
+      }
+
+      .field-badge{
+        background-color:white;
+      }
+    }
+
     .filed-item-triangle {
       min-width: 20px;
 
@@ -90,12 +100,31 @@
 
     .field-name {
       width: calc(100% - 42px);
-      padding-right: 12px;
+      // padding-right: 12px;
       font-size: 12px;
       color: #16171a;
       word-break: break-all;
       overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
       // white-space: nowrap;
+    }
+
+    .field-badge{
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      margin: 0px 5px;
+      font-family: Roboto-Bold;
+      font-size: 10px;
+      font-weight: 700;
+      color: #979BA5;
+      text-align: center;
+      letter-spacing: 0;
+      background-color: rgb(240, 241, 245);
+      border-radius: 50%;
+    }
+
+    .bklog-arrow-down-filled-2{
+      opacity: 0;
     }
 
     .conflict-icon {

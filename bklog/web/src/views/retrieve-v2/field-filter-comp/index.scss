@@ -74,13 +74,18 @@
   .big-tree {
     overflow-y: hidden;
 
-    .bklog-drag-dots-box {
-      display: none;
+    .bk-big-tree-node {
+      height: 28px;
     }
 
     .is-leaf {
       height: auto;
+      padding-left: calc(var(--level)* var(--padding) + 2px);
       line-height: normal;
+    }
+
+    .node-options{
+      display: none;
     }
   }
 
