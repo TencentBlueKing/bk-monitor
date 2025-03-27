@@ -407,7 +407,7 @@ export default defineComponent({
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'pointer',
-              text: accumulatedWidth(entity.entity_type),
+              text: accumulatedWidth(entity?.properties?.entity_show_type || entity.entity_type),
               fontSize: 10,
               ...nodeAttrs.textNameAttrs,
             },
@@ -1189,15 +1189,16 @@ export default defineComponent({
           style: {
             cursor: 'pointer',
             lineAppendWidth: 15,
-            endArrow: isInvoke && is_anomaly
-              ? {
-                  path: Arrow.triangle(12, 12, 0),
-                  d: 0,
-                  fill: color,
-                  stroke: color,
-                  lineDash: [0, 0],
-                }
-              : false,
+            endArrow:
+              isInvoke && is_anomaly
+                ? {
+                    path: Arrow.triangle(12, 12, 0),
+                    d: 0,
+                    fill: color,
+                    stroke: color,
+                    lineDash: [0, 0],
+                  }
+                : false,
             // fill: isInvoke ? '#F55555' : '#63656E',
             stroke: color,
             lineWidth: is_anomaly ? 2 : 1,
@@ -1510,13 +1511,13 @@ export default defineComponent({
         >
           <div class='graph-title'>
             <span class='graph-title_label'>{this.$t('从属关系')}</span>
-            {this.entityName && <span class='graph-title_line'></span>}
+            {this.entityName && <span class='graph-title_line' />}
             <span
+              key={this.entityName}
               class='graph-title_value'
               v-overflowText={{
                 text: this.entityName,
               }}
-              key={this.entityName}
             >
               {this.entityName}
             </span>

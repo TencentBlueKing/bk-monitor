@@ -725,7 +725,6 @@ export default defineComponent({
     const createNodeToolTip = (node: ITopoNode) => {
       const isShowRootText = node.is_feedback_root || node?.entity?.is_root;
       const bgColor = node?.entity?.is_root ? '#EA3636' : '#FF9C01';
-      const { groupAttrs } = getNodeAttrs(this.model);
       return (
         <div class='node-tooltip'>
           <div class='node-tooltip-header'>
@@ -885,7 +884,7 @@ export default defineComponent({
               <>{node.entity.rank.rank_category.category_alias}</>
             ))}
             {createCommonForm(`${this.$t('节点类型')}：`, () => (
-              <>{node.entity.rank_name}</>
+              <>{node?.entity?.properties?.entity_category || node.entity.rank_name}</>
             ))}
             {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>
