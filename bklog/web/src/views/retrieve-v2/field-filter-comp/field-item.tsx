@@ -47,7 +47,6 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
   @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
-  @Prop({ type: Array, default: () => [] }) defaultExpandedNode: Array<any>;
 
   isExpand = false;
   analysisActive = false;
@@ -57,6 +56,7 @@ export default class FieldItem extends tsc<object> {
   fieldData = null;
   distinctCount = 0;
   btnLoading = false;
+  expandIconShow = false;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -272,7 +272,12 @@ export default class FieldItem extends tsc<object> {
             <span>
               <span class='field-name'>{this.retuanFieldName()}</span>
               {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
-              {this.fieldItem.children?.length && <span class='bklog-icon bklog-arrow-down-filled-2'></span>}
+              {this.fieldItem.children?.length &&
+                (this.expandIconShow ? (
+                  <span class={['bk-icon', 'icon-angle-up', 'expand']}></span>
+                ) : (
+                  <span class={['bk-icon', 'icon-angle-down', 'expand']}></span>
+                ))}
 
               {/* <span
                 class='field-count'
