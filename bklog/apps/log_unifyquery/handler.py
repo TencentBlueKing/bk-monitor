@@ -33,11 +33,6 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
-from apps.log_search.handlers.es.dsl_bkdata_builder import (
-    UnifyQueryDslCreateSearchTailBodyCustomField,
-    UnifyQueryDslCreateSearchTailBodyScenarioBkData,
-    UnifyQueryDslCreateSearchTailBodyScenarioLog,
-)
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -53,6 +48,11 @@ from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
     REFERENCE_ALIAS,
+)
+from apps.log_unifyquery.context_body_builder import (
+    UnifyQueryDslCreateSearchTailBodyCustomField,
+    UnifyQueryDslCreateSearchTailBodyScenarioBkData,
+    UnifyQueryDslCreateSearchTailBodyScenarioLog,
 )
 from apps.log_unifyquery.utils import transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -592,8 +592,12 @@ class UnifyQueryHandler(object):
         series = data["series"]
         total_count = self.get_total_count()
         return sorted(
-            [[s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)] for s in
-             series[:limit]], key=lambda x: x[1], reverse=True
+            [
+                [s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)]
+                for s in series[:limit]
+            ],
+            key=lambda x: x[1],
+            reverse=True,
         )
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
