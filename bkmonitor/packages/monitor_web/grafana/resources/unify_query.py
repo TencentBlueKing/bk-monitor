@@ -231,6 +231,7 @@ class AddNullDataProcessor:
                     if not time_alignment:
                         # 补 0 代替补 Null
                         row["datapoints"].append([0, timestamp])
+                        last_datapoint_timestamp = timestamp
                         continue
 
                     # 如果当前点没有值且和开始时间相同，则补充空点
