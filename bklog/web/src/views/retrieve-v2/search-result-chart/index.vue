@@ -114,7 +114,6 @@
         return;
       }
 
-      debugger;
       store.commit('updateIndexSetQueryResult', {
         origin_log_list: [],
         list: [],
