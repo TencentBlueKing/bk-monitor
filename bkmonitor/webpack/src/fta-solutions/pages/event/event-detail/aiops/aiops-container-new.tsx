@@ -523,7 +523,7 @@ export default class AiopsContainer extends tsc<IProps> {
         key='diagnosis-info-text'
         class='diagnosis-info-text'
       >
-        {this.$t('当前告警被包含在故障')}
+        {this.$t('当前告警关联故障')}
         <span
           class='diagnosis-text_blue'
           v-bk-overflow-tips
@@ -651,8 +651,11 @@ export default class AiopsContainer extends tsc<IProps> {
       return <div key='diagnosis-info-err-text'>{this.$t('当前告警无关联故障')}</div>;
     }
     return (
-      <div class='aiops-tab-title-message aiops-tab-title-no-auth'>
-        {this.$t('当前空间暂不支持该功能，请联系')}
+      <div
+        style='color: #63656e'
+        class='aiops-tab-title-message aiops-tab-title-no-auth'
+      >
+        {this.$t('当前空间未开启故障诊断功能, 请联系')}
         <span
           class='bk-assistant-link'
           onClick={this.handleToBkAssistant}
