@@ -891,7 +891,7 @@ export default {
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '输入文本后按 [Ctrl + Enter] 键进行检索': 'Enter text and press [Ctrl + Enter] to search',
+  '输入文本后按 [⌘/Ctrl + Enter] 键进行检索': 'Enter text and press [⌘/Ctrl + Enter] to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',
@@ -1027,7 +1027,7 @@ export default {
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
-  '确定 Ctrl+ Enter': 'Confirm Ctrl+Enter',
+  '确定 ⌘/Ctrl + Enter': 'Confirm Ctrl + Enter',
   收藏成功: 'Favorite successfully',
   '请输入关键词...': 'Please enter keywords',
   '请输入 或 选择': 'Please enter or select',

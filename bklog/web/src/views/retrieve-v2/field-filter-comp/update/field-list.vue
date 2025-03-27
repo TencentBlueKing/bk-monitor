@@ -99,7 +99,7 @@
       },
     });
     await nextTick();
-    popoverInstance?.show(100);
+    popoverInstance?.show();
     getFiledConfigList();
   }
 
@@ -135,7 +135,7 @@
     });
     await nextTick();
     showFieldsSetting.value = true;
-    popoverInstance?.show(100);
+    popoverInstance?.show();
   }
 
   /**

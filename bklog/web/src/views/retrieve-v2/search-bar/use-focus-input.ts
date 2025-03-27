@@ -113,7 +113,7 @@ export default (
     if (input !== undefined && e.target === input) {
       const value = input.value;
       const charLen = getCharLength(value);
-      input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+      input.style.setProperty('width', `${(charLen || 1) * INPUT_MIN_WIDTH}px`);
     }
   };
 
@@ -122,6 +122,13 @@ export default (
     if (input !== undefined && (e === undefined || e.target === input)) {
       input.value = '';
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+    }
+  };
+
+  const setDefaultInputWidth = () => {
+    const input = getTargetInput();
+    if (input !== undefined) {
+      input.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
     }
   };
 
@@ -203,6 +210,7 @@ export default (
     document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
     document?.addEventListener('click', handleContainerClick);
     document?.addEventListener('keydown', handleKeydown);
+    setDefaultInputWidth();
 
     if (addInputListener) {
       document?.addEventListener('input', handleFulltextInput);

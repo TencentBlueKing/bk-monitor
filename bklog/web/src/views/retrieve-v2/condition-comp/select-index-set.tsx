@@ -403,7 +403,7 @@ export default class SelectIndexSet extends tsc<object> {
   }
 
   handleKeyDown(event) {
-    // 检查是否按下了 Ctrl + O 或 Cmd + O
+    // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
     const isCtrlO = event.ctrlKey && event.key === 'o';
     const isCmdO = event.metaKey && event.key === 'o';
 

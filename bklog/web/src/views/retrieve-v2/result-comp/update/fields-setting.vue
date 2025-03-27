@@ -324,12 +324,9 @@
       },
       /** 保存或应用 */
       async confirmModifyFields() {
-        console.log(this.$refs.tableSortRef.shadowSort);
-        console.log(this.$refs.fieldSettingRef.shadowVisible);
         const currentSortList = this.$refs.tableSortRef.shadowSort;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-        console.log(this.shadowSort, this.shadowVisible);
-        console.log(currentSortList, currentVisibleList);
+
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;

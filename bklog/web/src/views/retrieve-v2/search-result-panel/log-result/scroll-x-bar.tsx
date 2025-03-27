@@ -69,9 +69,7 @@ export default defineComponent({
       event.stopPropagation();
       event.preventDefault();
       event.stopImmediatePropagation();
-      requestAnimationFrame(() => {
-        emit('scroll-change', event);
-      });
+      emit('scroll-change', event);
     };
 
     onMounted(() => {

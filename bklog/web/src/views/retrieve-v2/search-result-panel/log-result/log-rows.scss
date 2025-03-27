@@ -128,7 +128,6 @@
           display: flex;
           align-items: flex-start;
           height: 100%;
-          min-height: var(--row-min-height);
           background-color: #fff;
           height: 22px;
           .handle-content {
@@ -139,11 +138,6 @@
             .handle-card {
               margin-left: 0;
             }
-          }
-
-          &::before {
-            position: absolute;
-            content: '';
           }
         }
 
@@ -167,7 +161,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: var(--row-min-height);
             padding: 12px;
           }
 
@@ -286,10 +279,21 @@
         right: var(--fix-right-width);
         bottom: 0;
         z-index: 2;
-        width: 10px;
         pointer-events: none;
+        width: 8px;
+        background-image: linear-gradient(270deg, #0000000f 0%, #00000000 100%);
+      }
 
-        background: linear-gradient(to left, rgba(200, 200, 200, 0.5), transparent);
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 1;
+        background-color: #fff;
+        width: var(--fix-right-width);
       }
     }
 

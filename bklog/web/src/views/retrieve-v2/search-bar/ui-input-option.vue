@@ -1095,8 +1095,8 @@
         <template v-else-if="showFulltextMsg">
           <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
-            <div class="full-text-sub-title"><img :src="svgImg.imgEnterKey" /><span>Ctrl+ Enter</span></div>
-            <div class="full-text-content">{{ $t('输入文本后按 [Ctrl+ Enter] 键进行检索') }}</div>
+            <div class="full-text-sub-title"><img :src="svgImg.imgEnterKey" /><span>⌘/Ctrl+ Enter</span></div>
+            <div class="full-text-content">{{ $t('输入文本后按 [⌘/Ctrl+ Enter] 键进行检索') }}</div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
             </div>
@@ -1319,7 +1319,7 @@
           <span class="value">{{ $t('收起查询') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">Ctrl+Enter</span>
+          <span class="label">⌘/Ctrl+Enter</span>
           <span class="value">{{ $t('提交查询') }}</span>
         </div>
       </div>
@@ -1327,11 +1327,11 @@
         <bk-button
           class="save-btn"
           :disabled="!isSaveBtnActive"
-          style="width: 64px; margin-right: 8px"
+          style="padding: 0 4px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
         >
-          {{ $t('确定 Ctrl+ Enter') }}
+          {{ $t('确定 ⌘/Ctrl + Enter') }}
         </bk-button>
         <bk-button
           style="width: 64px"

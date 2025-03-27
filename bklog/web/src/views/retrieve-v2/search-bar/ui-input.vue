@@ -32,7 +32,7 @@
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
     if (uiInputValue.value.length === 0) {
-      return $t('/ 快速定位到搜索，请输入关键词...');
+      return $t('⌘/Ctrl + / 快速定位到搜索，请输入关键词...');
     }
 
     return '';

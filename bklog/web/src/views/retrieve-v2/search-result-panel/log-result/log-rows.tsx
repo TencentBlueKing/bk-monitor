@@ -780,10 +780,10 @@ export default defineComponent({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
-        wheelTrigger.value.isWheeling = true;
-        wheelTrigger.value.id = uniqueId();
+        // wheelTrigger.value.isWheeling = true;
+        // wheelTrigger.value.id = uniqueId();
 
-        debounceSetWheel();
+        // debounceSetWheel();
 
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();

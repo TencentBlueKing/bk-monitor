@@ -54,6 +54,7 @@ ul.search-items {
       }
 
       &.is-focus-input {
+        position: relative;
         &::after {
           content: attr(data-attr-txt);
           font-size: 12px;
@@ -61,6 +62,9 @@ ul.search-items {
           line-height: 20px;
           position: absolute;
           pointer-events: none;
+          right: 0;
+          transform: translateX(100%);
+          white-space: nowrap;
         }
 
         .tag-option-focus-input {
