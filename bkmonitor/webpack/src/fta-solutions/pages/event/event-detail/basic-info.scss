@@ -75,6 +75,7 @@ $grey-bg: #eaebf0;
     display: flex;
     align-items: center;
     height: 100%;
+    margin-left: auto;
 
     .status-icon {
       display: flex;
@@ -105,10 +106,10 @@ $grey-bg: #eaebf0;
   }
 
   .status-operate-btn {
-    position: absolute;
-    right: 16px;
     display: flex;
     align-items: center;
+    margin-right: 16px;
+    margin-left: auto;
     font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
@@ -123,6 +124,8 @@ $grey-bg: #eaebf0;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-right: 16px;
+    margin-left: auto;
     color: $text;
 
     .status-operate-line {
