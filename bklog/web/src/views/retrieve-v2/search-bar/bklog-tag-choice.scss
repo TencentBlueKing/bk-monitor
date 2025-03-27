@@ -1,0 +1,94 @@
+.bklog-tag-choice-container {
+  min-width: 120px;
+  padding: 0 30px 0 10px;
+  position: relative;
+
+  .bklog-choice-dropdown-icon {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    font-size: 22px;
+    color: #979ba5;
+    cursor: pointer;
+  }
+
+  .bklog-tag-choice-input {
+    .bklog-choice-value-item {
+      &:not(.tag-input) {
+        position: relative;
+        display: inline-flex;
+        height: 22px;
+        line-height: 22px;
+        margin: 0 6px 0 0;
+        padding: 0 2px 0 5px;
+        align-items: center;
+        background: #f0f1f5;
+        border-radius: 2px;
+        font-size: 12px;
+        color: #63656e;
+        padding-right: 22px;
+        cursor: pointer;
+
+        .bklog-close {
+          position: absolute;
+          height: 22px;
+          width: 22px;
+          right: 0px;
+          top: 0px;
+          display: flex;
+
+          align-items: center;
+          justify-content: center;
+        }
+
+        &:hover {
+          background-color: #dcdee5;
+        }
+      }
+
+      &.tag-input {
+        input {
+          border: none;
+          color: #63656e;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
+
+.bklog-tag-choice-list {
+  min-width: 120px;
+
+  .bklog-choice-list-item {
+    padding: 0 6px;
+    line-height: 32px;
+    height: 32px;
+    color: #63656e;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 1px;
+    width: 100%;
+    min-height: 32px;
+
+    &:hover {
+      color: #63656e;
+      background-color: #f5f7fa;
+      cursor: pointer;
+    }
+
+    &.custom-tag {
+      &.is-hidden {
+        display: none;
+      }
+
+      &.is-active {
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}

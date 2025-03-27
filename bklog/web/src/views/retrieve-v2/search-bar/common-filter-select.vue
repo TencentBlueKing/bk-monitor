@@ -1,7 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
-  import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
 
   import CommonFilterSetting from './common-filter-setting.vue';
@@ -10,6 +9,9 @@
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   import { debounce } from 'lodash';
+
+  import bklogTagChoice from './bklog-tag-choice';
+
   const { $t } = useLocale();
   const store = useStore();
   const debouncedHandleChange = debounce(() => handleChange(), 300);
@@ -52,6 +54,7 @@
       });
     },
     set(val) {
+      console.log('----commonFilterAddition');
       const target = val.map(item => {
         if (!isShowConditonValueSetting(item.operator)) {
           item.value = [];
@@ -198,6 +201,10 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
+
+  const handleChoiceChange = (val, item) => {
+    item.value.splice(0, item.value.length, ...val);
+  };
 </script>
 
 <template>
@@ -240,7 +247,7 @@
           />
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
-          <bk-select
+          <!-- <bk-select
             class="value-select"
             v-model="commonFilterAddition[index].value"
             v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
@@ -266,7 +273,12 @@
               :key="option"
               :name="option"
             />
-          </bk-select>
+          </bk-select> -->
+          <bklogTagChoice
+            :list="commonFilterAddition[index].list"
+            :value="commonFilterAddition[index].value"
+            @change="val => handleChoiceChange(val, commonFilterAddition[index])"
+          ></bklogTagChoice>
         </template>
       </div>
     </div>

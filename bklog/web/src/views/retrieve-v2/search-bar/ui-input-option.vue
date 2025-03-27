@@ -1252,7 +1252,7 @@
                       :class="{ active: conditionValueInputVal.length > 0, 'is-custom-tag': true }"
                       @click.stop="handleCustomTagItemClick"
                     >
-                      生成 "{{ conditionValueInputVal }}" Tag
+                      {{ $t('生成“{n}”标签', { n: conditionValueInputVal }) }}
                     </li>
                     <li
                       v-if="isRequesting"

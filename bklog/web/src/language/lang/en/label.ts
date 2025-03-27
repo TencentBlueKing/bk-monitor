@@ -766,6 +766,8 @@ export default {
   'UI 模式': 'UI mode',
   检索语句: 'Search statement',
   '你可能想输入:': 'You may want to enter',
-  '/ 快速定位到搜索，请输入关键词...': '/ Quickly locate the search, please enter keywords...',
+  '⌘/Ctrl + / 快速定位到搜索，请输入关键词...': '⌘/Ctrl + / Quickly locate the search, please enter keywords...',
   分级设置: 'Grade setting',
+  '⌘/Ctrl + / 快速定位到搜索': '⌘/Ctrl + / Quickly locate the search',
+  '生成“{n}”标签': 'Generate "{n}" tag',
 };

@@ -4,6 +4,7 @@
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
+  import useLocale from '@/hooks/use-locale';
 
   const props = defineProps({
     value: {
@@ -18,7 +19,8 @@
     emit('height-change', height);
   };
 
-  const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
+  const { t } = useLocale();
+  const placeholderText = `${t('⌘/Ctrl + / 快速定位到搜索')}，log:error AND"name=bklog"`;
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);
