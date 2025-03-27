@@ -67,16 +67,23 @@ def get_platform_data_ids(space_type: Optional[str] = None, bk_tenant_id=DEFAULT
 # TODO: BkBase多租户
 def get_table_info_for_influxdb_and_vm(
     table_id_list: Optional[List] = None,
+    bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
 ) -> Dict:
     """获取influxdb 和 vm的结果表"""
-    vm_tables = models.AccessVMRecord.objects.values("result_table_id", "vm_cluster_id", "vm_result_table_id")
+    vm_tables = models.AccessVMRecord.objects.values(
+        "result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_tenant_id"
+    )
     # 如果结果表存在，则过滤指定的结果表
+    if settings.ENABLE_MULTI_TENANT_MODE and bk_tenant_id:
+        vm_tables = vm_tables.filter(bk_tenant_id=bk_tenant_id)
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
+
     vm_table_map = {
         data["result_table_id"]: {"vm_rt": data["vm_result_table_id"], "storage_id": data["vm_cluster_id"]}
         for data in vm_tables
     }
+
     influxdb_tables = models.InfluxDBStorage.objects.values(
         "table_id", "database", "real_table_name", "influxdb_proxy_storage_id", "partition_tag"
     )

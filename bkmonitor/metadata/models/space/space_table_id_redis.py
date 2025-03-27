@@ -18,6 +18,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT
 from metadata.models.space import utils
@@ -186,6 +187,7 @@ class SpaceTableIDRedis:
         table_id_list: Optional[List] = None,
         is_publish: Optional[bool] = False,
         include_es_table_ids: Optional[bool] = False,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ):
         """推送结果表的详细信息"""
         logger.info(
@@ -196,7 +198,9 @@ class SpaceTableIDRedis:
             include_es_table_ids,
         )
         # TODO：待AccessVMRecord全量迁移至BkBaseResultTable后，实施改造，使用新版组装方式
-        table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
+
+        table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
+
         if not table_id_detail:
             logger.info(
                 "push_table_id_detail: table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list)
@@ -204,6 +208,13 @@ class SpaceTableIDRedis:
             return
 
         table_ids = set(table_id_detail.keys())
+
+        other_filter = None
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            other_filter = {
+                "bk_tenant_id": bk_tenant_id,
+            }
+
         # 获取结果表类型
         _rt_filter_data = filter_model_by_in_page(
             model=models.ResultTable,
@@ -211,6 +222,7 @@ class SpaceTableIDRedis:
             filter_data=table_ids,
             value_func="values",
             value_field_list=["table_id", "schema_type", "data_label"],
+            other_filter=other_filter,
         )
 
         _table_id_dict = {rt["table_id"]: rt for rt in _rt_filter_data}
@@ -222,13 +234,21 @@ class SpaceTableIDRedis:
             filter_data=table_ids,
             value_func="values",
             value_field_list=["table_id", "bk_data_id"],
+            other_filter=other_filter,
         )
+
         table_id_data_id = {drt["table_id"]: drt["bk_data_id"] for drt in _ds_rt_filter_data}
+
         # 获取结果表对应的类型
-        measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list, table_id_data_id)
-        table_id_cluster_id = get_table_id_cluster_id(table_ids)
+        measurement_type_dict = get_measurement_type_by_table_id(
+            table_ids, _table_list, table_id_data_id, bk_tenant_id=bk_tenant_id
+        )
+
+        table_id_cluster_id = get_table_id_cluster_id(table_ids, bk_tenant_id=bk_tenant_id)
         # 再追加上结果表的指标数据、集群 ID、类型
-        table_id_fields = self._compose_table_id_fields(set(table_id_detail.keys()))
+        table_id_fields = self._compose_table_id_fields(
+            table_ids=set(table_id_detail.keys()), bk_tenant_id=bk_tenant_id
+        )
         _table_id_detail = {}
         for table_id, detail in table_id_detail.items():
             detail["fields"] = table_id_fields.get(table_id) or []
@@ -239,10 +259,20 @@ class SpaceTableIDRedis:
             _table_id_detail[table_id] = json.dumps(detail)
 
         # 追加预计算结果表详情
+        # TODO: BkBase 多租户
         _table_id_detail.update(self._compose_record_rule_table_id_detail())
+
         # 追加 es 结果表
         if include_es_table_ids:
-            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+            _table_id_detail.update(
+                self._compose_es_table_id_detail(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
+            )
+
+        # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info("push_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]", bk_tenant_id)
+            for key in list(_table_id_detail.keys()):
+                _table_id_detail[f"{key}@{bk_tenant_id}"] = _table_id_detail.pop(key)
 
         # 推送数据
         if _table_id_detail:
@@ -293,28 +323,37 @@ class SpaceTableIDRedis:
             )
         return _table_id_detail
 
-    def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
+    def _compose_es_table_id_detail(
+        self, table_id_list: Optional[List[str]] = None, bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID
+    ):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
         # 这里要过来的结果表不会太多
         if table_id_list:
-            table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
+            table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "storage_cluster_id", "source_type", "index_set"
             )
             # 查询结果表选项
-            tid_options = models.ResultTableOption.objects.filter(table_id__in=table_id_list).values(
+            tid_options = models.ResultTableOption.objects.filter(
+                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
+            ).values("table_id", "name", "value", "value_type")
+            data_label_map = models.ResultTable.objects.filter(
+                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
+            ).values("table_id", "data_label")
+        else:
+            table_ids = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id).values(
+                "table_id",
+                "storage_cluster_id",
+                "source_type",
+                "index_set",
+            )
+            tids = [obj["table_id"] for obj in table_ids]
+            tid_options = models.ResultTableOption.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "name", "value", "value_type"
             )
-            data_label_map = models.ResultTable.objects.filter(table_id__in=table_id_list).values(
+            data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "data_label"
             )
-        else:
-            table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
-            tids = [obj["table_id"] for obj in table_ids]
-            tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values(
-                "table_id", "name", "value", "value_type"
-            )
-            data_label_map = models.ResultTable.objects.filter(table_id__in=tids).values("table_id", "data_label")
 
         # data_label字典 {table_id:data_label}
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
@@ -343,7 +382,9 @@ class SpaceTableIDRedis:
             table_id_db = index_set
 
             try:
-                storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
+                storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(
+                    table_id=tid, bk_tenant_id=bk_tenant_id
+                )
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", tid, e)
                 storage_record = []
@@ -967,12 +1008,20 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(self, table_ids: Optional[Set] = None) -> Dict:
+    def _compose_table_id_fields(
+        self, table_ids: Optional[Set] = None, bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID
+    ) -> Dict:
         """组装结果表对应的指标数据"""
+        logger.info(
+            "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",
+            table_ids,
+            bk_tenant_id,
+        )
         # 过滤到对应的结果表
         table_id_fields_qs = models.ResultTableField.objects.filter(
-            tag=models.ResultTableField.FIELD_TAG_METRIC, table_id__in=table_ids
+            tag=models.ResultTableField.FIELD_TAG_METRIC, table_id__in=table_ids, bk_tenant_id=bk_tenant_id
         ).values("table_id", "field_name")
+
         table_id_fields = {}
         for data in table_id_fields_qs:
             table_id_fields.setdefault(data["table_id"], []).append(data["field_name"])
@@ -982,6 +1031,7 @@ class SpaceTableIDRedis:
                 table_id__in=table_ids,
                 name=models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
                 value="false",
+                bk_tenant_id=bk_tenant_id,
             ).values_list("table_id", flat=True)
         )
         logger.info("white table_id list: %s", json.dumps(white_tables))
