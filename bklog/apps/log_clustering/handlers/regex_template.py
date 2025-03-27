@@ -23,6 +23,9 @@ from collections import defaultdict
 
 from django.utils.translation import gettext as _
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import (
     DuplicateNameException,
     RegexTemplateNotExistException,
@@ -38,10 +41,17 @@ class RegexTemplateHandler(object):
         # 空间是否有模板
         templates = RegexTemplate.objects.filter(space_uid=space_uid)
         if not templates.exists():
+            conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+            default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
+
             instance, created = RegexTemplate.objects.get_or_create(
                 space_uid=space_uid,
                 template_name=_("系统默认"),
-                predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
+                defaults={
+                    "predefined_varibles": default_conf.get(
+                        "predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
+                    ),
+                },
             )
             return [
                 {
