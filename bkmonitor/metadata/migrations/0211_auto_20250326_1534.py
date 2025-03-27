@@ -23,15 +23,15 @@ def sync_event_es_router(apps, schema_editor):
     total = queryset.count()
     for begin_idx in range(0, total, batch_size):
         print(f"[sync_event_es_router] start to sync_event_es_route: begin_idx -> {begin_idx}")
-        Command.sync_event_es_route(
-            list(queryset.values("table_id", "event_group_name", "bk_data_id")[begin_idx : begin_idx + batch_size]),
-            push_now=False,
-        )
+        # Command.sync_event_es_route(
+        #     list(queryset.values("table_id", "event_group_name", "bk_data_id")[begin_idx : begin_idx + batch_size]),
+        #     push_now=False,
+        # )
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0214_auto_20250321_1601"),
+        ("metadata", "0210_spacerelatedstorageinfo"),
     ]
 
     operations = [migrations.RunPython(code=sync_event_es_router)]

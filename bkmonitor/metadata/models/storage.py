@@ -1563,6 +1563,7 @@ class RedisStorage(models.Model, StorageResultTable):
 
     # 对应ResultTable的table_id
     table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     # 默认命令是PUBLISH
     command = models.CharField("写入消息的命令", max_length=32, default="PUBLISH")
     key = models.CharField("存储键值", max_length=256)

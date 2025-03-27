@@ -120,20 +120,31 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
-    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = True):
+    def push_es_table_id_detail(
+        self,
+        table_id_list: Optional[List] = None,
+        is_publish: Optional[bool] = True,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
+    ):
         """
         推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
         @param table_id_list: 结果表列表
         @param is_publish: 是否执行推送
+        @param bk_tenant_id: 租户ID
         """
         logger.info(
-            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %s" "is_publish->[%s]",
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %s"
+            "is_publish->[%s],"
+            "bk_tenant_id->[%s]",
             json.dumps(table_id_list),
             is_publish,
+            bk_tenant_id,
         )
         _table_id_detail = {}
         try:
-            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+            _table_id_detail.update(
+                self._compose_es_table_id_detail(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
+            )
 
             if _table_id_detail:
                 logger.info(
@@ -163,6 +174,15 @@ class SpaceTableIDRedis:
 
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
+
+                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    logger.info(
+                        "push_es_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        bk_tenant_id,
+                    )
+                    for key in list(_table_id_detail.keys()):
+                        _table_id_detail[f"{key}@{bk_tenant_id}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -201,7 +221,7 @@ class SpaceTableIDRedis:
 
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
 
-        if not table_id_detail:
+        if not table_id_detail and not include_es_table_ids:  # 当指标结果表详情路由为空且不包含ES结果表的话,提前返回
             logger.info(
                 "push_table_id_detail: table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list)
             )
