@@ -8,6 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
+
+logger = logging.getLogger("root")
 
 
 class BaseAuthentication:
@@ -29,6 +32,9 @@ class SessionAuthentication(BaseAuthentication):
 
         # Get the session-based user from the underlying HttpRequest object
         user = getattr(request, "user", None)
+
+        logger.info(f"grafana_authenticate_request: {request.__dict__ if request else request}")
+        logger.info(f"grafana_authenticate_user: {user.__dict__ if user else user}")
 
         # Unauthenticated, CSRF validation not required
         if not user or not user.is_active:
