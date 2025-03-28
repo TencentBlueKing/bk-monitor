@@ -18,12 +18,12 @@ from rest_framework import serializers
 from apm_web.models import Application, EventServiceRelation
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from metadata.models import BCSClusterInfo, DataSourceResultTable
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
     EVENT_ORIGIN_MAPPING,
     CicdEventName,
+    EventCategory,
     EventDomain,
     EventSource,
     Operation,
@@ -114,12 +114,14 @@ def process_query_config(
     if origin_query_config.get("interval"):
         base_q = base_q.interval(origin_query_config["interval"])
 
+    from metadata.models import BCSClusterInfo, DataSourceResultTable
+
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
     for relation in event_relations:
         if relation["table"] not in filtered_tables:
             continue
 
-        if relation["table"] == "k8s_event":
+        if relation["table"] == EventCategory.K8S_EVENT.value:
             cluster_conditions_map: Dict[str, List[Dict[str, Any]]] = {}
             for cond in relation["relations"]:
                 cluster_id: Optional[str] = cond.get("bcs_cluster_id")
