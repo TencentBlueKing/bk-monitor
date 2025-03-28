@@ -40,7 +40,7 @@
       @mouseenter="handleShowAlarmPopover"
     >
       <span
-        class="icon bklog-icon bklog-xiazai"
+        class="icon bklog-icon bklog-download"
         style="font-size: 16px"
       ></span>
     </div>
@@ -284,14 +284,14 @@
     },
     watch: {
       totalCount(val) {
-        if( val < 10000){
+        if (val < 10000) {
           this.downloadType = 'sampling';
-        }else if(val < 2000000){
+        } else if (val < 2000000) {
           this.downloadType = 'all';
-        }else{
+        } else {
           this.downloadType = 'quick';
         }
-      }
+      },
     },
     computed: {
       ...mapState({
@@ -299,7 +299,7 @@
           if (state.searchTotal > 0) {
             return state.searchTotal;
           }
-          
+
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => !state.retrieve.isTrendDataLoading,
@@ -523,7 +523,7 @@
     transition: boder-color 0.2s;
 
     &:hover {
-      border-color: #979ba5;
+      border-color: #4d4f56;
       transition: boder-color 0.2s;
     }
 
@@ -535,7 +535,7 @@
     .bklog-icon {
       width: 16px;
       font-size: 16px;
-      color: #979ba5;
+      color: #4d4f56;
     }
   }
 

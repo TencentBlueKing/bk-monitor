@@ -242,7 +242,13 @@ export default class FieldItem extends tsc<object> {
     return (
       <li class='filed-item'>
         <div class={{ 'filed-title': true, expanded: this.isExpand }}>
-          <div>
+          <div
+            onClick={() => {
+              // 联合查询 或 非白名单业务和索引集类型 时不能点击弹出字段分析
+              if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) return;
+              this.handleClickAnalysisItem();
+            }}
+          >
             {/* 拖动字段位置按钮 */}
             <div class='bklog-drag-dots-box'>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />

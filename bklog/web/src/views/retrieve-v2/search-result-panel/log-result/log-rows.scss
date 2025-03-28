@@ -439,10 +439,10 @@
     width: 48px;
     height: 48px;
     cursor: pointer;
-    background-color: #f9fafc;
+    background: #FFFFFF;
     border: 1px solid #e9ecf1;
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(58, 132, 255, 0.4);
+    box-shadow: 0 3px 10px 0 #0000001f;
     transition: 0.3s;
 
     &.show-box {
