@@ -44,9 +44,13 @@ interface LogExportEvents {
 export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
   @Ref('fileInput') readonly fileInputRef: HTMLElement;
 
+  /** 是否需要文件详细信息,false 则只返回读取内容 */
   @Prop({ default: false, type: Boolean }) returnFileInfo: boolean;
+  /** 文件类型 */
   @Prop({ default: '.json', type: String }) accept: string;
+  /** 文件读取后是否生成的base64,false 则生成文本信息 */
   @Prop({ default: false, type: Boolean }) base64: boolean;
+  /** 是否禁止上传功能 */
   @Prop({ default: false, type: Boolean }) disabled: boolean;
 
   @Emit('change')
@@ -87,7 +91,7 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
         reader.readAsText(file, 'UTF-8');
       }
     });
-    this.$emit('change', contents);
+    this.emitFile(contents);
   }
 
   render() {
