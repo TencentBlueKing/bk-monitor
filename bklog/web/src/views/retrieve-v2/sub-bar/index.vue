@@ -200,6 +200,10 @@
 
           .date-content {
             padding: 0;
+
+            & > svg {
+              fill: #4d4f56;
+            }
           }
         }
       }
