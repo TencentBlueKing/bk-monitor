@@ -1167,14 +1167,25 @@ export default defineComponent({
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
           isNoData.value = combos.length === 0;
           errorData.value.isError = false;
-
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
+          const processedEdges = [];
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
             processedNodes.push(...item.content.nodes);
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            item.content.edges.forEach(edge => {
+              edge.key = edge.target + edge.source;
+              const index = processedEdges.findIndex(item => item.key === edge.key);
+              if (index !== -1) {
+                processedEdges[index] = edge;
+              } else {
+                processedEdges.push(edge);
+              }
+            });
+            item.showEdges = [...processedEdges];
           });
           topoRawDataCache.value.diff = diff;
           topoRawDataCache.value.latest = latest;
@@ -1887,7 +1898,8 @@ export default defineComponent({
         /** 切换帧时 */
         showResourceGraph.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
-        const { showNodes, content } = topoRawDataCache.value.diff[value];
+        const { showNodes, content, showEdges } = topoRawDataCache.value.diff[value];
+        const updateEdges = content.edges;
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
           const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
@@ -1900,6 +1912,17 @@ export default defineComponent({
             node && graph.hideItem(node);
           } else if (diffNode || diffData) {
             const node = graph.findById(updateNode.id);
+            // 如果从后往前移动这里除了要更新获取之前帧的节点还要获取之前的线
+            if (diffData) {
+              // biome-ignore lint/complexity/noForEach: <explanation>
+              (node as any).getEdges().forEach(edge => {
+                const edgeModel = edge.getModel();
+                const targetEdge = showEdges.find(
+                  item => item.source === edgeModel.source && edgeModel.target === item.target
+                );
+                targetEdge && updateEdges.push(targetEdge);
+              });
+            }
             const model = node?.getModel?.();
             node && graph.showItem(node);
             node && graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
@@ -1909,7 +1932,7 @@ export default defineComponent({
         // biome-ignore lint/complexity/noForEach: <explanation>
         edges.forEach(edge => {
           const edgeModel = edge.getModel();
-          const targetEdge = content.edges.find(
+          const targetEdge = updateEdges.find(
             item => item.source === edgeModel.source && edgeModel.target === item.target
           );
           if (targetEdge) {
