@@ -15,6 +15,8 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+import copy
+
 from django.utils.functional import cached_property
 
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -32,13 +34,21 @@ from constants.apm import PreCalculateSpecificField, SpanStandardField
 from core.drf_resource import api
 
 
-class TraceDefaultConfigHandler:
-    """负责处理 Tracing 检索页面用户默认的配置信息"""
+class TraceBaseHandler:
+    """trace 检索页面处理基类"""
 
     def __init__(self, bk_biz_id: int, app_name: str, username: str = ""):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         self.username = username or get_request_username()
+        self._custom_init()
+
+    def _custom_init(self):
+        pass
+
+
+class TraceDefaultConfigHandler(TraceBaseHandler):
+    """负责处理 Tracing 检索页面用户默认的配置信息"""
 
     def _get_global_config_template_obj(self) -> TraceDefaultConfigTemplate:
         """获取或创建默认的配置模板对象"""
@@ -79,16 +89,14 @@ class TraceDefaultConfigHandler:
         return template_obj
 
 
-class TraceFieldsHandler:
+class TraceFieldsInfoHandler(TraceBaseHandler):
+    """trace 检索页面不同视角下的所有字段信息"""
+
     ES_MAPPING_API = api.apm_api.query_es_mapping
 
-    def __init__(self, bk_biz_id: int, app_name: str):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
-
-    @cached_property
+    @property
     def es_mapping(self) -> dict:
-        """获取 es_mapping"""
+        """获取 es_mapping 的原始数据"""
 
         return self.ES_MAPPING_API(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
@@ -117,32 +125,60 @@ class TraceFieldsHandler:
             pre_calculate_fields_info[field_name] = pre_storage_dict.get(field_name, {})
         return pre_calculate_fields_info
 
-    @cached_property
-    def es_mapping_standard_fields_info(self) -> dict[str, dict]:
-        """获取 es_mapping 中的标准字段信息
+    @property
+    def trace_collections_fields_info(self) -> dict[str, dict]:
+        """获取 trace collections 中可能存在的字段
 
         保持和 es_mapping_fields_info 一样的结构{field_name: {"type": ""}}
         """
 
+        # 获取所有的标准字段名
         field_names = [standard_field.field for standard_field in SpanStandardField.COMMON_STANDARD_FIELDS]
-        es_mapping_fields_info = self.es_mapping_fields_info
         standard_fields_info = {}
         for field_name in field_names:
-            if field_name in es_mapping_fields_info:
-                standard_fields_info[field_name] = es_mapping_fields_info[field_name]
+            if field_name in self.es_mapping_fields_info:
+                standard_fields_info[field_name] = self.es_mapping_fields_info[field_name]
         return standard_fields_info
+
+    def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict]:
+        """根据不同的模式返回不同的字段信息"""
+
+        fields_info = {}
+        if mode == QueryMode.TRACE:
+            fields_info.update(copy.deepcopy(self.trace_collections_fields_info))
+            fields_info.update(copy.deepcopy(self.pre_calculate_fields_info))
+        elif mode == QueryMode.SPAN:
+            fields_info.update(copy.deepcopy(self.es_mapping_fields_info))
+        return fields_info
+
+
+class TraceFieldsHandler(TraceBaseHandler):
+    """Trace 检索页面字段相关处理"""
+
+    def _custom_init(self):
+        self.fields_info_handler = TraceFieldsInfoHandler(self.bk_biz_id, self.app_name)
+
+    @cached_property
+    def trace_fields_info(self) -> dict[str, dict]:
+        """获取 trace 视角下可用的字段信息"""
+
+        return self.fields_info_handler.get_fields_info_by_mode(QueryMode.TRACE)
+
+    @cached_property
+    def span_fields_info(self) -> dict[str, dict]:
+        """获取 span 视角下可用的字段信息"""
+
+        return self.fields_info_handler.get_fields_info_by_mode(QueryMode.SPAN)
 
     def is_searched(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
         """判断字段是否可以被查询"""
 
         is_searched = False
         if mode == QueryMode.TRACE:
-            is_searched = (
-                field_name in self.pre_calculate_fields_info or field_name in self.es_mapping_standard_fields_info
-            )
+            is_searched = field_name in self.trace_fields_info
         elif mode == QueryMode.SPAN:
-            is_searched = field_name in self.es_mapping_fields_info
-        return is_searched and field_type not in {"object"}
+            is_searched = field_name in self.span_fields_info
+        return is_searched and field_type not in {"object", "nested"}
 
     def is_option_enabled(self, is_searched: bool, field_type: str) -> bool:
         """判断字段是否可以用于筛选
@@ -150,7 +186,7 @@ class TraceFieldsHandler:
         候选项的值不依赖于 is_searched，但是选择候选项后要考虑是否能触发搜索
         """
 
-        return is_searched and field_type not in {"text", "object"}
+        return is_searched and field_type not in {"text", "object", "nested"}
 
     def is_dimensions(self, is_searched: bool, field_name: str) -> bool:
         """判断字段是否可以用于聚合
@@ -159,6 +195,21 @@ class TraceFieldsHandler:
         """
 
         return is_searched
+
+    def can_displayed(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
+        """判断字段是否可以显示"""
+
+        if field_type in {"object", "nested"}:
+            return False
+
+        can_display = False
+        if mode == QueryMode.TRACE:
+            can_display = field_name in self.fields_info_handler.pre_calculate_fields_info
+        elif mode == QueryMode.SPAN:
+            can_display = field_name in self.span_fields_info and not (
+                field_name.startswith("links") or field_name.startswith("events")
+            )
+        return can_display
 
     def get_supported_operations(self, field_type: str) -> list[str]:
         """获取字段支持的运算符"""
@@ -170,24 +221,23 @@ class TraceFieldsHandler:
 
         return TRACE_FIELD_ALIAS.get(field_name, field_name)
 
-    def get_field_type(self, field_name: str) -> str:
+    def get_field_type(self, mode: QueryMode, field_name: str) -> str:
         """获取字段类型"""
+        if mode == QueryMode.TRACE:
+            fields_info = self.trace_fields_info
+        else:
+            fields_info = self.span_fields_info
 
-        field_type = ""
-        if field_name in self.es_mapping_fields_info:
-            field_type = self.es_mapping_standard_fields_info.get(field_name, {}).get("type", "")
-        elif field_name in self.pre_calculate_fields_info:
-            field_type = self.pre_calculate_fields_info.get(field_name, {}).get("type", "")
-
-        return field_type
+        return fields_info.get(field_name, {}).get("type", "")
 
     def get_fields_info(self, mode: QueryMode, field_names: list[str]) -> list[dict]:
         fields = []
         for field_name in field_names:
-            field_type = self.get_field_type(field_name)
+            field_type = self.get_field_type(mode, field_name)
             is_searched = self.is_searched(mode, field_name, field_type)
             is_option_enabled = self.is_option_enabled(is_searched, field_type)
             is_dimensions = self.is_dimensions(is_searched, field_name)
+            can_displayed = self.can_displayed(mode, field_name, field_type)
             fields.append(
                 dict(
                     name=field_name,
@@ -196,42 +246,37 @@ class TraceFieldsHandler:
                     is_searched=is_searched,
                     is_option_enabled=is_option_enabled,
                     is_dimensions=is_dimensions,
+                    can_displayed=can_displayed,
                     supported_operations=self.get_supported_operations(field_type),
                 )
             )
         return fields
 
-    def get_all_field_names_by_mode(self, mode: QueryMode) -> list[str]:
+    def get_all_fields_names_by_mode(self, mode: QueryMode) -> list[str]:
         """获取 trace / span 视角下可用的所有字段名称"""
 
-        all_field_names = []
         if mode == QueryMode.TRACE:
-            # 预计算表可搜索的字段和存在于 es_mapping 中的标准字段取一个并集
-            all_field_names.extend(list(self.pre_calculate_fields_info))
-            all_field_names.extend(list(self.es_mapping_standard_fields_info))
+            return list(self.trace_fields_info)
         elif mode == QueryMode.SPAN:
-            all_field_names = list(self.es_mapping_fields_info)
-        return list(set(all_field_names))
+            return list(self.span_fields_info)
+        return []
 
     def get_fields_by_mode(self, mode: QueryMode) -> list[dict]:
         """获取 trace / span 视角下可用的字段信息"""
 
-        all_field_names = self.get_all_field_names_by_mode(mode)
-        fields = self.get_fields_info(mode, all_field_names)
+        all_fields_names = self.get_all_fields_names_by_mode(mode)
+        fields = self.get_fields_info(mode, all_fields_names)
         # 顶层字段排前面，二级排序按字母排序
         fields.sort(key=lambda field: ("." in field["name"], field["name"]))
         return fields
 
 
-class TraceViewConfigManager:
+class TraceViewConfigManager(TraceBaseHandler):
     """Tracing 检索页面的视图配置信息，包含 trace 视角和 span 视角的配置信息
 
     例如表头显示字段，设置筛选字段等
     """
 
-    def __init__(self, bk_biz_id: int, app_name: str, username: str = ""):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
-        self.username = username or get_request_username()
-        self.default_config = TraceDefaultConfigHandler(bk_biz_id, app_name, username)
-        self.fields_handler = TraceFieldsHandler(bk_biz_id, app_name)
+    def _custom_init(self):
+        self.default_config = TraceDefaultConfigHandler(self.bk_biz_id, self.app_name, self.username)
+        self.fields_handler = TraceFieldsHandler(self.bk_biz_id, self.app_name)
