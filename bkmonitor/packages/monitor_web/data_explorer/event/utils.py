@@ -69,7 +69,7 @@ def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> Dict[str, str]
     return _get_data_labels_map(bk_biz_id, tuple(sorted(set(tables))))
 
 
-@lru_cache_with_ttl(ttl=60 * 10, decision_to_drop_func=lambda v: not v)
+@lru_cache_with_ttl(ttl=60 * 20, decision_to_drop_func=lambda v: not v)
 def _get_data_labels_map(bk_biz_id: int, tables: Tuple[str, ...]) -> Dict[str, str]:
     return api.metadata.get_data_labels_map(bk_biz_id=bk_biz_id, table_or_labels=list(tables))
 

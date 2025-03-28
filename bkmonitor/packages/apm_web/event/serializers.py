@@ -90,12 +90,13 @@ def filter_by_relation(
     return q
 
 
-@lru_cache_with_ttl(ttl=60 * 10, decision_to_drop_func=lambda v: not v)
+@lru_cache_with_ttl(ttl=60 * 20, decision_to_drop_func=lambda v: not v)
 def get_cluster_table_map(cluster_ids: Tuple[str, ...]) -> Dict[str, str]:
     cluster_infos: List[Dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
     cluster_to_data_id: Dict[str, int] = {
         cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
     }
+    # 业务场景不会超过一页，使用 single 接口避免多次请求
     event_groups: List[Dict[str, Any]] = api.metadata.single_query_event_group(
         bk_data_ids=list(cluster_to_data_id.values())
     )
