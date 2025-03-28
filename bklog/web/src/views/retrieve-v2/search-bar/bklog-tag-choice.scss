@@ -1,6 +1,7 @@
 .bklog-tag-choice-container {
   min-width: 120px;
-  padding: 0 30px 0 10px;
+  padding: 5px 30px 5px 10px;
+  overflow: hidden;
   position: relative;
 
   .bklog-choice-dropdown-icon {
@@ -12,61 +13,101 @@
     font-size: 22px;
     color: #979ba5;
     cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
-  .bklog-tag-choice-input {
-    .bklog-choice-value-item {
-      &:not(.tag-input) {
-        position: relative;
-        display: inline-flex;
+  ul.bklog-tag-choice-input {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    font-size: 0;
+
+    margin: 0;
+    padding: 0;
+    vertical-align: top;
+    list-style: none;
+
+    li.bklog-choice-value-item {
+      display: inline-block;
+      height: 22px;
+      line-height: 22px;
+
+      position: relative;
+      margin: 0px 6px 0 0;
+      padding: 0 2px 0 5px;
+      background: #f0f1f5;
+      border-radius: 2px;
+      font-size: 12px;
+      color: #4d4f56;
+      padding-right: 22px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+
+      cursor: pointer;
+
+      .bklog-close {
+        position: absolute;
         height: 22px;
-        line-height: 22px;
-        margin: 0 6px 0 0;
-        padding: 0 2px 0 5px;
-        align-items: center;
-        background: #f0f1f5;
-        border-radius: 2px;
-        font-size: 12px;
-        color: #63656e;
-        padding-right: 22px;
+        width: 22px;
+        right: 0px;
+        top: 0px;
+        display: flex;
         cursor: pointer;
 
-        .bklog-close {
-          position: absolute;
-          height: 22px;
-          width: 22px;
-          right: 0px;
-          top: 0px;
-          display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-          align-items: center;
-          justify-content: center;
-        }
+      &:last-child {
+        padding-right: 5px;
+      }
 
-        &:hover {
-          background-color: #dcdee5;
-        }
+      &:hover {
+        background-color: #dcdee5;
+      }
+
+      &.is-hidden {
+        display: none;
       }
 
       &.tag-input {
+        padding: 0;
+        background-color: transparent;
         input {
           border: none;
           color: #63656e;
           font-size: 12px;
+          padding: 0;
         }
       }
+
+      &[data-w-hidden='true'] {
+        display: none;
+      }
+    }
+
+    &::after {
+      content: attr(data-placeholder);
+      font-size: 12px;
+      color: #c3cdd7;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
     }
   }
 }
 
 .bklog-tag-choice-list {
   min-width: 120px;
-
   .bklog-choice-list-item {
     padding: 0 6px;
     line-height: 32px;
     height: 32px;
-    color: #63656e;
+    color: #4d4f56;
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -76,8 +117,7 @@
     min-height: 32px;
 
     &:hover {
-      color: #63656e;
-      background-color: #f5f7fa;
+      background: #f5f7fa;
       cursor: pointer;
     }
 
@@ -87,8 +127,16 @@
       }
 
       &.is-active {
-        background-color: #f5f7fa;
+        background: #f5f7fa;
       }
     }
+
+    &.is-selected {
+      background: #f5f7fa;
+      color: #3a84ff;
+    }
+  }
+  .bklog-choice-value-container {
+    min-height: 32px;
   }
 }

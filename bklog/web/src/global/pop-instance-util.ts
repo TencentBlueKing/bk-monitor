@@ -25,7 +25,7 @@
  */
 import { isRef, ref, Ref } from 'vue';
 import { debounce } from 'lodash';
-import tippy, { Props } from 'tippy.js';
+import tippy, { Props, Placement } from 'tippy.js';
 
 type PopInstanceUtilType = {
   refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string;
@@ -144,6 +144,53 @@ export default class PopInstanceUtil {
     return this.refContent;
   }
 
+  getDefaultOption() {
+    const content = this.getContent();
+    return {
+      arrow: this.arrow,
+      content: (content as any)?.$el ?? content,
+      trigger: 'manual',
+      theme: 'log-light',
+      placement: 'bottom-start' as Placement,
+      interactive: true,
+      maxWidth: 800,
+      zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
+      onShow: () => {
+        this.onMounted();
+        setTimeout(() => {
+          this.isShowing = false;
+        });
+        return this.onShowFn?.(this.tippyInstance) ?? true;
+      },
+      onHide: () => {
+        if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
+          return false;
+        }
+
+        this.onBeforeUnmount();
+      },
+    };
+  }
+
+  getMergeTippyOptions(): Partial<Props> {
+    const options = this.getDefaultOption();
+
+    Object.keys(this.tippyOptions).forEach(key => {
+      if (typeof this.tippyOptions[key] === 'function') {
+        const oldFn = options[key] ?? (() => {});
+
+        options[key] = (...args) => {
+          this.tippyOptions[key](...args);
+          return oldFn(...args);
+        };
+      } else {
+        options[key] = this.tippyOptions[key];
+      }
+    });
+
+    return options as any;
+  }
+
   initInistance(target) {
     if (this.newInstance) {
       this.uninstallInstance();
@@ -151,31 +198,7 @@ export default class PopInstanceUtil {
 
     const content = this.getContent();
     if (this.tippyInstance === null && content) {
-      this.tippyInstance = tippy(target, {
-        arrow: this.arrow,
-        content: (content as any)?.$el ?? content,
-        trigger: 'manual',
-        theme: 'log-light',
-        placement: 'bottom-start',
-        interactive: true,
-        maxWidth: 800,
-        zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
-        onShow: () => {
-          this.onMounted();
-          setTimeout(() => {
-            this.isShowing = false;
-          });
-          return this.onShowFn?.(this.tippyInstance) ?? true;
-        },
-        onHide: () => {
-          if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
-            return false;
-          }
-
-          this.onBeforeUnmount();
-        },
-        ...(this.tippyOptions ?? {}),
-      });
+      this.tippyInstance = tippy(target, this.getMergeTippyOptions());
     }
   }
 

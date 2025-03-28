@@ -45,7 +45,7 @@ export default {
       displayFields: [],
       filterSetting: [],
       filterAddition: [],
-      fixedFilterAddition: false
+      fixedFilterAddition: false,
     },
     activeVersion: 'v2',
   },
@@ -86,10 +86,18 @@ export default {
           fieldsWidth: {},
           displayFields: [],
           filterSetting: [],
-          filterAddition: []
+          filterAddition: [],
         },
         payload ?? {},
       );
+    },
+
+    updateCatchFilterAddition(state, { addition }) {
+      if (addition?.length) {
+        state.catchFieldCustomConfig.filterAddition.length = 0;
+        state.catchFieldCustomConfig.filterAddition = [];
+        state.catchFieldCustomConfig.filterAddition.push(...addition);
+      }
     },
   },
   actions: {
