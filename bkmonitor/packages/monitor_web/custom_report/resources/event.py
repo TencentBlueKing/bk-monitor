@@ -103,7 +103,7 @@ class ValidateCustomEventGroupLabel(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         bk_event_group_id = serializers.IntegerField(required=False)
-        data_label = serializers.CharField(required=True, allow_empty=False)
+        data_label = serializers.CharField(required=True, allow_blank=False)
 
     def perform_request(self, params: dict):
         # 校验数据标签是否合法
