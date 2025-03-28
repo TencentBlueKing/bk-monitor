@@ -179,6 +179,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     dataLabel: false,
   };
 
+  nonGroupNum = 0;
+
   get computedWidth() {
     return window.innerWidth < 2560 ? 960 : 1200;
   }
@@ -203,11 +205,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   //  维度数量
   get dimensionNum() {
     return this.dimensions.length;
-  }
-
-  // 未分组数量
-  get nonGroupNum() {
-    return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
   }
 
   // 上报周期
@@ -246,8 +243,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       return (
         (leng1
           ? this.groupFilterList.some(
-            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-          ) && isMetric
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            ) && isMetric
           : true) &&
         (typeLeng
           ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
@@ -261,64 +258,101 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           : true) &&
         (textleng
           ? this.metricSearchObj.text.some(t => {
-            const monitorType = {
-              指标: 'metric',
-              维度: 'dimension',
-            };
-            return (
-              item.monitor_type === t ||
-              monitorType?.[t] === item.monitor_type ||
-              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-              fuzzyMatch(item.name, t) ||
-              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-            );
-          })
+              const monitorType = {
+                指标: 'metric',
+                维度: 'dimension',
+              };
+              return (
+                item.monitor_type === t ||
+                monitorType?.[t] === item.monitor_type ||
+                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+                fuzzyMatch(item.name, t) ||
+                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+              );
+            })
           : true)
       );
     });
     return filterList;
   }
 
+  // 获取未分组数量
+  getNonGroupNum() {
+    return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
+  }
+
   /** 处理导出 */
   handleExportMetric() {
     // 构建JSON内容
     const dimensions = this.dimensions.length
-      ? this.dimensions
+      ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
+          name,
+          type,
+          description,
+          disabled,
+          common,
+        }))
       : [
-        {
-          name: 'dimension1',
-          type: 'dimension',
-          description: '',
-          disabled: true,
-          common: true,
-        },
-      ];
+          {
+            name: 'dimension1',
+            type: 'dimension',
+            description: '',
+            disabled: true,
+            common: true,
+          },
+        ];
     const metrics = this.metricData.length
-      ? this.metricData
+      ? this.metricData.map(
+          ({
+            name,
+            type,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          }) => ({
+            type,
+            name,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          })
+        )
       : [
-        {
-          name: 'metric1',
-          type: 'metric',
-          description: '',
-          disabled: false,
-          unit: '',
-          hidden: false,
-          aggregate_method: '',
-          function: {},
-          interval: 0,
-          label: [],
-          dimensions: ['dimension1'],
-        },
-      ];
+          {
+            name: 'metric1',
+            type: 'metric',
+            description: '',
+            disabled: false,
+            unit: '',
+            hidden: false,
+            aggregate_method: '',
+            function: {},
+            interval: 0,
+            label: [],
+            dimensions: ['dimension1'],
+          },
+        ];
     const groupRules = this.groupList
       ? this.groupList
       : [
-        {
-          name: '测试分组',
-          manual_list: ['metric1'],
-          auto_rules: ['rule1'],
-        },
-      ];
+          {
+            name: '测试分组',
+            manual_list: ['metric1'],
+            auto_rules: ['rule1'],
+          },
+        ];
     const template = {
       dimensions,
       metrics,
@@ -365,6 +399,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   created() {
     this.getDetailData();
     this.handleGetMetricFunctions();
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
   updateAllSelection(v = false) {
@@ -425,12 +460,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           }
         }
         this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
-          } ${this.detailData.name}`;
+        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
+          this.detailData.time_series_group_id
+        } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
         this.dimensions = metricData?.dimensions || [];
-        // this.metricList =
-        //   this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
 
         // 获取表格内的单位数据
         const tempSet = new Set();
@@ -460,9 +494,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         ];
 
         await this.getGroupList();
-      } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
-          }`;
       }
       this.$store.commit('app/SET_NAV_TITLE', title);
       this.handleDetailData(this.detailData);
@@ -495,15 +526,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyDescribe = this.detailData.desc || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
-    const str =
-      this.type === 'customEvent'
-        ? `# ${this.$t('事件标识名，最大长度128')}
-                "event_name": "input_your_event_name",
-                "event": {
-                    # ${this.$t('事件内容，必需项')}
-                    "content": "user xxx login failed"
-                },`
-        : `# ${this.$t('指标，必需项')}
+    const str = `# ${this.$t('指标，必需项')}
         "metrics": {
             "cpu_load": 10
         },`;
@@ -1185,6 +1208,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       ...item,
       manualList: this.groupsMap.get(item.name)?.manualList || [],
     }));
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
   /** 批量更新 */

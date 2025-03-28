@@ -511,6 +511,10 @@ export default class IndicatorTableSlide extends tsc<any> {
       >
         <bk-tag-input
           v-model={row.dimensions}
+          v-bk-tooltips={{
+            disabled: !this.autoDiscover,
+            content: this.$t('已开启自动发现新增指标，无法操作'),
+          }}
           clearable={false}
           disabled={this.autoDiscover}
           list={this.dimensions}
