@@ -58,18 +58,24 @@
 
     .count-num {
       display: flex;
+      align-items: center;
       line-height: 16px;
 
       .count-num-title {
-        font-size: 12px;
+        margin-right: 4px;
+        font-size: 14px;
         font-weight: bold;
         color: #313238;
       }
 
       .distinct-count-num {
-        min-width: 24px;
+        display: inline-flex;
+        align-items: center;
+        height: 14px;
         padding: 0 4px;
-        text-align: center;
+        font-weight: 700;
+        line-height: 14px;
+        color: #979ba5;
         background: #f0f1f5;
         border-radius: 8px;
       }
