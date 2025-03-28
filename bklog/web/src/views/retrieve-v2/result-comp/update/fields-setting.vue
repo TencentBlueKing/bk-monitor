@@ -870,7 +870,9 @@
 
       .text-type {
         margin-bottom: 8px;
+        font-family: MicrosoftYaHei;
         font-size: 14px;
+        line-height: 22px;
         color: #313238;
       }
     }
