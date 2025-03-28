@@ -356,6 +356,7 @@ export default {
   删除成功: 'Deleted successful',
   创建失败: 'Created failed',
   修改成功: 'Modified successful',
+  导入成功: 'Import successful',
   全部空间: 'All spaces',
   字段类型: 'Field type',
   挂载目录: 'Mount Directory',
@@ -770,4 +771,7 @@ export default {
   分级设置: 'Grade setting',
   '⌘/Ctrl + / 快速定位到搜索': '⌘/Ctrl + / Quickly locate the search',
   '生成“{n}”标签': 'Generate "{n}" tag',
+  字段显示: 'Field display',
+  待选字段: 'Field to be selected:',
+  已选字段: 'Selected fields:',
 };

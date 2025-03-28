@@ -168,6 +168,7 @@
 
   const handleClickSelectConfig = item => {
     handlePopoverHide();
+    store.commit('retrieve/updateFiledSettingConfigID', item.id);
     store.commit('updateIsSetDefaultTableColumn', false);
     store
       .dispatch('userFieldConfigChange', {

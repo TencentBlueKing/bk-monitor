@@ -137,20 +137,22 @@ export default class SelectIndexSetInput extends tsc<object> {
     const inputShowDom = () => {
       if (this.isAloneType) {
         return (
-          <div
-            class='bk-select-name'
-            v-bk-overflow-tips={{ placement: 'right' }}
-          >
-            <span style={{ color: '#313238', fontSize: '14px' }}>{(this.selectedItem as any).indexName}</span>
-            <span style='color: #757880;'>{(this.selectedItem as any).lightenName}</span>
-            <span
-              style={{
-                fontSize: '16px',
-                transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
-                marginTop: this.isShowSelectPopover ? '-8px' : '',
-              }}
-              class='bklog-icon bklog-arrow-down-filled'
-            ></span>
+          <div>
+            <div
+              class='bk-select-name'
+              v-bk-overflow-tips={{ placement: 'right' }}
+            >
+              <span style={{ color: '#313238', fontSize: '14px' }}>{(this.selectedItem as any).indexName}</span>
+              <span style='color: #757880;'>{(this.selectedItem as any).lightenName}</span>
+              <span
+                style={{
+                  fontSize: '16px',
+                  transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
+                  marginTop: this.isShowSelectPopover ? '-8px' : '',
+                }}
+                class='bklog-icon bklog-arrow-down-filled'
+              ></span>
+            </div>
             {!this.isShowSelectPopover && <span class='shortcut'>{shortcutKey}</span>}
           </div>
         );

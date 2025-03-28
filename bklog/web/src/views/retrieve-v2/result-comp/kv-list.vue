@@ -59,7 +59,7 @@
             "
           ></span>
           <span
-            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
+            :style="{ backgroundColor: getFieldIconColor(field.field_type), color: getFieldIconTextColor(field.field_type) }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
             :class="getFieldIcon(field.field_name)"
@@ -274,8 +274,10 @@
         };
       },
       getFieldIconColor(type) {
-        const fieldType = this.getFieldType(type);
-        return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
+        return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
+      },
+      getFieldIconTextColor(type) {
+        return this.fieldTypeMap?.[type]?.textColor;
       },
       checkDisable(id, field) {
         const type = this.getFieldType(field);

@@ -68,6 +68,7 @@
 
         <bk-checkbox
           style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           :value="isJsonFormat"
           theme="primary"
           @change="handleJsonFormat"
@@ -95,6 +96,7 @@
 
         <bk-checkbox
           style="margin: 0 12px 0 12px"
+          class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"
           @change="handleEmptyFieldFormat"
@@ -377,7 +379,7 @@
         transition: boder-color 0.2s;
 
         &:hover {
-          border-color: #979ba5;
+          border-color: #4D4F56;
           transition: boder-color 0.2s;
         }
 
@@ -389,7 +391,7 @@
         .bklog-icon {
           width: 16px;
           font-size: 16px;
-          color: #979ba5;
+          color: #4D4F56;
         }
       }
 
