@@ -891,6 +891,9 @@ class QueryEventGroupResource(Resource):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", default=[], child=serializers.IntegerField(label="数据源ID")
+        )
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -899,6 +902,7 @@ class QueryEventGroupResource(Resource):
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         event_group_name = validated_request_data["event_group_name"]
+        bk_data_ids = validated_request_data.get("bk_data_ids")
 
         if label is not None:
             query_set = query_set.filter(label=label)
@@ -908,6 +912,9 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        if bk_data_ids:
+            query_set = query_set.filter(bk_data_id__in=bk_data_ids)
 
         # 分页返回
         page_size = validated_request_data["page_size"]
@@ -1577,7 +1584,7 @@ class ListBCSClusterInfoResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        cluster_ids = serializers.ListField(label="集群ID", child=serializers.IntegerField(), required=False)
+        cluster_ids = serializers.ListField(label="集群ID", child=serializers.CharField(), required=False)
 
     def perform_request(self, validated_request_data):
         clusters = BCSClusterInfo.objects.all()
@@ -2386,3 +2393,29 @@ class NotifyEsDataLinkAdaptNano(Resource):
             raise e
 
         return result_table.to_json().get('field_list')
+
+
+class GetDataLabelsMapResource(Resource):
+    """
+    获取结果表 ID 与其 DataLabel 的映射关系
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+        table_or_labels = serializers.ListField(
+            child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        data_labels_map = {}
+        table_or_labels: List[str] = validated_request_data["table_or_labels"]
+        data_labels_queryset = models.ResultTable.objects.filter(
+            Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]], data_label__in=table_or_labels)
+            | Q(table_id__in=table_or_labels)
+        ).values("table_id", "data_label")
+        for item in data_labels_queryset:
+            data_labels_map[item["table_id"]] = item["data_label"]
+            if item["data_label"]:
+                # 不为空才建立映射关系，避免写入 empty=empty，
+                data_labels_map[item["data_label"]] = item["data_label"]
+        return data_labels_map
