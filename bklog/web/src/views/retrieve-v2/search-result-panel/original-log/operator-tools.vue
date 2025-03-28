@@ -32,7 +32,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         >
         </span>
@@ -42,7 +42,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
@@ -230,6 +230,10 @@
       margin-left: 10px;
       font-size: 18px;
       color: #8b92a5;
+
+      .bklog-icon{
+        cursor: pointer;
+      }
     }
   }
 

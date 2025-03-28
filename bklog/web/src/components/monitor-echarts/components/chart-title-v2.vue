@@ -54,7 +54,7 @@
           class="converge-cycle"
           @click.stop
         >
-          <span>{{ $t('汇聚周期') + ':' }}</span>
+          <span>{{ $t('汇聚周期') + ' : ' }}</span>
           <bk-select
             ext-cls="select-custom"
             v-model="chartInterval"
@@ -409,18 +409,19 @@
       .select-custom {
         display: inline-block;
         margin-left: 5px;
+        color: #313238;
         vertical-align: middle;
         border: none;
-        color: #313238;
+
         :deep(.bk-select-name) {
-          padding: 0 26px 0 16px;
+          padding: 0 26px 0 18px;
         }
       }
 
       .bklog-icon {
-        cursor: pointer;
-        font-size: 14px;
         padding: 1px;
+        font-size: 14px;
+        cursor: pointer;
       }
     }
 
@@ -448,12 +449,12 @@
         .title-name {
           height: 20px;
           overflow: hidden;
+          font-family: MicrosoftYaHei-Bold, sans-serif;
           font-weight: 700;
           line-height: 20px;
+          color: #313238;
           text-overflow: ellipsis;
           white-space: nowrap;
-          color: #313238;
-          font-family: MicrosoftYaHei-Bold;
         }
 
         .time-result {
@@ -519,46 +520,46 @@
 <style lang="scss">
   .bklog-v3-grade-setting {
     width: 736px;
+    padding: 16px 0 0 0;
     background: #ffffff;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 #0000001a;
     border-radius: 2px;
-    padding: 16px 0 0 0;
+    box-shadow: 0 2px 6px 0 #0000001a;
 
     .grade-title {
       height: 24px;
-      font-size: 16px;
-      color: #313238;
-      line-height: 24px;
       padding: 0 24px;
+      font-size: 16px;
+      line-height: 24px;
+      color: #313238;
     }
 
     .grade-row {
-      padding: 0 24px;
       display: flex;
       align-items: flex-start;
+      padding: 0 24px;
       margin-top: 16px;
 
       .grade-label {
-        padding-right: 8px;
-        font-size: 12px;
-        color: #4d4f56;
-        text-align: left;
-        line-height: 20px;
-        margin-right: 8px;
-        height: 32px;
         display: flex;
         align-items: center;
+        height: 32px;
+        padding-right: 8px;
+        margin-right: 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+        text-align: left;
 
         &.required {
           position: relative;
 
           &::after {
-            content: '*';
-            color: #ea3636;
             position: absolute;
-            right: 0px;
             top: 8px;
+            right: 0px;
+            color: #ea3636;
+            content: '*';
           }
         }
       }
@@ -572,17 +573,17 @@
         border-left: 1px solid #dcdee5;
 
         .grade-table-header {
-          background: #f0f1f5;
           display: flex;
+          background: #f0f1f5;
         }
 
         .grade-table-col {
-          height: 42px;
-          border-right: 1px solid #dcdee5;
-          border-bottom: 1px solid #dcdee5;
-          padding: 8px;
           display: flex;
           align-items: center;
+          height: 42px;
+          padding: 8px;
+          border-right: 1px solid #dcdee5;
+          border-bottom: 1px solid #dcdee5;
         }
 
         .grade-table-row {
@@ -600,18 +601,19 @@
       }
 
       &.grade-footer {
-        height: 48px;
-        background: #fafbfd;
-        box-shadow: 0 -1px 0 0 #dcdee5;
-        padding: 8px 24px;
         display: flex;
         justify-content: flex-end;
+        height: 48px;
+        padding: 8px 24px;
+        background: #fafbfd;
+        box-shadow: 0 -1px 0 0 #dcdee5;
       }
     }
   }
 
   .bklog-v3-grade-color-select {
     border: none;
+
     .bk-select-name {
       visibility: hidden;
     }
