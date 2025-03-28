@@ -5,8 +5,14 @@
   overflow: hidden;
   background-color: #fff;
 
+  .monitor-echarts-title{
+    display: flex;
+    align-items: center;
+  }
+
   &.is-fold {
-    height: 31px;
+    height:31px;
+    padding-bottom: 5px;
   }
 
   :deep(.echart-legend) {

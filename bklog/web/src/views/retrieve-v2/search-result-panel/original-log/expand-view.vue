@@ -203,10 +203,10 @@
       }
 
       .tab-right {
-        display: flex;
-        align-items: center;
         position: sticky;
         right: calc(var(--scroll-left) + 10px);
+        display: flex;
+        align-items: center;
 
         .bklog-icon {
           font-size: 16px;
@@ -249,6 +249,14 @@
     .vjs-key {
       /* stylelint-disable-next-line declaration-no-important */
       color: #9d694c !important;
+    }
+
+    .vjs-value-string{
+      color: #357A94;
+    }
+
+    .vjs-value-number {
+      color: #13ce66;
     }
   }
 </style>

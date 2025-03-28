@@ -31,6 +31,7 @@
     data-test-id="retrieve_div_generalTrendEcharts"
   >
     <chart-title-v2
+      class="monitor-echarts-title"
       ref="chartTitle"
       :is-fold="isFold"
       :title="$t('总趋势')"
