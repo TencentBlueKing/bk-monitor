@@ -420,6 +420,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (type === 'timeRange') {
       this.timeRange = this.tools.timeRange;
       this.handleRefreshView();
+    } else if (type === 'interval') {
+      this.refreshInterval = tools.refreshInterval || -1;
     }
   }
   // 刷新策略视图
