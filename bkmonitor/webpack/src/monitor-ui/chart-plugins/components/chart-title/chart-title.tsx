@@ -50,7 +50,7 @@ export interface IChartTitleProps {
   // 副标题
   subtitle?: string;
   // 带icon说明
-  descrition?: string;
+  description?: string;
   // 告警信息
   alarm?: ITitleAlarm;
   // 采集周期
@@ -59,7 +59,7 @@ export interface IChartTitleProps {
   showMore?: boolean;
   // 可设置图标的功能的id列表
   menuList?: ChartTitleMenuType[];
-  draging?: boolean;
+  dragging?: boolean;
   // 指标数据
   metrics?: IExtendMetricData[];
   // 是否显示添加指标到策略选项
@@ -72,7 +72,7 @@ export interface IChartTitleProps {
   isInstant?: boolean;
   /** 下钻类型 */
   drillDownOption?: IMenuChildItem[];
-  inited?: boolean;
+  initialized?: boolean;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
   // 数据步长（步长过大情况时需要）
@@ -106,7 +106,7 @@ enum AlarmStatus {
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
-  @Prop({ default: '' }) descrition: string;
+  @Prop({ default: '' }) description: string;
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ default: '0' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
@@ -114,12 +114,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ default: false }) customArea: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
-  @Prop() draging: boolean;
+  @Prop() dragging: boolean;
   @Prop({ type: Boolean, default: true }) showMenuAddMetric: boolean;
   @Prop({ type: Boolean, default: true }) showAddMetric: boolean;
   @Prop({ type: Boolean, default: true }) showTitleIcon: boolean;
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
-  @Prop({ type: Boolean, default: true }) inited: boolean;
+  @Prop({ type: Boolean, default: true }) initialized: boolean;
   @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
   /** title的内容是否需要hover才展示 */
   @Prop({ type: Boolean, default: false }) isHoverShow: boolean;
@@ -202,7 +202,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
 
   @Watch('viewOptions.current_target', { deep: true })
   currentTargetChange() {
-    !this.readonly && this.inited && this.allowUpdateStatus && this.alertFilterable && this.handleFetchItemStatus();
+    !this.readonly &&
+      this.initialized &&
+      this.allowUpdateStatus &&
+      this.alertFilterable &&
+      this.handleFetchItemStatus();
   }
 
   /**
@@ -253,7 +257,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       return;
     }
 
-    if (!this.draging) {
+    if (!this.dragging) {
       if (!this.showMore) return;
       this.showMenu = !this.showMenu;
       const rect = this.chartTitleRef.getBoundingClientRect();
@@ -375,7 +379,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             >
               {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
             </div>
-            {this.inited && [
+            {this.initialized && [
               (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
               this.collectIntervalDisplay ? (
                 <span
@@ -402,11 +406,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   onMouseleave={this.handleHideTips}
                 />
               ) : undefined,
-              this.descrition && (
+              this.description && (
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{
-                    content: this.descrition,
+                    content: this.description,
                     allowHTML: true,
                     boundary: 'window',
                     distance: 0,
@@ -418,7 +422,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 key={'title-center'}
                 class={['title-center', { 'hover-show': this.isHoverShow }]}
               >
-                {this.inited && this.$slots?.default}
+                {this.initialized && this.$slots?.default}
               </span>,
               <span
                 key={'title-icon-list'}

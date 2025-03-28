@@ -634,7 +634,7 @@ export default defineComponent({
     /* event 错误链接 */
     function handleEventErrLink() {
       const { app_name: appName } = props.spanDetails;
-      const hash = `#/apm/application?filter-app_name=${appName}&method=AVG&interval=auto&dashboardId=error&from=now-1h&to=now&refleshInterval=-1`;
+      const hash = `#/apm/application?filter-app_name=${appName}&method=AVG&interval=auto&dashboardId=error&from=now-1h&to=now&refreshInterval=-1`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -642,7 +642,7 @@ export default defineComponent({
     /* 跳转到服务 */
     function handleToServiceName(serviceName: string) {
       const { app_name: appName } = props.spanDetails;
-      const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&method=AVG&interval=auto&from=now-1h&to=now&refleshInterval=-1`;
+      const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&method=AVG&interval=auto&from=now-1h&to=now&refreshInterval=-1`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }

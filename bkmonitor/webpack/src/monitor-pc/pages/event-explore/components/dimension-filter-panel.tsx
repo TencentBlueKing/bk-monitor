@@ -75,7 +75,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   @InjectReactive('commonParams') commonParams;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') refreshImmediate: string;
+  @InjectReactive('refreshImmediate') refreshImmediate: string;
 
   emptyStatus: EmptyStatusType = 'empty';
 

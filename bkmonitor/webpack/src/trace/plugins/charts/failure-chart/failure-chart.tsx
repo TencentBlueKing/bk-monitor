@@ -87,7 +87,7 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    refleshInterval: {
+    refreshInterval: {
       type: Number,
       default: 0,
     },
@@ -175,7 +175,7 @@ export default defineComponent({
     const chartSubTitle = ref('');
     const chartOptionInstance = ref(null);
     const hasInitChart = ref(false);
-    const refleshIntervalInstance = ref(0);
+    const refreshIntervalInstance = ref(0);
     const legend = ref({ show: false, list: [] });
     const curChartOption = ref(null);
     let chart = null;
@@ -384,23 +384,23 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    const onRefleshIntervalChange = newVal => {
-      if (refleshIntervalInstance.value) {
-        window.clearInterval(refleshIntervalInstance.value);
+    const onRefreshIntervalChange = newVal => {
+      if (refreshIntervalInstance.value) {
+        window.clearInterval(refreshIntervalInstance.value);
       }
       if (newVal <= 0 || !props.getSeriesData) return;
-      refleshIntervalInstance.value = window.setInterval(() => {
+      refreshIntervalInstance.value = window.setInterval(() => {
         // 当loading为false且chart存在时，执行某些操作（如更新序列数据）
         if (!loading.value && chart) {
           handleSeriesData();
         }
-      }, props.refleshInterval);
+      }, props.refreshInterval);
     };
-    // 观察`refleshInterval`的变化
+    // 观察`refreshInterval`的变化
     watch(
-      () => props.refleshInterval,
+      () => props.refreshInterval,
       newVal => {
-        onRefleshIntervalChange(newVal);
+        onRefreshIntervalChange(newVal);
       },
       { immediate: true }
     );
@@ -436,7 +436,7 @@ export default defineComponent({
 
     // 使用onActivated替代activated生命周期钩子
     onActivated(() => {
-      onRefleshIntervalChange(props.refleshInterval);
+      onRefreshIntervalChange(props.refreshInterval);
       if (props.autoresize && chart?.resize) {
         chart.resize();
       }
@@ -444,7 +444,7 @@ export default defineComponent({
 
     // 使用onDeactivated替代deactivated生命周期钩子
     onDeactivated(() => {
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onBeforeUnmount替代beforeDestroy生命周期钩子
@@ -458,7 +458,7 @@ export default defineComponent({
         intersectionObserver.value.disconnect();
       }
       annotation.value.show = false;
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onUnmounted替代destroyed生命周期钩子

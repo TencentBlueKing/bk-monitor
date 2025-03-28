@@ -92,7 +92,7 @@ export default class NewMetricView extends tsc<object> {
     customEscalationViewStore.updateTimeRange(timeRange);
   }
   // 刷新视图
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
   }
 
@@ -121,7 +121,7 @@ export default class NewMetricView extends tsc<object> {
             isSplitPanel={false}
             showListMenu={false}
             timeRange={[this.startTime, this.endTime]}
-            onImmediateReflesh={this.handleImmediateReflesh}
+            onImmediateRefresh={this.handleImmediateRefresh}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>

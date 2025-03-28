@@ -125,9 +125,9 @@ export default class EventExplore extends tsc<
   // 时区
   @InjectReactive('timezone') timezone: string;
   // 刷新间隔
-  @InjectReactive('refleshInterval') refreshInterval;
+  @InjectReactive('refreshInterval') refreshInterval;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') refreshImmediate: string;
+  @InjectReactive('refreshImmediate') refreshImmediate: string;
   // 视图变量
   @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
@@ -238,7 +238,7 @@ export default class EventExplore extends tsc<
   }
 
   @Watch('refreshImmediate')
-  handleRefleshImmediateChange() {
+  handleRefreshImmediateChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
   }
 
