@@ -43,6 +43,7 @@
 
           .text-value {
             overflow: hidden;
+            color: #313238;
             text-overflow: ellipsis;
             white-space: nowrap;
           }
@@ -50,7 +51,12 @@
           .percent-value {
             flex-shrink: 0;
             margin-left: 6px;
-            color: #2dcb56;
+            font-weight: 700;
+            color: var(--percent-text-color);
+
+            & > span {
+              font-weight: 400;
+            }
           }
         }
 
@@ -58,12 +64,14 @@
           position: relative;
           height: 6px;
           margin-bottom: 9px;
-          background-color: #dcdee5;
+          background: #f0f1f5;
+          border-radius: 4px;
 
           .percent-bar {
             position: absolute;
             height: 6px;
-            background-color: #2dcb56;
+            background-color: var(--bar-bg-color);
+            border-radius: 4px;
           }
         }
       }

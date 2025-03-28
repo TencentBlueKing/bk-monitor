@@ -696,6 +696,7 @@ export default class FieldAnalysis extends Vue {
                   field-type={this.queryParams.field_type}
                   is-front-statistics={this.queryParams.isFrontStatistics}
                   parent-expand={true}
+                  colorList={lineColor}
                   retrieve-params={this.queryParams}
                   statistical-field-data={this.queryParams.statisticalFieldData}
                 />

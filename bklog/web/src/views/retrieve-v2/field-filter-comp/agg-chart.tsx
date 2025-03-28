@@ -44,6 +44,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
   @Prop({ type: Number, default: 5 }) limit: number;
+  @Prop({ type: Array }) colorList: string[];
   showAllList = false;
   listLoading = false;
   mappingKay = {
@@ -107,6 +108,13 @@ export default class AggChart extends tsc<object> {
 
   mounted() {
     if (!this.isFrontStatistics) this.queryFieldFetchTopList(this.limit);
+  }
+
+  getCssVar(index) {
+    return {
+      '--bar-bg-color': this.colorList?.[index] || '#5AB8A8',
+      '--percent-text-color': this.colorList?.length ? '#979ba5' : '#5AB8A8',
+    };
   }
 
   // 计算百分比
@@ -196,8 +204,11 @@ export default class AggChart extends tsc<object> {
           <div>
             {/* <div class='title'>{this.t('字段内容分布')}</div> */}
             <ul class='chart-list'>
-              {this.showFiveList.map(item => (
-                <li class='chart-item'>
+              {this.showFiveList.map((item, index) => (
+                <li
+                  class='chart-item'
+                  style={this.getCssVar(index)}
+                >
                   <div class='operation-container'>
                     <span
                       class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
