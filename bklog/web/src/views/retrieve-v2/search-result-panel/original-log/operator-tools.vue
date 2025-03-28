@@ -226,7 +226,7 @@
     .handle-card {
       display: inline-block;
       width: 18px;
-      height: 18px;
+      height: 20px;
       margin-left: 10px;
       font-size: 18px;
       color: #8b92a5;
