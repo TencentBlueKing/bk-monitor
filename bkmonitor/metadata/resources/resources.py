@@ -2337,22 +2337,39 @@ class NotifyEsDataLinkAdaptNano(Resource):
                     is_config_by_user=True,
                 )
 
-                # 为dtEventTimestampNanos配置对应的Option
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_type',
-                    value=NANO_FORMAT,
-                    value_type='string',
+                # 通过复制的方式,生成dtEventTimestampNanos的option
+                original_objects = models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp'
                 )
 
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_format',
-                    value=NON_STRICT_NANO_ES_FORMAT,
-                    value_type='string',
-                )
+                # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
+                for obj in original_objects:
+                    # 使用 get_or_create 以确保不会重复创建相同的记录
+                    new_obj, created = models.ResultTableFieldOption.objects.update_or_create(
+                        table_id=obj.table_id,
+                        field_name='dtEventTimeStampNanos',  # 更新 field_name
+                        name=obj.name,
+                        defaults={  # 如果记录不存在，才会使用 defaults 来创建新的记录
+                            'value_type': obj.value_type,
+                            'value': obj.value,
+                            'creator': obj.creator,
+                        },
+                    )
+                    logger.info(
+                        "NotifyEsDataLinkAdaptNano: create_field->[%s] for table_id->[%s] created->[%s]",
+                        new_obj.field_name,
+                        new_obj.table_id,
+                        created,
+                    )
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_type'
+                ).update(value=NANO_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='time', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
@@ -2360,6 +2377,11 @@ class NotifyEsDataLinkAdaptNano(Resource):
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_type'
+                ).update(value='date')
+
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
