@@ -76,7 +76,11 @@ def sync_bkcc_space(allow_deleted=False):
     sync_archived_bkcc_space()
 
     bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list = api.cmdb.get_business()
+    biz_list = []
+    for tenant in api.bk_login.list_tenant():
+        temp = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+        biz_list.extend(temp)
+
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
     if not biz_list:
         logger.info("query cmdb api resp is null")
