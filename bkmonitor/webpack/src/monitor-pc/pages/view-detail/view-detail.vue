@@ -88,7 +88,7 @@
                 :key="renderKey + '_' + queryConfigKey"
                 :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :height="drag.height - 20"
-                :reflesh-interval="compareValue.tools.refreshInterval"
+                :refresh-interval="compareValue.tools.refreshInterval"
                 :title="title"
                 :subtitle="subtitle"
                 :options="chartOptions"
