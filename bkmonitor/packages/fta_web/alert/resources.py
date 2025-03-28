@@ -626,11 +626,11 @@ class AlertDetailResource(Resource):
         id = AlertIDField(required=True, label="告警ID")
 
     @classmethod
-    def get_relation_info(cls, alert: AlertDocument):
+    def get_relation_info(cls, alert: AlertDocument, length_limit=True):
         """
         获取告警最近的日志
         """
-        return get_alert_relation_info(alert)
+        return get_alert_relation_info(alert, length_limit)
 
     def perform_request(self, validated_request_data):
         alert_id = validated_request_data["id"]
@@ -638,7 +638,7 @@ class AlertDetailResource(Resource):
         alert = AlertDocument.get(alert_id)
 
         graph_panel = AIOPSManager.get_graph_panel(alert)
-        relation_info = self.get_relation_info(alert)
+        relation_info = self.get_relation_info(alert, False)
 
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]

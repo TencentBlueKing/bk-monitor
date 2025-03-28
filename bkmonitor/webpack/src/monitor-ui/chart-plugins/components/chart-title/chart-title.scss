@@ -11,7 +11,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
   .chart-title {
     min-height: 40px;
-    padding: 3px 19px 3px 16px;
+    padding: 3px 6px 3px 16px;
     font-size: 12px;
     color: #63656e;
     border-radius: 2px;
@@ -24,9 +24,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
             // font-weight: 600;
           }
         }
+
         .title-icon-list {
           visibility: inherit;
         }
+
         .hover-show {
           visibility: inherit;
         }
@@ -38,6 +40,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       flex-wrap: nowrap;
       align-items: center;
       min-height: 30px;
+
       .title-icon-list {
         visibility: hidden;
       }
@@ -65,18 +68,20 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
         &.status-strategy {
           /* stylelint-disable-next-line declaration-no-important */
-          height: 18px !important;
+          height: 16px !important;
+          margin-top: -4px;
 
           /* stylelint-disable-next-line declaration-no-important */
-          font-size: 18px !important;
+          font-size: 16px !important;
           color: #699df4;
 
           &-not-config {
             /* stylelint-disable-next-line declaration-no-important */
-            height: 18px !important;
+            height: 16px !important;
+            margin-top: -4px;
 
             /* stylelint-disable-next-line declaration-no-important */
-            font-size: 18px !important;
+            font-size: 16px !important;
             color: #dcdee5;
 
             &::before {
@@ -91,11 +96,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        font-family: '微软雅黑', '苹方', Arial, sans-serif;
         display: inline-block;
         align-items: center;
         height: 20px;
         overflow: hidden;
+        font-family: '微软雅黑', '苹方', Arial, sans-serif;
         font-size: 14px;
         line-height: 20px;
         color: #313238;
@@ -109,8 +114,8 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         justify-content: center;
         height: 16px;
         padding: 0 2px;
-        margin-left: 8px;
         margin-right: 4px;
+        margin-left: 8px;
         font-size: 12px;
         font-weight: normal;
         line-height: 16px;
@@ -123,6 +128,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       .title-center {
         margin-left: auto;
       }
+
       .hover-show {
         visibility: hidden;
       }
@@ -132,11 +138,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 20px;
-        min-width: 20px;
+        width: 30px;
+        min-width: 30px;
         // margin-left: 8px;
-        height: 20px;
-        margin-right: 8px;
+        height: 30px;
+        margin-right: 10px;
         font-size: 14px;
         color: #c4c6cc;
 
@@ -152,15 +158,16 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .strategy-icon {
-        font-size: 16px;
-        color: #4d4f56;
+        margin-right: 0;
+        font-size: 15px;
+        // margin-left: auto;
+        color: #63656e;
 
         @extend %tips-icon;
-        margin-right: 2px;
+
         &:hover {
-          background-color: #f0f1f5;
-          // background-color: #e1ecff;
-          // border-radius: 50%;
+          background-color: #e1ecff;
+          border-radius: 50%;
         }
       }
 

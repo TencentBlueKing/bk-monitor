@@ -34,10 +34,6 @@ export default {
   展示统计值: 'Show Statistics',
   高亮峰谷值: 'Highlight Peaks and Valleys',
   共用维度: 'Shared Dimensions',
-  移动光标: 'Move Cursor',
-  选中: 'Selected',
-  收起查询: 'Collapse Query',
-  提交查询: 'Submit Query',
   '确定 Ctrl + Enter': 'Confirm Ctrl + Enter',
   '1 列': '1 Column',
   其它维度: 'Other Dimensions',
@@ -82,8 +78,7 @@ export default {
   关联维度: 'Associated Dimensions',
   上报周期: 'Reporting Cycle',
   指标与维度: 'Metrics and Dimensions',
-  '打开后，除了采集启用的指标，还会采集未来新增的指标':
-    'When enabled, newly added metrics will be collected in addition to activated ones.',
+  '启用后，将自动发现新增指标/维度': 'Once enabled, new metrics/dimensions will be automatically discovered.',
   '分组 用于指标归类，建议拥有相同维度的指标归到一个组里。':
     'Grouping: Categorizes metrics. Group those with shared dimensions.',
   '搜索 自定义分组名称': 'Search Custom Group Names',
@@ -108,12 +103,14 @@ export default {
   没有可选维度: 'No Selectable Dimensions',
   没有可聚合维度: 'No Aggregatable Dimensions',
   '展示/隐藏常用条件': 'Show/Hide Common Conditions',
-  'UI 模式': 'UI Mode',
-  语句模式: 'SQL Mode',
   '关闭后，在可视化视图里，将被隐藏': 'After closing, it will be hidden in the visual view.',
   数据标签: 'Data Label',
   '自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名':
     'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
   手动添加: 'Manually add',
-  '-': '-',
+  全局: 'Global',
+  指标管理: '',
+  '确定 Cmd + Enter': '',
+  '暂只支持开启，不支持关闭': 'Currently only supports opening, not closing',
+  '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',
 };

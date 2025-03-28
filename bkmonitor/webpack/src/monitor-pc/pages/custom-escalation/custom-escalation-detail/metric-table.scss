@@ -32,7 +32,7 @@ $border-color: #d9d9d9;
         .alter-info {
           display: flex;
           align-items: center;
-          margin: 0 12px;
+          margin: 3px 12px 0;
           font-size: 12px;
           color: #979BA5;
 
@@ -113,7 +113,7 @@ $border-color: #d9d9d9;
       }
 
       .indicator-table {
-        height: 444px;
+        max-height: 444px;
         overflow: -moz-scrollbars-none;    /* Firefox */
         overflow-y: scroll;
         scrollbar-width: none;             /* Firefox 64+ */
@@ -339,10 +339,14 @@ $border-color: #d9d9d9;
 
                 .bk-select {
                   width: 100%;
-                  border: none;
+                  border: 1px solid transparent;
 
                   .icon-angle-down {
                     display: none;
+                  }
+
+                  .bk-select-tag-container {
+                    padding: 0 30px 0 4px;
                   }
                 }
 
@@ -356,8 +360,9 @@ $border-color: #d9d9d9;
                   display: inline-flex;
                   max-width: 140px;
                   height: 24px;
+                  padding: 0 5px;
+                  margin-top: 3px;
                   margin-right: 4px;
-                  margin-bottom: 4px;
                   font-size: 12px;
                   line-height: 22px;
                   color: #4D4F56;
@@ -365,6 +370,10 @@ $border-color: #d9d9d9;
                   background: #FAFBFD;
                   border: 1px solid #DCDEE5;
                   border-radius: 2px;
+
+                  .icon-close {
+                    display: none;
+                  }
                 }
 
                 .bk-select-overflow-tag {
@@ -468,10 +477,32 @@ $border-color: #d9d9d9;
             }
 
             .dimension-content {
-              top: -5px;
-              left: -3px;
               width: 100%;
-              background-color: #fff;
+
+              .bk-select {
+                top: -5px;
+                left: -5px;
+                width: 104%;
+                border: 1px solid transparent;
+
+                &.is-disabled {
+                  background-color: transparent;
+                }
+
+                .icon-angle-down {
+                  display: none;
+                }
+
+                .bk-select-tag-container {
+                  padding: 0 30px 0 4px;
+                }
+              }
+
+              .bk-tooltip-ref {
+                &.tippy-active {
+                  border: 1px solid #3a84ff;
+                }
+              }
             }
           }
 

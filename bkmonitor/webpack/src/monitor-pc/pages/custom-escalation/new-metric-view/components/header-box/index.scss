@@ -1,18 +1,21 @@
 .bk-monitor-new-metric-view-header-box {
-  background: #fff;
+  position: relative;
   margin-left: -1px;
+  background: #fff;
+
   .mult-item-box {
     position: relative;
     display: flex;
     flex-wrap: wrap;
+
     &:after {
-      content: '';
       position: absolute;
       right: 0;
-      left: 0;
       bottom: 0;
+      left: 0;
       width: 100%;
       height: 1px;
+      content: '';
       background: #dcdee5;
     }
 
@@ -21,12 +24,50 @@
       align-items: center;
       padding-right: 16px;
       margin-left: auto;
-      white-space: nowrap;
       font-size: 12px;
+      white-space: nowrap;
+
       .bk-checkbox-text,
       .bk-button-text {
         font-size: 12px;
       }
     }
+  }
+
+  .toggle-btn {
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 16px;
+    font-size: 20px;
+    color: #fff;
+    cursor: pointer;
+    background: #dcdee5;
+    border-radius: 0 0 6px 6px;
+    transform: translateX(-50%);
+
+    &:hover {
+      background: #3a84ff;
+    }
+
+    &.is-expaned {
+      .bk-icon {
+        transform: rotateZ(90deg);
+      }
+    }
+
+    .bk-icon {
+      transition: transform 0.15s;
+      transform: rotateZ(270deg);
+    }
+  }
+
+  [data-role='param-label'] {
+    white-space: nowrap;
   }
 }

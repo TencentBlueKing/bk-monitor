@@ -157,6 +157,10 @@ export default {
   智能检测一切正常: 'Intelligent detection is normal',
   '当前空间暂不支持该功能，如需使用请联系管理员':
     'The current space does not support this function. If you need to use it, please contact the administrator',
+  '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
+  BK助手: 'BK Assistant',
+  当前告警关联故障: 'Current alarm associated fault',
+  当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',
   '异常事件获取来源\n1. events.attributes.exception_stacktrace 字段\n2. status.message 字段':
     'Abnormal event acquisition source\n1. events.attributes.exception_stacktrace field\n2. status.message field',
@@ -325,6 +329,9 @@ export default {
   添加为筛选项: 'Add as filter',
   移除该筛选项: 'Remove this filter',
   点击加载更多: 'Click to load more',
+  '当前空间未开启{0}功能': 'The current space has not enabled the {0} feature',
+  '当前告警不支持{0}功能': 'The current alarm does not support the {0} feature',
+  '{0}不支持{1}功能': '{0} does not support the {1} feature',
   '当前空间「{0}」 使用了 BCS 集群，已自动关联；':
     'Current space " {0} project " uses BCS cluster, has been automatically associated;',
   '如需精确，用户可 {0}': 'If you need to be accurate, users can {0}',
