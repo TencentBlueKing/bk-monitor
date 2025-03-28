@@ -287,7 +287,9 @@
             }
           }
 
-          &:hover {
+          &.focus,
+          &:hover,
+          &:focus {
             background: #F5F7FA;
           }
 
@@ -361,6 +363,12 @@
               margin: 0 8px 0 auto;
               font-size: 20px;
               color: #C4C6CC;
+            }
+
+            &.focus,
+            &:hover,
+            &:focus {
+              background: #F5F7FA;
             }
 
             &.active {
