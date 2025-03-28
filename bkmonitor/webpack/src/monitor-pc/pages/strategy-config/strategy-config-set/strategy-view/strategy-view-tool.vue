@@ -61,7 +61,7 @@
             class="time-interval"
             v-model="refreshInterval"
             :text-active="refreshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-reflesh')"
+            @on-icon-click="$emit('on-immediate-refresh')"
             @change="handleValueChange('interval')"
             :is-refresh-interval="true"
             :list="refreshList"

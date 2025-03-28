@@ -55,7 +55,7 @@
               :timerange-list="timerangeList"
               @change="handleComparePanelChange"
               @add-timeshift-option="handleAddTimeshifOption"
-              @on-immediate-reflesh="handleImmediateRefresh"
+              @on-immediate-refresh="handleImmediateRefresh"
             />
           </div>
           <div

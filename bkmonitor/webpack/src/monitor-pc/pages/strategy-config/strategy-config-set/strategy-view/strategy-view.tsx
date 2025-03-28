@@ -1011,7 +1011,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 key='tool'
                 ref='tool'
                 on-change={this.handleToolPanelChange}
-                on-on-immediate-reflesh={this.handleRefreshView}
+                on-on-immediate-refresh={this.handleRefreshView}
                 onTimezoneChange={this.handleRefreshView}
               />,
               <div
@@ -1196,7 +1196,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       key='tool'
                       ref='tool'
                       on-change={this.handleToolPanelChange}
-                      on-on-immediate-reflesh={this.handleRefreshView}
+                      on-on-immediate-refresh={this.handleRefreshView}
                       onTimezoneChange={this.handleRefreshView}
                     />
                     <ViewDimensions

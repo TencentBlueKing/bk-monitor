@@ -59,7 +59,7 @@
       @add-timeshift-option="addTimeshiftOption"
       @change="handleChangeCompare"
       @chart-change="handleChartChange"
-      @on-immediate-reflesh="handleImmediateRefresh"
+      @on-immediate-refresh="handleImmediateRefresh"
     >
       <template #append>
         <span
@@ -684,7 +684,7 @@ export default class ViewWrapper extends Vue {
     this.showChartSort = val;
   }
 
-  @Emit('on-immediate-reflesh')
+  @Emit('on-immediate-refresh')
   handleImmediateRefresh() {}
   @Emit('method-change')
   handleAggMethodChange(method) {

@@ -201,7 +201,7 @@
             class="time-interval"
             v-model="tools.refreshInterval"
             :text-active="tools.refreshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-reflesh')"
+            @on-icon-click="$emit('on-immediate-refresh')"
             @change="handleValueChange('interval')"
             :is-refresh-interval="true"
             :list="refreshList"

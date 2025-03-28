@@ -30,7 +30,7 @@
       @chart-change="handleChartChange"
       @add-timerange-option="handleAddTimeRangeOption"
       @add-timeshift-option="handleAddTimeshifOption"
-      @on-immediate-reflesh="handleImmediateRefresh"
+      @on-immediate-refresh="handleImmediateRefresh"
       :value="value"
       :chart-type="chartType"
       :compare-list="compareList"

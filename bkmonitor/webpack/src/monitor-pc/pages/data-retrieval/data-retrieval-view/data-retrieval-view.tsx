@@ -510,7 +510,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
             favCheckedValue={this.favCheckedValue}
             compareHide={this.retrievalType === 'event'}
             hasViewChangeIcon={this.retrievalType !== 'event'}
-            on-on-immediate-reflesh={this.handleImmediateRefresh}
+            on-on-immediate-refresh={this.handleImmediateRefresh}
             on-select-fav={this.emitSelectFav}
             on-delete-fav={this.handleDeleteFav}
             on-change={this.handleComparePanelChange}
