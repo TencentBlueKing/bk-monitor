@@ -1,5 +1,6 @@
 /* stylelint-disable declaration-no-important */
-.aiops-container {
+.aiops-container-new {
+  height: 100%;
   background-color: #f0f3fa;
 
   &.aiops-container-show {
@@ -21,7 +22,47 @@
   }
 
   .aiops-container-menu {
+    display: flex;
+    flex-direction: column;
     width: 100%;
+    height: 100%;
+
+    .bk-collapse-item-header {
+      pointer-events: all !important;
+    }
+
+    .bk-collapse-item.is-disabled {
+      .bk-collapse-item-header {
+        cursor: not-allowed !important;
+      }
+    }
+
+    .bk-collapse-item-content {
+      height: 100%;
+      overflow-y: auto;
+
+      .bk-collapse-item-detail {
+        height: 100%;
+
+        .aiops-container-menu-item-content {
+          height: 100%;
+        }
+      }
+    }
+
+    .aiops-container-menu-item-diagnosis {
+      .bk-collapse-item-detail {
+        height: auto;
+      }
+
+      .bk-collapse-item-content {
+        height: calc(100% - 52px);
+      }
+
+      .aiops-container-menu-item-content {
+        padding: 0 8px;
+      }
+    }
 
     .bk-collapse-item .bk-collapse-item-hover:hover {
       color: #4d4f56 !important;
@@ -33,6 +74,7 @@
 
     .bk-collapse-item-header {
       height: 52px;
+      padding: 0 8px;
       padding-right: 4px;
       line-height: 20px;
       background: #dfe4f0;
@@ -53,6 +95,8 @@
     }
 
     .aiops-container-menu-item {
+      z-index: 99;
+      flex: 0 0 52px;
       width: 100%;
       margin-bottom: 5px;
 
@@ -90,19 +134,44 @@
       .icon-angle-right {
         display: none;
       }
-
-      .bk-collapse-item-header {
-        pointer-events: none;
-      }
     }
 
     .aiops-tab-title-message {
-      display: block;
+      display: flex;
+      align-items: center;
+      height: 20px;
       font-size: 12px;
-      line-height: 20px;
       color: #4d4f56;
 
+      .tooltips-icon {
+        display: inline-flex;
+        margin-right: 4px;
+        font-size: 16px;
+        color: #ea3636;
+      }
+
+      .vis-show {
+        display: inline-flex;
+        align-items: center;
+        line-height: 14px;
+
+        span {
+          display: inline-flex;
+          align-items: center;
+          line-height: 14px;
+        }
+      }
+
+      .inline-skeleton {
+        display: inline-block;
+        width: 40px;
+        height: 14px;
+        margin: 2px 4px;
+        vertical-align: middle;
+      }
+
       font {
+        margin: 0 3px;
         font-size: 12px;
         font-weight: 700;
         color: rgba(234, 54, 54, 1);
@@ -111,16 +180,16 @@
       .diagnosis-info-text {
         display: flex;
         align-items: center;
+      }
 
-        .diagnosis-text_blue {
-          display: inline-block;
-          max-width: 174px;
-          padding: 0 4px;
-          overflow: hidden;
-          color: #3a84ff;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+      .diagnosis-text_blue {
+        display: inline-block;
+        max-width: 60%;
+        padding: 0 4px;
+        overflow: hidden;
+        color: #3a84ff;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
 
@@ -131,16 +200,16 @@
     }
 
     .aiops-tab-title-no-auth {
-      .bk-assistant-link {
-        padding-left: 2px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
     }
 
     .aiops-container-menu-item-content {
-      // max-height: calc(100vh - 228px);
-      padding: 0 10px;
+      padding-left: 8px;
     }
+  }
+
+  .bk-assistant-link {
+    padding-left: 2px;
+    color: #3a84ff;
+    cursor: pointer;
   }
 }
