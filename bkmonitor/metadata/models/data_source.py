@@ -119,6 +119,7 @@ class DataSource(models.Model):
         verbose_name="transfer集群ID", default=settings.DEFAULT_TRANSFER_CLUSTER_ID, max_length=50
     )
 
+    is_tenant_specific_global = models.BooleanField(verbose_name="是否为租户下的全局数据源", default=False)
     is_platform_data_id = models.BooleanField("是否为平台 ID", default=False, help_text="如果为平台级 ID，则认为全量可以访问")
     space_type_id = models.CharField(
         "所属的空间类型",

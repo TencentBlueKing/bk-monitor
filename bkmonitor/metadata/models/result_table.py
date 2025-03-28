@@ -377,6 +377,8 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID不可以是%s开头，请确认后重试") % config.BCS_TABLE_ID_PREFIX)
 
+        # Q: 为什么不在结果表生成时,在table_id中拼接租户属性，从而做到结果表全局唯一？
+        # A: 外部导入的插件,如redis_exporter、mongodb_exporter以及一些内置采集,结果表命名相对固定,使用额外字段过滤更为稳定安全
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
                 "create_result_table: table_id->[%s] in bk_tenant_id->[%s] is already exists, change and try again.",

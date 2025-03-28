@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="apmmetaconfig",
             name="level_key",
-            field=models.CharField(max_length=512, verbose_name="配置目标key"),
+            field=models.CharField(max_length=256, verbose_name="配置目标key"),
         ),
     ]
