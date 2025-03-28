@@ -157,7 +157,7 @@ export default class FieldAnalysis extends Vue {
       await this.queryStatisticsInfo();
       await this.queryStatisticsGraph();
       this.initFieldChart();
-      this.showMore(false)
+      this.showMore(false);
     });
   }
 
@@ -676,14 +676,6 @@ export default class FieldAnalysis extends Vue {
                 <div class='count-num'>
                   <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
                   <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
-                 {
-                  this.fieldData.distinct_count >5? ( <span
-                    class='moreDistinct'
-                    onClick={this.showMore.bind(this)}
-                  >
-                    {window.mainComponent.$t('更多')}
-                  </span>):null
-                 }
                 </div>
                 <div class='moreFn'>
                   <span
@@ -708,6 +700,14 @@ export default class FieldAnalysis extends Vue {
                   statistical-field-data={this.queryParams.statisticalFieldData}
                 />
               )}
+              {this.fieldData.distinct_count > 5 ? (
+                <span
+                  class='moreDistinct'
+                  onClick={this.showMore.bind(this)}
+                >
+                  {window.mainComponent.$t('更多')}
+                </span>
+              ) : null}
             </div>
           ) : (
             <div class='not-data-empty'>

@@ -51,40 +51,43 @@
     }
   }
 
-  .distinct-count-num-box{
+  .distinct-count-num-box {
     display: flex;
     justify-content: space-between;
     margin: 8px 0;
 
-    .count-num{
+    .count-num {
       display: flex;
       line-height: 16px;
 
-      .count-num-title{
+      .count-num-title {
         font-size: 12px;
         font-weight: bold;
         color: #313238;
       }
 
-      .distinct-count-num{
+      .distinct-count-num {
         min-width: 24px;
         padding: 0 4px;
         text-align: center;
-        background: #F0F1F5;
+        background: #f0f1f5;
         border-radius: 8px;
-      }
-
-      .moreDistinct{
-        color: #3A84FF;
-        cursor: pointer;
       }
     }
   }
 
-  .moreFn{
-    .fnBtn{
+  .moreDistinct {
+    display: inline-block;
+    margin-top: 8px;
+    margin-left: 52px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .moreFn {
+    .fnBtn {
       margin-left: 8px;
-      color: #3A84FF;
+      color: #3a84ff;
       cursor: pointer;
     }
   }
