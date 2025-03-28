@@ -417,7 +417,7 @@ export default defineComponent({
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'pointer',
-              text: accumulatedWidth(entity.entity_type),
+              text: accumulatedWidth(entity?.properties?.entity_show_type || entity.entity_type),
               fontSize: 10,
               ...nodeAttrs.textNameAttrs,
             },
@@ -1546,13 +1546,13 @@ export default defineComponent({
         >
           <div class='graph-title'>
             <span class='graph-title_label'>{this.$t('从属关系')}</span>
-            {this.entityName && <span class='graph-title_line'></span>}
+            {this.entityName && <span class='graph-title_line' />}
             <span
+              key={this.entityName}
               class='graph-title_value'
               v-overflowText={{
                 text: this.entityName,
               }}
-              key={this.entityName}
             >
               {this.entityName}
             </span>

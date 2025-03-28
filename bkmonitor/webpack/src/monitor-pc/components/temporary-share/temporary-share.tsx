@@ -100,7 +100,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       timezone: window.timezone,
     },
   ];
-  typeMap = { 'event-center': 'event', 'incident-detail': 'incident' };
+  typeMap = { 'event-center': 'event', 'incident-detail': 'incident', 'event-center-detail': 'event' };
   /* 管理历史分享 */
   historyData = {
     show: false,

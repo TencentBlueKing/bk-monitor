@@ -190,7 +190,7 @@ export default class ValueTagSelector extends tsc<IProps> {
   /**
    * @description 监听删除键
    */
-  handleBackspace() {
+  handleBackspaceNull() {
     if (!this.inputValue) {
       if (this.activeIndex > 0) {
         this.activeIndex -= 1;
@@ -296,7 +296,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         isFocus={this.isFocus}
         placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
         value={this.inputValue}
-        onBackspace={this.handleBackspace}
+        onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}
         onEnter={this.handleEnter}
         onInput={this.handleInput}
@@ -326,6 +326,7 @@ export default class ValueTagSelector extends tsc<IProps> {
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
             needUpDownCheck={this.isFocus}
+            noDataSimple={true}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
             onIsChecked={this.handleIsChecked}

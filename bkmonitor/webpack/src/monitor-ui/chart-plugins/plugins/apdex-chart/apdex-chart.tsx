@@ -90,7 +90,7 @@ export class ApdexChart extends LineChart {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -98,7 +98,7 @@ export class ApdexChart extends LineChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       // const series = apdexData.series || [];
       const series = [];
       // const metrics = apdexData.series || [];
@@ -188,7 +188,7 @@ export class ApdexChart extends LineChart {
           })
         );
         this.metrics = metrics || [];
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -210,7 +210,7 @@ export class ApdexChart extends LineChart {
     const legendData: ILegendItem[] = [];
     this.renderThresholds = false;
     const [{ dataType }] = this.panel.targets;
-    const tranformSeries = series.map(item => {
+    const transformSeries = series.map(item => {
       // 动态单位转换
       const unitFormatter = item.unit !== 'none' ? getValueFormat(item.unit || '') : (v: any) => ({ text: v });
       const data = item.data.map((seriesItem: any) => {
@@ -234,7 +234,7 @@ export class ApdexChart extends LineChart {
       };
     });
     this.legendData = legendData;
-    return tranformSeries;
+    return transformSeries;
   }
   handleSetItemStyle(v: number | number[], dataType: APDEX_CHART_TYPE) {
     const itemStyle = {
@@ -362,8 +362,8 @@ export class ApdexChart extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            descrition={this.panel.descrition}
-            draging={this.panel.draging}
+            description={this.panel.description}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             metrics={this.metrics}
             showAddMetric={false}
@@ -389,7 +389,7 @@ export class ApdexChart extends LineChart {
               onMouseenter={() => (this.showMouseTips = true)}
               onMouseleave={() => (this.showMouseTips = false)}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
