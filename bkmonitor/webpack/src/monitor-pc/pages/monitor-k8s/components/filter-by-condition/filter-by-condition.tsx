@@ -103,7 +103,26 @@ export default class FilterByCondition extends tsc<IProps> {
   /* 是否选中了自定义选项 */
   customOptionChecked = false;
 
+  cursorIndex = -1;
+  cursorLeftIndex = -1;
+
   handleValueOptionsScrollThrottle = _v => {};
+
+  get hasAdd() {
+    const ids = this.allOptions.map(item => item.id);
+    const tags = new Set(this.tagList.map(item => item.id));
+    return !ids.every(id => tags.has(id));
+  }
+
+  get isSelectedWorkload() {
+    return this.groupSelected === EDimensionKey.workload;
+  }
+
+  get hasCustomOption() {
+    return (
+      !this.valueOptions.some(item => item.id === this.searchValue) && this.searchValue && !this.isSelectedWorkload
+    );
+  }
 
   @Watch('refreshImmediate')
   handleRefreshImmediateChange() {
@@ -139,16 +158,6 @@ export default class FilterByCondition extends tsc<IProps> {
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
     await this.initNextPage();
     this.loading = false;
-  }
-
-  get hasAdd() {
-    const ids = this.allOptions.map(item => item.id);
-    const tags = new Set(this.tagList.map(item => item.id));
-    return !ids.every(id => tags.has(id));
-  }
-
-  get isSelectedWorkload() {
-    return this.groupSelected === EDimensionKey.workload;
   }
 
   mounted() {
@@ -321,12 +330,14 @@ export default class FilterByCondition extends tsc<IProps> {
     });
     await this.$nextTick();
     this.popoverInstance?.show();
+    this.addCursorEvent();
   }
 
   destroyPopoverInstance() {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
+    this.removeCursorEvent();
   }
 
   /**
@@ -336,6 +347,12 @@ export default class FilterByCondition extends tsc<IProps> {
   handleSelectGroup(id: string, search = false) {
     if (this.groupSelected !== id || search) {
       this.groupSelected = id;
+      this.cursorIndex = -1;
+      if (this.valueCategorySelected) {
+        this.cursorLeftIndex = -1;
+      } else {
+        this.cursorLeftIndex = this.groupSelected === EDimensionKey.workload ? 0 : -1;
+      }
       let checkedSet = new Set();
       for (const [id, valueSets] of this.addValueSelected) {
         if (id === this.groupSelected) {
@@ -364,6 +381,9 @@ export default class FilterByCondition extends tsc<IProps> {
         this.valueCategoryOptions = [];
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
+      }
+      if (this.hasCustomOption) {
+        this.cursorIndex = -2;
       }
       this.valueOptionsSticky();
     }
@@ -585,9 +605,15 @@ export default class FilterByCondition extends tsc<IProps> {
     this.handleSearchChange('');
   }
 
+  @Debounce(500)
+  handleSelectCategoryProxy(item: IValueItem) {
+    this.handleSelectCategory(item);
+  }
+
   // 切换workload 分类
   async handleSelectCategory(item: IValueItem) {
     this.valueCategorySelected = item.id;
+    this.cursorLeftIndex = -1;
     this.rightValueLoading = true;
     await this.filterByOptions.initOfType(this.groupSelected as EDimensionKey, item.id);
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
@@ -855,10 +881,107 @@ export default class FilterByCondition extends tsc<IProps> {
     }
   }
 
+  addCursorEvent() {
+    this.cursorIndex = -1;
+    this.valueItemFocus();
+    document.addEventListener('keydown', this.handleCursorEvent);
+  }
+  removeCursorEvent() {
+    this.cursorIndex = -1;
+    document.removeEventListener('keydown', this.handleCursorEvent);
+  }
+  handleCursorEvent(event: KeyboardEvent) {
+    switch (event.key) {
+      case 'ArrowUp': {
+        event.preventDefault();
+        if (this.isSelectedWorkload && this.cursorLeftIndex > -1) {
+          this.cursorLeftIndex -= 1;
+          if (this.cursorLeftIndex < 0) {
+            this.cursorLeftIndex = 0;
+          }
+          this.valueCategoryFocus();
+        } else {
+          this.cursorIndex -= 1;
+          if (this.hasCustomOption) {
+            if (this.cursorIndex < -1) {
+              this.cursorIndex = -1;
+            }
+          } else {
+            if (this.cursorIndex < 0) {
+              this.cursorIndex = 0;
+            }
+          }
+          this.valueItemFocus();
+        }
+
+        break;
+      }
+      case 'ArrowDown': {
+        event.preventDefault();
+        if (this.isSelectedWorkload && this.cursorLeftIndex > -1) {
+          this.cursorLeftIndex += 1;
+          if (this.cursorLeftIndex >= this.valueCategoryOptions.length) {
+            this.cursorLeftIndex = this.valueCategoryOptions.length - 1;
+          }
+          this.valueCategoryFocus();
+        } else {
+          this.cursorIndex += 1;
+          if (this.cursorIndex >= this.valueOptions.length) {
+            this.cursorIndex = this.valueOptions.length - 1;
+          }
+          this.valueItemFocus();
+        }
+        break;
+      }
+      case 'Enter': {
+        event.preventDefault();
+        if (this.isSelectedWorkload && this.cursorLeftIndex > -1) {
+          this.handleEnterCategory();
+        } else {
+          this.handleEnterOption();
+        }
+        break;
+      }
+    }
+  }
+  valueItemFocus() {
+    const elWrap = document.querySelector('.filter-by-condition-component-popover-content');
+    if (elWrap) {
+      const itemEl = elWrap.querySelector(`.value-item__${this.cursorIndex}`);
+      itemEl?.focus?.();
+    }
+  }
+  valueCategoryFocus() {
+    const elWrap = document.querySelector('.filter-by-condition-component-popover-content');
+    if (elWrap) {
+      const itemEl = elWrap.querySelector(`.cate-item__${this.cursorLeftIndex}`);
+      itemEl?.focus?.();
+    }
+  }
+  handleEnterOption() {
+    if (this.cursorIndex === -1 && this.hasCustomOption) {
+      const customOption = {
+        id: this.searchValue,
+        name: this.searchValue,
+      };
+      this.handleCheckCustom(customOption as any);
+    } else {
+      const item = this.valueOptions[this.cursorIndex];
+      if (item) {
+        this.handleCheck(item);
+      }
+    }
+  }
+  handleEnterCategory() {
+    const item = this.valueCategoryOptions[this.cursorLeftIndex];
+    if (item) {
+      this.handleSelectCategoryProxy(item);
+      this.cursorLeftIndex = -1;
+    }
+  }
+
   valuesWrap() {
-    const hasCustomOption =
-      !this.valueOptions.some(item => item.id === this.searchValue) && this.searchValue && !this.isSelectedWorkload;
-    const customOption = hasCustomOption
+    const customOption = this.hasCustomOption
       ? {
           id: this.searchValue,
           name: this.searchValue,
@@ -869,7 +992,13 @@ export default class FilterByCondition extends tsc<IProps> {
       return (
         <div
           key={this.searchValue}
-          class={['value-item', { checked: this.customOptionChecked }]}
+          class={[
+            'value-item',
+            `value-item__${-1}`,
+            { checked: this.customOptionChecked },
+            { focus: this.cursorIndex === -1 },
+          ]}
+          tabindex={-1}
           onClick={() => this.handleCheckCustom(customOption as any)}
         >
           <span
@@ -902,8 +1031,17 @@ export default class FilterByCondition extends tsc<IProps> {
             this.valueOptions.map((item, index) => (
               <div
                 key={`${item.id}_${index}`}
-                class={['value-item', { checked: item.checked }]}
-                onClick={() => this.handleCheck(item)}
+                class={[
+                  'value-item',
+                  `value-item__${index}`,
+                  { checked: item.checked },
+                  { focus: this.cursorIndex === index },
+                ]}
+                tabindex={-1}
+                onClick={() => {
+                  this.handleCheck(item);
+                  this.cursorIndex = index;
+                }}
               >
                 <span
                   class='value-item-name'
@@ -1125,10 +1263,20 @@ export default class FilterByCondition extends tsc<IProps> {
                   ) : this.valueCategoryOptions.length ? (
                     <div class='value-items-wrap'>
                       <div class='left-wrap'>
-                        {this.valueCategoryOptions.map(item => (
+                        {this.valueCategoryOptions.map((item, index) => (
                           <div
                             key={item.id}
-                            class={['cate-item', { active: this.valueCategorySelected === item.id }]}
+                            class={[
+                              'cate-item',
+                              `cate-item__${index}`,
+                              {
+                                active: this.valueCategorySelected === item.id,
+                              },
+                              {
+                                focus: this.cursorLeftIndex === index,
+                              },
+                            ]}
+                            tabindex={-1}
                             onClick={() => this.handleSelectCategory(item)}
                           >
                             <span class='cate-item-name'>{item.name}</span>
