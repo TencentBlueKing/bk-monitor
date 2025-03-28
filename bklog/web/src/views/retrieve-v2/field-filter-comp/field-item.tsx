@@ -359,8 +359,8 @@ export default class FieldItem extends tsc<object> {
           />
         )} */}
         <bk-sideslider
-          width={600}
-          class='sideslider'
+          width={480}
+          class='agg-field-item-sideslider'
           is-show={this.ifShowMore}
           quick-close={true}
           show-mask={false}
@@ -368,29 +368,34 @@ export default class FieldItem extends tsc<object> {
           onAnimation-end={this.closeSlider}
         >
           <template slot='header'>
-            <div class='agg-sides-header'>
+            <div class='agg-sides-slider-header'>
               <div class='distinct-num'>
-                <span>{this.$t('去重后字段统计')}</span>
-                <span class='distinct-count-num'>{this.distinctCount}</span>
+                <span class='field-name'>{this.fieldItem?.field_name}</span>
+                <div class='col-line' />
+                <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
               </div>
               <div class='fnBtn'>
                 <bk-button
-                  style='margin-right:8px'
                   loading={this.btnLoading}
                   size='small'
+                  text={true}
                   onClick={e => {
                     e.stopPropagation();
                     this.downloadFieldStatistics();
                   }}
                 >
-                  {this.$t('下载')}
+                  <div class='download-btn'>
+                    <i class='bklog-icon bklog-download' />
+                    <span>{this.$t('下载')}</span>
+                  </div>
                 </bk-button>
                 {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
             </div>
           </template>
           <template slot='content'>
-            <div class='agg-sides-content'>
+            <div class='agg-sides-content slider-content'>
               <AggChart
                 field-name={this.fieldItem.field_name}
                 field-type={this.fieldItem.field_type}

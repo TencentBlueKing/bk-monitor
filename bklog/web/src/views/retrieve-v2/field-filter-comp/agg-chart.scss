@@ -29,7 +29,7 @@
 
     .chart-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
 
       .chart-content {
         flex: 1;
@@ -42,6 +42,7 @@
           line-height: 20px;
 
           .text-value {
+            margin-bottom: 2px;
             overflow: hidden;
             color: #313238;
             text-overflow: ellipsis;

@@ -232,6 +232,63 @@
   }
 }
 
+.agg-field-item-sideslider {
+  .bk-sideslider-header {
+    .bk-sideslider-title {
+      padding-right: 40px !important;
+    }
+
+    .agg-sides-slider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .distinct-num {
+        display: flex;
+        align-items: center;
+
+        .distinct-count-label,
+        .distinct-count-num {
+          font-size: 14px;
+          color: #979ba5;
+        }
+
+        .col-line {
+          width: 1px;
+          height: 14px;
+          margin-right: 8px;
+          margin-left: 6px;
+          background: #dcdee5;
+        }
+      }
+
+      .fnBtn {
+        .bk-primary.bk-button-text {
+          padding-right: 0;
+
+          .download-btn {
+            display: flex;
+            column-gap: 4px;
+            align-items: center;
+            color: #4d4f56;
+
+            .bklog-download {
+              font-size: 14px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .bk-sideslider-content {
+    .agg-sides-content.slider-content {
+      padding-right: 40px;
+      padding-left: 40px;
+    }
+  }
+}
+
 .conflict-popover {
   p {
     margin: 0 0 4px 6px;
