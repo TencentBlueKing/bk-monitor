@@ -289,25 +289,9 @@ class EventTopKResource(Resource):
         # 只计算维度的去重数量，不需要 topk 值
         if limit == DIMENSION_DISTINCT_VALUE:
             for field in valid_fields:
-                # 对多线程获取失败的进行补偿
-                if field not in field_distinct_map:
-                    logger.warning(
-                        "[EventTopKResource] distinct_count not found, try to compensate: field -> %s", field
-                    )
-                    self.calculate_field_distinct_count(
-                        lock,
-                        queryset,
-                        query_configs,
-                        field,
-                        dimension_metadata_map,
-                        field_distinct_map,
-                        field_topk_map,
-                        need_empty,
-                    )
-
                 topk_field_map[field] = {
                     "field": field,
-                    "distinct_count": field_distinct_map[field],
+                    "distinct_count": field_distinct_map.get(field, 0),
                     "list": [],
                 }
 

@@ -66,11 +66,9 @@ def get_qs_from_req_data(req_data: Dict[str, Any]) -> UnifyQuerySet:
 
 def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> Dict[str, str]:
     data_labels_map = {}
-    data_labels_queryset = (
-        ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
-        .filter(Q(table_id__in=tables) | Q(data_label__in=tables))
-        .values("table_id", "data_label")
-    )
+    data_labels_queryset = ResultTable.objects.filter(
+        Q(bk_biz_id__in=[0, bk_biz_id], data_label__in=tables) | Q(table_id__in=tables)
+    ).values("table_id", "data_label")
     for item in data_labels_queryset:
         data_labels_map[item["table_id"]] = item["data_label"]
         if item["data_label"]:
