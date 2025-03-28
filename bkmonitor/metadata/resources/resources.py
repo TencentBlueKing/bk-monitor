@@ -26,6 +26,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from kafka import KafkaConsumer, TopicPartition
 from kubernetes import utils
@@ -2337,22 +2338,35 @@ class NotifyEsDataLinkAdaptNano(Resource):
                     is_config_by_user=True,
                 )
 
-                # 为dtEventTimestampNanos配置对应的Option
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_type',
-                    value=NANO_FORMAT,
-                    value_type='string',
+                # 通过复制的方式,生成dtEventTimestampNanos的option
+                original_objects = models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp'
                 )
 
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_format',
-                    value=NON_STRICT_NANO_ES_FORMAT,
-                    value_type='string',
-                )
+                # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
+                new_objects = []
+                for obj in original_objects:
+                    new_obj = models.ResultTableFieldOption(
+                        value_type=obj.value_type,
+                        value=obj.value,
+                        creator=obj.creator,
+                        create_time=timezone.now(),  # 设置创建时间为当前时间
+                        table_id=obj.table_id,
+                        field_name='dtEventTimeStampNanos',  # 更新 field_name
+                        name=obj.name,
+                    )
+                    new_objects.append(new_obj)
+
+                models.ResultTableFieldOption.objects.bulk_create(new_objects)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_type'
+                ).update(value=NANO_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='time', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
@@ -2360,6 +2374,11 @@ class NotifyEsDataLinkAdaptNano(Resource):
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_type'
+                ).update(value='date')
+
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
