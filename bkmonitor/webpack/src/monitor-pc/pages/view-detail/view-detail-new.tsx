@@ -42,9 +42,9 @@ import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import QueryCriteriaItem from './query-criteria-item.vue';
-import { downCsvFile, refleshList, transformSrcData, transformTableDataToCsvStr } from './utils';
+import { downCsvFile, refreshList, transformSrcData, transformTableDataToCsvStr } from './utils';
 
-import type { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
+import type { IRefreshItem } from '../monitor-k8s/components/dashboard-tools';
 import type { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 import type { IQueryOption } from '../performance/performance-type';
 
@@ -99,7 +99,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   }
 
   /* 刷新时间列表 */
-  refleshList: IRefleshItem[] = [];
+  refreshList: IRefreshItem[] = [];
   /* 右侧数据 */
   rightData = [];
   /* 右侧参数 */
@@ -131,7 +131,7 @@ export default class ViewDetailNew extends tsc<IProps> {
       !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'time' : undefined,
       !this.readonly ? 'metric' : undefined,
     ];
-    this.refleshList = refleshList;
+    this.refreshList = refreshList;
     this.handleQueryConfig(this.viewConfig);
   }
 
@@ -157,10 +157,10 @@ export default class ViewDetailNew extends tsc<IProps> {
     this.timezone = timezone;
   }
 
-  handleRefleshChange(val) {
+  handleRefreshChange(val) {
     this.refreshInterval = val;
   }
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.chartKey = random(8);
   }
 
@@ -488,12 +488,12 @@ export default class ViewDetailNew extends tsc<IProps> {
                       <MonitorDropdown
                         class='dashboard-tools-interval'
                         icon='icon-zidongshuaxin'
-                        isRefleshInterval={true}
-                        list={this.refleshList}
+                        isRefreshInterval={true}
+                        list={this.refreshList}
                         text-active={this.refreshInterval !== -1}
                         value={this.refreshInterval}
-                        on-change={this.handleRefleshChange}
-                        on-on-icon-click={this.handleImmediateReflesh}
+                        on-change={this.handleRefreshChange}
+                        on-on-icon-click={this.handleImmediateRefresh}
                       />
                     </div>
                   </div>

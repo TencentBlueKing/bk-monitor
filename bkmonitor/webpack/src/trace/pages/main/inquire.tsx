@@ -1090,7 +1090,7 @@ export default defineComponent({
       setRouterQueryParams();
     }
     /** 立即刷新 */
-    function handleImmediateReflesh() {
+    function handleImmediateRefresh() {
       handleClickQuery();
     }
     /** 更多操作 */
@@ -1707,9 +1707,9 @@ export default defineComponent({
             favoritesList={collectList.value}
             menuList={headerToolMenuList}
             onDeleteCollect={handleDeleteCollect}
-            onImmediateReflesh={handleImmediateReflesh}
+            onImmediateRefresh={handleImmediateRefresh}
             onMenuSelectChange={handleMenuSelectChange}
-            onRefleshIntervalChange={handleRefreshIntervalChange}
+            onRefreshIntervalChange={handleRefreshIntervalChange}
             onSelectCollect={handleSelectCollect}
             onTimeRangeChange={handleTimeRangeChange}
             onTimezoneChange={handleTimezoneChange}

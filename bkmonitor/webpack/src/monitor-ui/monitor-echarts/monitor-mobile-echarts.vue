@@ -244,7 +244,7 @@ export default class MonitorMobileEcharts extends Vue {
     return height;
   }
   @Watch('refreshInterval', { immediate: true })
-  onRefleshIntervalChange(v: number) {
+  onRefreshIntervalChange(v: number) {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }

@@ -92,7 +92,7 @@ export default class PerformanceWrapper extends tsc<object> {
     this.splitPanelWidth = this.defaultPanelWidth;
   }
   // 立刻刷新
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.refreshImmediate = random(10);
   }
   handleTabChange(v: ITabItem) {
@@ -133,8 +133,8 @@ export default class PerformanceWrapper extends tsc<object> {
             showDownSampleRange={false}
             showListMenu={false}
             showTimeRange={false}
-            onImmediateReflesh={this.handleImmediateReflesh}
-            onRefleshChange={v => (this.refreshInterval = v)}
+            onImmediateRefresh={this.handleImmediateRefresh}
+            onRefreshChange={v => (this.refreshInterval = v)}
             onSplitPanelChange={this.handleSplitPanel}
           />
         </PageTitle>

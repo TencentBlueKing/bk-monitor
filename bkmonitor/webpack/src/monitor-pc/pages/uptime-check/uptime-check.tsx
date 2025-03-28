@@ -177,15 +177,15 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
     this.refreshKeys[v] = random(8);
   }
 
-  handleRefleshChange(v) {
+  handleRefreshChange(v) {
     window.clearInterval(this.refleshInstance);
     this.refleshInstance = null;
     if (v <= 0) return;
     this.refleshInstance = setInterval(() => {
-      this.handleImmediateReflesh();
+      this.handleImmediateRefresh();
     }, v);
   }
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.refreshKeys['uptime-check-node'] = random(8);
     this.refreshKeys['uptime-check-task'] = random(8);
   }
@@ -297,8 +297,8 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             showListMenu={isShowMenuList}
             showTimeRange={false}
             onFullscreenChange={this.handleFullscreen}
-            onImmediateReflesh={() => this.handleImmediateReflesh()}
-            onRefleshChange={v => this.handleRefleshChange(v)}
+            onImmediateRefresh={() => this.handleImmediateRefresh()}
+            onRefreshChange={v => this.handleRefreshChange(v)}
             onSelectedMenu={v => this.handleMenuSelect(v)}
             onSplitPanelChange={this.handleSplitPanel}
           />

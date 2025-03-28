@@ -63,8 +63,8 @@
             :text-active="refreshInterval !== -1"
             @on-icon-click="$emit('on-immediate-reflesh')"
             @change="handleValueChange('interval')"
-            :is-reflesh-interval="true"
-            :list="refleshList"
+            :is-refresh-interval="true"
+            :list="refreshList"
           />
         </slot>
       </div>
@@ -125,7 +125,7 @@ export default class ToolPanel extends Vue {
       return DEFAULT_REFLESH_LIST;
     },
   })
-  readonly refleshList: IOption[];
+  readonly refreshList: IOption[];
 
   showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;

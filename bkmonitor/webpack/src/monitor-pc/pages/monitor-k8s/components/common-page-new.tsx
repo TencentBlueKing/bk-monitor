@@ -1198,7 +1198,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.infoActive = this.isSplitPanel ? false : v;
   }
   // 立刻刷新
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.refreshImmediate = random(10);
   }
   // 图表布局方式变更
@@ -1509,7 +1509,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleResizeCollapse() {
     this.$nextTick(() => this.collapseRef?.handleContentResize());
   }
-  handleRefleshChange(v: number) {
+  handleRefreshChange(v: number) {
     this.refreshInterval = v;
     this.handleResetRouteQuery();
   }
@@ -1862,8 +1862,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 timezone={this.timezone}
                 onDownSampleRangeChange={this.handleDownSampleRangeChange}
                 onFullscreenChange={this.handleFullscreen}
-                onImmediateReflesh={this.handleImmediateReflesh}
-                onRefleshChange={this.handleRefleshChange}
+                onImmediateRefresh={this.handleImmediateRefresh}
+                onRefreshChange={this.handleRefreshChange}
                 onSelectedMenu={this.handleShowSettingModel}
                 onSplitPanelChange={this.handleSplitPanel}
                 onTimeRangeChange={this.handleTimeRangeChange}

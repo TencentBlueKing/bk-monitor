@@ -203,8 +203,8 @@
             :text-active="tools.refreshInterval !== -1"
             @on-icon-click="$emit('on-immediate-reflesh')"
             @change="handleValueChange('interval')"
-            :is-reflesh-interval="true"
-            :list="refleshList"
+            :is-refresh-interval="true"
+            :list="refreshList"
           />
         </slot>
       </div>
@@ -347,7 +347,7 @@ export default class ComparePanel extends Vue {
       return DEFAULT_REFLESH_LIST;
     },
   })
-  readonly refleshList: IOption[];
+  readonly refreshList: IOption[];
   // 是否需要拆分视图
   @Prop({ default: true }) needSplit: boolean;
 

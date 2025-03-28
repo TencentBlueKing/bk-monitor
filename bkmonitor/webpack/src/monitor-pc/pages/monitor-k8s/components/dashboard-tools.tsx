@@ -48,7 +48,7 @@ interface ITimeRangeItem {
   // 间隔值 如 60 * 60 * 1000 = 1h
   value: number | string;
 }
-export interface IRefleshItem {
+export interface IRefreshItem {
   // 刷新间隔名称
   name: string | TranslateResult;
   // 自动刷新间隔值
@@ -84,9 +84,9 @@ interface IHeadToolEvent {
   // 数据间隔修改触发
   onTimeRangeChange: TimeRangeType;
   // 自动刷新数据间隔修改触发
-  onRefleshChange: number;
+  onRefreshChange: number;
   // 触发立即刷新
-  onImmediateReflesh: () => void;
+  onImmediateRefresh: () => void;
   // 点击全屏功能触发
   onFullscreenChange: (v: boolean) => void;
   // 点击分屏功能触发
@@ -127,17 +127,17 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   @Prop({ default: true }) showFullscreen: boolean;
 
   timeRangeList: ITimeRangeItem[] = [];
-  refleshList: IRefleshItem[] = [];
+  refreshList: IRefreshItem[] = [];
   timeRangeValue: any = DEFAULT_TIME_RANGE;
-  refleshIntervalValue = -1;
+  refreshIntervalValue = -1;
   isFullscreen = false;
   isSettings = false;
   curTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   /* 粒度 */
-  downSampleRangeList: IRefleshItem[] = [];
+  downSampleRangeList: IRefreshItem[] = [];
   downSampleRangeValue = 'auto';
 
-  intervalList: IRefleshItem[] = [];
+  intervalList: IRefreshItem[] = [];
   intervalValue = 'auto';
 
   @Watch('timeRange', { immediate: true })
@@ -145,8 +145,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
     this.curTimeRange = v;
   }
   @Watch('refreshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    this.refleshIntervalValue = v;
+  onRefreshIntervalChange(v) {
+    this.refreshIntervalValue = v;
   }
   @Watch('downSampleRange', { immediate: true })
   onGrainSizeValue(v) {
@@ -244,7 +244,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
       },
     ];
     // 初始化自动刷新间隔列表
-    this.refleshList = [
+    this.refreshList = [
       // 刷新间隔列表
       {
         name: 'off',
@@ -343,9 +343,9 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
     this.curTimeRange = [...val];
     return [...this.curTimeRange];
   }
-  @Emit('refleshChange')
-  handleRefleshChange() {
-    return this.refleshIntervalValue;
+  @Emit('refreshChange')
+  handleRefreshChange() {
+    return this.refreshIntervalValue;
   }
   @Emit('fullscreenChange')
   // 处理全屏操作
@@ -434,13 +434,13 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
         {<span />}
         <MonitorDropdown
           class={`dashboard-tools-interval ${this.readonly ? 'is-readonly' : ''}`}
-          v-model={this.refleshIntervalValue}
+          v-model={this.refreshIntervalValue}
           icon='icon-zidongshuaxin'
-          isRefleshInterval={true}
-          list={this.refleshList}
+          isRefreshInterval={true}
+          list={this.refreshList}
           text-active={this.refreshInterval !== -1}
-          on-change={this.handleRefleshChange}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
+          on-change={this.handleRefreshChange}
+          on-on-icon-click={() => this.$emit('immediateRefresh')}
         />
         <span class='dashboard-tools-more'>
           {this.showSplitPanel && (

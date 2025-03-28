@@ -164,8 +164,8 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
             showSplitPanel={false}
             timeRange={this.timeRange}
             timezone={this.timezone}
-            onImmediateReflesh={this.handleImmediateRefresh}
-            onRefleshChange={this.handleRefreshChange}
+            onImmediateRefresh={this.handleImmediateRefresh}
+            onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           >

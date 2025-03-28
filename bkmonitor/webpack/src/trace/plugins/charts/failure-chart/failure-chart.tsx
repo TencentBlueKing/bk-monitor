@@ -384,7 +384,7 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    const onRefleshIntervalChange = newVal => {
+    const onRefreshIntervalChange = newVal => {
       if (refreshIntervalInstance.value) {
         window.clearInterval(refreshIntervalInstance.value);
       }
@@ -400,7 +400,7 @@ export default defineComponent({
     watch(
       () => props.refreshInterval,
       newVal => {
-        onRefleshIntervalChange(newVal);
+        onRefreshIntervalChange(newVal);
       },
       { immediate: true }
     );
@@ -436,7 +436,7 @@ export default defineComponent({
 
     // 使用onActivated替代activated生命周期钩子
     onActivated(() => {
-      onRefleshIntervalChange(props.refreshInterval);
+      onRefreshIntervalChange(props.refreshInterval);
       if (props.autoresize && chart?.resize) {
         chart.resize();
       }

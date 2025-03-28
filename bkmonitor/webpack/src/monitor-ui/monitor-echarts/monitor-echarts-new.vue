@@ -584,7 +584,7 @@ export default class MonitorEcharts extends Vue {
     this?.chart?.resize?.();
   }
   @Watch('refreshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
+  onRefreshIntervalChange(v) {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
@@ -618,7 +618,7 @@ export default class MonitorEcharts extends Vue {
   }
 
   activated() {
-    this.onRefleshIntervalChange(this.refreshInterval);
+    this.onRefreshIntervalChange(this.refreshInterval);
     if (this.autoresize) {
       this.chart?.resize?.();
     }

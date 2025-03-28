@@ -46,7 +46,7 @@
       :need-split="false"
       :search-select-list="searchSelectList"
       :value="compareValue"
-      :reflesh-list="refleshList"
+      :refresh-list="refreshList"
       :timerange-list="timerangeList"
       :chart-type="chartType"
       :target-list="targetList"
@@ -59,7 +59,7 @@
       @add-timeshift-option="addTimeshiftOption"
       @change="handleChangeCompare"
       @chart-change="handleChartChange"
-      @on-immediate-reflesh="handleImmediateReflesh"
+      @on-immediate-reflesh="handleImmediateRefresh"
     >
       <template #append>
         <span
@@ -301,7 +301,7 @@ export default class ViewWrapper extends Vue {
   private showChartSort = false;
 
   private timerangeList: IOption[] = [];
-  private refleshList: IOption[] = [
+  private refreshList: IOption[] = [
     {
       name: window.i18n.t('刷新'),
       id: -1,
@@ -673,7 +673,7 @@ export default class ViewWrapper extends Vue {
   handleVariableResult(val: { key: string; value: string[]; groupId: string; name: string }[]) {
     if (JSON.stringify(val) === JSON.stringify(this.variableResult)) return;
     this.variableResult = JSON.parse(JSON.stringify(val));
-    this.handleImmediateReflesh();
+    this.handleImmediateRefresh();
   }
   /**
    * @description: 是否显示侧栏
@@ -685,7 +685,7 @@ export default class ViewWrapper extends Vue {
   }
 
   @Emit('on-immediate-reflesh')
-  handleImmediateReflesh() {}
+  handleImmediateRefresh() {}
   @Emit('method-change')
   handleAggMethodChange(method) {
     return method;

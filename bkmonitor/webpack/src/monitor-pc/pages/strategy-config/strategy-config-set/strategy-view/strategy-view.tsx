@@ -1211,7 +1211,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     key='multiple'
                     dimensions={this.dimensions}
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
-                    refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
+                    refreshKey={this.multivariateAnomalyDetectionParams.refreshKey}
                     strategyTarget={this.strategyTarget}
                     onRefreshCharKey={this.handleRefreshView}
                   />,

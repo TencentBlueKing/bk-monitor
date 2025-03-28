@@ -512,12 +512,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @Watch('panelRefleshInterval')
   // 数据刷新间隔
   handlePanelRefleshIntervalChange(v: number) {
-    this.handleRefleshChange(v);
+    this.handleRefreshChange(v);
   }
   @Watch('panelRefleshImmediate')
   // 立刻刷新
   handlePanelRefleshImmediateChange(v: string) {
-    if (v) this.handleImmediateReflesh();
+    if (v) this.handleImmediateRefresh();
   }
   @Watch('defaultParams', { immediate: true })
   async handleDefaultParamsChange(v: Record<string, any>) {
@@ -525,7 +525,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.routeStateKeyList = [];
       Object.keys(v).forEach(key => (this[key] = v[key]));
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
-      this.handleRefleshChange(this.refreshInterval);
+      this.handleRefreshChange(this.refreshInterval);
     }
   }
   async created() {
@@ -601,7 +601,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         }
       }
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
-      vm.handleRefleshChange(vm.refreshInterval);
+      vm.handleRefreshChange(vm.refreshInterval);
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
       if (
         [EBatchAction.alarmConfirm, EBatchAction.quickShield].includes(params.batchAction) &&
@@ -778,7 +778,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.chartKey = random(10);
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
       this.isRouteBack = false;
-      this.handleRefleshChange(this.refreshInterval);
+      this.handleRefreshChange(this.refreshInterval);
     }
   }
   /**
@@ -1666,7 +1666,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {number} v 刷新周期
    * @return {*}
    */
-  handleRefleshChange(v: number) {
+  handleRefreshChange(v: number) {
     window.clearInterval(this.refleshInstance);
     this.refreshInterval = v;
     if (v <= 0) return;
@@ -1681,11 +1681,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {*}
    * @return {*}
    */
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.refreshInterval > 0 && this.handleRefleshChange(this.refreshInterval);
+    this.refreshInterval > 0 && this.handleRefreshChange(this.refreshInterval);
   }
   /**
    * @description: 数据间隔改变时触发
@@ -1710,7 +1710,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.handleRefleshChange(this.refreshInterval);
+    this.handleRefreshChange(this.refreshInterval);
   }
   handleBizIdsChange(v: number[]) {
     this.bizIds = v;
@@ -2547,8 +2547,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               timeRange={this.timeRange}
               timezone={this.timezone}
               onFullscreenChange={this.handleFullscreen}
-              onImmediateReflesh={this.handleImmediateReflesh}
-              onRefleshChange={this.handleRefleshChange}
+              onImmediateRefresh={this.handleImmediateRefresh}
+              onRefreshChange={this.handleRefreshChange}
               onSplitPanelChange={this.handleSplitPanel}
               onTimeRangeChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}

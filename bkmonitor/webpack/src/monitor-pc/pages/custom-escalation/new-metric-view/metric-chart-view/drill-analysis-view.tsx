@@ -174,7 +174,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       this.filterConfig.function = timeCompare?.time_compare ? timeCompare : { time_compare: [] };
 
       (item.query_configs || []).map(query => {
-        let commonConditions = [];
+        const commonConditions = [];
         Object.keys(query.filter_dict.concat_filter || {}).map(key =>
           commonConditions.push({
             key: key.split('__')[0],
@@ -373,7 +373,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             <MonitorDropdown
               class='filter-tools-interval'
               icon='icon-zidongshuaxin'
-              isRefleshInterval={true}
+              isRefreshInterval={true}
               list={this.refreshList}
               text-active={this.refreshInterval !== -1}
               value={this.refreshInterval}

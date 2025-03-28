@@ -329,7 +329,7 @@ export default class MonitorEcharts extends Vue {
     this.chart?.resize();
   }
   @Watch('refreshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
+  onRefreshIntervalChange(v) {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }

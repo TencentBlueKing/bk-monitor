@@ -34,12 +34,12 @@ import { PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import {
   type OptionsItem,
   type PanelHeaderType,
-  REFLESH_DEFAULT_LIST,
+  REFRESH_DEFAULT_LIST,
   TIME_RANGE_DEFAULT_LIST,
 } from '../../typings/panel-tools';
 import FavoritesList, { type IFavList } from './favorites-list/favorites-list';
 
-import type { IRefleshItem } from '../dashboard-tools';
+import type { IRefreshItem } from '../dashboard-tools';
 
 import './panel-header.scss';
 
@@ -51,7 +51,7 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
   /** 工具栏时间间隔列表 */
   @Prop({ default: () => TIME_RANGE_DEFAULT_LIST }) readonly timeRangeList: OptionsItem[];
   /** 工具栏刷新时间间隔列表 */
-  @Prop({ default: () => REFLESH_DEFAULT_LIST }) readonly refleshList: OptionsItem[];
+  @Prop({ default: () => REFRESH_DEFAULT_LIST }) readonly refreshList: OptionsItem[];
 
   /** 收藏数据 */
   @Prop({ type: Array, default: () => [] }) favoritesList: IFavList.favList[];
@@ -62,17 +62,17 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) eventSelectTimeRange: TimeRangeType;
 
   /** 收藏的展示状态 */
-  shwoFav = false;
+  showFav = false;
 
   /** 时间范围展示状态 */
   showText = true;
 
   /** 刷新间隔 */
-  localRefleshInterval = -1;
+  localRefreshInterval = -1;
   /** 时间范围 */
   localTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
 
-  downSampleRangeList: IRefleshItem[] = [];
+  downSampleRangeList: IRefreshItem[] = [];
   downSampleRangeValue = 'auto';
   created() {
     this.downSampleRangeList = PANEL_INTERVAL_LIST;
@@ -82,8 +82,8 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
     this.localTimeRange = this.timeRange;
   }
   @Watch('refreshInterval', { immediate: true })
-  refleshIntervalChange() {
-    this.localRefleshInterval = this.refreshInterval;
+  refreshIntervalChange() {
+    this.localRefreshInterval = this.refreshInterval;
   }
   @Watch('downSampleRange', { immediate: true })
   onDownSampleRangeChange() {
@@ -94,13 +94,13 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
     this.localTimeRange = JSON.parse(JSON.stringify(v));
   }
   /** 立即刷新 */
-  @Emit('immediateReflesh')
-  handleImmediateReflesh() {}
+  @Emit('immediateRefresh')
+  handleImmediateRefresh() {}
 
   /** 刷新间隔更新 */
-  @Emit('refleshIntervalChange')
-  handleRefleshChange() {
-    return this.localRefleshInterval;
+  @Emit('refreshIntervalChange')
+  handleRefreshChange() {
+    return this.localRefreshInterval;
   }
 
   /** 时间范围值更新 */
@@ -140,7 +140,7 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
             value={this.favoritesList}
             onDeleteFav={this.handleDeleteFav}
             onSelectFav={this.handleSelectFav}
-            onShowChange={val => (this.shwoFav = val)}
+            onShowChange={val => (this.showFav = val)}
           />
         )}
         <span class='panel-header-center'>{this.$slots.center}</span>
@@ -164,7 +164,7 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
           />
           {/* <MonitorDateRange
             icon="icon-mc-time-shift"
-            class={['time-shift-select', { 'right-item': !this.shwoFav }]}
+            class={['time-shift-select', { 'right-item': !this.showFav }]}
             dropdown-width="96"
             v-model={this.localTimeRange}
             options={this.timeRangeListFormatter}
@@ -173,13 +173,13 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
             onChange={this.handleTimeRangeChange}/> */}
           <DropDownMenu
             class='time-interval right-item'
-            v-model={this.localRefleshInterval}
+            v-model={this.localRefreshInterval}
             icon={'icon-zidongshuaxin'}
-            isRefleshInterval={true}
-            list={this.refleshList}
-            text-active={this.localRefleshInterval !== -1}
-            on-on-icon-click={this.handleImmediateReflesh}
-            onChange={this.handleRefleshChange}
+            isRefreshInterval={true}
+            list={this.refreshList}
+            text-active={this.localRefreshInterval !== -1}
+            on-on-icon-click={this.handleImmediateRefresh}
+            onChange={this.handleRefreshChange}
           />
         </span>
       </div>

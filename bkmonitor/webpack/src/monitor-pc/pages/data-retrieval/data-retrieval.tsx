@@ -3490,8 +3490,8 @@ export default class DataRetrieval extends tsc<object> {
                   showDownSample={false}
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
-                  onImmediateReflesh={() => (this.refleshNumber += 1)}
-                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
+                  onImmediateRefresh={() => (this.refleshNumber += 1)}
+                  onRefreshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
