@@ -515,7 +515,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
         # 新版自定义时序灰度业务列表
         ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
-        ("BKCI_HOST", slz.CharField(label=_("蓝盾地址"), default="", allow_blank=True)),
     ]
 )
 
