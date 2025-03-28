@@ -23,10 +23,12 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
+from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
+    AlarmPolicySwitchSerializer,
     DeleteRemarkSerializer,
     PatternSearchSerlaizer,
     SetOwnerSerializer,
@@ -367,3 +369,36 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(UpdateGroupFieldsSerializer)
         return Response(PatternHandler(index_set_id, {}).update_group_fields(group_fields=params["group_fields"]))
+
+    @detail_route(methods=["POST"], url_path="alarm_policy_by_switch")
+    def alarm_policy_by_switch(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/alarm_policy_by_switch/ 日志聚类-告警策略开关
+        @apiName alarm_policy_by_switch
+        @apiGroup log_clustering
+        @apiParam {String} alarm_policy_by_switch 告警策略开关
+        @apiParamExample {json} 请求参数
+        {
+            "signature": "xxxxxxxxxx",
+            "owners": [
+                "admin"
+            ],
+            "groups": {
+                "__ext.container_id": "xxxxxxxxxx"
+            },
+            "strategy_type": "normal_strategy"
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {"strategy_id": 1234, "label_name": ["xxxxxx]},
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(AlarmPolicySwitchSerializer)
+        return Response(
+            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_strategy_by_switch(
+                params["strategy_type"], params
+            )
+        )
