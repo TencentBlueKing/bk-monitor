@@ -103,7 +103,7 @@ export default class FilterByCondition extends tsc<IProps> {
   /* 是否选中了自定义选项 */
   customOptionChecked = false;
 
-  cursorIndex = 0;
+  cursorIndex = -1;
   cursorLeftIndex = -1;
 
   handleValueOptionsScrollThrottle = _v => {};
@@ -347,7 +347,7 @@ export default class FilterByCondition extends tsc<IProps> {
   handleSelectGroup(id: string, search = false) {
     if (this.groupSelected !== id || search) {
       this.groupSelected = id;
-      this.cursorIndex = 0;
+      this.cursorIndex = -1;
       if (this.valueCategorySelected) {
         this.cursorLeftIndex = -1;
       } else {
@@ -381,6 +381,9 @@ export default class FilterByCondition extends tsc<IProps> {
         this.valueCategoryOptions = [];
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
+      }
+      if (this.hasCustomOption) {
+        this.cursorIndex = -2;
       }
       this.valueOptionsSticky();
     }
@@ -879,12 +882,12 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   addCursorEvent() {
-    this.cursorIndex = 0;
+    this.cursorIndex = -1;
     this.valueItemFocus();
     document.addEventListener('keydown', this.handleCursorEvent);
   }
   removeCursorEvent() {
-    this.cursorIndex = 0;
+    this.cursorIndex = -1;
     document.removeEventListener('keydown', this.handleCursorEvent);
   }
   handleCursorEvent(event: KeyboardEvent) {
