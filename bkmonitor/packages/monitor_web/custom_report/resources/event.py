@@ -392,15 +392,16 @@ class CreateCustomEventGroup(Resource):
         # 2. 创建或查询数据记录
         group, _ = CustomEventGroup.objects.get_or_create(bk_data_id=bk_data_id, bk_event_group_id=-bk_data_id)
         # 3. 调用接口创建 event_group
-        params = {
-            "operator": operator,
-            "bk_data_id": bk_data_id,
-            "bk_biz_id": input_bk_biz_id,
-            "event_group_name": params["name"],
-            "label": params["scenario"],
-            "event_info_list": [],
-        }
-        group_info = api.metadata.create_event_group(params)
+        group_info = api.metadata.create_event_group(
+            {
+                "operator": operator,
+                "bk_data_id": bk_data_id,
+                "bk_biz_id": input_bk_biz_id,
+                "event_group_name": params["name"],
+                "label": params["scenario"],
+                "event_info_list": [],
+            }
+        )
 
         # 4. 结果回写数据库
         with transaction.atomic():
