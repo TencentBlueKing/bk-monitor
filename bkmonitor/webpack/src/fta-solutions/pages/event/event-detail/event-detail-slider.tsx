@@ -216,6 +216,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           {this.tplTitle()}
         </div>
         <div
+          style={{ height: '100%' }}
           slot='content'
           v-bkloading={{ isLoading: this.loading }}
         >

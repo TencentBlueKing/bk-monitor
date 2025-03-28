@@ -13,6 +13,10 @@
     }
   }
 
+  .bk-sideslider-content {
+    height: calc(-52px + 100vh) !important;
+  }
+
   .sideslider-title {
     .title-wrap {
       display: flex;

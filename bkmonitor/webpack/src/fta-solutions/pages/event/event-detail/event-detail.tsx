@@ -144,7 +144,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bizIds: [],
     },
   };
-  scrollEl = null;
   isScrollEnd = false; // 是否滑动到底部
   logRetrieval = {
     show: false,
@@ -182,7 +181,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   beforeDestroy() {
     destroyTimezone();
-    this.scrollEl?.removeEventListener('scroll', this.throttledScroll);
+    this.getScrollElement()?.removeEventListener('scroll', this.throttledScroll);
   }
 
   @Emit('closeSlider')
@@ -564,12 +563,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       />,
     ];
   }
-
+  getScrollElement() {
+    return this.isShowAiopsView ? this.$el.querySelector('.event-detail-aiops') : this.$el;
+  }
   scrollInit() {
     this.throttledScroll = throttle(300, this.handleScroll);
     this.$nextTick(() => {
-      this.scrollEl = this.$el;
-      this.scrollEl?.addEventListener('scroll', this.throttledScroll);
+      this.getScrollElement()?.addEventListener('scroll', this.throttledScroll);
     });
   }
 
@@ -644,6 +644,10 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   render() {
     return (
       <div
+        style={{
+          overflowY: !this.isShowAiopsView ? 'auto' : 'initial',
+          height: !this.isShowAiopsView ? '100%' : 'initial',
+        }}
         class='event-detail-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
