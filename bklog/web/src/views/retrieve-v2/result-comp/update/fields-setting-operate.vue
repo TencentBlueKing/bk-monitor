@@ -205,6 +205,8 @@
 
     /* stylelint-disable-next-line no-descending-specificity */
     .panel-operate {
+      flex-shrink: 0;
+
       :deep(.field-setting-more) {
         /* stylelint-disable-next-line no-descending-specificity */
         &.field-setting-more {
@@ -232,7 +234,6 @@
     }
 
     .panel-name {
-      flex-shrink: 0;
       flex-basis: auto;
       min-width: 0;
       padding-left: 8px;

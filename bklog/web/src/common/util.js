@@ -1262,3 +1262,29 @@ export const isNestedField = (fieldKeys, obj) => {
 
   return false;
 };
+
+/**
+ * 下载文件
+ * @param url 资源地址
+ * @param name 资源名称
+ */
+export const downFile = (url, name = '') => {
+  const element = document.createElement('a');
+  element.setAttribute('class', 'bklog-v3-popover-tag');
+  element.setAttribute('href', url.replace(/^https?:/gim, location.protocol));
+  element.setAttribute('download', name);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+};
+
+/**
+ * 根据json字符串下载json文件
+ * @param jsonStr json字符串
+ */
+export const downJsonFile = (jsonStr, name = 'json-file.json') => {
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const href = window.URL.createObjectURL(blob);
+  downFile(href, name);
+};
