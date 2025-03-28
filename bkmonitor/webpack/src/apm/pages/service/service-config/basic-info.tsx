@@ -197,6 +197,8 @@ export default class BasicInfo extends tsc<object> {
   eventRelation = {
     relationK8s: [],
     isAutoRelation: true,
+    cacheRelationK8s: [],
+    cacheIsAutoRelation: true,
   };
 
   get bizSelectList() {
@@ -367,6 +369,8 @@ export default class BasicInfo extends tsc<object> {
           return `${bcs_cluster_id}/${namespace}/${kind}/${name}`.replace(/\/{2,4}/g, '/').replace(/\/$/, '');
         }
       );
+      this.eventRelation.cacheIsAutoRelation = this.eventRelation.isAutoRelation;
+      this.eventRelation.cacheRelationK8s = JSON.parse(JSON.stringify(this.eventRelation.relationK8s));
     }
   }
   /**
@@ -412,6 +416,8 @@ export default class BasicInfo extends tsc<object> {
       // 如果URI为空 则删除该列展示
       this.uriList = this.uriList.filter(val => val.trim?.().length);
     }
+    this.eventRelation.relationK8s = JSON.parse(JSON.stringify(this.eventRelation.cacheRelationK8s));
+    this.eventRelation.isAutoRelation = this.eventRelation.cacheIsAutoRelation;
   }
   /**
    * @desc 切换关联日志应用
