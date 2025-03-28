@@ -55,6 +55,7 @@ from bkmonitor.utils.common_utils import (
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.elasticsearch.curator import IndexList
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import config
@@ -1562,6 +1563,7 @@ class RedisStorage(models.Model, StorageResultTable):
 
     # 对应ResultTable的table_id
     table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     # 默认命令是PUBLISH
     command = models.CharField("写入消息的命令", max_length=32, default="PUBLISH")
     key = models.CharField("存储键值", max_length=256)
@@ -1677,7 +1679,9 @@ class KafkaStorage(models.Model, StorageResultTable):
     UPGRADE_FIELD_CONFIG = ("partition", "retention")
 
     # 对应ResultTable的table_id
-    table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+    table_id = models.CharField("结果表名", max_length=128)
     topic = models.CharField("topic", max_length=256)
     partition = models.IntegerField("topic分区数量", default=1)
     # 对应StorageCluster记录ID
@@ -1692,11 +1696,13 @@ class KafkaStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "Kafka存储配置"
         verbose_name_plural = "Kafka存储配置"
+        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def create_table(
         cls,
         table_id,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         is_sync_db=False,
         storage_cluster_id=None,
         topic=None,
@@ -1708,6 +1714,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         """
         实际创建结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param is_sync_db: 是否需要同步到存储
         :param storage_cluster_id: 存储集群配置ID
         :param topic: topic
@@ -1738,8 +1745,12 @@ class KafkaStorage(models.Model, StorageResultTable):
                 raise ValueError(_("存储集群配置有误，请确认或联系管理员处理"))
 
         # 1. 校验table_id， key是否存在冲突
-        if cls.objects.filter(table_id=table_id).exists():
-            logger.error("result_table->[%s] already has redis storage config, nothing will add." % table_id)
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
+            logger.error(
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
+                "nothing will add." % table_id,
+                bk_tenant_id,
+            )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
 
         # 如果未有指定key，则改为table_id
@@ -1750,6 +1761,7 @@ class KafkaStorage(models.Model, StorageResultTable):
 
         new_record = cls.objects.create(
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             storage_cluster_id=storage_cluster_id,
             topic=topic,
             partition=partition,
@@ -1760,7 +1772,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] now has create kafka storage config" % table_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
         return new_record
 
     @property
@@ -1855,6 +1867,8 @@ class ESStorage(models.Model, StorageResultTable):
     # 新增标记位，用于标识是否需要创建索引
     need_create_index = models.BooleanField("是否需要创建索引", default=True)
     archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
+
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -4878,6 +4892,7 @@ class StorageClusterRecord(models.Model):
     """
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -4896,7 +4911,7 @@ class StorageClusterRecord(models.Model):
         unique_together = ('table_id', 'cluster_id', 'enable_time')  # 联合索引，保证唯一性
 
     @classmethod
-    def compose_table_id_storage_cluster_records(cls, table_id):
+    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         组装指定结果表的历史存储集群记录
         [

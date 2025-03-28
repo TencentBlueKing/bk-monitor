@@ -161,6 +161,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                        s.time_zone,
                        s.language,
                        s.is_bcs_valid,
+                       s.bk_tenant_id,
                        CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
                        t.type_name
                 FROM

@@ -47,6 +47,8 @@ class AccessVMRecord(models.Model):
     vm_result_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     remark = models.CharField("接入备注", max_length=256, null=True, blank=True, help_text="接入备注")
 
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+
     class Meta:
         verbose_name = "接入VM记录表"
         verbose_name_plural = "接入VM记录表"

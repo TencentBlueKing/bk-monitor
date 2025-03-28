@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 
 from api.cmdb.define import Host
+from bkmonitor.utils.request import get_request
 from core.drf_resource import api, resource
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
@@ -91,6 +92,8 @@ class HostSearchHandler(BaseSearchHandler):
         return enabled_token
 
     def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+        request = get_request()
+
         params = {
             # 使用CMDB搜索时，需要将 . 替换为 \. 否则会被识别为通配符
             "ip": query.replace(".", "\\.").replace("*", ".*"),
@@ -100,7 +103,7 @@ class HostSearchHandler(BaseSearchHandler):
         if self.scope == SearchScope.BIZ:
             params["bk_biz_id"] = self.bk_biz_id
 
-        hosts: Host = api.cmdb.get_host_without_biz(params)["hosts"]
+        hosts: Host = api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, **params)["hosts"]
 
         search_results = []
 

@@ -52,6 +52,8 @@ class RecordRule(BaseModelWithTime):
     status = models.CharField("状态", max_length=32, default="created")
     count_freq = models.IntegerField("计算频率(秒)", default=60)
 
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+
     class Meta:
         verbose_name = "预计算规则"
         verbose_name_plural = "预计算规则"

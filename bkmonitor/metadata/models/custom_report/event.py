@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import logging
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from django.conf import settings
 from django.db import models
@@ -19,6 +19,7 @@ from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
@@ -30,13 +31,14 @@ logger = logging.getLogger("metadata")
 
 
 class EventGroup(CustomGroupBase):
-
     """事件分组记录"""
 
     EVENT_GROUP_STATUS_CHOICES = (
         (EventGroupStatus.NORMAL, "正常"),
         (EventGroupStatus.SLEEP, "休眠"),
     )
+
+    # event_group_id 类似于uuid,因此过滤时无需添加租户属性
 
     event_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     event_group_name = models.CharField(verbose_name="事件分组名", max_length=255)
@@ -49,7 +51,8 @@ class EventGroup(CustomGroupBase):
 
     # 事件支持 UnifyQuery 检索所需的配置项
     DEFAULT_RESULT_TABLE_OPTIONS = {
-        "need_add_time": True, "time_field": {"name": "time", "type": "date", "unit": "millisecond"}
+        "need_add_time": True,
+        "time_field": {"name": "time", "type": "date", "unit": "millisecond"},
     }
 
     # 时间字段的配置
@@ -124,14 +127,27 @@ class EventGroup(CustomGroupBase):
     DEFAULT_STORAGE_CONFIG = STORAGE_ES_CONFIG
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None):
-        bk_biz_id_str = str(bk_biz_id)
-        if bk_biz_id_str > "0":
-            return "{}_bkmonitor_event_{}".format(bk_biz_id, bk_data_id)
-        elif bk_biz_id_str < "0":
-            return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        """
+        生成结果表table_id
+        涉及破坏性改造,通过是否开启多租户开关控制
+        """
 
-        return "bkmonitor_event_{}".format(bk_data_id)
+        bk_biz_id_str = str(bk_biz_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return "{}_{}_bkmonitor_event_{}".format(bk_tenant_id, bk_biz_id, bk_data_id)
+            elif bk_biz_id_str < "0":
+                return f"{bk_tenant_id}_bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return "{}_bkmonitor_event_{}".format(bk_tenant_id, bk_data_id)
+        else:
+            logger.info("make_table_id: disable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return "{}_bkmonitor_event_{}".format(bk_biz_id, bk_data_id)
+            elif bk_biz_id_str < "0":
+                return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return "bkmonitor_event_{}".format(bk_data_id)
 
     @classmethod
     def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
@@ -149,6 +165,7 @@ class EventGroup(CustomGroupBase):
         """
 
         # 更新result_table的option
+        # event_group_id 类似于uuid,因此过滤时无需添加租户属性
         event_list = Event.objects.filter(event_group_id=self.event_group_id).values("event_name", "dimension_list")
         return {event["event_name"]: event["dimension_list"] for event in event_list}
 
@@ -167,7 +184,7 @@ class EventGroup(CustomGroupBase):
         """
         if not client:
             # 获取ES客户端
-            client = ESStorage.objects.get(table_id=self.table_id).get_client()
+            client = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).get_client()
 
         # 获取当前index下，所有的event_name集合
         # result格式为：
@@ -281,6 +298,7 @@ class EventGroup(CustomGroupBase):
         event_info_list=None,
         table_id=None,
         data_label: Optional[str] = None,
+        bk_tenant_id: Optional[str] = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -292,6 +310,7 @@ class EventGroup(CustomGroupBase):
         :param event_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param data_label: 数据标签
+        :param bk_tenant_id: 租户ID
         :return: group object
         """
         group = super().create_custom_group(
@@ -303,6 +322,7 @@ class EventGroup(CustomGroupBase):
             metric_info_list=event_info_list,
             table_id=table_id,
             data_label=data_label,
+            bk_tenant_id=bk_tenant_id,
             additional_options=copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS),
         )
 
@@ -311,12 +331,17 @@ class EventGroup(CustomGroupBase):
         option_value.append("time")
 
         ResultTableOption.create_option(
-            table_id=group.table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID, value=option_value, creator="system"
+            table_id=group.table_id,
+            name=ResultTableOption.OPTION_ES_DOCUMENT_ID,
+            value=option_value,
+            creator="system",
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
 
+        # 除1000外不存在跨租户事件,因此无需携带租户属性过滤
         DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         return group
@@ -383,6 +408,7 @@ class Event(models.Model):
     def modify_event_list(cls, event_group_id, event_info_list):
         """
         批量的修改/创建某个事件分组下的事件
+        event_group_id 类似于uuid,因此过滤时无需添加租户属性
         :param event_group_id: 事件分组ID
         :param event_info_list: 具体事件内容信息，[{
             "event_name": "core_file",

@@ -173,14 +173,18 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
         if host is None and using_api:
             # 打印日志以便查看穿透请求情况
             cls.logger.info("[HostManager] get host(%s) by api start", host_key)
-            try:
-                host_page = api.cmdb.get_host_without_biz_v2(ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1)
-                host = Host(host_page["hosts"][0])
-                cls.fill_attr_to_hosts(host.bk_biz_id, [host])
-            except IndexError:
-                cls.logger.info("[HostManager] get host(%s) by api failed: empty data", host_key)
-            except Exception as e:  # noqa
-                cls.logger.info("[HostManager] get host(%s) by api failed: err -> %s", host_key, str(e))
+            for tenant in api.bk_login.get_tenant():
+                try:
+                    host_page = api.cmdb.get_host_without_biz_v2(
+                        ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1, bk_tenant_id=tenant["id"]
+                    )
+                    host = Host(host_page["hosts"][0])
+                    cls.fill_attr_to_hosts(host.bk_biz_id, [host])
+                except IndexError:
+                    cls.logger.info("[HostManager] get host(%s) by api failed: empty data", host_key)
+                except Exception as e:  # noqa
+                    cls.logger.info("[HostManager] get host(%s) by api failed: err -> %s", host_key, str(e))
+                break
 
         if using_mem and host:
             local.host_cache[host_key] = host
