@@ -144,7 +144,7 @@ export default defineComponent({
     // 高度
     const height = ref<number>(100);
     const minBase = ref<number>(0);
-    const inited = ref<boolean>(false);
+    const initialized = ref<boolean>(false);
     const empty = ref<boolean>(true);
     const emptyText = ref<string>('');
     const errorMsg = ref<string>('');
@@ -265,7 +265,7 @@ export default defineComponent({
      */
     function handleTransformSeries(series: ITimeSeriesItem[]) {
       const legendDatas: ILegendItem[] = [];
-      const tranformSeries = series.map((item, index) => {
+      const transformSeries = series.map((item, index) => {
         const colorList = props.panel?.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
         const color = item.color || colorList[index % colorList.length];
         let showSymbol = false;
@@ -356,7 +356,7 @@ export default defineComponent({
         };
       });
       legendData.value = legendDatas;
-      return tranformSeries;
+      return transformSeries;
     }
     // 设置x轴label formatter方法
     function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
@@ -397,11 +397,11 @@ export default defineComponent({
     /**
      * @description: 设置精确度
      * @param {number} data
-     * @param {ValueFormatter} formattter
+     * @param {ValueFormatter} formatter
      * @param {string} unit
      * @return {*}
      */
-    function handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+    function handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
       if (!data || data.length === 0) {
         return 0;
       }
@@ -423,7 +423,7 @@ export default defineComponent({
       sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
       while (precision < 5) {
         const samp = sampling.reduce((pre, cur) => {
-          (pre as any)[formattter(cur, precision).text] = 1;
+          (pre as any)[formatter(cur, precision).text] = 1;
           return pre;
         }, {});
         if (Object.keys(samp).length >= sampling.length) {
@@ -438,7 +438,7 @@ export default defineComponent({
      * @param {number} num
      * @return {*}
      */
-    function handleYxisLabelFormatter(num: number): string {
+    function handleYAxisLabelFormatter(num: number): string {
       const si = [
         { value: 1, symbol: '' },
         { value: 1e3, symbol: 'K' },
@@ -487,7 +487,7 @@ export default defineComponent({
       }
     }
 
-    function handleSetThreholds() {
+    function handleSetThresholds() {
       const { markLine } = props.panel?.options?.time_series || {};
       const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
       const max = Math.max(...thresholdList);
@@ -503,18 +503,18 @@ export default defineComponent({
       cancelTokens = [];
       if (!isInViewPort()) {
         if (intersectionObserver) {
-          unregisterOberver();
+          unregisterObserver();
         }
         registerObserver(start_time, end_time);
         return;
       }
-      if (inited.value) emit('loading', true);
+      if (initialized.value) emit('loading', true);
       if (!props.needChartLoading) {
         emptyText.value = t('加载中...');
       }
       isChartLoading.value = true;
       try {
-        unregisterOberver();
+        unregisterObserver();
         const series: any[] = [];
         const metricList: any[] = [];
         const [startTime, endTime] = handleTransformToTimestamp(timeRange!.value);
@@ -538,7 +538,7 @@ export default defineComponent({
           const list =
             props.panel?.targets?.map?.(item => {
               const stack = item?.data?.stack || '';
-              const newPrarams = {
+              const newParams = {
                 ...params,
                 ...variablesService.transformVariables(item.data, {
                   ...viewOptions?.value.filters,
@@ -557,7 +557,7 @@ export default defineComponent({
 
               if (!item.apiModule) return;
               return currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
-                [item.apiFunc](newPrarams, {
+                [item.apiFunc](newParams, {
                   cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
                   needMessage: false,
                 })
@@ -655,7 +655,7 @@ export default defineComponent({
             });
           }
           const formatterFunc = handleSetFormatterFunc(seriesList?.[0]?.data || []);
-          const { maxThreshold } = handleSetThreholds();
+          const { maxThreshold } = handleSetThresholds();
 
           const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -679,7 +679,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return handleYxisLabelFormatter(v - minBase.value);
+                      return handleYAxisLabelFormatter(v - minBase.value);
                     },
                     /* formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                       ? (v: any) => {
@@ -689,7 +689,7 @@ export default defineComponent({
                           }
                           return v;
                         }
-                      : (v: number) => handleYxisLabelFormatter(v - minBase.value), */
+                      : (v: number) => handleYAxisLabelFormatter(v - minBase.value), */
                   },
                   splitNumber: height.value < 120 ? 2 : 4,
                   minInterval: 1,
@@ -706,7 +706,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return handleYxisLabelFormatter(v - minBase.value);
+                      return handleYAxisLabelFormatter(v - minBase.value);
                     },
                   },
                   splitNumber: height.value < 120 ? 2 : 4,
@@ -734,7 +734,7 @@ export default defineComponent({
           );
           metrics.value = metricList || [];
           // this.handleDrillDownOption(this.metrics);
-          inited.value = true;
+          initialized.value = true;
           empty.value = false;
           if (!hasSetEvent.value) {
             setTimeout(useLegendRet.handleSetLegendEvent, 500);
@@ -774,7 +774,7 @@ export default defineComponent({
       height
     );
     // 监听是否在可视窗口内
-    const { isInViewPort, registerObserver, unregisterOberver, intersectionObserver } = useChartIntersection(
+    const { isInViewPort, registerObserver, unregisterObserver, intersectionObserver } = useChartIntersection(
       timeSeriesRef! as Ref<HTMLDivElement>,
       getPanelData
     );
@@ -884,9 +884,9 @@ export default defineComponent({
       handleResize,
       isInViewPort,
       registerObserver,
-      unregisterOberver,
+      unregisterObserver,
       minBase,
-      inited,
+      initialized,
       empty,
       emptyText,
       errorMsg,
@@ -904,7 +904,7 @@ export default defineComponent({
       handleTimeOffset,
       handleSeriesName,
       handleTransformSeries,
-      handleYxisLabelFormatter,
+      handleYAxisLabelFormatter,
       handleSetFormatterFunc,
       handleGetMinPrecision,
       dataZoom,
@@ -935,7 +935,7 @@ export default defineComponent({
             {this.showChartHeader && this.panel && (
               <ChartTitle
                 class='draggable-handle'
-                draging={this.panel.draging}
+                dragging={this.panel.dragging}
                 drillDownOption={this.drillDownOptions}
                 isInstant={this.panel.instant}
                 menuList={this.menuList}
@@ -958,7 +958,7 @@ export default defineComponent({
                   ref='chartWrapperRef'
                   class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
                 >
-                  {this.inited && (
+                  {this.initialized && (
                     <BaseEchart
                       ref='baseChartRef'
                       width={this.width}

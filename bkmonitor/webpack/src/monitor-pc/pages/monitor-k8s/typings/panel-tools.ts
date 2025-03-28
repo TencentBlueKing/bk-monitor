@@ -222,7 +222,7 @@ export declare namespace PanelHeaderType {
   type TimeRangeValue = number | string[];
   interface IProps {
     timeRange: TimeRangeValue;
-    refleshInterval: number;
+    refreshInterval: number;
     timezone: string;
     timeRangeList?: OptionsItem[];
     refleshList?: OptionsItem[];

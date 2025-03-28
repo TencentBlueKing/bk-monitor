@@ -52,7 +52,7 @@ class CallerPieChart extends CommonSimpleChart {
   height = 560;
   width = 960;
   needResetChart = true;
-  inited = false;
+  initialized = false;
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
@@ -123,10 +123,10 @@ class CallerPieChart extends CommonSimpleChart {
     }
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.dimensionParam,
@@ -178,7 +178,7 @@ class CallerPieChart extends CommonSimpleChart {
       });
       const res = await Promise.all(promiseList);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
       } else {
         this.emptyText = window.i18n.tc('查无数据');

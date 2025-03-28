@@ -53,8 +53,8 @@ export default class PerformanceWrapper extends tsc<object> {
   splitPanelWidth = 0;
   defaultPanelWidth = 0;
 
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
 
   get alarmToolsPanel() {
     const data = {
@@ -93,7 +93,7 @@ export default class PerformanceWrapper extends tsc<object> {
   }
   // 立刻刷新
   handleImmediateReflesh() {
-    this.refleshImmediate = random(10);
+    this.refreshImmediate = random(10);
   }
   handleTabChange(v: ITabItem) {
     this.activeTab = v.id.toString();
@@ -129,12 +129,12 @@ export default class PerformanceWrapper extends tsc<object> {
           <DashboardTools
             slot='tools'
             isSplitPanel={this.isSplitPanel}
-            refleshInterval={this.refleshInterval}
+            refreshInterval={this.refreshInterval}
             showDownSampleRange={false}
             showListMenu={false}
             showTimeRange={false}
             onImmediateReflesh={this.handleImmediateReflesh}
-            onRefleshChange={v => (this.refleshInterval = v)}
+            onRefleshChange={v => (this.refreshInterval = v)}
             onSplitPanelChange={this.handleSplitPanel}
           />
         </PageTitle>

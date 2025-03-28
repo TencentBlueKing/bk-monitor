@@ -116,7 +116,8 @@
           :true-value="true"
           :false-value="false"
           v-model="isPrecisionFilter"
-        >{{ $t('精准过滤') }}</bk-checkbox>
+          >{{ $t('精准过滤') }}</bk-checkbox
+        >
       </div>
       <!-- 图表组件 -->
       <dashboard-panels
@@ -140,7 +141,7 @@
         :screenshot="['screenshot']"
         :more-checked="['explore', 'strategy']"
         need-tools
-        @intervalChange="(interval) => chartInterval = interval"
+        @intervalChange="interval => (chartInterval = interval)"
         @addStrategy="handleAddStrategyOfEvent"
         @exportDataRetrieval="handleExportToRetrievalOfEvent"
       >
@@ -284,7 +285,7 @@ export default class ViewWrapper extends Vue {
     compare: { type: 'none', value: '' },
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1,
+      refreshInterval: -1,
       searchValue: [],
     },
   };
@@ -297,7 +298,7 @@ export default class ViewWrapper extends Vue {
     },
   };
 
-  private showChartSort: boolean = false;
+  private showChartSort = false;
 
   private timerangeList: IOption[] = [];
   private refleshList: IOption[] = [
@@ -399,7 +400,7 @@ export default class ViewWrapper extends Vue {
         compare: { type: 'none', value: '' },
         tools: {
           timeRange: 1 * 60 * 60 * 1000,
-          refleshInterval: -1,
+          refreshInterval: -1,
           searchValue: [],
         },
       };

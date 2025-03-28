@@ -67,7 +67,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
         value: true,
       },
       tools: {
-        refleshInterval: -1,
+        refreshInterval: -1,
         timeRange: 3600000,
       },
     }),
@@ -525,7 +525,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           {/* <PanelHeader
             // timeRangeList={this.timeRangeListFormatter}
             timeRange={this.compareValue.tools?.timeRange}
-            refleshInterval={this.compareValue.tools.refleshInterval}
+            refreshInterval={this.compareValue.tools.refreshInterval}
             favoritesList={this.favoritesList}
             favCheckedValue={this.favCheckedValue}
             showDownSample={false}
@@ -544,7 +544,10 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           </PanelHeader> */}
         </div>
         <div
-          class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event', 'is-full-screen': !this.needMenu }]}
+          class={[
+            'charts-view-wrapper',
+            { 'is-event': this.retrievalType === 'event', 'is-full-screen': !this.needMenu },
+          ]}
           v-bkloading={{ isLoading: this.loading }}
         >
           {this.hasTips ? (

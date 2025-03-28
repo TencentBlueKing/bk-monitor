@@ -538,11 +538,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -1199,7 +1199,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   // 立刻刷新
   handleImmediateReflesh() {
-    this.refleshImmediate = random(10);
+    this.refreshImmediate = random(10);
   }
   // 图表布局方式变更
   handleChartChange(layoutId: number) {
@@ -1433,7 +1433,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       from: this.timeRange[0],
       to: this.timeRange[1],
       timezone: this.timezone,
-      refleshInterval: this.refleshInterval.toString(),
+      refreshInterval: this.refreshInterval.toString(),
       // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
       queryData: queryDataStr,
       key: random(10),
@@ -1510,7 +1510,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.$nextTick(() => this.collapseRef?.handleContentResize());
   }
   handleRefleshChange(v: number) {
-    this.refleshInterval = v;
+    this.refreshInterval = v;
     this.handleResetRouteQuery();
   }
   handleTimeRangeChange(v: TimeRangeType) {
@@ -1854,7 +1854,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
                 menuList={this.$slots.buttonGroups ? [] : this.sceneData.dashboardToolMenuList}
-                refleshInterval={this.refleshInterval}
+                refreshInterval={this.refreshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}
                 showSplitPanel={this.isShowSplitPanel}

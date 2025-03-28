@@ -46,7 +46,7 @@ import './panel-header.scss';
 @Component
 export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeaderType.IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
-  @Prop({ default: -1, type: Number }) refleshInterval: number;
+  @Prop({ default: -1, type: Number }) refreshInterval: number;
   @Prop({ type: String }) timezone: string;
   /** 工具栏时间间隔列表 */
   @Prop({ default: () => TIME_RANGE_DEFAULT_LIST }) readonly timeRangeList: OptionsItem[];
@@ -81,9 +81,9 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
   timeRangeChange() {
     this.localTimeRange = this.timeRange;
   }
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   refleshIntervalChange() {
-    this.localRefleshInterval = this.refleshInterval;
+    this.localRefleshInterval = this.refreshInterval;
   }
   @Watch('downSampleRange', { immediate: true })
   onDownSampleRangeChange() {

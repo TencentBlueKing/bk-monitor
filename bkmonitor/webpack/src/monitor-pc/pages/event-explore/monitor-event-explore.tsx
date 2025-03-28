@@ -55,9 +55,9 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refreshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refreshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   /** 图表框选范围事件所需参数 -- 开启框选功能 */
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
@@ -188,7 +188,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.group_by = group_by;
       this.filter_dict = filter_dict;
       this.timeRange = compareValue.tools.timeRange;
-      this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
+      this.refreshInterval = compareValue.tools.refreshInterval || compareValue.tools.refreshInterval;
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
       this.commonWhere = commonWhere || [];

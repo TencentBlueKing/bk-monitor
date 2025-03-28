@@ -2055,7 +2055,7 @@ export default defineComponent({
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
           search_type: 'scope',
           search_id: 'traceID',
-          refleshInterval: '-1',
+          refreshInterval: '-1',
           query: rca_trace_info.abnormal_traces_query.query,
           listType: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),

@@ -113,11 +113,11 @@ interface IStrateViewProps {
 export default class StrategyView extends tsc<IStrateViewProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -171,9 +171,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
-  private tools: { timeRange: TimeRangeType; refleshInterval: number } = {
+  private tools: { timeRange: TimeRangeType; refreshInterval: number } = {
     timeRange: ['now-3h', 'now'],
-    refleshInterval: 5 * 60 * 1000,
+    refreshInterval: 5 * 60 * 1000,
   };
   // 原始时间范围，用于图表双击还原
   private lastTimeRange: TimeRangeType = ['now-1h', 'now'];
@@ -424,7 +424,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   }
   // 刷新策略视图
   handleRefreshView() {
-    this.refleshImmediate = random(10);
+    this.refreshImmediate = random(10);
     // this.metricViewChartKey = random(10);
   }
   // 触发图表查询

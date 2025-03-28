@@ -327,9 +327,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly panelTimeRange!: number;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly panleRefleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly panleRefleshInterval!: number;
   // 立即刷新图表
-  @InjectReactive('refleshImmediate') readonly panelRefleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly panelRefleshImmediate: string;
 
   @Ref('filterInput') filterInputRef: FilterInput;
   commonFilterData: ICommonTreeItem[] = INIT_COMMON_FILTER_DATA;
@@ -338,7 +338,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
   timezone: string = getDefaultTimezone();
-  refleshInterval = 5 * 60 * 1000;
+  refreshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
   bizIds = [this.$store.getters.bizId];
@@ -525,7 +525,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.routeStateKeyList = [];
       Object.keys(v).forEach(key => (this[key] = v[key]));
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
-      this.handleRefleshChange(this.refleshInterval);
+      this.handleRefleshChange(this.refreshInterval);
     }
   }
   async created() {
@@ -601,7 +601,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         }
       }
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
-      vm.handleRefleshChange(vm.refleshInterval);
+      vm.handleRefleshChange(vm.refreshInterval);
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
       if (
         [EBatchAction.alarmConfirm, EBatchAction.quickShield].includes(params.batchAction) &&
@@ -778,7 +778,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.chartKey = random(10);
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
       this.isRouteBack = false;
-      this.handleRefleshChange(this.refleshInterval);
+      this.handleRefleshChange(this.refreshInterval);
     }
   }
   /**
@@ -1502,7 +1502,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       from: 'now-30d',
       to: 'now',
       timezone: getDefaultTimezone(),
-      refleshInterval: 300000,
+      refreshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',
       condition: {},
@@ -1668,13 +1668,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   handleRefleshChange(v: number) {
     window.clearInterval(this.refleshInstance);
-    this.refleshInterval = v;
+    this.refreshInterval = v;
     if (v <= 0) return;
     this.refleshInstance = setInterval(() => {
       this.chartKey = random(10);
       this.handleGetFilterData();
       this.handleGetTableData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   /**
    * @description: 点击立刻刷新图标触发
@@ -1685,7 +1685,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.refleshInterval > 0 && this.handleRefleshChange(this.refleshInterval);
+    this.refreshInterval > 0 && this.handleRefleshChange(this.refreshInterval);
   }
   /**
    * @description: 数据间隔改变时触发
@@ -1710,7 +1710,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.handleRefleshChange(this.refleshInterval);
+    this.handleRefleshChange(this.refreshInterval);
   }
   handleBizIdsChange(v: number[]) {
     this.bizIds = v;
@@ -2542,7 +2542,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             <DashboardTools
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
-              refleshInterval={this.refleshInterval}
+              refreshInterval={this.refreshInterval}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}

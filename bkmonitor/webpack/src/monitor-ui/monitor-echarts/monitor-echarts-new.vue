@@ -320,7 +320,7 @@ export default class MonitorEcharts extends Vue {
   // 是使用组件内的无数据设置
   @Prop({ default: true }) readonly setNoData: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: 0 }) readonly refreshInterval: number;
   @Prop({ default: '' }) readonly subtitle: string;
   // 图表类型
   @Prop({ default: 'line' }) readonly chartType: ChartType;
@@ -399,7 +399,7 @@ export default class MonitorEcharts extends Vue {
   chartSubTitle = '';
   chartOptionInstance = null;
   hasInitChart = false;
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   legend: { show: boolean; list: ILegendItem[] } = {
     show: false,
     list: [],
@@ -583,16 +583,16 @@ export default class MonitorEcharts extends Vue {
   onLocalChartHeightChange() {
     this?.chart?.resize?.();
   }
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   onRefleshIntervalChange(v) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0 || !this.getSeriesData) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       // 上次接口未返回时不执行请求
       !this.loading && this.chart && this.handleSeriesData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -618,13 +618,13 @@ export default class MonitorEcharts extends Vue {
   }
 
   activated() {
-    this.onRefleshIntervalChange(this.refleshInterval);
+    this.onRefleshIntervalChange(this.refreshInterval);
     if (this.autoresize) {
       this.chart?.resize?.();
     }
   }
   deactivated() {
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   beforeDestroy() {
     this.timeRange = [];
@@ -635,7 +635,7 @@ export default class MonitorEcharts extends Vue {
       this.intersectionObserver.disconnect();
     }
     this.annotation.show = false;
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();

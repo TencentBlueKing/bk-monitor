@@ -60,7 +60,7 @@ interface IHeadToolProps {
   // 时区
   timezone?: string;
   // 自动刷新数据间隔
-  refleshInterval?: number;
+  refreshInterval?: number;
   // 是否显示分屏功能
   isSplitPanel: boolean;
   // 是否展示列表功能
@@ -107,7 +107,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   // 时区
   @Prop({ type: String }) timezone: string;
   // 自动刷新数据间隔
-  @Prop({ default: -1 }) readonly refleshInterval: number;
+  @Prop({ default: -1 }) readonly refreshInterval: number;
   // 是否显示分屏功能
   @Prop({ default: false }) readonly isSplitPanel: boolean;
   // 是否展示列表功能
@@ -144,7 +144,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   onTimeRangeChange(v: TimeRangeType) {
     this.curTimeRange = v;
   }
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   onRefleshIntervalChange(v) {
     this.refleshIntervalValue = v;
   }
@@ -438,7 +438,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           icon='icon-zidongshuaxin'
           isRefleshInterval={true}
           list={this.refleshList}
-          text-active={this.refleshInterval !== -1}
+          text-active={this.refreshInterval !== -1}
           on-change={this.handleRefleshChange}
           on-on-icon-click={() => this.$emit('immediateReflesh')}
         />

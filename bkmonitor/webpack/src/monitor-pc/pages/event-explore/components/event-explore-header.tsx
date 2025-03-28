@@ -270,7 +270,7 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
           <DashboardTools
             isSplitPanel={false}
             menuList={[]}
-            refleshInterval={this.refreshInterval}
+            refreshInterval={this.refreshInterval}
             showDownSampleRange={false}
             showFullscreen={false}
             showListMenu={false}

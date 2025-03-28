@@ -69,7 +69,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 时区
   @ProvideReactive('timezone') timezone = window.timezone;
   // 对比的时间
@@ -158,7 +158,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   }
 
   handleRefleshChange(val) {
-    this.refleshInterval = val;
+    this.refreshInterval = val;
   }
   handleImmediateReflesh() {
     this.chartKey = random(8);
@@ -174,7 +174,7 @@ export default class ViewDetailNew extends tsc<IProps> {
       this.timeOffset = compare.value;
     }
     this.timeRange = tools.timeRange || DEFAULT_TIME_RANGE;
-    this.refleshInterval = tools.refleshInterval || -1;
+    this.refreshInterval = tools.refreshInterval || -1;
     this.defaultTimezone = window.timezone;
     this.timezone = tools.timezome || getDefaultTimezone();
     const { targets } = data.config;
@@ -490,8 +490,8 @@ export default class ViewDetailNew extends tsc<IProps> {
                         icon='icon-zidongshuaxin'
                         isRefleshInterval={true}
                         list={this.refleshList}
-                        text-active={this.refleshInterval !== -1}
-                        value={this.refleshInterval}
+                        text-active={this.refreshInterval !== -1}
+                        value={this.refreshInterval}
                         on-change={this.handleRefleshChange}
                         on-on-icon-click={this.handleImmediateReflesh}
                       />

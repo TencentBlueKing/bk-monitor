@@ -566,7 +566,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                     chart-type='bar'
                     get-series-data={this.getSeriesData}
                     hasResize={true}
-                    reflesh-interval={this.compareValue.tools.refleshInterval}
+                    reflesh-interval={this.compareValue.tools.refreshInterval}
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
                     on-no-data-change={this.handleNoData}

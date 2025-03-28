@@ -88,7 +88,7 @@
                 :key="renderKey + '_' + queryConfigKey"
                 :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :height="drag.height - 20"
-                :reflesh-interval="compareValue.tools.refleshInterval"
+                :reflesh-interval="compareValue.tools.refreshInterval"
                 :title="title"
                 :subtitle="subtitle"
                 :options="chartOptions"
@@ -279,7 +279,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       value: '', // 对应对比类型的值
     },
     tools: {
-      refleshInterval: -1, // 刷新间隔 -1是不刷新
+      refreshInterval: -1, // 刷新间隔 -1是不刷新
       timeRange: ['now-1m', 'now'], // 图表横轴时间范围
     },
   };
@@ -424,7 +424,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     //   }
     // }
     this.compareValue.tools.timeRange = tools.timeRange;
-    this.compareValue.tools.refleshInterval = tools.refleshInterval;
+    this.compareValue.tools.refreshInterval = tools.refreshInterval;
   }
 
   //  获取图表时间范围

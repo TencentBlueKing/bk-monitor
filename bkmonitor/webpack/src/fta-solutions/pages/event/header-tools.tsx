@@ -48,7 +48,7 @@ interface IRefleshItem {
 }
 interface IHeadToolProps {
   timeRange: number | string | string[];
-  refleshInterval: number;
+  refreshInterval: number;
 }
 
 interface IHeadToolEvent {
@@ -59,7 +59,7 @@ interface IHeadToolEvent {
 @Component
 export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
   @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string | string[];
-  @Prop({ default: -1 }) refleshInterval: number;
+  @Prop({ default: -1 }) refreshInterval: number;
   timerangeList: ITimeRangeItem[] = [];
   refleshList: IRefleshItem[] = [];
   timeRangeValue: number = 1 * 60 * 60 * 1000;
@@ -69,7 +69,7 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
   onTimeRangeChange(v) {
     this.timeRangeValue = v;
   }
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   onRefleshIntervalChange(v) {
     this.refleshIntervalValue = v;
   }
@@ -202,7 +202,7 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
           icon={'icon-zidongshuaxin'}
           is-reflesh-interval={true}
           list={this.refleshList}
-          text-active={this.refleshInterval !== -1}
+          text-active={this.refreshInterval !== -1}
           on-change={this.handleRefleshChange}
           on-on-icon-click={() => this.$emit('immediateReflesh')}
         />

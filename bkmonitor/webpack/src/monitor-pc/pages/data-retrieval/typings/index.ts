@@ -194,7 +194,7 @@ export declare namespace IDataRetrievalView {
     value?: boolean | string | string[];
   }
   interface ITools {
-    refleshInterval: number;
+    refreshInterval: number;
     timeRange: TimeRangeType;
     timezone: string;
   }

@@ -292,7 +292,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
           <HeaderTool
             slot='tools'
             isSplitPanel={this.isSplitPanel}
-            refleshInterval={-1}
+            refreshInterval={-1}
             showDownSampleRange={false}
             showListMenu={isShowMenuList}
             showTimeRange={false}
