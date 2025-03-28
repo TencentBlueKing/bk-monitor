@@ -23,6 +23,7 @@ from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
     K8S_EVENT_TRANSLATIONS,
     SYSTEM_EVENT_TRANSLATIONS,
+    CicdEventName,
     EventDomain,
     EventSource,
     EventType,
@@ -313,7 +314,12 @@ class EventTagDetailResource(Resource):
             for item in topk:
                 event_tuple_count_map[(domain, source, item["value"])] += item["count"]
 
-        event_name_translations: Dict[str, Dict[str, str]] = {EventDomain.SYSTEM.value: SYSTEM_EVENT_TRANSLATIONS}
+        event_name_translations: Dict[str, Dict[str, str]] = {
+            EventDomain.SYSTEM.value: SYSTEM_EVENT_TRANSLATIONS,
+            EventDomain.CICD.value: {
+                CicdEventName.PIPELINE_STATUS_INFO.value: CicdEventName.PIPELINE_STATUS_INFO.label
+            },
+        }
         for k8s_event_name_translations in K8S_EVENT_TRANSLATIONS.values():
             event_name_translations.setdefault(EventDomain.K8S.value, {}).update(k8s_event_name_translations)
 

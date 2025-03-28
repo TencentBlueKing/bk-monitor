@@ -30,6 +30,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import difference from 'lodash/difference';
+import intersection from 'lodash/intersection';
 import {
   actionDateHistogram,
   actionTopN,
@@ -1423,6 +1424,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           } else {
             const diffBizIds = difference(this.bizIds, greyed_spaces);
             if (diffBizIds?.length) {
+              const intersectionBizIds = intersection(this.bizIds, greyed_spaces);
               const spaces = this.$store.getters.bizList
                 .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
                 .map(({ name, space_id }) => `${name} (#${space_id})`);
@@ -1430,6 +1432,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 text: spaces.join(','),
                 path: '{count} 空间未开启故障分析功能，请联系 {link}',
               };
+              this.noDataType = intersectionBizIds.length === 0 ? 'incidentNotEnabled' : this.noDataType;
               this.noDataString = 'incidentRenderAssistant';
             }
           }

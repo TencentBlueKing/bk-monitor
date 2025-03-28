@@ -451,11 +451,13 @@ export const getCustomEventSeries = async (params: Record<string, any>): Promise
     .then(data => {
       const series = data?.series?.slice(0, 1) || [];
       if (!series.length) return undefined;
-      const scaleList = scaleArrayToRange(series[0].datapoints.map(item => item[0]));
+      const datapoints = series[0].datapoints.filter(item => item[0]);
+      if (!datapoints.length) return undefined;
+      const scaleList = scaleArrayToRange(datapoints.map(item => item[0]));
       return {
         type: 'scatter',
         name: window.i18n.t('事件数'),
-        data: series[0].datapoints.reduce((pre, cur, index) => {
+        data: datapoints.reduce((pre, cur, index) => {
           pre.push([cur[1], cur[0], scaleList[index]]);
           return pre;
         }, []),

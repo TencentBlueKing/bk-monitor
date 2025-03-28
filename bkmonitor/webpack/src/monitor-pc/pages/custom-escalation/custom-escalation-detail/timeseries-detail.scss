@@ -1,0 +1,52 @@
+
+.list-header {
+  padding: 12px 16px 0;
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    font-family: MicrosoftYaHei;
+    font-size: 14px;
+    line-height: 22px;
+    color: #3A84FF;
+
+    .tabs {
+      padding-bottom: 10px;
+
+      .tab {
+        padding-bottom: 11px;
+        margin-right: 32px;
+        color: #4D4F56;
+
+        &:hover {
+          cursor: pointer;
+        }
+
+        &.active {
+          color: #3A84FF;
+          border-bottom: 2px solid #3A84FF;
+        }
+      }
+    }
+
+    .tools {
+      display: flex;
+
+      .tool {
+        display: flex;
+        margin-left: 22px;
+        font-size: 12px;
+
+        .icon-monitor {
+          margin-right: 2px;
+          font-size: 12px;
+        }
+
+        &:hover {
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+

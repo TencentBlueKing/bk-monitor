@@ -83,15 +83,6 @@ def field_formatter(context: Dict[str, Any]):
     context.update(standard_context)
 
 
-def k8s_v2_enabled(bk_biz_id):
-    try:
-        if 0 in settings.K8S_V2_BIZ_LIST:
-            return True
-        return bk_biz_id in settings.K8S_V2_BIZ_LIST
-    except AttributeError:
-        return True
-
-
 def json_formatter(context: Dict[str, Any]):
     # JSON 返回预处理
     context["PLATFORM"] = Platform.to_dict()
@@ -188,6 +179,8 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "ENABLE_AI_ASSISTANT": "true" if settings.AIDEV_API_BASE_URL else "false",
             # APM 日志转发接口 Url
             "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
+            # 是否开启新版自定义时序
+            "ENABLE_CUSTOM_TS_V2_BIZ_LIST": settings.ENABLE_CUSTOM_TS_V2_BIZ_LIST,
         }
     )
 

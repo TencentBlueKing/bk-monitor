@@ -93,6 +93,10 @@ export default class ValueOptions extends tsc<IProps> {
   get renderOptions() {
     return this.localOptions?.filter(item => !this.selected.includes(item.id)) || [];
   }
+  get showCustomOption() {
+    return !!this.search && !this.renderOptions.some(item => item.id === this.search);
+  }
+
   @Watch('show')
   async handleWatchShow() {
     if (this.isPopover) {
@@ -294,7 +298,7 @@ export default class ValueOptions extends tsc<IProps> {
             ]}
             onScroll={this.handleScroll}
           >
-            {!!this.search && (
+            {this.showCustomOption && (
               <div
                 key={'00'}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}

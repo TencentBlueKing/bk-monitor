@@ -31,6 +31,10 @@
 
       .bk-slider-runway {
         background: #5c5c5c !important;
+
+        .bk-slider-button{
+          z-index:998;
+        }
       }
 
       .slider-button {

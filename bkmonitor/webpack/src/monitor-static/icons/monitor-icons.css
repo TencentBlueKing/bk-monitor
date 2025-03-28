@@ -1,12 +1,9 @@
-/*stylelint-disable comment-empty-line-before */
-/* stylelint-disable declaration-no-important */
-/* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1739345547611') format('woff2'),
-    url('monitor-icons.woff?t=1739345547611') format('woff'),
-    url('monitor-icons.ttf?t=1739345547611') format('truetype');
+    url('monitor-icons.woff2?t=1742523941514') format('woff2'),
+    url('monitor-icons.woff?t=1742523941514') format('woff'),
+    url('monitor-icons.ttf?t=1742523941514') format('truetype');
 }
 
 .icon-monitor {

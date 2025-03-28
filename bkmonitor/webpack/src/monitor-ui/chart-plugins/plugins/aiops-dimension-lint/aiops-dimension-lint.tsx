@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
+import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -66,12 +67,17 @@ interface IPanelModel extends PanelModel {
   feedback?: IFeedback;
   recommend_info?: IRecommendInfo;
   anomaly_score?: number;
+  anomaly_level?: number;
   enable_threshold?: boolean;
   src_metric_id?: string;
   class?: string;
   bk_biz_id?: string;
 }
-
+const AnomalyLevelColorMap = {
+  1: '#E71818',
+  2: '#E38B02',
+  3: '#979BA5',
+};
 export enum ETabNames {
   dimension = 'dimension',
   index = 'index',
@@ -484,7 +490,14 @@ export default class AiopsDimensionLine extends LineChart {
     }
     return (
       <span class='aiops-dimension-drill-down-right'>
-        {this.$t('异常分值')}：<font>{this.panel.anomaly_score}</font>
+        {this.$t('异常分值')}：
+        <font
+          style={{
+            color: AnomalyLevelColorMap[this.panel.anomaly_level] || AnomalyLevelColorMap[3],
+          }}
+        >
+          {this.panel.anomaly_score}
+        </font>
       </span>
     );
   }
@@ -593,10 +606,24 @@ export default class AiopsDimensionLine extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            {...{
-              scopedSlots: {
-                subTitle: () => this.getSubTitle(),
-              },
+            scopedSlots={{
+              subTitle: () => this.getSubTitle(),
+              title: () => (
+                <div
+                  style={{
+                    color: this.panel.title ? 'initial' : '#979ba5',
+                    fontSize: '12px',
+                  }}
+                  v-bk-tooltips={{
+                    disabled: !Object.keys(this.panel?.dimensions || {})?.length,
+                    content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
+                    placement: 'left',
+                    delay: 200,
+                  }}
+                >
+                  {this.panel.title || this.$t('无维度，已汇聚为1条曲线')}
+                </div>
+              ),
             }}
             customArea={this.isCorrelationMetrics}
             descrition={this.panel.descrition}
