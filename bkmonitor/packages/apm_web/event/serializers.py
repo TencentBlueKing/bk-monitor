@@ -10,14 +10,16 @@ specific language governing permissions and limitations under the License.
 """
 import operator
 from functools import reduce
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from rest_framework import serializers
 
 from apm_web.models import Application, EventServiceRelation
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
@@ -88,6 +90,28 @@ def filter_by_relation(
     return q
 
 
+@lru_cache_with_ttl(ttl=60 * 10, decision_to_drop_func=lambda v: not v)
+def get_cluster_table_map(cluster_ids: Tuple[str, ...]) -> Dict[str, str]:
+    cluster_infos: List[Dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
+    cluster_to_data_id: Dict[str, int] = {
+        cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
+    }
+    event_groups: List[Dict[str, Any]] = api.metadata.single_query_event_group(
+        bk_data_ids=list(cluster_to_data_id.values())
+    )
+    data_id_table_map: Dict[int, str] = {
+        event_group["bk_data_id"]: event_group["table_id"] for event_group in event_groups
+    }
+
+    cluster_table_map: Dict[str, str] = {}
+    for cluster_id in cluster_to_data_id:
+        table: Optional[str] = data_id_table_map.get(cluster_to_data_id.get(cluster_id))
+        if table:
+            cluster_table_map[cluster_id] = table
+
+    return cluster_table_map
+
+
 def process_query_config(
     bk_biz_id: int, origin_query_config: Dict[str, Any], event_relations: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -114,8 +138,6 @@ def process_query_config(
     if origin_query_config.get("interval"):
         base_q = base_q.interval(origin_query_config["interval"])
 
-    from metadata.models import BCSClusterInfo, DataSourceResultTable
-
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
     for relation in event_relations:
         if relation["table"] not in filtered_tables:
@@ -129,20 +151,9 @@ def process_query_config(
                     continue
                 cluster_conditions_map.setdefault(cluster_id, []).append(cond)
 
-            cluster_infos: List[Dict[str, Any]] = list(
-                BCSClusterInfo.objects.filter(cluster_id__in=cluster_conditions_map.keys()).values(
-                    "K8sEventDataID", "cluster_id"
-                )
-            )
-            cluster_to_data_id: Dict[str, int] = {
-                cluster_info["cluster_id"]: cluster_info["K8sEventDataID"] for cluster_info in cluster_infos
-            }
-            data_id_to_table: Dict[int, str] = {
-                ds_to_rt.bk_data_id: ds_to_rt.table_id
-                for ds_to_rt in DataSourceResultTable.objects.filter(bk_data_id__in=cluster_to_data_id.values())
-            }
+            cluster_table_map: Dict[str, str] = get_cluster_table_map(tuple(sorted(cluster_conditions_map.keys())))
             for cluster_id, conditions in cluster_conditions_map.items():
-                table: Optional[str] = data_id_to_table.get(cluster_to_data_id.get(cluster_id))
+                table: Optional[str] = cluster_table_map.get(cluster_id)
                 if not table:
                     continue
 

@@ -13,13 +13,13 @@ import time
 from typing import Any, Dict, Iterable, List, Tuple
 from urllib import parse
 
-from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from metadata.models import ResultTable
+from bkmonitor.utils.cache import lru_cache_with_ttl
+from core.drf_resource import api
 from packages.monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
@@ -65,16 +65,13 @@ def get_qs_from_req_data(req_data: Dict[str, Any]) -> UnifyQuerySet:
 
 
 def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> Dict[str, str]:
-    data_labels_map = {}
-    data_labels_queryset = ResultTable.objects.filter(
-        Q(bk_biz_id__in=[0, bk_biz_id], data_label__in=tables) | Q(table_id__in=tables)
-    ).values("table_id", "data_label")
-    for item in data_labels_queryset:
-        data_labels_map[item["table_id"]] = item["data_label"]
-        if item["data_label"]:
-            # 不为空才建立映射关系，避免写入 empty=empty，
-            data_labels_map[item["data_label"]] = item["data_label"]
-    return data_labels_map
+    # 对 table 进行去重排序，提高缓存命中率
+    return _get_data_labels_map(bk_biz_id, tuple(sorted(set(tables))))
+
+
+@lru_cache_with_ttl(ttl=60 * 10, decision_to_drop_func=lambda v: not v)
+def _get_data_labels_map(bk_biz_id: int, tables: Tuple[str, ...]) -> Dict[str, str]:
+    return api.metadata.get_data_labels_map(bk_biz_id=bk_biz_id, table_or_labels=list(tables))
 
 
 def create_workload_info(origin_data, fields: List[str]):

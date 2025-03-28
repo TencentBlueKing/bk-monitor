@@ -144,7 +144,7 @@ class EventViewConfigResource(Resource):
     @classmethod
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
-        data_labels_map = get_data_labels_map(bk_biz_id, tables)
+        data_labels_map = get_data_labels_map(bk_biz_id, tuple(sorted(tables)))
         dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
             "dimensions", "result_table_id"
         )
