@@ -54,7 +54,7 @@ def get_platform_data_ids(space_type: Optional[str] = None, bk_tenant_id=DEFAULT
         qs = models.DataSource.objects.filter(is_tenant_specific_global=True, bk_tenant_id=bk_tenant_id).values(
             "bk_data_id", "space_type_id"
         )
-    else:
+    else:  # 非多租户环境下,即全局数据
         qs = models.DataSource.objects.filter(is_platform_data_id=True).values("bk_data_id", "space_type_id")
 
     # 针对 bkcc 类型，这要是插件，不属于某个业务空间，也没有传递空间类型，因此，需要包含 all 类型
