@@ -607,6 +607,9 @@ importers:
       '@blueking/monitor-trace-log':
         specifier: 1.0.0-beta.11
         version: 1.0.0-beta.11
+      '@blueking/table':
+        specifier: 0.0.1-beta.35
+        version: 0.0.1-beta.35(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.1-beta.100(highlight.js@11.5.1)(vue@3.5.12(typescript@5.6.3)))(tippy.js@6.3.7)(vue@3.5.12(typescript@5.6.3))
       '@dagrejs/dagre':
         specifier: ^1.1.3
         version: 1.1.4
@@ -1483,8 +1486,19 @@ packages:
   '@blueking/stylelint-config@0.0.3':
     resolution: {integrity: sha512-8Yqwcg/dZmeY4ptnobq1H3Z0r0UzGXm2bD4rc18a/b7AvcJDFe7Z+RIPYYvNtbg4cXzzSAGu73ImbSiFi1c8jw==}
 
+  '@blueking/table@0.0.1-beta.35':
+    resolution: {integrity: sha512-8ESqPw6VzwZogoDDSWFyRgLr3HdLlWDqWTQKamIzynvENxye4RALWhGfjJ12qf8i8f+iVom2iBKDaab2VMWvRQ==}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      bkui-vue: ^2
+      tippy.js: 6.3.7
+      vue: ^3
+
   '@blueking/user-selector@1.0.14':
     resolution: {integrity: sha512-P2ksMb6kipY+yQ49SI8IMb6JIiurWDkK3fHSXTLWn23O5q0zlN7GM+Edv9IfeG8gqK7q5LrDH+H8lQVoviUPoA==}
+
+  '@blueking/vxe-table@4.10.6-beta.6':
+    resolution: {integrity: sha512-SLCxA94q/kBdsKNMTuKQc8pzd1nlSTlq/lxL2pGVZ+/ncBG6lm7pL5xzN+LKCy0b0T75QKKyrxAqyF+URyZDkw==}
 
   '@braintree/sanitize-url@6.0.4':
     resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
@@ -2659,6 +2673,11 @@ packages:
 
   '@vueuse/shared@10.11.1':
     resolution: {integrity: sha512-LHpC8711VFZlDaYUXEBbFBCQ7GS3dVU9mjOhhMhXP6txTV4EhYQg/KGnQuvt/sPAtoUKq7VVUnL6mVtFoL42sA==}
+
+  '@vxe-ui/core@4.0.38':
+    resolution: {integrity: sha512-zQHcYUUsMUiDNi5buxP9AIz9Ru2BK5JXkKmtGZ5gjdr/nF8Nm/jcMcAdZXDmYAryn1BLka+ZTq83G++HkfWdBg==}
+    peerDependencies:
+      vue: ^3.2.0
 
   '@webassemblyjs/ast@1.14.1':
     resolution: {integrity: sha512-nuBEDgQfm1ccRp/8bCQrx1frohyufl4JlbMMZ4P1wpeOfDhF6FQkxZJ1b/e+PLwr6X1Nhw6OLme5usuBWYBvuQ==}
@@ -4009,6 +4028,9 @@ packages:
 
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
+
+  dom-zindex@1.0.6:
+    resolution: {integrity: sha512-FKWIhiU96bi3xpP9ewRMgANsoVmMUBnMnmpCT6dPMZOunVYJQmJhSRruoI0XSPoHeIif3kyEuiHbFrOJwEJaEA==}
 
   domelementtype@1.3.1:
     resolution: {integrity: sha512-BSKB+TSpMpFI/HOxCNr1O8aMOTZ8hT3pM3GQ0w/mWRmkhEDSFJkkyzz4XQsBV44BChwGkrDfMyjVD0eA2aFV3w==}
@@ -8029,6 +8051,9 @@ packages:
     peerDependencies:
       vue: ^2.0.0
 
+  vxe-pc-ui@4.5.4:
+    resolution: {integrity: sha512-LVF1RExBdCDn1MBRtOOy9qsQ1GXKHoiXCXiLSesTgzo6HzgNQI1c6n+azHAkDgg4McOLFFsM/gV7SK+ns1RIcg==}
+
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
@@ -8219,6 +8244,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xe-utils@3.7.4:
+    resolution: {integrity: sha512-9yuCHLOU+og4OEkPWWtzrYk1Zt1hgN66U/NCJ0+vYJSx1MplBtoQRz8aEA+2RmCr3leLru98vQxNpw/vJsu/sg==}
 
   xlsx@0.18.5:
     resolution: {integrity: sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==}
@@ -9488,11 +9516,27 @@ snapshots:
       - postcss-markdown
       - supports-color
 
+  '@blueking/table@0.0.1-beta.35(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.1-beta.100(highlight.js@11.5.1)(vue@3.5.12(typescript@5.6.3)))(tippy.js@6.3.7)(vue@3.5.12(typescript@5.6.3))':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/vxe-table': 4.10.6-beta.6(vue@3.5.12(typescript@5.6.3))
+      '@types/lodash': 4.17.13
+      bkui-vue: 2.0.1-beta.100(highlight.js@11.5.1)(vue@3.5.12(typescript@5.6.3))
+      lodash: 4.17.21
+      tippy.js: 6.3.7
+      vue: 3.5.12(typescript@5.6.3)
+
   '@blueking/user-selector@1.0.14':
     dependencies:
       '@icon-cool/bk-icon-bk-biz-components': 0.0.4
       lodash.throttle: 4.1.1
       tippy.js: 6.3.7
+
+  '@blueking/vxe-table@4.10.6-beta.6(vue@3.5.12(typescript@5.6.3))':
+    dependencies:
+      vxe-pc-ui: 4.5.4(vue@3.5.12(typescript@5.6.3))
+    transitivePeerDependencies:
+      - vue
 
   '@braintree/sanitize-url@6.0.4': {}
 
@@ -10922,6 +10966,12 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@vxe-ui/core@4.0.38(vue@3.5.12(typescript@5.6.3))':
+    dependencies:
+      dom-zindex: 1.0.6
+      vue: 3.5.12(typescript@5.6.3)
+      xe-utils: 3.7.4
+
   '@webassemblyjs/ast@1.14.1':
     dependencies:
       '@webassemblyjs/helper-numbers': 1.13.2
@@ -12232,6 +12282,8 @@ snapshots:
       domelementtype: 2.3.0
       domhandler: 5.0.3
       entities: 4.5.0
+
+  dom-zindex@1.0.6: {}
 
   domelementtype@1.3.1: {}
 
@@ -16759,6 +16811,12 @@ snapshots:
     dependencies:
       vue: 2.7.16
 
+  vxe-pc-ui@4.5.4(vue@3.5.12(typescript@5.6.3)):
+    dependencies:
+      '@vxe-ui/core': 4.0.38(vue@3.5.12(typescript@5.6.3))
+    transitivePeerDependencies:
+      - vue
+
   w3c-keyname@2.2.8: {}
 
   watchpack@2.4.2:
@@ -17020,6 +17078,8 @@ snapshots:
   ws@7.5.10: {}
 
   ws@8.18.0: {}
+
+  xe-utils@3.7.4: {}
 
   xlsx@0.18.5:
     dependencies:

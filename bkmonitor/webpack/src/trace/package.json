@@ -16,6 +16,7 @@
     "@blueking/ip-selector": "0.3.0-beta.36",
     "@blueking/login-modal": "^1.0.5",
     "@blueking/monitor-trace-log": "1.0.0-beta.11",
+    "@blueking/table": "0.0.1-beta.35",
     "@dagrejs/dagre": "^1.1.3",
     "@vue-flow/core": "^1.38.2",
     "@vue-flow/minimap": "^1.5.0",
