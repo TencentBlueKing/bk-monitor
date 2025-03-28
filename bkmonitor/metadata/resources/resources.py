@@ -26,7 +26,6 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
-from django.utils import timezone
 from django.utils.translation import gettext as _
 from kafka import KafkaConsumer, TopicPartition
 from kubernetes import utils
@@ -2344,20 +2343,24 @@ class NotifyEsDataLinkAdaptNano(Resource):
                 )
 
                 # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
-                new_objects = []
                 for obj in original_objects:
-                    new_obj = models.ResultTableFieldOption(
-                        value_type=obj.value_type,
-                        value=obj.value,
-                        creator=obj.creator,
-                        create_time=timezone.now(),  # 设置创建时间为当前时间
+                    # 使用 get_or_create 以确保不会重复创建相同的记录
+                    new_obj, created = models.ResultTableFieldOption.objects.update_or_create(
                         table_id=obj.table_id,
                         field_name='dtEventTimeStampNanos',  # 更新 field_name
                         name=obj.name,
+                        defaults={  # 如果记录不存在，才会使用 defaults 来创建新的记录
+                            'value_type': obj.value_type,
+                            'value': obj.value,
+                            'creator': obj.creator,
+                        },
                     )
-                    new_objects.append(new_obj)
-
-                models.ResultTableFieldOption.objects.bulk_create(new_objects)
+                    logger.info(
+                        "NotifyEsDataLinkAdaptNano: create_field->[%s] for table_id->[%s] created->[%s]",
+                        new_obj.field_name,
+                        new_obj.table_id,
+                        created,
+                    )
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='dtEventTimeStampNanos', name='es_type'
