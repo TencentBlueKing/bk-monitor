@@ -200,7 +200,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             else:
                 headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
         else:
-            headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
+            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
+            headers["X-Bk-Tenant-Id"] = "default"
         return headers
 
     def perform_request(self, validated_request_data):
@@ -215,7 +216,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             if "bk_tenant_id" in validated_request_data:
                 # 如果传递了租户ID，则直接使用
                 self.bk_tenant_id = validated_request_data["bk_tenant_id"]
-            elif validated_request_data.get("bk_biz_id") or validated_request_data.get("space_uid"):
+            elif (
+                validated_request_data.get("bk_biz_id") and isinstance(validated_request_data.get("bk_biz_id"), int)
+            ) or (validated_request_data.get("space_uid") and isinstance(validated_request_data.get("space_uid"), str)):
                 # 如果传递了业务ID或空间ID，则获取关联的租户ID
                 space: Optional[Space] = SpaceApi.get_space_detail(
                     bk_biz_id=validated_request_data.get("bk_biz_id", 0),

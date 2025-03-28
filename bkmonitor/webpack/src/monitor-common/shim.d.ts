@@ -23,18 +23,5 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { ISpaceItem } from './typings';
 
-declare global {
-  interface Window {
-    default_biz_id: number | number;
-    space_list: ISpaceItem[];
-    cc_biz_id: number;
-    bk_biz_id: number;
-    __BK_WEWEB_DATA__?: any;
-    space_uid: string;
-    bk_docs_site_url: string;
-    bk_doc_version: string;
-    site_url: string;
-  }
-}
+import 'monitor-pc/shims.d.ts';

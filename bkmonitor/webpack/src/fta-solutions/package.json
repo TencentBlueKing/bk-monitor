@@ -10,6 +10,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
+    "@blueking/aiops-topo": "0.0.1-beta.4",
     "@blueking/bk-weweb": "0.0.29-beta.3",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/functional-dependency": "0.0.1-beta.14",
@@ -33,10 +34,7 @@
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0"
   },
-  "keywords": [
-    "monitor",
-    "self healing"
-  ],
+  "keywords": ["monitor", "self healing"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

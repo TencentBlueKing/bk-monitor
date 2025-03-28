@@ -31,19 +31,21 @@ import { listIndexByHost } from 'monitor-api/modules/alert_events';
 import { graphTraceQuery } from 'monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from 'monitor-api/modules/scene_view';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone, getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
+import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-import ChatGroup from '../../../components/chat-group/chat-group';
+import AiopsContainer from './aiops/aiops-container-new';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import BasicInfo from './basic-info';
+import EventDetailHead from './event-detail-head';
 import Feedback from './feedback';
 import HandleStatusDialog from './handle-status-dialog';
 import ManualDebugStatus from './manual-debug-status';
@@ -51,22 +53,15 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 import TabContainer from './tab-container';
 
-import type { IChatGroupDialogOptions } from '../typings/event';
 import type { IDetail } from './type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './event-detail.scss';
 
 const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
-
-// interface IEventDeatil {
-//   id: string;
-//   activeTab?: string;
-//   bizId: number;
-// }
-// interface IEventDeatilEvent {
-//   onCloseSlider?: boolean;
-//   onInfo?: (v: IDetail) => void;
-// }
+interface IDataZoomTimeRange {
+  timeRange: [] | TimeRangeType;
+}
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
   name: 'EventDetail',
@@ -75,10 +70,17 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   @Prop({ default: '', type: [String, Number] }) id: string;
   @Prop({ default: '', type: String }) activeTab: string;
   @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
+  /** 是否需要展示顶部菜单栏 */
+  @Prop({ type: Boolean, default: true }) isShowHead: boolean;
   // bizId
   @ProvideReactive('bkBizId') bkBizId = null;
   // 时区
   @ProvideReactive('timezone') timezone: string = window.timezone || getDefaultTimezone();
+  /** aiops联动抛出的缩放时间范围 */
+  @ProvideReactive('dataZoomTimeRange') dataZoomTimeRange: IDataZoomTimeRange = {
+    timeRange: [],
+  };
+
   // public id = 0
   basicInfo: IDetail = {
     id: '', // 告警id
@@ -142,7 +144,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bizIds: [],
     },
   };
-  scrollEl = null;
   isScrollEnd = false; // 是否滑动到底部
   logRetrieval = {
     show: false,
@@ -156,13 +157,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   };
   /* 是否已反馈 */
   isFeedback = false;
-  /** 一键拉群弹窗 */
-  chatGroupDialog: IChatGroupDialogOptions = {
-    show: false,
-    alertName: '',
-    alertIds: [],
-    assignee: [],
-  };
   /* traceIds 用于展示trace标签页 */
   traceIds = [];
   /* 场景id 用于场景视图标签页 */
@@ -170,13 +164,10 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   sceneName = '';
   /* 权限校验 */
   authorityConfig = {};
-  enableCreateChatGroup = false;
   throttledScroll: () => void = () => {};
 
   created() {
     this.getDetailData();
-    // 是否支持一键拉群 todo
-    this.enableCreateChatGroup = !!window.enable_create_chat_group;
   }
 
   mounted() {
@@ -190,12 +181,29 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   beforeDestroy() {
     destroyTimezone();
-    this.scrollEl?.removeEventListener('scroll', this.throttledScroll);
+    this.getScrollElement()?.removeEventListener('scroll', this.throttledScroll);
   }
 
   @Emit('closeSlider')
   handleCloseSlider() {
     return true;
+  }
+
+  /**
+   * @description 是否为主机智能异常检测
+   */
+  get isHostAnomalyDetection() {
+    return this.basicInfo?.extra_info?.strategy?.items?.[0]?.algorithms?.[0]?.type === MetricType.HostAnomalyDetection;
+  }
+
+  // 判断当前panel是否是Promql类型的 是则不展示aiops指标推荐等功能
+  get checkPromqlPanel() {
+    const { promql, data_source_label } = this.basicInfo?.extra_info?.strategy?.items?.[0]?.query_configs?.[0] ?? {};
+    return promql && data_source_label === 'prometheus';
+  }
+  /** 是否需要展示右侧的AI相关的视图 */
+  get isShowAiopsView() {
+    return !!(window as any).enable_aiops;
   }
 
   /* 权限校验 */
@@ -218,7 +226,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       .then(res => !!res.length)
       .catch(() => false);
     this.tabShow = true;
-    this.$emit('info', data);
+    this.$emit('info', data, this.isFeedback);
     if (data) {
       this.basicInfo = data;
       this.bkBizId = data.bk_biz_id || this.bizId;
@@ -315,20 +323,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.basicInfo.shield_left_time = time;
   }
 
-  toStrategyDetail() {
-    // 如果 告警来源 是监控策略就要跳转到 策略详情 。
-    if (this.basicInfo.plugin_id === 'bkmonitor') {
-      window.open(
-        `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/strategy-config/detail/${this.id}?fromEvent=true`
-      );
-    } else if (this.basicInfo.plugin_id) {
-      // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-      const query = deepClone(this.$route.query);
-      query.queryString = `告警源 : "${this.basicInfo.plugin_id}"`;
-      const queryString = new URLSearchParams(query).toString();
-      window.open(`${location.origin}${location.pathname}${location.search}/#/event-center?${queryString}`);
-    }
-  }
   processingStatus(v) {
     this.dialog.statusDialog.show = v;
   }
@@ -569,12 +563,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       />,
     ];
   }
-
+  getScrollElement() {
+    return this.isShowAiopsView ? this.$el.querySelector('.event-detail-aiops') : this.$el;
+  }
   scrollInit() {
     this.throttledScroll = throttle(300, this.handleScroll);
     this.$nextTick(() => {
-      this.scrollEl = this.$el;
-      this.scrollEl?.addEventListener('scroll', this.throttledScroll);
+      this.getScrollElement()?.addEventListener('scroll', this.throttledScroll);
     });
   }
 
@@ -590,81 +585,87 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   handleFeedBackConfirm() {
     this.isFeedback = true;
   }
-  /**
-   * @description: 一键拉群
-   * @return {*}
-   */
-  handleChatGroup() {
-    this.chatGroupDialog.assignee = this.basicInfo.assignee || [];
-    this.chatGroupDialog.alertName = this.basicInfo.alert_name;
-    this.chatGroupDialog.alertIds.splice(0, this.chatGroupDialog.alertIds.length, this.basicInfo.id);
-    this.chatGroupShowChange(true);
+  /** 渲染绘制告警详情内容 */
+  renderDetailContainer() {
+    return (
+      <div class='container-group'>
+        <BasicInfo
+          basicInfo={this.basicInfo}
+          on-alarm-confirm={this.alarmConfirmChange}
+          on-manual-process={this.handleManualProcess}
+          on-processing-status={this.processingStatus}
+          on-quick-shield={this.quickShieldChange}
+          onAlarmDispatch={this.handleAlarmDispatch}
+        />
+        <TabContainer
+          actions={this.actions}
+          activeTab={this.activeTab}
+          alertId={this.id}
+          detail={this.basicInfo}
+          isScrollEnd={this.isScrollEnd}
+          sceneId={this.sceneId}
+          sceneName={this.sceneName}
+          show={this.tabShow}
+          traceIds={this.traceIds}
+        />
+      </div>
+    );
   }
-  /**
-   * @description: 一键拉群弹窗关闭/显示
-   * @param {boolean} show
-   * @return {*}
-   */
-  chatGroupShowChange(show: boolean) {
-    this.chatGroupDialog.show = show;
+  /** 判断当前是否需要展示AI相关的内容，需要的话则左右布局，并支持拖拽拉伸 */
+
+  renderLayoutContent() {
+    if (this.isShowAiopsView) {
+      return (
+        <bk-resize-layout
+          class='detail-resize-view'
+          auto-minimize={true}
+          initial-divide={500}
+          max={660}
+          min={480}
+          placement={'right'}
+        >
+          <AiopsContainer
+            slot='aside'
+            detail={this.basicInfo}
+            show={true}
+          />
+          <div
+            class='event-detail-aiops'
+            slot='main'
+          >
+            {this.renderDetailContainer()}
+          </div>
+        </bk-resize-layout>
+      );
+    }
+    return this.renderDetailContainer();
   }
 
   render() {
     return (
       <div
+        style={{
+          overflowY: !this.isShowAiopsView ? 'auto' : 'initial',
+          height: !this.isShowAiopsView ? '100%' : 'initial',
+        }}
         class='event-detail-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
-        <div class='container-group'>
-          {this.enableCreateChatGroup ? (
-            <div
-              v-en-style='right: 120px'
-              class='chat-btn'
-              onClick={() => this.handleChatGroup()}
-            >
-              <span class='icon-monitor icon-we-com' />
-              {window.i18n.tc('拉群')}
-            </div>
-          ) : (
-            ''
-          )}
-          <div
-            class='feedback-btn'
-            onClick={() => this.handleFeedback(true)}
-          >
-            <span class='icon-monitor icon-fankui' />
-            {this.isFeedback ? window.i18n.tc('已反馈') : window.i18n.tc('反馈')}
+        {/* 顶部状态栏渲染 */}
+        {this.isShowHead && (
+          <div class='event-detail-head-container'>
+            <EventDetailHead
+              basicInfo={this.basicInfo}
+              bizId={this.bizId}
+              eventId={this.id}
+              isFeedback={this.isFeedback}
+            />
           </div>
-          <BasicInfo
-            basicInfo={this.basicInfo}
-            on-alarm-confirm={this.alarmConfirmChange}
-            on-manual-process={this.handleManualProcess}
-            on-processing-status={this.processingStatus}
-            on-quick-shield={this.quickShieldChange}
-            on-strategy-detail={this.toStrategyDetail}
-            onAlarmDispatch={this.handleAlarmDispatch}
-          />
-          <div class='basicinfo-bottom-border' />
-          <TabContainer
-            actions={this.actions}
-            activeTab={this.activeTab}
-            alertId={this.id}
-            detail={this.basicInfo}
-            isScrollEnd={this.isScrollEnd}
-            sceneId={this.sceneId}
-            sceneName={this.sceneName}
-            show={this.tabShow}
-            traceIds={this.traceIds}
-          />
-        </div>
+        )}
+        {/* 详情主体内容渲染 */}
+        {this.renderLayoutContent()}
+        {/* 相关的弹框组件渲染 */}
         {this.getDialogComponent()}
-        <ChatGroup
-          alarmEventName={this.chatGroupDialog.alertName}
-          alertIds={this.chatGroupDialog.alertIds}
-          assignee={this.chatGroupDialog.assignee}
-          show={this.chatGroupDialog.show}
-          onShowChange={this.chatGroupShowChange}
-        />
       </div>
     );
   }

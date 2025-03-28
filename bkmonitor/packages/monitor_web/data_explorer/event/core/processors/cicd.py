@@ -45,6 +45,7 @@ class CicdEventProcessor(BaseEventProcessor):
         processed_events: List[Dict[str, Any]] = []
         cicd_infos: List[Dict[str, Any]] = []
         pipeline_entities: List[Dict[str, Any]] = []
+        cicd_processed_events: List[Dict[str, Any]] = []
         for origin_event in origin_events:
             if not self._need_process(origin_event):
                 processed_events.append(origin_event)
@@ -95,18 +96,24 @@ class CicdEventProcessor(BaseEventProcessor):
             # 设置 duration 别名
             if detail.get("duration"):
                 detail["duration"]["alias"] = self.set_duration_alias(cicd_info)
-            processed_events.append(processed_event)
+            cicd_processed_events.append(processed_event)
 
-        # 设置 pipelineName
-        pipelines = self.pipeline_context.fetch(pipeline_entities)
-        for processed_event in processed_events:
-            processed_event["event.content"]["detail"]["pipelineName"] = self.set_pipeline_name(
-                create_cicd_info(
-                    processed_event["origin_data"],
-                    ["pipelineName", "projectId", "buildId", "pipelineId", "bk_biz_id", "time"],
-                ),
-                pipelines,
-            )
+        if cicd_processed_events:
+            # 设置 pipelineName
+            pipelines = self.pipeline_context.fetch(pipeline_entities)
+            for cicd_processed_event in cicd_processed_events:
+                cicd_processed_event["event.content"]["detail"]["pipelineName"] = self.set_pipeline_name(
+                    create_cicd_info(
+                        cicd_processed_event["origin_data"],
+                        ["pipelineName", "projectId", "buildId", "pipelineId", "bk_biz_id", "time"],
+                    ),
+                    pipelines,
+                )
+                # 设置 target 别名
+                cicd_processed_event["target"]["alias"] = cicd_processed_event["event.content"]["detail"][
+                    "pipelineName"
+                ]["alias"]
+            processed_events.extend(cicd_processed_events)
         return processed_events
 
     @classmethod
@@ -159,7 +166,9 @@ class CicdEventProcessor(BaseEventProcessor):
                 projectId=cicd_info["projectId"]["value"], pipelineName=pipeline_name
             )
             if pipeline_name
-            else "--",
+            else "{projectId} / {pipelineId}".format(
+                projectId=cicd_info["projectId"]["value"], pipelineId=cicd_info["pipelineId"]["value"]
+            ),
             "scenario": EventScenario.BKCI.value,
             "url": cls.generate_url(cicd_info),
         }

@@ -88,8 +88,8 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
         # interval 自适应
         for query_config in attrs["query_configs"]:
             if "interval" not in query_config:
+                # why factor? 放大期望聚合周期，避免 1d 以上的时间范围计算出的柱子太小。
                 query_config["interval"] = get_auto_interval(60, attrs["start_time"], attrs["end_time"], factor=10)
-                print(query_config["interval"])
         return attrs
 
 

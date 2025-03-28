@@ -217,16 +217,14 @@ export default class CustomEventMenu extends tsc<IProps> {
                 <div class='content-item-label'>{item.label}:</div>
                 <div class={'content-item-value'}>
                   {item.url ? (
-                    <a
+                    <span
                       class='is-url'
-                      href={item.url}
-                      rel='noreferrer'
-                      target='_blank'
+                      onMousedown={() => window.open(item.url, '_blank')}
                     >
                       {item.alias || item.value}
-                    </a>
+                    </span>
                   ) : (
-                    item.value
+                    item.alias || item.value
                   )}
                 </div>
               </div>
