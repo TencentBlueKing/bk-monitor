@@ -61,11 +61,11 @@
 
     &:hover {
       .expand {
-        opacity: 1; 
+        opacity: 1;
       }
 
-      .field-badge{
-        background-color:white;
+      .field-badge {
+        background-color: white;
       }
     }
 
@@ -109,7 +109,7 @@
       // white-space: nowrap;
     }
 
-    .field-badge{
+    .field-badge {
       display: inline-block;
       width: 15px;
       height: 15px;
@@ -117,14 +117,14 @@
       font-family: Roboto-Bold;
       font-size: 10px;
       font-weight: 700;
-      color: #979BA5;
+      color: #979ba5;
       text-align: center;
       letter-spacing: 0;
       background-color: rgb(240, 241, 245);
       border-radius: 50%;
     }
 
-    .expand{
+    .expand {
       font-size: 16px;
       font-weight: bold;
       opacity: 0;
@@ -238,6 +238,11 @@
     font-size: 12px;
     color: #63656e;
   }
+}
+
+.analysis-chart-theme.light-theme {
+  border: 1px solid #dcdee5;
+  box-shadow: 0 2px 12px 0 #00000033;
 }
 
 .agg-sides-content {

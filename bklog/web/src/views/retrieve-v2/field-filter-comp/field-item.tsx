@@ -157,7 +157,7 @@ export default class FieldItem extends tsc<object> {
       placement: 'right-start',
       boundary: 'viewport',
       trigger: 'click',
-      theme: 'light',
+      theme: 'light analysis-chart',
       interactive: true,
       appendTo: document.body,
       onHidden: () => {
