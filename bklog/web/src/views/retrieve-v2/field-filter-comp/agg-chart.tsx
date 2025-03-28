@@ -198,6 +198,18 @@ export default class AggChart extends tsc<object> {
             <ul class='chart-list'>
               {this.showFiveList.map(item => (
                 <li class='chart-item'>
+                  <div class='operation-container'>
+                    <span
+                      class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('=', item[0])}
+                      onClick={() => this.addCondition('is', item[0])}
+                    ></span>
+                    <span
+                      class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('!=', item[0])}
+                      onClick={() => this.addCondition('is not', item[0])}
+                    ></span>
+                  </div>
                   <div class='chart-content'>
                     <div class='text-container'>
                       <div
@@ -216,18 +228,6 @@ export default class AggChart extends tsc<object> {
                         class='percent-bar'
                       ></div>
                     </div>
-                  </div>
-                  <div class='operation-container'>
-                    <span
-                      class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
-                      v-bk-tooltips={this.getIconPopover('=', item[0])}
-                      onClick={() => this.addCondition('is', item[0])}
-                    ></span>
-                    <span
-                      class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
-                      v-bk-tooltips={this.getIconPopover('!=', item[0])}
-                      onClick={() => this.addCondition('is not', item[0])}
-                    ></span>
                   </div>
                 </li>
               ))}

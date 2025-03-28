@@ -1,6 +1,6 @@
 .retrieve-v2.field-data {
   padding: 2px 0;
-  background-color: #FAFBFD00;
+  background-color: #fafbfd00;
 
   .title {
     padding: 0 12px 4px;
@@ -21,7 +21,7 @@
     justify-content: center;
     height: 34px;
     font-size: 12px;
-    color: #63656E;
+    color: #63656e;
   }
 
   .chart-list {
@@ -32,7 +32,8 @@
       align-items: center;
 
       .chart-content {
-        width: calc(100% - 46px);
+        flex: 1;
+        min-width: 0;
 
         .text-container {
           display: flex;
@@ -70,9 +71,11 @@
       .operation-container {
         display: flex;
         flex-shrink: 0;
+        column-gap: 8px;
         justify-content: space-between;
-        width: 36px;
-        margin-left: 10px;
+        width: unset;
+        padding-right: 8px;
+        margin-left: 0px;
         transform: translateY(4px);
 
         .bk-icon {
@@ -107,26 +110,25 @@
       }
     }
   }
-
 }
 
-.agg-sides-header{
+.agg-sides-header {
   display: flex;
   justify-content: space-between;
-  
-  .distinct-num{
+
+  .distinct-num {
     display: flex;
     align-items: center;
   }
 
-  .distinct-count-num{
+  .distinct-count-num {
     min-width: 24px;
     height: 16px;
     padding: 0 4px;
     font-size: 12px;
     line-height: 16px;
     text-align: center;
-    background: #F0F1F5;
+    background: #f0f1f5;
     border-radius: 2px;
   }
 }
