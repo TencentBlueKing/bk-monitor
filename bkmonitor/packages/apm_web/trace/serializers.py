@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from rest_framework import serializers
 
+from apm_web.constants import QueryMode
 from apm_web.models import (
     Application,
     AppServiceRelation,
@@ -105,3 +106,15 @@ class SpanIdInputSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
     app_name = serializers.CharField(label="应用名称")
     span_id = serializers.CharField(label="SpanId")
+
+
+class TraceFieldsTopkRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField()
+    app_name = serializers.CharField(label="应用名称")
+    start_time = serializers.IntegerField()
+    end_time = serializers.IntegerField()
+    fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
+    limit = serializers.IntegerField()
+    filters = serializers.ListField(child=serializers.DictField(), label="过滤条件列表", allow_empty=True)
+    query_string = serializers.CharField(label="查询字符串", allow_blank=True)
+    mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices())

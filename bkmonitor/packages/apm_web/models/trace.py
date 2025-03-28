@@ -52,3 +52,21 @@ class TraceComparison(AbstractRecordModel):
     spans = JsonField("span list")
 
     objects = TraceComparisonModelManager()
+
+
+class TraceDefaultConfigTemplate(AbstractRecordModel):
+    name = models.CharField("配置名称", max_length=255, unique=True)
+    bk_biz_id = models.IntegerField("业务id", null=True, blank=True)
+    app_name = models.CharField("应用名称", max_length=50, null=True, blank=True)
+    trace_config = JsonField("trace 配置", default=dict)
+    span_config = JsonField("span 配置", default=dict)
+
+
+class TraceUserAppDefaultConfig(AbstractRecordModel):
+    bk_biz_id = models.IntegerField("业务id")
+    app_name = models.CharField("应用名称", max_length=50)
+    username = models.CharField("用户名", max_length=64)
+    config_template_id = models.IntegerField("配置模板ID", default=0)
+
+    class Meta:
+        unique_together = (("bk_biz_id", "app_name", "username"),)
