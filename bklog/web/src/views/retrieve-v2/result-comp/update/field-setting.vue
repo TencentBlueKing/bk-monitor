@@ -24,7 +24,7 @@
             <li
               v-for="item in shadowTotal"
               style="cursor: pointer"
-              class="select-item"
+              class="select-item bklog-v3-popover-tag"
               v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
               :key="item.field_name"
               @click="addField(item)"
@@ -41,6 +41,11 @@
               <span class="field-name">({{ item.field_name }})</span>
               <span class="icon bklog-icon bklog-filled-right-arrow"></span>
             </li>
+            <bk-exception
+              v-if="emptyType"
+              :type="emptyType"
+              scene="part"
+            />
           </ul>
         </div>
         <div class="sort-icon">
@@ -153,6 +158,16 @@
     return fieldList.value.filter(filterFn);
   });
 
+  const emptyType = computed(() => {
+    if (!!shadowTotal?.value?.length) {
+      return '';
+    }
+    if (searchKeyword.value == '') {
+      return 'empty';
+    }
+    return 'search-empty';
+  });
+
   const shadowVisible = ref([]);
 
   const dragOptions = ref({
@@ -247,6 +262,7 @@
 
 <style lang="scss">
   @import '../../../../scss/mixins/scroller';
+
   .bklog-common-field-filter {
     .fields-list-container {
       display: flex;
@@ -352,9 +368,10 @@
               justify-content: center;
               width: 16px;
               height: 16px;
+              font-size: 14px;
               background: #dcdee5;
               border-radius: 2px;
-              font-size: 14px;
+
               &.full-text {
                 position: relative;
 
@@ -390,6 +407,11 @@
               letter-spacing: 0;
             }
           }
+
+          .bk-exception {
+            justify-content: center;
+            height: 100%;
+          }
         }
       }
 
@@ -400,8 +422,8 @@
 
       .visible-fields-list {
         width: 264px;
-        border-left: none;
         border-right: 1px solid #dcdee5;
+        border-left: none;
       }
 
       /* stylelint-disable-next-line no-descending-specificity */

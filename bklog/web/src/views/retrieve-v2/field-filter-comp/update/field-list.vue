@@ -89,7 +89,7 @@
       trigger: 'click',
       animateFill: false,
       placement: 'bottom-start',
-      theme: 'light field-template-menu',
+      theme: 'light field-template-menu field-template-menu-expand',
       arrow: false,
       interactive: true,
       boundary: 'viewport',

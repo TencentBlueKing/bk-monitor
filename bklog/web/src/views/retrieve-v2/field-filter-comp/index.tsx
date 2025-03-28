@@ -458,7 +458,6 @@ export default class FieldFilterComp extends tsc<object> {
           key={data.field_name}
           v-show={data.filterVisible}
           date-picker-value={this.datePickerValue}
-          default-expanded-node={defaultExpandedNodes}
           field-alias-map={this.fieldAliasMap}
           field-item={data}
           is-front-statistics={this.isFrontStatistics}
