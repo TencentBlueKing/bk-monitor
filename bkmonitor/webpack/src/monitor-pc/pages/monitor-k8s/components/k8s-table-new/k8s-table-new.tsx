@@ -34,6 +34,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
   K8sConvergeTypeEnum,
@@ -158,6 +159,8 @@ const tableMetricCategoryForNameMap = {
   内存: '内存',
   流量: '网络',
 };
+const SCROLL_CONTAINER_DOM = '.bk-table-body-wrapper';
+const DISABLE_TARGET_DOM = '.bk-table-body';
 
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
@@ -234,6 +237,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   abortControllerQueue: Set<AbortController> = new Set();
   /** 各指标汇聚类型map（默认为 sum） */
   metricsForConvergeMap: Partial<Record<K8sTableColumnChartKey, K8sConvergeTypeEnum>> = {};
+  /** 滚动容器Dom实例 */
+  scrollContainer: HTMLElement = null;
+  /** 滚动结束后回调逻辑执行计时器  */
+  scrollTimer = null;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -251,11 +258,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     const ids: K8sTableColumnChartKey[] = [];
     const columns: K8sTableColumn<K8sTableColumnKeysEnum>[] = [];
     // 处理表格指标展示列
-    const hodeMetricsSet = new Set(this.hideMetrics);
+    const hideMetricsSet = new Set(this.hideMetrics);
     for (const item of this.metricList) {
       if (item?.children?.length) {
         for (const child of item.children) {
-          if (!hodeMetricsSet.has(child.id)) {
+          if (!hideMetricsSet.has(child.id)) {
             const regex = new RegExp(`(${tableMetricCategoryForNameMap[item.name]}\\s*)(.*)`);
             const founds = child.name.match(regex);
             let name = child.name;
@@ -417,9 +424,15 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.initSortContainer(sort);
     this.getK8sList();
   }
+  mounted() {
+    this.addScrollListener();
+  }
+  beforeDestroy() {
+    this.removeScrollListener();
+  }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
-    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER } = K8sTableColumnKeysEnum;
+    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE } = K8sTableColumnKeysEnum;
 
     return {
       [CLUSTER]: {
@@ -479,6 +492,26 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
+      [INGRESS]: {
+        id: INGRESS,
+        name: this.$t('ingress'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: false,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
+      [SERVICE]: {
+        id: SERVICE,
+        name: this.$t('service'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: true,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
     };
   }
 
@@ -486,7 +519,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 重新渲染表格组件（主要是为了处理 table column 的 sort 状态）
    */
   refreshTable() {
+    this.removeScrollListener();
     this.refreshKey = random(10);
+    this.$nextTick(() => {
+      this.addScrollListener();
+    });
   }
 
   /**
@@ -499,6 +536,44 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       ...sort,
     };
     this.sortContainer.initDone = false;
+  }
+  /**
+   * @description 添加滚动监听
+   */
+  addScrollListener() {
+    this.removeScrollListener();
+    this.scrollContainer = this.$el.querySelector(SCROLL_CONTAINER_DOM);
+    this.scrollContainer.addEventListener('scroll', this.handleScroll);
+  }
+  /**
+   * @description 移除滚动监听
+   */
+  removeScrollListener() {
+    if (!this.scrollContainer) return;
+    this.scrollContainer.removeEventListener('scroll', this.handleScroll);
+    this.scrollTimer && clearTimeout(this.scrollTimer);
+    this.scrollContainer = null;
+  }
+
+  /**
+   * @description 处理滚动事件
+   */
+  handleScroll() {
+    const childrenArr = this.$el.querySelectorAll(DISABLE_TARGET_DOM);
+    if (!childrenArr?.length) {
+      return;
+    }
+    const setDomPointerEvents = (val: 'auto' | 'none') => {
+      // @ts-ignore
+      for (const children of childrenArr) {
+        children.style.pointerEvents = val;
+      }
+    };
+    setDomPointerEvents('none');
+    this.scrollTimer && clearTimeout(this.scrollTimer);
+    this.scrollTimer = setTimeout(() => {
+      setDomPointerEvents('auto');
+    }, 600);
   }
 
   @Debounce(200)
@@ -543,9 +618,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     // 资源类型
     const resourceType = this.resourceType;
 
+    const { timeRange, ...filterCommonParams } = this.filterCommonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
+
     /** 获取资源列表请求接口参数 */
     const requestParam = {
-      ...this.filterCommonParams,
+      ...filterCommonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       ...pageRequestParam,
       resource_type: resourceType,
       with_history: true,
@@ -656,9 +736,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       }
       const controller = new AbortController();
       this.abortControllerQueue.add(controller);
+      const { timeRange, ...filterCommonParams } = this.filterCommonParams;
+      const formatTimeRange = handleTransformToTimestamp(timeRange);
       resourceTrend(
         {
-          ...this.filterCommonParams,
+          ...filterCommonParams,
+          start_time: formatTimeRange[0],
+          end_time: formatTimeRange[1],
           column: field,
           method: this.metricsForConvergeMap[field] || K8sConvergeTypeEnum.SUM,
           resource_type: resourceType,
@@ -942,7 +1026,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
         <div class='k8s-table-col-item'>
-          {column.can_click ? (
+          {column.can_click && text !== '--' ? (
             <span
               class='col-item-label can-click'
               onClick={() => this.handleLabelClick({ column, row, index })}

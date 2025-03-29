@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { K8sPerformanceDimension } from '../../k8s-dimension';
+import { K8sDimension } from '../../k8s-dimension';
 import { EDimensionKey, type ICommonParams, type GroupListItem } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
@@ -52,9 +52,12 @@ interface K8sDimensionListEvents {
 
 @Component
 export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDimensionListEvents> {
+  @InjectReactive('refleshImmediate') refreshImmediate;
+
   @Prop({ type: Object, required: true }) commonParams: ICommonParams;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
+  // 数据时间间隔
 
   dimensionList = [];
   cacheSearchValue = '';
@@ -99,9 +102,13 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     return set;
   }
 
+  @Watch('refreshImmediate')
+  handleRefreshImmediateChange() {
+    this.init();
+  }
+
   @Watch('localCommonParams')
-  handleCommonParamsChange(newVal: ICommonParams, oldVal: ICommonParams) {
-    if (newVal.scenario === oldVal.scenario && newVal.bcs_cluster_id === oldVal.bcs_cluster_id) return;
+  handleCommonParamsChange() {
     this.init();
   }
 
@@ -116,7 +123,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   async init() {
     if (!this.localCommonParams.bcs_cluster_id) return;
-    const dimension = new K8sPerformanceDimension({
+    const dimension = new K8sDimension({
       ...this.localCommonParams,
       query_string: this.searchValue,
       page_size: 5,
