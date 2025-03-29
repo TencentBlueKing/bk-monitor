@@ -156,7 +156,9 @@ class LogPluginManager(BuiltInPluginManager):
             )
         CustomEventItem.objects.bulk_create(event_items)
         # 修改或更新指标缓存表
-        append_event_metric_list_cache.delay(group_info["event_group_id"])
+        append_event_metric_list_cache.delay(
+            bk_biz_id=group_info["bk_biz_id"], bk_event_group_id=group_info["event_group_id"]
+        )
         return group_info
 
     def modify_result_table(self, current_version, event_info_list):
@@ -175,7 +177,9 @@ class LogPluginManager(BuiltInPluginManager):
         CustomEventItem.objects.filter(bk_event_group_id=group_info["event_group_id"]).delete()
         CustomEventItem.objects.bulk_create(event_items)
         # 修改或更新指标缓存表
-        append_event_metric_list_cache.delay(group_info["event_group_id"])
+        append_event_metric_list_cache.delay(
+            bk_biz_id=group_info["bk_biz_id"], bk_event_group_id=group_info["event_group_id"]
+        )
         return group_info
 
     def delete_result_table(self, current_version):

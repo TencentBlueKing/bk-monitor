@@ -453,11 +453,11 @@ def remove_file(file_path):
 
 
 @shared_task(ignore_result=True)
-def append_event_metric_list_cache(bk_event_group_id):
+def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
     """
     追加或更新新增的自定义事件入缓存表
-    :param bk_event_group_id:
-    :return:
+    :param bk_biz_id: 业务ID
+    :param bk_event_group_id: 自定义事件组ID
     """
     from bkmonitor.models.metric_list_cache import MetricListCache
     from monitor_web.strategies.metric_list_cache import (
@@ -467,9 +467,11 @@ def append_event_metric_list_cache(bk_event_group_id):
 
     set_local_username(settings.COMMON_USERNAME)
     event_group_id = int(bk_event_group_id)
-    event_type = CustomEventGroup.objects.get(bk_event_group_id=event_group_id).type
+    event_type = CustomEventGroup.objects.get(bk_biz_id=bk_biz_id, bk_event_group_id=event_group_id).type
     if event_type == "custom_event":
-        result_table_msg = api.metadata.get_event_group.request.refresh(event_group_id=event_group_id)
+        result_table_msg = api.metadata.get_event_group.request.refresh(
+            bk_biz_id=bk_biz_id, event_group_id=event_group_id
+        )
         create_msg = CustomEventCacheManager().get_metrics_by_table(result_table_msg)
         for metric_msg in create_msg:
             MetricListCache.objects.update_or_create(

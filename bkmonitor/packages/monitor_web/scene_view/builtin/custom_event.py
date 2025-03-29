@@ -8,10 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List, Dict, Tuple
-from django.utils.translation import gettext as _
-from django.db import models
+from typing import Dict, List, Tuple
 
+from django.db import models
+from django.utils.translation import gettext as _
+
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models import CustomEventGroup
 from monitor_web.models.scene_view import SceneViewModel
@@ -25,7 +27,9 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
     """
     custom_event_id = int(view.scene_id.lstrip("custom_event_"))
     config = CustomEventGroup.objects.get(
-        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True), pk=custom_event_id
+        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True),
+        bk_tenant_id=get_request_tenant_id(),
+        pk=custom_event_id,
     )
     return [
         {

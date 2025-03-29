@@ -25,6 +25,7 @@ from monitor_web.collecting.constant import CollectStatus
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.utils import fetch_sub_statistics
 from monitor_web.commons.data_access import ResultTable
+from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
 from monitor_web.models.plugin import PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
@@ -118,7 +119,9 @@ class CollectTargetStatusTopoResource(Resource):
         ):
             version = collect_config.deployment_config.plugin_version
             event_group_name = "{}_{}".format(version.plugin.plugin_type, version.plugin_id)
-            group_info = CustomEventGroup.objects.get(name=event_group_name)
+            group_info = CustomEventGroup.objects.get(
+                bk_biz_id=collect_config.bk_biz_id, type=EVENT_TYPE.KEYWORDS, name=event_group_name
+            )
 
             if "bk_target_ip" in target_list[0]:
                 group_by = ["bk_target_ip", "bk_target_cloud_id"]

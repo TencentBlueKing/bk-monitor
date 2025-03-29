@@ -16,6 +16,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
+from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -29,6 +30,7 @@ from bkmonitor.data_source import (
 from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -117,7 +119,12 @@ class GetObservationSceneStatusList(CacheResource):
 
     @classmethod
     def check_custom_event(cls, bk_biz_id: int, bk_event_group_id: int) -> bool:
-        event_group = CustomEventGroup.objects.filter(bk_event_group_id=bk_event_group_id, bk_biz_id=bk_biz_id).first()
+        event_group = CustomEventGroup.objects.filter(
+            Q(bk_biz_id=bk_biz_id) | Q(is_platform=True),
+            bk_tenant_id=get_request_tenant_id(),
+            type=EVENT_TYPE.CUSTOM_EVENT,
+            bk_event_group_id=bk_event_group_id,
+        ).first()
         if not event_group:
             return False
 
@@ -160,7 +167,9 @@ class GetObservationSceneStatusList(CacheResource):
         # 日志关键字无数据判断
         if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
             event_group_name = "{}_{}".format(plugin.plugin_type, plugin.plugin_id)
-            group_info = CustomEventGroup.objects.filter(name=event_group_name).first()
+            group_info = CustomEventGroup.objects.filter(
+                type=EVENT_TYPE.KEYWORDS, bk_biz_id=bk_biz_id, name=event_group_name
+            ).first()
 
             if not group_info:
                 return False
@@ -369,9 +378,9 @@ class GetObservationSceneList(Resource):
             )
 
         event_group_name__info_map: Dict[str, Dict[str, Any]] = {}
-        for event_group_info in CustomEventGroup.objects.filter(name__in=id__event_group_name_map.values()).values(
-            "name", "table_id"
-        ):
+        for event_group_info in CustomEventGroup.objects.filter(
+            type=EVENT_TYPE.KEYWORDS, bk_biz_id=bk_biz_id, name__in=id__event_group_name_map.values()
+        ).values("name", "table_id"):
             event_group_name__info_map[event_group_info["name"]] = event_group_info
 
         for collect_config in collect_configs:
@@ -605,7 +614,11 @@ class GetPluginInfoByResultTable(Resource):
         else:
             filter_params["table_id"] = result_table_id
         # 针对日志等类型的需要通过从DB表获取到table_name
-        custom_event = CustomEventGroup.objects.filter(table_id=result_table_id).first()
+        custom_event = CustomEventGroup.objects.filter(
+            Q(bk_biz_id=validated_request_data["bk_biz_id"]) | Q(is_platform=True),
+            bk_tenant_id=get_request_tenant_id(),
+            table_id=result_table_id,
+        ).first()
         plugin_type = plugin_id = ""
         db_name = ""
         scene_view_id = ""
