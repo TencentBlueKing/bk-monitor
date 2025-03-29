@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
@@ -34,7 +35,9 @@ class GetCustomMetricTargetListResource(Resource):
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
         return [{"id": target, "name": target} for target in targets]
@@ -51,7 +54,9 @@ class GetCustomTsMetricGroups(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         fields = table.get_and_sync_fields()
@@ -119,7 +124,9 @@ class GetCustomTsDimensionValues(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         # 如果指标只有一个，则使用精确匹配
@@ -450,7 +457,9 @@ class GetCustomTsGraphConfig(Resource):
 
     def perform_request(self, params: dict) -> dict:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],
