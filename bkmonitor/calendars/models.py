@@ -22,6 +22,7 @@ from bkmonitor.utils.time_tools import (
 )
 from bkmonitor.utils.user import get_global_user
 from calendars.constants import ItemFreq
+from constants.common import DEFAULT_TENANT_ID
 
 
 class AbstractModel(models.Model):
@@ -60,10 +61,9 @@ class CalendarModel(AbstractModel):
     """
 
     CALENDAR_CLASSIFY_CHOICES = (("default", _lazy("内置")), ("custom", _lazy("自定义")))
-    name = models.CharField(
-        "日历名称",
-        max_length=15,
-    )
+
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    name = models.CharField("日历名称", max_length=64)
     classify = models.CharField("日历分类", choices=CALENDAR_CLASSIFY_CHOICES, max_length=12)
     deep_color = models.CharField("日历深色底色", max_length=7, default="#3A84FF")
     light_color = models.CharField("日历浅色底色", max_length=7, default="#E1ECFF")
