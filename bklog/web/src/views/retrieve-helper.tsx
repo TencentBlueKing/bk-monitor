@@ -199,6 +199,16 @@ class RetrieveHelper {
   }
 
   /**
+   * 获取当前浏览器操作系统为 window还是 macos
+   */
+  getOs() {
+    const userAgent = navigator.userAgent;
+    const isMac = userAgent.includes('Macintosh');
+    const isWin = userAgent.includes('Windows');
+    return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
+  }
+
+  /**
    * 移除事件
    * @param eventName
    * @param fn

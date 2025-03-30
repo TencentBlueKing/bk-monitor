@@ -1,18 +1,18 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
-  import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
 
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, deepClone } from '@/common/util';
+  import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { debounce } from 'lodash';
+
+  import bklogTagChoice from './bklog-tag-choice';
+
   const { $t } = useLocale();
   const store = useStore();
-  const debouncedHandleChange = debounce(() => handleChange(), 300);
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -23,48 +23,46 @@
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+  const commonFilterAddition = ref([]);
 
-  const commonFilterAddition = computed({
-    get() {
-      const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
-      // 将本地存储的JSON字符串解析为对象并创建映射
-      const parsedValueMap = additionValue
-        ? additionValue.value.reduce((acc, item) => {
-            acc[item.field] = item.value;
-            return acc;
-          }, {})
-        : {};
-      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
-      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
-        ...commonItem,
-        value: parsedValueMap[commonItem.field] || commonItem.value,
-      }));
-      return filterFieldsList.value.map(item => {
-        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        return (
-          matchingItem ?? {
-            field: item.field_name || '',
-            operator: '=',
-            value: [],
-            list: [],
-          }
-        );
-      });
+  const setCommonFilterAddition = () => {
+    commonFilterAddition.value.length = 0;
+    commonFilterAddition.value = [];
+
+    const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
+    // 将本地存储的JSON字符串解析为对象并创建映射
+    const parsedValueMap = additionValue
+      ? additionValue.value.reduce((acc, item) => {
+          acc[item.field] = item.value;
+          return acc;
+        }, {})
+      : {};
+    // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
+    const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
+      ...commonItem,
+      value: parsedValueMap[commonItem.field] || commonItem.value,
+    }));
+
+    filterFieldsList.value.forEach(item => {
+      const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+      commonFilterAddition.value.push(
+        matchingItem ?? {
+          field: item.field_name || '',
+          operator: '=',
+          value: [],
+          list: [],
+        },
+      );
+    });
+  };
+
+  watch(
+    () => [filterFieldsList.value],
+    () => {
+      setCommonFilterAddition();
     },
-    set(val) {
-      const target = val.map(item => {
-        if (!isShowConditonValueSetting(item.operator)) {
-          item.value = [];
-        }
+  );
 
-        return item;
-      });
-
-      store.commit('retrieve/updateCatchFieldCustomConfig', {
-        filterAddition: target,
-      });
-    },
-  });
   watch(
     () => store.state.indexId,
     () => {
@@ -72,15 +70,12 @@
       if (additionValue?.indexId !== store.state.indexId) {
         localStorage.removeItem('commonFilterAddition');
       } else {
-        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
-        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
-        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig);
+        setCommonFilterAddition();
       }
     },
     { immediate: true },
   );
   const activeIndex = ref(-1);
-  let requestTimer = null;
   const isRequesting = ref(false);
 
   const operatorDictionary = computed(() => {
@@ -149,35 +144,13 @@
     );
   };
 
-  // 新建提交逻辑
-  const updateCommonFilterAddition = async () => {
-    try {
-      const Additionvalue = deepClone(commonFilterAddition.value);
-      const target = Additionvalue.map(item => {
-        if (!isShowConditonValueSetting(item.operator)) {
-          item.value = [];
-        }
-        item.value = [];
-        return item;
-      });
-
-      const param = {
-        filterAddition: target,
-        isUpdate: true,
-      };
-      const res = await store.dispatch('userFieldConfigChange', param);
-      const {
-        data: { index_set_config },
-      } = res;
-      index_set_config.filterAddition = commonFilterAddition.value;
-      store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
-      store.dispatch('requestIndexSetQuery');
-    } catch (error) {
-      console.error('Failed to change user field config:', error);
-    }
-  };
-
   const handleChange = () => {
+    commonFilterAddition.value.forEach(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+    });
+
     localStorage.setItem(
       'commonFilterAddition',
       JSON.stringify({
@@ -185,7 +158,9 @@
         value: commonFilterAddition.value,
       }),
     );
-    updateCommonFilterAddition();
+
+    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+    store.dispatch('requestIndexSetQuery');
   };
 
   const focusIndex = ref(null);
@@ -227,7 +202,7 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="debouncedHandleChange"
+          @change="handleChange"
         >
           <template #trigger>
             <span
@@ -244,7 +219,7 @@
           />
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
-          <bk-select
+          <!-- <bk-select
             class="value-select"
             v-model="commonFilterAddition[index].value"
             placeholder="请选择 或 输入"
@@ -271,7 +246,19 @@
               :key="option"
               :name="option"
             />
-          </bk-select>
+          </bk-select> -->
+          <bklogTagChoice
+            class="value-select"
+            v-model="commonFilterAddition[index].value"
+            :list="commonFilterAddition[index].list"
+            :loading="activeIndex === index && isRequesting"
+            :placeholder="$t('请选择 或 输入')"
+            :foucsFixed="true"
+            max-width="460px"
+            @change="handleChange"
+            @input="val => handleInputVlaueChange(val, item, index)"
+            @toggle="visible => handleToggle(visible, item, index)"
+          ></bklogTagChoice>
         </template>
       </div>
     </div>
@@ -320,7 +307,6 @@
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 180px;
     max-width: 560px;
     margin-right: 4px;
     margin-bottom: 4px;
@@ -366,42 +352,6 @@
 
     .value-select {
       min-width: 120px;
-      max-width: 460px;
-
-      :deep(.bk-select-dropdown .bk-select-tag-container) {
-        padding-left: 4px;
-
-        .bk-select-tag {
-          &.width-limit-tag {
-            max-width: 200px;
-
-            > span {
-              max-width: 180px;
-            }
-          }
-        }
-      }
-
-      :deep(.bk-select-tag-input) {
-        min-width: 0;
-      }
-
-      &.bk-select {
-        border: none;
-
-        &.is-focus {
-          box-shadow: none;
-        }
-
-        .bk-select-name {
-          padding: 0 25px 0 0px;
-        }
-      }
-
-      .bk-loading .bk-loading1 {
-        margin-top: 10px;
-        margin-left: -20px;
-      }
     }
 
     .bk-select-angle {

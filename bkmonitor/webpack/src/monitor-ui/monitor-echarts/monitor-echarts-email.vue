@@ -178,7 +178,7 @@ export default class MonitorEcharts extends Vue {
   // 是使用组件内的无数据设置
   @Prop({ default: true }) readonly setNoData: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: 0 }) readonly refreshInterval: number;
   // 图表类型
   @Prop({ default: 'line' }) readonly chartType: ChartType;
   // 图表title
@@ -287,7 +287,7 @@ export default class MonitorEcharts extends Vue {
   childProps = {};
   annotation: IAnnotation = { x: 0, y: 0, show: false, title: '', name: '', color: '', list: [] };
   curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
   legend: { show: boolean; list: ILegendItem[] } = {
@@ -395,15 +395,15 @@ export default class MonitorEcharts extends Vue {
   onHeightChange() {
     this.chart?.resize();
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0 || !this.getSeriesData) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -438,7 +438,7 @@ export default class MonitorEcharts extends Vue {
       this.intersectionObserver.disconnect();
     }
     this.annotation.show = false;
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();

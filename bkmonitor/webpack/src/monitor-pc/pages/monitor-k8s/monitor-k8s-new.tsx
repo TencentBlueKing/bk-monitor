@@ -84,9 +84,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refreshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refreshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;

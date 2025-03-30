@@ -1777,7 +1777,6 @@ export default {
   备注说明: 'Note',
   空间筛选: 'Spaces',
   '业务筛选:': 'Business:',
-  从属关系: 'Dependency Relationship',
   集群属性: 'set',
   模块属性: 'module',
   主机属性: 'host',
@@ -1920,6 +1919,7 @@ export default {
   图表: 'Chart',
   数据明细: 'Data details',
   聚合维度: 'Group by',
+  影响业务: 'Impact on business',
 
   'UI 模式': 'UI mode',
   语句模式: 'Statement mode',

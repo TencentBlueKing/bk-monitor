@@ -185,9 +185,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   // 刷新间隔 - monitor-k8s-new 传入
-  @InjectReactive('refleshInterval') readonly refreshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
-  @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
   @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
     id: string,
     groupId: K8sTableColumnResourceKey,

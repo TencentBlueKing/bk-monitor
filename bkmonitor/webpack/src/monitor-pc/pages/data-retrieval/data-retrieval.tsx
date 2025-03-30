@@ -209,7 +209,7 @@ export default class DataRetrieval extends tsc<object> {
       value: true,
     },
     tools: {
-      refleshInterval: -1,
+      refreshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefaultTimezone(),
     },
@@ -2384,7 +2384,7 @@ export default class DataRetrieval extends tsc<object> {
       },
       tools: {
         ...this.compareValue.tools,
-        refleshInterval: -1,
+        refreshInterval: -1,
       },
     };
   }
@@ -3486,12 +3486,12 @@ export default class DataRetrieval extends tsc<object> {
               {!this.onlyShowView && this.needMenu && (
                 <PanelHeader
                   eventSelectTimeRange={this.eventSelectTimeRange}
-                  refleshInterval={this.compareValue.tools.refleshInterval}
+                  refreshInterval={this.compareValue.tools.refreshInterval}
                   showDownSample={false}
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
-                  onImmediateReflesh={() => (this.refleshNumber += 1)}
-                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
+                  onImmediateRefresh={() => (this.refleshNumber += 1)}
+                  onRefreshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
@@ -3532,7 +3532,7 @@ export default class DataRetrieval extends tsc<object> {
                       </div>
                     </div>
                   </div>
-                  {this.eventType === 'custom_event' && (
+                  {this.$route.name === 'event-retrieval' && this.eventType === 'custom_event' && (
                     <bk-button
                       style={{ marginTop: '8px' }}
                       slot='center'

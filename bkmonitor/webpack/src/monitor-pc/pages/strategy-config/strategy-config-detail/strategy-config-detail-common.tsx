@@ -342,7 +342,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   isMultivariateAnomalyDetection = false;
   multivariateAnomalyDetectionParams = {
     metrics: [],
-    refleshKey: '',
+    refreshKey: '',
   };
 
   targetDetailLoading = false;
@@ -973,7 +973,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
   handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
-    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    this.multivariateAnomalyDetectionParams.refreshKey = random(8);
   }
 
   render() {

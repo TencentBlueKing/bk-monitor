@@ -202,7 +202,7 @@ export interface ICompareOption {
 
 export interface IToolsOption {
   timeRange: TimeRangeType;
-  refleshInterval: number | string[];
+  refreshInterval: number | string[];
   searchValue?: any;
 }
 export interface IQueryOption {

@@ -226,7 +226,12 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
-    common_filter_addition: state => state.retrieve.catchFieldCustomConfig.filterAddition ?? [],
+    common_filter_addition: state =>
+      (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(({ field, operator, value }) => ({
+        field,
+        operator,
+        value,
+      })),
     // @ts-ignore
     retrieveParams: state => {
       const {
