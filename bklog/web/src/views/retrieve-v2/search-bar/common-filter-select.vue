@@ -353,7 +353,8 @@
 
         &[data-operator^='not contains'],
         &[data-operator^='does not exists'],
-        &[data-operator^='is false'] {
+        &[data-operator^='is false'],
+        &[data-operator^='!='] {
           color: #ea3636;
         }
       }

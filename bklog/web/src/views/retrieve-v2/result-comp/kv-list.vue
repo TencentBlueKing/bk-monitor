@@ -59,7 +59,10 @@
             "
           ></span>
           <span
-            :style="{ backgroundColor: getFieldIconColor(field.field_type), color: getFieldIconTextColor(field.field_type) }"
+            :style="{
+              backgroundColor: getFieldIconColor(field.field_type),
+              color: getFieldIconTextColor(field.field_type),
+            }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
             :class="getFieldIcon(field.field_name)"
@@ -440,8 +443,9 @@
         display: flex;
         flex-shrink: 0;
         flex-wrap: nowrap;
-        align-items: baseline;
+        align-items: stretch;
         height: 100%;
+        margin: 5px 0;
         margin-right: 18px;
 
         .field-eye-icon {
@@ -449,7 +453,6 @@
           align-items: center;
           justify-content: center;
           width: 12px;
-          height: 12px;
           margin-right: 8px;
           font-size: 12px;
           color: #4d4f56;
@@ -464,8 +467,8 @@
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 16px;
           min-width: 16px;
-          height: 16px;
           margin: 0 5px 0 0;
           font-size: 14px;
           color: #63656e;
