@@ -2,7 +2,7 @@
   import { computed, ref, watch, onBeforeUnmount, nextTick, onMounted } from 'vue';
 
   // @ts-ignore
-  import { getCharLength, getRegExp, formatDateTimeField } from '@/common/util';
+  import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
@@ -1096,8 +1096,12 @@
         <template v-else-if="showFulltextMsg">
           <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
-            <div class="full-text-sub-title"><img :src="svgImg.imgEnterKey" /><span>⌘/Ctrl+ Enter</span></div>
-            <div class="full-text-content">{{ $t('输入文本后按 [⌘/Ctrl+ Enter] 键进行检索') }}</div>
+            <div class="full-text-sub-title">
+              <img :src="svgImg.imgEnterKey" /><span>{{ getOsCommandLabel() }}+ Enter</span>
+            </div>
+            <div class="full-text-content">
+              {{ $t('输入文本后按') }} [{{ getOsCommandLabel() }}+ Enter] {{ $t('键进行检索') }}
+            </div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
             </div>
@@ -1320,7 +1324,7 @@
           <span class="value">{{ $t('收起查询') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">⌘/Ctrl+Enter</span>
+          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
           <span class="value">{{ $t('提交查询') }}</span>
         </div>
       </div>
@@ -1332,7 +1336,7 @@
           theme="primary"
           @click.stop="handelSaveBtnClick"
         >
-          {{ $t('确定 ⌘/Ctrl + Enter') }}
+          {{ $t('确定') }} {{ getOsCommandLabel() }} + Enter
         </bk-button>
         <bk-button
           style="width: 64px"

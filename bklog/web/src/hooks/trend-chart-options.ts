@@ -25,7 +25,7 @@
  */
 
 const COLOR_LIST = [
-  '#A3B1CC',
+  '#A4B3CD',
   '#F59789',
   '#F5C78E',
   '#6FC5BF',

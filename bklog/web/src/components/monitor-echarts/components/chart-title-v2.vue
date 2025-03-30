@@ -264,7 +264,7 @@
       { id: '1m', name: '1 min' },
       { id: '5m', name: '5 min' },
       { id: '1h', name: '1 h' },
-      { id: '1d', name: '1d' },
+      { id: '1d', name: '1 d' },
     ];
 
     /**
@@ -408,7 +408,7 @@
 
       .select-custom {
         display: inline-block;
-        margin-left: 5px;
+        padding-left: 5px;
         color: #313238;
         vertical-align: middle;
         border: none;
