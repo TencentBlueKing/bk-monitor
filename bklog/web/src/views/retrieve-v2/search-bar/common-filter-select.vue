@@ -28,52 +28,43 @@
   const setCommonFilterAddition = () => {
     commonFilterAddition.value.length = 0;
     commonFilterAddition.value = [];
-
     const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
-    // 将本地存储的JSON字符串解析为对象并创建映射
-    const parsedValueMap = additionValue
-      ? additionValue.value.reduce((acc, item) => {
-          acc[item.field] = item.value;
-          return acc;
-        }, {})
-      : {};
-    // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
-    const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
-      ...commonItem,
-      value: parsedValueMap[commonItem.field] || commonItem.value,
-    }));
 
-    filterFieldsList.value.forEach(item => {
-      const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-      commonFilterAddition.value.push(
-        matchingItem ?? {
+    const isSameIndex = additionValue?.indexId === store.state.indexId;
+    const storedValue = isSameIndex ? additionValue.value : [];
+
+    // 合并策略优化
+    commonFilterAddition.value = filterFieldsList.value.map(item => {
+      const storedItem = storedValue.find(v => v.field === item.field_name);
+      const storeItem = (store.getters.common_filter_addition || []).find(
+        addition => addition.field === item.field_name,
+      );
+
+      // 优先级：本地存储 > store > 默认值
+      return (
+        storedItem ||
+        storeItem || {
           field: item.field_name || '',
           operator: '=',
           value: [],
           list: [],
-        },
+        }
       );
     });
   };
-
   watch(
-    () => [filterFieldsList.value],
-    () => {
-      setCommonFilterAddition();
-    },
-  );
-
-  watch(
-    () => store.state.indexId,
+    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
     () => {
       const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
+
+      // indexId 变化时清除无效缓存
       if (additionValue?.indexId !== store.state.indexId) {
         localStorage.removeItem('commonFilterAddition');
-      } else {
-        setCommonFilterAddition();
       }
+
+      setCommonFilterAddition();
     },
-    { immediate: true },
+    { immediate: true, deep: true },
   );
   const activeIndex = ref(-1);
   const isRequesting = ref(false);
@@ -253,7 +244,7 @@
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
-            :foucsFixed="true"
+            :foucsFixed="false"
             max-width="460px"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"

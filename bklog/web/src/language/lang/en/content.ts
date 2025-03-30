@@ -891,6 +891,7 @@ export default {
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
+  '请选择 或 输入': 'Please enter or input',
   输入文本后按: 'Enter text and press',
   键进行检索: 'to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
