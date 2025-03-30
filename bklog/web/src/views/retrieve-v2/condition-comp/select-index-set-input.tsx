@@ -27,8 +27,9 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './select-index-set-input.scss';
+import { getOsCommandLabel } from '@/common/util';
 
+import './select-index-set-input.scss';
 @Component
 export default class SelectIndexSetInput extends tsc<object> {
   @Prop({ type: Array, required: true }) selectedItemList: Array<any>;
@@ -132,8 +133,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   render() {
-    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-    const shortcutKey = isMac ? '⌘+O' : 'Ctrl+O';
+    const shortcutKey = getOsCommandLabel() + 'O';
     const inputShowDom = () => {
       if (this.isAloneType) {
         return (

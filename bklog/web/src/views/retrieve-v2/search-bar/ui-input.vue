@@ -1,7 +1,7 @@
 <script setup>
   import { ref, computed, set } from 'vue';
 
-  import { getOperatorKey, formatDateTimeField } from '@/common/util';
+  import { getOperatorKey, formatDateTimeField, getOsCommandLabel } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -33,7 +33,7 @@
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
     if (inputValueLength.value === 0) {
-      return $t('⌘/Ctrl + / 快速定位到搜索，请输入关键词...');
+      return getOsCommandLabel() + ' + / ' + $t('快速定位到搜索，请输入关键词...');
     }
 
     return '';
@@ -547,6 +547,14 @@
 
         &::before {
           top: -9px;
+        }
+      }
+
+      .ui-query-options {
+        border-radius: 2px;
+
+        .ui-query-option-footer {
+          border-radius: 0 0 2px 2px;
         }
       }
     }

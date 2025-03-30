@@ -168,6 +168,7 @@
           .bklog-header-cell {
             display: flex;
             align-items: center;
+            height: 32px;
             font-weight: bold;
             line-height: 32px;
             color: #313238;
@@ -248,7 +249,7 @@
           }
 
           .lack-index-filed {
-            padding-bottom: 2px;
+            line-height: 20px;
             border-bottom: 1px dashed #63656e;
           }
 
@@ -439,7 +440,7 @@
     width: 48px;
     height: 48px;
     cursor: pointer;
-    background: #FFFFFF;
+    background: #ffffff;
     border: 1px solid #e9ecf1;
     border-radius: 50%;
     box-shadow: 0 3px 10px 0 #0000001f;

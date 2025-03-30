@@ -1288,3 +1288,20 @@ export const downJsonFile = (jsonStr, name = 'json-file.json') => {
   const href = window.URL.createObjectURL(blob);
   downFile(href, name);
 };
+
+/**
+ * 获取当前操作系统
+ */
+export const getOs = () => {
+  const userAgent = navigator.userAgent;
+  const isMac = userAgent.includes('Macintosh');
+  const isWin = userAgent.includes('Windows');
+  return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
+};
+
+/**
+ * 获取当前操作系统的控制键盘文案
+ */
+export const getOsCommandLabel = () => {
+  return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
+};
