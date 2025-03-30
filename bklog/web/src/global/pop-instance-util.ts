@@ -75,15 +75,21 @@ export default class PopInstanceUtil {
     /**
      * 处理多次点击触发多次请求的事件
      */
-    this.delayShowInstance = debounce(target => {
-      if (this.isShown()) {
-        this.repositionTippyInstance();
-        return;
-      }
+    this.delayShowInstance = debounce(this.immediateShowInstance);
+  }
 
-      this.initInistance(target);
-      this.getTippyInstance()?.show();
-    });
+  setIsShowing(isShowing) {
+    this.isShowing = isShowing;
+  }
+
+  immediateShowInstance(target) {
+    if (this.isShown()) {
+      this.repositionTippyInstance();
+      return;
+    }
+
+    this.initInistance(target);
+    this.getTippyInstance()?.show();
   }
 
   // 初始化监听器
@@ -157,10 +163,10 @@ export default class PopInstanceUtil {
       zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
       onShow: () => {
         this.onMounted();
-        setTimeout(() => {
-          this.isShowing = false;
-        });
         return this.onShowFn?.(this.tippyInstance) ?? true;
+      },
+      onShown: () => {
+        this.isShowing = false;
       },
       onHide: () => {
         if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
@@ -202,14 +208,19 @@ export default class PopInstanceUtil {
     }
   }
 
-  show(target, cancelHidding = false) {
+  show(target, cancelHidding = false, immediate = false) {
     if (this.isShowing) {
       return;
     }
 
     this.isShowing = true;
     cancelHidding && this.cancelHide();
-    this.delayShowInstance(target);
+    if (!immediate) {
+      this.delayShowInstance(target);
+      return;
+    }
+
+    this.immediateShowInstance(target);
   }
 
   repositionTippyInstance(force?) {

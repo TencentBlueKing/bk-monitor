@@ -253,6 +253,7 @@
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
+            :foucsFixed="true"
             max-width="460px"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
