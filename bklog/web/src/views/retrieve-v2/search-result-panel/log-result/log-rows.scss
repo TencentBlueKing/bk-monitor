@@ -551,6 +551,7 @@
     .bklog-row-container {
       &.row-header {
         display: block;
+        transform: translate3d(var(--scroll-left), 0, 0);
       }
     }
   }
@@ -562,7 +563,6 @@
           &.right {
             position: sticky;
             right: var(--scroll-left);
-            // transform: translateX(-8px);
             z-index: 1;
           }
         }

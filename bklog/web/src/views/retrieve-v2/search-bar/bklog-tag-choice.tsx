@@ -108,6 +108,12 @@ export default defineComponent({
       };
     });
 
+    const stopDefaultPrevented = e => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
+
     const popInstance = new PopInstanceUtil({
       refContent: () => refChoiceList.value,
       arrow: false,
@@ -226,25 +232,55 @@ export default defineComponent({
     };
 
     /**
+     * 鼠标点击空白位置执行当前focused的 edit input blur行为
+     */
+    const handleEditInputBlur = () => {
+      if (editItemOption.value.index !== null) {
+        let isUpdate = false;
+
+        const targetValue = new Array();
+        valueList.value.forEach((v, index) => {
+          if (index !== editItemOption.value.index) {
+            targetValue.push(getListItemId(v));
+          } else {
+            isUpdate = getListItemId(v) !== inputTagValue.value;
+            if (inputTagValue.value !== '') {
+              targetValue.push(inputTagValue.value);
+            }
+          }
+        });
+
+        if (isUpdate) {
+          emit('change', targetValue);
+        }
+      }
+
+      editItemOption.value.index = null;
+      editItemOption.value.width = 12;
+      inputTagValue.value = '';
+    };
+
+    /**
      * 当绑定的数据改变时，销毁当前弹出内容，根据Vue渲染出来的结果进行弹出内容的更新
      */
     const updateFiexedInstanceContent = () => {
-      nextTick(() => {
-        destroyFixedContent();
-        setFixedValueContent();
-        fixedInstance.setProps({
-          content: focusFixedElement,
-        });
+      return new Promise(resolve => {
+        nextTick(() => {
+          destroyFixedContent();
+          setFixedValueContent();
+          fixedInstance.setProps({
+            content: focusFixedElement,
+          });
 
-        popInstance.initInistance(focusFixedElement);
-        popInstance.getTippyInstance().show();
+          popInstance.initInistance(focusFixedElement);
+          popInstance.getTippyInstance().show();
+          resolve(true);
+        });
       });
     };
 
     const handleDeleteItemClick = (e, val) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+      stopDefaultPrevented(e);
 
       const targetValue = new Array();
       valueList.value.forEach(v => {
@@ -257,7 +293,7 @@ export default defineComponent({
       refTagInputElement.value?.focus();
     };
 
-    const handleValueItemClick = val => {
+    const handleOptionItemClick = val => {
       emitValue(getListItemId(val));
       if (props.foucsFixed) {
         updateFiexedInstanceContent();
@@ -270,13 +306,16 @@ export default defineComponent({
      */
     const handleInputKeyup = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
+        stopDefaultPrevented(e);
 
         emitValue(inputTagValue.value);
         clearInputTag();
       }
+    };
+
+    const handleDeleteAllClick = e => {
+      stopDefaultPrevented(e);
+      emit('change', []);
     };
 
     let focusFixedElementHeight = 0;
@@ -291,12 +330,23 @@ export default defineComponent({
       }
     });
 
+    /**
+     * Fixed 模式Input事件添加监听
+     * @param e
+     */
+    const handleCloneFixedInputChange = (e: InputEvent) => {
+      handleInputValueChange(e);
+      const target = e.target as HTMLInputElement;
+      const charLen = Math.max(getCharLength(inputTagValue.value), 1);
+      target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+    };
+
     const destroyFixedContent = () => {
       focusFixedElement?.removeEventListener('click', handleFixedValueListClick);
 
       const input = focusFixedElement?.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
       input?.removeEventListener('keyup', handleFixedValueInputKeyup);
-      input?.removeEventListener('input', cloneFixedInputChange);
+      input?.removeEventListener('input', handleCloneFixedInputChange);
       fixedContentResizeObserver.disconnect();
 
       focusFixedElementHeight = 0;
@@ -310,7 +360,7 @@ export default defineComponent({
         const input = focusFixedElement.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
         if (input) {
           input.addEventListener('keyup', handleFixedValueInputKeyup);
-          input.addEventListener('input', cloneFixedInputChange);
+          input.addEventListener('input', handleCloneFixedInputChange);
         }
       }
     };
@@ -324,41 +374,17 @@ export default defineComponent({
       }
     };
 
-    // const handleValueItemclick = (e, item, index) => {
-    //   if (!item.__tag_input__) {
-    //     const target = e.target as HTMLElement;
-    //     editItemOption.value.index = index;
-    //     editItemOption.value.width = target.parentElement.offsetWidth;
-    //   }
-    // };
-
     const handleCustomTagClick = (e: MouseEvent) => {
       emitValue(inputTagValue.value);
       clearInputTag();
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      stopDefaultPrevented(e);
     };
 
-    const cloneFixedInputChange = (e: InputEvent) => {
-      handleInputValueChange(e);
-      const target = e.target as HTMLInputElement;
-      const charLen = Math.max(getCharLength(inputTagValue.value), 1);
-      target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-    };
-
-    const handleFixedValueListClick = (e: MouseEvent) => {
-      const target = e?.target as HTMLElement;
-
-      if (target?.classList.contains('bklog-choice-value-span')) {
-        const index = target.parentElement.getAttribute('data-item-index');
-
-        editItemOption.value.index = parseInt(index);
-        editItemOption.value.width = target.offsetWidth;
-        updateFiexedInstanceContent();
-        return;
-      }
-
+    /**
+     * 自动 focus 输入框
+     * @returns
+     */
+    const autoFocusInput = () => {
       const editInput = focusFixedElement.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
       if (editInput) {
         editInput.focus();
@@ -367,6 +393,45 @@ export default defineComponent({
 
       const input = focusFixedElement.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
       input?.focus();
+    };
+
+    /**
+     * fixed 模式弹出内容点击事件监听
+     * @param e
+     * @returns
+     */
+    const handleFixedValueListClick = (e: MouseEvent) => {
+      stopDefaultPrevented(e);
+
+      const target = e?.target as HTMLElement;
+
+      handleEditInputBlur();
+
+      if (target?.classList.contains('bklog-choice-value-span')) {
+        const index = target.parentElement.getAttribute('data-item-index');
+        editItemOption.value.index = parseInt(index);
+        editItemOption.value.width = target.parentElement.offsetWidth;
+        inputTagValue.value = target.innerText;
+      }
+
+      // 点击删除单个值
+      if (target.hasAttribute('data-bklog-choice-item-del')) {
+        const index = parseInt(target.getAttribute('data-bklog-choice-item-del') ?? '-1', 10);
+        if (index >= 0) {
+          const targetValue = new Array();
+          valueList.value.forEach((v, idx) => {
+            if (idx !== index) {
+              targetValue.push(getListItemId(v));
+            }
+          });
+
+          emit('change', targetValue);
+        }
+      }
+
+      updateFiexedInstanceContent().then(() => {
+        autoFocusInput();
+      });
     };
 
     const handleFixedValueInputKeyup = (e: KeyboardEvent) => {
@@ -386,11 +451,15 @@ export default defineComponent({
         appendTo: document.body,
         hideOnClick: false,
         placement: 'bottom-start',
-        offset: [10, 0],
+        theme: 'log-pure-choice',
+        offset: [0, -1],
         onShown: () => {
-          const input = focusFixedElement?.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
-          input?.focus();
           fixedInstance.setIsShowing(false);
+          nextTick(() => {
+            autoFocusInput();
+            popInstance.show(focusFixedElement);
+            popInstance.repositionTippyInstance();
+          });
         },
         onHidden: () => {
           destroyFixedContent();
@@ -400,12 +469,9 @@ export default defineComponent({
 
     const cloneFixedItem = () => {
       fixedInstance.show(refFixedPointerElement.value, true, true);
-      nextTick(() => {
-        popInstance.show(focusFixedElement ?? refRootElement.value);
-      });
     };
 
-    const handleContainerClick = () => {
+    const execContainerClick = () => {
       if (hiddenItemCount.value > 0) {
         isInputFocused.value = true;
 
@@ -429,6 +495,19 @@ export default defineComponent({
 
       popInstance.show(refRootElement.value);
       refTagInputElement.value?.focus();
+    };
+
+    const handleSelectedValueItemclick = (e: MouseEvent, item, index) => {
+      if (!item.__tag_input__) {
+        stopDefaultPrevented(e);
+
+        const target = e.target as HTMLElement;
+        editItemOption.value.index = index;
+        editItemOption.value.width = target.parentElement.offsetWidth;
+        inputTagValue.value = getListItemId(item);
+
+        nextTick(execContainerClick);
+      }
     };
 
     const clearInputTag = () => {
@@ -477,39 +556,15 @@ export default defineComponent({
       });
     };
 
-    const documentClickEventResolver = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (target.classList.contains('bklog-choice-value-span')) {
-      }
-
-      if (focusFixedElement?.contains(target)) {
-        // 点击删除单个值
-        if (target.hasAttribute('data-bklog-choice-item-del')) {
-          const index = parseInt(target.getAttribute('data-bklog-choice-item-del') ?? '-1', 10);
-          if (index >= 0) {
-            const targetValue = new Array();
-            valueList.value.forEach((v, idx) => {
-              if (idx !== index) {
-                targetValue.push(getListItemId(v));
-              }
-            });
-
-            emit('change', targetValue);
-            target.parentElement?.remove();
-          }
-        }
-      }
-    };
-
     const handleDocumentClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      handleEditInputBlur();
+
       if (
         refRootElement.value.contains(target) ||
         refChoiceList.value.contains(target) ||
         focusFixedElement?.contains(target)
       ) {
-        documentClickEventResolver(e);
         if (refRootElement.value.contains(target) && !popInstance.isShown()) {
           popInstance.show(refRootElement.value);
           return;
@@ -526,15 +581,23 @@ export default defineComponent({
       calcItemEllipsis();
     };
 
+    const handleContainerClick = (e: MouseEvent) => {
+      stopDefaultPrevented(e);
+      nextTick(execContainerClick);
+    };
+
     watch(
       () => [props.value],
       () => {
         if (isInputFocused.value) {
-          handleContainerClick();
+          execContainerClick();
+          autoFocusInput();
           return;
         }
 
-        calcItemEllipsis();
+        calcItemEllipsis().then(() => {
+          autoFocusInput();
+        });
       },
     );
 
@@ -572,7 +635,10 @@ export default defineComponent({
           class={[
             'bklog-choice-list-item',
             'custom-tag',
-            { 'is-hidden': inputTagValue.value.length === 0, 'is-active': activeItemIndex.value === null },
+            {
+              'is-hidden': inputTagValue.value.length === 0 || editItemOption.value.index !== null,
+              'is-active': activeItemIndex.value === null,
+            },
           ]}
           onClick={handleCustomTagClick}
         >
@@ -581,11 +647,11 @@ export default defineComponent({
       );
     };
 
-    const renderList = () => {
+    const renderOptionList = () => {
       return optionList.value.map(({ item, selected }) => (
         <div
           class={['bklog-choice-list-item', { 'is-selected': selected }]}
-          onClick={() => handleValueItemClick(item)}
+          onClick={() => handleOptionItemClick(item)}
         >
           {slots.item?.(item) ?? getListItemName(item)}
         </div>
@@ -607,7 +673,7 @@ export default defineComponent({
       return [
         <span
           class='bklog-choice-value-span'
-          // onClick={e => handleValueItemclick(e, item, index)}
+          onClick={e => handleSelectedValueItemclick(e, item, index)}
         >
           {getListItemName(item)}
         </span>,
@@ -630,7 +696,10 @@ export default defineComponent({
               data-item-index={index}
               class={[
                 'bklog-choice-value-item tag-input',
-                { 'is-hidden': hiddenItemCount.value > 0 && !isInputFocused.value },
+                {
+                  'is-hidden':
+                    editItemOption.value.index !== null || (hiddenItemCount.value > 0 && !isInputFocused.value),
+                },
               ]}
             >
               <input
@@ -678,7 +747,7 @@ export default defineComponent({
           class='hidden-fixed-pointer'
         ></span>
         <ul
-          class='bklog-tag-choice-input'
+          class={['bklog-tag-choice-input', { 'is-focus': isInputFocused.value }]}
           ref={refTagInputContainer}
           style={rootStyle.value}
           data-placeholder={placeholderText.value}
@@ -692,6 +761,10 @@ export default defineComponent({
           </li>
         </ul>
         <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>
+        <span
+          class='bk-icon icon-close-circle-shape delete-all-tags'
+          onClick={handleDeleteAllClick}
+        ></span>
         <div v-show={false}>
           <div
             class='bklog-tag-choice-list'
@@ -703,7 +776,7 @@ export default defineComponent({
               class='bklog-choice-value-container'
               v-bkloading={{ isLoading: props.loading, size: 'small' }}
             >
-              {renderList()}
+              {renderOptionList()}
             </div>
           </div>
         </div>

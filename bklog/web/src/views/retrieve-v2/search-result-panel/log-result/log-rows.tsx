@@ -809,23 +809,23 @@ export default defineComponent({
     });
 
     const setHeaderStyle = () => {
-      if (refTableHead.value) {
-        refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
-      }
+      // if (refTableHead.value) {
+      //   refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
+      // }
     };
 
-    const setBodyStyle = () => {
-      if (refRootElement.value) {
-        refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
-        refRootElement.value.style.setProperty('--row-offset-left', `${scrollXOffsetLeft.value}px`);
-        refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
-        refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
-        refRootElement.value.style.setProperty(
-          '--last-column-left',
-          `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-        );
-      }
-    };
+    // const setBodyStyle = () => {
+    //   if (refRootElement.value) {
+    //     refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
+    //     refRootElement.value.style.setProperty('--row-offset-left', `${scrollXOffsetLeft.value}px`);
+    //     refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
+    //     refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
+    //     refRootElement.value.style.setProperty(
+    //       '--last-column-left',
+    //       `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
+    //     );
+    //   }
+    // };
 
     watch(
       () => [
@@ -837,10 +837,20 @@ export default defineComponent({
         searchContainerHeight.value,
       ],
       () => {
-        setBodyStyle();
-        setHeaderStyle();
+        // setBodyStyle();
+        // setHeaderStyle();
       },
     );
+
+    const rootBodyStyle = computed(() => {
+      return {
+        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
+        '--row-offset-left': `${scrollXOffsetLeft.value}px`,
+        '--fix-right-width': `${operatorFixRightWidth.value}px`,
+        '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
+        '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
+      };
+    });
 
     const showHeader = computed(() => {
       return showCtxType.value === 'table' && tableList.value.length > 0;
@@ -1119,6 +1129,7 @@ export default defineComponent({
       isRequesting,
       isLoading,
       exceptionMsg,
+      rootBodyStyle,
     };
   },
   render() {
@@ -1126,6 +1137,7 @@ export default defineComponent({
       <div
         ref='refRootElement'
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
+        style={this.rootBodyStyle}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
       >
         {this.renderHeadVNode()}
