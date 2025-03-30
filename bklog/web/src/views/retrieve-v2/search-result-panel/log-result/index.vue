@@ -68,6 +68,7 @@
 
         <bk-checkbox
           style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           :value="isJsonFormat"
           theme="primary"
           @change="handleJsonFormat"
@@ -95,6 +96,7 @@
 
         <bk-checkbox
           style="margin: 0 12px 0 12px"
+          class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"
           @change="handleEmptyFieldFormat"

@@ -356,6 +356,7 @@ export default {
   删除成功: 'Deleted successful',
   创建失败: 'Created failed',
   修改成功: 'Modified successful',
+  导入成功: 'Import successful',
   全部空间: 'All spaces',
   字段类型: 'Field type',
   挂载目录: 'Mount Directory',
@@ -768,4 +769,7 @@ export default {
   '你可能想输入:': 'You may want to enter',
   '/ 快速定位到搜索，请输入关键词...': '/ Quickly locate the search, please enter keywords...',
   分级设置: 'Grade setting',
+  字段显示: 'Field display',
+  待选字段: 'Field to be selected:',
+  已选字段: 'Selected fields:',
 };

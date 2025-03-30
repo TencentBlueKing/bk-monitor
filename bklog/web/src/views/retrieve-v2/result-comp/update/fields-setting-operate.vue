@@ -32,6 +32,7 @@
       @click="emitOperate('click')"
     >
       <span
+        ref="panelNameRef"
         class="panel-name"
         :title="configItem.name"
         >{{ configItem.name }}</span
@@ -41,42 +42,7 @@
         class="panel-operate"
         @click="e => e.stopPropagation()"
       >
-        <SettingMoreMenu @menuClick="emitOperate" />
-        <!-- <i
-          class="bk-icon edit-icon icon-edit-line"
-          @click="emitOperate('edit')"
-        ></i>
-        <bk-popover
-          ref="deletePopoverRef"
-          ext-cls="config-tab-item"
-          :on-hide="popoverHidden"
-          :tippy-options="tippyOptions"
-        >
-          <i
-            class="bk-icon edit-icon icon-delete"
-            @click="handleClickDeleteConfigIcon"
-          ></i>
-          <template #content>
-            <div>
-              <div class="popover-slot">
-                <span>{{ $t('确定要删除当前字段配置') }}?</span>
-                <div class="popover-btn">
-                  <bk-button
-                    text
-                    @click="emitOperate('delete')"
-                    >{{ $t('确定') }}</bk-button
-                  >
-                  <bk-button
-                    theme="danger"
-                    text
-                    @click="handleCancelDelete"
-                    >{{ $t('取消') }}</bk-button
-                  >
-                </div>
-              </div>
-            </div>
-          </template>
-        </bk-popover> -->
+        <SettingMoreMenu @menuClick="handleMenuClick" />
       </div>
     </div>
     <div
@@ -93,6 +59,27 @@
         :placeholder="$t('请输入配置名')"
         @blur="emitOperate('update')"
       ></bk-input>
+    </div>
+    <div style="display: none">
+      <div
+        class="delete-tip-container bklog-v3-popover-tag"
+        ref="deleteTipRef"
+      >
+        <span class="delete-tip-description">{{ $t('确定要删除当前字段配置') }}?</span>
+        <div class="delete-tip-operation">
+          <bk-button
+            text
+            @click="handleDeleteVerify"
+            >{{ $t('确定') }}</bk-button
+          >
+          <bk-button
+            theme="danger"
+            text
+            @click="handleDeleteTipPopoverHide"
+            >{{ $t('取消') }}</bk-button
+          >
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -116,14 +103,7 @@
         isClickDelete: false, // 是否点击删除配置
         nameStr: '', // 编辑
         isInputError: false, // 名称是否非法
-        tippyOptions: {
-          placement: 'bottom-end',
-          trigger: 'click',
-          theme: 'light',
-          arrow: false,
-          distance: -2,
-          offset: '8 0',
-        },
+        deleteTipInstance: null,
       };
     },
     computed: {
@@ -165,18 +145,63 @@
         });
       },
 
-      popoverHidden() {
-        this.$emit('setPopperInstance', true);
-        setTimeout(() => {
-          this.isClickDelete = false;
-        }, 300);
+      /**
+       * @description 更多 下拉菜单 点击事件后回调
+       * @param type
+       */
+      handleMenuClick(type) {
+        if (type !== 'delete') {
+          this.emitOperate(type);
+          return;
+        }
+        this.handleDeleteTipPopoverShow();
       },
-      handleCancelDelete() {
-        this.$refs.deletePopoverRef.hideHandler();
+
+      /**
+       * @description 确认删除回调
+       */
+      handleDeleteVerify() {
+        this.handleDeleteTipPopoverHide();
+        this.emitOperate('delete');
       },
-      handleClickDeleteConfigIcon() {
-        this.isClickDelete = true;
-        this.$emit('setPopperInstance', false);
+
+      /**
+       * @description 打开 删除确认提示 popover
+       */
+      async handleDeleteTipPopoverShow() {
+        if (this.deleteTipInstance) {
+          this.handleDeleteTipPopoverHide();
+        }
+        if (!this.$refs?.panelNameRef || !this.$refs?.deleteTipRef) {
+          return;
+        }
+
+        this.deleteTipInstance = this.$bkPopover(this.$refs?.panelNameRef, {
+          content: this.$refs.deleteTipRef,
+          trigger: 'click',
+          animateFill: false,
+          placement: 'bottom-start',
+          theme: 'light field-setting-item-delete-tips',
+          arrow: true,
+          interactive: true,
+          boundary: 'viewport',
+          distance: 0,
+          onHidden: () => {
+            this.deleteTipInstance?.destroy?.();
+            this.deleteTipInstance = null;
+          },
+        });
+        await this.$nextTick();
+        this.deleteTipInstance?.show();
+      },
+
+      /**
+       * @description 关闭 删除确认提示 popover
+       */
+      handleDeleteTipPopoverHide() {
+        this.deleteTipInstance?.hide?.();
+        this.deleteTipInstance?.destroy?.();
+        this.deleteTipInstance = null;
       },
     },
   };
@@ -205,6 +230,8 @@
 
     /* stylelint-disable-next-line no-descending-specificity */
     .panel-operate {
+      flex-shrink: 0;
+
       :deep(.field-setting-more) {
         /* stylelint-disable-next-line no-descending-specificity */
         &.field-setting-more {
@@ -232,13 +259,33 @@
     }
 
     .panel-name {
-      flex-shrink: 0;
       flex-basis: auto;
       min-width: 0;
       padding-left: 8px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+  }
+</style>
+<style lang="scss">
+  .field-setting-item-delete-tips-theme {
+    .delete-tip-container {
+      padding: 8px 14px;
+      font-size: 12px;
+
+      .delete-tip-operation {
+        margin-top: 6px;
+        text-align: right;
+
+        .bk-button-text {
+          font-size: 12px;
+
+          &:first-child {
+            margin-right: 4px;
+          }
+        }
+      }
     }
   }
 </style>

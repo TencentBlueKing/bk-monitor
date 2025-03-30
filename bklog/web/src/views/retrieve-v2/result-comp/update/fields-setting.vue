@@ -50,7 +50,7 @@
             </bk-button>
             <log-export
               class="config-btn"
-              :text="true"
+              @change="handleFieldConfigImport"
             >
               <i class="bk-icon bklog-icon bklog-import" />
               <span>{{ $t('导入') }}</span>
@@ -175,14 +175,20 @@
 </template>
 
 <script>
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
+
+  import { getFieldNameByField } from '@/hooks/use-field-name';
+  import { random, downJsonFile } from '@/common/util';
 
   import LogExport from '../../../../components/log-import/log-import';
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
+
+  /** 导出配置字段文件名前缀 */
+  const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
+
   export default {
     components: {
       // eslint-disable-next-line vue/no-unused-components
@@ -292,12 +298,9 @@
       newConfigStr() {
         this.isInputError = false;
       },
-      isShowLeft() {
-        console.log(this.isShowLeft, 'isShowLeft.isShowLeft');
-      },
     },
     created() {
-      this.currentClickConfigID = this.configTabPanels.length ? this.filedSettingConfigID : 0;
+      this.currentClickConfigID = this.filedSettingConfigID;
       this.initRequestConfigListShow();
     },
     mounted() {
@@ -512,13 +515,48 @@
             this.handleEditConfigName(configItem.index);
             break;
           case 'update':
-            this.handleUpdateConfig(configItem);
+            this.handleUpdateConfig(configItem, false, this.$t('修改成功'));
             break;
           case 'cancel':
             this.handleCancelEditConfig(configItem.index);
             break;
+          case 'export':
+            this.handleFieldConfigExport(configItem);
+            break;
         }
       },
+
+      /**
+       * @description 导入字段配置
+       */
+      handleFieldConfigImport(fieldContent) {
+        try {
+          const fieldConfig = JSON.parse(fieldContent);
+          fieldConfig.editStr = `导入模板-${random(3)}`;
+          this.handleUpdateConfig(fieldConfig, true, this.$t('导入成功'));
+        } catch (error) {
+          this.messageWarn(this.$t('请导入正确的JSON格式文件~'));
+          return;
+        }
+      },
+
+      /**
+       * @description 导出选中字段配置为 JSON 文件
+       */
+      handleFieldConfigExport(updateItem) {
+        let fieldName = `${updateItem.name}}`;
+        const fieldConfigParam = {
+          name: fieldName,
+          sort_list: updateItem.sort_list,
+          display_fields: updateItem.display_fields,
+          config_id: undefined,
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_ids: this.unionIndexList,
+          index_set_type: this.isUnionSearch ? 'union' : 'single',
+        };
+        downJsonFile(JSON.stringify(fieldConfigParam, null, 4), `${FIELD_CONFIG_FILENAME_PREFIX}${fieldName}.json`);
+      },
+
       /** 编辑配置 */
       handleEditConfigName(index) {
         this.configTabPanels.forEach(item => (item.isShowEdit = false));
@@ -538,7 +576,7 @@
         }
         const configValue = this.configTabPanels[0];
         configValue.editStr = this.newConfigStr;
-        this.handleUpdateConfig(configValue, true);
+        this.handleUpdateConfig(configValue, true, this.$t('修改成功'));
       },
       /** 取消新增配置 */
       handleCancelNewConfig() {
@@ -552,7 +590,7 @@
         this.configTabPanels[index].isShowEdit = false;
       },
       /** 更新配置 */
-      async handleUpdateConfig(updateItem, isCreate = false) {
+      async handleUpdateConfig(updateItem, isCreate = false, successMsg) {
         const requestStr = isCreate ? 'create' : 'update';
         const data = {
           name: updateItem.editStr,
@@ -576,6 +614,7 @@
             }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
+          successMsg && this.messageInfo(successMsg);
         } catch (error) {
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
@@ -831,7 +870,9 @@
 
       .text-type {
         margin-bottom: 8px;
+        font-family: MicrosoftYaHei;
         font-size: 14px;
+        line-height: 22px;
         color: #313238;
       }
     }

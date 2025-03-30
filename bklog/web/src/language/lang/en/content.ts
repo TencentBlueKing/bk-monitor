@@ -1033,4 +1033,5 @@ export default {
   '请输入 或 选择': 'Please enter or select',
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
+  '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
 };
