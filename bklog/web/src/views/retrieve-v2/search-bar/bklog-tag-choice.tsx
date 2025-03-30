@@ -648,6 +648,10 @@ export default defineComponent({
     };
 
     const renderOptionList = () => {
+      if (!optionList.value.length) {
+        return <div class='empty-row'>{t('暂无数据')}</div>;
+      }
+
       return optionList.value.map(({ item, selected }) => (
         <div
           class={['bklog-choice-list-item', { 'is-selected': selected }]}

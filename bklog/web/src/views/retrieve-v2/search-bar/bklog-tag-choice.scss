@@ -205,6 +205,16 @@ ul.bklog-tag-choice-input {
   .bklog-choice-value-container {
     min-height: 32px;
   }
+
+  .empty-row {
+    color: #26323d;
+    line-height: 32px;
+    font-size: 11px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
 }
 
 [data-theme='log-pure-choice'] {
@@ -226,6 +236,11 @@ ul.bklog-tag-choice-input {
 
     &.is-focus {
       padding-right: 6px;
+    }
+
+    &::after {
+      left: 4px;
+      top: calc(50% + 3px);
     }
   }
 }
