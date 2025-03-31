@@ -156,11 +156,11 @@ class ValueCalculator:
 
         def calculate_node(tree_node):
             """递归计算节点值"""
-            tree_node.value = c.calculate(tree_node.values, samples_len)  # 应用计算策略
+            tree_node.value = c.calculate(tree_node.values, samples_len)
             for child in tree_node.children.values():
                 calculate_node(child)
 
-        calculate_node(tree.root)  # 计算常规树
+        calculate_node(tree.root)
         # 更新根节点值（子节点值总和）
         tree.root.value = format_percent(
             sum(child.value for child in tree.root.children.values()), precision=4, sig_fig_cnt=4
