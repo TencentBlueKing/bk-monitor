@@ -242,29 +242,35 @@ export default defineComponent({
      * 鼠标点击空白位置执行当前focused的 edit input blur行为
      */
     const handleEditInputBlur = () => {
-      if (editItemOption.value.index !== null) {
-        let isUpdate = false;
+      return new Promise(resolve => {
+        if (editItemOption.value.index !== null) {
+          let isUpdate = false;
 
-        const targetValue = new Array();
-        valueList.value.forEach((v, index) => {
-          if (index !== editItemOption.value.index) {
-            targetValue.push(getListItemId(v));
-          } else {
-            isUpdate = getListItemId(v) !== inputTagValue.value;
-            if (inputTagValue.value !== '') {
-              targetValue.push(inputTagValue.value);
+          const targetValue = new Array();
+          valueList.value.forEach((v, index) => {
+            if (index !== editItemOption.value.index) {
+              targetValue.push(getListItemId(v));
+            } else {
+              isUpdate = getListItemId(v) !== inputTagValue.value;
+              if (inputTagValue.value !== '') {
+                targetValue.push(inputTagValue.value);
+              }
             }
+          });
+
+          if (isUpdate) {
+            emit('change', targetValue);
           }
-        });
 
-        if (isUpdate) {
-          emit('change', targetValue);
+          editItemOption.value.index = null;
+          editItemOption.value.width = 12;
+          inputTagValue.value = '';
+
+          resolve(true);
         }
-      }
 
-      editItemOption.value.index = null;
-      editItemOption.value.width = 12;
-      inputTagValue.value = '';
+        resolve(false);
+      });
     };
 
     /**
@@ -275,12 +281,12 @@ export default defineComponent({
         nextTick(() => {
           destroyFixedContent();
           setFixedValueContent();
-          fixedInstance.setProps({
-            content: focusFixedElement,
-          });
+          if (fixedInstance.isShown()) {
+            fixedInstance.setProps({
+              content: focusFixedElement,
+            });
+          }
 
-          // popInstance.initInistance(focusFixedElement);
-          // popInstance.getTippyInstance().show();
           resolve(true);
         });
       });
@@ -415,13 +421,13 @@ export default defineComponent({
         return;
       }
 
-      handleEditInputBlur();
-
       if (target?.classList.contains('bklog-choice-value-span')) {
         const index = target.parentElement.getAttribute('data-item-index');
         editItemOption.value.index = parseInt(index);
         editItemOption.value.width = target.parentElement.offsetWidth;
         inputTagValue.value = target.innerText;
+        updateFiexedInstanceContent();
+        return;
       }
 
       // 点击删除单个值
@@ -437,19 +443,23 @@ export default defineComponent({
 
           emit('change', targetValue);
 
-          updateFiexedInstanceContent().then(() => {
-            fixedInstance.show(refFixedPointerElement.value, true, true);
-          });
+          updateFiexedInstanceContent();
         }
+
+        return;
       }
+
+      handleEditInputBlur().then((update: boolean) => {
+        if (update) {
+          updateFiexedInstanceContent();
+        }
+      });
     };
 
     const handleFixedValueInputKeyup = (e: KeyboardEvent) => {
       handleInputKeyup(e);
       if (e.key === 'Enter') {
-        updateFiexedInstanceContent().then(() => {
-          fixedInstance.show(refFixedPointerElement.value, true, true);
-        });
+        updateFiexedInstanceContent();
       }
     };
 
