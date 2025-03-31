@@ -25,10 +25,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
+import { shallowReactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
+import { Table, TableColumn } from '@blueking/table';
+import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
@@ -42,6 +44,9 @@ import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import type { IAuthority } from '../../typings/authority';
 
 import './rotation.scss';
+import '@blueking/table/vue3/vue3.css';
+import 'tippy.js/dist/tippy.css';
+import 'tippy.js/themes/light.css';
 
 function getTimeStr(time: string) {
   if (time === 'null' || !time) {
@@ -55,14 +60,14 @@ function getTimeStr(time: string) {
   }`;
 }
 
-enum Ecategory {
+enum ECategory {
   handoff = 'handoff',
   regular = 'regular',
 }
 
-enum EColunm {
+enum EColumn {
   enabled = 'enabled',
-  label = 'label',
+  label = 'label_',
   name = 'name',
   operate = 'operate',
   relation = 'relation',
@@ -83,115 +88,100 @@ export default defineComponent({
       auth: {},
       showDetail: authorityStore.getAuthorityDetail,
     });
-    const tableData = reactive({
-      data: [],
-      pagination: {
-        current: 1,
-        count: 0,
-        limit: 10,
+    const tableColumns = shallowRef([
+      {
+        field: EColumn.name,
+        title: t('规则名称'),
+        minWidth: 160,
+        disabled: true,
+        checked: true,
       },
-      sort: {
-        column: '',
-        type: '',
+      {
+        field: EColumn.type,
+        title: t('轮值类型'),
+        disabled: false,
+        checked: true,
+        filters: [
+          {
+            label: t('日常值班'),
+            value: ECategory.regular,
+            checked: false,
+          },
+          {
+            label: t('交替轮值'),
+            value: ECategory.handoff,
+            checked: false,
+          },
+        ],
       },
-      columns: [
-        {
-          id: EColunm.name,
-          name: t('规则名称'),
-          minWidth: 160,
-          disabled: true,
-          checked: true,
-        },
-        {
-          id: EColunm.type,
-          name: t('轮值类型'),
-          disabled: false,
-          checked: true,
-          filter: {
-            filterFn: () => true,
-            checked: [],
-            list: [
-              {
-                text: t('日常值班'),
-                value: Ecategory.regular,
-              },
-              {
-                text: t('交替轮值'),
-                value: Ecategory.handoff,
-              },
-            ],
-          },
-        },
-        {
-          id: EColunm.label,
-          name: t('标签'),
-          disabled: false,
-          checked: true,
-          filter: {
-            filterFn: () => true,
-            checked: [],
-            list: [],
-          },
-        },
-        {
-          id: EColunm.relation,
-          name: t('关联告警组'),
-          width: 134,
-          disabled: false,
-          checked: true,
-          sort: {
-            value: '',
-          },
-        },
-        {
-          id: EColunm.status,
-          name: t('状态'),
-          width: 176,
-          disabled: false,
-          checked: true,
-          filter: {
-            filterFn: () => true,
-            checked: [],
-            list: [
-              { text: statusMap[EStatus.Effective], value: EStatus.Effective },
-              { text: statusMap[EStatus.WaitEffective], value: EStatus.WaitEffective },
-              { text: statusMap[EStatus.NoEffective], value: EStatus.NoEffective },
-              { text: statusMap[EStatus.Deactivated], value: EStatus.Deactivated },
-            ],
-          },
-        },
-        {
-          id: EColunm.scope,
-          name: t('生效时间范围'),
-          minWidth: 330,
-          disabled: false,
-          checked: true,
-          sort: {
-            value: '',
-          },
-        },
-        {
-          id: EColunm.enabled,
-          name: t('启/停'),
-          width: 100,
-          disabled: true,
-          checked: true,
-        },
-        {
-          id: EColunm.operate,
-          name: t('操作'),
-          disabled: true,
-          checked: true,
-        },
-      ],
+      {
+        field: EColumn.label,
+        title: t('标签'),
+        disabled: false,
+        checked: true,
+        filters: [],
+      },
+      {
+        field: EColumn.relation,
+        title: t('关联告警组'),
+        width: 134,
+        disabled: false,
+        checked: true,
+        sortable: true,
+      },
+      {
+        field: EColumn.status,
+        title: t('状态'),
+        width: 176,
+        disabled: false,
+        checked: true,
+        filters: [
+          { label: statusMap[EStatus.Effective], value: EStatus.Effective, checked: false },
+          { label: statusMap[EStatus.WaitEffective], value: EStatus.WaitEffective, checked: false },
+          { label: statusMap[EStatus.NoEffective], value: EStatus.NoEffective, checked: false },
+          { label: statusMap[EStatus.Deactivated], value: EStatus.Deactivated, checked: false },
+        ],
+      },
+      {
+        field: EColumn.scope,
+        title: t('生效时间范围'),
+        minWidth: 330,
+        disabled: false,
+        checked: true,
+        sortable: true,
+      },
+      {
+        field: EColumn.enabled,
+        title: t('启/停'),
+        width: 100,
+        disabled: true,
+        checked: true,
+      },
+      {
+        field: EColumn.operate,
+        title: t('操作'),
+        disabled: true,
+        checked: true,
+      },
+    ]);
+    const tableData = shallowRef([]);
+    const tablePagination = shallowReactive({
+      current: 1,
+      count: 0,
+      limit: 10,
     });
+    const tableSort = shallowRef({
+      column: '',
+      type: '',
+    });
+    const tableFilters = shallowRef<{ checked: string[]; field: string }[]>([]);
     /* 表格设置 */
-    const settings = reactive({
-      checked: tableData.columns.map(item => item.id),
+    const settings = shallowReactive({
+      checked: tableColumns.value.map(item => item.field),
       size: 'small',
-      fields: tableData.columns.map(item => ({
-        label: item.name,
-        field: item.id,
+      fields: tableColumns.value.map(item => ({
+        label: item.title,
+        field: item.field,
         disabled: item.disabled,
       })),
     });
@@ -225,28 +215,36 @@ export default defineComponent({
     async function init() {
       loading.value = true;
       const pageSize = commonPageSizeGet();
-      tableData.pagination.limit = pageSize;
+      tablePagination.limit = pageSize;
       authority.auth = await getAuthorityMap(authMap);
       const list = await listDutyRule().catch(() => []);
       const labelsSet = new Set();
       const filterLabelOptions = [];
       allRotationList.value = list.map(item => {
-        item.labels.forEach(l => {
+        for (const l of item.labels) {
           if (!labelsSet.has(l)) {
             labelsSet.add(l);
             filterLabelOptions.push({
-              text: l,
+              label: l,
               value: l,
+              checked: false,
             });
           }
-        });
+        }
         return {
           ...item,
           status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
         };
       });
-      (tableData.columns.find(item => item.id === EColunm.label).filter as any).list = filterLabelOptions;
-      tableData.pagination.count = allRotationList.value.length;
+      const tableColumnsCopy = tableColumns.value.slice();
+      for (const item of tableColumnsCopy) {
+        if (item.field === EColumn.label) {
+          item.filters = filterLabelOptions;
+          break;
+        }
+      }
+      tableColumns.value = tableColumnsCopy;
+      tablePagination.count = allRotationList.value.length;
       setFilterList();
       loading.value = false;
     }
@@ -264,7 +262,7 @@ export default defineComponent({
       };
       if (searchData.value.length) {
         needSearch = true;
-        searchData.value.forEach(item => {
+        for (const item of searchData.value) {
           if (item.type === 'text') {
             condition.query.push(item.id);
           } else if (item.values?.length) {
@@ -275,7 +273,7 @@ export default defineComponent({
               condition.name.push(...item.values.map(v => v.id));
             }
           }
-        });
+        }
       }
       /* 筛选 */
       const filterParams = {
@@ -283,17 +281,17 @@ export default defineComponent({
         labels: [],
         status: [],
       };
-      tableData.columns.forEach(item => {
-        if (item.id === EColunm.type) {
-          filterParams.category = JSON.parse(JSON.stringify((item.filter as any).checked));
+      for (const item of tableFilters.value) {
+        if (item.field === EColumn.type) {
+          filterParams.category = item.checked;
         }
-        if (item.id === EColunm.label) {
-          filterParams.labels = JSON.parse(JSON.stringify((item.filter as any).checked));
+        if (item.field === EColumn.label) {
+          filterParams.labels = item.checked;
         }
-        if (item.id === EColunm.status) {
-          filterParams.status = JSON.parse(JSON.stringify((item.filter as any).checked));
+        if (item.field === EColumn.status) {
+          filterParams.status = item.checked;
         }
-      });
+      }
       const filterAllRotationList = targetAllRotationList.filter(item => {
         let need = true;
         if (filterParams.category.length) {
@@ -320,29 +318,29 @@ export default defineComponent({
         return need;
       });
       /* 排序 */
-      if (!!tableData.sort.column && !!tableData.sort.type) {
-        if (tableData.sort.column === EColunm.relation) {
+      if (!!tableSort.value.column && !!tableSort.value.type) {
+        if (tableSort.value.column === EColumn.relation) {
           filterAllRotationList.sort((a, b) =>
-            tableData.sort.type === 'asc'
+            tableSort.value.type === 'asc'
               ? a.user_groups_count - b.user_groups_count
               : b.user_groups_count - a.user_groups_count
           );
         }
-        if (tableData.sort.column === EColunm.scope) {
+        if (tableSort.value.column === EColumn.scope) {
           filterAllRotationList.sort((a, b) =>
-            tableData.sort.type === 'asc'
+            tableSort.value.type === 'asc'
               ? new Date(a.effective_time).getTime() - new Date(b.effective_time).getTime()
               : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime()
           );
         }
       }
       /* 分页 */
-      tableData.pagination.count = filterAllRotationList.length;
+      tablePagination.count = filterAllRotationList.length;
       const list = filterAllRotationList.slice(
-        (tableData.pagination.current - 1) * tableData.pagination.limit,
-        tableData.pagination.current * tableData.pagination.limit
+        (tablePagination.current - 1) * tablePagination.limit,
+        tablePagination.current * tablePagination.limit
       );
-      tableData.data = list;
+      tableData.value = list;
     }
     function handleAdd() {
       router.push({
@@ -371,7 +369,7 @@ export default defineComponent({
                     const labelsSet = new Set();
                     const filterLabelOptions = [];
                     allRotationList.value = list.map(item => {
-                      item.labels.forEach(l => {
+                      for (const l of item.labels) {
                         if (!labelsSet.has(l)) {
                           labelsSet.add(l);
                           filterLabelOptions.push({
@@ -379,9 +377,9 @@ export default defineComponent({
                             value: l,
                           });
                         }
-                      });
+                      }
                       if (item.id === row.id) {
-                        const cur = tableData.data.find(t => t.id === row.id);
+                        const cur = tableData.value.find(t => t.id === row.id);
                         if (cur) {
                           cur.status = getEffectiveStatus([item.effective_time, item.end_time], item.enabled);
                         }
@@ -398,9 +396,6 @@ export default defineComponent({
                 reject();
               });
           },
-          onClosed: () => {
-            reject();
-          },
         });
       });
     }
@@ -410,35 +405,38 @@ export default defineComponent({
      * @param _opt
      */
     function handleColumnSort(opt) {
+      const { field, type } = opt;
       const sort = {
         column: '',
         type: '',
       };
-      if (opt.type !== 'null') {
-        sort.column = opt.column.id;
-        sort.type = opt.type;
+      if (opt.type) {
+        sort.column = field;
+        sort.type = type;
       } else {
-        sort.column = opt.column.id;
+        sort.column = field;
       }
-      tableData.sort = sort;
-      const tableColumn = tableData.columns.find(item => item.id === sort.column);
-      tableData.columns.forEach(item => {
-        if (item.id !== sort.column && !!item?.sort) {
-          item.sort.value = '';
-        }
-      });
-      if (tableColumn?.sort) {
-        tableColumn.sort.value = sort.type || '';
-      }
-      tableData.pagination.current = 1;
+      tableSort.value = sort;
+      tablePagination.current = 1;
       setFilterList();
     }
     /**
      * @description 筛选
      * @param _opt
      */
-    function handleColumnFilter(_opt) {
-      tableData.pagination.current = 1;
+    function handleColumnFilter(opt) {
+      const filters = tableFilters.value.slice();
+      const filter = filters.find(item => item.field === opt.field);
+      if (filter) {
+        filter.checked = opt.checked;
+      } else {
+        filters.push({
+          field: opt.field,
+          checked: opt.checked,
+        });
+      }
+      tableFilters.value = filters;
+      tablePagination.current = 1;
       setFilterList();
     }
     /**
@@ -454,8 +452,8 @@ export default defineComponent({
      * @param page
      */
     function handlePageChange(page: number) {
-      if (tableData.pagination.current !== page) {
-        tableData.pagination.current = page;
+      if (tablePagination.current !== page) {
+        tablePagination.current = page;
         setFilterList();
       }
     }
@@ -464,8 +462,8 @@ export default defineComponent({
      * @param limit
      */
     function handleLimitChange(limit: number) {
-      tableData.pagination.current = 1;
-      tableData.pagination.limit = limit;
+      tablePagination.current = 1;
+      tablePagination.limit = limit;
       commonPageSizeSet(limit);
       setFilterList();
     }
@@ -477,7 +475,7 @@ export default defineComponent({
 
     function handleSearch(v) {
       searchData.value = v;
-      tableData.pagination.current = 1;
+      tablePagination.current = 1;
       setFilterList();
     }
 
@@ -502,7 +500,7 @@ export default defineComponent({
               destroyDutyRule(row.id)
                 .then(() => {
                   allRotationList.value.splice(delIndex, 1);
-                  tableData.pagination.current = 1;
+                  tablePagination.current = 1;
                   setFilterList();
                   loading.value = false;
                   Message({
@@ -519,9 +517,6 @@ export default defineComponent({
             }, 2000);
           }
         },
-        onClosed: () => {
-          //
-        },
       });
     }
 
@@ -530,9 +525,9 @@ export default defineComponent({
       window.open(url);
     }
 
-    function handleSetFormater(row, column: EColunm) {
+    function handleSetFormatter(row, column: EColumn) {
       switch (column) {
-        case EColunm.name: {
+        case EColumn.name: {
           return (
             <span
               class='rotation-name'
@@ -549,13 +544,13 @@ export default defineComponent({
             </span>
           );
         }
-        case EColunm.type: {
-          return <span>{row.category === Ecategory.regular ? t('日常值班') : t('交替轮值')}</span>;
+        case EColumn.type: {
+          return <span>{row.category === ECategory.regular ? t('日常值班') : t('交替轮值')}</span>;
         }
-        case EColunm.label: {
+        case EColumn.label: {
           return row.labels.length ? row.labels.map((label, index) => <Tag key={index}>{label}</Tag>) : '--';
         }
-        case EColunm.relation: {
+        case EColumn.relation: {
           return row.user_groups_count ? (
             <Button
               theme='primary'
@@ -568,7 +563,7 @@ export default defineComponent({
             '--'
           );
         }
-        case EColunm.status: {
+        case EColumn.status: {
           const statusClass = {
             [EStatus.Deactivated]: 'status-red',
             [EStatus.Effective]: 'status-green',
@@ -584,10 +579,10 @@ export default defineComponent({
             </span>
           );
         }
-        case EColunm.scope: {
+        case EColumn.scope: {
           return <span>{`${getTimeStr(row.effective_time)} - ${getTimeStr(row.end_time)}`}</span>;
         }
-        case EColunm.enabled: {
+        case EColumn.enabled: {
           return (
             <Popover
               arrow={true}
@@ -612,7 +607,7 @@ export default defineComponent({
             </Popover>
           );
         }
-        case EColunm.operate: {
+        case EColumn.operate: {
           return (
             <span>
               <Popover
@@ -677,6 +672,8 @@ export default defineComponent({
 
     return {
       tableData,
+      tableColumns,
+      tablePagination,
       settings,
       searchData,
       detailData,
@@ -684,7 +681,7 @@ export default defineComponent({
       allRotationList,
       t,
       handleAdd,
-      handleSetFormater,
+      handleSetFormatter,
       handleColumnSort,
       handleColumnFilter,
       handleSettingChange,
@@ -723,33 +720,42 @@ export default defineComponent({
                 [
                   <Table
                     key={'rotation-table'}
-                    columns={this.tableData.columns
-                      .filter(item => this.settings.checked.includes(item.id))
-                      .map(item => {
-                        return {
-                          ...item,
-                          label: (col: any) => col.name,
-                          render: ({ row, _column }) => this.handleSetFormater(row, item.id),
-                        };
-                      })}
                     darkHeader={true}
-                    data={this.tableData.data}
+                    data={this.tableData}
                     pagination={false}
                     settings={this.settings}
                     showOverflowTooltip={true}
+                    showSettings={true}
                     onColumnFilter={this.handleColumnFilter}
                     onColumnSort={this.handleColumnSort}
                     onSettingChange={this.handleSettingChange}
-                  />,
+                  >
+                    {this.tableColumns.map(column => (
+                      <TableColumn
+                        key={column.field}
+                        field={column.field}
+                        filter-multiple={true}
+                        filters={column.filters}
+                        sortable={!!column?.sortable}
+                        title={column.title}
+                      >
+                        {{
+                          default: ({ row }) => {
+                            return this.handleSetFormatter(row, column.field);
+                          },
+                        }}
+                      </TableColumn>
+                    ))}
+                  </Table>,
                   <Pagination
                     key={'rotation-pagination'}
                     class='mt-14'
                     align={'right'}
-                    count={this.tableData.pagination.count}
+                    count={this.tablePagination.count}
                     layout={['total', 'limit', 'list']}
-                    limit={this.tableData.pagination.limit}
+                    limit={this.tablePagination.limit}
                     location={'right'}
-                    modelValue={this.tableData.pagination.current}
+                    modelValue={this.tablePagination.current}
                     onChange={v => this.handlePageChange(v)}
                     onLimitChange={v => this.handleLimitChange(v)}
                   />,
