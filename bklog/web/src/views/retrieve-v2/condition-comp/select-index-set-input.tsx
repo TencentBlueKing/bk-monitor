@@ -133,7 +133,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   render() {
-    const shortcutKey = getOsCommandLabel() + 'O';
+    const shortcutKey = `${getOsCommandLabel()} + O`;
     const inputShowDom = () => {
       if (this.isAloneType) {
         return (
