@@ -40,26 +40,28 @@ interface MenuOption {
   name: string;
 }
 
+/** 下拉菜单选项类型枚举 */
+enum MenuOptionsEnum {
+  DELETE = 'delete',
+  EDIT = 'edit',
+  EXPORT = 'export',
+}
+
+/** 下拉菜单选项数组 */
 const FIELD_SETTING_MENU = [
   {
-    id: 'edit',
+    id: MenuOptionsEnum.EDIT,
     name: window.$t('重命名'),
   },
   {
-    id: 'export',
+    id: MenuOptionsEnum.EXPORT,
     name: window.$t('导出'),
   },
   {
-    id: 'delete',
+    id: MenuOptionsEnum.DELETE,
     name: window.$t('删除'),
   },
 ];
-
-enum MenuOptionsEnum {
-  EDIT = 'edit',
-  EXPORT = 'export',
-  DELETE = 'delete',
-}
 
 @Component
 export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMoreMenuEvents> {
@@ -69,16 +71,24 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
   @Ref('menu')
   menuRef: any;
 
+  /** popover 弹窗实例 */
   popoverInstance = null;
 
-  /** 菜单点击后回调 */
-  @Emit('menuClick')
+  /**
+   * @description 菜单点击后回调
+   *
+   */
+  @Emit('menu-click')
   handleMenuClick(operation: MenuOptionsEnum) {
     this.popoverInstance?.hide?.();
     return operation;
   }
 
-  async handleMenuListShow(e: Event) {
+  /**
+   * @description 打开 menu下拉菜单 popover 弹窗
+   *
+   */
+  handleMenuListShow(e: Event) {
     if (this.popoverInstance) {
       return;
     }
@@ -97,8 +107,9 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
         this.popoverInstance = null;
       },
     });
-    await this.$nextTick();
-    this.popoverInstance?.show(100);
+    this.$nextTick(() => {
+      this.popoverInstance?.show(100);
+    });
   }
 
   render() {
@@ -106,7 +117,7 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
       <div class='field-setting-more'>
         <div
           class={`popover-trigger ${this.popoverInstance ? 'is-active' : ''}`}
-          onClick={e => this.handleMenuListShow(e)}
+          onClick={this.handleMenuListShow}
         >
           <i class='bklog-icon bklog-more' />
         </div>

@@ -42,7 +42,7 @@
         class="panel-operate"
         @click="e => e.stopPropagation()"
       >
-        <SettingMoreMenu @menuClick="handleMenuClick" />
+        <SettingMoreMenu @menu-click="handleMenuClick" />
       </div>
     </div>
     <div
@@ -55,15 +55,15 @@
         v-model="nameStr"
         :class="['config-input', { 'input-error': isInputError }]"
         :maxlength="10"
-        size="small"
         :placeholder="$t('请输入配置名')"
+        size="small"
         @blur="emitOperate('update')"
       ></bk-input>
     </div>
     <div style="display: none">
       <div
-        class="delete-tip-container bklog-v3-popover-tag"
         ref="deleteTipRef"
+        class="delete-tip-container bklog-v3-popover-tag"
       >
         <span class="delete-tip-description">{{ $t('确定要删除当前字段配置') }}?</span>
         <div class="delete-tip-operation">
@@ -86,6 +86,7 @@
 
 <script>
   import { deepClone } from '@/components/monitor-echarts/utils';
+
   import SettingMoreMenu from './setting-more-menu';
 
   export default {
@@ -97,6 +98,11 @@
         type: Object,
         require: true,
       },
+      /** 是否渲染 更多icon */
+      hasMoreIcon: {
+        type: Boolean,
+        default: true,
+      },
     },
     data() {
       return {
@@ -106,12 +112,7 @@
         deleteTipInstance: null,
       };
     },
-    computed: {
-      hasMoreIcon() {
-        // 是否展示编辑或删除icon
-        return this.configItem.index !== 0;
-      },
-    },
+
     watch: {
       nameStr() {
         this.isInputError = false;
@@ -140,6 +141,7 @@
         const submitData = deepClone(this.configItem);
         submitData.editStr = this.nameStr;
         this.$emit('operateChange', finalType, submitData);
+        // 进入编辑态时 focus 聚焦到input框
         this.$nextTick(() => {
           type === 'edit' && this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
         });
@@ -148,6 +150,7 @@
       /**
        * @description 更多 下拉菜单 点击事件后回调
        * @param type
+       *
        */
       handleMenuClick(type) {
         if (type !== 'delete') {
@@ -159,6 +162,7 @@
 
       /**
        * @description 确认删除回调
+       *
        */
       handleDeleteVerify() {
         this.handleDeleteTipPopoverHide();
@@ -167,6 +171,7 @@
 
       /**
        * @description 打开 删除确认提示 popover
+       *
        */
       async handleDeleteTipPopoverShow() {
         if (this.deleteTipInstance) {
@@ -197,6 +202,7 @@
 
       /**
        * @description 关闭 删除确认提示 popover
+       *
        */
       handleDeleteTipPopoverHide() {
         this.deleteTipInstance?.hide?.();

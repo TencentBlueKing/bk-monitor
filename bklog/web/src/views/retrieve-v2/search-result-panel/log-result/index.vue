@@ -86,6 +86,7 @@
 
         <bk-input
           v-if="isJsonFormat"
+          style="margin: 0 12px 0 0"
           class="json-depth-num"
           :max="15"
           :min="1"
@@ -95,7 +96,7 @@
         ></bk-input>
 
         <bk-checkbox
-          style="margin: 0 12px 0 12px"
+          style="margin: 0 12px 0 0"
           class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"
@@ -379,7 +380,7 @@
         transition: boder-color 0.2s;
 
         &:hover {
-          border-color: #4D4F56;
+          border-color: #4d4f56;
           transition: boder-color 0.2s;
         }
 
@@ -391,7 +392,7 @@
         .bklog-icon {
           width: 16px;
           font-size: 16px;
-          color: #4D4F56;
+          color: #4d4f56;
         }
       }
 

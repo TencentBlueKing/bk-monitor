@@ -78,18 +78,6 @@
             </div>
           </div>
         </div>
-        <!-- <div class="config-container-list config-tab">
-          <div
-            class="list-item"
-            v-for="(panel, index) in configTabPanels"
-          >
-            <fields-setting-operate
-              :configItem="{ ...panel, index }"
-              @operateChange="handleLeftOperateChange"
-              @setPopperInstance="setPopperInstance"
-            />
-          </div>
-        </div> -->
         <bk-tab
           ext-cls="config-tab"
           :active.sync="activeConfigTab"
@@ -175,11 +163,10 @@
 </template>
 
 <script>
+  import { random, downJsonFile } from '@/common/util';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-
-  import { getFieldNameByField } from '@/hooks/use-field-name';
-  import { random, downJsonFile } from '@/common/util';
 
   import LogExport from '../../../../components/log-import/log-import';
   import fieldSetting from './field-setting';
@@ -196,7 +183,6 @@
       fieldSetting,
       tableSort,
       LogExport,
-      fieldsSettingOperate,
     },
     props: {
       retrieveParams: {
@@ -494,6 +480,7 @@
         return h(fieldsSettingOperate, {
           props: {
             configItem: row,
+            hasMoreIcon: index !== 0,
           },
           on: {
             operateChange: this.handleLeftOperateChange,
@@ -528,6 +515,8 @@
 
       /**
        * @description 导入字段配置
+       * @param fieldContent 导入文件的内容
+       *
        */
       handleFieldConfigImport(fieldContent) {
         try {
@@ -542,9 +531,10 @@
 
       /**
        * @description 导出选中字段配置为 JSON 文件
+       *
        */
       handleFieldConfigExport(updateItem) {
-        let fieldName = `${updateItem.name}}`;
+        let fieldName = `${updateItem.name}`;
         const fieldConfigParam = {
           name: fieldName,
           sort_list: updateItem.sort_list,

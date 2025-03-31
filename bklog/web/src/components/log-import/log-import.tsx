@@ -58,15 +58,24 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
     return data;
   }
 
+  /**
+   * @description 点击触发打开 系统文件选择菜单
+   *
+   */
   handleClick() {
     !this.disabled && this.fileInputRef.click();
   }
 
-  async handleInput(event: { target: { files: any[]; value: '' } }) {
+  /**
+   * @description 选择文件后触发回调，读取文件内容
+   * @param {Event} event
+   *
+   */
+  handleInput(event: { target: { files: any[]; value: '' } }) {
     const [file] = Array.from(event.target.files);
     const fileName = file.name;
     let contents = {};
-    await new Promise(resolve => {
+    new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = (e: { target: any }) => {
         try {
@@ -90,8 +99,9 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
       } else {
         reader.readAsText(file, 'UTF-8');
       }
+    }).then(() => {
+      this.emitFile(contents);
     });
-    this.emitFile(contents);
   }
 
   render() {
