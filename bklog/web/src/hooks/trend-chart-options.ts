@@ -191,7 +191,7 @@ export default {
         color: '#979BA5',
         showMinLabel: false,
         showMaxLabel: false,
-        align: 'left',
+        align: 'center',
       },
       splitLine: {
         show: false,
