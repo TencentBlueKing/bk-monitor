@@ -1,10 +1,12 @@
 <script setup>
   import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
+  import { getOsCommandLabel } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
-  import useLocale from '@/hooks/use-locale';
 
   const props = defineProps({
     value: {
@@ -20,7 +22,7 @@
   };
 
   const { t } = useLocale();
-  const placeholderText = `${t('⌘/Ctrl + / 快速定位到搜索')}，log:error AND"name=bklog"`;
+  const placeholderText = `${getOsCommandLabel()} + / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);
@@ -244,16 +246,16 @@
       class="search-sql-editor"
     ></div>
     <span
-      class="empty-placeholder-text"
       ref="refPopElement"
+      class="empty-placeholder-text"
       v-show="isEmptySqlString"
       >{{ placeholderText }}</span
     >
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
+        :focus-position="editorFocusPosition"
         :value="modelValue"
-        :focusPosition="editorFocusPosition"
         @active-change="handleSqlParamsActiveChange"
         @cancel="handleCancel"
         @change="handleQueryChange"
