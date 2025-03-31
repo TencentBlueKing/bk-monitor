@@ -906,7 +906,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       customTimeSeries: () => {
         this.$router.push({
           name: customMetricV2EnableList.includes(bizId) ? 'new-custom-escalation-view' : 'custom-escalation-view',
-          // name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
           query: { name: this.detailData.name },
         });
