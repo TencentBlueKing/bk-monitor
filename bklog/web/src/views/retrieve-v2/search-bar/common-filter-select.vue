@@ -161,15 +161,23 @@
     }
   };
 
+  let isChoiceInputFocus = false;
+
   const handleChoiceFocus = index => {
+    isChoiceInputFocus = true;
     focusIndex.value = index;
   };
 
   const handleChoiceBlur = () => {
     focusIndex.value = null;
+    isChoiceInputFocus = false;
   };
 
-  const handleRowBlur = (agr?) => {
+  const handleRowBlur = () => {
+    if (isChoiceInputFocus) {
+      return;
+    }
+
     focusIndex.value = null;
   };
 </script>
@@ -283,25 +291,48 @@
     max-width: 560px;
     margin-right: 4px;
     margin-bottom: 4px;
-    border: 1px solid #dbdde1;
-    border-radius: 3px;
+    box-sizing: content-box;
 
     &.is-focus {
       border-color: #3a84ff;
-      border-right: none;
+      .title {
+        border-left-color: #3a84ff;
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      .operator-select {
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
     }
 
     .title {
       max-width: 120px;
-      margin-left: 8px;
+      padding-left: 8px;
       overflow: hidden;
       font-size: 12px;
       color: #313238;
       text-overflow: ellipsis;
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
+      border-left: 1px solid #dbdde1;
+      border-top: 1px solid #dbdde1;
+      border-bottom: 1px solid #dbdde1;
+      line-height: 32px;
+      height: 32px;
+      border-right: none;
     }
 
     .operator-select {
       border: none;
+      border-top: 1px solid #dbdde1;
+      border-bottom: 1px solid #dbdde1;
+      line-height: 32px;
+      height: 32px;
+      border-left: none;
+      border-right: none;
+      border-radius: 0;
 
       .operator-label {
         display: inline-block;
@@ -326,6 +357,26 @@
 
     .value-select {
       min-width: 120px;
+      border-left: none;
+      border-radius: 0;
+
+      &:not(.is-focus) {
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+        border-right: 1px solid #dbdde1;
+        border-top: 1px solid #dbdde1;
+        border-bottom: 1px solid #dbdde1;
+      }
+
+      &.is-focus {
+        border-top-right-radius: 3px;
+        border-top: 1px solid #3a84ff;
+        border-bottom: 1px solid #3a84ff;
+
+        &.is-ellipsis {
+          border-bottom-color: transparent;
+        }
+      }
     }
 
     .bk-select-angle {

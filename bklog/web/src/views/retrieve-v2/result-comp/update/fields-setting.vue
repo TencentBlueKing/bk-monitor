@@ -207,6 +207,10 @@
         type: Boolean,
         default: false,
       },
+      isShow: {
+        type: Boolean,
+        default: false,
+      },
     },
     data() {
       return {
@@ -297,6 +301,13 @@
     watch: {
       newConfigStr() {
         this.isInputError = false;
+      },
+      isShow() {
+        if (this.isShow) {
+          this.$nextTick(() => {
+            this.initRequestConfigListShow();
+          });
+        }
       },
     },
     created() {

@@ -174,24 +174,52 @@
     }
   };
 
-  const getSelectionRenage = (value, replace) => {
+  /**
+   * @description 获取当前输入框左侧内容
+   */
+  const getFocusLeftValue = () => {
+    if (editorFocusPosition.value !== null && editorFocusPosition.value >= 0) {
+      return modelValue.value.slice(0, modelValue.focusPosition);
+    }
+
+    return modelValue.value;
+  };
+
+  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+  const getMatchFieldLength = () => {
+    const leftValue = getFocusLeftValue();
+    const lastFragments = leftValue.split(separator);
+    const lastFragment = lastFragments[lastFragments.length - 1];
+    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
+
+    return inputField.length ?? 0;
+  };
+
+  const getSelectionRenage = (value, replace, type) => {
+    const matchLen = type === 'field' ? getMatchFieldLength(value) : 0;
     if (replace) {
       return {
         from: 0,
         to: undefined,
+        buffer: undefined,
       };
     }
 
     return {
-      from: editorFocusPosition.value,
+      from: editorFocusPosition.value - matchLen,
       to: editorFocusPosition.value + value.length,
+      buffer: matchLen > 0 ? matchLen : undefined,
     };
   };
 
-  const handleQueryChange = (value, retrieve, replace = true) => {
-    const { from } = getSelectionRenage(value, replace);
+  const handleQueryChange = (value, retrieve, replace = true, type = undefined) => {
+    const { from, buffer } = getSelectionRenage(value, replace, type);
     if (modelValue.value !== value) {
-      setEditorContext(value, from);
+      let to = undefined;
+      if (buffer && type === 'field') {
+        to = from + buffer;
+      }
+      setEditorContext(value, from, to);
       nextTick(() => {
         handleContainerClick();
         if (retrieve) {

@@ -111,24 +111,23 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
         view.dispatch({
           changes: { from, to: view.state.doc.length, insert: value },
         });
-  
+
         view.dispatch({
           selection: EditorSelection.cursor(from + value.length),
         });
 
         return;
       }
-      
+
       view.dispatch({
         changes: { from, to, insert: value },
       });
 
       view.dispatch({
-        selection: EditorSelection.cursor(to),
+        selection: EditorSelection.cursor(from + value.length),
       });
     }
   };
-
 
   const setFocus = () => {
     view.focus();

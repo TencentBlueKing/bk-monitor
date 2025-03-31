@@ -244,7 +244,7 @@
         "
       >
         <fields-setting
-          v-if="showFieldsSetting"
+          :is-show="showFieldsSetting"
           :field-alias-map="fieldAliasMap"
           :is-show-left="true"
           :retrieve-params="retrieveParams"

@@ -25,8 +25,6 @@
  */
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, Ref, ref, watch } from 'vue';
 
-import { throttle } from 'lodash';
-
 import { getCharLength } from '../../../common/util';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 import useLocale from '../../../hooks/use-locale';
@@ -99,6 +97,7 @@ export default defineComponent({
     const refTagInputElement: Ref<HTMLElement> = ref(null);
     const refTagInputContainer: Ref<HTMLElement> = ref(null);
     const refFixedPointerElement: Ref<HTMLElement> = ref(null);
+
     let focusFixedElement: HTMLElement = null;
     let fixedInstance: PopInstanceUtil = null;
 
@@ -106,6 +105,8 @@ export default defineComponent({
     const tagInputIndex = ref(null);
     const containerWidth = ref(0);
     const activeItemIndex = ref(null);
+    const isFixedOverflowY = ref(false);
+
     const editItemOption = ref({
       index: null,
       width: 12,
@@ -160,7 +161,8 @@ export default defineComponent({
         return true;
       },
       tippyOptions: {
-        hideOnClick: false,
+        hideOnClick: true,
+        interactive: true,
         appendTo: document.body,
         placement: 'bottom-start',
         onShown: () => {
@@ -358,19 +360,37 @@ export default defineComponent({
       emit('change', []);
     };
 
+    const setFixedOverflowY = () => {
+      isFixedOverflowY.value = refTagInputContainer.value?.offsetHeight > 32;
+
+      if (focusFixedElement?.children?.[0]) {
+        const target = focusFixedElement.children[0];
+
+        if (isFixedOverflowY.value) {
+          target.classList.add('is-ellipsis');
+          return;
+        }
+
+        target.classList.remove('is-ellipsis');
+      }
+    };
+
     /**
      * Fixed 模式Input事件添加监听
      * @param e
      */
-    const handleCloneFixedInputChange = throttle((e: InputEvent) => {
+    const handleCloneFixedInputChange = (e: InputEvent) => {
       if ((e.target as HTMLElement).hasAttribute('data-bklog-choice-text-input')) {
         handleInputValueChange(e);
         const target = e.target as HTMLInputElement;
         const charLen = Math.max(getCharLength(inputTagValue.value), 1);
-        target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+        const maxWidth = Math.min(charLen * INPUT_MIN_WIDTH, maxTagWidthNumber.value);
+
+        target.style.setProperty('width', `${maxWidth}px`);
         popInstance.repositionTippyInstance();
+        setFixedOverflowY();
       }
-    }, 100);
+    };
 
     const setFocuseFixedPopEvent = () => {
       if (focusFixedElement) {
@@ -430,6 +450,7 @@ export default defineComponent({
         return;
       }
 
+      // 点击进行编辑
       if (target?.classList.contains('bklog-choice-value-span')) {
         const index = target.parentElement.getAttribute('data-item-index');
         editItemOption.value.index = parseInt(index);
@@ -455,6 +476,7 @@ export default defineComponent({
           emit('change', targetValue);
 
           updateFiexedInstanceContent().then(() => {
+            setFixedOverflowY();
             popInstance.repositionTippyInstance();
           });
         }
@@ -463,6 +485,7 @@ export default defineComponent({
       }
 
       handleEditInputBlur().then((update: boolean) => {
+        setFixedOverflowY();
         if (update) {
           updateFiexedInstanceContent().then(() => {
             autoFocusInput();
@@ -480,86 +503,10 @@ export default defineComponent({
         if (e.key === 'Enter') {
           updateFiexedInstanceContent().then(() => {
             nextTick(autoFocusInput);
+            setFixedOverflowY();
           });
         }
       }
-    };
-
-    fixedInstance = new PopInstanceUtil({
-      refContent: () => {
-        setFixedValueContent();
-        return focusFixedElement;
-      },
-      arrow: false,
-      tippyOptions: {
-        appendTo: document.body,
-        hideOnClick: false,
-        placement: 'bottom-start',
-        theme: 'log-pure-choice',
-        offset: [0, -1],
-        onShown: () => {
-          fixedInstance.setIsShowing(false);
-          nextTick(() => {
-            autoFocusInput();
-          });
-        },
-
-        onHidden: () => {
-          fixedInstance.setIsShowing(false);
-        },
-      },
-    });
-
-    const cloneFixedItem = () => {
-      updateFiexedInstanceContent().then(() => {
-        if (!fixedInstance.isShown()) {
-          fixedInstance.show(refFixedPointerElement.value, true, true);
-        }
-      });
-    };
-
-    const execContainerClick = () => {
-      isInputFocused.value = true;
-
-      if (hiddenItemCount.value > 0) {
-        calcItemEllipsis().then(() => {
-          if (props.foucsFixed) {
-            cloneFixedItem();
-            return;
-          }
-
-          popInstance.show(refRootElement.value);
-          refTagInputElement.value?.focus();
-        });
-
-        return;
-      }
-
-      if (props.foucsFixed) {
-        cloneFixedItem();
-        return;
-      }
-
-      popInstance.show(refRootElement.value);
-      refTagInputElement.value?.focus();
-    };
-
-    const handleSelectedValueItemclick = (e: MouseEvent, item, index) => {
-      if (!item.__tag_input__) {
-        stopDefaultPrevented(e);
-
-        const target = e.target as HTMLElement;
-        editItemOption.value.index = index;
-        editItemOption.value.width = target.parentElement.offsetWidth;
-        inputTagValue.value = getListItemId(item);
-
-        nextTick(execContainerClick);
-      }
-    };
-
-    const clearInputTag = () => {
-      (refTagInputElement.value as HTMLInputElement).value = '';
-      inputTagValue.value = '';
     };
 
     const lastTagWidth = 40;
@@ -603,33 +550,88 @@ export default defineComponent({
       });
     };
 
-    const handleDocumentClick = (e: MouseEvent) => {
-      if (!isInputFocused.value) {
-        return;
-      }
-      const target = e.target as HTMLElement;
+    fixedInstance = new PopInstanceUtil({
+      refContent: () => {
+        setFixedValueContent();
+        return focusFixedElement;
+      },
+      arrow: false,
+      tippyOptions: {
+        appendTo: document.body,
+        hideOnClick: true,
+        placement: 'bottom-start',
+        theme: 'log-pure-choice',
+        offset: [0, -1],
+        onShown: () => {
+          isInputFocused.value = true;
+          fixedInstance.setIsShowing(false);
+          nextTick(() => {
+            autoFocusInput();
+            setFixedOverflowY();
+          });
+        },
 
-      if (
-        refRootElement.value.contains(target) ||
-        refChoiceList.value.contains(target) ||
-        focusFixedElement?.contains(target)
-      ) {
-        if (refRootElement.value.contains(target) && !popInstance.isShown()) {
-          popInstance.show(refRootElement.value);
-          return;
+        onHidden: () => {
+          isInputFocused.value = false;
+          fixedInstance.setIsShowing(false);
+          handleEditInputBlur();
+          nextTick(() => {
+            calcItemEllipsis().then(() => {
+              setFixedOverflowY();
+            });
+          });
+        },
+      },
+    });
+
+    const cloneFixedItem = () => {
+      updateFiexedInstanceContent().then(() => {
+        if (!fixedInstance.isShown()) {
+          fixedInstance.show(refFixedPointerElement.value, true, true);
         }
+      });
+    };
+
+    const execContainerClick = () => {
+      isInputFocused.value = true;
+
+      if (hiddenItemCount.value > 0) {
+        calcItemEllipsis().then(() => {
+          if (props.foucsFixed) {
+            cloneFixedItem();
+            return;
+          }
+
+          popInstance.show(refRootElement.value);
+          refTagInputElement.value?.focus();
+        });
 
         return;
       }
 
-      handleEditInputBlur().then(() => {
-        fixedInstance.hide();
-        popInstance.hide();
-        clearInputTag();
+      if (props.foucsFixed) {
+        cloneFixedItem();
+        return;
+      }
 
-        isInputFocused.value = false;
-        calcItemEllipsis();
-      });
+      popInstance.show(refRootElement.value);
+      refTagInputElement.value?.focus();
+    };
+
+    const handleSelectedValueItemclick = (e: MouseEvent, item, index) => {
+      if (!item.__tag_input__) {
+        const target = e.target as HTMLElement;
+        editItemOption.value.index = index;
+        editItemOption.value.width = target.parentElement.offsetWidth;
+        inputTagValue.value = getListItemId(item);
+
+        nextTick(execContainerClick);
+      }
+    };
+
+    const clearInputTag = () => {
+      (refTagInputElement.value as HTMLInputElement).value = '';
+      inputTagValue.value = '';
     };
 
     const handleContainerClick = (e: MouseEvent) => {
@@ -666,12 +668,10 @@ export default defineComponent({
 
     onMounted(() => {
       containerWidth.value = refRootElement.value.offsetWidth;
-      document.addEventListener('click', handleDocumentClick);
       calcItemEllipsis();
     });
 
     onUnmounted(() => {
-      document.removeEventListener('click', handleDocumentClick);
       popInstance?.uninstallInstance();
       fixedInstance?.uninstallInstance();
       fixedInstance = null;
@@ -785,7 +785,12 @@ export default defineComponent({
           <li
             key={getItemKey(item, index)}
             style={valueTagStyle.value}
-            class={['bklog-choice-value-item', { 'is-edit-item': editItemOption.value.index === index }]}
+            class={[
+              'bklog-choice-value-item',
+              {
+                'is-edit-item': editItemOption.value.index === index,
+              },
+            ]}
             data-item-index={index}
             data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
           >
@@ -805,6 +810,7 @@ export default defineComponent({
             'is-focus': isInputFocused.value,
             'has-hidden-item': hiddenItemCount.value > 0,
             'is-focus-fixed': props.foucsFixed,
+            'is-ellipsis': isFixedOverflowY.value,
           },
         ]}
         onClick={handleContainerClick}
@@ -816,7 +822,10 @@ export default defineComponent({
         <ul
           ref={refTagInputContainer}
           style={rootStyle.value}
-          class={['bklog-tag-choice-input', { 'is-focus': isInputFocused.value }]}
+          class={[
+            'bklog-tag-choice-input',
+            { 'is-focus': isInputFocused.value, 'is-ellipsis': isFixedOverflowY.value },
+          ]}
           data-placeholder={placeholderText.value}
         >
           {renderValueList()}

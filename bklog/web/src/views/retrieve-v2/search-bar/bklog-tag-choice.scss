@@ -3,7 +3,7 @@
   max-width: var(--bklog-choice-max-width);
   max-height: var(--bklog-choice-min-height);
   min-height: var(--bklog-choice-min-height);
-  padding: 0 30px 0 4px;
+  padding: 0 0 0 4px;
   overflow: hidden;
   position: relative;
 
@@ -71,7 +71,7 @@ ul.bklog-tag-choice-input {
   font-size: 0;
 
   margin: 0;
-  padding: 0;
+  padding: 0 30px 0 0;
   vertical-align: top;
   list-style: none;
   margin-bottom: 5px;
@@ -237,11 +237,18 @@ ul.bklog-tag-choice-input {
           background-color: #fff;
           padding-bottom: 4px;
           border-radius: 3px;
+          width: 100%;
 
           &.is-focus {
-            border-bottom: solid 1px #3a84ff;
             border-right: solid 1px #3a84ff;
             position: relative;
+            background-color: transparent;
+
+            &.is-ellipsis {
+              border-bottom: solid 1px #3a84ff;
+              border-bottom-left-radius: 3px;
+              background-color: #fff;
+            }
 
             &::before {
               content: '';
@@ -249,7 +256,7 @@ ul.bklog-tag-choice-input {
               right: 0px;
               top: var(--bklog-choice-min-height);
               bottom: 0;
-              border-bottom-left-radius: 3px;
+              border-bottom-left-radius: 0;
               border-bottom-right-radius: 3px;
               background-color: transparent;
               pointer-events: none;

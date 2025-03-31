@@ -202,8 +202,8 @@
     return props.value;
   };
 
-  const emitValueChange = (appendValue: string, retrieve = false, replace = false) => {
-    emits('change', appendValue, retrieve, replace);
+  const emitValueChange = (appendValue: string, retrieve = false, replace = false, type = undefined) => {
+    emits('change', appendValue, retrieve, replace, type);
   };
 
   // 根据当前输入关键字计算提示内容
@@ -284,7 +284,7 @@
    * @param {string} field
    */
   const handleClickField = (field: string) => {
-    emitValueChange(field);
+    emitValueChange(field, false, false, 'field');
 
     showColonOperator(field as string);
     nextTick(() => {
@@ -311,7 +311,7 @@
    * 选择某个字段可选值
    * @param {string} value
    */
-  const handleClickValue = (value: any) => {
+  const handleClickValue = (value: string) => {
     // 当前输入值可能的情况 【name:"a】【age:】
     emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
     nextTick(() => {

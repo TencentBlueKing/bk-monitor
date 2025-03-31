@@ -157,7 +157,7 @@
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
-                  v-if="showFieldsSetting"
+                  :isShow="showFieldsSetting"
                   :field-alias-map="fieldAliasMap"
                   :is-show-left="isShowLeft"
                   :retrieve-params="retrieveParams"
@@ -379,7 +379,7 @@
         transition: boder-color 0.2s;
 
         &:hover {
-          border-color: #4D4F56;
+          border-color: #4d4f56;
           transition: boder-color 0.2s;
         }
 
@@ -391,7 +391,7 @@
         .bklog-icon {
           width: 16px;
           font-size: 16px;
-          color: #4D4F56;
+          color: #4d4f56;
         }
       }
 

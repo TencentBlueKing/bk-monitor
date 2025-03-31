@@ -25,6 +25,7 @@
               :id="option.field_name"
               :key="option.field_name"
               :name="option.field_name"
+              :disabled="option.disabled"
             >
               <div
                 style="width: 130px"
@@ -102,11 +103,13 @@
   const selectList = computed(() => {
     const data = store.state.indexFieldInfo.fields;
     const filterFn = field => field.field_type !== '__virtual__';
-    return data.filter(filterFn);
+    return data.filter(filterFn).map(field => {
+      return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
+    });
   });
+
   const deleteTableItem = (val: number) => {
     shadowSort.value = shadowSort.value.slice(0, val).concat(shadowSort.value.slice(val + 1));
-    console.log(val, shadowSort.value, 'shadowSort.value');
   };
   const addTableItem = () => {
     shadowSort.value.push(['', '']);
