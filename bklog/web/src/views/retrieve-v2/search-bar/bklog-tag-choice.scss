@@ -224,10 +224,46 @@ ul.bklog-tag-choice-input {
     border-radius: 0;
     box-shadow: none;
     border-top-right-radius: 3px;
+    background-color: transparent;
 
     .tippy-content {
       padding: 0;
-      background-color: #fff;
+      background-color: transparent;
+
+      .bklog-choice-fixed-content {
+        border-radius: 3px;
+
+        ul.bklog-tag-choice-input {
+          background-color: #fff;
+          padding-bottom: 4px;
+          border-radius: 3px;
+
+          &.is-focus {
+            border-bottom: solid 1px #3a84ff;
+            border-right: solid 1px #3a84ff;
+            position: relative;
+
+            &::before {
+              content: '';
+              left: 0;
+              right: 0px;
+              top: var(--bklog-choice-min-height);
+              bottom: 0;
+              border-bottom-left-radius: 3px;
+              border-bottom-right-radius: 3px;
+              background-color: transparent;
+              pointer-events: none;
+              border-left: solid 1px #3a84ff;
+              position: absolute;
+            }
+          }
+        }
+
+        .bklog-tag-choice-list {
+          background-color: #fff;
+          box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.16);
+        }
+      }
     }
   }
 

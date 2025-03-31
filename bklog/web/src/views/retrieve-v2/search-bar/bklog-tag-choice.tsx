@@ -1,13 +1,44 @@
-import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, onUnmounted, Ref, ref, watch } from 'vue';
-import PopInstanceUtil from '../../../global/pop-instance-util';
-import useResizeObserve from '../../../hooks/use-resize-observe';
-import useLocale from '../../../hooks/use-locale';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, defineComponent, nextTick, onMounted, onUnmounted, Ref, ref, watch } from 'vue';
+
+import { throttle } from 'lodash';
+
 import { getCharLength } from '../../../common/util';
-import { debounce } from 'lodash';
+import PopInstanceUtil from '../../../global/pop-instance-util';
+import useLocale from '../../../hooks/use-locale';
+import useResizeObserve from '../../../hooks/use-resize-observe';
 
 import './bklog-tag-choice.scss';
 
 export default defineComponent({
+  model: {
+    prop: 'value',
+    event: 'change',
+  },
   props: {
     list: {
       type: Array,
@@ -59,10 +90,6 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-  },
-  model: {
-    prop: 'value',
-    event: 'change',
   },
   emits: ['change', 'input', 'toggle', 'focus', 'blur'],
   setup(props, { slots, emit }) {
@@ -195,12 +222,14 @@ export default defineComponent({
     });
 
     const optionList = computed(() => {
-      return (props.list ?? []).map(item => {
-        return {
-          item,
-          selected: valueList.value.some(v => getListItemId(v) === getListItemId(item)),
-        };
-      });
+      return (props.list ?? [])
+        .filter(({ selected }) => !selected)
+        .map(item => {
+          return {
+            item,
+            selected: valueList.value.some(v => getListItemId(v) === getListItemId(item)),
+          };
+        });
     });
 
     const placeholderText = computed(() => {
@@ -228,7 +257,7 @@ export default defineComponent({
         return;
       }
 
-      const targetValue = new Array();
+      const targetValue = [];
       valueList.value.forEach(v => {
         targetValue.push(getListItemId(v));
       });
@@ -246,7 +275,7 @@ export default defineComponent({
         if (editItemOption.value.index !== null) {
           let isUpdate = false;
 
-          const targetValue = new Array();
+          const targetValue = [];
           valueList.value.forEach((v, index) => {
             if (index !== editItemOption.value.index) {
               targetValue.push(getListItemId(v));
@@ -279,13 +308,11 @@ export default defineComponent({
     const updateFiexedInstanceContent = () => {
       return new Promise(resolve => {
         nextTick(() => {
-          destroyFixedContent();
           setFixedValueContent();
-          if (fixedInstance.isShown()) {
-            fixedInstance.setProps({
-              content: focusFixedElement,
-            });
-          }
+          fixedInstance.setContent(focusFixedElement);
+          fixedInstance.setProps({
+            content: focusFixedElement,
+          });
 
           resolve(true);
         });
@@ -295,7 +322,7 @@ export default defineComponent({
     const handleDeleteItemClick = (e, val) => {
       stopDefaultPrevented(e);
 
-      const targetValue = new Array();
+      const targetValue = [];
       valueList.value.forEach(v => {
         if (v !== val) {
           targetValue.push(getListItemId(v));
@@ -331,59 +358,39 @@ export default defineComponent({
       emit('change', []);
     };
 
-    let focusFixedElementHeight = 0;
-    // 监听输入框高度改变
-    // 自适应弹出位置
-    const fixedContentResizeObserver = new ResizeObserver(() => {
-      if (focusFixedElement) {
-        if (focusFixedElementHeight !== focusFixedElement.offsetHeight) {
-          focusFixedElementHeight = focusFixedElement.offsetHeight;
-          popInstance.repositionTippyInstance();
-        }
-      }
-    });
-
     /**
      * Fixed 模式Input事件添加监听
      * @param e
      */
-    const handleCloneFixedInputChange = (e: InputEvent) => {
-      handleInputValueChange(e);
-      const target = e.target as HTMLInputElement;
-      const charLen = Math.max(getCharLength(inputTagValue.value), 1);
-      target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-    };
-
-    const destroyFixedContent = () => {
-      focusFixedElement?.removeEventListener('click', handleFixedValueListClick);
-      const input = focusFixedElement?.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
-      input?.removeEventListener('keyup', handleFixedValueInputKeyup);
-      input?.removeEventListener('input', handleCloneFixedInputChange);
-      fixedContentResizeObserver.disconnect();
-    };
+    const handleCloneFixedInputChange = throttle((e: InputEvent) => {
+      if ((e.target as HTMLElement).hasAttribute('data-bklog-choice-text-input')) {
+        handleInputValueChange(e);
+        const target = e.target as HTMLInputElement;
+        const charLen = Math.max(getCharLength(inputTagValue.value), 1);
+        target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+        popInstance.repositionTippyInstance();
+      }
+    }, 100);
 
     const setFocuseFixedPopEvent = () => {
       if (focusFixedElement) {
         focusFixedElement.addEventListener('click', handleFixedValueListClick);
-
-        const input = focusFixedElement.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
-        if (input) {
-          input.addEventListener('keyup', handleFixedValueInputKeyup);
-          input.addEventListener('input', handleCloneFixedInputChange);
-        }
+        focusFixedElement.addEventListener('keyup', handleFixedValueInputKeyup);
+        focusFixedElement.addEventListener('input', handleCloneFixedInputChange);
       }
     };
 
     const setFixedValueContent = () => {
       if (!focusFixedElement) {
-        focusFixedElement = refTagInputContainer.value.cloneNode(true) as HTMLElement;
-      } else {
-        focusFixedElement.replaceWith(refTagInputContainer.value.cloneNode(true));
-      }
+        focusFixedElement = document.createElement('div');
+        focusFixedElement.classList.add('bklog-choice-fixed-content');
 
-      focusFixedElementHeight = focusFixedElement.offsetHeight;
-      fixedContentResizeObserver.observe(focusFixedElement);
-      setFocuseFixedPopEvent();
+        focusFixedElement.appendChild(refTagInputContainer.value.cloneNode(true));
+        focusFixedElement.appendChild(refChoiceList.value);
+        setFocuseFixedPopEvent();
+      } else {
+        focusFixedElement.childNodes[0].replaceWith(refTagInputContainer.value.cloneNode(true));
+      }
     };
 
     const handleCustomTagClick = (e: MouseEvent) => {
@@ -416,8 +423,10 @@ export default defineComponent({
       stopDefaultPrevented(e);
 
       const target = e?.target as HTMLElement;
-
-      if (target.hasAttribute('[data-bklog-choice-text-input]')) {
+      if (
+        target.hasAttribute('[data-bklog-choice-text-input]') ||
+        target?.classList.contains('bklog-choice-value-edit-input')
+      ) {
         return;
       }
 
@@ -426,7 +435,9 @@ export default defineComponent({
         editItemOption.value.index = parseInt(index);
         editItemOption.value.width = target.parentElement.offsetWidth;
         inputTagValue.value = target.innerText;
-        updateFiexedInstanceContent();
+        updateFiexedInstanceContent().then(() => {
+          autoFocusInput();
+        });
         return;
       }
 
@@ -434,7 +445,7 @@ export default defineComponent({
       if (target.hasAttribute('data-bklog-choice-item-del')) {
         const index = parseInt(target.getAttribute('data-bklog-choice-item-del') ?? '-1', 10);
         if (index >= 0) {
-          const targetValue = new Array();
+          const targetValue = [];
           valueList.value.forEach((v, idx) => {
             if (idx !== index) {
               targetValue.push(getListItemId(v));
@@ -443,7 +454,9 @@ export default defineComponent({
 
           emit('change', targetValue);
 
-          updateFiexedInstanceContent();
+          updateFiexedInstanceContent().then(() => {
+            popInstance.repositionTippyInstance();
+          });
         }
 
         return;
@@ -451,15 +464,24 @@ export default defineComponent({
 
       handleEditInputBlur().then((update: boolean) => {
         if (update) {
-          updateFiexedInstanceContent();
+          updateFiexedInstanceContent().then(() => {
+            autoFocusInput();
+          });
+          return;
         }
+
+        autoFocusInput();
       });
     };
 
     const handleFixedValueInputKeyup = (e: KeyboardEvent) => {
-      handleInputKeyup(e);
-      if (e.key === 'Enter') {
-        updateFiexedInstanceContent();
+      if ((e.target as HTMLElement).hasAttribute('data-bklog-choice-text-input')) {
+        handleInputKeyup(e);
+        if (e.key === 'Enter') {
+          updateFiexedInstanceContent().then(() => {
+            nextTick(autoFocusInput);
+          });
+        }
       }
     };
 
@@ -479,21 +501,20 @@ export default defineComponent({
           fixedInstance.setIsShowing(false);
           nextTick(() => {
             autoFocusInput();
-            popInstance.show(focusFixedElement);
-            popInstance.repositionTippyInstance();
           });
         },
 
         onHidden: () => {
           fixedInstance.setIsShowing(false);
-          destroyFixedContent();
         },
       },
     });
 
     const cloneFixedItem = () => {
       updateFiexedInstanceContent().then(() => {
-        fixedInstance.show(refFixedPointerElement.value, true, true);
+        if (!fixedInstance.isShown()) {
+          fixedInstance.show(refFixedPointerElement.value, true, true);
+        }
       });
     };
 
@@ -587,7 +608,6 @@ export default defineComponent({
         return;
       }
       const target = e.target as HTMLElement;
-      handleEditInputBlur();
 
       if (
         refRootElement.value.contains(target) ||
@@ -602,12 +622,14 @@ export default defineComponent({
         return;
       }
 
-      fixedInstance.hide();
-      popInstance.hide();
-      clearInputTag();
+      handleEditInputBlur().then(() => {
+        fixedInstance.hide();
+        popInstance.hide();
+        clearInputTag();
 
-      isInputFocused.value = false;
-      calcItemEllipsis();
+        isInputFocused.value = false;
+        calcItemEllipsis();
+      });
     };
 
     const handleContainerClick = (e: MouseEvent) => {
@@ -708,9 +730,9 @@ export default defineComponent({
         return (
           <input
             style={{ width: `${editItemOption.value.width}px` }}
-            data-bklog-choice-value-edit-input
             class='bklog-choice-value-edit-input'
             value={getListItemId(item)}
+            data-bklog-choice-value-edit-input
           ></input>
         );
       }
@@ -736,9 +758,6 @@ export default defineComponent({
           return (
             <li
               key='__tag_input__'
-              data-ignore-element='true'
-              data-w-hidden='false'
-              data-item-index={index}
               class={[
                 'bklog-choice-value-item tag-input',
                 {
@@ -746,11 +765,14 @@ export default defineComponent({
                     editItemOption.value.index !== null || (hiddenItemCount.value > 0 && !isInputFocused.value),
                 },
               ]}
+              data-ignore-element='true'
+              data-item-index={index}
+              data-w-hidden='false'
             >
               <input
-                type='text'
                 ref={refTagInputElement}
                 style={tagInputStyle.value}
+                type='text'
                 data-bklog-choice-text-input
                 onInput={handleInputValueChange}
                 onKeyup={handleInputKeyup}
@@ -761,11 +783,11 @@ export default defineComponent({
 
         return (
           <li
-            class={['bklog-choice-value-item', { 'is-edit-item': editItemOption.value.index === index }]}
-            style={valueTagStyle.value}
-            data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
-            data-item-index={index}
             key={getItemKey(item, index)}
+            style={valueTagStyle.value}
+            class={['bklog-choice-value-item', { 'is-edit-item': editItemOption.value.index === index }]}
+            data-item-index={index}
+            data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
           >
             {getValueContext(item, index)}
           </li>
@@ -775,6 +797,8 @@ export default defineComponent({
 
     return () => (
       <div
+        ref={refRootElement}
+        style={rootStyle.value}
         class={[
           'bklog-tag-choice-container',
           {
@@ -784,23 +808,21 @@ export default defineComponent({
           },
         ]}
         onClick={handleContainerClick}
-        style={rootStyle.value}
-        ref={refRootElement}
       >
         <span
           ref={refFixedPointerElement}
           class='hidden-fixed-pointer'
         ></span>
         <ul
-          class={['bklog-tag-choice-input', { 'is-focus': isInputFocused.value }]}
           ref={refTagInputContainer}
           style={rootStyle.value}
+          class={['bklog-tag-choice-input', { 'is-focus': isInputFocused.value }]}
           data-placeholder={placeholderText.value}
         >
           {renderValueList()}
           <li
-            data-ignore-element
             class={['bklog-choice-value-item', { 'is-hidden': hiddenItemCount.value === 0 || isInputFocused.value }]}
+            data-ignore-element
           >
             +{hiddenItemCount.value}
           </li>
@@ -812,9 +834,9 @@ export default defineComponent({
         ></span>
         <div v-show={false}>
           <div
-            class='bklog-tag-choice-list'
             ref={refChoiceList}
             style={containerStyle.value}
+            class='bklog-tag-choice-list'
           >
             {renderInputTag()}
             <div

@@ -161,9 +161,16 @@
     }
   };
 
+  const handleChoiceFocus = index => {
+    focusIndex.value = index;
+  };
+
+  const handleChoiceBlur = () => {
+    focusIndex.value = null;
+  };
+
   const handleRowBlur = (agr?) => {
     focusIndex.value = null;
-    console.log('-----', agr);
   };
 </script>
 
@@ -211,34 +218,6 @@
           />
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
-          <!-- <bk-select
-            class="value-select"
-            v-model="commonFilterAddition[index].value"
-            placeholder="请选择 或 输入"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-            :fix-height="true"
-            allow-create
-            display-tag
-            multiple
-            searchable
-            @change="debouncedHandleChange"
-            @toggle="visible => handleToggle(visible, item, index)"
-          >
-            <template #search>
-              <bk-input
-                :clearable="true"
-                :left-icon="'bk-icon icon-search'"
-                behavior="simplicity"
-                @input="e => handleInputVlaueChange(e, item, index)"
-              ></bk-input>
-            </template>
-            <bk-option
-              v-for="option in commonFilterAddition[index].list"
-              :id="option"
-              :key="option"
-              :name="option"
-            />
-          </bk-select> -->
           <bklogTagChoice
             class="value-select"
             v-model="commonFilterAddition[index].value"
@@ -247,6 +226,8 @@
             :placeholder="$t('请选择 或 输入')"
             :foucs-fixed="true"
             max-width="460px"
+            @focus="() => handleChoiceFocus(index)"
+            @blur="() => handleChoiceBlur()"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
@@ -307,6 +288,7 @@
 
     &.is-focus {
       border-color: #3a84ff;
+      border-right: none;
     }
 
     .title {
