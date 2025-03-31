@@ -50,7 +50,7 @@ class ClusteringConfigViewSet(APIViewSet):
         """
         获取聚类配置列表
         """
-        if not request.user.is_superuser():
+        if not request.user.is_superuser:
             return Response([])
         return Response(ClusteringConfigHandler.list_all_configs())
 
