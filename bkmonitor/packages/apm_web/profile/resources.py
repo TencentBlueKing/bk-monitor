@@ -126,7 +126,7 @@ class QueryServicesDetailResource(Resource):
 
         for item in res:
             if item["name"] in agg_method.keys():
-                item["default_agg_method"] = agg_method[item["name"]]
+                item["default_agg_method"] = agg_method.get(item["name"])
 
         return res
 
