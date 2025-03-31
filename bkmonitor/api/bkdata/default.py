@@ -1398,3 +1398,36 @@ class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
         kind = serializers.CharField(required=True, label="资源类型")
+
+
+class GetBkBaseMsgsStat(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    获取计算平台消息统计信息
+    """
+
+    action = "/v4/metrics/stats/msgs_stat/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        raw_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        result_table_id = serializers.CharField(required=False, label="结果表ID")
+        start = serializers.CharField(required=False, label="开始时间")
+        end = serializers.CharField(required=False, label="结束时间")
+        step = serializers.CharField(required=False, label="步长")
+
+
+class GetBkBaseComponentStat(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    获取计算平台组件统计信息
+    """
+
+    action = "/v4/metrics/stats/component_stat/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        logical_tag = serializers.CharField(required=True, label="结果表ID")
+        module = serializers.CharField(required=False, label="计算平台模块")
+        component = serializers.CharField(required=False, label="计算平台组件")
+        start = serializers.CharField(required=False, label="开始时间")
+        end = serializers.CharField(required=False, label="结束时间")
+        step = serializers.CharField(required=False, label="步长")
