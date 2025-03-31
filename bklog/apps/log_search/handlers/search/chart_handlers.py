@@ -215,7 +215,7 @@ class ChartHandler(object):
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
 
-        if keyword:
+        if keyword and keyword != "*":
             # 加上keyword的查询条件
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
             keyword = enhance_lucene_adapter.enhance()
