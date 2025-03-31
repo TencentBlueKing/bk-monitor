@@ -463,7 +463,7 @@ class ModifyCustomEventGroup(Resource):
             raise CustomEventValidationError(msg=_("自定义事件组不存在"))
 
         # 1. 调用接口修改 event_group
-        params = {
+        modify_params = {
             "operator": get_request_username(),
             "event_group_id": params["bk_event_group_id"],
             "event_group_name": params.get("name"),
@@ -471,8 +471,8 @@ class ModifyCustomEventGroup(Resource):
             "is_enable": params.get("is_enable"),
             "event_info_list": [],
         }
-        params = {key: value for key, value in list(params.items()) if value is not None}
-        group_info = api.metadata.modify_event_group(params)
+        modify_params = {key: value for key, value in list(modify_params.items()) if value is not None}
+        group_info = api.metadata.modify_event_group(modify_params)
 
         # 2. 结果回写数据库
         group.scenario = group_info["label"]
