@@ -28,7 +28,7 @@ import { LANGUAGE_COOKIE_KEY, docCookies, xssFilter } from 'monitor-common/utils
 import type { ICommonChartTips, IExtendMetricData } from '../typings';
 
 export const createTooltip = (tipsData: ICommonChartTips) => {
-  const liHtmls =
+  const liHtmlList =
     tipsData?.list?.map(item => {
       if (item.value === null) return '';
       const markStyle = item.isCurrent ? "color: '#ffffff';font-weight: bold;" : "color: '#fafbfd';";
@@ -41,13 +41,13 @@ export const createTooltip = (tipsData: ICommonChartTips) => {
     ${item.value} ${item.unit || ''}</span>
     </li>`;
     }) || [];
-  if (!liHtmls.length) return '';
+  if (!liHtmlList.length) return '';
   return `<div style="z-index:12; border-radius: 6px">
   <p style="text-align:center;margin: 0 0 5px 0;font-weight: bold;">
       ${tipsData.title}
   </p>
   <ul style="padding: 0;margin: 0; ${tipsData.style || ''}">
-      ${liHtmls?.join('')}
+      ${liHtmlList?.join('')}
   </ul>
   </div>`;
 };
