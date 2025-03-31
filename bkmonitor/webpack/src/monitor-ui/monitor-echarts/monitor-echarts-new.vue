@@ -486,11 +486,11 @@ export default class MonitorEcharts extends Vue {
               left: 0,
               top: 0,
             };
-            const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-            if (canSetBootom > 0) {
-              position.top = +pos[1] - Math.min(20, canSetBootom);
+            const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+            if (canSetBottom > 0) {
+              position.top = +pos[1] - Math.min(20, canSetBottom);
             } else {
-              position.top = +pos[1] + canSetBootom - 20;
+              position.top = +pos[1] + canSetBottom - 20;
             }
             const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
             if (canSetLeft > 0) {
@@ -975,7 +975,7 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
     const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-    const liHtmls = list
+    const liHtmlList = list
       .slice(0, 50)
       .sort((a, b) => b.value[1] - a.value[1])
       .map(item => {
@@ -995,10 +995,10 @@ export default class MonitorEcharts extends Vue {
         }
         if (item.value[1] === null) return '';
         const curSeries = this.curChartOption.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li class="tooltips-content-item">
                 <span class="item-series"
                  style="background-color:${item.color};">
@@ -1008,7 +1008,7 @@ export default class MonitorEcharts extends Vue {
                 ${valueObj.text} ${valueObj.suffix || ''}</span>
                 </li>`;
       });
-    if (liHtmls?.length < 1) return '';
+    if (liHtmlList?.length < 1) return '';
     // 如果超出屏幕高度，则分列展示
     let ulStyle = '';
     const maxLen = Math.ceil((window.innerHeight - 100) / 20);
@@ -1027,7 +1027,7 @@ export default class MonitorEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
             </ul>
             </div>`;
   }
