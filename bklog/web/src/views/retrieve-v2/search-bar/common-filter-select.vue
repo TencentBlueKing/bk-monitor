@@ -1,15 +1,15 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import useLocale from '@/hooks/use-locale';
 
-  import CommonFilterSetting from './common-filter-setting.vue';
-  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
   import { getOperatorKey } from '@/common/util';
-  import { operatorMapping, translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
 
   import bklogTagChoice from './bklog-tag-choice';
+  import CommonFilterSetting from './common-filter-setting.vue';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { operatorMapping, translateKeys } from './const-values';
+  import useFieldEgges from './use-field-egges';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -241,10 +241,10 @@
           <bklogTagChoice
             class="value-select"
             v-model="commonFilterAddition[index].value"
+            :foucs-fixed="true"
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
-            :foucsFixed="true"
             max-width="460px"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
@@ -333,6 +333,11 @@
         &[data-operator^='is false'],
         &[data-operator^='!='] {
           color: #ea3636;
+        }
+
+        &[data-operator^='exists'],
+        &[data-operator^='does not exists'] {
+          padding-right: 4px;
         }
       }
 
