@@ -126,7 +126,7 @@ class CicdEventProcessor(BaseEventProcessor):
 
     @classmethod
     def generate_url(cls, cicd_info):
-        return "{base_url}/console/pipeline/{project_id}/{pipeline_id}/detail/{build_id}/executeDetail".format(
+        return "{base_url}console/pipeline/{project_id}/{pipeline_id}/detail/{build_id}/executeDetail".format(
             base_url=settings.BK_CI_URL,
             project_id=cicd_info["projectId"]["value"],
             pipeline_id=cicd_info["pipelineId"]["value"],
