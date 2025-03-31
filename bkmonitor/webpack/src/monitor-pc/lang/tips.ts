@@ -342,5 +342,5 @@ export default {
   '全部事件 ({0})': 'All events ({0})',
   '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorite item?',
   '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be recovered, please operate carefully!',
-  '暂无数据，可输入生成': 'No data available, you can input to generate',
+  '暂无数据，请输入生成': 'No data, please enter to generate',
 };
