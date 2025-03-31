@@ -99,6 +99,17 @@ class QueryServicesDetailResource(Resource):
         对于 count 类型 只允许以下:
         goroutine/syscall/allocations/exception-samples
         """
+        agg_method = {
+            "HEAP-SPACE": "AVG",
+            "WALL-TIME": "SUM",
+            "ALLOC-SPACE": "AVG",
+            "CPU-TIME": "SUM",
+            "EXCEPTION-SAMPLES": "SUM",
+            "CPU": "SUM",
+            "INUSE_SPACE": "AVG",
+            "DELAY": "AVG",
+            "GOROUTINE": "AVG",
+        }
         res = []
         for svr in services:
             if not svr["sample_type"]:
@@ -112,6 +123,10 @@ class QueryServicesDetailResource(Resource):
                 continue
 
             res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
+
+        for item in res:
+            if item["name"] in agg_method.keys():
+                item["default_agg_method"] = agg_method[item["name"]]
 
         return res
 
