@@ -534,7 +534,7 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params.map(item => {
+    const liHtmlList = params.map(item => {
       let markColor = "color: '#fafbfd';";
       if (data[0].value === item.value[1]) {
         markColor = "color: '#ffffff';font-weight: bold;";
@@ -563,7 +563,7 @@ export default class MonitorEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul style="padding: 0;margin: 0;">
-                ${liHtmls.join('')}
+                ${liHtmlList.join('')}
             </ul>
             </div>`;
   }

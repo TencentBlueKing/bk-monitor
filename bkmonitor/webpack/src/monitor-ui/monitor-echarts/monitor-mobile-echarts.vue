@@ -463,7 +463,7 @@ export default class MonitorMobileEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params
+    const liHtmlList = params
       .filter(item => !item.seriesName.match(/-no-tips$/))
       .map(item => {
         let markColor = "color: '#fafbfd';";
@@ -481,10 +481,10 @@ export default class MonitorMobileEcharts extends Vue {
         }
         if (item.value[1] === null) return '';
         const curSeries = this.curChartOption.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li style="display: flex;align-items: center;">
                 <span
                  style="background-color:${item.color};margin-right: 10px;width: 6px;height: 6px; border-radius: 50%;">
@@ -499,7 +499,7 @@ export default class MonitorMobileEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul style="padding: 0;margin: 0;">
-                ${liHtmls.join('')}
+                ${liHtmlList.join('')}
             </ul>
             </div>`;
   }

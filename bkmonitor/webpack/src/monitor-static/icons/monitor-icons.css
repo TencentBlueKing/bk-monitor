@@ -1,9 +1,9 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1742523941514') format('woff2'),
-    url('monitor-icons.woff?t=1742523941514') format('woff'),
-    url('monitor-icons.ttf?t=1742523941514') format('truetype');
+    url('monitor-icons.woff2?t=1743411165465') format('woff2'),
+    url('monitor-icons.woff?t=1743411165465') format('woff'),
+    url('monitor-icons.ttf?t=1743411165465') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +12,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-configuration:before {
+  content: '\e823';
 }
 
 .icon-a-mini-arrowxiaojiantou:before {
