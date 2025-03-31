@@ -128,7 +128,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
@@ -158,7 +158,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       },
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
         searchValue: [],
       },
     };

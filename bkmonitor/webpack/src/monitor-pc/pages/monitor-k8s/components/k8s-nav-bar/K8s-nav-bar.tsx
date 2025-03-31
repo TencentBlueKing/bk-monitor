@@ -74,7 +74,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
 
   k8sList = [
     { label: window.i18n.tc('性能'), value: 'performance', icon: 'icon-xingneng1', disabled: false },
-    { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: true },
+    { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: false },
     { label: window.i18n.tc('存储'), value: 'storage', icon: 'icon-cunchu', disabled: true },
     { label: window.i18n.tc('容量'), value: 'capacity', icon: 'icon-rongliang', disabled: true },
     { label: window.i18n.tc('事件'), value: 'event', icon: 'icon-shijian2', disabled: true },
@@ -176,15 +176,15 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
           <DashboardTools
             isSplitPanel={false}
             menuList={[]}
-            refleshInterval={this.refreshInterval}
+            refreshInterval={this.refreshInterval}
             showDownSampleRange={false}
             showFullscreen={false}
             showListMenu={false}
             showSplitPanel={false}
             timeRange={this.timeRange}
             timezone={this.timezone}
-            onImmediateReflesh={this.handleImmediateRefresh}
-            onRefleshChange={this.handleRefreshChange}
+            onImmediateRefresh={this.handleImmediateRefresh}
+            onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           >

@@ -164,7 +164,7 @@ export default class TimeSeriesOutlier extends LineChart {
    * @description:
    * @return {*}
    */
-  handleSetThreholds() {
+  handleSetThresholds() {
     const { markLine } = this.panel?.options?.time_series_forecast || {};
     const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
     const max = Math.max(...thresholdList);
@@ -203,7 +203,7 @@ export default class TimeSeriesOutlier extends LineChart {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -211,7 +211,7 @@ export default class TimeSeriesOutlier extends LineChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       let series = [];
       const metrics = [];
       // mock 数据 暂时注释接口
@@ -239,7 +239,7 @@ export default class TimeSeriesOutlier extends LineChart {
       });
       timeShiftList.forEach(time_shift => {
         const list = this.panel.targets.map(item => {
-          const newPrarams = {
+          const newParams = {
             ...variablesService.transformVariables(item.data, {
               ...this.viewOptions.filters,
               ...(this.viewOptions.filters?.current_target || {}),
@@ -256,7 +256,7 @@ export default class TimeSeriesOutlier extends LineChart {
             ),
           };
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](newParams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -372,7 +372,7 @@ export default class TimeSeriesOutlier extends LineChart {
           });
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+        const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -401,7 +401,7 @@ export default class TimeSeriesOutlier extends LineChart {
                         }
                         return v;
                       }
-                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
                 },
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
@@ -425,7 +425,7 @@ export default class TimeSeriesOutlier extends LineChart {
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent && this.needSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -682,7 +682,7 @@ export default class TimeSeriesOutlier extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            draging={this.panel.draging}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -703,7 +703,7 @@ export default class TimeSeriesOutlier extends LineChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   width={this.width}
                   height={this.height}

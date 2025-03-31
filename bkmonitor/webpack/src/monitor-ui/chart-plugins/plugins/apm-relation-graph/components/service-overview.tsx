@@ -121,7 +121,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     service_name: '',
     endpoint_name: '',
   };
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
 
   get tabs() {
     if (this.curType === 'endpoint') {
@@ -163,9 +163,9 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.moreLink = '';
     }
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v && this.serviceName && this.appName) this.initPanel();
   }
 

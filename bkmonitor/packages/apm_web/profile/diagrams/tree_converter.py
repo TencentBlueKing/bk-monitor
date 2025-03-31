@@ -35,7 +35,7 @@ class TreeConverter:
     def get_sample_type(self) -> dict:
         return self.sample_type
 
-    def convert(self, raw: Any) -> FunctionTree:
+    def convert(self, raw: Any, agg_method: str = None) -> FunctionTree:
         samples_info = raw["list"]
         if not samples_info:
             return self.tree
@@ -60,16 +60,20 @@ class TreeConverter:
                 values=[],
             ),
         )
-        self.build_tree(tree, samples_info)
+        self.build_tree(tree, samples_info, agg_method)
 
+        samples_len = len(samples_info)
         # 不同数据类型的节点 value 计算方式有所不同
-        ValueCalculator.calculate_nodes(tree, self.get_sample_type())
+        ValueCalculator.calculate_nodes(tree, self.get_sample_type(), samples_len, agg_method)
 
         self.tree = tree
         return self.tree
 
     @classmethod
-    def build_tree(cls, tree: FunctionTree, samples):
+    def build_tree(cls, tree: FunctionTree, samples, agg_method=None):
+        if agg_method == "LAST":
+            samples = samples[-1:]
+
         for sample in samples:
             value = int(sample["value"])
             parent = tree.root

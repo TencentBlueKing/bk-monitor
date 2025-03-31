@@ -141,7 +141,7 @@ export default class MonitorMobileEcharts extends Vue {
   noData = false;
   timeRange: string[] = [];
   curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
   legend: { show: boolean; list: ILegendItem[] } = {
@@ -160,7 +160,7 @@ export default class MonitorMobileEcharts extends Vue {
   // 是否显示极值
   @Prop({ default: false }) readonly showExtremum: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: 0 }) readonly refreshInterval: number;
   // 图表类型
   @Prop({ default: 'line' }) readonly chartType: 'bar' | 'line';
   // 图表title
@@ -243,15 +243,15 @@ export default class MonitorMobileEcharts extends Vue {
     }
     return height;
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (!this.getSeriesData || v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   @Watch('height')
   onHeightChange() {
@@ -296,7 +296,7 @@ export default class MonitorMobileEcharts extends Vue {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();
     }
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();

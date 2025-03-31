@@ -41,7 +41,7 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
 import AiopsContainer from './aiops/aiops-container-new';
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import BasicInfo from './basic-info';
@@ -416,7 +416,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       return;
     }
     const interval = this.basicInfo.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.basicInfo.begin_time, this.basicInfo.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.basicInfo.begin_time, this.basicInfo.end_time, interval);
     const params: any = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
