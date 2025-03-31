@@ -131,9 +131,9 @@ export default class PopInstanceUtil {
   uninstallInstance = () => {
     this.resizeObserver?.disconnect();
     if (this.tippyInstance) {
-      this.tippyInstance.hide();
-      this.tippyInstance.unmount();
-      this.tippyInstance.destroy();
+      this.tippyInstance?.hide();
+      this.tippyInstance?.unmount();
+      this.tippyInstance?.destroy();
       this.tippyInstance = null;
     }
   };
@@ -169,10 +169,15 @@ export default class PopInstanceUtil {
         this.isShowing = false;
       },
       onHide: () => {
+        this.isShowing = false;
         if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
           return false;
         }
 
+        this.onBeforeUnmount();
+      },
+      onDestroy: () => {
+        this.isShowing = false;
         this.onBeforeUnmount();
       },
     };

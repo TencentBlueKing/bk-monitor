@@ -161,8 +161,9 @@
     }
   };
 
-  const handleRowBlur = () => {
+  const handleRowBlur = (agr?) => {
     focusIndex.value = null;
+    console.log('-----', agr);
   };
 </script>
 
@@ -244,7 +245,7 @@
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
-            :foucsFixed="true"
+            :foucs-fixed="true"
             max-width="460px"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"

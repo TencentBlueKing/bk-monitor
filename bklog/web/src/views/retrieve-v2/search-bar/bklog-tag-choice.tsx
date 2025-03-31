@@ -1,8 +1,9 @@
-import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, onUnmounted, Ref, ref, watch } from 'vue';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 import useResizeObserve from '../../../hooks/use-resize-observe';
 import useLocale from '../../../hooks/use-locale';
 import { getCharLength } from '../../../common/util';
+import { debounce } from 'lodash';
 
 import './bklog-tag-choice.scss';
 
@@ -63,7 +64,7 @@ export default defineComponent({
     prop: 'value',
     event: 'change',
   },
-  emits: ['change', 'input', 'toggle'],
+  emits: ['change', 'input', 'toggle', 'focus', 'blur'],
   setup(props, { slots, emit }) {
     const isListOpended = ref(false);
     const refRootElement: Ref<HTMLElement> = ref(null);
@@ -99,12 +100,18 @@ export default defineComponent({
       };
     });
 
+    const maxTagWidthNumber = computed(() => {
+      return parseFloat(props.valueTagMaxWidth.replace('px', ''));
+    });
+
     const tagInputStyle = computed(() => {
       const charLen = Math.max(getCharLength(inputTagValue.value), 1);
+      const wordWidth = charLen * INPUT_MIN_WIDTH;
+      const width = wordWidth > maxTagWidthNumber.value ? maxTagWidthNumber.value : wordWidth;
 
       return {
         minWidth: `${INPUT_MIN_WIDTH}px`,
-        width: `${charLen * INPUT_MIN_WIDTH}px`,
+        width: `${width}px`,
       };
     });
 
@@ -272,8 +279,8 @@ export default defineComponent({
             content: focusFixedElement,
           });
 
-          popInstance.initInistance(focusFixedElement);
-          popInstance.getTippyInstance().show();
+          // popInstance.initInistance(focusFixedElement);
+          // popInstance.getTippyInstance().show();
           resolve(true);
         });
       });
@@ -343,14 +350,10 @@ export default defineComponent({
 
     const destroyFixedContent = () => {
       focusFixedElement?.removeEventListener('click', handleFixedValueListClick);
-
       const input = focusFixedElement?.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
       input?.removeEventListener('keyup', handleFixedValueInputKeyup);
       input?.removeEventListener('input', handleCloneFixedInputChange);
       fixedContentResizeObserver.disconnect();
-
-      focusFixedElementHeight = 0;
-      focusFixedElement = null;
     };
 
     const setFocuseFixedPopEvent = () => {
@@ -368,10 +371,13 @@ export default defineComponent({
     const setFixedValueContent = () => {
       if (!focusFixedElement) {
         focusFixedElement = refTagInputContainer.value.cloneNode(true) as HTMLElement;
-        focusFixedElementHeight = focusFixedElement.offsetHeight;
-        fixedContentResizeObserver.observe(focusFixedElement);
-        setFocuseFixedPopEvent();
+      } else {
+        focusFixedElement.replaceWith(refTagInputContainer.value.cloneNode(true));
       }
+
+      focusFixedElementHeight = focusFixedElement.offsetHeight;
+      fixedContentResizeObserver.observe(focusFixedElement);
+      setFocuseFixedPopEvent();
     };
 
     const handleCustomTagClick = (e: MouseEvent) => {
@@ -405,6 +411,10 @@ export default defineComponent({
 
       const target = e?.target as HTMLElement;
 
+      if (target.hasAttribute('[data-bklog-choice-text-input]')) {
+        return;
+      }
+
       handleEditInputBlur();
 
       if (target?.classList.contains('bklog-choice-value-span')) {
@@ -426,18 +436,20 @@ export default defineComponent({
           });
 
           emit('change', targetValue);
+
+          updateFiexedInstanceContent().then(() => {
+            fixedInstance.show(refFixedPointerElement.value, true, true);
+          });
         }
       }
-
-      updateFiexedInstanceContent().then(() => {
-        autoFocusInput();
-      });
     };
 
     const handleFixedValueInputKeyup = (e: KeyboardEvent) => {
       handleInputKeyup(e);
       if (e.key === 'Enter') {
-        updateFiexedInstanceContent();
+        updateFiexedInstanceContent().then(() => {
+          fixedInstance.show(refFixedPointerElement.value, true, true);
+        });
       }
     };
 
@@ -461,20 +473,24 @@ export default defineComponent({
             popInstance.repositionTippyInstance();
           });
         },
+
         onHidden: () => {
+          fixedInstance.setIsShowing(false);
           destroyFixedContent();
         },
       },
     });
 
     const cloneFixedItem = () => {
-      fixedInstance.show(refFixedPointerElement.value, true, true);
+      updateFiexedInstanceContent().then(() => {
+        fixedInstance.show(refFixedPointerElement.value, true, true);
+      });
     };
 
     const execContainerClick = () => {
-      if (hiddenItemCount.value > 0) {
-        isInputFocused.value = true;
+      isInputFocused.value = true;
 
+      if (hiddenItemCount.value > 0) {
         calcItemEllipsis().then(() => {
           if (props.foucsFixed) {
             cloneFixedItem();
@@ -557,6 +573,9 @@ export default defineComponent({
     };
 
     const handleDocumentClick = (e: MouseEvent) => {
+      if (!isInputFocused.value) {
+        return;
+      }
       const target = e.target as HTMLElement;
       handleEditInputBlur();
 
@@ -583,7 +602,7 @@ export default defineComponent({
 
     const handleContainerClick = (e: MouseEvent) => {
       stopDefaultPrevented(e);
-      nextTick(execContainerClick);
+      execContainerClick();
     };
 
     watch(
@@ -601,13 +620,25 @@ export default defineComponent({
       },
     );
 
+    watch(
+      () => [isInputFocused.value],
+      () => {
+        if (isInputFocused.value) {
+          emit('focus', isInputFocused.value);
+          return;
+        }
+
+        emit('blur', isInputFocused.value);
+      },
+    );
+
     onMounted(() => {
       containerWidth.value = refRootElement.value.offsetWidth;
       document.addEventListener('click', handleDocumentClick);
       calcItemEllipsis();
     });
 
-    onBeforeUnmount(() => {
+    onUnmounted(() => {
       document.removeEventListener('click', handleDocumentClick);
       popInstance?.uninstallInstance();
       fixedInstance?.uninstallInstance();
