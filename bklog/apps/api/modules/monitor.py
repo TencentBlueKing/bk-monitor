@@ -162,14 +162,6 @@ class _MonitorApi(object):
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
-        self.update_partial_strategy_v3 = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "update_partial_strategy_v3/",
-            module=self.MODULE,
-            description="批量更新策略局部配置v3",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
 
 
 MonitorApi = _MonitorApi()

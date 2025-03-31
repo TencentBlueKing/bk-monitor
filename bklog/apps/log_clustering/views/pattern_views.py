@@ -386,7 +386,7 @@ class PatternViewSet(APIViewSet):
             "groups": {
                 "__ext.container_id": "xxxxxxxxxx"
             },
-            "strategy_type": "normal_strategy"
+            "is_enabled": true
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -397,8 +397,4 @@ class PatternViewSet(APIViewSet):
         }
         """
         params = self.params_valid(AlarmPolicySwitchSerializer)
-        return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_strategy_by_switch(
-                params["strategy_type"], params
-            )
-        )
+        return Response(ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_strategy_by_switch(params))
