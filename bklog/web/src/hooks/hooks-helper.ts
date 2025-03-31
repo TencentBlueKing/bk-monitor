@@ -180,6 +180,7 @@ export const setScrollLoadCell = (
   const appendPageItems = (size?) => {
     if (startIndex >= wordList.length) {
       requestAnimationFrame(appendLastTag);
+      startIndex = wordList.length;
       return false;
     }
 
@@ -191,6 +192,7 @@ export const setScrollLoadCell = (
       fragment.appendChild(child);
     });
 
+    startIndex = startIndex + (size ?? pageSize);
     contentElement?.append?.(fragment);
     return true;
   };
@@ -226,7 +228,6 @@ export const setScrollLoadCell = (
         if (rootElement) {
           const { offsetHeight, scrollHeight } = rootElement;
           if (offsetHeight * 1.2 > scrollHeight) {
-            startIndex = startIndex + (size ?? pageSize);
             setListItem();
           } else {
             if (!scrollEvtAdded) {

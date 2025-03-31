@@ -11,7 +11,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
   .chart-title {
     min-height: 40px;
-    padding: 3px 19px 3px 16px;
+    padding: 3px 6px 3px 16px;
     font-size: 12px;
     color: #63656e;
     border-radius: 2px;
@@ -24,6 +24,14 @@ $alarmColor: #dcdee5 #63656e #ea3636;
             // font-weight: 600;
           }
         }
+
+        .title-icon-list {
+          visibility: inherit;
+        }
+
+        .hover-show {
+          visibility: inherit;
+        }
       }
     }
 
@@ -33,14 +41,17 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       align-items: center;
       min-height: 30px;
 
+      .title-icon-list {
+        visibility: hidden;
+      }
+
       .alarm-icon {
         z-index: 9;
         // display: none;
         align-items: center;
         justify-content: center;
         height: 14px;
-        margin-right: 8px;
-        margin-right: 8px;
+        margin-right: 4px;
         font-size: 14px;
         color: #dcdee5;
 
@@ -58,6 +69,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         &.status-strategy {
           /* stylelint-disable-next-line declaration-no-important */
           height: 16px !important;
+          margin-top: -4px;
 
           /* stylelint-disable-next-line declaration-no-important */
           font-size: 16px !important;
@@ -66,6 +78,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
           &-not-config {
             /* stylelint-disable-next-line declaration-no-important */
             height: 16px !important;
+            margin-top: -4px;
 
             /* stylelint-disable-next-line declaration-no-important */
             font-size: 16px !important;
@@ -83,12 +96,12 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        display: flex;
+        display: inline-block;
         align-items: center;
         height: 20px;
         overflow: hidden;
+        font-family: '微软雅黑', '苹方', Arial, sans-serif;
         font-size: 14px;
-        font-weight: 400;
         line-height: 20px;
         color: #313238;
         text-overflow: ellipsis;
@@ -101,6 +114,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         justify-content: center;
         height: 16px;
         padding: 0 2px;
+        margin-right: 4px;
         margin-left: 8px;
         font-size: 12px;
         font-weight: normal;
@@ -113,6 +127,10 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .title-center {
         margin-left: auto;
+      }
+
+      .hover-show {
+        visibility: hidden;
       }
 
       .tips-icon,
@@ -130,6 +148,12 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
         &::before {
           height: 14px;
+        }
+
+        &:hover {
+          cursor: pointer;
+          background-color: #e1ecff;
+          border-radius: 50%;
         }
       }
 

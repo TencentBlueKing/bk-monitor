@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
+import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -66,12 +67,17 @@ interface IPanelModel extends PanelModel {
   feedback?: IFeedback;
   recommend_info?: IRecommendInfo;
   anomaly_score?: number;
+  anomaly_level?: number;
   enable_threshold?: boolean;
   src_metric_id?: string;
   class?: string;
   bk_biz_id?: string;
 }
-
+const AnomalyLevelColorMap = {
+  1: '#E71818',
+  2: '#E38B02',
+  3: '#979BA5',
+};
 export enum ETabNames {
   dimension = 'dimension',
   index = 'index',
@@ -123,7 +129,7 @@ export default class AiopsDimensionLine extends LineChart {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -131,7 +137,7 @@ export default class AiopsDimensionLine extends LineChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       // const series = apdexData.series || [];
       const series = [];
       // const metrics = apdexData.series || [];
@@ -153,7 +159,7 @@ export default class AiopsDimensionLine extends LineChart {
           dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm'),
           dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm'),
         ];
-        if (this.needLegend && !this.inited) {
+        if (this.needLegend && !this.initialized) {
           this.needLegendTimeRange = [...this.cacheTimeRang];
         }
       } else {
@@ -238,7 +244,7 @@ export default class AiopsDimensionLine extends LineChart {
         );
         /** 默认以这个宽度来进行刻度划分，主要为了解决 watch 未首次监听宽度自动计算splitNumber */
         // const widths = [1192, 586, 383];
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds(enableThreshold ? series : []);
+        const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds(enableThreshold ? series : []);
         /** 关联指标不需要展示阈值后，可以根据数据来展示最大最小值，因为阈值可能为0 */
         const yAxis = {
           scale: this.height < 120 ? false : canScale,
@@ -265,7 +271,7 @@ export default class AiopsDimensionLine extends LineChart {
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                  : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 200 ? 2 : 4,
               minInterval: 1,
@@ -284,7 +290,7 @@ export default class AiopsDimensionLine extends LineChart {
           })
         ) as MonitorEchartOptions;
         this.metrics = metrics || [];
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -359,7 +365,7 @@ export default class AiopsDimensionLine extends LineChart {
         break;
     }
   }
-  handleSetThreholds(series = []) {
+  handleSetThresholds(series = []) {
     const markLine = series?.find?.(item => item.thresholds);
     const thresholdList = markLine?.thresholds?.map?.(item => item.yAxis) || [];
     const max = Math.max(...thresholdList);
@@ -484,7 +490,14 @@ export default class AiopsDimensionLine extends LineChart {
     }
     return (
       <span class='aiops-dimension-drill-down-right'>
-        {this.$t('异常分值')}：<font>{this.panel.anomaly_score}</font>
+        {this.$t('异常分值')}：
+        <font
+          style={{
+            color: AnomalyLevelColorMap[this.panel.anomaly_level] || AnomalyLevelColorMap[3],
+          }}
+        >
+          {this.panel.anomaly_score}
+        </font>
       </span>
     );
   }
@@ -493,7 +506,7 @@ export default class AiopsDimensionLine extends LineChart {
   handleChangeSelectActive() {
     const startTimeRange = JSON.stringify(this.dataZoomTimeRange.timeRange);
     const cacheTimeRang = JSON.stringify(this.cacheTimeRang);
-    if (this.inited && startTimeRange !== cacheTimeRang) {
+    if (this.initialized && startTimeRange !== cacheTimeRang) {
       this.getPanelData();
     }
   }
@@ -593,14 +606,28 @@ export default class AiopsDimensionLine extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            {...{
-              scopedSlots: {
-                subTitle: () => this.getSubTitle(),
-              },
+            scopedSlots={{
+              subTitle: () => this.getSubTitle(),
+              title: () => (
+                <div
+                  style={{
+                    color: this.panel.title ? 'initial' : '#979ba5',
+                    fontSize: '12px',
+                  }}
+                  v-bk-tooltips={{
+                    disabled: !Object.keys(this.panel?.dimensions || {})?.length,
+                    content: createAnomalyDimensionTips({ ...this.panel }, this.isCorrelationMetrics),
+                    placement: 'left',
+                    delay: 200,
+                  }}
+                >
+                  {this.panel.title || this.$t('无维度，已汇聚为1条曲线')}
+                </div>
+              ),
             }}
             customArea={this.isCorrelationMetrics}
-            descrition={this.panel.descrition}
-            draging={this.panel.draging}
+            description={this.panel.description}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             menuList={['screenshot', 'fullscreen', 'explore', 'strategy']}
             metrics={this.metrics}
@@ -615,7 +642,7 @@ export default class AiopsDimensionLine extends LineChart {
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           />
         )}
         {!this.empty ? (
@@ -624,7 +651,7 @@ export default class AiopsDimensionLine extends LineChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

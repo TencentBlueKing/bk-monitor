@@ -44,13 +44,24 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
+import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+import CustomEventMenu from './custom-event-menu/custom-event-menu';
+import {
+  createCommonWhere,
+  type EventTagColumn,
+  type EventTagConfig,
+  getCustomEventAnalysisConfig,
+  getCustomEventSeries,
+  getCustomEventSeriesParams,
+  type IEventTagsItem,
+  updateCustomEventAnalysisConfig,
+} from './use-custom';
 
 import type {
   DataQuery,
@@ -66,6 +77,7 @@ import type {
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
+import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
 
@@ -118,7 +130,7 @@ class CallerLineChart extends CommonSimpleChart {
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
 
   metrics = [];
-  options = {};
+  options: Record<string, any> = {};
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
   cancelTokens = [];
@@ -138,6 +150,18 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 图例排序
   legendSorts: { name: string; timeShift: string }[] = [];
+  // 自定义事件menu位置信息
+  customMenuPosition: IPosition = {
+    left: 0,
+    top: 0,
+  };
+  clickEventItem: Partial<IEventTagsItem> = {};
+  // 自定义事件menu数据
+  customMenuData: object = {};
+
+  eventConfig: Partial<EventTagConfig> = {};
+  eventColumns: Partial<EventTagColumn>[] = [];
+  cacheEventConfig: Partial<EventTagConfig> = {};
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -209,10 +233,10 @@ class CallerLineChart extends CommonSimpleChart {
     }
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const series = [];
       const metrics = [];
       this.legendSorts = [];
@@ -255,6 +279,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
+      let newParams: Record<string, any> = {};
       for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
@@ -265,7 +290,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newParams = structuredClone({
+          newParams = structuredClone({
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -347,7 +372,35 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      await Promise.all(promiseList).catch(() => false);
+      let customEventScatterSeries = undefined;
+      // 初始化事件分析配置
+      if (!this.eventColumns.length) {
+        const { config, columns } = await getCustomEventAnalysisConfig({
+          app_name: this.viewOptions.filters?.app_name,
+          service_name: this.viewOptions.filters?.service_name,
+          key: `${this.$route.query.scene_id || 'apm_service'}|${this.panel.id}`,
+        });
+        this.eventConfig = config;
+        this.eventColumns = columns;
+      }
+      const commonCustomEventParams = {
+        start_time: newParams.start_time,
+        end_time: newParams.end_time,
+        app_name: this.viewOptions.filters?.app_name,
+        service_name: this.viewOptions.filters?.service_name,
+      };
+      await Promise.all(
+        [
+          ...promiseList,
+          this.eventConfig.is_enabled_metric_tags
+            ? getCustomEventSeries(getCustomEventSeriesParams(commonCustomEventParams, this.eventConfig)).then(
+                series => {
+                  customEventScatterSeries = series;
+                }
+              )
+            : undefined,
+        ].filter(Boolean)
+      ).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -427,32 +480,57 @@ class CallerLineChart extends CommonSimpleChart {
             animation: hasShowSymbol,
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
-            yAxis: {
-              axisLabel: {
-                formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
-                  ? (v: any) => {
-                      if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+            grid: {
+              top: 16,
+              left: 20,
+              right: 20,
+              bottom: 0,
+              containLabel: true,
+            },
+            yAxis: [
+              {
+                axisLabel: {
+                  formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
+                    ? (v: any) => {
+                        if (seriesList[0].unit !== 'none') {
+                          const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                          return removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        }
+                        return v;
                       }
-                      return v;
-                    }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
+                },
+                splitNumber: this.height < 120 ? 2 : 4,
+                minInterval: 1,
+                max: 'dataMax',
+                min: 0,
+                scale: false,
               },
-              splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
-              max: 'dataMax',
-              min: 0,
-              scale: false,
-            },
-            xAxis: {
-              axisLabel: {
-                formatter: formatterFunc || '{value}',
+              {
+                scale: true,
+                show: true,
+                position: 'right',
+                max: 'dataMax',
+                min: 0,
+                splitNumber: this.height < 120 ? 2 : 4,
+                minInterval: 1,
+                splitLine: false,
               },
-              ...xInterval,
-              splitNumber: 4,
-            },
-            series: seriesList,
+            ],
+            xAxis: [
+              {
+                axisLabel: {
+                  formatter: formatterFunc || '{value}',
+                },
+                ...xInterval,
+                splitNumber: 4,
+              },
+              {
+                show: false,
+              },
+            ],
+            // series: [...seriesList, customEventList?.length  ? createCustomEventSeries(customEventList) : undefined],
+            series: [...seriesList, customEventScatterSeries].filter(Boolean),
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -460,11 +538,12 @@ class CallerLineChart extends CommonSimpleChart {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
               maxXInterval,
               maxSeriesCount,
+              commonCustomEventParams,
             },
           })
         );
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -474,7 +553,7 @@ class CallerLineChart extends CommonSimpleChart {
           this.handleResize();
         }, 100);
       } else {
-        this.inited = this.metrics.length > 0;
+        this.initialized = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -485,7 +564,7 @@ class CallerLineChart extends CommonSimpleChart {
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
 
   // 转换time_shift显示
@@ -543,7 +622,7 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    const tranformSeries = series.map((item, index) => {
+    const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
@@ -647,7 +726,7 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
     this.legendData = result;
-    return tranformSeries;
+    return transformSeries;
   }
 
   // 设置x轴label formatter方法
@@ -692,7 +771,7 @@ class CallerLineChart extends CommonSimpleChart {
    * @param {number} num
    * @return {*}
    */
-  handleYxisLabelFormatter(num: number): string {
+  handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -715,11 +794,11 @@ class CallerLineChart extends CommonSimpleChart {
   /**
    * @description: 设置精确度
    * @param {number} data
-   * @param {ValueFormatter} formattter
+   * @param {ValueFormatter} formatter
    * @param {string} unit
    * @return {*}
    */
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -741,7 +820,7 @@ class CallerLineChart extends CommonSimpleChart {
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formattter(cur, precision).text)] = 1;
+        pre[Number(formatter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -1019,15 +1098,100 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
   }
-
+  handleClick(event) {
+    if (event.seriesType === 'scatter') {
+      this.$el.focus?.();
+      this.$refs.baseChart?.instance?.dispatchAction({
+        type: 'hideTip',
+      });
+      const {
+        value,
+        event: {
+          event: { clientX, clientY },
+        },
+      } = event;
+      const position = fitPosition(
+        {
+          left: clientX + 12,
+          top: clientY + 12,
+        },
+        400,
+        300
+      );
+      this.customMenuPosition = {
+        left: position.left,
+        top: position.top,
+      };
+      const { start_time, end_time } = this.options.customData.commonCustomEventParams;
+      this.clickEventItem = {
+        ...this.options.customData.commonCustomEventParams,
+        app_name: this.viewOptions.filters?.app_name,
+        service_name: this.viewOptions.filters?.service_name,
+        interval: Math.ceil((end_time - start_time) / 12),
+        start_time: value[0] / 1000,
+        where: createCommonWhere(this.eventConfig),
+      };
+    }
+  }
+  handleChartBlur() {
+    this.$nextTick(() => {
+      this.customMenuPosition = {
+        left: 0,
+        top: 0,
+      };
+    });
+  }
+  handleEventAnalyzeChange() {
+    this.eventConfig.is_enabled_metric_tags = !this.eventConfig.is_enabled_metric_tags;
+  }
+  checkedAllChange(v: boolean, type: string, columnList: EventTagColumn['list']) {
+    const config = this.eventConfig[type];
+    config.is_select_all = v;
+    if (v) {
+      config.list = columnList.map(item => item.value);
+    }
+  }
+  checkedGroupChange(v: string[], type: string) {
+    const config = this.eventConfig[type];
+    config.list = v;
+    config.is_select_all = false;
+  }
+  handleEventAnalyzeShow() {
+    this.cacheEventConfig = JSON.parse(JSON.stringify(this.eventConfig));
+  }
+  handleEventAnalyzeCancel() {
+    this.eventConfig = JSON.parse(JSON.stringify(this.cacheEventConfig));
+    document.body.click();
+  }
+  handleEventAnalyzeConfirm() {
+    document.body.click();
+    this.getPanelData();
+  }
+  async handleUpdateAnalyzeConfig() {
+    this.handleEventAnalyzeConfirm();
+    const success = await updateCustomEventAnalysisConfig({
+      app_name: this.viewOptions.filters?.app_name,
+      service_name: this.viewOptions.filters?.service_name,
+      key: `${this.$route.query.scene_id || 'apm_service'}|${this.panel.id}`,
+      config: this.eventConfig,
+    });
+    this.$bkMessage({
+      theme: success ? 'success' : 'error',
+      message: success ? this.$t('保存成功') : this.$t('保存失败'),
+    });
+  }
   render() {
     return (
-      <div class='apm-caller-line-chart'>
+      <div
+        class='apm-caller-line-chart'
+        tabindex={22}
+        onBlur={this.handleChartBlur}
+      >
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          descrition={this.panel.descrition}
-          draging={this.panel.draging}
+          description={this.panel.description}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
@@ -1043,26 +1207,121 @@ class CallerLineChart extends CommonSimpleChart {
         >
           <div slot='title'>
             {this.enablePanelsSelector ? (
-              <div>
-                <bk-select
-                  class='enable-select'
-                  v-model={this.panelsSelector}
-                  behavior='simplicity'
-                  clearable={false}
-                  size='small'
-                  onChange={this.handlePanelsSelector}
-                >
-                  {(this.childPanelsSelectorVariables || []).map(option => (
-                    <bk-option
-                      id={option.id}
-                      key={option.id}
-                      name={option.title}
-                    />
-                  ))}
-                </bk-select>
-              </div>
+              <bk-select
+                class='enable-select'
+                v-model={this.panelsSelector}
+                behavior='simplicity'
+                clearable={false}
+                size='small'
+                onChange={this.handlePanelsSelector}
+              >
+                {(this.childPanelsSelectorVariables || []).map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.title}
+                  />
+                ))}
+              </bk-select>
             ) : (
               <span>{this.panel.title}</span>
+            )}
+          </div>
+          <div>
+            {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
+              <bk-popover
+                arrow={false}
+                distance={2}
+                placement='bottom-start'
+                theme='light common-monitor'
+                trigger='click'
+                on-show={this.handleEventAnalyzeShow}
+              >
+                <div
+                  class='event-analyze tips-icon'
+                  v-bk-tooltips={{ content: this.$t('事件展示') }}
+                >
+                  <i class='icon-monitor icon-shijianjiansuo' />
+                </div>
+                <div
+                  class={`event-analyze-wrapper ${this.eventConfig.is_enabled_metric_tags ? 'event-analyze-wrapper__set' : 'event-analyze-wrapper__unset'}`}
+                  slot='content'
+                >
+                  <div class='event-title'>{this.$t('事件展示')}</div>
+                  <bk-switcher
+                    size='small'
+                    theme='primary'
+                    value={this.eventConfig.is_enabled_metric_tags}
+                    onChange={this.handleEventAnalyzeChange}
+                  />
+                  {this.eventConfig.is_enabled_metric_tags && (
+                    <div class='event-content'>
+                      {this.eventColumns.map(column => {
+                        const config = this.eventConfig[column.name];
+                        if (!config) return undefined;
+                        return (
+                          <div
+                            key={column.name}
+                            class='event-wrapper'
+                          >
+                            <div class='event-content-title'>{column.alias}</div>
+                            <bk-checkbox
+                              key={column.name}
+                              size='small'
+                              value={config.is_select_all}
+                              onChange={v => this.checkedAllChange(v, column.name, column.list)}
+                            >
+                              {this.$t('全选')}
+                            </bk-checkbox>
+                            <bk-checkbox-group
+                              class='event-content-list'
+                              value={config.list}
+                              onChange={v => this.checkedGroupChange(v, column.name)}
+                            >
+                              {column.list?.map(item => (
+                                <bk-checkbox
+                                  key={item.value}
+                                  size='small'
+                                  value={item.value}
+                                >
+                                  {item.alias}
+                                </bk-checkbox>
+                              ))}
+                            </bk-checkbox-group>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {(this.cacheEventConfig.is_enabled_metric_tags || this.eventConfig.is_enabled_metric_tags) && (
+                    <div class='event-footer'>
+                      <bk-button
+                        size='small'
+                        theme='primary'
+                        onClick={this.handleEventAnalyzeConfirm}
+                      >
+                        {this.$t('确定')}
+                      </bk-button>
+                      <bk-button
+                        style={{ width: '108px' }}
+                        outline={true}
+                        size='small'
+                        theme='primary'
+                        onClick={this.handleUpdateAnalyzeConfig}
+                      >
+                        {this.$t('保存为服务配置')}
+                      </bk-button>
+                      <bk-button
+                        size='small'
+                        theme='default'
+                        onClick={this.handleEventAnalyzeCancel}
+                      >
+                        {this.$t('取消')}
+                      </bk-button>
+                    </div>
+                  )}
+                </div>
+              </bk-popover>
             )}
           </div>
         </ChartHeader>
@@ -1072,7 +1331,7 @@ class CallerLineChart extends CommonSimpleChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
@@ -1082,6 +1341,7 @@ class CallerLineChart extends CommonSimpleChart {
                   needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
+                  onClick={this.handleClick}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onZrClick={this.handleZrClick}
@@ -1097,6 +1357,12 @@ class CallerLineChart extends CommonSimpleChart {
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {this.customMenuPosition?.left > 0 && (
+          <CustomEventMenu
+            eventItem={this.clickEventItem}
+            position={this.customMenuPosition}
+          />
         )}
       </div>
     );

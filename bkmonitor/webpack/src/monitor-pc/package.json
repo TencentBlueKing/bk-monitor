@@ -27,7 +27,7 @@
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
     "big.js": "^6.2.1",
-    "bk-magic-vue": "2.5.9-beta.45",
+    "bk-magic-vue": "2.5.10-beta.3",
     "dayjs": "^1.11.11",
     "deepmerge": "^4.3.1",
     "fta-solutions": "workspace:*",

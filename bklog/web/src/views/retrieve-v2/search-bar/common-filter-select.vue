@@ -169,6 +169,7 @@
       const { data: { index_set_config } } = res;
       index_set_config.filterAddition = commonFilterAddition.value;
       store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
+      store.dispatch('requestIndexSetQuery');
     } catch (error) {
       console.error('Failed to change user field config:', error);
     }
@@ -180,7 +181,6 @@
       value: commonFilterAddition.value
     }));
     updateCommonFilterAddition();
-    store.dispatch('requestIndexSetQuery');
   };
 
   const focusIndex = ref(null);

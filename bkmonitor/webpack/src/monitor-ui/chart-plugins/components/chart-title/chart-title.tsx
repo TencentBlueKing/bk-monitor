@@ -50,7 +50,7 @@ export interface IChartTitleProps {
   // 副标题
   subtitle?: string;
   // 带icon说明
-  descrition?: string;
+  description?: string;
   // 告警信息
   alarm?: ITitleAlarm;
   // 采集周期
@@ -59,7 +59,7 @@ export interface IChartTitleProps {
   showMore?: boolean;
   // 可设置图标的功能的id列表
   menuList?: ChartTitleMenuType[];
-  draging?: boolean;
+  dragging?: boolean;
   // 指标数据
   metrics?: IExtendMetricData[];
   // 是否显示添加指标到策略选项
@@ -72,7 +72,7 @@ export interface IChartTitleProps {
   isInstant?: boolean;
   /** 下钻类型 */
   drillDownOption?: IMenuChildItem[];
-  inited?: boolean;
+  initialized?: boolean;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
   // 数据步长（步长过大情况时需要）
@@ -80,6 +80,8 @@ export interface IChartTitleProps {
   rawInterval?: string;
   // 是否展示更多菜单
   needMoreMenu?: boolean;
+  /** title的内容是否需要hover才展示 */
+  isHoverShow?: boolean;
 }
 
 interface IChartTitleEvent {
@@ -104,7 +106,7 @@ enum AlarmStatus {
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
-  @Prop({ default: '' }) descrition: string;
+  @Prop({ default: '' }) description: string;
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ default: '0' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
@@ -112,13 +114,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ default: false }) customArea: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
-  @Prop() draging: boolean;
+  @Prop() dragging: boolean;
   @Prop({ type: Boolean, default: true }) showMenuAddMetric: boolean;
   @Prop({ type: Boolean, default: true }) showAddMetric: boolean;
   @Prop({ type: Boolean, default: true }) showTitleIcon: boolean;
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
-  @Prop({ type: Boolean, default: true }) inited: boolean;
+  @Prop({ type: Boolean, default: true }) initialized: boolean;
   @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
+  /** title的内容是否需要hover才展示 */
+  @Prop({ type: Boolean, default: false }) isHoverShow: boolean;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -184,6 +188,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   get showAddStrategy() {
     return !this.$route.name.includes('strategy');
   }
+  get isMac() {
+    return /Macintosh|Mac/.test(navigator.userAgent);
+  }
   @Watch('metrics', { immediate: true })
   async handleMetricChange(v, o) {
     if (this.metrics?.length !== 1) return;
@@ -195,7 +202,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
 
   @Watch('viewOptions.current_target', { deep: true })
   currentTargetChange() {
-    !this.readonly && this.inited && this.allowUpdateStatus && this.alertFilterable && this.handleFetchItemStatus();
+    !this.readonly &&
+      this.initialized &&
+      this.allowUpdateStatus &&
+      this.alertFilterable &&
+      this.handleFetchItemStatus();
   }
 
   /**
@@ -214,7 +225,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const params = {
       metric_ids: [ids],
       ...otherParams,
-      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
+      bk_biz_id: this.viewOptions?.filters?.bk_biz_id || this.$store.getters.bizId,
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];
@@ -246,7 +257,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       return;
     }
 
-    if (!this.draging) {
+    if (!this.dragging) {
       if (!this.showMore) return;
       this.showMenu = !this.showMenu;
       const rect = this.chartTitleRef.getBoundingClientRect();
@@ -360,6 +371,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               />
             ) : undefined}
             <div
+              style={{ fontWeight: this.isMac ? 500 : 600 }}
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
                 interactive: this.showTitleIcon,
@@ -367,7 +379,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             >
               {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
             </div>
-            {this.inited && [
+            {this.initialized && [
               (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
               this.collectIntervalDisplay ? (
                 <span
@@ -394,11 +406,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   onMouseleave={this.handleHideTips}
                 />
               ) : undefined,
-              this.descrition && (
+              this.description && (
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{
-                    content: this.descrition,
+                    content: this.description,
                     allowHTML: true,
                     boundary: 'window',
                     distance: 0,
@@ -408,9 +420,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               ),
               <span
                 key={'title-center'}
-                class='title-center'
+                class={['title-center', { 'hover-show': this.isHoverShow }]}
               >
-                {this.inited && this.$slots?.default}
+                {this.initialized && this.$slots?.default}
+              </span>,
+              <span
+                key={'title-icon-list'}
+                class='title-icon-list'
+              >
+                {(this.$scopedSlots as any)?.iconList?.()}
               </span>,
               this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
@@ -418,7 +436,10 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
+                  class={[
+                    'icon-monitor icon-mc-add-strategy strategy-icon icon-btn',
+                    { 'hover-show': this.isHoverShow },
+                  ]}
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
                     delay: 200,
@@ -429,7 +450,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               <span
                 key={'更多'}
                 style={{
-                  marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
+                  marginLeft: this.isHoverShow ? 0 : this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore && this.needMoreMenu ? 'flex' : 'none',
                 }}
                 class='icon-monitor icon-mc-more more-icon icon-btn'

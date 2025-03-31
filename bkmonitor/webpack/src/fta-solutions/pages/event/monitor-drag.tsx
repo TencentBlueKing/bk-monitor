@@ -30,7 +30,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'line' | 'line-round' | 'normal';
+type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
 interface IMonitorDragProps {
   minWidth?: number;
   maxWidth?: number;
@@ -176,7 +176,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
         onMousedown={this.handleMouseDown}
       >
         <div>
-          {['line', 'line-round'].includes(this.theme) && (
+          {['line', 'line-round', 'simple-line-round'].includes(this.theme) && (
             <div class={['theme-line', this.startPlacement, { 'is-show': this.isShow }]}>
               <span class='line-wrap'>
                 <span
@@ -189,6 +189,16 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
                         <span
                           key={i}
                           class={`line-round ${i === 3 ? `line-square line-round-${i}` : `line-round-${i}`}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {this.theme === 'simple-line-round' && (
+                    <div class='simple-line-round-wrap'>
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <span
+                          key={i}
+                          class='line-round'
                         />
                       ))}
                     </div>

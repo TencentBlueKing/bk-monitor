@@ -344,6 +344,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
     },
@@ -1534,6 +1535,9 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
+# 事件检索新版灰度列表
+EVENT_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
@@ -1562,3 +1566,6 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 IS_GLOBAL_TENANT = True
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+
+# 新版自定义时序灰度业务列表
+ENABLE_CUSTOM_TS_V2_BIZ_LIST = []

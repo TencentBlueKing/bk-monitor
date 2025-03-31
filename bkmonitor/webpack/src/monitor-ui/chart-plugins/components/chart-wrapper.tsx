@@ -60,6 +60,7 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
+
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -108,6 +109,8 @@ interface IChartWrapperEvent {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
     MonitorRetrieve: () =>
       import(/* webpackChunkName: "MonitorRetrieve" */ '../plugins/monitor-retrieve/monitor-retrieve'),
+    ApmEventExplore: () =>
+      import(/* webpackChunkName: "ApmEventExplore" */ 'monitor-pc/pages/event-explore/apm-event-explore'),
   },
 })
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -125,7 +128,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
@@ -155,7 +158,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       },
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
         searchValue: [],
       },
     };
@@ -175,7 +178,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
   get needWaterMask() {
-    return !['log-retrieve'].includes(this.panel?.type);
+    return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
   beforeCreate() {
     initLogRetrieveWindowsFields();
@@ -618,6 +621,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'event-explore':
+        return <apm-event-explore />;
       // 不需要报错显示
       // case 'graph':
       default:
