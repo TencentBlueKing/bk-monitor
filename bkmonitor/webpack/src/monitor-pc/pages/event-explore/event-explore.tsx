@@ -49,6 +49,7 @@ import {
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   ExploreSourceTypeEnum,
+  type HideFeatures,
   type IFormData,
 } from './typing';
 
@@ -75,6 +76,7 @@ interface IProps {
   filterMode?: EMode;
   defaultShowResidentBtn?: boolean;
   eventSourceType?: ExploreSourceTypeEnum[];
+  hideFeatures?: HideFeatures;
 }
 
 interface IEvent {
@@ -110,6 +112,8 @@ export default class EventExplore extends tsc<
   @Prop({ default: () => [ExploreSourceTypeEnum.ALL], type: Array }) eventSourceType: ExploreSourceTypeEnum[];
   /** UI查询 */
   @Prop({ default: () => [], type: Array }) where: IFormData['where'];
+  /** 不显示的功能列表  */
+  @Prop({ default: () => [], type: Array }) hideFeatures: HideFeatures;
   /** 常驻筛选 */
   @Prop({ default: () => [], type: Array }) commonWhere: IWhereItem[];
   /** 维度列表 */
@@ -529,7 +533,12 @@ export default class EventExplore extends tsc<
         {this.$scopedSlots.favorite?.('')}
         <div class='right-main-panel'>
           {this.$scopedSlots.header?.('')}
-          <div class='event-retrieval-content'>
+          <div
+            style={{
+              height: this.hideFeatures.includes('header') ? 'calc(100% - 0px)' : 'calc(100% - 52px)',
+            }}
+            class='event-retrieval-content'
+          >
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (
@@ -541,7 +550,7 @@ export default class EventExplore extends tsc<
                 fields={this.fieldList}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
-                isShowFavorite={this.source === APIType.MONITOR}
+                isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={this.currentFavorite}
