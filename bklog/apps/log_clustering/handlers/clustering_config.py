@@ -84,6 +84,10 @@ class ClusteringConfigHandler(object):
             except ClusteringConfig.DoesNotExist:
                 raise ClusteringConfigNotExistException()
 
+    @classmethod
+    def list_all_configs(cls):
+        return [model_to_dict(config, exclude=CLUSTERING_CONFIG_EXCLUDE) for config in ClusteringConfig.objects.all()]
+
     def retrieve(self):
         return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
 
