@@ -157,11 +157,11 @@ export class CommonSimpleChart
       left: 0,
       top: 0,
     };
-    const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-    if (canSetBootom > 0) {
-      position.top = +pos[1] - Math.min(20, canSetBootom);
+    const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+    if (canSetBottom > 0) {
+      position.top = +pos[1] - Math.min(20, canSetBottom);
     } else {
-      position.top = +pos[1] + canSetBootom - 20;
+      position.top = +pos[1] + canSetBottom - 20;
     }
     const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
     if (canSetLeft > 0) {

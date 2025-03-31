@@ -211,6 +211,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data_type: str = None,
         sample_type: str = None,
         order: str = None,
+        agg_method: str = None,
         converter: Optional[ConverterType] = None,
     ) -> Union[DorisProfileConverter, TreeConverter, dict]:
         """
@@ -294,7 +295,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 c.convert(r)
             elif converter == ConverterType.Tree:
                 c = TreeConverter()
-                c.convert(r)
+                c.convert(r, agg_method)
             else:
                 raise ValueError(f"不支持的 Profiling 转换器: {converter}")
         except Exception as e:  # noqa
@@ -393,6 +394,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=validate_data.get("filter_labels"),
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
+                agg_method=validate_data["agg_method"],
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -499,6 +501,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=validate_data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
+                agg_method=validate_data["agg_method"],
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
