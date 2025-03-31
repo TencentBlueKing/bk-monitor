@@ -118,15 +118,19 @@ class QueryServicesDetailResource(Resource):
             sample_type_parts = svr["sample_type"].split("/")
             key = svr["sample_type"]
             name = sample_type_parts[0].upper()
+            default_agg_method = agg_method.get(name, "SUM")
 
             if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
                 continue
 
-            res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
-
-        for item in res:
-            if item["name"] in agg_method.keys():
-                item["default_agg_method"] = agg_method.get(item["name"])
+            res.append(
+                {
+                    "key": key,
+                    "name": name,
+                    "is_large": svr.get("is_large", False),
+                    "default_agg_method": default_agg_method,
+                }
+            )
 
         return res
 
