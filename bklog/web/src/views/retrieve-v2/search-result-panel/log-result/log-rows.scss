@@ -125,6 +125,7 @@
         &.right {
           position: absolute;
           right: 0;
+          z-index: 2;
           display: flex;
           align-items: flex-start;
           height: 100%;
@@ -581,7 +582,6 @@
             &.right {
               position: sticky;
               right: var(--scroll-left);
-              z-index: 2;
             }
 
             &.hidden-field {

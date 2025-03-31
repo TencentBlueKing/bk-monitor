@@ -31,9 +31,8 @@
   import useStore from '@/hooks/use-store';
   import { useRoute } from 'vue-router/composables';
 
-  import $http from '@/api';
-
   import FieldsSetting from '../../result-comp/update/fields-setting';
+  import $http from '@/api';
 
   const store = useStore();
   const route = useRoute();
@@ -42,14 +41,18 @@
 
   const emit = defineEmits(['select-fields-config']);
 
+  /** popover 弹窗实例 */
   let popoverInstance = null;
 
   const showFieldsSetting = ref(false);
   const isLoading = ref(false);
   const configList = ref([]);
   const searchKeyword = ref('');
+  /** 字段模版下拉菜单容器实例 */
   const dropdownRef = ref(null);
+  /** 字段配置管理 组件实例  */
   const settingRef = ref(null);
+  /** 考虑字段配置管理内容较多，增加简易的懒加载机制 */
   const popoverLazyLoaded = ref({
     dropdown: false,
     setting: false,
@@ -57,13 +60,17 @@
 
   const unionIndexList = computed(() => store.state.unionIndexList);
   const isUnionSearch = computed(() => store.state.isUnionSearch);
+
+  /** 字段配置管理组件所需参数 */
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  /** 字段配置管理组件所需参数 */
   const fieldAliasMap = computed(() => {
     return (store.state.indexFieldInfo.fields ?? []).reduce(
       (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
       {},
     );
   });
+
   const searchConfigList = computed(() => {
     return configList.value.filter(item => {
       // 确保 item.name 是一个字符串
@@ -75,6 +82,8 @@
 
   /**
    * @description 打开字段模板 menu popover
+   * @param {Event} e click 点击触发事件 targetEvent
+   *
    */
   async function handleDropdownPopoverShow(e) {
     if (popoverInstance) {
@@ -105,8 +114,9 @@
 
   /**
    * @description 打开 字段设置 popover
+   *
    */
-  async function handleFieldSettingPopoverShow(e) {
+  async function handleFieldSettingPopoverShow() {
     if (popoverInstance) {
       handlePopoverHide();
     }
@@ -140,6 +150,7 @@
 
   /**
    * @description 关闭 popover
+   *
    */
   function handlePopoverHide() {
     popoverInstance?.hide?.();
@@ -216,8 +227,8 @@
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
         >
           <li
-            class="dropdown-item"
             v-for="item in searchConfigList"
+            class="dropdown-item"
             :key="item.name"
             @click="() => handleClickSelectConfig(item)"
           >

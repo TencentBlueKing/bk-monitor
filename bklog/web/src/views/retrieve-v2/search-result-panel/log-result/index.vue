@@ -86,6 +86,7 @@
 
         <bk-input
           v-if="isJsonFormat"
+          style="margin: 0 12px 0 0"
           class="json-depth-num"
           :max="15"
           :min="1"
@@ -95,7 +96,7 @@
         ></bk-input>
 
         <bk-checkbox
-          style="margin: 0 12px 0 12px"
+          style="margin: 0 12px 0 0"
           class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"

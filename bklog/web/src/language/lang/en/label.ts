@@ -770,6 +770,7 @@ export default {
   '⌘/Ctrl + / 快速定位到搜索，请输入关键词...': '⌘/Ctrl + / Quickly locate the search, please enter keywords...',
   分级设置: 'Grade setting',
   '⌘/Ctrl + / 快速定位到搜索': '⌘/Ctrl + / Quickly locate the search',
+  快速定位到搜索: 'Quickly locate the search',
   '生成“{n}”标签': 'Generate "{n}" tag',
   字段显示: 'Field display',
   待选字段: 'Field to be selected:',

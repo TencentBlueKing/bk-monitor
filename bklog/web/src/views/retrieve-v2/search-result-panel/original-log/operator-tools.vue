@@ -29,7 +29,7 @@
     <template v-if="!isUnionSearch">
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 180 }"
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html' }"
       >
         <span
           :class="`icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
@@ -39,7 +39,7 @@
       </span>
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 180 }"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html' }"
       >
         <span
           :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
@@ -50,7 +50,7 @@
       <span
         v-if="isActiveWebConsole"
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 180 }"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html' }"
       >
         <span
           :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"

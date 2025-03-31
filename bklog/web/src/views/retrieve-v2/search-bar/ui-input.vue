@@ -158,6 +158,7 @@
     onShowFn: instance => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
+      refSearchInput.value?.focus?.();
       isInputFocus.value =
         instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
       emit('popup-change', { isShow: true });
@@ -490,8 +491,8 @@
       </div>
     </li>
     <li
-      class="search-item-focus hidden-pointer"
       ref="refHiddenFocus"
+      class="search-item-focus hidden-pointer"
     ></li>
     <li
       class="search-item is-focus-input"
@@ -501,8 +502,8 @@
         ref="refSearchInput"
         class="tag-option-focus-input"
         type="text"
-        @click.stop="handleInputTextClick"
         @blur.stop="handleFullTextInputBlur"
+        @click.stop="handleInputTextClick"
         @focus.stop="handleFocusInput"
         @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
