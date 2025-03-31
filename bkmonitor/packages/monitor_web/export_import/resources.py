@@ -1087,8 +1087,8 @@ class ExportConfigToBusinessResource(Resource):
 
         def validate(self, attrs):
             # 检查当前业务ID和目标业务ID是否相同
-            # if attrs.get("bk_biz_id") == attrs.get("target_bk_biz_id"):
-            #     raise ValidationError(_("当前业务ID和目标业务ID不能相同"))
+            if attrs.get("bk_biz_id") == attrs.get("target_bk_biz_id"):
+                raise ValidationError(_("当前业务ID和目标业务ID不能相同"))
             return attrs
 
     def __init__(self, *args, **kwargs):
@@ -1241,19 +1241,21 @@ class ExportConfigToBusinessResource(Resource):
 
     def change_name_and_biz_id(self, config):
         """修改名称和业务ID"""
-        # 策略名称加后缀
-        config["name"] = config.get("name", "") + self.suffix
-        config["bk_biz_id"] = self.target_biz_id
+
+        def change(d):
+            if not isinstance(d, dict):
+                return
+            if not d.get("name", "").endswith(self.suffix):
+                d["name"] = d.get("name", "") + self.suffix
+            d["bk_biz_id"] = self.target_biz_id
+
+        change(config)
         for gp in config.get("notice", {}).get("user_group_list", []):
             # 告警组名称加后缀
-            if not gp.get("name", "").endswith(self.suffix):
-                gp["name"] = gp.get("name", "") + self.suffix
-            gp["bk_biz_id"] = self.target_biz_id
+            change(gp)
             for duty_rule in gp.get("duty_rules_info", []):
                 # 值班规则名称加后缀
-                if not duty_rule.get("name", "").endswith(self.suffix):
-                    duty_rule["name"] = duty_rule.get("name", "") + self.suffix
-                duty_rule["bk_biz_id"] = self.target_biz_id
+                change(duty_rule)
 
     def handle_return_data(self, model_obj):
         # 返回文件解析的结果
