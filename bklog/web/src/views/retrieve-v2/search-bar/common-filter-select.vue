@@ -265,7 +265,6 @@
   .filter-container-wrap {
     display: flex;
     align-items: center;
-    max-height: 95px;
     padding: 0 10px 0px 10px;
     background: #ffffff;
     border-radius: 0 0 2px 2px;
@@ -290,7 +289,7 @@
     display: flex;
     flex-wrap: wrap;
     width: calc(100% - 80px);
-    max-height: 90px;
+    max-height: 114px;
     margin-top: 4px;
     overflow: auto;
   }
