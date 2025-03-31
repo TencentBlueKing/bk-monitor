@@ -125,8 +125,7 @@ class QueryServicesDetailResource(Resource):
             res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
 
         for item in res:
-            if item["name"] in agg_method.keys():
-                item["default_agg_method"] = agg_method.get(item["name"])
+            item["default_agg_method"] = agg_method.get(item["name"], "SUM")
 
         return res
 
