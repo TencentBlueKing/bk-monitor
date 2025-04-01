@@ -134,7 +134,13 @@ export default defineComponent({
                           <span
                             style={{ color: item.show ? '#63656e' : '#ccc' }}
                             class='metric-name'
-                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                            v-overflow-title={{
+                              type: 'tips',
+                              popoverOptions: {
+                                placement: 'top',
+                                offset: '100, 0',
+                              },
+                            }}
                           >
                             {item.name}
                           </span>

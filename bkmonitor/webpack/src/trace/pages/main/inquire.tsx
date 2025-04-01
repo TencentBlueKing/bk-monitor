@@ -67,12 +67,12 @@ import transformTraceTree from '../../components/trace-view/model/transform-trac
 import VerifyInput from '../../components/verify-input/verify-input';
 import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
-  REFLESH_IMMEDIATE_KEY,
-  REFLESH_INTERVAL_KEY,
+  REFRESH_IMMEDIATE_KEY,
+  REFRESH_INTERVAL_KEY,
   TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  VIEWOPTIONS_KEY,
+  VIEW_OPTIONS_KEY,
   useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
@@ -220,9 +220,9 @@ export default defineComponent({
     provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
-    provide(REFLESH_INTERVAL_KEY, refreshInterval);
-    provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
-    provide(VIEWOPTIONS_KEY, defaultViewOptions);
+    provide(REFRESH_INTERVAL_KEY, refreshInterval);
+    provide(REFRESH_IMMEDIATE_KEY, refreshImmediate);
+    provide(VIEW_OPTIONS_KEY, defaultViewOptions);
     provide(TIME_OFFSET_KEY, ref([]));
     const autoQueryPopover = ref(null);
     const searchIdType = ref('traceID');
