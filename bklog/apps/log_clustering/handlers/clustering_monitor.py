@@ -444,7 +444,7 @@ class ClusteringMonitorHandler(object):
         if not is_exist:
             group = MonitorUtils.save_notice_group(
                 bk_biz_id=self.bk_biz_id,
-                name=_("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id),
+                name=group_name,
                 message="",
                 notice_receiver=[{"type": "user", "id": name} for name in remark_obj.owners],
                 notice_way=DEFAULT_NOTICE_WAY,
