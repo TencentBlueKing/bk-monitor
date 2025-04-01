@@ -103,7 +103,16 @@ enum AlarmStatus {
 }
 
 @Component
-export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
+export default class ChartTitle extends tsc<
+  IChartTitleProps,
+  IChartTitleEvent,
+  {
+    title: string;
+    subTitle: string;
+    customSlot: string;
+    iconList: string;
+  }
+> {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: '' }) description: string;
@@ -264,14 +273,14 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       const { innerWidth } = window;
       // 自身宽度 + 距离右侧浏览器窗口宽度（innerWidth - rect.right）
       const rightWidth = 180 + innerWidth - rect.right;
-      const postion = fitPosition(
+      const position = fitPosition(
         {
           left: e.x,
           top: e.y,
         },
         rightWidth
       );
-      this.menuLeft = postion.left - rect.x;
+      this.menuLeft = position.left - rect.x;
     }
     this.$emit('updateDragging', false);
   }
@@ -375,9 +384,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
                 interactive: this.showTitleIcon,
+                onShow() {
+                  return !this.$scopedSlots?.title;
+                },
               }}
             >
-              {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
+              {this.$scopedSlots?.title ? this.$scopedSlots?.title?.('') : this.title}
             </div>
             {this.initialized && [
               (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
@@ -396,7 +408,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     : `${this.metricTitleData.collect_interval}${this.metricTitleData.collect_interval < 10 ? 'm' : 's'}`}
                 </span>
               ) : undefined,
-              (this.$scopedSlots as any)?.customSlot?.(),
+              this.$scopedSlots?.customSlot?.(''),
               this.showTitleIcon && this.metrics.length ? (
                 <i
                   key={'custom-icon'}
@@ -428,7 +440,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 key={'title-icon-list'}
                 class='title-icon-list'
               >
-                {(this.$scopedSlots as any)?.iconList?.()}
+                {this.$scopedSlots.iconList?.('')}
               </span>,
               this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
@@ -458,12 +470,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   content: this.$t('更多'),
                   interactive: false,
                 }}
-                tabindex='undefined'
+                tabindex='0'
                 onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
               />,
             ]}
           </div>
-          {this.subtitle && <div class='sub-title'>{(this.$scopedSlots as any)?.subTitle?.() || this.subtitle}</div>}
+          {this.subtitle && <div class='sub-title'>{this.$scopedSlots?.subTitle?.('') || this.subtitle}</div>}
         </div>
         <ChartMenu
           style={{

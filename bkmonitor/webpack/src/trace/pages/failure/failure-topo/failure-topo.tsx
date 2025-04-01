@@ -52,6 +52,7 @@ import {
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
@@ -1177,8 +1178,8 @@ export default defineComponent({
             processedNodes.push(...item.content.nodes);
             // biome-ignore lint/complexity/noForEach: <explanation>
             item.content.edges.forEach(edge => {
-              edge.key = edge.target + edge.source;
-              const index = processedEdges.findIndex(item => item.key === edge.key);
+              const key = edge.target + edge.source;
+              const index = processedEdges.findIndex(item => item.target + item.source === key);
               if (index !== -1) {
                 processedEdges[index] = edge;
               } else {
@@ -1912,31 +1913,28 @@ export default defineComponent({
             node && graph.hideItem(node);
           } else if (diffNode || diffData) {
             const node = graph.findById(updateNode.id);
-            // 如果从后往前移动这里除了要更新获取之前帧的节点还要获取之前的线
-            if (diffData) {
-              // biome-ignore lint/complexity/noForEach: <explanation>
-              (node as any).getEdges().forEach(edge => {
-                const edgeModel = edge.getModel();
-                const targetEdge = showEdges.find(
-                  item => item.source === edgeModel.source && edgeModel.target === item.target
-                );
-                targetEdge && updateEdges.push(targetEdge);
-              });
-            }
             const model = node?.getModel?.();
             node && graph.showItem(node);
             node && graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
           }
         });
         const edges = graph.getEdges();
+        const findEdges = (edges, target) => {
+          return edges.find(item => item.source === target.source && target.target === item.target);
+        };
         // biome-ignore lint/complexity/noForEach: <explanation>
         edges.forEach(edge => {
           const edgeModel = edge.getModel();
-          const targetEdge = updateEdges.find(
-            item => item.source === edgeModel.source && edgeModel.target === item.target
-          );
+
+          const targetEdge = findEdges(updateEdges, edgeModel);
           if (targetEdge) {
             graph.updateItem(edge, { ...edge, ...targetEdge });
+          } else {
+            const currEdges =
+              findEdges(showEdges, edgeModel) || findEdges(topoRawDataCache.value.complete.edges, edgeModel);
+            if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
+              graph.updateItem(edge, { ...edge, ...currEdges });
+            }
           }
         });
         /** 子combo需要根据节点时候有展示来决定 */

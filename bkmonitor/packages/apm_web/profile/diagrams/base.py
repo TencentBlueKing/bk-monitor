@@ -126,27 +126,33 @@ class ValueCalculator:
     def mapping(cls):
         """计算策略映射表"""
         return {
-            "goroutine": {"count": cls.AvgCount},  # Go协程类型  # 使用平均值计算策略
-            "delay": {"nanoseconds": cls.AvgCount},
-            "heap-space": {"bytes": cls.AvgCount},
-            "alloc-space": {"bytes": cls.AvgCount},
-            "inuse_space": {"bytes": cls.AvgCount},
+            "goroutine": cls.AvgCount,  # Go协程类型  # 使用平均值计算策略
+            "delay": cls.AvgCount,
+            "heap-space": cls.AvgCount,
+            "alloc-space": cls.AvgCount,
+            "inuse_space": cls.AvgCount,
+            "cpu": cls.SumCount,
+            "cpu-time": cls.SumCount,
+            "wall-time": cls.SumCount,
+            "exception-samples": cls.SumCount,
         }
 
     @classmethod
     def agg_mapping(cls):
-        return {"AVG": cls.AvgCount, "SUM": cls.SumCount, "LAST": cls.SumCount}
+        return {
+            "AVG": cls.AvgCount,
+            "SUM": cls.SumCount,
+            "LAST": cls.SumCount,  # agg_method的值是LAST时，只有一个样本，所以使用SumCount，保证这个样本保持自身的value
+        }
 
     @classmethod
     def calculate_nodes(cls, tree, sample_type, samples_len, agg_method=None):
         """递归计算所有节点值"""
         # 根据聚合方法和采样类型获取计算策略，当agg_method没传值时，默认通过profiling数据类型的计算节点
         if agg_method:
-            c = cls.agg_mapping().get(agg_method) or cls.mapping().get(sample_type["type"], {}).get(
-                sample_type["unit"], cls.SumCount
-            )
+            c = cls.agg_mapping().get(agg_method) or cls.mapping().get(sample_type["type"], cls.SumCount)
         else:
-            c = cls.mapping().get(sample_type["type"], {}).get(sample_type["unit"], cls.SumCount)
+            c = cls.mapping().get(sample_type["type"], cls.SumCount)
 
         def calculate_node(tree_node):
             """递归计算节点值"""

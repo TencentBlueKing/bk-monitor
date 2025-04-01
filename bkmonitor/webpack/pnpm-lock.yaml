@@ -437,6 +437,9 @@ importers:
       vue-i18n:
         specifier: ^8.28.2
         version: 8.28.2(vue@2.7.16)
+      vue-json-pretty:
+        specifier: 1.9.5
+        version: 1.9.5
       vue-json-viewer:
         specifier: ^2.2.22
         version: 2.2.22(vue@2.7.16)
