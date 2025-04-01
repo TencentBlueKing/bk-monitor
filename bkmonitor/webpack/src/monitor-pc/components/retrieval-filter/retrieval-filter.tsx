@@ -559,7 +559,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                   }}
                   onClick={() => this.handleShowResidentSetting()}
                 >
-                  <span class='icon-monitor icon-tongyishezhi' />
+                  <span class='icon-monitor icon-configuration' />
                 </div>
               )}
               {this.isShowFavorite && (

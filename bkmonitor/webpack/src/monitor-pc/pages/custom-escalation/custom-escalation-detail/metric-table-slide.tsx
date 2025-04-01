@@ -305,7 +305,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 单位处理逻辑
-  private getUnits() {
+  getUnits() {
     if (this.unitConfig.mode === ALL_OPTION) return this.unitList;
 
     return Array.from(
@@ -320,7 +320,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 渲染辅助方法
-  private renderStatusPoint(row: IMetricItem) {
+  renderStatusPoint(row: IMetricItem) {
     const status = statusMap.get(!!row.disabled);
     return (
       <div
@@ -336,7 +336,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderSwitch(row: IMetricItem, field: 'disabled' | 'hidden') {
+  renderSwitch(row: IMetricItem, field: 'disabled' | 'hidden') {
     return (
       <div class='switch-wrap'>
         <bk-switcher
@@ -351,7 +351,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 表格列渲染逻辑
-  private renderNameColumn(props: { row: IMetricItem }) {
+  renderNameColumn(props: { row: IMetricItem }) {
     if (props.row.isNew) {
       return (
         <div
@@ -373,7 +373,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     return <span class='name'>{props.row.name || '--'}</span>;
   }
 
-  private renderDescriptionColumn(props: { row: IMetricItem; $index: number }) {
+  renderDescriptionColumn(props: { row: IMetricItem; $index: number }) {
     return (
       <bk-input
         class={['slider-input', this.inputFocus === props.$index ? 'focus' : '']}
@@ -384,7 +384,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderUnitColumn(props: { row: IMetricItem }) {
+  renderUnitColumn(props: { row: IMetricItem }) {
     return (
       <bk-select
         class='slider-select'
@@ -412,7 +412,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 单位配置弹窗
-  private renderUnitConfigPopover() {
+  renderUnitConfigPopover() {
     return (
       <div slot='content'>
         <div class='unit-config-header'>
@@ -455,19 +455,19 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private confirmUnitConfig() {
+  confirmUnitConfig() {
     this.unitConfig = deepClone(this.localUnitConfig);
     this.units = this.getUnits();
     this.metricSliderPopover.hide();
   }
 
-  private cancelUnitConfig() {
+  cancelUnitConfig() {
     this.localUnitConfig = deepClone(this.unitConfig);
     this.metricSliderPopover.hide();
   }
 
   // 其他渲染方法
-  private renderAggregateMethod(row: IMetricItem) {
+  renderAggregateMethod(row: IMetricItem) {
     return (
       <bk-select
         class='slider-select'
@@ -485,7 +485,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderInterval(row: IMetricItem) {
+  renderInterval(row: IMetricItem) {
     return (
       <bk-select
         class='slider-select'
@@ -503,7 +503,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderDimension(row: IMetricItem, index) {
+  renderDimension(row: IMetricItem, index) {
     return (
       <div
         style={index < 5 ? 'top: 0;' : ''}
@@ -533,7 +533,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderFunction(row: IMetricItem) {
+  renderFunction(row: IMetricItem) {
     return (
       <FunctionMenu
         list={this.metricFunctions}
@@ -544,7 +544,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private renderOperations(props: { $index: number }) {
+  renderOperations(props: { $index: number }) {
     return (
       <div class='operations'>
         <i
@@ -559,7 +559,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  private async validateName(row: IMetricItem): Promise<boolean> {
+  async validateName(row: IMetricItem): Promise<boolean> {
     // 同步验证
     const syncError = this.validateSync(row);
     if (syncError) {
@@ -578,7 +578,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 同步验证逻辑
-  private validateSync(row: IMetricItem): string {
+  validateSync(row: IMetricItem): string {
     if (!row.name?.trim()) {
       return this.$t('名称不能为空') as string;
     }
@@ -592,7 +592,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 异步验证逻辑
-  private async validateAsync(row: IMetricItem): Promise<string> {
+  async validateAsync(row: IMetricItem): Promise<string> {
     try {
       const isValid = await validateCustomTsGroupLabel({ data_label: row.name });
       return isValid ? '' : (this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string);
@@ -601,12 +601,12 @@ export default class IndicatorTableSlide extends tsc<any> {
     }
   }
 
-  private clearError(row: IMetricItem) {
+  clearError(row: IMetricItem) {
     if (row.error) row.error = '';
   }
 
   // 行操作处理
-  private handleAddRow(index: number) {
+  handleAddRow(index: number) {
     const newRow = {
       name: '',
       isNew: true,
@@ -617,7 +617,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.localTable.splice(index + 1, 0, newRow);
   }
 
-  private handleRemoveRow(index: number) {
+  handleRemoveRow(index: number) {
     const currentDelData = this.localTable[index];
     if (!currentDelData.isNew) {
       this.delArray.push({

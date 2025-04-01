@@ -1996,7 +1996,7 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
 
             # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
-            agg_func_name: str = "{method}_over_time".format(method={"sum": "count"}[method])
+            agg_func_name: str = "{method}_over_time".format(method={"sum": "count"}.get(method, method))
             query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
 
             query["field_name"] = metric["field"]

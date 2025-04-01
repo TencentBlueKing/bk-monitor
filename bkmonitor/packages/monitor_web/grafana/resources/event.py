@@ -16,6 +16,9 @@ from django.db.models import Max, QuerySet
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import MetricListCache
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource
@@ -63,9 +66,15 @@ class GetDataSourceConfigResource(Resource):
     def perform_request(self, params):
         data_source_label = params["data_source_label"]
         data_type_label = params["data_type_label"]
+        bk_biz_id = params["bk_biz_id"]
+        if bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+            if space:
+                bk_biz_id = space.bk_biz_id
 
         qs = MetricListCache.objects.filter(
-            data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, params["bk_biz_id"]]
+            data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, bk_biz_id]
         )
         if params.get("return_dimensions"):
             metrics = self._fetch_metrics(qs)

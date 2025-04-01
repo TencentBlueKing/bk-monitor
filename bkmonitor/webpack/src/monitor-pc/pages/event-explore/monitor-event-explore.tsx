@@ -40,7 +40,7 @@ import EventExplore from './event-explore';
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
-import type { IFormData } from './typing';
+import type { HideFeatures, IFormData } from './typing';
 
 /** 上一次选择的dataId */
 const EVENT_RETRIEVAL_DEFAULT_DATA_ID = 'event_retrieval_default_data_id';
@@ -62,6 +62,8 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
   @ProvideReactive('showRestore') showRestore = false;
+
+  @ProvideReactive('hideFeatures') hideFeatures: HideFeatures = [];
 
   cacheTimeRange = [];
   timer = null;
@@ -96,10 +98,18 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   filterMode = EMode.ui;
   /** 是否展示常驻筛选 */
   showResidentBtn = false;
-
+  created() {
+    const { hideFeatures } = this.$route.query;
+    try {
+      this.hideFeatures = JSON.parse(decodeURIComponent(hideFeatures?.toString() || '[]'));
+    } catch {
+      this.hideFeatures = [];
+    }
+  }
   async mounted() {
     const isShowFavorite =
       JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
+
     this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
     this.defaultDataId = await this.handleGetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID);
@@ -428,43 +438,45 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     return (
       <EventExplore
         scopedSlots={{
-          favorite: () => (
-            <div
-              style={{ display: this.isShowFavorite ? 'block' : 'none' }}
-              class='left-favorite-panel'
-              slot='favorite'
-            >
-              <FavoriteContainer
-                ref='favoriteContainer'
+          favorite: () =>
+            !this.hideFeatures.includes('favorite') ? (
+              <div
+                style={{ display: this.isShowFavorite ? 'block' : 'none' }}
+                class='left-favorite-panel'
+                slot='favorite'
+              >
+                <FavoriteContainer
+                  ref='favoriteContainer'
+                  dataId={this.dataId}
+                  favoriteSearchType='event'
+                  isShowFavorite={this.isShowFavorite}
+                  onFavoriteListChange={this.handleFavoriteListChange}
+                  onSelectFavorite={this.handleSelectFavorite}
+                  onShowChange={this.favoriteShowChange}
+                />
+              </div>
+            ) : undefined,
+          header: () =>
+            !this.hideFeatures.includes('header') ? (
+              <EventRetrievalHeader
+                slot='header'
                 dataId={this.dataId}
-                favoriteSearchType='event'
+                dataIdList={this.dataIdList}
+                dataSourceLabel={this.dataSourceLabel}
+                dataTypeLabel={this.dataTypeLabel}
                 isShowFavorite={this.isShowFavorite}
-                onFavoriteListChange={this.handleFavoriteListChange}
-                onSelectFavorite={this.handleSelectFavorite}
-                onShowChange={this.favoriteShowChange}
+                refreshInterval={this.refreshInterval}
+                timeRange={this.timeRange}
+                timezone={this.timezone}
+                onDataIdChange={this.handleDataIdChange}
+                onEventTypeChange={this.handleEventTypeChange}
+                onFavoriteShowChange={this.favoriteShowChange}
+                onImmediateRefresh={this.handleImmediateRefresh}
+                onRefreshChange={this.handleRefreshChange}
+                onTimeRangeChange={this.handleTimeRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
               />
-            </div>
-          ),
-          header: () => (
-            <EventRetrievalHeader
-              slot='header'
-              dataId={this.dataId}
-              dataIdList={this.dataIdList}
-              dataSourceLabel={this.dataSourceLabel}
-              dataTypeLabel={this.dataTypeLabel}
-              isShowFavorite={this.isShowFavorite}
-              refreshInterval={this.refreshInterval}
-              timeRange={this.timeRange}
-              timezone={this.timezone}
-              onDataIdChange={this.handleDataIdChange}
-              onEventTypeChange={this.handleEventTypeChange}
-              onFavoriteShowChange={this.favoriteShowChange}
-              onImmediateRefresh={this.handleImmediateRefresh}
-              onRefreshChange={this.handleRefreshChange}
-              onTimeRangeChange={this.handleTimeRangeChange}
-              onTimezoneChange={this.handleTimezoneChange}
-            />
-          ),
+            ) : undefined,
         }}
         commonWhere={this.commonWhere}
         currentFavorite={this.currentFavorite}
@@ -476,6 +488,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         filter_dict={this.filter_dict}
         filterMode={this.filterMode}
         group_by={this.group_by}
+        hideFeatures={this.hideFeatures}
         queryString={this.queryString}
         source={APIType.MONITOR}
         where={this.where}

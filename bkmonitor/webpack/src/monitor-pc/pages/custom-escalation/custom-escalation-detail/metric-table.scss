@@ -103,7 +103,11 @@ $border-color: #d9d9d9;
       flex: 1;
       min-width: 0;
       height: 508px;
-
+      overflow: -moz-scrollbars-none;    /* Firefox */
+      overflow-y: scroll;
+      scrollbar-width: none;             /* Firefox 64+ */
+      transition: width .5s;
+      -ms-overflow-style: none;          /* IE/Edge */
       td {
         height: 40px;
 
@@ -113,17 +117,24 @@ $border-color: #d9d9d9;
       }
 
       .indicator-table {
-        max-height: 444px;
-        overflow: -moz-scrollbars-none;    /* Firefox */
-        overflow-y: scroll;
-        scrollbar-width: none;             /* Firefox 64+ */
-        transition: width .5s;
-        -ms-overflow-style: none;          /* IE/Edge */
+        position: relative;
+        overflow: visible;
+
+        .bk-table {
+          overflow: visible;
+
+          .bk-table-body-wrapper {
+            overflow: visible;
+          }
+        }
+
         .name {
           color: #3A84FF;
         }
 
         .table-group-box {
+          overflow: visible;
+
           .bk-select {
             border: none;
 
@@ -133,6 +144,11 @@ $border-color: #d9d9d9;
           }
 
           &:has(.tippy-active) {
+            position: absolute;
+            top: 4px;
+            z-index: 999;
+            background: #fff;
+
             .bk-select {
               border: 1px solid #3a84ff;
             }
@@ -142,8 +158,9 @@ $border-color: #d9d9d9;
             display: inline-flex;
             max-width: 140px;
             height: 24px;
+            padding: 0 5px;
+            margin-top: 3px;
             margin-right: 4px;
-            margin-bottom: 4px;
             font-size: 12px;
             line-height: 22px;
             color: #4D4F56;
@@ -151,6 +168,10 @@ $border-color: #d9d9d9;
             background: #FAFBFD;
             border: 1px solid #DCDEE5;
             border-radius: 2px;
+
+            .icon-close {
+              display: none;
+            }
           }
 
           .bk-select-overflow-tag {
@@ -301,6 +322,7 @@ $border-color: #d9d9d9;
             }
 
             .info-content {
+              position: relative;
               width: 100%;
               height: 32px;
               max-height: 32px;
@@ -321,15 +343,19 @@ $border-color: #d9d9d9;
                 }
               }
 
-              &.group-list {
+              .group-list {
+                position: absolute;
+                top: 0;
                 display: flex;
-                max-height: auto;
+                width: 100%;
                 padding: 0;
-                line-height: auto;
+
+                &:has(.is-focus) {
+                  z-index: 999;
+                  background-color: #fff;
+                }
 
                 .group-search-multiple-component {
-                  width: 100%;
-
                   .btn-content {
                     max-height: 32px;
                     padding: 5px 6px;

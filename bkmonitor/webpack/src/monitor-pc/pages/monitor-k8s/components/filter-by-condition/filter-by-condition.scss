@@ -270,6 +270,10 @@
             color: #4D4F56;
             text-overflow: ellipsis;
             white-space: nowrap;
+
+            .light-text {
+              color: #3A84FF;
+            }
           }
 
           .value-item-checked {
@@ -277,9 +281,15 @@
             margin-right: 8px;
             font-size: 20px;
             color: #3A84FF;
+
+            .icon-mc-check-small {
+              font-size: 20px;
+            }
           }
 
-          &:hover {
+          &.focus,
+          &:hover,
+          &:focus {
             background: #F5F7FA;
           }
 
@@ -353,6 +363,12 @@
               margin: 0 8px 0 auto;
               font-size: 20px;
               color: #C4C6CC;
+            }
+
+            &.focus,
+            &:hover,
+            &:focus {
+              background: #F5F7FA;
             }
 
             &.active {
