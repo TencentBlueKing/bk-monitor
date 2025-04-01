@@ -87,29 +87,29 @@
                 <div class="grade-label required">{{ $t('字段设置') }}</div>
                 <div class="grade-field-setting">
                   <bk-select
-                    v-model="gradeValue"
                     style="width: 240px"
-                    searchable
+                    v-model="gradeValue"
                     :readonly="true"
+                    searchable
                   >
                     <bk-option
                       v-for="option in gradeCategory"
-                      :key="option.id"
                       :id="option.id"
+                      :key="option.id"
                       :name="option.name"
                     >
                     </bk-option>
                   </bk-select>
                   <template v-if="gradeValue === 'custom'">
                     <bk-select
-                      v-model="gradeFieldValue"
                       style="width: 320px; margin-left: 10px"
+                      v-model="gradeFieldValue"
                       searchable
                     >
                       <bk-option
                         v-for="option in fieldList"
-                        :key="option.field_name"
                         :id="option.field_name"
+                        :key="option.field_name"
                         :name="`${option.field_name}(${option.field_alias || option.field_name})`"
                       >
                       </bk-option>
@@ -122,20 +122,20 @@
                 <div class="grade-table">
                   <div class="grade-table-header">
                     <div
-                      class="grade-table-col"
                       style="width: 64px"
+                      class="grade-table-col"
                     >
                       颜色
                     </div>
                     <div
-                      class="grade-table-col"
                       style="width: 177px"
+                      class="grade-table-col"
                     >
                       字段定义
                     </div>
                     <div
-                      class="grade-table-col"
                       style="width: 330px"
+                      class="grade-table-col"
                     >
                       正则表达式
                     </div>
@@ -147,8 +147,8 @@
                         :key="item.id"
                       >
                         <div
-                          class="grade-table-col"
                           style="width: 64px"
+                          class="grade-table-col"
                         >
                           <span
                             :style="{
@@ -160,18 +160,18 @@
                           ></span>
                           <template v-if="item.id !== 'others' && false">
                             <bk-select
-                              v-model="item.color"
                               style="width: 32px"
-                              size="small"
-                              behavior="simplicity"
                               class="bklog-v3-grade-color-select"
-                              ext-popover-cls="bklog-v3-grade-color-list"
+                              v-model="item.color"
                               :clearable="false"
+                              behavior="simplicity"
+                              ext-popover-cls="bklog-v3-grade-color-list"
+                              size="small"
                             >
                               <bk-option
                                 v-for="option in colorList"
-                                :key="option.id"
                                 :id="option.name"
+                                :key="option.id"
                                 :name="option.name"
                               >
                                 <div
@@ -186,14 +186,14 @@
                           </template>
                         </div>
                         <div
-                          class="grade-table-col"
                           style="width: 177px"
+                          class="grade-table-col"
                         >
                           {{ item.name }}
                         </div>
                         <div
-                          class="grade-table-col"
                           style="width: 330px"
+                          class="grade-table-col"
                         >
                           {{ item.regExp }}
                         </div>
@@ -204,15 +204,15 @@
               </div>
               <div class="grade-row grade-footer">
                 <bk-button
-                  theme="primary"
                   style="width: 64px; height: 32px; margin-right: 8px"
+                  theme="primary"
                   @click="handleSaveGradeSettingClick"
                 >
                   {{ $t('确定') }}
                 </bk-button>
                 <bk-button
-                  theme="default"
                   style="width: 64px; height: 32px"
+                  theme="default"
                   @click="handleSaveGradeSettingClick"
                 >
                   {{ $t('取消') }}
@@ -238,7 +238,9 @@
 
 <script lang="ts">
   import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+
   import { formatNumberWithRegex } from '@/common/util';
+
   import PopInstanceUtil from '../../../global/pop-instance-util';
   import ChartMenu from './chart-menu.vue';
 
