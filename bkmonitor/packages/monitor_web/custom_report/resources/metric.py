@@ -147,7 +147,7 @@ class CreateCustomTimeSeries(Resource):
 
         def validate(self, attrs):
             ValidateCustomTsGroupName().request(name=attrs["name"], bk_biz_id=attrs["bk_biz_id"])
-            ValidateCustomTsGroupLabel().request(data_label=attrs["data_label"])
+            ValidateCustomTsGroupLabel().request(data_label=attrs["data_label"], bk_biz_id=attrs["bk_biz_id"])
             return attrs
 
     def data_name(self, bk_biz_id, ts_name):
@@ -289,7 +289,9 @@ class ModifyCustomTimeSeries(Resource):
                 )
             if attrs.get("data_label"):
                 ValidateCustomTsGroupLabel().request(
-                    data_label=attrs["data_label"], time_series_group_id=attrs["time_series_group_id"]
+                    data_label=attrs["data_label"],
+                    bk_biz_id=attrs["bk_biz_id"],
+                    time_series_group_id=attrs["time_series_group_id"],
                 )
             return attrs
 
