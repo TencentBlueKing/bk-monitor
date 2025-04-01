@@ -141,7 +141,9 @@ class ValueCalculator:
                 settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type["type"].upper()), cls.SumCount
             )
         else:
-            c = cls.agg_mapping().get(settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type["type"]), cls.SumCount)
+            c = cls.agg_mapping().get(
+                settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type["type"].upper()), cls.SumCount
+            )
 
         def calculate_node(tree_node):
             """递归计算节点值"""
