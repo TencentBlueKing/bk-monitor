@@ -138,10 +138,10 @@ class ValueCalculator:
         # 根据聚合方法和采样类型获取计算策略，当agg_method没传值时，默认通过profiling数据类型的计算节点
         if agg_method:
             c = cls.agg_mapping().get(agg_method) or cls.agg_mapping().get(
-                settings.AGG_METHOD_MAPPING.get(sample_type["type"].upper()), cls.SumCount
+                settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type["type"].upper()), cls.SumCount
             )
         else:
-            c = cls.agg_mapping().get(settings.AGG_METHOD_MAPPING.get(sample_type["type"]), cls.SumCount)
+            c = cls.agg_mapping().get(settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type["type"]), cls.SumCount)
 
         def calculate_node(tree_node):
             """递归计算节点值"""

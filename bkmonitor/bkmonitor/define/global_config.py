@@ -183,7 +183,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
         (
-            "AGG_METHOD_MAPPING",
+            "APM_PROFILING_AGG_METHOD_MAPPING",
             slz.DictField(
                 label="profiling汇聚方法映射配置",
                 default={
