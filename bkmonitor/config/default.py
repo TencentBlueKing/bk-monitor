@@ -553,7 +553,19 @@ APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
-
+# profiling 汇聚方法映射配置
+AGG_METHOD_MAPPING = {
+    "HEAP-SPACE": "AVG",
+    "WALL-TIME": "SUM",
+    "ALLOC-SPACE": "AVG",
+    "ALLOC_SPACE": "AVG",
+    "CPU-TIME": "SUM",
+    "EXCEPTION-SAMPLES": "SUM",
+    "CPU": "SUM",
+    "INUSE_SPACE": "AVG",
+    "DELAY": "AVG",
+    "GOROUTINE": "AVG",
+}
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"

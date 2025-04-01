@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List
 
+from django.conf import settings
+
 from bkmonitor.utils.common_utils import format_percent
 
 logger = logging.getLogger("apm")
@@ -123,21 +125,6 @@ class ValueCalculator:
     """节点值计算器（策略模式）"""
 
     @classmethod
-    def mapping(cls):
-        """计算策略映射表"""
-        return {
-            "goroutine": cls.AvgCount,  # Go协程类型  # 使用平均值计算策略
-            "delay": cls.AvgCount,
-            "heap-space": cls.AvgCount,
-            "alloc-space": cls.AvgCount,
-            "inuse_space": cls.AvgCount,
-            "cpu": cls.SumCount,
-            "cpu-time": cls.SumCount,
-            "wall-time": cls.SumCount,
-            "exception-samples": cls.SumCount,
-        }
-
-    @classmethod
     def agg_mapping(cls):
         return {
             "AVG": cls.AvgCount,
@@ -150,9 +137,11 @@ class ValueCalculator:
         """递归计算所有节点值"""
         # 根据聚合方法和采样类型获取计算策略，当agg_method没传值时，默认通过profiling数据类型的计算节点
         if agg_method:
-            c = cls.agg_mapping().get(agg_method) or cls.mapping().get(sample_type["type"], cls.SumCount)
+            c = cls.agg_mapping().get(agg_method) or cls.agg_mapping().get(
+                settings.AGG_METHOD_MAPPING.get(sample_type["type"].upper()), cls.SumCount
+            )
         else:
-            c = cls.mapping().get(sample_type["type"], cls.SumCount)
+            c = cls.agg_mapping().get(settings.AGG_METHOD_MAPPING.get(sample_type["type"]), cls.SumCount)
 
         def calculate_node(tree_node):
             """递归计算节点值"""

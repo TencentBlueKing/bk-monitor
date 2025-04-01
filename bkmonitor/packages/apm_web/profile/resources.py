@@ -14,6 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -131,6 +132,9 @@ class QueryServicesDetailResource(Resource):
                     "default_agg_method": default_agg_method,
                 }
             )
+
+        for item in res:
+            item["default_agg_method"] = settings.AGG_METHOD_MAPPING.get(item["name"], "SUM")
 
         return res
 
