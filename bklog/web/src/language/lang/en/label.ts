@@ -775,4 +775,5 @@ export default {
   字段显示: 'Field display',
   待选字段: 'Field to be selected:',
   已选字段: 'Selected fields:',
+  '请选择 或 输入': 'Please select or enter',
 };

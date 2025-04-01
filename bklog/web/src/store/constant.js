@@ -95,7 +95,8 @@ export const fieldTypeMap = {
   __virtual__: {
     name: i18n.t('内置字段'),
     icon: 'bklog-icon bklog-ext-2',
-    color: '#F2E2FB',
+    color: '#EAE4EB',
+    textColor: '#B68ABB',
   },
   object: {
     name: i18n.t('对象'),

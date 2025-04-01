@@ -483,6 +483,7 @@
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
+          font-family: Roboto-Regular;
         }
 
         :deep(.bklog-ext) {
