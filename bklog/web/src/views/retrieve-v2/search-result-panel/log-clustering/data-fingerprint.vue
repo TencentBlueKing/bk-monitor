@@ -258,7 +258,8 @@
       >
         <template #default="{ row }">
           <div>
-            <!-- <bk-switcher v-model="row." @change=""></bk-switcher> -->
+            <bk-switcher v-if="row.owners.length" v-model="row.strategy_enabled" @change="changeStrategy(val, row)"></bk-switcher>
+            <bk-switcher v-else v-model="row.strategy_enabled" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
           </div>
         </template>
       </bk-table-column>
@@ -1187,6 +1188,33 @@
         if (this.isLimitExpandView) return false;
         return !this.cacheExpandStr.includes(index);
       },
+      changeStrategy(val = false, row) {
+        this.curEditUniqueVal = {
+          signature: row.signature,
+          origin_pattern: row.origin_pattern,
+          group: row.group,
+          strategy_enabled: val,
+        };
+        this.$http
+          .request('/logClustering/updatePatternStrategy', {
+            data: {
+              signature: this.getHoverRowValue.signature,
+              origin_pattern: this.getHoverRowValue.origin_pattern,
+              strategy_enabled: this.getHoverRowValue.strategy_enabled,
+              groups: this.getGroupsValue(row.group),
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              const { strategy_id } = res.data;
+              this.$bkMessage({
+                theme: 'success',
+                message: this.$t('操作成功'),
+              });
+            }
+          })
+          .finally(() => (this.curEditUniqueVal = {}));
+      }
     },
   };
 </script>
