@@ -37,7 +37,7 @@ class TreeConverter:
 
     @classmethod
     def _align_agg_interval(cls, t, interval):
-        return (t / interval) * interval
+        return int(t / interval) * interval
 
     def convert(self, raw: Any, agg_method: str = None, agg_interval: int = 60) -> FunctionTree:
         samples_info = raw["list"]
@@ -82,7 +82,9 @@ class TreeConverter:
             # 只保留最后一个时间戳的所有 sample 数据
             interval = agg_interval * 1000
             last_snapshot = max({cls._align_agg_interval(int(s["dtEventTimeStamp"]), interval) for s in samples})
-            samples = [s for s in samples if cls._align_agg_interval(s["dtEventTimeStamp"], interval) == last_snapshot]
+            samples = [
+                s for s in samples if cls._align_agg_interval(int(s["dtEventTimeStamp"]), interval) == last_snapshot
+            ]
 
         for sample in samples:
             value = int(sample["value"])
