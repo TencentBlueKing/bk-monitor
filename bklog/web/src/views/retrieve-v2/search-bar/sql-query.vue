@@ -191,10 +191,10 @@
   const getMatchFieldLength = () => {
     const leftValue = getFocusLeftValue();
     const lastFragments = leftValue.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
+    const lastFragment = lastFragments[lastFragments.length - 1] ?? '';
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
 
-    return inputField.length ?? 0;
+    return inputField?.length ?? 0;
   };
 
   const getSelectionRenage = (value, replace, type) => {
