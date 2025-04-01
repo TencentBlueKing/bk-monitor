@@ -306,6 +306,12 @@
 
     gradeSettingList = [
       {
+        id: 'fatal',
+        color: '#D46D5D',
+        name: 'fatal',
+        regExp: 'fatal*',
+      },
+      {
         id: 'error',
         color: '#F59789',
         name: 'error',

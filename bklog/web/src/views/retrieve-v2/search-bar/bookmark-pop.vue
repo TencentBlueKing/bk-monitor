@@ -7,7 +7,6 @@
 
   import $http from '../../../api';
 
-
   const props = defineProps({
     sql: {
       default: '',
@@ -27,16 +26,16 @@
     extendParams: {
       type: Object,
     },
-    activeFavorite:{
+    activeFavorite: {
       default: true,
       type: Boolean,
     },
-    matchSQLStr:{
+    matchSQLStr: {
       default: false,
       type: Boolean,
-    }
+    },
   });
-  const emit = defineEmits(['refresh','saveCurrentActiveFavorite']);
+  const emit = defineEmits(['refresh', 'saveCurrentActiveFavorite']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -257,11 +256,11 @@
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
       });
-    }else{
+    } else {
       Object.assign(data, {
-      index_set_id: store.state.indexId,
-      index_set_type: 'single',
-    });
+        index_set_id: store.state.indexId,
+        index_set_type: 'single',
+      });
     }
 
     const requestStr = 'createFavorite';
@@ -285,7 +284,7 @@
   };
   const saveCurrentFavorite = () => {
     emit('saveCurrentActiveFavorite');
-  }
+  };
   // 提交表单校验
   const handleSubmitFormData = () => {
     popoverFormRef.value.validate().then(() => {
@@ -308,7 +307,7 @@
     verifyData.value.groupName = '';
     nextTick(() => {
       popoverContentRef.value.clearError();
-    })
+    });
   };
   // popover组件Ref
   const popoverContentRef = ref();
@@ -325,8 +324,8 @@
   const hidePopover = () => {
     popoverShow.value = false;
     popoverContentRef.value.hideHandler();
-};
-  const favoriteNameInputRef = ref(null)
+  };
+  const favoriteNameInputRef = ref(null);
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -360,26 +359,45 @@
     :tippy-options="tippyOptions"
   >
     <span
+      v-if="activeFavorite"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
       class="bklog-icon bklog-star-line"
-      @click="handleCollection"
-      v-if="activeFavorite"
       v-bk-tooltips="$t('收藏当前查询')"
+      @click="handleCollection"
       ><slot></slot
     ></span>
-    <bk-dropdown-menu :align="'center'" v-else>
-        <template slot="dropdown-trigger">
-            <div
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-            ></div>
-        </template>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
-            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">{{ $t('覆盖当前收藏') }}</a></li>
-            <li><a href="javascript:;" @click.stop="handleCollection">{{ $t('另存为新收藏') }}</a></li>
+    <bk-dropdown-menu
+      v-else
+      :align="'center'"
+    >
+      <template #dropdown-trigger>
+        <div
+          style="font-size: 18px"
+          class="icon bklog-icon bklog-save"
+          v-bk-tooltips="$t('收藏')"
+        ></div>
+      </template>
+      <template #dropdown-content>
+        <ul class="bk-dropdown-list">
+          <li>
+            <a
+              :class="matchSQLStr ? 'disabled' : ''"
+              href="javascript:;"
+              @click.stop="saveCurrentFavorite"
+              >{{ $t('覆盖当前收藏') }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="javascript:;"
+              @click.stop="handleCollection"
+              >{{ $t('另存为新收藏') }}</a
+            >
+          </li>
         </ul>
+      </template>
     </bk-dropdown-menu>
     <template #content>
       <div>
@@ -398,7 +416,10 @@
             label="收藏名称"
             required
           >
-            <bk-input ref="favoriteNameInputRef" v-model="favoriteData.name"></bk-input>
+            <bk-input
+              ref="favoriteNameInputRef"
+              v-model="favoriteData.name"
+            ></bk-input>
           </bk-form-item>
           <bk-form-item
             :property="'project'"
