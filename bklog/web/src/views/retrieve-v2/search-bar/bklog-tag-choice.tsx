@@ -100,6 +100,7 @@ export default defineComponent({
 
     let focusFixedElement: HTMLElement = null;
     let fixedInstance: PopInstanceUtil = null;
+    let popInstance: PopInstanceUtil = null;
 
     const inputTagValue = ref('');
     const tagInputIndex = ref(null);
@@ -149,27 +150,29 @@ export default defineComponent({
       e.preventDefault();
     };
 
-    const popInstance = new PopInstanceUtil({
-      refContent: () => refChoiceList.value,
-      arrow: false,
-      onShowFn: () => {
-        emit('toggle', true);
-        return true;
-      },
-      onHiddenFn: () => {
-        emit('toggle', false);
-        return true;
-      },
-      tippyOptions: {
-        hideOnClick: true,
-        interactive: true,
-        appendTo: document.body,
-        placement: 'bottom-start',
-        onShown: () => {
-          popInstance.setIsShowing(false);
+    if (!props.foucsFixed) {
+      popInstance = new PopInstanceUtil({
+        refContent: () => refChoiceList.value,
+        arrow: false,
+        onShowFn: () => {
+          emit('toggle', true);
+          return true;
         },
-      },
-    });
+        onHiddenFn: () => {
+          emit('toggle', false);
+          return true;
+        },
+        tippyOptions: {
+          hideOnClick: true,
+          interactive: true,
+          appendTo: document.body,
+          placement: 'bottom-start',
+          onShown: () => {
+            popInstance.setIsShowing(false);
+          },
+        },
+      });
+    }
 
     const dropdownIconName = computed(() => {
       if (isListOpended.value) {
@@ -389,7 +392,7 @@ export default defineComponent({
         const maxWidth = Math.min(charLen * INPUT_MIN_WIDTH, maxTagWidthNumber.value);
 
         target.style.setProperty('width', `${maxWidth}px`);
-        popInstance.repositionTippyInstance();
+        // popInstance.repositionTippyInstance();
         setFixedOverflowY();
       }
     };
@@ -483,7 +486,7 @@ export default defineComponent({
 
           updateFiexedInstanceContent().then(() => {
             setFixedOverflowY();
-            popInstance.repositionTippyInstance();
+            // popInstance.repositionTippyInstance();
           });
         }
 
@@ -556,39 +559,48 @@ export default defineComponent({
       });
     };
 
-    fixedInstance = new PopInstanceUtil({
-      refContent: () => {
-        setFixedValueContent();
-        return focusFixedElement;
-      },
-      arrow: false,
-      tippyOptions: {
-        appendTo: document.body,
-        hideOnClick: true,
-        placement: 'bottom-start',
-        theme: 'log-pure-choice',
-        offset: [0, -1],
-        onShown: () => {
-          isInputFocused.value = true;
-          fixedInstance.setIsShowing(false);
-          nextTick(() => {
-            autoFocusInput();
-            setFixedOverflowY();
-          });
+    if (props.foucsFixed) {
+      fixedInstance = new PopInstanceUtil({
+        refContent: () => {
+          setFixedValueContent();
+          return focusFixedElement;
         },
+        arrow: false,
+        tippyOptions: {
+          appendTo: document.body,
+          hideOnClick: true,
+          placement: 'bottom-start',
+          theme: 'log-pure-choice',
+          offset: [0, -1],
+          onShow: () => {
+            isInputFocused.value = true;
+            emit('toggle', true);
+          },
+          onShown: () => {
+            fixedInstance.setIsShowing(false);
 
-        onHidden: () => {
-          isInputFocused.value = false;
-          fixedInstance.setIsShowing(false);
-          handleEditInputBlur();
-          nextTick(() => {
-            calcItemEllipsis().then(() => {
+            nextTick(() => {
+              autoFocusInput();
               setFixedOverflowY();
             });
-          });
+          },
+
+          onHide: () => {
+            isInputFocused.value = false;
+            emit('toggle', false);
+          },
+          onHidden: () => {
+            fixedInstance.setIsShowing(false);
+            handleEditInputBlur();
+            nextTick(() => {
+              calcItemEllipsis().then(() => {
+                setFixedOverflowY();
+              });
+            });
+          },
         },
-      },
-    });
+      });
+    }
 
     const cloneFixedItem = () => {
       updateFiexedInstanceContent().then(() => {
@@ -648,8 +660,8 @@ export default defineComponent({
     watch(
       () => [props.value],
       () => {
-        if (isInputFocused.value) {
-          execContainerClick();
+        if (isInputFocused.value && props.foucsFixed) {
+          updateFiexedInstanceContent();
           autoFocusInput();
           return;
         }
