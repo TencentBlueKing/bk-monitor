@@ -168,7 +168,7 @@ export default defineComponent({
       actionConfigGroupList(mealList.value as any).filter(item => item.id !== 'notice')
     );
 
-    const handleShowChange = v => {
+    const handleShowChange = (v?: boolean) => {
       emit('showChange', v);
     };
 
@@ -493,7 +493,6 @@ export default defineComponent({
                     <Select
                       class='wrap-select'
                       v-model={this.templateData.id}
-                      placeholder={this.$tc('请选择')}
                       v-slots={{
                         default: () => {
                           return (this.templateData.allList?.[this.curMeal?.plugin_id] || []).map(item => {
@@ -509,6 +508,7 @@ export default defineComponent({
                       }}
                       behavior='simplicity'
                       disabled={true}
+                      placeholder={this.$tc('请选择')}
                     />
                   </div>
                 )}
@@ -571,16 +571,16 @@ export default defineComponent({
           ),
           footer: [
             <Button
+              key='confirm-button'
               loading={this.confirmLoading}
               theme='primary'
-              key='confirm-button'
               onClick={() => !this.confirmLoading && this.handleConfirm()}
             >
               {window.i18n.t('确定')}
             </Button>,
             <Button
-              style={{ marginLeft: '10px' }}
               key='cancel-button'
+              style={{ marginLeft: '10px' }}
               onClick={() => this.handleCancel()}
             >
               {window.i18n.t('取消')}

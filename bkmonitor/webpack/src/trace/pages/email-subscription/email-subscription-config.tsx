@@ -90,7 +90,7 @@ export default defineComponent({
     // 查询订阅列表 相关参数 开始
     const createType = ref<'manager' | 'self' | 'user'>('manager');
     const queryType = ref<'all' | 'available' | 'invalid'>('all');
-    const queryTypeForSelf = ref<'FAILED' | 'RUNNING' | 'SUCCESS' | 'all'>('all');
+    const queryTypeForSelf = ref<'all' | 'FAILED' | 'RUNNING' | 'SUCCESS'>('all');
     const searchKey = ref('');
     const page = ref(1);
     const pageSize = ref(20);
@@ -991,7 +991,6 @@ export default defineComponent({
             })
             .map(item => {
               delete item.result;
-
               item.is_enabled = true;
               return item;
             }),
@@ -1434,9 +1433,9 @@ export default defineComponent({
             title={this.t('发送记录')}
             onClosed={() => {
               this.isShowSendRecord = false;
-              Object.keys(this.toggleMapForSendRecord).forEach(key => {
+              for (const key of Object.keys(this.toggleMapForSendRecord)) {
                 this.toggleMapForSendRecord[key] = false;
-              });
+              }
             }}
           >
             <div>
