@@ -64,8 +64,8 @@ export default (
    * 处理多次点击触发多次请求的事件
    */
   const delayShowInstance = debounce(target => {
-    popInstanceUtil.cancelHide();
-    popInstanceUtil.show(target);
+    popInstanceUtil?.cancelHide();
+    popInstanceUtil?.show(target);
   }, 120);
 
   const setModelValue = val => {
@@ -132,7 +132,7 @@ export default (
 
   const hideTippyInstance = () => {
     delayShowInstance?.cancel?.();
-    popInstanceUtil.hide(180);
+    popInstanceUtil?.hide(180);
   };
 
   const resizeHeightObserver = target => {
@@ -183,13 +183,12 @@ export default (
   };
 
   const handleKeydown = event => {
-    // 检查是否按下 Ctrl（Windows/Linux）或 Command（Mac）
-    const isModifierPressed = event.ctrlKey || event.metaKey;
+    const isModifierPressed = true;
 
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
 
-    if (isModifierPressed && isSlashKey) {
+    if (isModifierPressed && isSlashKey && !popInstanceUtil.isShown()) {
       // 阻止浏览器默认行为（如打开浏览器搜索栏）
       event.preventDefault();
       const targetElement = getPopTarget();

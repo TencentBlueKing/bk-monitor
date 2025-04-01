@@ -300,6 +300,8 @@ export default defineComponent({
           resolve(true);
         }
 
+        editItemOption.value.width = 12;
+        inputTagValue.value = '';
         resolve(false);
       });
     };

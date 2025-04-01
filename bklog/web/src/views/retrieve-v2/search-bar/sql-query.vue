@@ -1,7 +1,6 @@
 <script setup>
   import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
-  import { getOsCommandLabel } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
 
   import CreateLuceneEditor from './codemirror-lucene';
@@ -22,7 +21,7 @@
   };
 
   const { t } = useLocale();
-  const placeholderText = `${getOsCommandLabel()} + / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+  const placeholderText = ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);

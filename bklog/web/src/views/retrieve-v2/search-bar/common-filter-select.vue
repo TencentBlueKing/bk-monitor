@@ -67,7 +67,6 @@
     { immediate: true, deep: true },
   );
   const activeIndex = ref(-1);
-  const isRequesting = ref(false);
 
   const operatorDictionary = computed(() => {
     const defVal = {
@@ -96,43 +95,27 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const { requestFieldEgges } = useFieldEgges();
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      isRequesting.value = true;
-      requestFieldEgges(
-        item,
-        null,
-        resp => {
-          if (typeof resp === 'boolean') {
-            return;
-          }
-          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-        },
-        () => {
-          isRequesting.value = false;
-        },
-      );
+      requestFieldEgges(item, null, resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      });
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
     activeIndex.value = index;
-    isRequesting.value = true;
-    requestFieldEgges(
-      item,
-      value,
-      resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      },
-      () => {
-        isRequesting.value = false;
-      },
-    );
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
   };
 
   const handleChange = () => {
@@ -168,9 +151,11 @@
     focusIndex.value = index;
   };
 
-  const handleChoiceBlur = () => {
-    focusIndex.value = null;
-    isChoiceInputFocus = false;
+  const handleChoiceBlur = index => {
+    if (focusIndex.value === index) {
+      focusIndex.value = null;
+      isChoiceInputFocus = false;
+    }
   };
 
   const handleRowBlur = () => {
@@ -235,7 +220,7 @@
             :placeholder="$t('请选择 或 输入')"
             max-width="460px"
             @focus="() => handleChoiceFocus(index)"
-            @blur="() => handleChoiceBlur()"
+            @blur="() => handleChoiceBlur(index)"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
@@ -291,20 +276,6 @@
     margin-right: 4px;
     margin-bottom: 4px;
     box-sizing: content-box;
-
-    &.is-focus {
-      border-color: #3a84ff;
-      .title {
-        border-left-color: #3a84ff;
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
-      }
-
-      .operator-select {
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
-      }
-    }
 
     .title {
       max-width: 120px;
@@ -386,6 +357,42 @@
     .bk-select-angle {
       font-size: 22px;
       color: #979ba5;
+    }
+
+    &.is-focus {
+      border-color: #3a84ff;
+      .title {
+        border-left-color: #3a84ff;
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      .operator-select {
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      > div {
+        &:last-child {
+          &:not(.value-select) {
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border-right: 1px solid #3a84ff;
+            padding-right: 4px;
+          }
+        }
+      }
+    }
+
+    > div {
+      &:last-child {
+        &:not(.value-select) {
+          border-top-right-radius: 3px;
+          border-bottom-right-radius: 3px;
+          border-right: 1px solid #dbdde1;
+          padding-right: 4px;
+        }
+      }
     }
   }
 </style>

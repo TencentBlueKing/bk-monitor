@@ -33,7 +33,7 @@
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
     if (inputValueLength.value === 0) {
-      return getOsCommandLabel() + ' + / ' + $t('快速定位到搜索，请输入关键词...');
+      return '/ ' + $t('快速定位到搜索，请输入关键词...');
     }
 
     return '';
