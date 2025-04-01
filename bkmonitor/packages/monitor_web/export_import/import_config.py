@@ -448,8 +448,10 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
             view_config.save()
 
 
-def get_strategy_config(bk_biz_id, strategy_ids) -> List[Dict]:
-    # 获取策略配置列表（包含用户组详细信息）
+def get_strategy_config(bk_biz_id: int, strategy_ids: List[int]) -> List[Dict]:
+    """
+    获取策略配置列表（包含用户组详细信息）
+    """
     strategy_configs = resource.strategies.get_strategy_list_v2(
         bk_biz_id=bk_biz_id,
         conditions=[{"key": "id", "value": strategy_ids}],
@@ -506,7 +508,7 @@ def get_strategy_config(bk_biz_id, strategy_ids) -> List[Dict]:
     return strategy_configs
 
 
-def get_view_config(bk_biz_id, view_ids):
+def get_view_config(bk_biz_id: int, view_ids: List[int]) -> Dict[int, Dict]:
     """
     获取仪表盘配置:
     """

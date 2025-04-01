@@ -20,6 +20,7 @@ import tarfile
 import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict
 from uuid import uuid4
 
 from django.conf import settings
@@ -1220,7 +1221,7 @@ class ExportConfigToBusinessResource(Resource):
             )
             self.parse_objs.append(parse_obj)
 
-    def create_folder(self, view_config, org_id):
+    def create_folder(self, view_config: Dict, org_id: int):
         """创建仪表盘目录"""
         dashboard = view_config.get("dashboard")
 
@@ -1234,12 +1235,28 @@ class ExportConfigToBusinessResource(Resource):
             return
 
         result = api.grafana.create_folder(org_id=org_id, title=folder_title)
-        if result["result"]:
-            dashboard["folderId"] = result["data"]["id"]
-            self.existed_folders.add(folder_title)
-            self.existed_folders_info[folder_title] = result["data"]["id"]
+        # code 409表示目录已存在
+        if result["result"] or result["code"] == 409:
+            if result["code"] == 409:
+                folders = api.grafana.search_folder_or_dashboard(
+                    org_id=org_id, query=folder_title, delete=False, limit=1000
+                )
+                # 获取已存在的目录的id
+                for r in folders.get("data", []):
+                    if r["title"] == folder_title:
+                        dashboard["folderId"] = r["id"]
+                        break
+                else:
+                    # 没找到已存在的目录
+                    return
 
-    def change_name_and_biz_id(self, config):
+            else:
+                dashboard["folderId"] = result["data"]["id"]
+
+            self.existed_folders.add(folder_title)
+            self.existed_folders_info[folder_title] = dashboard["folderId"]
+
+    def change_name_and_biz_id(self, config: Dict):
         """修改名称和业务ID"""
 
         def change(d):
@@ -1257,7 +1274,7 @@ class ExportConfigToBusinessResource(Resource):
                 # 值班规则名称加后缀
                 change(duty_rule)
 
-    def handle_return_data(self, model_obj):
+    def handle_return_data(self, model_obj: ImportParse):
         # 返回文件解析的结果
         if model_obj.type == ConfigType.VIEW:
             label_info = model_obj.label
