@@ -86,7 +86,6 @@ export default class CollectIndex extends tsc<IProps> {
   currentScreenX = null;
   isChangingWidth = false; // 是否正在拖拽
   isShowManageDialog = false; // 是否展示管理弹窗
-  isSearchFilter = false; // 是否搜索过滤
   isShowAddNewFavoriteDialog = false; // 是否展示编辑收藏弹窗
   collectLoading = false; // 分组容器loading
   searchVal = ''; // 搜索
@@ -160,6 +159,11 @@ export default class CollectIndex extends tsc<IProps> {
   @Ref('popoverSort') popoverSortRef: Popover;
   @Ref('collectContainer') collectContainerRef: CollectContainer;
   @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
+
+  /** 是否搜索过滤 */
+  get isSearchFilter() {
+    return !!this.searchVal?.length;
+  }
 
   get spaceUid() {
     return this.$store.state.spaceUid;
