@@ -67,7 +67,7 @@ export default defineComponent({
     let cancelTopoFn = () => {};
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
-    const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType', undefined);
     const graphWrapperRef = ref<HTMLDivElement>();
     const empty = ref(true);
     // 当前视图模式

@@ -168,7 +168,7 @@ export default defineComponent({
       actionConfigGroupList(mealList.value as any).filter(item => item.id !== 'notice')
     );
 
-    const handleShowChange = v => {
+    const handleShowChange = (v?: boolean) => {
       emit('showChange', v);
     };
 

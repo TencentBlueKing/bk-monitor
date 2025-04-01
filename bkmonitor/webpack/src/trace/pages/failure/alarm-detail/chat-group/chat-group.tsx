@@ -54,7 +54,7 @@ export default defineComponent({
     const localValue = ref([]);
     const contentType = ref([]);
 
-    const handleShowChange = (v: boolean) => {
+    const handleShowChange = (v?: boolean) => {
       emit('showChange', v);
     };
 
@@ -136,12 +136,18 @@ export default defineComponent({
         class='chat-group-dialog-wrap'
         v-slots={{
           default: [
-            <div class='header'>
+            <div
+              key={'header'}
+              class='header'
+            >
               {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
               <img src={require('../../../../../fta-solutions/static/img/we-com.svg')} />
               <span>{this.title}</span>
             </div>,
-            <div class='content'>
+            <div
+              key={'content'}
+              class='content'
+            >
               <p class='title'>{this.$t('群聊邀请')}</p>
               <div class='checkbox-group'>
                 <Checkbox
@@ -162,12 +168,32 @@ export default defineComponent({
                 <Checkbox.Group v-model={this.contentType}>
                   {!this.isAlarm
                     ? [
-                        <Checkbox label={'detail_url'}>{this.$t('故障链接')}</Checkbox>,
-                        <Checkbox label={'alarm_content'}>{this.$t('故障内告警')}</Checkbox>,
+                        <Checkbox
+                          key={'1'}
+                          label={'2'}
+                        >
+                          {this.$t('故障链接')}
+                        </Checkbox>,
+                        <Checkbox
+                          key={'2'}
+                          label={'alarm_content'}
+                        >
+                          {this.$t('故障内告警')}
+                        </Checkbox>,
                       ]
                     : [
-                        <Checkbox label={'detail_url'}>{this.$t('告警事件链接')}</Checkbox>,
-                        <Checkbox label={'alarm_content'}>{this.$t('告警事件内容')}</Checkbox>,
+                        <Checkbox
+                          key={'1'}
+                          label={'detail_url'}
+                        >
+                          {this.$t('告警事件链接')}
+                        </Checkbox>,
+                        <Checkbox
+                          key={'2'}
+                          label={'alarm_content'}
+                        >
+                          {this.$t('告警事件内容')}
+                        </Checkbox>,
                       ]}
                 </Checkbox.Group>
               </div>
@@ -175,6 +201,7 @@ export default defineComponent({
           ],
           footer: [
             <Button
+              key={'confirm'}
               style='margin-right: 10px'
               disabled={!this.localValue.length || !this.contentType.length}
               loading={this.isLoading}
@@ -183,7 +210,12 @@ export default defineComponent({
             >
               {this.$t('确定')}
             </Button>,
-            <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>,
+            <Button
+              key={'cancel'}
+              onClick={() => this.handleShowChange(false)}
+            >
+              {this.$t('取消')}
+            </Button>,
           ],
         }}
         header-position='left'

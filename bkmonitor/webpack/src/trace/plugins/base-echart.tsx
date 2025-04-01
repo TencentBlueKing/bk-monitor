@@ -60,7 +60,6 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
