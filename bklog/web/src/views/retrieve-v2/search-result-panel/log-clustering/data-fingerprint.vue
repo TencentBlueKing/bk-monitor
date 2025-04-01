@@ -250,7 +250,18 @@
           </div>
         </template>
       </bk-table-column>
-
+      
+      <bk-table-column
+        width="200"
+        :label="$t('创建告警策略')"
+        :render-header="renderAlertPolicyHeader"
+      >
+        <template #default="{ row }">
+          <div>
+            <!-- <bk-switcher v-model="row." @change=""></bk-switcher> -->
+          </div>
+        </template>
+      </bk-table-column>
       <bk-table-column
         width="260"
         :label="$t('备注')"
@@ -1136,6 +1147,14 @@
             submit: this.handleUserSubmit,
           },
         });
+      },
+      renderAlertPolicyHeader(h, { column }) {
+        const directive = {
+            name: 'bkTooltips',
+            content: '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+            placement: 'top'
+        }
+        return <p class="custom-header-cell" >{ column.label } <span class="bklog-icon bklog-help" v-bk-tooltips={ directive } ></span></p>
       },
       renderRemarkHeader(h, { column }) {
         const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
