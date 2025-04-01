@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
-import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 export const refreshList = [
@@ -124,7 +124,7 @@ export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
  * @param {number} num
  * @return {*}
  */
-export function handleYxisLabelFormatter(num: number): string {
+export function handleYAxisLabelFormatter(num: number): string {
   const si = [
     { value: 1, symbol: '' },
     { value: 1e3, symbol: 'K' },

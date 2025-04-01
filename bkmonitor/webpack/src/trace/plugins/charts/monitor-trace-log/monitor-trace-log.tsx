@@ -49,7 +49,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
-import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
+import { REFRESH_IMMEDIATE_KEY, REFRESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
 
 import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
@@ -63,8 +63,8 @@ export default defineComponent({
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
-    const refleshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
-    const refleshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
+    const refreshImmediate = inject<Ref<string>>(REFRESH_IMMEDIATE_KEY);
+    const refreshInterval = inject<Ref<number>>(REFRESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
     const customTimeProvider = inject<ComputedRef<string[]>>(
@@ -125,8 +125,8 @@ export default defineComponent({
               props: {
                 indexSetApi,
                 timeRange: timeRange.value,
-                refleshImmediate: refleshImmediate.value,
-                refleshInterval: refleshInterval.value,
+                refreshImmediate: refreshImmediate.value,
+                refreshInterval: refreshInterval.value,
               },
             });
           },
@@ -135,7 +135,7 @@ export default defineComponent({
         app.$route = fakeRoute;
         app._$route = fakeRoute;
         app.$t = (...args) => i18n.t(...args);
-        unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
+        unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
           app.$forceUpdate();
         });
         await nextTick();

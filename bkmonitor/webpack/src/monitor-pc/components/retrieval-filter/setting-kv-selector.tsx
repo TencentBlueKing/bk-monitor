@@ -318,6 +318,12 @@ export default class SettingKvSelector extends tsc<IProps> {
     this.handleChange();
   }
 
+  handleBackspaceNull() {
+    if (!this.inputValue && this.localValue.length) {
+      this.localValue.splice(this.localValue.length - 1, 1);
+    }
+  }
+
   render() {
     return (
       <div class={['resident-setting__setting-kv-selector-component', { active: this.isHighLight }]}>
@@ -407,6 +413,7 @@ export default class SettingKvSelector extends tsc<IProps> {
                 isFocus={this.isFocus}
                 placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
                 value={this.inputValue}
+                onBackspaceNull={this.handleBackspaceNull}
                 onBlur={this.handleBlur}
                 onEnter={this.handleEnter}
                 onInput={this.handleInput}

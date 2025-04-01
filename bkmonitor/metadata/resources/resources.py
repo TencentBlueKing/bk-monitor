@@ -891,6 +891,9 @@ class QueryEventGroupResource(Resource):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", default=[], child=serializers.IntegerField(label="数据源ID")
+        )
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -899,6 +902,7 @@ class QueryEventGroupResource(Resource):
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         event_group_name = validated_request_data["event_group_name"]
+        bk_data_ids = validated_request_data.get("bk_data_ids")
 
         if label is not None:
             query_set = query_set.filter(label=label)
@@ -908,6 +912,9 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        if bk_data_ids:
+            query_set = query_set.filter(bk_data_id__in=bk_data_ids)
 
         # 分页返回
         page_size = validated_request_data["page_size"]
@@ -1577,7 +1584,7 @@ class ListBCSClusterInfoResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        cluster_ids = serializers.ListField(label="集群ID", child=serializers.IntegerField(), required=False)
+        cluster_ids = serializers.ListField(label="集群ID", child=serializers.CharField(), required=False)
 
     def perform_request(self, validated_request_data):
         clusters = BCSClusterInfo.objects.all()
@@ -2337,22 +2344,39 @@ class NotifyEsDataLinkAdaptNano(Resource):
                     is_config_by_user=True,
                 )
 
-                # 为dtEventTimestampNanos配置对应的Option
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_type',
-                    value=NANO_FORMAT,
-                    value_type='string',
+                # 通过复制的方式,生成dtEventTimestampNanos的option
+                original_objects = models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp'
                 )
 
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_format',
-                    value=NON_STRICT_NANO_ES_FORMAT,
-                    value_type='string',
-                )
+                # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
+                for obj in original_objects:
+                    # 使用 get_or_create 以确保不会重复创建相同的记录
+                    new_obj, created = models.ResultTableFieldOption.objects.update_or_create(
+                        table_id=obj.table_id,
+                        field_name='dtEventTimeStampNanos',  # 更新 field_name
+                        name=obj.name,
+                        defaults={  # 如果记录不存在，才会使用 defaults 来创建新的记录
+                            'value_type': obj.value_type,
+                            'value': obj.value,
+                            'creator': obj.creator,
+                        },
+                    )
+                    logger.info(
+                        "NotifyEsDataLinkAdaptNano: create_field->[%s] for table_id->[%s] created->[%s]",
+                        new_obj.field_name,
+                        new_obj.table_id,
+                        created,
+                    )
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_type'
+                ).update(value=NANO_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='time', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
@@ -2360,6 +2384,11 @@ class NotifyEsDataLinkAdaptNano(Resource):
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_type'
+                ).update(value='date')
+
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
@@ -2386,3 +2415,29 @@ class NotifyEsDataLinkAdaptNano(Resource):
             raise e
 
         return result_table.to_json().get('field_list')
+
+
+class GetDataLabelsMapResource(Resource):
+    """
+    获取结果表 ID 与其 DataLabel 的映射关系
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+        table_or_labels = serializers.ListField(
+            child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        data_labels_map = {}
+        table_or_labels: List[str] = validated_request_data["table_or_labels"]
+        data_labels_queryset = models.ResultTable.objects.filter(
+            Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]], data_label__in=table_or_labels)
+            | Q(table_id__in=table_or_labels)
+        ).values("table_id", "data_label")
+        for item in data_labels_queryset:
+            data_labels_map[item["table_id"]] = item["data_label"]
+            if item["data_label"]:
+                # 不为空才建立映射关系，避免写入 empty=empty，
+                data_labels_map[item["data_label"]] = item["data_label"]
+        return data_labels_map

@@ -15,7 +15,7 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.3.0-beta.36",
     "@blueking/login-modal": "^1.0.5",
-    "@blueking/monitor-trace-log": "1.0.0-beta.11",
+    "@blueking/monitor-trace-log": "1.0.0-beta.12",
     "@blueking/table": "0.0.1-beta.35",
     "@dagrejs/dagre": "^1.1.3",
     "@vue-flow/core": "^1.38.2",
@@ -54,7 +54,10 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.4.0"
   },
-  "keywords": ["monitor", "trace"],
+  "keywords": [
+    "monitor",
+    "trace"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

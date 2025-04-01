@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
@@ -45,6 +45,8 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Prop({ type: Array, default: () => [] }) value: string[];
   @Prop({ type: Boolean, default: false }) show: boolean;
+
+  @Ref('search') searchRef: HTMLDivElement;
 
   localFields: IFilterField[] = [];
   searchValue = '';
@@ -93,6 +95,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
       }
       this.localFields = localFields;
       this.selectedFields = selected;
+      this.searchRef?.focus();
     }
   }
 
@@ -243,6 +246,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
             <div class='content-wrap'>
               <div class='search-wrap'>
                 <bk-input
+                  ref='search'
                   behavior='simplicity'
                   left-icon='bk-icon icon-search'
                   placeholder={this.$t('请输入关键字')}

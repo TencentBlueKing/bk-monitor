@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Mixins, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Mixins, Prop, Ref } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { detectOS } from 'monitor-common/utils';
@@ -34,7 +34,7 @@ import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
 import GotoOldVersion from '../../monitor-k8s/components/k8s-nav-bar/goto-old';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type { IDataIdItem } from '../typing';
+import type { HideFeatures, IDataIdItem } from '../typing';
 
 import './event-explore-header.scss';
 interface EventRetrievalNavBarProps {
@@ -63,6 +63,8 @@ const EVENT_RETRIEVAL_DATA_ID_THUMBTACK = 'event_retrieval_data_id_thumbtack';
 
 @Component
 class EventRetrievalHeader extends Mixins(UserConfigMixin) {
+  @InjectReactive('hideFeatures') hideFeatures: HideFeatures;
+  @InjectReactive('needMenu') needMenu: boolean;
   @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
@@ -191,104 +193,113 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
     return (
       <div class='event-explore-header'>
         <div class='header-left'>
-          <div class='favorite-container'>
-            <div
-              class={['favorite-btn', { active: this.isShowFavorite }]}
-              onClick={this.handleFavoriteShowChange}
-            >
-              <i
-                class='icon-monitor icon-shoucangjia'
-                v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
-              />
-            </div>
-          </div>
-
-          <div class='header-title'>{this.$t('route-事件检索')}</div>
-          <div class='event-type-select'>
-            <div
-              class={{ item: true, active: this.dataSourceLabel === 'custom' }}
-              onClick={() => this.handleEventTypeChange('custom')}
-            >
-              {this.$t('自定义上报事件')}
-            </div>
-            <div
-              class={{ item: true, active: this.dataSourceLabel === 'bk_monitor', 'is-disabled': true }}
-              v-bk-tooltips={{ content: this.$t('即将上线') }}
-              onClick={() => false && this.handleEventTypeChange('bk_monitor')}
-            >
-              {this.$t('日志关键字')}
-            </div>
-          </div>
-          <bk-select
-            ref='dataIdSelect'
-            class='data-id-select'
-            clearable={false}
-            ext-popover-cls={'new-event-retrieval-data-id-select-popover'}
-            value={this.dataId}
-            searchable
-            onSelected={this.handleDataIdChange}
-            onToggle={this.handleDataIdToggle}
-          >
-            <div
-              class='data-id-select-trigger'
-              slot='trigger'
-            >
-              <span class='data-prefix'>{this.$t('数据ID')}：</span>
-              <span
-                class='data-name'
-                v-bk-overflow-tips
+          {this.hideFeatures.includes('favorite') ? null : (
+            <div class='favorite-container'>
+              <div
+                class={['favorite-btn', { active: this.isShowFavorite }]}
+                onClick={this.handleFavoriteShowChange}
               >
-                {this.selectDataIdName}
-              </span>
-              <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
-              <span class={`icon-monitor icon-mc-arrow-down ${this.dataIdToggle ? 'expand' : ''}`} />
+                <i
+                  class='icon-monitor icon-shoucangjia'
+                  v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
+                />
+              </div>
             </div>
-            {this.sortDataIdList.map(item => (
-              <bk-option
-                id={item.id}
-                key={item.id}
-                name={item.name}
+          )}
+          {this.hideFeatures.includes('title') ? null : <div class='header-title'>{this.$t('route-事件检索')}</div>}
+          {this.hideFeatures.includes('title') ? null : (
+            <div class='event-type-select'>
+              <div
+                class={{ item: true, active: this.dataSourceLabel === 'custom' }}
+                onClick={() => this.handleEventTypeChange('custom')}
               >
-                <div class={['event-item-name', { is_top: item.isTop }]}>
-                  <i
-                    class={['icon-monitor', 'thumbtack', item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
-                    onClick={e => this.handleThumbtack(e, item)}
-                  />
-                  <span
-                    class='name-text'
-                    v-bk-overflow-tips
-                  >
-                    {item.name}
-                  </span>
-                  {item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
-                </div>
-              </bk-option>
-            ))}
-          </bk-select>
+                {this.$t('自定义上报事件')}
+              </div>
+              <div
+                class={{ item: true, active: this.dataSourceLabel === 'bk_monitor', 'is-disabled': true }}
+                v-bk-tooltips={{ content: this.$t('即将上线') }}
+                onClick={() => false && this.handleEventTypeChange('bk_monitor')}
+              >
+                {this.$t('日志关键字')}
+              </div>
+            </div>
+          )}
+          {this.hideFeatures.includes('dataId') ? null : (
+            <bk-select
+              ref='dataIdSelect'
+              class='data-id-select'
+              clearable={false}
+              ext-popover-cls={'new-event-retrieval-data-id-select-popover'}
+              value={this.dataId}
+              searchable
+              onSelected={this.handleDataIdChange}
+              onToggle={this.handleDataIdToggle}
+            >
+              <div
+                class='data-id-select-trigger'
+                slot='trigger'
+              >
+                <span class='data-prefix'>{this.$t('数据ID')}：</span>
+                <span
+                  class='data-name'
+                  v-bk-overflow-tips
+                >
+                  {this.selectDataIdName}
+                </span>
+                <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
+                <span class={`icon-monitor icon-mc-arrow-down ${this.dataIdToggle ? 'expand' : ''}`} />
+              </div>
+              {this.sortDataIdList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                >
+                  <div class={['event-item-name', { is_top: item.isTop }]}>
+                    <i
+                      class={['icon-monitor', 'thumbtack', item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
+                      onClick={e => this.handleThumbtack(e, item)}
+                    />
+                    <span
+                      class='name-text'
+                      v-bk-overflow-tips
+                    >
+                      {item.name}
+                    </span>
+                    {item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                  </div>
+                </bk-option>
+              ))}
+            </bk-select>
+          )}
         </div>
         <div class='header-tools'>
-          <DashboardTools
-            isSplitPanel={false}
-            menuList={[]}
-            refleshInterval={this.refreshInterval}
-            showDownSampleRange={false}
-            showFullscreen={false}
-            showListMenu={false}
-            showSplitPanel={false}
-            timeRange={this.timeRange}
-            timezone={this.timezone}
-            onImmediateReflesh={this.handleImmediateRefresh}
-            onRefleshChange={this.handleRefreshChange}
-            onTimeRangeChange={this.handleTimeRangeChange}
-            onTimezoneChange={this.handleTimezoneChange}
-          >
-            {this.$slots.dashboardTools}
-          </DashboardTools>
+          {this.hideFeatures.includes('dateRange') ? null : (
+            <DashboardTools
+              isSplitPanel={false}
+              menuList={[]}
+              refreshInterval={this.refreshInterval}
+              showDownSampleRange={false}
+              showFullscreen={false}
+              showListMenu={false}
+              showSplitPanel={false}
+              timeRange={this.timeRange}
+              timezone={this.timezone}
+              onImmediateRefresh={this.handleImmediateRefresh}
+              onRefreshChange={this.handleRefreshChange}
+              onTimeRangeChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
+            >
+              {this.$slots.dashboardTools}
+            </DashboardTools>
+          )}
         </div>
-        <GotoOldVersion
-          tips={this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看')}
-          onClick={this.handleGotoOldVersion}
-        />
+        {!this.needMenu ? null : (
+          <GotoOldVersion
+            tips={this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看')}
+            onClick={this.handleGotoOldVersion}
+          />
+        )}
       </div>
     );
   }

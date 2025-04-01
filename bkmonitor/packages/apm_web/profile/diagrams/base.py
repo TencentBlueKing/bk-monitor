@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List
 
+from bkmonitor.utils.common_utils import format_percent
+
 logger = logging.getLogger("apm")
 
 ROOT_DISPLAY_NAME = "total"
@@ -118,47 +120,78 @@ class FunctionTree:
 
 
 class ValueCalculator:
+    """节点值计算器（策略模式）"""
+
     @classmethod
     def mapping(cls):
+        """计算策略映射表"""
         return {
-            "goroutine": {
-                "count": cls.GoroutineCount,
-            }
+            "goroutine": cls.AvgCount,  # Go协程类型  # 使用平均值计算策略
+            "delay": cls.AvgCount,
+            "heap-space": cls.AvgCount,
+            "alloc-space": cls.AvgCount,
+            "inuse_space": cls.AvgCount,
+            "cpu": cls.SumCount,
+            "cpu-time": cls.SumCount,
+            "wall-time": cls.SumCount,
+            "exception-samples": cls.SumCount,
         }
 
     @classmethod
-    def calculate_nodes(cls, tree, sample_type):
-        c = cls.mapping().get(sample_type["type"], {}).get(sample_type["unit"], cls.Default)
+    def agg_mapping(cls):
+        return {
+            "AVG": cls.AvgCount,
+            "SUM": cls.SumCount,
+            "LAST": cls.SumCount,  # agg_method的值是LAST时，只有一个样本，所以使用SumCount，保证这个样本保持自身的value
+        }
 
-        # 1. 计算树节点的值
+    @classmethod
+    def calculate_nodes(cls, tree, sample_type, samples_len, agg_method=None):
+        """递归计算所有节点值"""
+        # 根据聚合方法和采样类型获取计算策略，当agg_method没传值时，默认通过profiling数据类型的计算节点
+        if agg_method:
+            c = cls.agg_mapping().get(agg_method) or cls.mapping().get(sample_type["type"], cls.SumCount)
+        else:
+            c = cls.mapping().get(sample_type["type"], cls.SumCount)
+
         def calculate_node(tree_node):
-            tree_node.value = c.calculate(tree_node.values)
+            """递归计算节点值"""
+            tree_node.value = c.calculate(tree_node.values, samples_len)
             for child in tree_node.children.values():
                 calculate_node(child)
 
         calculate_node(tree.root)
-        tree.root.value = sum([child.value for child in tree.root.children.values()])
+        # 更新根节点值（子节点值总和）
+        tree.root.value = format_percent(
+            sum(child.value for child in tree.root.children.values()), precision=4, sig_fig_cnt=4
+        )
 
-        # 2. 计算图节点的值
+        # 计算图结构节点
         for node in tree.function_node_map.values():
-            node.value = c.calculate(node.values)
+            node.value = c.calculate(node.values, samples_len)
 
-        tree.map_root.value = sum([child.value for child in tree.map_root.children.values()])
+        # 更新图结构根节点值
+        tree.map_root.value = format_percent(
+            sum(child.value for child in tree.map_root.children.values()), precision=4, sig_fig_cnt=4
+        )
 
-    class GoroutineCount:
-        type = "goroutine"
-        unit = "count"
+    class AvgCount:
+        """Go协程数量计算策略（平均值）"""
 
         @classmethod
-        def calculate(cls, values):
+        def calculate(cls, values, samples_len):
+            # 添加边界条件检查
+            if not values or samples_len <= 0:
+                return 0
+            return format_percent(sum(values) / samples_len, precision=4, sig_fig_cnt=4)
+
+    class SumCount:
+        """默认计算策略（累加）"""
+
+        @classmethod
+        def calculate(cls, values, samples_len=None):
             if not values:
                 return 0
-
-            return int(sum(values) / len(values))
-
-    class Default:
-        @classmethod
-        def calculate(cls, values):
             return sum(values)
 
 

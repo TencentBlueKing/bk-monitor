@@ -854,7 +854,7 @@ export default defineComponent({
             app_name: route.query?.app_name,
             search_type: 'scope',
             search_id: 'traceID',
-            refleshInterval: '-1',
+            refreshInterval: '-1',
             listType: 'trace',
             start_time: 'now-1h',
             end_time: 'now',
@@ -1457,7 +1457,7 @@ export default defineComponent({
               class='trace-table'
               v-slots={{ empty: () => tableEmptyContent() }}
               rowStyle={(row: { traceID: string[] }) => {
-                if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
+                if (this.showTraceDetail && row?.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
                 return {};
               }}
               // rowHeight={40}
@@ -1662,7 +1662,6 @@ export default defineComponent({
           }}
           esc-close={false}
           is-show={this.isFullscreen}
-          scrollable={false}
           multi-instance
           transfer
           onClosed={this.handleDialogClose}

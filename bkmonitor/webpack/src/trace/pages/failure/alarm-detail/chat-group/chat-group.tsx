@@ -41,7 +41,7 @@ export default defineComponent({
     assignee: { type: Array, default: () => [] },
     alertIds: { type: Array, default: () => [] },
     bizId: { type: Array, default: () => [] },
-    type: { type: String, default: 'alarm'},
+    type: { type: String, default: 'alarm' },
     data: {
       type: Object,
       default: () => ({}),
@@ -54,20 +54,21 @@ export default defineComponent({
     const localValue = ref([]);
     const contentType = ref([]);
 
-    const handleShowChange = (v: boolean) => {
+    const handleShowChange = (v?: boolean) => {
       emit('showChange', v);
     };
 
     const isAlarm = computed(() => {
-      return props.type === 'alarm'
+      return props.type === 'alarm';
     });
 
     const bkUrl = computed(() => `${window.site_url}rest/v2/commons/user/list_users/`);
 
     const title = computed(() => {
-      const alarmTitle = props.alertIds.length > 1
-      ? t('已经选择了{0}个告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alertIds.length])
-      : t('已经选择了{0}告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);;
+      const alarmTitle =
+        props.alertIds.length > 1
+          ? t('已经选择了{0}个告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alertIds.length])
+          : t('已经选择了{0}告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);
       const incidentTitle = t('将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);
       return isAlarm.value ? alarmTitle : incidentTitle;
     });
@@ -81,7 +82,6 @@ export default defineComponent({
           } else {
             contentType.value = ['alarm_content'];
           }
-          console.log(props.assignee, 'props.assignee')
           localValue.value.splice(0, localValue.value.length, ...props.assignee);
         }
       }
@@ -126,22 +126,28 @@ export default defineComponent({
       isLoading,
       handleShowChange,
       handleConfirm,
-      isAlarm
+      isAlarm,
     };
   },
   render() {
     return (
       <Dialog
         width={640}
-        ext-cls='chat-group-dialog-wrap'
+        class='chat-group-dialog-wrap'
         v-slots={{
           default: [
-            <div class='header'>
+            <div
+              key={'header'}
+              class='header'
+            >
               {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
               <img src={require('../../../../../fta-solutions/static/img/we-com.svg')} />
               <span>{this.title}</span>
             </div>,
-            <div class='content'>
+            <div
+              key={'content'}
+              class='content'
+            >
               <p class='title'>{this.$t('群聊邀请')}</p>
               <div class='checkbox-group'>
                 <Checkbox
@@ -160,19 +166,42 @@ export default defineComponent({
               />
               <div class='checkbox-group'>
                 <Checkbox.Group v-model={this.contentType}>
-                  {
-                    !this.isAlarm ? [<Checkbox label={'detail_url'}>{this.$t('故障链接')}</Checkbox>,
-                    <Checkbox label={'alarm_content'}>{this.$t('故障内告警')}</Checkbox>] : [
-                      <Checkbox label={'detail_url'}>{this.$t('告警事件链接')}</Checkbox>,
-                      <Checkbox label={'alarm_content'}>{this.$t('告警事件内容')}</Checkbox>
-                    ]
-                  }
+                  {!this.isAlarm
+                    ? [
+                        <Checkbox
+                          key={'1'}
+                          label={'2'}
+                        >
+                          {this.$t('故障链接')}
+                        </Checkbox>,
+                        <Checkbox
+                          key={'2'}
+                          label={'alarm_content'}
+                        >
+                          {this.$t('故障内告警')}
+                        </Checkbox>,
+                      ]
+                    : [
+                        <Checkbox
+                          key={'1'}
+                          label={'detail_url'}
+                        >
+                          {this.$t('告警事件链接')}
+                        </Checkbox>,
+                        <Checkbox
+                          key={'2'}
+                          label={'alarm_content'}
+                        >
+                          {this.$t('告警事件内容')}
+                        </Checkbox>,
+                      ]}
                 </Checkbox.Group>
               </div>
             </div>,
           ],
           footer: [
             <Button
+              key={'confirm'}
               style='margin-right: 10px'
               disabled={!this.localValue.length || !this.contentType.length}
               loading={this.isLoading}
@@ -181,7 +210,12 @@ export default defineComponent({
             >
               {this.$t('确定')}
             </Button>,
-            <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>,
+            <Button
+              key={'cancel'}
+              onClick={() => this.handleShowChange(false)}
+            >
+              {this.$t('取消')}
+            </Button>,
           ],
         }}
         header-position='left'

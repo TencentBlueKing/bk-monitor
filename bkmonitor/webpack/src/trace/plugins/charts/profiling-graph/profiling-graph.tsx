@@ -60,14 +60,14 @@ export default defineComponent({
   },
   setup(props) {
     // 自动刷新定时任务
-    let refleshIntervalInstance = null; // 自动刷新定时任务
+    let refreshIntervalInstance = null; // 自动刷新定时任务
 
     /** 取消请求方法 */
     let cancelTableFlameFn = () => {};
     let cancelTopoFn = () => {};
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
-    const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType', undefined);
     const graphWrapperRef = ref<HTMLDivElement>();
     const empty = ref(true);
     // 当前视图模式
@@ -120,11 +120,11 @@ export default defineComponent({
     watch(
       () => toolsFormData.value.refreshInterval,
       (v: number) => {
-        if (refleshIntervalInstance) {
-          window.clearInterval(refleshIntervalInstance);
+        if (refreshIntervalInstance) {
+          window.clearInterval(refreshIntervalInstance);
         }
         if (v <= 0) return;
-        refleshIntervalInstance = window.setInterval(() => {
+        refreshIntervalInstance = window.setInterval(() => {
           initQueryData();
         }, toolsFormData.value.refreshInterval);
       }

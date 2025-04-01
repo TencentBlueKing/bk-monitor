@@ -60,7 +60,6 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
@@ -150,11 +149,11 @@ export default defineComponent({
           left: 0,
           top: 0,
         };
-        const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-        if (canSetBootom > 0) {
-          position.top = +pos[1] - Math.min(20, canSetBootom);
+        const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+        if (canSetBottom > 0) {
+          position.top = +pos[1] - Math.min(20, canSetBottom);
         } else {
-          position.top = +pos[1] + canSetBootom - 20;
+          position.top = +pos[1] + canSetBottom - 20;
         }
         const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
         if (canSetLeft > 0) {
@@ -224,11 +223,11 @@ export default defineComponent({
         };
         return;
       }
-      let liHtmls = [];
+      let liHtmlList = [];
       let ulStyle = '';
       const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
       if (params[0]?.data?.tooltips) {
-        liHtmls.push(params[0].data.tooltips);
+        liHtmlList.push(params[0].data.tooltips);
       } else {
         const data = params
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
@@ -241,7 +240,7 @@ export default defineComponent({
               Math.abs(a.value - +curPoint.value.yAxis) - Math.abs(b.value - +curPoint.value.yAxis)
           );
         const list = params.filter((item: { seriesName: string }) => !item.seriesName.match(/-no-tips$/));
-        liHtmls = list
+        liHtmlList = list
           .sort((a: { value: number[] }, b: { value: number[] }) => b.value[1] - a.value[1])
           .map(
             (item: { value: number[]; color: any; seriesName: any; seriesIndex: number | string; dataIndex: any }) => {
@@ -259,13 +258,13 @@ export default defineComponent({
               }
               if (item.value[1] === null) return '';
               const curSeries: any = curChartOption.value.series?.[+item.seriesIndex];
-              const unitFormater = curSeries.unitFormatter || ((v: string) => ({ text: v }));
+              const unitFormatter = curSeries.unitFormatter || ((v: string) => ({ text: v }));
               const minBase = curSeries.minBase || 0;
               const precision =
                 !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1
                   ? 2
                   : +curSeries.precision;
-              const valueObj = unitFormater(item.value[1] - minBase, precision);
+              const valueObj = unitFormatter(item.value[1] - minBase, precision);
               return `<li class="tooltips-content-item">
                   <span class="item-series"
                    style="background-color:${item.color};">
@@ -276,7 +275,7 @@ export default defineComponent({
                   </li>`;
             }
           );
-        if (liHtmls?.length < 1) return '';
+        if (liHtmlList?.length < 1) return '';
         // 如果超出屏幕高度，则分列展示
         const maxLen = Math.ceil((window.innerHeight - 100) / 20);
         if (list.length > maxLen && tooltipSize) {
@@ -291,7 +290,7 @@ export default defineComponent({
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
                 ${lastItem || ''}
             </ul>
             </div>`;
