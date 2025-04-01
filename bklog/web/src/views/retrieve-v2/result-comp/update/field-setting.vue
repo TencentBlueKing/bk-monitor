@@ -122,6 +122,7 @@
   import { ref, computed, watch, defineProps, defineExpose } from 'vue';
 
   import { getRegExp } from '@/common/util';
+  import { formatHierarchy } from '@/common/field-resolver';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
@@ -144,7 +145,7 @@
   // 定义响应式数据
   const isLoading = ref(false);
   const fieldList = computed(() => {
-    return store.state.indexFieldInfo.fields;
+    return formatHierarchy(store.state.indexFieldInfo.fields);
   });
 
   const shadowTotal = computed(() => {

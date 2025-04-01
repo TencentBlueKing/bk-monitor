@@ -424,6 +424,10 @@ export default defineComponent({
      * @returns
      */
     const autoFocusInput = () => {
+      if (!focusFixedElement) {
+        return;
+      }
+
       const editInput = focusFixedElement.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
       if (editInput) {
         editInput.focus();
