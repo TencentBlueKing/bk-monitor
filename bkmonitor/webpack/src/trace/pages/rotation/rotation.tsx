@@ -45,9 +45,6 @@ import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import type { IAuthority } from '../../typings/authority';
 
 import './rotation.scss';
-import '@blueking/table/vue3/vue3.css';
-import 'tippy.js/dist/tippy.css';
-import 'tippy.js/themes/light.css';
 
 function getTimeStr(time: string) {
   if (time === 'null' || !time) {
