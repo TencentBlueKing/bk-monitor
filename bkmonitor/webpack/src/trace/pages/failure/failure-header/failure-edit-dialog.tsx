@@ -134,7 +134,7 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        ext-cls='failure-edit-dialog'
+        class='failure-edit-dialog'
         v-slots={{
           footer: () => (
             <div>

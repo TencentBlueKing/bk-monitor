@@ -206,7 +206,7 @@ export default defineComponent({
     return (
       <Dialog
         width={660}
-        ext-cls='feedback-cause-dialog'
+        class='feedback-cause-dialog'
         v-slots={{
           footer: () => (
             <div>
