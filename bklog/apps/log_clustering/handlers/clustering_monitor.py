@@ -56,8 +56,7 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
-from apps.log_databus.models import CollectorConfig
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 
 
 class ClusteringMonitorHandler(object):
@@ -322,8 +321,8 @@ class ClusteringMonitorHandler(object):
 
     def create_or_update_pattern_strategy(self, params=None):
         # 日志聚类-告警策略 开关控制启/停
-        collector_config = CollectorConfig.objects.get(index_set_id=self.index_set_id)
-        table_id = collector_config.table_id
+        index_set_data = LogIndexSetData.objects.get(index_set_id=self.index_set_id)
+        table_id = index_set_data.result_table_id
         return self.save_pattern_strategy(
             table_id=table_id,
             params=params,
@@ -430,18 +429,11 @@ class ClusteringMonitorHandler(object):
             }
         ]
 
-        # 当前业务所有告警组
-        groups_list = MonitorApi.search_user_groups({"bk_biz_ids": [self.bk_biz_id]})
+        # 查询告警组是否存在
         log_index_set = LogIndexSet.objects.filter(index_set_id=label_index_set_id).first()
         group_name = _("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id)
-        is_exist = False
-        user_groups = []
-        for group in groups_list:
-            if group["name"] == group_name:
-                user_groups = [group["id"]]
-                is_exist = True
-                break
-        if not is_exist:
+        notice_group = MonitorApi.search_user_groups({"bk_biz_ids": [self.bk_biz_id], "name": group_name})
+        if not notice_group:
             group = MonitorUtils.save_notice_group(
                 bk_biz_id=self.bk_biz_id,
                 name=group_name,
@@ -450,6 +442,8 @@ class ClusteringMonitorHandler(object):
                 notice_way=DEFAULT_NOTICE_WAY,
             )
             user_groups = [group["id"]]
+        else:
+            user_groups = [notice_group[0]["id"]]
 
         notice = {
             "config_id": 0,
