@@ -11,6 +11,7 @@
       :quick-close="true"
       :title="$t('索引配置')"
       :width="800"
+      :transfer="true"
       @animation-end="closeSlider"
     >
       <template #header>
