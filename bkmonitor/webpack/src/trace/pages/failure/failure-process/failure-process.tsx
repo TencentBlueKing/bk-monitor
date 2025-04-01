@@ -273,7 +273,6 @@ export default defineComponent({
                     onClick={e => this.handleOperationId(e, operation)}
                   >
                     <div class='failure-process-item-avatar'>
-                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <i
                         class={[
                           'icon-monitor item-icon',
@@ -286,6 +285,7 @@ export default defineComponent({
                       />
                     </div>
                     <div class='failure-process-item-content'>
+                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <p>
                         <span class='failure-process-item-time'>{this.formatterTime(operation.create_time)}</span>
                         <span class='failure-process-item-title'>
