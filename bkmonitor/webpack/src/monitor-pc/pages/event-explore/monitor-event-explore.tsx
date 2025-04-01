@@ -43,7 +43,8 @@ import type { IFavList } from '../data-retrieval/typings';
 import type { HideFeatures, IFormData } from './typing';
 
 /** 上一次选择的dataId */
-const EVENT_RETRIEVAL_DEFAULT_DATA_ID = 'event_retrieval_default_data_id';
+const EVENT_EXPLORE_DEFAULT_DATA_ID = 'event_explore_default_data_id';
+const LOG_EXPLORE_DEFAULT_DATA_ID = 'log_explore_default_data_id';
 
 @Component
 export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
@@ -94,10 +95,15 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   /** 过滤条件 */
   filter_dict: IFormData['filter_dict'] = {};
   /** 用于 日志 和 事件关键字切换 换成查询 */
-  cacheQuery = null;
+  cacheQuery = new Map<string, Record<string, any>>();
   filterMode = EMode.ui;
   /** 是否展示常驻筛选 */
   showResidentBtn = false;
+
+  get defaultDataIdKey() {
+    if (this.dataTypeLabel === 'log') return LOG_EXPLORE_DEFAULT_DATA_ID;
+    return EVENT_EXPLORE_DEFAULT_DATA_ID;
+  }
   created() {
     const { hideFeatures } = this.$route.query;
     try {
@@ -112,7 +118,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
 
     this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
-    this.defaultDataId = await this.handleGetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID);
+    this.defaultDataId = await this.handleGetUserConfig(this.defaultDataIdKey);
     await this.getDataIdList(!this.dataId);
   }
 
@@ -262,7 +268,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.dataId = dataId;
-    this.handleSetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID, JSON.stringify(dataId));
+    this.handleSetUserConfig(this.defaultDataIdKey, JSON.stringify(dataId));
     this.where = [];
     this.queryString = '';
     this.commonWhere = [];
@@ -271,22 +277,34 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
 
   /** 事件类型切换 */
   async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
-    const cacheQuery = {
-      where: this.where,
-      dataId: this.dataId,
-      query_string: this.queryString,
-      group_by: this.group_by,
-      filter_dict: this.filter_dict,
-    };
+    this.cacheQuery.set(
+      this.dataTypeLabel,
+      structuredClone({
+        where: this.where,
+        dataId: this.dataId,
+        query_string: this.queryString,
+        group_by: this.group_by,
+        filter_dict: this.filter_dict,
+        dataIdList: this.dataIdList,
+      })
+    );
+    const cacheQuery = this.cacheQuery.get(dataType.data_type_label);
+    let list = cacheQuery?.dataIdList || [];
+    if (!list.length) {
+      list = await getDataSourceConfig({
+        data_source_label: dataType.data_source_label,
+        data_type_label: dataType.data_type_label,
+        return_dimensions: false,
+      }).catch(() => []);
+    }
+    this.dataId = cacheQuery?.dataId || list[0]?.id || '';
+    this.dataIdList = list;
     this.dataSourceLabel = dataType.data_source_label;
     this.dataTypeLabel = dataType.data_type_label;
-    this.dataId = this.cacheQuery?.dataId || '';
-    this.where = this.cacheQuery?.where || [];
-    this.queryString = this.cacheQuery?.query_string || '';
-    this.group_by = this.cacheQuery?.group_by || [];
-    this.filter_dict = this.cacheQuery?.filter_dict || {};
-    this.cacheQuery = cacheQuery;
-    await this.getDataIdList(!this.dataId);
+    this.where = cacheQuery?.where || [];
+    this.queryString = cacheQuery?.query_string || '';
+    this.group_by = cacheQuery?.group_by || [];
+    this.filter_dict = cacheQuery?.filter_dict || {};
     this.setRouteParams();
   }
 
