@@ -475,7 +475,7 @@ export default class TimeSeriesForecast extends LineChart {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
     const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-    const liHtmls = list
+    const liHtmlList = list
       .sort((a, b) => b.value[1] - a.value[1])
       .map(item => {
         let markColor = 'color: #fafbfd;';
@@ -492,10 +492,10 @@ export default class TimeSeriesForecast extends LineChart {
         }
         if (item.value[1] === null) return '';
         const curSeries: any = this.options.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li class="tooltips-content-item">
                 <span class="item-series"
                  style="background-color:${item.color};">
@@ -507,13 +507,13 @@ export default class TimeSeriesForecast extends LineChart {
                 ${valueObj.text} ${valueObj.suffix || ''}</span>
                 </li>`;
       });
-    if (liHtmls?.length < 1) return '';
+    if (liHtmlList?.length < 1) return '';
     return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
             </ul>
             </div>`;
   }

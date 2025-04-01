@@ -67,7 +67,7 @@ const handleSetTooltip = params => {
   const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ss');
 
   // 构建每个数据点的 HTML 列表项
-  const liHtmls = params
+  const liHtmlList = params
     .map(item => {
       return `
           <li class="tooltips-content-item" style="--series-color: ${item.color}">
@@ -82,7 +82,7 @@ const handleSetTooltip = params => {
   return `
       <div class="monitor-chart-tooltips">
           <p class="tooltips-header">${pointTime}</p>
-          <ul class="tooltips-content">${liHtmls}</ul>
+          <ul class="tooltips-content">${liHtmlList}</ul>
       </div>`;
 };
 
