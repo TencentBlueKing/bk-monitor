@@ -508,7 +508,7 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: List[int]) -> List[Dict]:
     return strategy_configs
 
 
-def get_view_config(bk_biz_id: int, view_ids: List[int]) -> Dict[int, Dict]:
+def get_view_config(bk_biz_id: int, view_ids: List[str]) -> Dict[str, Dict]:
     """
     获取仪表盘配置:
     """
