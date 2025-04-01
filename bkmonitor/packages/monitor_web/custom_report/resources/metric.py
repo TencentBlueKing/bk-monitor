@@ -943,28 +943,29 @@ class CreateOrUpdateGroupingRule(Resource):
             name=params["name"],
         )
 
-        if not group_rules:
-            # 获取当前分组规则index最大值
-            max_index = (
-                CustomTSGroupingRule.objects.filter(time_series_group_id=params["time_series_group_id"]).aggregate(
-                    Max("index")
-                )["index__max"]
-                or 0
-            )
-            params["index"] = max_index + 1
-            # 创建分组规则
-            grouping_rule = CustomTSGroupingRule.objects.create(**params)
-        else:
-            grouping_rule = group_rules[0]
-            # 更新分组信息
-            if params.get("manual_list"):
-                grouping_rule.manual_list = params["manual_list"]
-            if params.get("auto_rules"):
-                grouping_rule.auto_rules = params["auto_rules"]
-            grouping_rule.save()
+        with atomic():
+            if not group_rules:
+                # 获取当前分组规则index最大值
+                max_index = (
+                    CustomTSGroupingRule.objects.filter(time_series_group_id=params["time_series_group_id"]).aggregate(
+                        Max("index")
+                    )["index__max"]
+                    or 0
+                )
+                params["index"] = max_index + 1
+                # 创建分组规则
+                grouping_rule = CustomTSGroupingRule.objects.create(**params)
+            else:
+                grouping_rule = group_rules[0]
+                # 更新分组信息
+                if params.get("manual_list"):
+                    grouping_rule.manual_list = params["manual_list"]
+                if params.get("auto_rules"):
+                    grouping_rule.auto_rules = params["auto_rules"]
+                grouping_rule.save()
 
-        # 分组匹配现存指标
-        table.renew_metric_labels([grouping_rule], delete=False)
+            # 分组匹配现存指标
+            table.renew_metric_labels([grouping_rule], delete=False)
 
         return grouping_rule.to_json()
 
@@ -1150,8 +1151,8 @@ class ImportCustomTimeSeriesFields(Resource):
                 bk_biz_id=params["bk_biz_id"],
                 time_series_group_id=params["time_series_group_id"],
                 name=group_rule["name"],
-                manual_list=group_rule["manual_list"],
-                auto_rules=group_rule["auto_rules"],
+                manual_list=group_rule.get("manual_list", []),
+                auto_rules=group_rule.get("auto_rules", []),
             )
 
 
