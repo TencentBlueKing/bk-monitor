@@ -233,11 +233,15 @@ def is_global_k8s_event(params: Dict, bk_biz_id: int) -> bool:
     data_id = result_table_id.split("_")[-1]
 
     # 判断是否是自定义事件数据ID
-    is_custom_event_data_id = CustomEventGroup.objects.filter(
-        bk_biz_id=bk_biz_id,
-        type=EVENT_TYPE.CUSTOM_EVENT,
-        bk_data_id=data_id,
-    ).exists()
+    try:
+        data_id = int(data_id)
+        is_custom_event_data_id = CustomEventGroup.objects.filter(
+            bk_biz_id=bk_biz_id,
+            type=EVENT_TYPE.CUSTOM_EVENT,
+            bk_data_id=data_id,
+        ).exists()
+    except (ValueError, TypeError):
+        is_custom_event_data_id = False
 
     # 判断是否是全局k8s事件,是则返回True
     if (
