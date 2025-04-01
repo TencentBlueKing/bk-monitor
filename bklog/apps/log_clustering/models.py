@@ -87,7 +87,7 @@ class ClusteringRemark(SoftDeleteModel):
     remark = models.JSONField(_("备注信息"), default=list, null=True, blank=True)
     owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
     strategy_id = models.IntegerField(_("策略id"), default=0)
-    is_enabled = models.BooleanField(_("是否启用"), default=False)
+    strategy_enabled = models.BooleanField(_("策略是否启用"), default=False)
 
     class Meta:
         index_together = ["signature", "group_hash"]

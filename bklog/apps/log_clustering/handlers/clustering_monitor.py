@@ -46,14 +46,17 @@ from apps.log_clustering.constants import (
     TRIGGER_CONFIG,
     StrategiesType,
 )
-from apps.log_clustering.exceptions import ClusteringIndexSetNotExistException
+from apps.log_clustering.exceptions import (
+    ClusteringIndexSetNotExistException,
+    ClusteringOwnersNotExistException,
+)
 from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
-    NoticeGroup,
     SignatureStrategySettings,
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet
 
 
@@ -317,20 +320,17 @@ class ClusteringMonitorHandler(object):
             params=params,
         )
 
-    def create_or_update_strategy_by_switch(self, params=None):
+    def create_or_update_pattern_strategy(self, params=None):
         # 日志聚类-告警策略 开关控制启/停
-        table_id = (
-            self.clustering_config.new_cls_pattern_rt
-            if self.clustering_config.new_cls_pattern_rt
-            else self.clustering_config.log_count_aggregation_flow["log_count_aggregation"]["result_table_id"]
-        )
-        return self.save_strategy_by_switch(
+        collector_config = CollectorConfig.objects.get(index_set_id=self.index_set_id)
+        table_id = collector_config.table_id
+        return self.save_pattern_strategy(
             table_id=table_id,
             params=params,
         )
 
     @atomic
-    def save_strategy_by_switch(self, table_id, params):
+    def save_pattern_strategy(self, table_id, params):
         # 策略
         condition = Q(signature=params["signature"])
         if params.get("origin_pattern"):
@@ -345,20 +345,22 @@ class ClusteringMonitorHandler(object):
             .first()
         )
 
-        if not remark_obj:
-            remark_obj = ClusteringRemark.objects.create(
-                bk_biz_id=self.clustering_config.bk_biz_id,
-                signature=params["signature"],
-                origin_pattern=params["origin_pattern"],
-                groups=params["groups"],
-                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
-                owners=params["owners"],
-                is_enabled=params["is_enabled"],
-            )
-        else:
-            remark_obj.owners = params["owners"]
-            remark_obj.is_enabled = params["is_enabled"]
+        # 启动告警
+        if params["strategy_enabled"]:
+            # 不存在责任人
+            if not remark_obj.owners:
+                raise ClusteringOwnersNotExistException()
+            remark_obj.strategy_enabled = params["strategy_enabled"]
             remark_obj.save()
+        # 停用告警
+        else:
+            # 不存在策略ID
+            if not remark_obj.strategy_id:
+                return {"strategy_id": None}
+            # 存在策略ID
+            else:
+                remark_obj.strategy_enabled = params["strategy_enabled"]
+                remark_obj.save()
 
         # 获取维度条件
         groups = params.get("groups", {})
@@ -382,7 +384,7 @@ class ClusteringMonitorHandler(object):
 
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
         labels = DEFAULT_LABEL.copy()
-        name = _("{} - 日志聚类数量告警 - {}").format(self.index_set.index_set_name, params["signature"])
+        name = _("{}#{}_日志聚类数量告警").format(self.index_set.index_set_name, remark_obj.id)
         time_field = self.index_set.time_field
 
         items = [
@@ -428,22 +430,26 @@ class ClusteringMonitorHandler(object):
             }
         ]
 
-        notice_group = NoticeGroup.objects.filter(index_set_id=label_index_set_id, bk_biz_id=self.bk_biz_id).first()
-        if not notice_group:
-            log_index_set = LogIndexSet.objects.filter(index_set_id=label_index_set_id).first()
+        # 当前业务所有告警组
+        groups_list = MonitorApi.search_user_groups({"bk_biz_ids": [self.bk_biz_id]})
+        log_index_set = LogIndexSet.objects.filter(index_set_id=label_index_set_id).first()
+        group_name = _("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id)
+        is_exist = False
+        user_groups = []
+        for group in groups_list:
+            if group["name"] == group_name:
+                user_groups = [group["id"]]
+                is_exist = True
+                break
+        if not is_exist:
             group = MonitorUtils.save_notice_group(
                 bk_biz_id=self.bk_biz_id,
-                name=_("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, label_index_set_id),
+                name=_("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id),
                 message="",
-                notice_receiver=[{"type": "user", "id": name} for name in params["owners"]],
+                notice_receiver=[{"type": "user", "id": name} for name in remark_obj.owners],
                 notice_way=DEFAULT_NOTICE_WAY,
             )
-            NoticeGroup.objects.get_or_create(
-                index_set_id=label_index_set_id, notice_group_id=group["id"], bk_biz_id=self.bk_biz_id
-            )
             user_groups = [group["id"]]
-        else:
-            user_groups = [notice_group.notice_group_id]
 
         notice = {
             "config_id": 0,
@@ -485,7 +491,7 @@ class ClusteringMonitorHandler(object):
             "scenario": DEFAULT_SCENARIO,
             "name": name,
             "labels": labels,
-            "is_enabled": params["is_enabled"],
+            "is_enabled": params["strategy_enabled"],
             "items": items,
             "detects": detects,
             "actions": [],
@@ -500,4 +506,4 @@ class ClusteringMonitorHandler(object):
         remark_obj.strategy_id = strategy_id
         remark_obj.save()
 
-        return {"strategy_id": strategy_id, "label_name": labels}
+        return {"strategy_id": strategy_id}

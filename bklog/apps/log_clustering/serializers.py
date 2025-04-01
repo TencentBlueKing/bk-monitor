@@ -127,12 +127,11 @@ class SetOwnerSerializer(serializers.Serializer):
     groups = serializers.DictField(default=dict)
 
 
-class AlarmPolicySwitchSerializer(serializers.Serializer):
+class PatternStrategySerializer(serializers.Serializer):
     signature = serializers.CharField()
     origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
-    owners = serializers.ListField(child=serializers.CharField())
     groups = serializers.DictField(default=dict)
-    is_enabled = serializers.BooleanField(label=_("告警策略是否启用"), default=False)
+    strategy_enabled = serializers.BooleanField(default=False)
 
 
 class UpdateGroupFieldsSerializer(serializers.Serializer):
