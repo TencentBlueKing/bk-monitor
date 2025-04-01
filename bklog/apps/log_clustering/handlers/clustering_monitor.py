@@ -56,7 +56,7 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.models import LogIndexSet
 
 
 class ClusteringMonitorHandler(object):
@@ -321,8 +321,8 @@ class ClusteringMonitorHandler(object):
 
     def create_or_update_pattern_strategy(self, params=None):
         # 日志聚类-告警策略 开关控制启/停
-        index_set_data = LogIndexSetData.objects.get(index_set_id=self.index_set_id)
-        table_id = index_set_data.result_table_id
+        data_list = self.index_set.get_indexes(has_applied=True)
+        table_id = ",".join(data["result_table_id"] for data in data_list)
         return self.save_pattern_strategy(
             table_id=table_id,
             params=params,
