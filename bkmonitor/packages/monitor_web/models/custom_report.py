@@ -300,7 +300,7 @@ class CustomTSTable(OperateRecordModelBase):
             if clean:
                 labels = []
             else:
-                labels = field.config.get("label", [])
+                labels = field.config.get("label", []).copy()
 
             for group_rule in group_rules:
                 if not delete and group_rule.match_metric(field.name):
