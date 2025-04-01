@@ -285,6 +285,7 @@
     ];
 
     colorList = [
+      { id: 'fatal', name: '#D46D5D' },
       { id: 'error', name: '#F59789' },
       { id: 'warn', name: '#F5C78E' },
       { id: 'info', name: '#6FC5BF' },
@@ -308,6 +309,12 @@
     });
 
     gradeSettingList = [
+      {
+        id: 'fatal',
+        color: '#D46D5D',
+        name: 'fatal',
+        regExp: 'fatal*',
+      },
       {
         id: 'error',
         color: '#F59789',

@@ -11,6 +11,9 @@
     word-break: break-all;
     white-space: pre-line;
     overflow: hidden;
+    mark{
+      background-color: #FAEEB1;
+    }
   }
 
   &.is-wheeling {
@@ -70,5 +73,10 @@
 
   &.is-inline {
     display: flex;
+  }
+}
+.bklog-root-field{
+  mark{
+    background-color: #FAEEB1;
   }
 }
