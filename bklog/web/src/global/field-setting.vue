@@ -1,7 +1,7 @@
 <template>
   <div @click="hideSingleConfigInput">
     <div
-      class="field-setting-wrap"
+      class="bklog-v3 field-setting-wrap"
       @click="handleOpenSidebar"
     >
       <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
@@ -30,7 +30,7 @@
       </template>
       <template #content>
         <div
-          class="field-slider-content"
+          class="bklog-v3 field-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
         >
           <bk-form
@@ -638,112 +638,117 @@
   });
 </script>
 
-<style lang="scss" scoped>
-  .field-setting-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 90px;
-    height: 32px;
-    font-size: 12px;
-    cursor: pointer;
+<style lang="scss">
+  .bklog-v3 {
+    &.field-setting-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 90px;
+      height: 32px;
+      font-size: 12px;
+      cursor: pointer;
 
-    span {
-      margin: 0px 6px 0 0;
-      font-size: 14px;
-      line-height: 20px;
+      span {
+        margin: 0px 6px 0 0;
+        font-size: 14px;
+        line-height: 20px;
+      }
     }
   }
+</style>
+<style lang="scss">
+  .bklog-v3 {
+    &.field-slider-content {
+      min-height: 394px;
+      max-height: calc(-119px + 100vh);
+      overflow-y: auto;
 
-  .field-slider-content {
-    min-height: 394px;
-    max-height: calc(-119px + 100vh);
-    overflow-y: auto;
+      .add-collection-title {
+        width: 100%;
+        padding-top: 18px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #63656e;
+      }
 
-    .add-collection-title {
-      width: 100%;
-      padding-top: 18px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-    }
-
-    .setting-title {
-      padding-top: 10px;
-      font-size: 12px;
-      color: #63656e;
-    }
-
-    .setting-desc {
-      padding: 10px 0;
-      color: #f00;
-      cursor: pointer;
-    }
-
-    .field-setting-form {
-      padding: 16px 36px 36px;
-
-      .form-flex-container {
-        display: flex;
-        align-items: center;
-        // height: 32px;
+      .setting-title {
+        padding-top: 10px;
         font-size: 12px;
         color: #63656e;
-
-        .icon-info {
-          margin: 0 8px 0 24px;
-          font-size: 14px;
-          color: #3a84ff;
-        }
       }
 
-      .bk-form-item {
-        margin-top: 18px;
+      .setting-desc {
+        padding: 10px 0;
+        color: #f00;
+        cursor: pointer;
       }
 
-      .source-item {
-        display: flex;
-      }
+      .field-setting-form {
+        padding: 16px 36px 36px;
 
-      .add-field-container {
-        display: flex;
-        align-items: center;
-        height: 40px;
-        padding-left: 4px;
-        border: 1px solid #dcdee5;
-        border-top: none;
-        border-bottom: 1.5px solid #dcdee5;
-        border-radius: 0 0 2px 2px;
-        transform: translateY(-1px);
-
-        .text-btn {
+        .form-flex-container {
           display: flex;
           align-items: center;
-          cursor: pointer;
+          // height: 32px;
+          font-size: 12px;
+          color: #63656e;
 
-          .text,
-          .icon {
-            font-size: 22px;
+          .icon-info {
+            margin: 0 8px 0 24px;
+            font-size: 14px;
             color: #3a84ff;
           }
+        }
 
-          .text {
-            font-size: 12px;
+        .bk-form-item {
+          margin-top: 18px;
+        }
+
+        .source-item {
+          display: flex;
+        }
+
+        .add-field-container {
+          display: flex;
+          align-items: center;
+          height: 40px;
+          padding-left: 4px;
+          border: 1px solid #dcdee5;
+          border-top: none;
+          border-bottom: 1.5px solid #dcdee5;
+          border-radius: 0 0 2px 2px;
+          transform: translateY(-1px);
+
+          .text-btn {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            .text,
+            .icon {
+              font-size: 22px;
+              color: #3a84ff;
+            }
+
+            .text {
+              font-size: 12px;
+            }
           }
         }
       }
-    }
 
-    .field-preview-form {
-      .bk-form-item {
-        margin-top: 5px;
+      .field-preview-form {
+        .bk-form-item {
+          margin-top: 5px;
+        }
       }
-    }
 
-    .submit-container {
-      position: fixed;
-      bottom: 0;
-      padding: 16px 36px 16px;
+      .submit-container {
+        position: fixed;
+        bottom: 0;
+        padding: 16px 36px 16px;
+      }
     }
   }
 </style>
