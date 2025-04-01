@@ -14,6 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -99,17 +100,6 @@ class QueryServicesDetailResource(Resource):
         对于 count 类型 只允许以下:
         goroutine/syscall/allocations/exception-samples
         """
-        agg_method = {
-            "HEAP-SPACE": "AVG",
-            "WALL-TIME": "SUM",
-            "ALLOC-SPACE": "AVG",
-            "CPU-TIME": "SUM",
-            "EXCEPTION-SAMPLES": "SUM",
-            "CPU": "SUM",
-            "INUSE_SPACE": "AVG",
-            "DELAY": "AVG",
-            "GOROUTINE": "AVG",
-        }
         res = []
         for svr in services:
             if not svr["sample_type"]:
@@ -125,7 +115,7 @@ class QueryServicesDetailResource(Resource):
             res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
 
         for item in res:
-            item["default_agg_method"] = agg_method.get(item["name"], "SUM")
+            item["default_agg_method"] = settings.AGG_METHOD_MAPPING.get(item["name"], "SUM")
 
         return res
 
