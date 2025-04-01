@@ -525,7 +525,7 @@ class ResourceTrendResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         scenario = serializers.ChoiceField(
-            required=False, label="场景", choices=["performance", "network"], default="performance"
+            required=False, label="场景", choices=["performance", "network", "capacity"], default="performance"
         )
 
     def perform_request(self, validated_request_data):
