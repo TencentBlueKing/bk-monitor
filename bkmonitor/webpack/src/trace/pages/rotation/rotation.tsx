@@ -34,6 +34,7 @@ import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, 
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
@@ -525,6 +526,10 @@ export default defineComponent({
       window.open(url);
     }
 
+    function handleClearSearch() {
+      handleSearch([]);
+    }
+
     function handleSetFormatter(row, column: EColumn) {
       switch (column) {
         case EColumn.name: {
@@ -688,6 +693,7 @@ export default defineComponent({
       handlePageChange,
       handleLimitChange,
       handleSearch,
+      handleClearSearch,
     };
   },
 
@@ -720,32 +726,45 @@ export default defineComponent({
                 [
                   <Table
                     key={'rotation-table'}
+                    autoResize={true}
+                    border={'inner'}
                     darkHeader={true}
                     data={this.tableData}
                     pagination={false}
                     settings={this.settings}
-                    showOverflowTooltip={true}
                     showSettings={true}
+                    size={this.settings.size}
                     onColumnFilter={this.handleColumnFilter}
                     onColumnSort={this.handleColumnSort}
                     onSettingChange={this.handleSettingChange}
                   >
-                    {this.tableColumns.map(column => (
-                      <TableColumn
-                        key={column.field}
-                        field={column.field}
-                        filter-multiple={true}
-                        filters={column.filters}
-                        sortable={!!column?.sortable}
-                        title={column.title}
-                      >
-                        {{
-                          default: ({ row }) => {
-                            return this.handleSetFormatter(row, column.field);
-                          },
-                        }}
-                      </TableColumn>
-                    ))}
+                    {{
+                      default: () =>
+                        this.tableColumns.map(column => (
+                          <TableColumn
+                            key={column.field}
+                            field={column.field}
+                            filter-multiple={true}
+                            filters={column.filters}
+                            showOverflow={'tooltip'}
+                            sortable={!!column?.sortable}
+                            title={column.title}
+                          >
+                            {{
+                              default: ({ row }) => {
+                                return this.handleSetFormatter(row, column.field);
+                              },
+                            }}
+                          </TableColumn>
+                        )),
+                      empty: () => (
+                        <EmptyStatus
+                          scene='page'
+                          type={this.searchData.value.length ? 'search-empty' : 'empty'}
+                          onOperation={this.handleClearSearch}
+                        />
+                      ),
+                    }}
                   </Table>,
                   <Pagination
                     key={'rotation-pagination'}
