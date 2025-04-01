@@ -9,10 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import models
-from monitor_web.models import CustomEventGroup
 from rest_framework import serializers
 
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import Resource
+from monitor_web.models import CustomEventGroup
 
 
 class GetCustomEventTargetListResource(Resource):
@@ -26,7 +27,9 @@ class GetCustomEventTargetListResource(Resource):
 
     def perform_request(self, params):
         config = CustomEventGroup.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            bk_tenant_id=get_request_tenant_id(),
+            pk=params["id"],
         )
         targets = config.query_target()
         return [{"id": target, "name": target} for target in set(targets)]

@@ -28,6 +28,7 @@ from bkmonitor.utils.db.fields import JsonField, YamlField
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
 from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import OperateRecordModelBase
 from monitor_web.plugin.constant import (
     DEFAULT_TRAP_V3_CONFIG,
@@ -956,7 +957,9 @@ class PluginVersionHistory(OperateRecordModelBase):
 
         if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
             name = "{}_{}".format(plugin.plugin_type, plugin.plugin_id)
-            table_id = CustomEventGroup.objects.get(name=name).table_id
+            table_id = CustomEventGroup.objects.get(
+                bk_biz_id=plugin.bk_biz_id, type=EVENT_TYPE.KEYWORDS, name=name
+            ).table_id
             return table_id
         else:
             db_name = ("{}_{}".format(plugin.plugin_type, plugin.plugin_id)).lower()

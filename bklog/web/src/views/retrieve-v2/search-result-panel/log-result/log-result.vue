@@ -76,8 +76,11 @@
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import LogRows from './log-rows.tsx';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import AiAssitant from '@/global/ai-assitant.tsx';
-
+  // #else
+  // #code const AiAssitant = () => null;
+  // #endif
   export default {
     components: {
       RetrieveLoader,
