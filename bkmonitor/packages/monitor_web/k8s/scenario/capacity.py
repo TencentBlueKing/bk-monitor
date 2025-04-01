@@ -39,6 +39,10 @@ def get_metrics() -> List:
                     unit="percentunit",
                     unsupported_resource=[],
                 ),
+                # kube_node_status_allocatable 依赖bk-monitor-operator升级
+                # sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
+                # /
+                # kube_node_status_allocatable{resource="cpu"} * 100
                 Metric(
                     id="node_cpu_usage_ratio",
                     name=_lazy("节点CPU使用率"),
@@ -65,6 +69,10 @@ def get_metrics() -> List:
                     unit="percentunit",
                     unsupported_resource=["namespace"],
                 ),
+                # kube_node_status_allocatable 依赖bk-monitor-operator升级
+                # sum(kube_pod_container_resource_requests{resource="memory"}) by (node)
+                # /
+                # kube_node_status_allocatable{resource="memory"} * 100
                 Metric(
                     id="node_memory_usage_ratio",
                     name=_lazy("节点内存使用率"),
@@ -111,26 +119,30 @@ def get_metrics() -> List:
                     unit="Bps",
                     unsupported_resource=[],
                 ),
-                # sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*"}[5m])) by (node)
+                # sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_transmit_bytes_total",
                     name=_lazy("节点网络出带宽"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
-                # sum(rate(node_network_transmit_bytes_total{device!~"lo|veth.*"}[5m])) by (node)
+                # sum(rate(node_network_transmit_bytes_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_receive_packets_total",
                     name=_lazy("节点网络入包量"),
                     unit="pps",
                     unsupported_resource=[],
                 ),
+                # 需要升级bk-monitor-operator
+                # sum(rate(node_network_receive_packets_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_transmit_packets_total",
                     name=_lazy("节点网络出包量"),
                     unit="pps",
                     unsupported_resource=[],
                 ),
+                # 需要升级bk-monitor-operator
+                # sum(rate(node_network_transmit_packets_total{device!~"lo|veth.*"}[1m])) by (node)
             ],
         ),
     ]
