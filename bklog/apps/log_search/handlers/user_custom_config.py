@@ -33,8 +33,8 @@ class UserCustomConfigHandler(object):
             except UserCustomConfig.DoesNotExist:
                 raise UserCustomConfigNotExistException()
 
-    def create_config(self, user_id: int, custom_config: dict):
-        self.data = UserCustomConfig.objects.create(user_id=user_id, custom_config=custom_config)
+    def create_config(self, custom_config: dict):
+        self.data = UserCustomConfig.objects.create(custom_config=custom_config)
         return {"id": self.data.id, "custom_config": self.data.custom_config}
 
     def update_config(self, custom_config: dict):
