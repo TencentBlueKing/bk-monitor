@@ -244,6 +244,7 @@ export default class EventExplore extends tsc<
   @Watch('refreshImmediate')
   handleRefreshImmediateChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
+    this.getViewConfig();
   }
 
   @Watch('dataId')
