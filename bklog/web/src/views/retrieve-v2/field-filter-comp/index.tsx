@@ -606,7 +606,7 @@ export default class FieldFilterComp extends tsc<object> {
             )}
             {/* 内置字段 */}
             {!!this.builtInFields().length && (
-              <div class='fields-container not-selected'>
+              <div class='fields-container not-selected inside-fields'>
                 <div
                   class='title'
                   onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}

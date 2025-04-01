@@ -98,44 +98,22 @@
         </div>
       </div>
     </div>
-    <!-- <div class="bklog-common-field-filter fields-button-container">
-      <bk-button
-        class="mr10"
-        :loading="isLoading"
-        :theme="'primary'"
-        type="submit"
-        @click="confirmModifyFields"
-      >
-        {{ $t('确定') }}
-      </bk-button>
-      <bk-button
-        :theme="'default'"
-        type="submit"
-        @click="cancelModifyFields"
-      >
-        {{ $t('取消') }}
-      </bk-button>
-    </div> -->
   </div>
 </template>
 <script setup>
   import { ref, computed, watch, defineProps, defineExpose } from 'vue';
 
-  import { getRegExp } from '@/common/util';
   import { formatHierarchy } from '@/common/field-resolver';
+  import { getRegExp } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
-
-  import { excludesFields } from '../../search-bar/const.common';
 
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
   const searchKeyword = ref('');
-  const tippyOptions = {
-    offset: '0, 4',
-  };
+
   const props = defineProps({
     initData: {
       type: Array,
@@ -143,7 +121,6 @@
     },
   });
   // 定义响应式数据
-  const isLoading = ref(false);
   const fieldList = computed(() => {
     return formatHierarchy(store.state.indexFieldInfo.fields);
   });
@@ -153,7 +130,6 @@
     const filterFn = field =>
       !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
       field.field_type !== '__virtual__' &&
-      !excludesFields.includes(field.field_name) &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
 
     return fieldList.value.filter(filterFn);
@@ -196,37 +172,6 @@
     return fieldTypeMap.value?.[type]?.textColor;
   };
 
-  // 新建提交逻辑
-  const handleCreateRequest = async () => {
-    const { common_filter_addition } = store.getters;
-    const param = {
-      filterSetting: shadowVisible.value,
-      filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
-    };
-    isLoading.value = true;
-
-    store
-      .dispatch('userFieldConfigChange', param)
-      .then(res => {
-        if (res.result) {
-          window.mainComponent.messageSuccess($t('提交成功'));
-        }
-      })
-      .finally(() => {
-        isLoading.value = false;
-      });
-  };
-
-  const confirmModifyFields = async () => {
-    handleCreateRequest();
-    fieldsSettingPopperRef?.value.instance.hide();
-  };
-
-  const fieldsSettingPopperRef = ref('');
-  const cancelModifyFields = () => {
-    fieldsSettingPopperRef?.value.instance.hide();
-  };
-
   const addField = fieldInfo => {
     shadowVisible.value.push(fieldInfo);
   };
@@ -241,7 +186,6 @@
         shadowVisible.value.push(fieldInfo);
       }
     });
-    console.log(shadowVisible.value, 'shadowVisible.value');
   };
 
   const deleteAllField = () => {

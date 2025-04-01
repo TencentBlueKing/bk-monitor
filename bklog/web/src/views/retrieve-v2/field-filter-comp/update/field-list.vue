@@ -158,6 +158,17 @@
     popoverInstance = null;
   }
 
+  /**
+   * @description 由于 fields-setting 组件中自定义监听click事件关闭popover，防止导致字段模板下拉菜单也失效单独处理关闭逻辑
+   *
+   */
+  function handleFieldsSettingHide() {
+    if (!showFieldsSetting.value) {
+      return;
+    }
+    handlePopoverHide();
+  }
+
   const getFiledConfigList = async () => {
     isLoading.value = true;
     try {
@@ -255,11 +266,11 @@
         "
       >
         <fields-setting
-          :is-show="showFieldsSetting"
           :field-alias-map="fieldAliasMap"
+          :is-show="showFieldsSetting"
           :is-show-left="true"
           :retrieve-params="retrieveParams"
-          @cancel="handlePopoverHide"
+          @cancel="handleFieldsSettingHide"
           @set-popper-instance="() => {}"
         />
       </div>

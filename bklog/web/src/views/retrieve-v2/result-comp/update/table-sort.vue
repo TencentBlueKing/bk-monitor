@@ -7,14 +7,14 @@
     >
       <transition-group>
         <li
-          v-for="(item, index) in shadowSort"
+          v-for="({ key, sorts }, index) in sortList"
           class="custom-select-item"
-          :key="item[0]"
+          :key="key"
         >
           <span class="icon bklog-icon bklog-drag-dots"></span>
           <bk-select
             style="width: 174px"
-            v-model="item[0]"
+            v-model="sorts[0]"
             auto-focus
             filterable
           >
@@ -22,10 +22,10 @@
             <bk-option
               v-for="option in selectList"
               class="custom-option bklog-v3-popover-tag"
+              :disabled="option.disabled"
               :id="option.field_name"
               :key="option.field_name"
               :name="option.field_name"
-              :disabled="option.disabled"
             >
               <div
                 style="width: 130px"
@@ -47,12 +47,12 @@
           </bk-select>
           <bk-select
             style="width: 75px"
-            v-model="item[1]"
+            v-model="sorts[1]"
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
-              class="bklog-v3-popover-tag"
               v-for="option in orderList"
+              class="bklog-v3-popover-tag"
               :id="option.id"
               :key="option.id"
               :name="option.name"
@@ -68,10 +68,10 @@
       </transition-group>
     </vue-draggable>
     <span
-      style="font-size: 14px; color: #3a84ff; margin-left: 20px"
+      style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="font-size: 12px; margin-left: 4px">添加排序字段</span></span
+      ><span style="margin-left: 4px; font-size: 12px">添加排序字段</span></span
     >
   </div>
 </template>
@@ -80,10 +80,16 @@
 
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
+
+  import { deepClone, random } from '../../../../common/util';
   const props = defineProps({
     initData: {
       type: Array,
       default: () => [],
+    },
+    shouldRefresh: {
+      type: Boolean,
+      default: false,
     },
   });
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -98,8 +104,11 @@
     { id: 'asc', name: '升序' },
   ];
   const store = useStore();
-  const shadowSort = ref([]);
 
+  /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
+  const sortList = ref<{ key: string; sorts: string[] }[]>([]);
+
+  const shadowSort = computed(() => sortList.value.map(e => e.sorts));
   const selectList = computed(() => {
     const data = store.state.indexFieldInfo.fields;
     const filterFn = field => field.field_type !== '__virtual__';
@@ -109,11 +118,10 @@
   });
 
   const deleteTableItem = (val: number) => {
-    shadowSort.value = shadowSort.value.slice(0, val).concat(shadowSort.value.slice(val + 1));
+    sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
   const addTableItem = () => {
-    shadowSort.value.push(['', '']);
-    console.log(shadowSort.value, 'shadowSort.value');
+    sortList.value.push({ key: random(8), sorts: ['', ''] });
   };
   const getFieldIconColor = type => {
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
@@ -125,12 +133,12 @@
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
   };
   watch(
-    () => props.initData,
-    val => {
-      if (val.length) {
-        shadowSort.value = props.initData;
+    () => [props.initData, props.shouldRefresh],
+    () => {
+      if (props.shouldRefresh && props.initData.length) {
+        sortList.value = deepClone(props.initData).map(sorts => ({ key: random(8), sorts }));
       } else {
-        shadowSort.value = [];
+        sortList.value = [];
       }
     },
     { immediate: true, deep: true },
@@ -142,14 +150,16 @@
     .custom-select-item {
       display: flex;
       column-gap: 8px;
-      margin-bottom: 8px;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+
       .bklog-drag-dots {
         font-size: 18px;
         color: #979ba5;
       }
     }
+
     .title-overflow {
       overflow: hidden;
       text-overflow: ellipsis;

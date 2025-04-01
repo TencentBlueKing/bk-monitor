@@ -84,15 +84,13 @@
           :tab-position="'left'"
           type="unborder-card"
         >
-          <template>
-            <bk-tab-panel
-              v-for="(panel, index) in configTabPanels"
-              :key="panel.name"
-              :name="panel.name"
-              :render-label="e => renderHeader(e, panel, index)"
-            >
-            </bk-tab-panel>
-          </template>
+          <bk-tab-panel
+            v-for="(panel, index) in configTabPanels"
+            :key="panel.name"
+            :name="panel.name"
+            :render-label="e => renderHeader(e, panel, index)"
+          >
+          </bk-tab-panel>
         </bk-tab>
       </div>
       <div>
@@ -104,8 +102,12 @@
               :init-data="shadowVisible"
             />
           </div>
-          <div
+          <!-- <div
             v-if="!isShowLeft"
+            style="padding-left: 12px"
+            class="table-sort"
+          > -->
+          <div
             style="padding-left: 12px"
             class="table-sort"
           >
@@ -114,6 +116,7 @@
               ref="tableSortRef"
               style="max-height: 340px; overflow: scroll"
               :init-data="shadowSort"
+              :should-refresh="isShow"
             />
           </div>
         </div>
@@ -163,8 +166,8 @@
 </template>
 
 <script>
+  import { formatHierarchy } from '@/common/field-resolver';
   import { random, downJsonFile } from '@/common/util';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
@@ -232,7 +235,7 @@
         return this.$store.state.indexFieldInfo.sort_list;
       },
       shadowTotal() {
-        return this.$store.state.indexFieldInfo.fields;
+        return formatHierarchy(this.$store.state.indexFieldInfo.fields);
       },
       filterShadowTotal() {
         const fields = this.$store.state.indexFieldInfo.fields;
@@ -307,6 +310,11 @@
       window.removeEventListener('click', this.handleDocumentClick);
     },
     methods: {
+      /**
+       * @description 自定义监听父级 popover 点击关闭触发事件
+       * @param {Event} e 事件对象
+       *
+       */
       handleDocumentClick(e) {
         if (e.target?.closest?.('.bklog-v3-popover-tag')) {
           return;
@@ -316,24 +324,16 @@
           this.$emit('cancel');
         }
       },
-      getFiledDisplayByFieldName(name) {
-        const field = this.shadowTotal.find(item => item.field_name === name);
-        return this.getFiledDisplay(field);
-      },
-      getFiledDisplay(field) {
-        if (this.showFieldAlias) {
-          return getFieldNameByField(field, this.$store);
-        }
-        const alias = this.fieldAliasMap[field.field_name];
-        if (alias && alias !== field.field_name) {
-          return `${field.field_name}(${alias})`;
-        }
-        return field.field_name;
-      },
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {
-        await this.getFiledConfigList();
-        this.initShadowFields();
+        let configData = (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+        // 如果是从字段模板打开则需要请求接口获取字段列表及配置
+        // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
+        if (this.isShowLeft) {
+          configData = null;
+          await this.getFiledConfigList();
+        }
+        this.initShadowFields(configData);
       },
       /** 保存或应用 */
       async confirmModifyFields() {
@@ -345,18 +345,22 @@
           return;
         }
         try {
-          const confirmConfigData = {
-            editStr: this.currentClickConfigData.name,
-            sort_list: currentSortList,
-            display_fields: currentVisibleList,
-            id: this.currentClickConfigData.id,
-          };
-          this.isConfirmSubmit = true;
-          await this.handleUpdateConfig(confirmConfigData);
-          // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
-          if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
-            await this.submitFieldsSet(this.currentClickConfigData.id);
+          // 字段模板保持配置逻辑，表格设置打开时不需要执行
+          if (this.isShowLeft) {
+            const confirmConfigData = {
+              editStr: this.currentClickConfigData.name,
+              sort_list: currentSortList,
+              display_fields: currentVisibleList,
+              id: this.currentClickConfigData.id,
+            };
+            this.isConfirmSubmit = true;
+            await this.handleUpdateConfig(confirmConfigData);
+            // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
+            if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
+              await this.submitFieldsSet(this.currentClickConfigData.id);
+            }
           }
+
           this.cancelModifyFields();
           // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
@@ -398,94 +402,6 @@
         this.$emit('cancel');
         this.isSortFieldChanged = false;
       },
-      filterStatusIcon(val) {
-        if (val === 'desc') {
-          return 'icon-arrows-down-line';
-        }
-        if (val === 'asc') {
-          return 'icon-arrows-up-line';
-        }
-        return '';
-      },
-      filterOption(val) {
-        if (val === 'desc') {
-          return this.$t('设为升序');
-        }
-        if (val === 'asc') {
-          return this.$t('设为降序');
-        }
-        return '';
-      },
-      addField(fieldInfo) {
-        this.isSortFieldChanged = true;
-        if (this.activeFieldTab === 'visible') {
-          fieldInfo.is_display = true;
-          this.shadowVisible.push(fieldInfo.field_name);
-        } else {
-          fieldInfo.isSorted = true;
-          this.isSortFieldChanged = true;
-          this.shadowSort.push([fieldInfo.field_name, 'asc']);
-        }
-      },
-      deleteField(fieldName, index) {
-        this.isSortFieldChanged = true;
-        const arr = this.shadowTotal;
-        if (this.activeFieldTab === 'visible') {
-          this.shadowVisible.splice(index, 1);
-          for (let i = 0; i < arr.length; i++) {
-            if (arr[i].field_name === fieldName) {
-              arr[i].is_display = false;
-              return;
-            }
-          }
-        } else {
-          this.shadowSort.splice(index, 1);
-          for (let i = 0; i < arr.length; i++) {
-            if (arr[i].field_name === fieldName) {
-              this.isSortFieldChanged = true;
-              arr[i].isSorted = false;
-              return;
-            }
-          }
-        }
-      },
-      addAllField() {
-        if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
-            if (!fieldInfo.is_display) {
-              fieldInfo.is_display = true;
-              this.shadowVisible.push(fieldInfo.field_name);
-            }
-          });
-        } else {
-          this.shadowTotal.forEach(fieldInfo => {
-            if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
-              fieldInfo.isSorted = true;
-              this.isSortFieldChanged = true;
-              this.shadowSort.push([fieldInfo.field_name, 'asc']);
-            }
-          });
-        }
-      },
-      deleteAllField() {
-        if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
-            fieldInfo.is_display = false;
-            this.shadowVisible.splice(0, this.shadowVisible.length);
-          });
-        } else {
-          this.shadowTotal.forEach(fieldInfo => {
-            fieldInfo.isSorted = false;
-            this.isSortFieldChanged = this.isSortFieldChanged || this.shadowSort.length;
-            this.shadowSort.splice(0, this.shadowSort.length);
-          });
-        }
-      },
-      setOrder(item) {
-        this.isSortFieldChanged = true;
-        item[1] = item[1] === 'asc' ? 'desc' : 'asc';
-        this.$forceUpdate();
-      },
       renderHeader(h, row, index) {
         row.index = index;
         return h(fieldsSettingOperate, {
@@ -495,7 +411,6 @@
           },
           on: {
             operateChange: this.handleLeftOperateChange,
-            setPopperInstance: this.setPopperInstance,
           },
         });
       },
@@ -649,8 +564,8 @@
         }
       },
       /** 初始化显示字段 */
-      initShadowFields() {
-        this.activeConfigTab = this.currentClickConfigData.name;
+      initShadowFields(configData) {
+        this.activeConfigTab = this.currentClickConfigData?.name;
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {
@@ -660,6 +575,7 @@
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
         this.shadowVisible =
+          configData ||
           this.currentClickConfigData.display_fields
             ?.map(displayName => {
               for (const field of this.shadowTotal) {
@@ -669,7 +585,8 @@
                 }
               }
             })
-            ?.filter(Boolean) || [];
+            ?.filter(Boolean) ||
+          [];
       },
       /** 获取配置列表 */
       async getFiledConfigList() {
@@ -697,9 +614,6 @@
         } finally {
           this.isLoading = false;
         }
-      },
-      setPopperInstance(status) {
-        this.$emit('set-popper-instance', status);
       },
       searchChange(v) {
         this.keyword = v;
