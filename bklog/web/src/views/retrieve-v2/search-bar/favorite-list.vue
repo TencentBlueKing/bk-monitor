@@ -2,7 +2,6 @@
   import { computed } from 'vue';
 
   // @ts-ignore
-  import { getRegExp } from '@/common/util';
   import useStore from '@/hooks/use-store';
 
   const props = defineProps({
@@ -18,7 +17,9 @@
   const indexSetItemIdList = computed(() => store.state.indexItem.ids);
   const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
 
-  const regExpString = computed(() => props.value?.replace(/$\s*|\s*$/gi, '') ?? '');
+  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+
+  const regExpStringList = computed(() => (props.searchValue ?? '').split(separator).filter(item => item.length));
 
   const isSqlMode = item => {
     return item.search_mode === 'sql' && !(item.params.chart_params?.type ?? false);
@@ -34,8 +35,11 @@
         );
       })
       .filter(child => {
-        const regExp = getRegExp(regExpString.value);
-        return regExp.test(child.params?.keyword);
+        return (
+          child.params?.keyword === '*' ||
+          (regExpStringList.value.length &&
+            regExpStringList.value.every(word => child.params?.keyword.indexOf(word) !== -1))
+        );
       }),
   );
 
