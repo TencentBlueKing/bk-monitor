@@ -130,7 +130,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = null;
+    activeIndex.value = 0;
   };
 
   /**
@@ -288,7 +288,7 @@
 
     showColonOperator(field as string);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -302,7 +302,7 @@
     calculateDropdown();
 
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -315,7 +315,7 @@
     // 当前输入值可能的情况 【name:"a】【age:】
     emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -329,7 +329,7 @@
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
