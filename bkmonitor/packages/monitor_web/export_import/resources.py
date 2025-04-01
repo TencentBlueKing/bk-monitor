@@ -1143,7 +1143,7 @@ class ExportConfigToBusinessResource(Resource):
         if not self.view_config_ids:
             return
         view_config = get_view_config(self.bk_biz_id, self.view_config_ids)
-        org_id = get_or_create_org(self.bk_biz_id)["id"]
+        org_id = get_or_create_org(self.target_biz_id)["id"]
 
         for config in view_config.values():
             self.create_folder(config, org_id)
@@ -1180,7 +1180,7 @@ class ExportConfigToBusinessResource(Resource):
         strategy_configs = get_strategy_config(self.bk_biz_id, self.strategy_config_ids)
 
         for config in strategy_configs:
-            # 暂时只导入没有配置了处理套餐的策略
+            # 暂时只导入没有配置处理套餐的策略
             if config.get("actions", []):
                 info = {
                     "name": config.get("name"),
