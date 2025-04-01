@@ -212,6 +212,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         sample_type: str = None,
         order: str = None,
         agg_method: str = None,
+        agg_interval: int = 60,
         converter: Optional[ConverterType] = None,
     ) -> Union[DorisProfileConverter, TreeConverter, dict]:
         """
@@ -297,7 +298,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 c.convert(r)
             elif converter == ConverterType.Tree:
                 c = TreeConverter()
-                c.convert(r, agg_method)
+                c.convert(r, agg_method, agg_interval)
             else:
                 raise ValueError(f"不支持的 Profiling 转换器: {converter}")
         except Exception as e:  # noqa
@@ -397,6 +398,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
                 agg_method=validate_data["agg_method"],
+                agg_interval=cls.get_agg_interval(start_time, end_time),
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -443,6 +445,15 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data.update(tree_converter.get_sample_type())
         return data
 
+    @classmethod
+    def get_agg_interval(cls, start, end):
+        """
+        获取聚合周期（规则：5分钟内取秒级聚合，5分钟以上分钟级别聚合）
+        params: start , end  (单位: 毫秒)
+        return: 返回聚合周期(单位：秒)
+        """
+        return 1 if end - start <= 5 * 60 * 1000 else 60
+
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
     @user_visit_record
     def samples(self, request: Request):
@@ -463,6 +474,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 diff_profile_id=validate_data.get("diff_profile_id"),
                 diff_filter_labels=validate_data.get("diff_filter_labels"),
                 sample_type=validate_data["data_type"],
+                agg_interval=self.get_agg_interval(start, end),
             )
 
             if len(validate_data["diagram_types"]) == 0:
@@ -504,6 +516,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
                 agg_method=validate_data["agg_method"],
+                agg_interval=self.get_agg_interval(diff_start_time, diff_end_time),
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -556,16 +569,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         is_compared=False,
         diff_profile_id=None,
         diff_filter_labels=None,
+        agg_interval=60,
     ):
         """获取时序表数据"""
-
-        if end - start <= 5 * 60 * 1000:
-            # 5 分钟内向秒取整
-            # 向秒取整
-            dimension = "FLOOR(dtEventTimeStamp / 1000) * 1000"
-        else:
-            # 向分钟取整
-            dimension = "FLOOR((dtEventTimeStamp / 1000) / 60) * 60000"
+        interval = agg_interval * 1000
+        dimension = f"FLOOR(dtEventTimeStamp / {interval}) * {interval}"
 
         tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,

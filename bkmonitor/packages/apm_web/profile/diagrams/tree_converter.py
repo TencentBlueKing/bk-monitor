@@ -35,7 +35,11 @@ class TreeConverter:
     def get_sample_type(self) -> dict:
         return self.sample_type
 
-    def convert(self, raw: Any, agg_method: str = None) -> FunctionTree:
+    @classmethod
+    def _align_agg_interval(cls, t, interval):
+        return (t / interval) * interval
+
+    def convert(self, raw: Any, agg_method: str = None, agg_interval: int = 60) -> FunctionTree:
         samples_info = raw["list"]
         if not samples_info:
             return self.tree
@@ -60,10 +64,12 @@ class TreeConverter:
                 values=[],
             ),
         )
-        self.build_tree(tree, samples_info, agg_method)
+        self.build_tree(tree, samples_info, agg_method, agg_interval)
 
         # 计算出一共有多少个时间点的数据，相同时间点的数据只算一次
-        snapshot_len = len({s["dtEventTimeStamp"] for s in samples_info})
+        snapshot_len = len(
+            {self._align_agg_interval(int(s["dtEventTimeStamp"]), agg_interval * 1000) for s in samples_info}
+        )
         # 不同数据类型的节点 value 计算方式有所不同
         ValueCalculator.calculate_nodes(tree, self.get_sample_type(), snapshot_len, agg_method)
 
@@ -71,11 +77,12 @@ class TreeConverter:
         return self.tree
 
     @classmethod
-    def build_tree(cls, tree: FunctionTree, samples, agg_method=None):
+    def build_tree(cls, tree: FunctionTree, samples, agg_method=None, agg_interval=60):
         if agg_method == "LAST":
             # 只保留最后一个时间戳的所有 sample 数据
-            last_snapshot = max({s["dtEventTimeStamp"] for s in samples})
-            samples = [s for s in samples if s["dtEventTimeStamp"] == last_snapshot]
+            interval = agg_interval * 1000
+            last_snapshot = max({cls._align_agg_interval(int(s["dtEventTimeStamp"]), interval) for s in samples})
+            samples = [s for s in samples if cls._align_agg_interval(s["dtEventTimeStamp"], interval) == last_snapshot]
 
         for sample in samples:
             value = int(sample["value"])
