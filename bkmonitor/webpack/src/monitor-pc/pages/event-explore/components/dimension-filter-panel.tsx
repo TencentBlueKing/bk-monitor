@@ -111,7 +111,6 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Watch('list')
   async watchListChange(list: IDimensionField[]) {
     this.searchVal = '';
-    this.emptyStatus = 'search-empty';
     this.searchResultList = list;
     await this.getFieldCount();
   }
