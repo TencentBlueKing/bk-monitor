@@ -80,11 +80,11 @@
 
     .is-leaf {
       height: auto;
-      padding-left: calc(var(--level)* var(--padding) + 2px);
+      padding-left: calc(var(--level) * var(--padding) + 2px);
       line-height: normal;
     }
 
-    .node-options{
+    .node-options {
       display: none;
     }
   }
@@ -113,6 +113,17 @@
     .fields-container {
       padding-bottom: 4px;
       margin-bottom: 9px;
+
+      &.not-selected {
+        .title {
+          span.bklog-icon {
+            margin-right: 4px;
+            &:not(.is-expand-all) {
+              transform: rotate(270deg);
+            }
+          }
+        }
+      }
 
       .title {
         padding: 0 12px;
