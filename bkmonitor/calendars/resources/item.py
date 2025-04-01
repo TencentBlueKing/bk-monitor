@@ -21,6 +21,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.time_tools import timestamp_to_tz_datetime
 from calendars.constants import (
     CHANGE_TYPE_LIST,
@@ -430,15 +431,17 @@ class ItemDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         calendar_ids = serializers.ListField(label="所属日历ID列表")
         time = serializers.IntegerField(label="查询时间")
         start_time = serializers.IntegerField(required=False, label="日历详情开始时间")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
         return ItemListResource()(
-            calendar_ids=validated_request_data["calendar_ids"],
-            start_time=validated_request_data["time"],
-            end_time=validated_request_data["time"],
+            bk_tenant_id=params["bk_tenant_id"],
+            calendar_ids=params["calendar_ids"],
+            start_time=params["time"],
+            end_time=params["time"],
             time_zone=settings.TIME_ZONE,
         )
 
@@ -449,6 +452,7 @@ class ItemListResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         calendar_ids = serializers.ListField(label="所属日历ID列表")
         start_time = serializers.IntegerField(label="日历查询范围开始时间")
         end_time = serializers.IntegerField(label="日历查询范围结束时间")
@@ -470,7 +474,7 @@ class ItemListResource(Resource):
             validated_data["name__icontains"] = search_key
 
         item_dict = {}
-        items = CalendarItemModel.objects.filter(bk_tenant_id=get_request_tenant_id(), **validated_data)
+        items = CalendarItemModel.objects.filter(bk_tenant_id=params["bk_tenant_id"], **validated_data)
 
         for item in items:
             time_zone = params.get("time_zone", item.time_zone)

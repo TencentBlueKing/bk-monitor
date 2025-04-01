@@ -50,7 +50,9 @@ class CalendarCacheManager(CacheManager):
         failed_count = 0
         for calendar in calendars:
             try:
-                items = ItemDetailResource()(calendar_ids=[calendar.id], time=now_ts)
+                items = ItemDetailResource()(
+                    bk_tenant_id=calendar.bk_tenant_id, calendar_ids=[calendar.id], time=now_ts
+                )
                 # 补充租户ID
                 for item in items:
                     item["bk_tenant_id"] = calendar.bk_tenant_id
