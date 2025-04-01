@@ -35,9 +35,10 @@ class CustomEventGroup(OperateRecordModelBase):
         (EVENT_TYPE.KEYWORDS, EVENT_TYPE.KEYWORDS),
     )
 
+    bk_tenant_id = models.CharField("租户ID", default=DEFAULT_TENANT_ID, db_index=True, max_length=128)
+    bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
     bk_event_group_id = models.IntegerField("事件分组ID", primary_key=True)
     bk_data_id = models.IntegerField("数据ID")
-    bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
     name = models.CharField("名称", max_length=128)
     scenario = models.CharField("监控场景", max_length=128, db_index=True)
     is_enable = models.BooleanField("是否启用", default=True)

@@ -285,7 +285,7 @@ export default class ValueOptions extends tsc<IProps> {
         ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {this.noDataSimple ? (
-              <span class='no-data-text'>{this.$t('暂无数据，可输入生成')}</span>
+              <span class='no-data-text'>{this.$t('暂无数据，请输入生成')}</span>
             ) : (
               <EmptyStatus type={'empty'} />
             )}

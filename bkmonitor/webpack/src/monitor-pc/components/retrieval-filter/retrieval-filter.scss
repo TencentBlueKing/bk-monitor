@@ -79,11 +79,15 @@
           justify-content: center;
           width: 24px;
           height: 24px;
-          margin: 10px 12px 10px 0;
+          margin: 10px 8px 10px 0;
           font-size: 16px;
           color: #4d4f56;
           cursor: pointer;
           border-radius: 2px;
+
+          .icon-configuration {
+            font-size: 18px;
+          }
 
           .icon-bookmark {
             font-size: 18px;
@@ -94,6 +98,10 @@
           }
 
           .icon-mc-copy {
+            font-size: 18px;
+          }
+
+          .icon-a-savebaocun {
             font-size: 18px;
           }
 

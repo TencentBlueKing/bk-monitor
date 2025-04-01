@@ -300,6 +300,15 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   getTableColumns(): Array<EventExploreTableColumn> {
     const { TIME, CONTENT, LINK, PREFIX_ICON, TEXT } = ExploreTableColumnTypeEnum;
+    const { columns } = this.$route.query;
+    let routerColumns = [];
+    try {
+      if (columns) {
+        routerColumns = JSON.parse(decodeURIComponent(columns?.toString() || '[]'));
+      }
+    } catch {
+      routerColumns = [];
+    }
     return [
       {
         id: 'time',
@@ -343,6 +352,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         min_width: 590,
         type: CONTENT,
       },
+      ...(routerColumns?.map(item => ({
+        ...item,
+      })) || []),
       {
         id: 'target',
         name: this.$t('目标'),
@@ -570,7 +582,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   textColumnFormatter(column: EventExploreTableColumn) {
     return row => {
-      const alias = row[column.id].alias;
+      const alias = row[column.id]?.alias || row.origin_data?.[column.id];
       return (
         <span
           class='explore-text-col explore-overflow-tip-col'

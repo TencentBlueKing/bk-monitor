@@ -40,11 +40,12 @@ class BaseApiAuthChecker:
     target_eq_map = {}
     target_cont_map = {}
 
-    def __init__(self, token):
+    def __init__(self, token: ApiAuthToken):
         self.request = get_request(peaceful=True)
         # api权限令牌
-        self.token: ApiAuthToken = token
+        self.token = token
         self.bk_biz_id: int = int(token.namespaces[0][4:])
+        self.bk_tenant_id: str = token.bk_tenant_id
         # 时间校验参数
         self.time_params: dict = self.get_time_params()
         # 过滤校验参数、场景校验参数、额外校验参数
@@ -290,7 +291,9 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
 
     def query_configs_check(self, query_configs):
         custom_event_id = int(self.scene_params["scene_id"].lstrip("custom_event_"))
-        config = CustomEventGroup.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_event_id)
+        config = CustomEventGroup.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), bk_tenant_id=self.bk_tenant_id, pk=custom_event_id
+        )
         table = query_configs[0].get("table", "")
         if table and not table.startswith(config.table_id):
             raise ParamsPermissionDeniedError(
@@ -300,7 +303,9 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
 
     def log_query_check(self, request_data):
         custom_event_id = int(self.scene_params["scene_id"].lstrip("custom_event_"))
-        config = CustomEventGroup.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_event_id)
+        config = CustomEventGroup.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), bk_tenant_id=self.bk_tenant_id, pk=custom_event_id
+        )
         table = request_data.get("result_table_id", "")
         if table != config.table_id:
             raise ParamsPermissionDeniedError(
