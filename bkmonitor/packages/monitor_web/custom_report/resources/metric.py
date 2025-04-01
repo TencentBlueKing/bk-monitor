@@ -957,7 +957,13 @@ class CreateOrUpdateGroupingRule(Resource):
                 )
                 params["index"] = max_index + 1
                 # 创建分组规则
-                grouping_rule = CustomTSGroupingRule.objects.create(**params)
+                grouping_rule = CustomTSGroupingRule.objects.create(
+                    time_series_group_id=params["time_series_group_id"],
+                    name=params["name"],
+                    manual_list=params["manual_list"],
+                    auto_rules=params["auto_rules"],
+                    index=params["index"],
+                )
             else:
                 grouping_rule = group_rules[0]
                 # 更新分组信息
