@@ -696,6 +696,7 @@ class ValidateCustomTsGroupLabel(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=False)
         data_label = serializers.CharField(required=True)
 
