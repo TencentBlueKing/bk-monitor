@@ -20,16 +20,20 @@ class CalendarCacheManager(CacheManager):
         results = cls.cache.mget(
             [cls.CACHE_KEY_TEMPLATE.format(calendar_id=calendar_id) for calendar_id in calendar_ids]
         )
-        calendars = [json.loads(result or "{}") for result in results]
+        calendars = [json.loads(result or "[]") for result in results]
 
         # 补充默认租户ID
-        for calendar in calendars:
-            if "bk_tenant_id" not in calendar:
-                calendar["bk_tenant_id"] = DEFAULT_TENANT_ID
+        for calendar_items in calendars:
+            for calendar_item in calendar_items:
+                if "bk_tenant_id" not in calendar_item:
+                    calendar_item["bk_tenant_id"] = DEFAULT_TENANT_ID
 
         # 如果指定了租户ID，则只返回指定租户的日历
         if bk_tenant_id:
-            calendars = [calendar for calendar in calendars if calendar["bk_tenant_id"] == bk_tenant_id]
+            calendars = [
+                [calendar_item for calendar_item in calendar_items if calendar_item["bk_tenant_id"] == bk_tenant_id]
+                for calendar_items in calendars
+            ]
 
         return calendars
 
