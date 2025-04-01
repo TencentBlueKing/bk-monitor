@@ -377,7 +377,7 @@ def update_collector_storage_config(storage_cluster_id):
     index_set_ids = LogIndexSet.objects.filter(storage_cluster_id=storage_cluster_id).values_list(
         "index_set_id", flat=True
     )
-    collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids)
+    collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
             handler = CollectorHandler(collector.collector_config_id)
@@ -403,9 +403,13 @@ def update_collector_storage_config(storage_cluster_id):
             }
             etl_handler = EtlHandler.get_instance(collector.collector_config_id)
             etl_handler.update_or_create(**etl_params)
+            logger.info(
+                "[update_collector_storage_config] executed successfully, collector_config_id->%s",
+                collector.collector_config_id,
+            )
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
-                "Failed to update collector storage config, collector_config_id->%s, reason: %s",
+                "[update_collector_storage_config] executed failed, collector_config_id->%s, reason: %s",
                 collector.collector_config_id,
                 e,
             )
