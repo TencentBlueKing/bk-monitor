@@ -253,6 +253,7 @@ class SaveItemResource(Resource):
             return value
 
     def perform_request(self, params: dict):
+        params["bk_tenant_id"] = get_request_tenant_id()
         return {"id": CalendarItemModel.objects.create(**params).id}
 
 
@@ -274,7 +275,7 @@ class DeleteItemResource(Resource):
 
         def validate_id(self, value):
             if value:
-                item = CalendarItemModel.objects.get(id=value)
+                item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=value)
                 calendar = CalendarModel.objects.filter(
                     id=item.calendar_id, bk_tenant_id=get_request_tenant_id()
                 ).first()
@@ -287,14 +288,16 @@ class DeleteItemResource(Resource):
     def perform_request(self, params: dict):
         delete_type = params["delete_type"]
         item_id = params["id"]
-        item = CalendarItemModel.objects.get(id=item_id)
+        item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=item_id)
         start_time = params["start_time"]
 
         if not item.repeat or item.parent_id:
             item.delete()
         elif delete_type == DELETE_TYPE_LIST[0]:
             if start_time == item.start_time:
-                CalendarItemModel.objects.filter(Q(parent_id=item_id) | Q(id=item_id)).delete()
+                CalendarItemModel.objects.filter(
+                    Q(parent_id=item_id) | Q(id=item_id), bk_tenant_id=get_request_tenant_id()
+                ).delete()
             else:
                 raise ValueError(_("当前事项不是第一项，无法删除全部"))
         elif delete_type == DELETE_TYPE_LIST[1]:
@@ -304,7 +307,9 @@ class DeleteItemResource(Resource):
             item.save()
         else:
             # 将item.start_time大于start_time并且挂在在当前事项的子事项解除挂载
-            CalendarItemModel.objects.filter(start_time__gte=start_time, parent_id=item_id).update(parent_id=None)
+            CalendarItemModel.objects.filter(
+                start_time__gte=start_time, parent_id=item_id, bk_tenant_id=get_request_tenant_id()
+            ).update(parent_id=None)
             exclude_date = item.repeat["exclude_date"]
             exclude_date.append(get_day(start_time, item.time_zone))
             for time in exclude_date.copy():
@@ -345,8 +350,8 @@ class EditItemResource(Resource):
 
         def validate_id(self, value):
             if value:
-                item = CalendarItemModel.objects.get(id=value)
-                calendar = CalendarModel.objects.get(id=item.calendar_id)
+                item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=value)
+                calendar = CalendarModel.objects.get(id=item.calendar_id, bk_tenant_id=get_request_tenant_id())
                 if calendar.classify == "default":
                     raise ValidationError(_("该事项属于内置日历事项，不能进行任何操作"))
             return value
@@ -354,7 +359,7 @@ class EditItemResource(Resource):
     def perform_request(self, params: dict):
         change_type = params["change_type"]
         item_id = params["id"]
-        item = CalendarItemModel.objects.get(id=item_id)
+        item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=item_id)
         name = params.get("name", item.name)
         calendar_id = params.get("calendar_id", item.calendar_id)
         start_time = params.get("start_time", item.start_time)
@@ -374,6 +379,7 @@ class EditItemResource(Resource):
             # 仅改变当前时间的日历事项
             # 1. 将该事项设置为新事项，并且将该新事项挂载到item上
             new_item = CalendarItemModel.objects.create(
+                bk_tenant_id=get_request_tenant_id(),
                 name=name,
                 calendar_id=calendar_id,
                 start_time=start_time,
@@ -390,6 +396,7 @@ class EditItemResource(Resource):
             # 改变当前事项及未来所有事项
             # 1. 根据相关配置生成新的事项
             new_item = CalendarItemModel.objects.create(
+                bk_tenant_id=get_request_tenant_id(),
                 name=name,
                 calendar_id=calendar_id,
                 start_time=start_time,
@@ -398,7 +405,9 @@ class EditItemResource(Resource):
                 time_zone=item.time_zone,
             )
             # 2. 根据start_time去将子表解除关联
-            CalendarItemModel.objects.filter(parent_id=item_id, start_time__gte=start_time).update(parent_id=None)
+            CalendarItemModel.objects.filter(
+                parent_id=item_id, start_time__gte=start_time, bk_tenant_id=get_request_tenant_id()
+            ).update(parent_id=None)
             # 3. 删除exclude_date中
             exclude_date = item.repeat["exclude_date"]
             exclude_date.append(get_day(start_time, item.time_zone))

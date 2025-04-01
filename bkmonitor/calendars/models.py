@@ -92,10 +92,8 @@ class CalendarItemModel(AbstractModel):
     日历事项模型
     """
 
-    name = models.CharField(
-        "日历事项名称",
-        max_length=15,
-    )
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    name = models.CharField("日历事项名称", max_length=15)
     calendar_id = models.IntegerField("日历ID")
     start_time = models.IntegerField("事项开始时间")
     end_time = models.IntegerField("事项结束时间")

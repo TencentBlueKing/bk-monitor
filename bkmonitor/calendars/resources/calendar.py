@@ -131,5 +131,5 @@ class DeleteCalendarResource(Resource):
         calendar = CalendarModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=params["id"])
 
         # 删除日历之前需要先删除该日历下的所有日历事项
-        CalendarItemModel.objects.filter(calendar_id=calendar.id).delete()
+        CalendarItemModel.objects.filter(calendar_id=calendar.id, bk_tenant_id=get_request_tenant_id()).delete()
         calendar.delete()
