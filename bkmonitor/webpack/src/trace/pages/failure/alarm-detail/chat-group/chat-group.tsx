@@ -82,7 +82,6 @@ export default defineComponent({
           } else {
             contentType.value = ['alarm_content'];
           }
-          console.log(props.assignee, 'props.assignee');
           localValue.value.splice(0, localValue.value.length, ...props.assignee);
         }
       }
@@ -134,7 +133,7 @@ export default defineComponent({
     return (
       <Dialog
         width={640}
-        ext-cls='chat-group-dialog-wrap'
+        class='chat-group-dialog-wrap'
         v-slots={{
           default: [
             <div

@@ -52,10 +52,10 @@
   .failure-process-list-line {
     position: absolute;
     top: 32px;
-    left: 50%;
+    left: -24px;
     display: inline-block;
     width: 1px;
-    height: 36px;
+    height: calc(100% - 14px);
     background: #dcdee5;
     border-radius: 1px;
   }
@@ -63,7 +63,7 @@
   .failure-process-list {
     width: 100%;
     height: calc(100% - 48px);
-    padding-top: 12px;;
+    padding-top: 12px;
     overflow-y: auto;
 
     .failure-process-item {
@@ -74,7 +74,7 @@
       cursor: pointer;
 
       &.active {
-        background: #F0F5FF;
+        background: #f0f5ff;
       }
 
       .item-icon {
@@ -91,7 +91,7 @@
       .tag-bold {
         margin-left: 2px;
         font-weight: 700;
-        color: #63656E;
+        color: #63656e;
       }
       .tag-txt {
         color: #313238;
@@ -105,8 +105,7 @@
 
       .tag-item {
         display: inline-block;
-        height: 20px;
-        padding: 0px 6px;
+        padding: 1px 6px;
         margin-top: 4px;
         margin-right: 4px;
         margin-left: 2px;
@@ -156,8 +155,6 @@
     }
 
     .failure-process-item-avatar {
-      position: relative;
-
       display: flex;
       align-items: center;
       justify-content: center;
@@ -174,7 +171,17 @@
     }
 
     .failure-process-item-content {
+      position: relative;
       width: calc(100% - 32px);
+      &::after {
+        content: '';
+        display: inline-block;
+        position: absolute;
+        width: 100%;
+        border-bottom: 1px dashed #eaebf0;
+        right: 0;
+        bottom: -10px;
+      }
 
       p {
         padding: 0px;

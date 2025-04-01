@@ -465,7 +465,7 @@ export default defineComponent({
     return (
       <Dialog
         width={800}
-        ext-cls='manual-process-dialog-wrap'
+        class='manual-process-dialog-wrap'
         v-slots={{
           default: (
             <Loading loading={this.loading}>
