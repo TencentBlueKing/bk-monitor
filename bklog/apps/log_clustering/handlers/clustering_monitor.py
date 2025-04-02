@@ -57,7 +57,7 @@ from apps.log_clustering.models import (
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_request_app_code
+from apps.utils.local import get_external_app_code
 
 
 class ClusteringMonitorHandler(object):
@@ -342,7 +342,7 @@ class ClusteringMonitorHandler(object):
                 bk_biz_id=self.clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
             )
-            .filter(source_app_code=get_request_app_code())
+            .filter(source_app_code=get_external_app_code())
             .first()
         )
 

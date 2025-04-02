@@ -38,7 +38,7 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 from apps.models import SoftDeleteModel
-from apps.utils.local import get_request_app_code
+from apps.utils.local import get_external_app_code
 
 
 class SampleSet(SoftDeleteModel):
@@ -89,7 +89,7 @@ class ClusteringRemark(SoftDeleteModel):
     owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
     strategy_id = models.IntegerField(_("策略id"), default=0)
     strategy_enabled = models.BooleanField(_("策略是否启用"), default=False)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_external_app_code, max_length=32, blank=True)
 
     class Meta:
         index_together = ["signature", "group_hash"]
