@@ -1,0 +1,99 @@
+$levelColor: #ea3636 #ff9c01 #699df4;
+
+.query-configs-main {
+    .metirc-list-item-wrap {
+      &:not(:last-child) {
+        margin-bottom: 8px;
+      }
+    }
+
+    .skeleton-element {
+      width: 180px;
+    }
+
+    .targets-desc {
+      display: flex;
+      align-items: center;
+      height: 20px;
+      padding-left: 8px;
+      margin-top: 16px;
+
+      .icon-mc-tv {
+        margin-right: 8px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .targets-desc-text {
+        cursor: pointer;
+      }
+    }
+
+    .event-alert-level {
+      display: flex;
+      align-items: center;
+      height: 20px;
+      padding-left: 8px;
+      margin-top: 16px;
+      line-height: 20px;
+
+      .level-label {
+        margin-right: 8px;
+        font-weight: 700;
+        color: #63656e;
+      }
+
+      .level-content {
+        display: flex;
+        align-items: center;
+
+        @for $i from 1 through length($levelColor) {
+          .level-icon-#{$i} {
+            color: nth($levelColor, $i);
+          }
+        }
+
+        .icon-monitor {
+          margin-right: 5px;
+          font-size: 16px;
+        }
+
+        .level-text {
+          margin-top: 1px;
+        }
+      }
+    }
+
+    .promql-content {
+      .edit-wrap {
+        position: relative;
+        // height: 160px;
+        // min-height: 160px;
+        // overflow-y: auto;
+        // background-color: #fff;
+        // border: 1px solid #dcdee5;
+      }
+
+      .step-wrap {
+        display: block;
+        margin: 10px 0 0 0;
+
+        .step-input {
+          width: 205px;
+
+          .step-input-prepend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 96px;
+            height: 100%;
+            font-size: 12px;
+
+            .icon-hint {
+              margin-left: 8px;
+            }
+          }
+        }
+      }
+    }
+  }
