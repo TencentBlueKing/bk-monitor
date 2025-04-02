@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 import json
 
-import django
 import pytest
+from django.test import TestCase
 
 from apm.constants import DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG, ConfigTypes
 from apm.core.application_config import ApplicationConfig
 from apm.models import ApmApplication, NormalTypeValueConfig
 
 pytestmark = pytest.mark.django_db
-
 
 BK_BIZ_ID = 2
 APP_NAME = "test_res_demo"
@@ -18,7 +17,6 @@ DESCRIPTION = "this is demo"
 CONFIG_LEVEL = "app_level"
 CONFIG_KEY = "test_res_demo"
 
-
 DB_SLOW_COMMAND_CONFIG = {
     "destination": "db.is_slow",
     "rules": [{"match": "Mysql", "threshold": 100}, {"match": "Redis", "threshold": 10}],
@@ -26,12 +24,8 @@ DB_SLOW_COMMAND_CONFIG = {
 
 
 @pytest.mark.django_db
-class TestReleaseAppConfig(django.test.TestCase):
-
-    databases = {
-        'default',
-        'monitor_api',
-    }
+class TestReleaseAppConfig(TestCase):
+    databases = {"default", "monitor_api"}
 
     def test_db_slow_command_config(self):
         ApmApplication.objects.create(
