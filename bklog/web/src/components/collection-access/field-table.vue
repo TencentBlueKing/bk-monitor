@@ -1080,7 +1080,7 @@
         let queryResult = '';
         row.btnShow = false;
         if (!alias_name) {
-          row.alias_name_show = false;
+          this.$set(row, 'alias_name_show', false);
           row.btnShow = true;
           return false;
         }
@@ -1089,7 +1089,9 @@
             queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
           } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
-          } else if (this.selectEtlConfig === 'bk_log_json') {
+          } else if (alias_name === row.field_name) {
+            queryResult = this.$t('重命名与字段名重复');
+          }  else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
             queryResult = this.filedNameIsConflict(field_index, alias_name)
