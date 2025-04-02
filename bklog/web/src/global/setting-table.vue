@@ -76,7 +76,7 @@
                  
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div 
-                    v-if="!props.row.alias_name " 
+                    v-if="aliasShow(props.row)" 
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
                     class="field-name">
                     <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
@@ -1068,6 +1068,12 @@
             }
           } )
         })
+      },
+      aliasShow(row){
+        if (row.is_built_in) {
+          return true;
+        }
+        return !this.globalsData.field_built_in.find(item => item.id === row.field_name.toLocaleLowerCase())
       }
     },
   };
