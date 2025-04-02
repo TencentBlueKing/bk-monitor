@@ -2106,41 +2106,41 @@
 
                   if (etl_config === 'bk_log_delimiter') {
                     // 分隔符逻辑较特殊，需要单独拎出来
-                    let index;
+                    let index = [];
                     newFields.forEach((item, idx) => {
                       // 找到最后一个field_name不为空的下标
                       if (item.field_name && !item.is_delete) {
-                        index = idx + 1;
+                        index.push(item)
                       }
                     });
+                    
                     const list = [];
+                    // 将标记为删除的字段过滤出来，并添加到 list 中
                     const deletedFileds = newFields.filter(item => item.is_delete);
                     list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
-                    if (index) {
-                      newFields.forEach((item, idx) => {
-                        // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index - 1 === item.field_index );
-                        item.value = child ? child.value : ''; // 修改value值(预览值)
-                        if (index > idx && !item.is_delete) {
-                          // 将未删除的存进数组
-                          list.push(item);
-                        }
+                    // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
+                    if (index.length) {
+                      index.forEach((item, idx) => {
+                        const child = dataFields[idx];
+                        item.value = child ? child.value : '';
+                        list.push(item);
                       });
-                      dataFields.forEach(item => {
-                        // 新增的字段需要存进数组
-                        const child = list.find(field => field.field_index === item.field_index  - 1);
-                        if (!child) {
-                          list.push(Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item));
-                        }
-                      });
+                      // 处理 dataFields 中超出 index 范围的部分
+                      if (dataFields.length > index.length) {
+                        dataFields.slice(index.length).forEach((item) => {
+                          const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                          list.push(newItem);
+                        });
+                      }
                     } else {
                       dataFields.reduce((arr, item) => {
+                        item.field_index = arr.length;
                         const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
                         arr.push(field);
                         return arr;
                       }, list);
                     }
-                    list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
+                    // list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
                     this.formData.fields.splice(0, fields.length, ...list);
                   }
                 }
@@ -2171,7 +2171,9 @@
               this.formatResult = false;
             }
           })
-          .catch(() => {
+          .catch((error) => {
+            console.log(error);
+            
             if (!type) {
               // 原始日志内容修改不引发结果变更
               this.formatResult = false;
