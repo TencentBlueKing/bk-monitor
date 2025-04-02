@@ -641,6 +641,13 @@
 
     return true;
   });
+
+  defineExpose({
+    handleShowSlider: () => {
+      hideSingleConfigInput();
+      handleOpenSidebar();
+    },
+  });
 </script>
 
 <style lang="scss">

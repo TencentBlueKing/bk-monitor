@@ -94,6 +94,7 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
     }
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.menuRef,
+      animateFill: false,
       trigger: 'click',
       placement: 'bottom-end',
       theme: 'light field-template-menu field-template-menu-expand',
