@@ -36,11 +36,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   }
 
   .alarm-detail-table {
-    .bk-table-body {
-      .cell {
-        display: flex !important;
-        height: 56px !important;
-        line-height: 56px !important;
+    .vxe-table--body {
+      .duration-class .vxe-cell {
+        height: 100%;
       }
     }
 
@@ -89,7 +87,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       width: 100%;
       height: 100%;
 
-      .root-cause, .root-feed {
+      .root-cause,
+      .root-feed {
         position: absolute;
         top: 50%;
         right: -3px;
@@ -106,7 +105,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       }
 
       .root-feed {
-        background: #FF9C01;
+        background: #ff9c01;
       }
 
       .name-info {
@@ -276,4 +275,20 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
 .alarm-detail-table-more-popover {
   padding: 6px 0px !important;
+}
+
+.bk-vxe-table {
+  .vxe-table--render-wrapper {
+    .vxe-table--header {
+      width: 100% !important;
+    }
+
+    .vxe-table--body {
+      width: 100% !important;
+    }
+  }
+}
+
+.vxe-table--tooltip-wrapper {
+  z-index: 9999 !important;
 }

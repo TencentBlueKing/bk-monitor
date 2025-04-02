@@ -97,7 +97,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const failureTopo = ref<InstanceType<typeof FailureTopo>>(null);
-    const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
+    const active = ref<string>(FailureContentTabView.FAILURE_VIEW);
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');

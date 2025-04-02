@@ -1,0 +1,77 @@
+.bv-custom-table {
+  .vxe-cell--drag-handle + .vxe-cell--label {
+    display: none;
+  }
+
+  .clear-cell-padding {
+    .vxe-cell {
+      padding: 0 1px !important;
+    }
+  }
+
+  .vxe-table--filter-wrapper {
+    .vxe-table--filter-body {
+      max-height: 300px !important;
+    }
+  }
+
+  .vxe-table--empty-content {
+    padding-bottom: 8px;
+  }
+
+  .vxe-table--tooltip-wrapper {
+    z-index: 9999 !important;
+  }
+
+  .bk-vxe-table {
+    .border--inner,
+    .border-outer {
+      .vxe-table--render-wrapper {
+        .vxe-table--append-wrapper {
+          border-bottom: 0;
+        }
+      }
+
+      .vxe-table--border-line {
+        border-bottom: 0;
+      }
+    }
+  }
+
+
+  &.is-no-check-all {
+    // 新表格没复用Grid模式，导致搜索为空后全选按钮disabled选中
+    .is--empty {
+      .vxe-cell--checkbox {
+        color: var(--vxe-ui-font-disabled-color) !important;
+        .vxe-checkbox--icon {
+          color: var(--vxe-ui-input-disabled-color) !important;
+          &::before {
+            content: "\e727" !important;
+          }
+        }
+      }
+    }
+  }
+
+  // loading状态表格设置默认高度
+  &.is-loading {
+    .vxe-table--body-wrapper {
+      min-height: 138px;
+    }
+  }
+
+  // vxe-table表头设置icon与文字居中对齐
+  &.setting-config-table {
+    .vxe-header--column {
+      .vxe-cell {
+        display: flex;
+        align-items: center;
+
+        .vxe-cell--sort {
+          transform: translateY(3px);
+        }
+      }
+    }
+  }
+}

@@ -12,19 +12,111 @@ $font-size-large: 16px;
 
 $font-color-base: $default-color;
 
-
 $line-height-base: 16px;
 $line-height-medium: 16px;
 $line-height-large: 18px;
 
-
 $component-size-small: 26px;
 $component-size-base: 32px;
 $component-size-large: 38px;
-
 
 $border-color-base: #dcdee5;
 $border-color-disable: #dcdee5;
 $border-width-base: 1px;
 $border-style-base: solid;
 $border-radius-base: 2px;
+
+:host {
+  --vxe-ui-font-color: #606266;
+  --vxe-ui-font-primary-color: #3a84ff;
+  --vxe-ui-font-family: -apple-system, blinkmacsystemfont, segoe ui, pingfang sc, hiragino sans gb, microsoft yahei,
+    helvetica neue, helvetica, arial, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol;
+  --vxe-ui-font-size-default: 14px;
+  --vxe-ui-font-size-medium: 14px;
+  --vxe-ui-font-size-small: 13px;
+  --vxe-ui-font-size-mini: 12px;
+  --vxe-ui-border-radius: 4px;
+  --vxe-ui-input-disabled-color: #dcdfe6;
+  --vxe-ui-input-height-default: 34px;
+  --vxe-ui-input-height-medium: 32px;
+  --vxe-ui-input-height-small: 30px;
+  --vxe-ui-input-height-mini: 28px;
+  --vxe-ui-table-header-font-color: var(--vxe-ui-font-color);
+  --vxe-ui-table-footer-font-color: var(--vxe-ui-font-color);
+  --vxe-ui-table-border-radius: var(--vxe-ui-border-radius);
+  --vxe-ui-table-border-width: 1px;
+  --vxe-ui-table-resizable-line-color: #d9dddf;
+  --vxe-ui-table-resizable-drag-line-color: var(--vxe-ui-font-primary-color);
+  --vxe-ui-table-footer-background-color: var(--vxe-ui-layout-background-color);
+  --vxe-ui-table-tree-node-line-color: #909399;
+  --vxe-ui-table-tree-node-line-style: dotted;
+  --vxe-ui-table-header-font-weight: 700;
+  --vxe-ui-table-row-height-default: 48px;
+  --vxe-ui-table-row-height-medium: 78px;
+  --vxe-ui-table-row-height-small: 60px;
+  --vxe-ui-table-row-height-mini: 56px;
+  --vxe-ui-table-row-line-height: 22px;
+  --vxe-ui-table-column-padding-default: 13px 0;
+  --vxe-ui-table-column-padding-medium: 11px 0;
+  --vxe-ui-table-column-padding-small: 9px 0;
+  --vxe-ui-table-column-padding-mini: 7px 0;
+  --vxe-ui-table-column-hover-background-color: #d7effb;
+  --vxe-ui-table-column-current-background-color: #e6f7ff;
+  --vxe-ui-table-column-icon-border-color: #c0c4cc;
+  --vxe-ui-table-column-icon-border-hover-color: #515a6e;
+  --vxe-ui-table-cell-placeholder-color: #c0c4cc;
+  --vxe-ui-table-cell-padding-left: 10px;
+  --vxe-ui-table-cell-padding-right: 10px;
+  --vxe-ui-table-cell-input-height-default: var(--vxe-ui-table-row-height-default) - 6;
+  --vxe-ui-table-cell-input-height-medium: var(--vxe-ui-table-row-height-medium) - 6;
+  --vxe-ui-table-cell-input-height-small: var(--vxe-ui-table-row-height-small) - 6;
+  --vxe-ui-table-cell-input-height-mini: var(--vxe-ui-table-row-height-mini) - 6;
+  --vxe-ui-table-cell-dirty-width: 5px;
+  --vxe-ui-table-cell-dirty-update-color: #f56c6c;
+  --vxe-ui-table-cell-dirty-insert-color: #19a15f;
+  --vxe-ui-table-cell-area-border-color: var(--vxe-ui-font-primary-color);
+  --vxe-ui-table-cell-area-border-width: 1px;
+  --vxe-ui-table-cell-area-status-border-width: var(--vxe-ui-table-cell-area-border-width);
+  --vxe-ui-table-cell-main-area-extension-border-color: #fff;
+  --vxe-ui-table-cell-main-area-extension-background-color: var(--vxe-ui-font-primary-color);
+  --vxe-ui-table-cell-extend-area-border-width: 2px;
+  --vxe-ui-table-cell-copy-area-border-width: 3px;
+  --vxe-ui-table-cell-active-area-border-width: 2px;
+  --vxe-ui-table-cell-active-area-background-color: transparent;
+  --vxe-ui-table-cell-copy-area-border-color: var(--vxe-ui-table-cell-area-border-color);
+  --vxe-ui-table-cell-extend-area-border-color: var(--vxe-ui-table-cell-area-border-color);
+  --vxe-ui-table-cell-active-area-border-color: var(--vxe-ui-table-cell-area-border-color);
+  --vxe-ui-table-cell-area-background-color: rgb(64 158 255 / 20%);
+  --vxe-ui-table-header-active-area-background-color: rgb(64 158 255 / 5%);
+  --vxe-ui-table-expand-padding-default: 16px;
+  --vxe-ui-table-checkbox-range-border-width: 1px;
+  --vxe-ui-table-checkbox-range-border-color: #006af1;
+  --vxe-ui-table-checkbox-range-background-color: rgb(50 128 252 / 20%);
+  --vxe-ui-table-fixed-left-scrolling-box-shadow: 8px 0 10px -5px var(--vxe-ui-table-fixed-scrolling-box-shadow-color);
+  --vxe-ui-table-fixed-right-scrolling-box-shadow: -8px 0 10px -5px var(--vxe-ui-table-fixed-scrolling-box-shadow-color);
+  --vxe-ui-table-menu-item-width: 198px;
+  --vxe-ui-table-menu-background-color: #fff;
+  --vxe-ui-table-validate-error-color: #f56c6c;
+  --vxe-ui-table-validate-error-background-color: var(--vxe-ui-layout-background-color);
+  --vxe-ui-toolbar-custom-active-background-color: #d9dadb;
+  --vxe-ui-tooltip-dark-color: #fff;
+  --vxe-ui-tooltip-dark-background-color: #303133;
+  --vxe-ui-base-border-radius: 4px;
+  --primary-color: var(--vxe-ui-font-primary-color);
+  --vxe-ui-table-header-background-color: #f8f8f9;
+  --vxe-ui-table-border-color: #e8eaec;
+  --vxe-ui-table-row-hover-background-color: #f5f7fa;
+  --vxe-ui-table-row-striped-background-color: #fafafa;
+  --vxe-ui-table-row-hover-striped-background-color: #f5f7fa;
+  --vxe-ui-table-row-radio-checked-background-color: #fff3e0;
+  --vxe-ui-table-row-hover-radio-checked-background-color: #ffebbc;
+  --vxe-ui-table-row-checkbox-checked-background-color: #fff3e0;
+  --vxe-ui-table-row-hover-checkbox-checked-background-color: #ffebbc;
+  --vxe-ui-table-row-current-background-color: #e6f7ff;
+  --vxe-ui-table-row-hover-current-background-color: #d7effb;
+  --vxe-ui-table-fixed-scrolling-box-shadow-color: rgb(0 0 0 / 12%);
+
+  .vxe-table--tooltip-wrapper {
+    position: fixed !important;
+  }
+}

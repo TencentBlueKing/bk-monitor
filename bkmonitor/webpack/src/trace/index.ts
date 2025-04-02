@@ -47,6 +47,9 @@ import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 // import 'monitor-pc/tailwind.css';
+import 'tippy.js/dist/tippy.css';
+import 'tippy.js/themes/light.css';
+
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

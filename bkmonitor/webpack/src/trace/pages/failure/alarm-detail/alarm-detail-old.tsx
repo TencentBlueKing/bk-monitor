@@ -37,12 +37,11 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Exception, Loading, Message, Popover } from 'bkui-vue';
+import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
-import Table from 'trace/components/table';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
@@ -56,9 +55,7 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 
 import type { IFilterSearch, IIncident } from '../types';
-import type { ISettings } from '@blueking/table/typings/components/setting-column/Index.vue';
-import type { VxeTableDefines } from '@blueking/vxe-table';
-import type { Column } from 'bkui-vue/lib/table/props';
+import type { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
 
 import './alarm-detail.scss';
 
@@ -180,20 +177,6 @@ export default defineComponent({
         name: t('一键拉群'),
       });
     }
-
-    const tooltipConfig = reactive({
-      showAll: true,
-      contentMethod: ({ column }) => {
-        const { field } = column;
-        if (['id', 'alert_name', 'time'].includes(field)) {
-          // 使用默认行为
-          return null;
-        }
-        // 返回空字符串，控制单元格不显示提示内容
-        return '';
-      },
-    });
-
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
@@ -316,8 +299,8 @@ export default defineComponent({
       setDialogData(v);
       handleAlarmDispatchShowChange(true);
     };
-    const handleEnter = (val: VxeTableDefines.CellMouseenterEventParams<any>) => {
-      hoverRowIndex.value = val.rowIndex;
+    const handleEnter = (e, row, index) => {
+      hoverRowIndex.value = index;
     };
     /* 告警确认文案 */
     const askTipMsg = (isAak, status, ackOperator) => {
@@ -330,17 +313,21 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
-    const columns = reactive<Column[]>([
+    const columns = reactive<TableIColumn[]>([
       {
         label: '#',
-        type: 'seq',
-        field: 'serial',
-        minWidth: 42,
+        type: 'index',
+        prop: 'index',
+        width: 40,
+        minWidth: 40,
+        render: ({ index }) => {
+          return index + 1;
+        },
       },
       {
         label: t('告警ID'),
-        field: 'id',
-        minWidth: 134,
+        prop: 'id',
+        width: 'auto',
         render: ({ data }) => {
           return (
             <div class='name-column'>
@@ -355,9 +342,9 @@ export default defineComponent({
         },
       },
       {
+        width: 'auto',
         label: t('告警名称'),
-        field: 'alert_name',
-        minWidth: 134,
+        prop: 'alert_name',
         render: ({ data }) => {
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
@@ -370,25 +357,25 @@ export default defineComponent({
         },
       },
       {
+        width: 'auto',
         label: t('业务名称'),
-        field: 'project',
-        minWidth: 165,
+        prop: 'project',
         render: ({ data }) => {
           return `[${data.bk_biz_id}] ${data.bk_biz_name || '--'}`;
         },
       },
       {
+        width: 'auto',
         label: t('分类'),
-        field: 'category_display',
-        minWidth: 134,
+        prop: 'category_display',
         render: ({ data }) => {
           return data.category_display;
         },
       },
       {
         label: t('告警指标'),
-        field: 'index',
-        minWidth: 134,
+        prop: 'index',
+        width: 'auto',
         render: ({ data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
@@ -428,8 +415,9 @@ export default defineComponent({
       },
       {
         label: t('告警状态'),
-        field: 'status',
+        prop: 'status',
         minWidth: 134,
+        width: '134',
         render: ({ data }) => {
           const { status } = data;
           return (
@@ -441,16 +429,17 @@ export default defineComponent({
       },
       {
         label: t('告警阶段'),
-        field: 'stage_display',
-        minWidth: 80,
+        width: 'auto',
+        prop: 'stage_display',
         render: ({ data }) => {
           return data?.stage_display ?? '--';
         },
       },
       {
         label: t('告警开始/结束时间'),
-        field: 'time',
+        prop: 'time',
         minWidth: 145,
+        width: '145',
         render: ({ data }) => {
           return (
             <span class='time-column'>
@@ -462,11 +451,8 @@ export default defineComponent({
       },
       {
         label: t('持续时间'),
-        field: 'duration',
-        width: 105,
-        minWidth: 105,
-        resizable: false,
-        className: 'duration-class',
+        prop: 'duration',
+        width: 136,
         render: ({ data, index: $index }) => {
           return (
             <div class='status-column'>
@@ -520,20 +506,18 @@ export default defineComponent({
       },
     ]);
 
-    const settings = ref<ISettings>({
-      fields: columns.map(data => {
-        const { label, field } = data as { label: string; field: string };
+    const settings = ref<TableSettings>({
+      fields: columns.slice(1, columns.length - 1).map(data => {
+        const { label, prop } = data as { label: string; prop: string };
         return {
           label,
-          title: field === 'serial' ? t('序号') : label,
-          field,
-          disabled: field === 'id',
+          disabled: prop === 'id',
+          field: prop,
         };
       }),
-      checked: columns.map(({ field }) => field as string),
-      disabled: ['id'],
+      checked: columns.slice(1, columns.length - 1).map(({ prop }) => prop as string),
+      trigger: 'manual' as const,
     });
-
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
       return (
@@ -591,7 +575,6 @@ export default defineComponent({
         </div>
       );
     };
-
     const handleHideMoreOperate = (e?: Event) => {
       if (!popoperOperateInstance.value) {
         return;
@@ -629,7 +612,7 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 10,
+          offset: 0,
           zIndex: 10,
           disableTeleport: false,
           autoPlacement: false,
@@ -732,9 +715,8 @@ export default defineComponent({
       collapseId.value = id;
     };
 
-    const handleSettingChange = (value: ISettings) => {
-      console.log('change setting', value);
-      // settings.value = { ...value, ...settings.value.disabled };
+    const handleSettingChange = ({ checked }) => {
+      console.log(checked, settings.value);
     };
     const handleFeedbackChange = (val: boolean) => {
       dialog.rootCauseConfirm.show = val;
@@ -793,7 +775,6 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
-      tooltipConfig,
     };
   },
   render() {
@@ -879,24 +860,17 @@ export default defineComponent({
                 >
                   <div class='alarm-detail-table'>
                     <Table
-                      border='inner'
-                      columnConfig={{ resizable: true, useKey: true }}
                       columns={this.columns}
                       data={item.alerts}
                       max-height={616}
-                      // scroll-loading={this.scrollLoading}
+                      scroll-loading={this.scrollLoading}
                       settings={this.settings}
-                      show-overflow={true}
                       show-overflow-tooltip={true}
-                      showSettings={true}
-                      tooltip-config={this.tooltipConfig}
-                      virtualEnabled={true}
-                      virtualGt={0}
-                      onCellMouseenter={this.handleEnter}
-                      onCellMouseleave={() => {
+                      onRowMouseEnter={this.handleEnter}
+                      onRowMouseLeave={() => {
                         this.hoverRowIndex = -1;
                       }}
-                      // onSettingChange={this.handleSettingChange}
+                      onSettingChange={this.handleSettingChange}
                       // onScrollBottom={this.handleLoadData}
                     />
                   </div>
