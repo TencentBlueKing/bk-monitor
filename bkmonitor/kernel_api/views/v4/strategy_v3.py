@@ -14,7 +14,6 @@ from rest_framework import serializers
 from alarm_backends.management.commands.token import get_token_info
 from bkmonitor.models import StrategyModel
 from bkmonitor.strategy.new_strategy import Strategy
-from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DATA_CATEGORY
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -26,10 +25,7 @@ class SearchStrategyWithoutBizResource(GetStrategyListV2Resource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
     def perform_request(self, params):
-        strategies = StrategyModel.objects.filter(
-            bk_biz_id=params["bk_biz_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+        strategies = StrategyModel.objects.all()
 
         # 按条件过滤策略
         strategies = self.filter_by_conditions(params["conditions"], strategies)
