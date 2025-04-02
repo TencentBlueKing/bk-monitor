@@ -259,7 +259,7 @@
         <template #default="{ row }">
           <div>
             <bk-switcher v-if="row.owners.length" theme="primary" v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
-            <bk-switcher v-else v-model="row.strategy_enabled" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
+            <bk-switcher v-else v-model="row.strategy_enabled" theme="primary" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
           </div>
         </template>
       </bk-table-column>
@@ -876,6 +876,17 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
+
+        console.log(val, row);
+        
+        // 当创建告警策略开启时，不允许删掉最后一个责任人
+        if(row.strategy_enabled && !val.length){
+          this.$bkMessage({
+              theme: 'error',
+              message: this.$t('创建告警策略时，不允许删掉最后一个责任人')
+            });
+          return
+        }
         this.curEditUniqueVal = {
           signature: row.signature,
           group: row.group,
