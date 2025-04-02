@@ -398,34 +398,46 @@
         transform: translateX(var(--row-offset-left));
       }
 
-      &.normal,
+      &.normal {
+        &::before {
+          background: rgb(220, 222, 229);
+        }
+      }
+
       &.TRACE {
         &::before {
-          background: #dcdee5;
+          background: #a3b1cc;
+        }
+      }
+
+      &.FATAL {
+        &::before {
+          background: rgb(212, 109, 93);
         }
       }
 
       &.DEBUG {
         &::before {
-          background: #92d4f1;
+          background: rgb(146, 212, 241);
         }
       }
 
       &.INFO {
         &::before {
-          background: #6fc5bf;
+          background: rgb(111, 197, 191);
         }
       }
 
-      &.WARN {
+      &.WARN,
+      &.WARNING {
         &::before {
-          background: #f5c78e;
+          background: rgb(245, 199, 142);
         }
       }
 
       &.ERROR {
         &::before {
-          background: #f59789;
+          background: rgb(245, 151, 137);
         }
       }
     }

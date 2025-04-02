@@ -204,6 +204,8 @@ ul.bklog-tag-choice-input {
   }
   .bklog-choice-value-container {
     min-height: 32px;
+    max-height: 300px;
+    overflow-y: auto;
   }
 
   .empty-row {

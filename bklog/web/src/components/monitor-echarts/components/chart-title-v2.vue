@@ -290,7 +290,7 @@
       { id: 'warn', name: '#F5C78E' },
       { id: 'info', name: '#6FC5BF' },
       { id: 'debug', name: '#92D4F1' },
-      { id: 'trace', name: '#DCDEE5' },
+      { id: 'trace', name: '#A3B1CC' },
     ];
 
     gradeValue = 'normal';
@@ -313,37 +313,37 @@
         id: 'fatal',
         color: '#D46D5D',
         name: 'fatal',
-        regExp: 'fatal*',
+        regExp: '/\b(?:FATAL|CRITICAL|EMERGENCY)\b/i',
       },
       {
         id: 'error',
         color: '#F59789',
         name: 'error',
-        regExp: 'err*',
+        regExp: '/\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\b/i',
       },
       {
         id: 'warn',
         color: '#F5C78E',
         name: 'warn',
-        regExp: 'warn*',
+        regExp: '/\b(?:WARNING|WARN|ALERT|NOTICE)\b/i',
       },
       {
         id: 'info',
         color: '#6FC5BF',
         name: 'info',
-        regExp: 'info*',
+        regExp: '/\b(?:INFO|INFORMATION)\b/i',
       },
       {
         id: 'debug',
         color: '#92D4F1',
         name: 'debug',
-        regExp: 'debug*',
+        regExp: '/\b(?:DEBUG|DIAGNOSTIC)\b/i',
       },
       {
         id: 'trace',
-        color: '#DCDEE5',
+        color: '#A3B1CC',
         name: 'trace',
-        regExp: 'trace*',
+        regExp: '/\b(?:TRACE|TRACING)\b/i',
       },
       {
         id: 'others',

@@ -186,7 +186,7 @@
   };
 
   // 如果是当前位置 AND | OR | AND NOT 结尾
-  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)$/gi;
+  const regExpAndOrNot = /\s(?:AND|OR|AND\s+NOT)\s*/gi;
 
   // 如果当前位置是 : 结尾，说明需要显示字段值列表
   const regExpFieldValue = /(:\s*)$/;
@@ -216,18 +216,21 @@
     fieldList.value = [];
 
     const value = getFocusLeftValue();
-    const trimValue = value.trim();
 
-    if (!trimValue.length) {
+    if (!value.length) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
       return;
     }
 
+    const isEndOrNot = regExpAndOrNot.test(value);
+    const isEndWidthEmpty = /\s+$/.test(value);
+
     // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
-    if (regExpAndOrNot.test(trimValue)) {
-      if (/\s+$/.test(value)) {
+    if (isEndOrNot) {
+      if (isEndWidthEmpty) {
         showWhichDropdown('Fields');
+
         fieldList.value.push(...originFieldList());
         return;
       }
@@ -237,7 +240,7 @@
     }
 
     // 如果是以 : 结尾，说明需要显示字段值列表
-    if (regExpFieldValue.test(trimValue)) {
+    if (regExpFieldValue.test(value)) {
       const lastFragments = value.split(separator);
       const lastFragment = lastFragments[lastFragments.length - 1];
       const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
@@ -298,7 +301,11 @@
    * @param {string} type
    */
   const handleClickColon = (type: string) => {
-    emitValueChange(type);
+    let target = type;
+    if (type === ': *') {
+      target = `${target} `;
+    }
+    emitValueChange(target);
     calculateDropdown();
 
     nextTick(() => {
@@ -363,10 +370,10 @@
     const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
       stopEventPreventDefault(e);
-
       if (hasHover && !activeIndex.value) {
         activeIndex.value = 0;
       }
+
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
@@ -411,13 +418,16 @@
   };
 
   const beforeShowndFn = () => {
-    document.addEventListener('keydown', handleKeydown);
-    showWhichDropdown();
-    calculateDropdown();
-
-    nextTick(() => {
-      setOptionActive();
+    // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+    document.addEventListener('keydown', handleKeydown, {
+      capture: true,
     });
+    // showWhichDropdown();
+    // calculateDropdown();
+
+    // nextTick(() => {
+    //   setOptionActive();
+    // });
 
     return (
       showOption.value.showFields ||
@@ -479,7 +489,7 @@
     nextTick(() => {
       setOptionActive();
     });
-  }, 100);
+  });
 
   onBeforeUnmount(() => {
     beforeHideFn();
