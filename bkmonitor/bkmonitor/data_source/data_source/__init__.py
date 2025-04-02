@@ -2213,7 +2213,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 
 
 class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
-    data_source_label = DataSourceLabel.BK_APM
+    data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR_NEW
     data_type_label = DataTypeLabel.LOG
 
     _INDEX: str = "_index"
@@ -2294,9 +2294,8 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
                     agg_func_name: str = "{method}_over_time".format(method=method)
                     query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
                 else:
-                    query["function"].append(
-                        {"method": "date_histogram", "dimensions": group_by, "window": f"{self.interval}s"}
-                    )
+                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
+                    function["window"] = f"{self.interval}s"
 
             field: str = metric["field"]
             if self.is_dimensions_field(field) and field != self._INDEX:
