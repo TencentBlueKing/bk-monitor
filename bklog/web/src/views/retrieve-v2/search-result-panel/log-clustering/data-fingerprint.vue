@@ -258,7 +258,7 @@
       >
         <template #default="{ row }">
           <div>
-            <bk-switcher v-if="row.owners.length" v-model="row.strategy_enabled" @change="changeStrategy(val, row)"></bk-switcher>
+            <bk-switcher v-if="row.owners.length" v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
             <bk-switcher v-else v-model="row.strategy_enabled" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
           </div>
         </template>
@@ -1188,7 +1188,7 @@
         if (this.isLimitExpandView) return false;
         return !this.cacheExpandStr.includes(index);
       },
-      changeStrategy(val = false, row) {
+      changeStrategy(val, row) {
         this.curEditUniqueVal = {
           signature: row.signature,
           origin_pattern: row.origin_pattern,
