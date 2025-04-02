@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
-import { shallowReactive } from 'vue';
+import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -38,7 +37,7 @@ import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
-import { EColumn, type IColumn } from './typing';
+import { EColumn, type ITableData } from './typing';
 
 import type { IAuthority } from '../../typings/authority';
 
@@ -88,99 +87,97 @@ export default defineComponent({
       { name: t('屏蔽中'), id: 0, type: 'effct' },
       { name: t('屏蔽失效'), id: 1, type: 'overdue' },
     ];
-    const columns = shallowRef<IColumn[]>([
-      {
-        id: EColumn.id,
-        name: 'ID',
-        width: 80,
-        disabled: true,
-        sortable: true,
+    /* 表格数据 */
+    const tableData = reactive<ITableData>({
+      loading: false,
+      data: [],
+      columns: [
+        {
+          id: EColumn.id,
+          name: 'ID',
+          width: 100,
+          disabled: true,
+          sortable: true,
+        },
+        {
+          id: EColumn.shieldType,
+          name: t('分类'),
+          width: 150,
+          disabled: true,
+          filterMultiple: true,
+          filter: [
+            { label: t('告警事件屏蔽'), value: 'alert' },
+            { label: t('范围屏蔽'), value: 'scope' },
+            { label: t('策略屏蔽'), value: 'strategy' },
+            { label: t('维度屏蔽'), value: 'dimension' },
+          ],
+        },
+        {
+          id: EColumn.shieldContent,
+          name: t('屏蔽内容'),
+          width: 250,
+          disabled: false,
+        },
+        {
+          id: EColumn.beginTime,
+          name: t('开始时间'),
+          width: 150,
+          disabled: false,
+          sortable: true,
+        },
+        {
+          id: EColumn.failureTime,
+          name: t('失效时间'),
+          width: 150,
+          disabled: false,
+          sortable: true,
+        },
+        {
+          id: EColumn.cycleDuration,
+          name: t('持续周期及时长'),
+          width: 150,
+          disabled: false,
+        },
+        {
+          id: EColumn.description,
+          name: t('屏蔽原因'),
+          width: 230,
+          disabled: false,
+        },
+        {
+          id: EColumn.status,
+          name: t('状态'),
+          width: 150,
+          disabled: false,
+        },
+        {
+          id: EColumn.updateUser,
+          name: t('更新人'),
+          width: 150,
+          disabled: false,
+        },
+        {
+          id: EColumn.operate,
+          name: t('操作'),
+          width: 150,
+          disabled: true,
+        },
+      ],
+      pagination: {
+        current: 1,
+        count: 0,
+        limit: 10,
       },
-      {
-        id: EColumn.shieldType,
-        name: t('分类'),
-        width: 150,
-        disabled: true,
-        filterMultiple: true,
-        filter: [
-          { label: t('告警事件屏蔽'), value: 'alert' },
-          { label: t('范围屏蔽'), value: 'scope' },
-          { label: t('策略屏蔽'), value: 'strategy' },
-          { label: t('维度屏蔽'), value: 'dimension' },
-        ],
+      sort: {
+        field: '',
+        order: '',
       },
-      {
-        id: EColumn.shieldContent,
-        name: t('屏蔽内容'),
-        disabled: false,
-        minWidth: 250,
-      },
-      {
-        id: EColumn.beginTime,
-        name: t('开始时间'),
-        width: 150,
-        disabled: false,
-        sortable: true,
-      },
-      {
-        id: EColumn.failureTime,
-        name: t('失效时间'),
-        width: 150,
-        disabled: false,
-        sortable: true,
-      },
-      {
-        id: EColumn.cycleDuration,
-        name: t('持续周期及时长'),
-        width: 150,
-        disabled: false,
-      },
-      {
-        id: EColumn.description,
-        name: t('屏蔽原因'),
-        minWidth: 230,
-        disabled: false,
-      },
-      {
-        id: EColumn.status,
-        name: t('状态'),
-        width: 150,
-        disabled: false,
-      },
-      {
-        id: EColumn.updateUser,
-        name: t('更新人'),
-        width: 150,
-        disabled: false,
-      },
-      {
-        id: EColumn.operate,
-        name: t('操作'),
-        width: 100,
-        disabled: true,
-      },
-    ]);
-    const tableLoading = ref(false);
-
-    const pagination = reactive({
-      current: 1,
-      count: 0,
-      limit: 10,
+      filter: {},
     });
-
-    const sort = ref({
-      field: '',
-      order: '',
-    });
-
-    const tableList = ref([]);
-
-    const filter = reactive({});
-
-    const settings = shallowReactive({
-      checked: columns.value.map(item => item.id),
+    const settings = reactive({
+      checked: tableData.columns.map(item => item.id),
       size: 'small',
-      fields: columns.value
+      fields: tableData.columns
         .filter(item => {
           if (shieldStatus.value === 0) {
             return ![EColumn.failureTime, EColumn.status].includes(item.id);
@@ -203,11 +200,10 @@ export default defineComponent({
     provide('authority', authority);
 
     init();
-
     async function init() {
       const pageSize = commonPageSizeGet();
-      pagination.limit = pageSize;
-      tableLoading.value = true;
+      tableData.pagination.limit = pageSize;
+      tableData.loading = true;
       authority.auth = await getAuthorityMap(authMap);
       createdConditionList();
       await handleGetShieldList();
@@ -251,7 +247,7 @@ export default defineComponent({
         let queryStringObj = null;
         try {
           queryStringObj = JSON.parse(queryString as any);
-        } catch {
+        } catch (err) {
           router
             .replace({
               ...route,
@@ -285,13 +281,13 @@ export default defineComponent({
      * @param item
      */
     function handleStatusChange(item) {
-      if (tableLoading.value) {
+      if (tableData.loading) {
         return;
       }
       if (shieldStatus.value !== item.id) {
         shieldStatus.value = item.id;
-        pagination.current = 1;
-        settings.fields = columns.value
+        tableData.pagination.current = 1;
+        settings.fields = tableData.columns
           .filter(item => {
             if (shieldStatus.value === 0) {
               return ![EColumn.failureTime, EColumn.status].includes(item.id);
@@ -304,7 +300,7 @@ export default defineComponent({
             disabled: item.disabled,
           }));
         settings.checked = settings.fields.map(item => item.field);
-        sort.value = {
+        tableData.sort = {
           field: '',
           order: '',
         };
@@ -315,17 +311,17 @@ export default defineComponent({
      * @description 获取屏蔽列表
      */
     async function handleGetShieldList() {
-      tableLoading.value = true;
+      tableData.loading = true;
       // tableData.data = [];
 
-      let categories = filter[EColumn.shieldType];
+      let categories = tableData.filter[EColumn.shieldType];
       if (!categories?.length) {
-        categories = columns.value.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
+        categories = tableData.columns.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
       }
 
       const params = {
-        page: pagination.current,
-        page_size: pagination.limit,
+        page: tableData.pagination.current,
+        page_size: tableData.pagination.limit,
         time_range: (() => {
           if (dateRange.value?.every(item => !!item)) {
             return dateRange.value.join('--');
@@ -335,11 +331,11 @@ export default defineComponent({
         categories,
         search: '',
         order: (() => {
-          if (sort.value.order) {
-            if (sort.value.order === 'asc') {
-              return sort.value.field;
+          if (tableData.sort.order) {
+            if (tableData.sort.order === 'asc') {
+              return (tableData.sort as any).field;
             }
-            return `-${sort.value.field}`;
+            return `-${(tableData.sort as any).field}`;
           }
           return undefined;
         })(),
@@ -353,10 +349,9 @@ export default defineComponent({
           count: 0,
         };
       });
-      tableList.value = [...data.shield_list];
-
-      pagination.count = data.count;
-      tableLoading.value = false;
+      tableData.data = [...data.shield_list];
+      tableData.pagination.count = data.count;
+      tableData.loading = false;
     }
     /**
      * @description 条件搜索
@@ -364,7 +359,7 @@ export default defineComponent({
      */
     function handleSearchCondition(v) {
       searchValues.value = v;
-      pagination.current = 1;
+      tableData.pagination.current = 1;
       searchCondition = routerParamsReplace();
       emptyType.value = searchCondition.length ? 'search-empty' : 'empty';
       handleGetShieldList();
@@ -458,18 +453,18 @@ export default defineComponent({
      * @param opt
      */
     function handleSortChange({ field, order }) {
+      const sort = {
+        field: '',
+        order: '',
+      };
       if (order !== null) {
-        sort.value = {
-          field,
-          order,
-        };
+        sort.field = field;
+        sort.order = order;
       } else {
-        sort.value = {
-          field,
-          order: '',
-        };
+        sort.field = field;
       }
-      pagination.current = 1;
+      tableData.sort = sort;
+      tableData.pagination.current = 1;
       handleGetShieldList();
     }
     /**
@@ -477,13 +472,13 @@ export default defineComponent({
      * @param opt
      */
     function handleFilterChange(opt) {
-      const target = columns.value.find(item => item.id === opt.field);
-      target.filter = target.filter.map(item => ({
+      const columns = tableData.columns.find(item => item.id === opt.field);
+      columns.filter = columns.filter.map(item => ({
         ...item,
         checked: opt.values.includes(item.value),
       }));
-      filter[opt.field] = opt.values;
-      pagination.current = 1;
+      tableData.filter[opt.field] = opt.values;
+      tableData.pagination.current = 1;
       handleGetShieldList();
     }
     /**
@@ -491,8 +486,8 @@ export default defineComponent({
      * @param page
      */
     function handlePageChange(page: number) {
-      if (pagination.current !== page) {
-        pagination.current = page;
+      if (tableData.pagination.current !== page) {
+        tableData.pagination.current = page;
         handleGetShieldList();
       }
     }
@@ -501,15 +496,15 @@ export default defineComponent({
      * @param limit
      */
     function handleLimitChange(limit: number) {
-      pagination.current = 1;
-      pagination.limit = limit;
+      tableData.pagination.current = 1;
+      tableData.pagination.limit = limit;
       commonPageSizeSet(limit);
       handleGetShieldList();
     }
 
     function handleDatePick() {
       emptyType.value = 'search-empty';
-      pagination.current = 1;
+      tableData.pagination.current = 1;
       handleGetShieldList();
     }
     /**
@@ -534,15 +529,16 @@ export default defineComponent({
     }
 
     function handleSettingChange(opt) {
-      settings.checked = opt.checked;
-      settings.size = opt.size;
+      console.log(opt);
+      // settings.checked = opt.checked;
+      // settings.size = opt.size;
     }
     /**
      * @description 清空时间范围
      */
     function handleDatePickClear() {
       setTimeout(() => {
-        pagination.current = 1;
+        tableData.pagination.current = 1;
         handleGetShieldList();
       }, 50);
     }
@@ -639,11 +635,7 @@ export default defineComponent({
     }
 
     return {
-      columns,
-      sort,
-      tableLoading,
-      tableList,
-      pagination,
+      tableData,
       settings,
       authorityStore,
       authority,
@@ -725,69 +717,65 @@ export default defineComponent({
             </div>
           </div>
           <div class='table-wrap'>
-            {!this.tableLoading ? (
+            {!this.tableData.loading ? (
               <Table
                 class='shield-table'
-                border='inner'
-                data={this.tableList}
-                pagination={false}
-                settings={this.settings}
-                showSettings={true}
-                sort-config={{ remote: true, defaultSort: this.sort, trigger: 'cell' }}
-                onFilterChange={this.handleFilterChange}
-                onSettingChange={this.handleSettingChange}
-                onSortChange={this.handleSortChange}
-              >
-                {{
+                v-slots={{
                   empty: () => (
                     <EmptyStatus
                       type={this.emptyType}
                       onOperation={this.handleEmptyOperation}
                     />
                   ),
-                  default: () =>
-                    this.columns
-                      .filter(item => {
-                        if (this.shieldStatus === 0) {
-                          return (
-                            ![EColumn.failureTime, EColumn.status].includes(item.id) &&
-                            this.settings.checked.includes(item.id)
-                          );
-                        }
-                        return ![EColumn.cycleDuration].includes(item.id) && this.settings.checked.includes(item.id);
-                      })
-                      .map(item => (
-                        <TableColumn
-                          key={item.id}
-                          width={item.width}
-                          field={item.id}
-                          filterMultiple={item.filterMultiple}
-                          filters={item.filter}
-                          minWidth={item.minWidth}
-                          sortable={item.sortable}
-                          title={item.name}
-                          show-overflow
-                        >
-                          {{
-                            default: ({ row }) => this.handleSetFormat(row, item.id),
-                          }}
-                        </TableColumn>
-                      )),
                 }}
+                data={this.tableData.data}
+                pagination={false}
+                settings={this.settings}
+                show-overflow='tooltip'
+                showSettings={true}
+                sort-config={{ remote: true, defaultSort: this.tableData.sort, trigger: 'cell' }}
+                onFilterChange={this.handleFilterChange}
+                onSettingChange={this.handleSettingChange}
+                onSortChange={this.handleSortChange}
+              >
+                {this.tableData.columns
+                  .filter(item => {
+                    if (this.shieldStatus === 0) {
+                      return (
+                        ![EColumn.failureTime, EColumn.status].includes(item.id) &&
+                        this.settings.checked.includes(item.id)
+                      );
+                    }
+                    return ![EColumn.cycleDuration].includes(item.id) && this.settings.checked.includes(item.id);
+                  })
+                  .map(item => (
+                    <TableColumn
+                      key={item.id}
+                      v-slots={{
+                        default: ({ row }) => this.handleSetFormat(row, item.id),
+                      }}
+                      field={item.id}
+                      filterMultiple={item.filterMultiple}
+                      filters={item.filter}
+                      minWidth={item.width}
+                      sortable={item.sortable}
+                      title={item.name}
+                    ></TableColumn>
+                  ))}
               </Table>
             ) : (
               <TableSkeleton />
             )}
 
-            {!!this.tableList.length && (
+            {!!this.tableData.data.length && (
               <Pagination
                 class='mt-14'
                 align={'right'}
-                count={this.pagination.count}
+                count={this.tableData.pagination.count}
                 layout={['total', 'limit', 'list']}
-                limit={this.pagination.limit}
+                limit={this.tableData.pagination.limit}
                 location={'right'}
-                modelValue={this.pagination.current}
+                modelValue={this.tableData.pagination.current}
                 onChange={v => this.handlePageChange(v)}
                 onLimitChange={v => this.handleLimitChange(v)}
               />
