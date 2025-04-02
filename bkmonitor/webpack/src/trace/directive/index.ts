@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { bkTooltips } from 'bkui-vue';
+import { bkTooltips, clickoutside, overflowTitle } from 'bkui-vue';
 
 import authority from './authority';
 import overflowText from './overflow-text';
@@ -36,6 +36,8 @@ const directives: Record<string, any> = {
   // 指令对象
   authority,
   bkTooltips,
+  clickoutside,
+  overflowTitle,
   watermark,
   overflowText,
 };
