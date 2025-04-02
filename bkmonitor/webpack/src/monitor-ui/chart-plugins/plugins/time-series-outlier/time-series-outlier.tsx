@@ -541,11 +541,11 @@ export default class TimeSeriesOutlier extends LineChart {
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
       return;
     }
-    let liHtmls = [];
+    let liHtmlList = [];
     const ulStyle = '';
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
-      liHtmls.push(params[0].data.tooltips);
+      liHtmlList.push(params[0].data.tooltips);
     } else {
       const data = params.map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }));
       const list = [];
@@ -572,7 +572,7 @@ export default class TimeSeriesOutlier extends LineChart {
       });
       list.sort((a, b) => b.value[1] - a.value[1]);
       boundList.sort((a, b) => a.value[1] - b.value[1]);
-      liHtmls = [...list, ...boundList].map(item => {
+      liHtmlList = [...list, ...boundList].map(item => {
         let markColor = 'color: #fafbfd;';
         if (data[0].value === item.value[1]) {
           markColor = 'color: #fff;font-weight: bold;';
@@ -582,14 +582,14 @@ export default class TimeSeriesOutlier extends LineChart {
         if (curSeries?.stack?.includes('boundary-')) {
           curSeries = this.options.series.find((item: any) => !item?.stack?.includes('boundary-'));
         }
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const precision =
           !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
         let text = '';
         if (item.tooltipValues) {
           text = `(${item.tooltipValues
             .map((v, index) => {
-              const valueObj = unitFormater(
+              const valueObj = unitFormatter(
                 index === 0 ? v - this.minBase : v + (item.tooltipValues[0] - this.minBase),
                 precision
               );
@@ -597,7 +597,7 @@ export default class TimeSeriesOutlier extends LineChart {
             })
             .join(',')})`;
         } else {
-          const valueObj = unitFormater(item.value[1] - this.minBase, precision);
+          const valueObj = unitFormatter(item.value[1] - this.minBase, precision);
           text = `${valueObj?.text} ${valueObj?.suffix || ''}`;
         }
         return `<li class="tooltips-content-item">
@@ -609,14 +609,14 @@ export default class TimeSeriesOutlier extends LineChart {
                   ${text}</span>
                   </li>`;
       });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmlList?.length < 1) return '';
     }
     return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
             </ul>
             </div>`;
   }

@@ -273,14 +273,14 @@ export default class ChartTitle extends tsc<
       const { innerWidth } = window;
       // 自身宽度 + 距离右侧浏览器窗口宽度（innerWidth - rect.right）
       const rightWidth = 180 + innerWidth - rect.right;
-      const postion = fitPosition(
+      const position = fitPosition(
         {
           left: e.x,
           top: e.y,
         },
         rightWidth
       );
-      this.menuLeft = postion.left - rect.x;
+      this.menuLeft = position.left - rect.x;
     }
     this.$emit('updateDragging', false);
   }
@@ -384,7 +384,9 @@ export default class ChartTitle extends tsc<
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
                 interactive: this.showTitleIcon,
-                disabled: !!this.$scopedSlots?.title,
+                onShow: () => {
+                  return !this.$scopedSlots?.title;
+                },
               }}
             >
               {this.$scopedSlots?.title ? this.$scopedSlots?.title?.('') : this.title}

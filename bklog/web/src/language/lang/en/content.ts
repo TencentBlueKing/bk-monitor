@@ -1033,4 +1033,5 @@ export default {
     'After checking, create a keyword alarm for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alarm strategy can be started and stopped through the switch.',
   '删除失败，开启告警时，需要至少一个责任人':
     'Failed to delete. When the alarm is turned on, at least one responsible person is required',
+  重命名与字段名重复: 'Rename and field name duplicate',
 };

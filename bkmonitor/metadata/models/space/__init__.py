@@ -7,6 +7,15 @@ from .space import (  # noqa
     SpaceResource,
     SpaceStickyInfo,
     SpaceType,
+    SpaceTypeToResultTableFilterAlias,
 )
 
-__all__ = ["SpaceType", "Space", "SpaceDataSource", "SpaceResource", "SpaceStickyInfo", "BkAppSpaceRecord"]
+__all__ = [
+    "SpaceType",
+    "Space",
+    "SpaceDataSource",
+    "SpaceResource",
+    "SpaceStickyInfo",
+    "BkAppSpaceRecord",
+    "SpaceTypeToResultTableFilterAlias",
+]
