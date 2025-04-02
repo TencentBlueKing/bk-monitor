@@ -32,7 +32,7 @@
     <!-- 设置列表字段 -->
     <div class="fields-container">
       <div
-        v-if="isShowLeft"
+        v-if="isTemplateConfig"
         class="fields-config-container"
       >
         <div class="config-container-header">
@@ -102,11 +102,6 @@
               :init-data="shadowVisible"
             />
           </div>
-          <!-- <div
-            v-if="!isShowLeft"
-            style="padding-left: 12px"
-            class="table-sort"
-          > -->
           <div
             style="padding-left: 12px"
             class="table-sort"
@@ -123,11 +118,11 @@
       </div>
     </div>
     <div
-      :style="{ 'justify-content': !isShowLeft ? 'space-between' : 'flex-end' }"
+      :style="{ 'justify-content': !isTemplateConfig ? 'space-between' : 'flex-end' }"
       class="fields-button-container"
     >
       <div
-        v-if="!isShowLeft"
+        v-if="!isTemplateConfig"
         style="color: #4d4f56"
       >
         <span
@@ -192,9 +187,10 @@
         type: Object,
         required: true,
       },
-      isShowLeft: {
-        type: Boolean,
-        default: false,
+      /** 组件展示状态 -- template:模板配置  list: 列表配置 */
+      configType: {
+        type: String,
+        default: 'list',
       },
       isShow: {
         type: Boolean,
@@ -231,7 +227,17 @@
       };
     },
     computed: {
+      /** 当前组件展示状态是否为 模板配置 */
+      isTemplateConfig() {
+        return this.configType === 'template';
+      },
+      catchFieldCustomSortList() {
+        return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
+      },
       shadowSort() {
+        if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
+          return this.catchFieldCustomSortList;
+        }
         return this.$store.state.indexFieldInfo.sort_list;
       },
       shadowTotal() {
@@ -329,7 +335,7 @@
         let configData = (this.$store.state.visibleFields ?? []).map(e => e.field_name);
         // 如果是从字段模板打开则需要请求接口获取字段列表及配置
         // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
-        if (this.isShowLeft) {
+        if (this.isTemplateConfig) {
           configData = null;
           await this.getFiledConfigList();
         }
@@ -346,7 +352,7 @@
         }
         try {
           // 字段模板保持配置逻辑，表格设置打开时不需要执行
-          if (this.isShowLeft) {
+          if (this.isTemplateConfig) {
             const confirmConfigData = {
               editStr: this.currentClickConfigData.name,
               sort_list: currentSortList,
