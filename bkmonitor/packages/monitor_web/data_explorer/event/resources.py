@@ -38,6 +38,7 @@ from .constants import (
     EventCategory,
     EventDimensionTypeEnum,
     EventType,
+    Operation,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -326,7 +327,7 @@ class EventTopKResource(Resource):
                         "value": "" if not field_value or field_value == " " else field_value,
                         "alias": "--" if not field_value or field_value == " " else field_value,
                         "count": field_count,
-                        "proportions": round(100 * (field_count / total), 2),
+                        "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
                     for field_value, field_count in sorted_fields
                 ],
@@ -479,3 +480,85 @@ class EventTotalResource(Resource):
         except Exception as exc:
             logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
             return {"total": 0}
+
+
+class EventStatisticsInfoResource(Resource):
+    RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        queries = [
+            get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
+        ]
+        field = validated_request_data["field"]
+        statistics_property_method_map = {
+            "total_count": "count",
+            "field_count": "count",
+            "distinct_count": "cardinality",
+        }
+        if field["type"] == EventDimensionTypeEnum.INTEGER.value:
+            # 数值类型，支持更多统计方法
+            statistics_property_method_map.update({"max": "max", "min": "min", "median": "cp50", "avg": "avg"})
+
+        statistics_info = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.get_statistics_info,
+                    args=(
+                        get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
+                        queries,
+                        field["name"],
+                        statistics_property,
+                        method,
+                        statistics_info,
+                    ),
+                )
+                for statistics_property, method in statistics_property_method_map.items()
+            ]
+        )
+        # 格式化统计信息
+        return self.format_statistics_info(statistics_info)
+
+    @classmethod
+    def format_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+        statistics_format_info = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            # 平均值取两位小数
+            if statistics_property == "avg":
+                value = round(value, 2)
+            if statistics_property in ["max", "min", "median", "avg"]:
+                statistics_format_info.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            statistics_format_info[statistics_property] = value
+        # 计算百分比
+        statistics_format_info["field_percent"] = (
+            int(statistics_info["field_count"] / statistics_info["total_count"] * 100)
+            if statistics_info["total_count"] > 0
+            else 0
+        )
+        return statistics_format_info
+
+    @classmethod
+    def get_statistics_info(cls, query_set, queries, field, statistics_property, method, statistics_info) -> None:
+        conditions, expression = cls.build_conditions_and_expression(field, statistics_property, method)
+        for query in queries:
+            query_set = query_set.add_query(query.conditions(conditions).metric(field=field, method=method, alias="a"))
+        query_set = query_set.expression(expression)
+        try:
+            statistics_info[statistics_property] = query_set.original_data[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("[EventStatisticsInfoResource] failed to get statistics info, err -> %s", exc)
+            raise ValueError(_(f"获取字段统计信息失败，查询函数：{method}"))
+
+    @classmethod
+    def build_conditions_and_expression(cls, field, statistics_property, method):
+        conditions = []
+        expression = "a"
+        if statistics_property == "field_count":
+            # 统计字段出现次数，排除空值
+            conditions.append({"key": field, "method": Operation.NE["value"], "value": [""]})
+        if method in ["max", "min"]:
+            # 求最大值和最小值，表达式适配
+            expression = f"{method}(a)"
+        return conditions, expression
