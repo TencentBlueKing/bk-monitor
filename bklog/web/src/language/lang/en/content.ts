@@ -1029,4 +1029,5 @@ export default {
   收藏成功: 'Favorite successfully',
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
+  重命名与字段名重复: 'Rename and field name duplicate',
 };
