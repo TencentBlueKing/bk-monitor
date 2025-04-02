@@ -1031,6 +1031,6 @@ export default {
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
   '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。':
     'After checking, create a keyword alarm for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alarm strategy can be started and stopped through the switch.',
-  '暂无配置责任人，无法自动创建告警策略':
-    'No configuration responsible person, cannot automatically create alarm strategy',
+  '删除失败，开启告警时，需要至少一个责任人':
+    'Failed to delete. When the alarm is turned on, at least one responsible person is required',
 };

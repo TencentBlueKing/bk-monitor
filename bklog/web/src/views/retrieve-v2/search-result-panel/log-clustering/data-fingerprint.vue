@@ -883,7 +883,7 @@
         if(row.strategy_enabled && !val.length){
           this.$bkMessage({
               theme: 'error',
-              message: this.$t('创建告警策略时，不允许删掉最后一个责任人')
+              message: this.$t('删除失败，开启告警时，需要至少一个责任人')
             });
           return
         }
