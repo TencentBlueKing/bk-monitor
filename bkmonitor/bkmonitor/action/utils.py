@@ -17,6 +17,7 @@ from django.db.models import Q
 
 from bkmonitor.models import (
     AlertAssignRule,
+    DutyRule,
     DutyRuleRelation,
     StrategyActionConfigRelation,
     StrategyModel,
@@ -214,21 +215,46 @@ def get_assign_rule_related_resource_dict(assign_group_ids):
 
 
 def get_duty_rule_user_groups(duty_rule_ids):
+    """获取轮值组关联的用户组"""
     if not duty_rule_ids:
         return {}
 
     duty_rule_user_groups = defaultdict(list)
+    relations = []
+    gp_ids = set()
     for relation in DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids):
-        duty_rule_user_groups[relation.duty_rule_id].append(relation.user_group_id)
+        relations.append(relation)
+        gp_ids.add(relation.user_group_id)
+
+    gp_ids = UserGroup.objects.filter(id__in=gp_ids, is_deleted=False).values_list("id", flat=True)
+
+    for relation in relations:
+        if relation.user_group_id in gp_ids:
+            duty_rule_user_groups[relation.duty_rule_id].append(relation.user_group_id)
+
     return duty_rule_user_groups
 
 
 def get_user_group_duty_rules(user_group_ids):
+    """获取告警组关联的轮值组"""
     if not user_group_ids:
         return {}
     user_group_duty_rules = defaultdict(list)
+
+    relations = []
+    dr_ids = set()
+
     for relation in DutyRuleRelation.objects.filter(user_group_id__in=user_group_ids):
-        user_group_duty_rules[relation.user_group_id].append(relation.duty_rule_id)
+        relations.append(relation)
+        dr_ids.add(relation.duty_rule_id)
+
+    dr_ids = DutyRule.objects.filter(id__in=dr_ids, is_deleted=False).values_list("id", flat=True)
+
+    for relation in relations:
+        if relation.duty_rule_id in dr_ids:
+            user_group_duty_rules[relation.user_group_id].append(relation.duty_rule_id)
+
+    return user_group_duty_rules
 
 
 def validate_time_range(value, format_str="%H:%M"):
