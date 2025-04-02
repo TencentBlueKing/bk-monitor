@@ -62,9 +62,10 @@ class TreeConverter:
         )
         self.build_tree(tree, samples_info, agg_method)
 
-        samples_len = len(samples_info)
+        # 计算出一共有多少个时间点的数据，相同时间点的数据只算一次
+        snapshot_len = len({s["dtEventTimeStamp"] for s in samples_info})
         # 不同数据类型的节点 value 计算方式有所不同
-        ValueCalculator.calculate_nodes(tree, self.get_sample_type(), samples_len, agg_method)
+        ValueCalculator.calculate_nodes(tree, self.get_sample_type(), snapshot_len, agg_method)
 
         self.tree = tree
         return self.tree
@@ -72,7 +73,9 @@ class TreeConverter:
     @classmethod
     def build_tree(cls, tree: FunctionTree, samples, agg_method=None):
         if agg_method == "LAST":
-            samples = samples[-1:]
+            # 只保留最后一个时间戳的所有 sample 数据
+            last_snapshot = max({s["dtEventTimeStamp"] for s in samples})
+            samples = [s for s in samples if s["dtEventTimeStamp"] == last_snapshot]
 
         for sample in samples:
             value = int(sample["value"])
