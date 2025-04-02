@@ -134,7 +134,7 @@ const deleteTemplate = {
 
 // 日志聚类-告警策略开关
 const updatePatternStrategy = {
-  url: '/pattern/$index_set_id/pattern_strategy/',
+  url: '/pattern/:index_set_id/pattern_strategy/',
   method: 'post',
 };
 export {

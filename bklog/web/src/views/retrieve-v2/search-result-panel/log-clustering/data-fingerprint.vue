@@ -1197,6 +1197,9 @@
         };
         this.$http
           .request('/logClustering/updatePatternStrategy', {
+            params: {
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            },
             data: {
               signature: this.getHoverRowValue.signature,
               origin_pattern: this.getHoverRowValue.origin_pattern,
