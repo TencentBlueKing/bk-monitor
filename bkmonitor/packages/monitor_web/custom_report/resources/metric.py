@@ -101,6 +101,11 @@ class ValidateCustomTsGroupName(Resource):
         name = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
 
+        def validate_name(self, value):
+            if not re.match(r"^[_A-Za-z][_A-Za-z0-9-]*$", value):
+                raise CustomValidationNameError(_("自定义指标名称只能包含字母、数字和下划线，并且必须以字母开头,不能有空格"))
+            return value
+
     def perform_request(self, validated_request_data):
         try:
             custom_ts_groups = api.metadata.query_time_series_group(
