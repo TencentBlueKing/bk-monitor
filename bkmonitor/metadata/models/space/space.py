@@ -181,7 +181,7 @@ class SpaceTypeToResultTableFilterAlias(models.Model):
     space_type = models.CharField("空间类型", max_length=64)
     table_id = models.CharField("结果表名", max_length=128)
     filter_alias = models.CharField("过滤条件别名", max_length=128)
-    is_deleted = models.BooleanField("是否删除", default=False)
+    status = models.BooleanField("是否启用", default=True)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
 
     class Meta:

@@ -1168,7 +1168,7 @@ def update_filters_with_alias(space_type, space_id, values):
     # 获取所有的 filter_alias 映射关系
     alias_map = {
         (alias.table_id, alias.space_type): alias.filter_alias
-        for alias in SpaceTypeToResultTableFilterAlias.objects.filter(space_type=space_type, is_deleted=False)
+        for alias in SpaceTypeToResultTableFilterAlias.objects.filter(space_type=space_type, status=True)
     }
 
     # 遍历 values 字典

@@ -258,7 +258,7 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
 
 
 class SpaceTypeToResultTableFilterAliasAdmin(admin.ModelAdmin):
-    list_display = ("space_type", "table_id", "filter_alias", "is_deleted")
+    list_display = ("space_type", "table_id", "filter_alias", "status")
     search_fields = ("space_type", "table_id")
     list_filter = ("space_type", "table_id")
 
