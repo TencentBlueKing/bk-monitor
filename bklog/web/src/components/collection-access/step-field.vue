@@ -2171,9 +2171,7 @@
               this.formatResult = false;
             }
           })
-          .catch((error) => {
-            console.log(error);
-            
+          .catch(() => {
             if (!type) {
               // 原始日志内容修改不引发结果变更
               this.formatResult = false;
