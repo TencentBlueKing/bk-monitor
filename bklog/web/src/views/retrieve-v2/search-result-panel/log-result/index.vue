@@ -158,10 +158,10 @@
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
-                  :isShow="showFieldsSetting"
                   :field-alias-map="fieldAliasMap"
-                  :is-show-left="isShowLeft"
+                  :is-show="showFieldsSetting"
                   :retrieve-params="retrieveParams"
+                  config-type="list"
                   @cancel="cancelModifyFields"
                   @set-popper-instance="setPopperInstance"
                 />
@@ -212,7 +212,6 @@
         value: '',
         contentType: 'table',
         showFieldsSetting: false,
-        isShowLeft: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
         expandTextView: false,
@@ -287,13 +286,10 @@
       // 字段设置
       handleDropdownShow() {
         this.showFieldsSetting = true;
-        this.isShowLeft = false;
-        this.isShowLeft = localStorage.getItem('fieldSettingsIsShowLeft') === 'true';
       },
       handleDropdownHide() {
         this.showFieldsSetting = false;
         localStorage.setItem('fieldSettingsIsShowLeft', false);
-        this.isShowLeft = false;
       },
       cancelModifyFields() {
         this.closeDropdown();

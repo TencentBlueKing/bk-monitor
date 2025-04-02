@@ -195,6 +195,7 @@
     store
       .dispatch('userFieldConfigChange', {
         displayFields: item.display_fields,
+        sortList: item.sort_list,
         fieldsWidth: {},
       })
       .then(() => {
@@ -268,8 +269,8 @@
         <fields-setting
           :field-alias-map="fieldAliasMap"
           :is-show="showFieldsSetting"
-          :is-show-left="true"
           :retrieve-params="retrieveParams"
+          config-type="template"
           @cancel="handleFieldsSettingHide"
           @set-popper-instance="() => {}"
         />
