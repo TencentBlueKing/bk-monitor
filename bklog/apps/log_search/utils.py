@@ -156,8 +156,8 @@ def split_object_fields(fields_list: List[str]):
     result_list = []
     for field in fields_list:
         result_list.append(field)
-        if "." in field:
-            key, _ = field.split(".", maxsplit=1)
-            result_list.append(key)
+        parts = field.split('.')
+        for i in range(1, len(parts)):
+            result_list.append('.'.join(parts[:i]))
 
     return result_list
