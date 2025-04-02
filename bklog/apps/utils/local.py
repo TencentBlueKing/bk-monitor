@@ -159,6 +159,9 @@ def get_external_app_code():
     """
     is_external = bool(get_request_external_username())
     if is_external:
-        return get_request().META.get("HTTP_BK_APP_CODE", settings.APP_CODE)
+        try:
+            return get_request().META.get("HTTP_BK_APP_CODE", settings.APP_CODE)
+        except Exception:  # pylint: disable=broad-except
+            return settings.APP_CODE
     else:
         return settings.APP_CODE
