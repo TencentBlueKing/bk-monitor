@@ -54,7 +54,7 @@ from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import get_local_param, get_request_app_code, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
@@ -118,7 +118,9 @@ class PatternHandler:
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
-        clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
+        clustering_remarks = ClusteringRemark.objects.filter(
+            bk_biz_id=self._clustering_config.bk_biz_id, source_app_code=get_request_app_code()
+        ).values(
             "signature",
             "origin_pattern",
             "group_hash",
@@ -410,6 +412,7 @@ class PatternHandler:
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
             )
+            .filter(source_app_code=get_request_app_code())
             .first()
         )
 
@@ -454,6 +457,7 @@ class PatternHandler:
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
             )
+            .filter(source_app_code=get_request_app_code())
             .first()
         )
         now = int(arrow.now().timestamp() * 1000)
@@ -516,9 +520,10 @@ class PatternHandler:
 
     def get_signature_owners(self) -> list:
         # 获取 AiopsSignatureAndPattern 表中的 signature 和 origin_pattern 字段的值
-        owners = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values_list(
-            'owners', flat=True
-        )
+        owners = ClusteringRemark.objects.filter(
+            bk_biz_id=self._clustering_config.bk_biz_id,
+            source_app_code=get_request_app_code(),
+        ).values_list('owners', flat=True)
         result = set()
         for owner in owners:
             result.update(owner)
