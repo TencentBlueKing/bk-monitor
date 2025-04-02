@@ -808,40 +808,6 @@ export default defineComponent({
       return operatorWidth + (diff > 0 ? diff : 0);
     });
 
-    const setHeaderStyle = () => {
-      // if (refTableHead.value) {
-      //   refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
-      // }
-    };
-
-    // const setBodyStyle = () => {
-    //   if (refRootElement.value) {
-    //     refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
-    //     refRootElement.value.style.setProperty('--row-offset-left', `${scrollXOffsetLeft.value}px`);
-    //     refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
-    //     refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
-    //     refRootElement.value.style.setProperty(
-    //       '--last-column-left',
-    //       `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-    //     );
-    //   }
-    // };
-
-    watch(
-      () => [
-        scrollXOffsetLeft.value,
-        operatorToolsWidth.value,
-        operatorFixRightWidth.value,
-        offsetWidth.value,
-        scrollWidth.value,
-        searchContainerHeight.value,
-      ],
-      () => {
-        // setBodyStyle();
-        // setHeaderStyle();
-      },
-    );
-
     const rootBodyStyle = computed(() => {
       return {
         '--scroll-left': `-${scrollXOffsetLeft.value}px`,
@@ -849,6 +815,7 @@ export default defineComponent({
         '--fix-right-width': `${operatorFixRightWidth.value}px`,
         '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
         '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
+        '--offset-right': `${scrollWidth.value - offsetWidth.value}px`,
       };
     });
 
