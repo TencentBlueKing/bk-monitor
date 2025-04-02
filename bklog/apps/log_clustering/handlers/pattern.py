@@ -125,6 +125,8 @@ class PatternHandler:
             "remark",
             "owners",
             "groups",
+            "strategy_id",
+            "strategy_enabled",
         )
 
         signature_map_remark = {}
@@ -169,20 +171,30 @@ class PatternHandler:
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
+                strategy_id = signature_map_remark[(signature, group_hash)]["strategy_id"]
+                strategy_enabled = signature_map_remark[(signature, group_hash)]["strategy_enabled"]
             elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
                 remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
                 owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
+                strategy_id = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_id"]
+                strategy_enabled = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_enabled"]
             # 如果带分组的记录中没有找到备注，则退化为使用无分组的备注内容展示
             elif signature in signature_map_remark_without_group:
                 remark = signature_map_remark_without_group[signature]["remark"]
                 owners = signature_map_remark_without_group[signature]["owners"]
+                strategy_id = signature_map_remark_without_group[signature]["strategy_id"]
+                strategy_enabled = signature_map_remark_without_group[signature]["strategy_enabled"]
             elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
                 remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
                 owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
+                strategy_id = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_id"]
+                strategy_enabled = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_enabled"]
             # 任意一种情况都不匹配
             else:
                 remark = []
                 owners = []
+                strategy_id = 0
+                strategy_enabled = False
 
             result.append(
                 {
@@ -197,6 +209,8 @@ class PatternHandler:
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
+                    "strategy_id": strategy_id,
+                    "strategy_enabled": strategy_enabled,
                 }
             )
         if self._show_new_pattern:

@@ -137,6 +137,23 @@ DEFAULT_PATTERN_MONITOR_MSG = """
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
+PATTERN_MONITOR_MSG_BY_SWITCH = """
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}
+"""
+
 
 class StrategiesType(object):
     NEW_CLS_strategy = "new_cls_strategy"

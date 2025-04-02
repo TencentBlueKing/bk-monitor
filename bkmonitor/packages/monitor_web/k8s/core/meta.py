@@ -15,7 +15,14 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
-from bkmonitor.models import BCSContainer, BCSIngress, BCSPod, BCSService, BCSWorkload
+from bkmonitor.models import (
+    BCSContainer,
+    BCSIngress,
+    BCSNode,
+    BCSPod,
+    BCSService,
+    BCSWorkload,
+)
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -280,6 +287,10 @@ class K8sResourceMeta(object):
         raise NotImplementedError(f"metric: {order_field} not supported")
 
     @property
+    def meta_prom_with_node_boot_time_seconds(self):
+        return self.tpl_prom_with_nothing("node_boot_time_seconds")
+
+    @property
     def meta_prom_with_container_memory_working_set_bytes(self):
         return self.tpl_prom_with_nothing("container_memory_working_set_bytes")
 
@@ -509,7 +520,10 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
 
 class K8sNodeMeta(K8sResourceMeta):
-    pass
+    resource_field = "name"
+    resource_class = BCSNode
+    column_mapping = {"node": "name"}
+    only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]
 
 
 class NameSpaceQuerySet(list):
