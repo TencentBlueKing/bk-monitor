@@ -46,6 +46,7 @@ export default {
       filterSetting: [],
       filterAddition: [],
       fixedFilterAddition: false,
+      sortList: [],
     },
     activeVersion: 'v2',
   },

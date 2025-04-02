@@ -367,6 +367,7 @@
           this.$store
             .dispatch('userFieldConfigChange', {
               displayFields: currentVisibleList,
+              sortList: currentSortList,
               fieldsWidth: {},
             })
             .then(() => {
