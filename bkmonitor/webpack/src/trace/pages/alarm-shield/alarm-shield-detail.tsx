@@ -27,7 +27,8 @@ import { defineComponent, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Button, Loading, Sideslider, Table } from 'bkui-vue';
+import { Table, TableColumn } from '@blueking/table';
+import { Button, Loading, Sideslider } from 'bkui-vue';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
 import { getStrategyV2 } from 'monitor-api/modules/strategies';
@@ -384,22 +385,26 @@ export default defineComponent({
                   if (this.detail.category === 'scope') {
                     return (
                       <>
-                        <FormItem label={this.t('屏蔽范围')}>
+                        <FormItem
+                          class='content-flex-1'
+                          label={this.t('屏蔽范围')}
+                        >
                           <div class='scope-content'>
                             {this.scopeData.type !== 'biz' ? (
                               <div>
                                 <Table
-                                  columns={[
-                                    {
-                                      id: 'name',
-                                      label: () => this.scopeLabelMap[this.scopeData.type],
-                                      render: ({ row }) => row.name,
-                                    },
-                                  ]}
-                                  border={['outer']}
+                                  autoResize={true}
+                                  border={'outer'}
                                   data={this.scopeData.tableData}
                                   maxHeight={450}
-                                />
+                                >
+                                  <TableColumn
+                                    key={'name'}
+                                    field={'name'}
+                                    showOverflow={'tooltip'}
+                                    title={this.scopeLabelMap?.[this.scopeData?.type] || ''}
+                                  />
+                                </Table>
                               </div>
                             ) : (
                               <span>{this.scopeData.biz}</span>
@@ -450,22 +455,26 @@ export default defineComponent({
                             </span>
                           </FormItem>
                         )}
-                        <FormItem label={this.t('屏蔽范围')}>
+                        <FormItem
+                          class='content-flex-1'
+                          label={this.t('屏蔽范围')}
+                        >
                           {this.strategyData.scope.tableData.length ? (
                             <div class='scope-content'>
                               <div>
                                 <Table
-                                  columns={[
-                                    {
-                                      id: 'name',
-                                      label: () => this.scopeLabelMap[this.strategyData.scope.type],
-                                      render: ({ row }) => row.name,
-                                    },
-                                  ]}
-                                  border={['outer']}
+                                  autoResize={true}
+                                  border={'outer'}
                                   data={this.strategyData.scope.tableData}
                                   maxHeight={450}
-                                />
+                                >
+                                  <TableColumn
+                                    key={'name'}
+                                    field={'name'}
+                                    showOverflow={'tooltip'}
+                                    title={this.scopeLabelMap?.[this.strategyData?.scope?.type] || ''}
+                                  />
+                                </Table>
                               </div>
                             </div>
                           ) : (
