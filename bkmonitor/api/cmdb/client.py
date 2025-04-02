@@ -169,7 +169,7 @@ class GetMainlineObjectTopo(CMDBBaseResource):
     def action(self):
         return "/api/v3/find/topomodelmainline" if self.use_apigw() else "/get_mainline_object_topo/"
 
-    method = "GET"
+    method = "POST"
 
 
 class ListServiceInstanceDetail(CMDBBaseResource):
