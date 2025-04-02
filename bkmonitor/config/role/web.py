@@ -76,6 +76,7 @@ INSTALLED_APPS += (
     "audit",
     "apigw_manager",
     'bk_notice_sdk',
+    "ai_agent",
 )
 
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
