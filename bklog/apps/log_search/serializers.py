@@ -1005,6 +1005,15 @@ class UserCustomConfigSerializer(serializers.Serializer):
     custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
 
 
+class IndexSetCustomConfigSerializer(serializers.Serializer):
+    """
+    索引集自定义配置
+    """
+
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
+
+
 class UserSearchSerializer(serializers.Serializer):
     """
     用户最近查询的索引集

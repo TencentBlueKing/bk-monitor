@@ -1451,3 +1451,13 @@ class UserCustomConfig(SoftDeleteModel):
         verbose_name = _("用户自定义配置")
         verbose_name_plural = _("用户自定义配置")
         ordering = ("-updated_at",)
+
+
+class IndexSetCustomConfig(SoftDeleteModel):
+    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
+    custom_config = models.JSONField(_("自定义配置"))
+
+    class Meta:
+        verbose_name = _("索引集自定义配置")
+        verbose_name_plural = _("索引集自定义配置")
+        ordering = ("-updated_at",)
