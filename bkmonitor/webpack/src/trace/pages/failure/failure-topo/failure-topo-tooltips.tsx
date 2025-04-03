@@ -259,24 +259,21 @@ export default defineComponent({
     const typeToLinkHandle = {
       BcsPod: {
         title: 'pod详情页',
-        path: () => '/k8s',
+        path: () => '/k8s-new',
         beforeJumpVerify: () => true,
-        query: node => ({
-          dashboardId: 'pod',
-          sceneId: 'kubernetes',
-          sceneType: 'detail',
-          queryData: JSON.stringify({
-            page: 1,
-            selectorSearch: [
-              {
-                keyword: node.entity?.dimensions?.pod_name ?? '',
-              },
-            ],
-          }),
-          'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
-          'filter-namespace': node.entity?.dimensions?.namespace ?? '',
-          'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
-        }),
+        query: node => {
+          const { namespace, pod_name, cluster_id } = node.entity?.dimensions || {};
+          const filterBy = {
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            sceneId: 'kubernetes',
+            activeTab: 'detail',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
       },
       BkNodeHost: {
         title: '主机详情页',
