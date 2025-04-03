@@ -226,7 +226,7 @@ def get_duty_rule_user_groups(duty_rule_ids):
         relations.append(relation)
         gp_ids.add(relation.user_group_id)
 
-    gp_ids = UserGroup.objects.filter(id__in=gp_ids, is_deleted=False).values_list("id", flat=True)
+    gp_ids = set(UserGroup.objects.filter(id__in=gp_ids, is_deleted=False).values_list("id", flat=True))
 
     for relation in relations:
         if relation.user_group_id in gp_ids:
@@ -248,7 +248,7 @@ def get_user_group_duty_rules(user_group_ids):
         relations.append(relation)
         dr_ids.add(relation.duty_rule_id)
 
-    dr_ids = DutyRule.objects.filter(id__in=dr_ids, is_deleted=False).values_list("id", flat=True)
+    dr_ids = set(DutyRule.objects.filter(id__in=dr_ids, is_deleted=False).values_list("id", flat=True))
 
     for relation in relations:
         if relation.duty_rule_id in dr_ids:
