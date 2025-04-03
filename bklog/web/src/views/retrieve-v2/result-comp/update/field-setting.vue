@@ -125,6 +125,14 @@
     return formatHierarchy(store.state.indexFieldInfo.fields);
   });
 
+  /** 将 fieldList 数组转换成 kv 结构(k-field_name,v-fieldItem) ,控制字段渲染顺序使用 */
+  const fieldListMap = computed(() => {
+    return fieldList.value.reduce((prev, curr) => {
+      prev[curr.field_name] = curr;
+      return prev;
+    }, {});
+  });
+
   const shadowTotal = computed(() => {
     const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
@@ -195,7 +203,7 @@
     () => props.initData,
     val => {
       if (val.length) {
-        shadowVisible.value = fieldList.value.filter(obj => val.includes(obj.field_name));
+        shadowVisible.value = val.map(fieldName => fieldListMap.value[fieldName]).filter(Boolean);
       } else {
         shadowVisible.value = [];
       }
@@ -281,6 +289,7 @@
             height: 32px;
             padding: 0 8px;
             overflow: hidden;
+            font-family: Roboto-Regular;
             line-height: 32px;
             text-overflow: ellipsis;
             white-space: nowrap;

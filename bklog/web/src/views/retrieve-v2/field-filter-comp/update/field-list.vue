@@ -217,7 +217,7 @@
       @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
-      <span> {{ $t('字段模板') }} </span>
+      <span class="trigger-label"> {{ $t('字段模板') }} </span>
     </div>
     <div style="display: none">
       <div
