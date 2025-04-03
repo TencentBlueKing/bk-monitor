@@ -2477,15 +2477,46 @@ class CollectorViewSet(ModelViewSet):
 
     @list_route(methods=["GET"], url_path="proxy_host_info")
     def get_proxy_host_info(self, request):
+        """
+        @api {get} /databus/collectors/proxy_host_info/ 获取自定义上报代理信息
+        @apiName proxy_host_info
+        @apiDescription 获取自定义上报代理信息
+        @apiGroup 10_Collector
+        @apiParam {Int} bk_biz_id 所属业务
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                [
+                    {
+                        "bk_cloud_id": 3,
+                        "protocol": "grpc",
+                        "report_url": "http://x.x.x.x:4317"
+                    },
+                    {
+                        "bk_cloud_id": 3,
+                        "protocol": "http",
+                        "report_url": "http://x.x.x.x:4318/v1/traces"
+                    }
+                ]
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
         params = self.params_valid(ProxyHostSerializer)
-        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": params["bk_biz_id"]})
-        grpc_protocol = OTLPProxyHostConfig.GRPC
-        http_protocol = OTLPProxyHostConfig.HTTP
-        grpc_trace_path = OTLPProxyHostConfig.GRPC_TRACE_PATH
-        http_trace_path = OTLPProxyHostConfig.HTTP_TRACE_PATH
-        ip_protocol = OTLPProxyHostConfig.IP_PROTOCOL
-
         proxy_host_info = []
+        # 云区域为 0 的地址
+        report_url_list = []
+        conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
+        for item in conf.get("otlp", {}).get("0", []):
+            protocol, report_url = item.split(":", maxsplit=1)
+            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
+        if report_url_list:
+            proxy_host_info.append(report_url_list)
+
+        # 通过接口获取云区域上报proxy
+        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": params["bk_biz_id"]})
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])
             # 默认云区域上报proxy，以数据库配置为准！
@@ -2495,24 +2526,15 @@ class CollectorViewSet(ModelViewSet):
             report_url_list = [
                 {
                     "bk_cloud_id": bk_cloud_id,
-                    "protocol": grpc_protocol,
-                    "report_url": ip_protocol + ip + grpc_trace_path,
+                    "protocol": OTLPProxyHostConfig.GRPC,
+                    "report_url": OTLPProxyHostConfig.http_scheme + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
                 },
                 {
                     "bk_cloud_id": bk_cloud_id,
-                    "protocol": http_protocol,
-                    "report_url": ip_protocol + ip + http_trace_path,
+                    "protocol": OTLPProxyHostConfig.HTTP,
+                    "report_url": OTLPProxyHostConfig.http_scheme + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
                 },
             ]
             proxy_host_info.append(report_url_list)
 
-        # 添加自定义上报默认地址
-        report_url_list = []
-        conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
-        for item in conf.get("otlp", {}).get("0", []):
-            protocol, report_url = item.split(":", maxsplit=1)
-            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
-
-        if report_url_list:
-            proxy_host_info.append(report_url_list)
         return Response(proxy_host_info)
