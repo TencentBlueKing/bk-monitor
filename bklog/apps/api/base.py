@@ -51,7 +51,7 @@ from apps.utils.local import (
     activate_request,
     get_request,
     get_request_id,
-    get_request_username,
+    get_request_username, get_request_tenant_id,
 )
 from apps.utils.log import logger
 from apps.utils.time_handler import timestamp_to_datetime
@@ -215,6 +215,7 @@ class DataAPI(object):
         data_api_retry_cls=None,
         use_superuser=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
+        bk_tenant_id="",
     ):
         """
         初始化一个请求句柄
@@ -264,6 +265,8 @@ class DataAPI(object):
         self.data_api_retry_cls = data_api_retry_cls
         self.use_superuser = use_superuser
         self.pagination_style = pagination_style
+
+        self.bk_tenant_id = bk_tenant_id
 
     def __call__(
         self,
@@ -519,6 +522,11 @@ class DataAPI(object):
             for key in self.header_keys:
                 params.pop(key, None)
             session.headers.update(**headers)
+
+        # 多租户模式下添加租户ID
+        # 如果是web请求，通过用户名获取租户ID
+        # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
+        session.headers.update({"X-Bk-Tenant-Id": self.bk_tenant_id or get_request_tenant_id()})
 
         url = self.build_actual_url(params)
 

@@ -151,3 +151,14 @@ def get_request_language_code():
         return get_request().LANGUAGE_CODE
     except Exception:  # pylint: disable=broad-except
         return settings.LANGUAGE_CODE
+
+
+def get_request_tenant_id():
+    """
+    获取请求中的租户ID
+    """
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        request = get_request(peaceful=True)
+        if request and request.user.tenant_id:
+            return request.user.tenant_id
+    return settings.DEFAULT_TENANT_ID

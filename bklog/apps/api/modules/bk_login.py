@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -55,15 +56,31 @@ def get_user_after(response_result):
 class _BKLoginApi:
     MODULE = _("PaaS平台登录模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
     def __init__(self):
-        self.get_user = DataAPI(
-            method="GET",
-            url=USER_MANAGE_APIGATEWAY_ROOT + "retrieve_user/",
-            module=self.MODULE,
-            description="获取单个用户",
-            before_request=get_user_before,
-            after_request=get_user_after,
-        )
+        if self.use_apigw:
+            self.get_user = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/users/{username}/",
+                module=self.MODULE,
+                description="获取单个用户",
+                before_request=get_user_before,
+                after_request=get_user_after,
+                url_keys=["username"],
+            )
+        else:
+            self.get_user = DataAPI(
+                method="GET",
+                url=USER_MANAGE_APIGATEWAY_ROOT + "retrieve_user/",
+                module=self.MODULE,
+                description="获取单个用户",
+                before_request=get_user_before,
+                after_request=get_user_after,
+            )
+
         self.list_department_profiles = DataAPI(
             method="GET",
             url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",
