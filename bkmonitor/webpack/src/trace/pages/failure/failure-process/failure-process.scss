@@ -222,6 +222,9 @@
   .bk-tree-node .bk-node-action {
     margin-right: 9px;
   }
+  .bk-tree-node .bk-node-content .bk-checkbox {
+    vertical-align: middle;
+  }
 
   .failure-process-search-setting-tree-node {
     margin-left: 5px;
@@ -232,6 +235,10 @@
       margin-right: 5px;
       font-size: 16px;
       color: #979ba5;
+      vertical-align: middle;
+    }
+    .setting-tree-node-name {
+      vertical-align: middle;
     }
 
     .node-line {
