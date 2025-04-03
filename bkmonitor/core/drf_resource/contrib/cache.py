@@ -15,6 +15,7 @@ import abc
 import six
 
 from bkmonitor.utils.cache import CacheTypeItem, using_cache
+from bkmonitor.utils.request import get_request
 from core.drf_resource.base import Resource
 
 
@@ -73,3 +74,38 @@ class CacheResource(six.with_metaclass(abc.ABCMeta, Resource)):
         缓存写入触发条件
         """
         return True
+
+
+class TimedCacheResource(CacheResource):
+    def round_to_five_minutes(self, timestamps):
+        """将时间戳按5分钟取整"""
+        if timestamps is None:
+            return None
+        period = 5 * 60  # 5分钟秒数
+        return int(timestamps // period) * period
+
+    def _wrap_request(self):
+        """
+        将原有的request方法替换为支持缓存的request方法
+        """
+
+        def func_key_generator(resource):
+            requests = get_request()
+
+            start_time = requests.GET.get('start_time') or requests.POST.get('start_time')
+            end_time = requests.GET.get('end_time') or requests.POST.get('end_time')
+            start = self.round_to_five_minutes(int(start_time))
+            end = self.round_to_five_minutes(int(end_time))
+            key = "{}.{}".format(resource.__self__.__class__.__module__, resource.__self__.__class__.__name__)
+            if start and end:
+                key += f".{start}_{end}"
+            return key
+
+        self.request = using_cache(
+            cache_type=self.cache_type,
+            backend_cache_type=self.backend_cache_type,
+            user_related=self.cache_user_related,
+            compress=self.cache_compress,
+            is_cache_func=self.cache_write_trigger,
+            func_key_generator=func_key_generator,
+        )(self.request)
