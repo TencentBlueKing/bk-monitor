@@ -1724,3 +1724,7 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
     collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
     operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
     operation_params = serializers.DictField(label=_("额外的元数据"), required=False)
+
+
+class ProxyHostSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
