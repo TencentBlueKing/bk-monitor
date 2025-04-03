@@ -251,16 +251,22 @@
   };
 
   const handleSqlRetrieve = value => {
-    beforeQueryBtnClick().then(resp => {
-      if (resp.is_legal) {
-        store.commit('updateIndexItemParams', {
-          keyword: value,
-        });
+    if (value !== '*') {
+      beforeQueryBtnClick().then(resp => {
+        if (resp.is_legal) {
+          store.commit('updateIndexItemParams', {
+            keyword: value,
+          });
 
-        store.dispatch('requestIndexSetQuery');
-        setRouteParams();
-      }
-    });
+          store.dispatch('requestIndexSetQuery');
+          setRouteParams();
+        }
+      });
+      return;
+    }
+
+    store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   const handleSqlQueryChange = value => {

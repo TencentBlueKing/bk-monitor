@@ -85,15 +85,13 @@ export default (
   };
 
   let instance = undefined;
-
-  const getTargetInput = () => {
-    const target = instance?.proxy?.$el;
-    const input = target?.querySelector('.tag-option-focus-input');
-    return input as HTMLInputElement;
-  };
-
   const getRoot = () => {
     return instance?.proxy?.$el;
+  };
+  const getTargetInput = () => {
+    const target = refTarget?.value ?? getRoot();
+    const input = target?.querySelector('.tag-option-focus-input');
+    return input as HTMLInputElement;
   };
 
   const handleContainerClick = (e?) => {

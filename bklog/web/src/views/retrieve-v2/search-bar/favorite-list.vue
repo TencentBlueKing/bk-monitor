@@ -3,6 +3,7 @@
 
   // @ts-ignore
   import useStore from '@/hooks/use-store';
+  import { getRegExp } from '@/common/util';
 
   const props = defineProps({
     searchValue: {
@@ -23,7 +24,7 @@
     (props.searchValue ?? '')
       .split(separator)
       .filter(item => item.length)
-      .map(k => new RegExp(`^${k}`, 'i')),
+      .map(k => getRegExp(`^${k}`, 'i')),
   );
 
   const isSqlMode = item => {
