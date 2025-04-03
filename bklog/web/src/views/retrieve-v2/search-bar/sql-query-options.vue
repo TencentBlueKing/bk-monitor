@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, Ref, onBeforeUnmount, onMounted, onUnmounted } from 'vue';
+  import { computed, ref, watch, nextTick, Ref } from 'vue';
 
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
@@ -14,6 +14,7 @@
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
   import useFieldEgges from './use-field-egges';
+  import { getOsCommandLabel } from '@/common/util';
 
   const props = defineProps({
     value: {
@@ -354,11 +355,24 @@
     e.stopImmediatePropagation();
   };
 
-  const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
+  const handleKeydown = (e: {
+    preventDefault?: any;
+    code?: any;
+    ctrlKey?: boolean;
+    metaKey: boolean;
+    keyCode: number;
+  }) => {
     const { code } = e;
     const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
 
     if (code === 'Escape' || !catchKeyCode.includes(code)) {
+      return;
+    }
+
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
+      stopEventPreventDefault(e);
+      handleRetrieve();
       return;
     }
 
@@ -423,6 +437,7 @@
     nextTick(() => {
       setOptionActive();
     });
+
     const beforeShownValue =
       showOption.value.showFields ||
       showOption.value.showValue ||
@@ -441,7 +456,7 @@
   };
 
   const beforeHideFn = () => {
-    document.removeEventListener('keydown', handleKeydown);
+    document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
 
   // 查询语法按钮部分
@@ -702,7 +717,7 @@
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">Enter</span>
+          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
       </div>

@@ -226,6 +226,7 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
+    custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
     common_filter_addition: state =>
       (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(({ field, operator, value }) => ({
         field,
@@ -1222,6 +1223,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
+        sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
       };
 
       // 更新联合查询的begin

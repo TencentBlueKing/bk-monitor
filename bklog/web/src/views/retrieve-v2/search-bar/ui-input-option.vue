@@ -930,7 +930,7 @@
   };
 
   const afterHideFn = () => {
-    document.removeEventListener('keydown', handleKeydownClick);
+    document.removeEventListener('keydown', handleKeydownClick, { capture: true });
     document.removeEventListener('click', handleDocumentClick);
 
     resetParams();

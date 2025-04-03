@@ -19,7 +19,12 @@
 
   const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
 
-  const regExpStringList = computed(() => (props.searchValue ?? '').split(separator).filter(item => item.length));
+  const regExpStringList = computed(() =>
+    (props.searchValue ?? '')
+      .split(separator)
+      .filter(item => item.length)
+      .map(k => new RegExp(`^${k}`, 'i')),
+  );
 
   const isSqlMode = item => {
     return item.search_mode === 'sql' && !(item.params.chart_params?.type ?? false);
@@ -37,8 +42,7 @@
       .filter(child => {
         return (
           child.params?.keyword === '*' ||
-          (regExpStringList.value.length &&
-            regExpStringList.value.every(word => child.params?.keyword.indexOf(word) !== -1))
+          (regExpStringList.value.length && regExpStringList.value.every(reg => reg.test(child.params?.keyword)))
         );
       }),
   );

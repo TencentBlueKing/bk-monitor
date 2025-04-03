@@ -88,6 +88,7 @@ export default {
           displayFields: [],
           filterSetting: [],
           filterAddition: [],
+          sortList: [],
         },
         payload ?? {},
       );

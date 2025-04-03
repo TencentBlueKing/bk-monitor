@@ -209,7 +209,6 @@ export default (
       return;
     }
     if (isEscKey && popInstanceUtil.isShown()) {
-      console.log('---0001--esc');
       setIsInputTextFocus(false);
       popInstanceUtil.hide(100);
     }

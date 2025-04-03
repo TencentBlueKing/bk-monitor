@@ -333,14 +333,14 @@ export default defineComponent({
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
 
-          const hanldeExpandClick = () => {
-            config.expand = !config.expand;
-          };
+          // const hanldeExpandClick = () => {
+          //   config.expand = !config.expand;
+          // };
 
           return (
             <span
               class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-              onClick={hanldeExpandClick}
+              // onClick={hanldeExpandClick}
             >
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
@@ -884,7 +884,11 @@ export default defineComponent({
       };
 
       return [
-        <div class='bklog-list-row'>
+        <div
+          class='bklog-list-row'
+          data-row-index={rowIndex}
+          data-row-click
+        >
           {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => {
             const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
             const cellStyle = {
@@ -1075,6 +1079,22 @@ export default defineComponent({
       return null;
     };
 
+    const onRootClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) {
+        const index = parseInt(target.getAttribute('data-row-index'), 10);
+
+        if (index >= 0) {
+          const { item } = renderList[index] ?? {};
+          if (item) {
+            const config: RowConfig = tableRowConfig.get(item).value;
+            config.expand = !config.expand;
+          }
+        }
+      }
+    };
+
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
     });
@@ -1089,6 +1109,7 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       getExceptionRender,
+      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
@@ -1106,6 +1127,7 @@ export default defineComponent({
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
         style={this.rootBodyStyle}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
+        onClick={this.onRootClick}
       >
         {this.renderHeadVNode()}
         <div
