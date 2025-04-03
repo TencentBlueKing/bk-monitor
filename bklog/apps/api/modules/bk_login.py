@@ -81,6 +81,17 @@ class _BKLoginApi:
                 after_request=get_user_after,
             )
 
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            self.list_tenant = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenants/",
+                module=self.MODULE,
+                description="获取租户列表",
+            )
+        else:
+            # 没有开启多租户的，返回固定内容
+            self.list_tenant = lambda *args, **kwargs: [{"id": "system", "name": "Blueking", "status": "enabled"}]
+
         self.list_department_profiles = DataAPI(
             method="GET",
             url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",

@@ -51,7 +51,8 @@ from apps.utils.local import (
     activate_request,
     get_request,
     get_request_id,
-    get_request_username, get_request_tenant_id,
+    get_request_tenant_id,
+    get_request_username,
 )
 from apps.utils.log import logger
 from apps.utils.time_handler import timestamp_to_datetime
@@ -277,6 +278,7 @@ class DataAPI(object):
         raise_exception=True,
         request_cookies=True,
         data_api_retry_cls=None,
+        bk_tenant_id="",
     ):
         """
         调用传参
@@ -299,7 +301,7 @@ class DataAPI(object):
 
         request_id = get_request_id()
         try:
-            response = self._send_request(params, timeout, request_id, request_cookies)
+            response = self._send_request(params, timeout, request_id, request_cookies, bk_tenant_id)
             if raw:
                 return response.response
 
@@ -324,7 +326,7 @@ class DataAPI(object):
             message += f" path => {url_path}"
         return message
 
-    def _send_request(self, params, timeout, request_id, request_cookies):
+    def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
         # 请求前的参数清洗处理
         if self.before_request is not None:
             params = self.before_request(params)
@@ -357,9 +359,9 @@ class DataAPI(object):
                         wait_random_max=self.data_api_retry_cls.wait_random_max,
                         retry_on_exception=self.data_api_retry_cls.retry_on_exception,
                         retry_on_result=self.data_api_retry_cls.retry_on_result,
-                    ).call(self._send, params, timeout, request_id, request_cookies)
+                    ).call(self._send, params, timeout, request_id, request_cookies, bk_tenant_id)
                 else:
-                    raw_response = self._send(params, timeout, request_id, request_cookies)
+                    raw_response = self._send(params, timeout, request_id, request_cookies, bk_tenant_id)
             except ReadTimeout as e:
                 raise DataAPIException(self, self.get_error_message(str(e)))
             except RetryError as e:
@@ -491,7 +493,7 @@ class DataAPI(object):
         """
         cache.set(cache_key, data, self.cache_time)
 
-    def _send(self, params, timeout, request_id, request_cookies):
+    def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
         """
         发送和接受返回请求的包装
         @param params: 请求的参数,预期是一个字典
@@ -526,7 +528,7 @@ class DataAPI(object):
         # 多租户模式下添加租户ID
         # 如果是web请求，通过用户名获取租户ID
         # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
-        session.headers.update({"X-Bk-Tenant-Id": self.bk_tenant_id or get_request_tenant_id()})
+        session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id or self.bk_tenant_id or get_request_tenant_id()})
 
         url = self.build_actual_url(params)
 

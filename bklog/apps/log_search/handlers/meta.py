@@ -38,7 +38,7 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import FunctionGuideException
 from apps.log_search.models import ProjectInfo, Space, UserMetaConf
 from apps.utils import APIModel
-from apps.utils.local import get_request
+from apps.utils.local import get_request, get_request_tenant_id, get_request_username
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -46,10 +46,14 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 class MetaHandler(APIModel):
     @classmethod
-    def get_user_spaces(cls, username):
+    def get_user_spaces(cls):
+        username = get_request_username()
+        bk_tenant_id = get_request_tenant_id()
         # 获取业务列表
-        spaces = Space.get_all_spaces()
-        allowed_spaces = Permission(username).filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, spaces)
+        spaces = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
+        allowed_spaces = Permission(username).filter_space_list_by_action(
+            ActionEnum.VIEW_BUSINESS, bk_tenant_id, spaces
+        )
         allowed_space_mapping = {space["bk_biz_id"] for space in allowed_spaces}
         # 获取置顶空间列表
         # 返回格式： space_uid 的列表
