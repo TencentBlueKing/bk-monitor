@@ -24,10 +24,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils';
 import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
@@ -38,6 +40,7 @@ import { getOperatorDisabled } from '../utils';
 import type { IDetail } from './type';
 
 import './basic-info.scss';
+import 'vue-json-pretty/lib/styles.css'
 
 interface IBasicInfoProps {
   basicInfo: IDetail;
@@ -179,6 +182,75 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           </span>,
         ])
       : '--';
+  }
+
+  // 关联信息渲染方式
+  getRelationInfo(relationInfo: string) {
+    if (relationInfo.startsWith('{') && relationInfo.endsWith('}')) {
+      return (
+        <span
+          class='relation-log-btn'
+          onClick={() => this.handleRelationInfoDialog(JSON.parse(relationInfo))}
+        >
+          <span class='icon-monitor icon-guanlian' /> 关联日志
+        </span>
+      );
+    }
+    return relationInfo;
+  }
+
+  // 关联日志的渲染方式
+  handleRelationInfoDialog(relationInfo) {
+    const h = this.$createElement;
+    this.$bkInfo({
+      width: 960,
+      cancelText: this.$t('关闭'),
+      extCls: 'event-relation-dialog',
+      title: this.$t('关联日志'),
+      subHeader: h(
+        'div', // 使用 div 元素包装整个内容
+        { class: 'json-view-content' },
+        [
+          h('i', {
+            class: 'icon-monitor icon-mc-copy',
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: this.$t('复制'),
+                arg: 'distance',
+                modifiers: { '5': true }
+              }
+            ],
+            on: {
+              click: () => this.handleCopy(relationInfo),
+            }
+          }),
+          h(VueJsonPretty, {
+            props: {
+              collapsedOnClickBrackets: false,
+              data: relationInfo,
+              deep: 5,
+              showIcon: true,
+              showLine: false
+            }
+          }),
+        ]
+      ),
+    });
+  }
+
+  handleCopy(str) {
+    copyText(JSON.stringify(str, null, 4), msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
   }
 
   handleToCollectDetail() {
@@ -347,7 +419,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap content-break-spaces' },
       {
         title: this.$t('关联信息'),
-        content: relation_info?.trim() ? relation_info : '--',
+        content: relation_info?.trim() ? this.getRelationInfo(relation_info) : '--',
         extCls: 'no-flex',
       },
     ] as any;
