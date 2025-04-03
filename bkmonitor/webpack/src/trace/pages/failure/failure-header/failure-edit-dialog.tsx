@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
+import { type Ref, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
@@ -56,9 +56,8 @@ export default defineComponent({
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const customLabelsList = ref([]);
     const editDialogRef = ref(null);
-    const incidentDetailData = computed(() => {
-      return JSON.parse(JSON.stringify(incidentDetail.value));
-    });
+    const incidentDetailData = ref({});
+
     function valueChange(v) {
       emit('update:isShow', v);
     }
@@ -114,6 +113,7 @@ export default defineComponent({
       () => props.visible,
       val => {
         if (val) {
+          incidentDetailData.value = JSON.parse(JSON.stringify(incidentDetail.value));
           const labels = incidentDetailData.value.labels.map(item => item.replace(/\//g, ''));
           incidentDetailData.value.labels = labels;
         }

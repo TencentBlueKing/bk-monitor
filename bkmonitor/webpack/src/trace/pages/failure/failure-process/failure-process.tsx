@@ -247,7 +247,7 @@ export default defineComponent({
                                 ]}
                               />
                             )}
-                            {data.name}
+                            <span class='setting-tree-node-name'>{data.name}</span>
                             {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
