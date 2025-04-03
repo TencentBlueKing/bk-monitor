@@ -724,6 +724,10 @@ class ValidateCustomTsGroupLabel(Resource):
         if not self.metric_data_label_pattern.match(data_label):
             raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"))
 
+        # 内置指标，不做校验
+        if params["bk_biz_id"] == 0:
+            return True
+
         queryset = CustomTSTable.objects.filter(
             Q(bk_biz_id=params["bk_biz_id"]) | Q(is_platform=True),
             data_label=data_label,
