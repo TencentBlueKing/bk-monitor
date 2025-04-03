@@ -91,16 +91,11 @@ export default class IndicatorTableSlide extends tsc<any> {
   @Ref() metricSliderPopover: any;
   @Ref('metricTableRef') metricTableRef: HTMLDivElement;
   @InjectReactive('metricFunctions') metricFunctions;
-  @Ref('tableContainerRef') tableContainerRef: HTMLDivElement;
 
   localTable: IMetricItem[] = [];
   units: any[] = [];
   inputFocus = -1;
   width = 1400;
-  currentPage = 1;
-  pageSize = 20;
-  cellHeight = 40;
-  showTableData = [];
 
   // 单位配置
   unitConfig = { mode: ALL_OPTION, checkedList: [] };
@@ -127,19 +122,6 @@ export default class IndicatorTableSlide extends tsc<any> {
   // 删除列表
   delArray = [];
 
-  fieldSettings = {
-    name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
-    description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
-    unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
-    aggregateMethod: { label: '汇聚方法', width: 125 },
-    interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
-    // func: { label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
-    dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
-    disabled: { label: '启/停', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
-    hidden: { label: '显示', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
-    set: { label: '操作', width: 50, renderFn: props => this.renderOperations(props) },
-  };
-
   // 生命周期钩子
   created() {
     this.initData();
@@ -151,7 +133,6 @@ export default class IndicatorTableSlide extends tsc<any> {
 
   // 数据初始化
   initData() {
-    console.log('2');
     this.localTable = deepClone(this.metricTable);
     this.units = this.unitList;
   }
@@ -202,7 +183,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 响应式处理
-  @Watch('metricTable', { deep: true })
+  @Watch('metricTable', { immediate: true, deep: true })
   handleMetricTableChange(newVal: IMetricItem[]) {
     this.localTable = deepClone(newVal);
   }
@@ -212,50 +193,23 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.units = newVal;
     this.localUnitConfig = deepClone(this.unitConfig);
   }
-
-  @Watch('isShow')
-  handleIsShowChange(val) {
-    if (val) {
-      this.showTableData = [];
-      this.currentPage = 1;
-      this.$nextTick(() => {
-        const height = window.innerHeight - 160;
-        this.pageSize = Math.floor(height / this.cellHeight);
-        this.showTableData.push(...this.localTable.slice(0, this.pageSize));
-        console.log(height, this.showTableData, this.pageSize, this.localTable.length);
-      });
-    }
-  }
-
-  handleScroll() {
-    const scrollDiv = this.$refs.tableContainerRef;
-    const { scrollHeight, clientHeight, scrollTop } = scrollDiv;
-    const isBottom = scrollHeight - clientHeight === scrollTop;
-    const test = scrollHeight - (scrollTop + clientHeight) < 50;
-    console.log(
-      test,
-      scrollTop,
-      isBottom,
-      'isBottom',
-      this.currentPage,
-      scrollDiv.scrollHeight - scrollDiv.clientHeight
-    );
-    if (isBottom) {
-      setTimeout(() => {
-        // const startIndex = this.currentPage * this.pageSize;
-        // const endIndex = (this.currentPage + 1) * this.pageSize;
-        // const newData = this.localTable.slice(startIndex, endIndex);
-        // // 如果没有新数据，说明已经加载完毕
-        // if (newData.length === 0) {
-        //   // isAllLoaded.value = true;
-        // } else {
-        //   this.showTableData.push(...newData);
-        //   this.currentPage++;
-        // }
-        // isLoading.value = false;
-      }, 1000);
-    }
-  }
+  fieldSettings = [
+    { key: 'name', label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
+    { key: 'description', label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
+    { key: 'unit', label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
+    { key: 'aggregateMethod', label: '汇聚方法', width: 125 },
+    { key: 'interval', label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
+    // { key: 'func',  label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
+    {
+      key: 'dimension',
+      label: '关联维度',
+      width: 215,
+      renderFn: props => this.renderDimension(props.row, props.$index),
+    },
+    { key: 'disabled', label: '启/停', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    { key: 'hidden', label: '显示', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    { key: 'set', label: '操作', width: 50, renderFn: props => this.renderOperations(props) },
+  ];
 
   // 主渲染逻辑
   render() {
@@ -287,24 +241,15 @@ export default class IndicatorTableSlide extends tsc<any> {
               on-change={this.handleSearchChange}
             />
           </div>
-          <div
-            ref='tableContainerRef'
-            class='slider-table'
-            onScroll={this.handleScroll}
-          >
+          <div class='slider-table'>
             <bk-table
               ref='metricTableRef'
               v-bkloading={{ isLoading: this.tableConfig.loading }}
-              data={this.showTableData}
+              data={this.localTable}
               empty-text={this.$t('无数据')}
               colBorder
             >
-              <bk-table-column
-                width='60'
-                label='序列'
-                type='index'
-              ></bk-table-column>
-              {Object.entries(this.fieldSettings).map(([key, config]) => {
+              {Object.entries(FIELD_SETTINGS).map(([key, config]) => {
                 if (!this.tableConfig.fieldSettings[key].checked) return null;
 
                 return (
@@ -313,11 +258,31 @@ export default class IndicatorTableSlide extends tsc<any> {
                     width={config.width}
                     scopedSlots={{
                       default: props => {
-                        /** 自定义 */
-                        if (config?.renderFn) {
-                          return config?.renderFn(props, key);
+                        switch (key) {
+                          case 'name':
+                            return this.renderNameColumn(props);
+                          case 'description':
+                            return this.renderDescriptionColumn(props);
+                          case 'unit':
+                            return this.renderUnitColumn(props);
+                          case 'disabled':
+                          case 'hidden':
+                            return this.renderSwitch(props.row, key);
+                          case 'status':
+                            return this.renderStatusPoint(props.row);
+                          case 'aggregateMethod':
+                            return this.renderAggregateMethod(props.row);
+                          case 'interval':
+                            return this.renderInterval(props.row);
+                          case 'dimension':
+                            return this.renderDimension(props.row, props.$index);
+                          case 'func':
+                            return this.renderFunction(props.row);
+                          case 'set':
+                            return this.renderOperations(props);
+                          default:
+                            return props.row[key] || '--';
                         }
-                        return props.row[key] || '--';
                       },
                       header:
                         key === 'unit'
