@@ -230,7 +230,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                   onMouseenter={e => this.handleHoverFavoriteName(e, item)}
                 >
                   <span>{item.name}</span>
-                  <span class='bk-icon bklog-icon bklog-shixiao'></span>
+                  {this.isFailFavorite(item) ? <span class='bk-icon bklog-icon bklog-shixiao'></span> : null}
                   {this.isMultiIndex(item) ? (
                     <span
                       v-bk-tooltips={{
