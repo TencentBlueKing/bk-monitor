@@ -216,9 +216,8 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
                 {this.$t('自定义上报事件')}
               </div>
               <div
-                class={{ item: true, active: this.dataSourceLabel === 'bk_monitor', 'is-disabled': true }}
-                v-bk-tooltips={{ content: this.$t('即将上线') }}
-                onClick={() => false && this.handleEventTypeChange('bk_monitor')}
+                class={{ item: true, active: this.dataSourceLabel === 'bk_monitor' }}
+                onClick={() => this.handleEventTypeChange('bk_monitor')}
               >
                 {this.$t('日志关键字')}
               </div>

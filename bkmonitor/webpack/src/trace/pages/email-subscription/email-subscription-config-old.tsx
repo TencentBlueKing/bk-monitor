@@ -27,7 +27,6 @@ import { computed, defineComponent, nextTick, onMounted, reactive, ref, watch } 
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Table, TableColumn } from '@blueking/table';
 import {
   Button,
   Dialog,
@@ -36,11 +35,11 @@ import {
   Input,
   Loading,
   Message,
-  overflowTitle,
   Popover,
   Radio,
   Sideslider,
   Switcher,
+  Table,
   TagInput,
 } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -56,14 +55,13 @@ import {
 import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 
-import EmptyStatus from '../../components/empty-status/empty-status';
 import NavBar from '../../components/nav-bar/nav-bar';
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, type ITable, type TestSendingTarget } from './types';
+import { FrequencyType, type TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import type { Column } from 'bkui-vue/lib/table/props';
@@ -85,9 +83,6 @@ let isOnCloneMode = false;
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
-  directives: {
-    overflowTitle,
-  },
   setup() {
     const { t } = useI18n();
     const router = useRouter();
@@ -95,7 +90,7 @@ export default defineComponent({
     // 查询订阅列表 相关参数 开始
     const createType = ref<'manager' | 'self' | 'user'>('manager');
     const queryType = ref<'all' | 'available' | 'invalid'>('all');
-    const queryTypeForSelf = ref<'all' | 'FAILED' | 'RUNNING' | 'SUCCESS'>('all');
+    const queryTypeForSelf = ref<'FAILED' | 'RUNNING' | 'SUCCESS' | 'all'>('all');
     const searchKey = ref('');
     const page = ref(1);
     const pageSize = ref(20);
@@ -122,371 +117,719 @@ export default defineComponent({
     };
     const isSelfMode = ref(false);
     const isTableLoading = ref(false);
-    const table = reactive<ITable>({
+    const table = reactive({
       data: [],
-      columns: [
-        {
-          label: `${t('订阅名称')}`,
-          field: 'name',
-        },
-        {
-          label: `${t('通知渠道')}`,
-          field: 'channels',
-        },
-        {
-          label: `${t('订阅场景')}`,
-          field: 'scenario',
-        },
-        {
-          label: `${t('发送模式')}`,
-          field: 'send_mode',
-          filter: [
-            {
-              label: t('周期发送'),
-              value: 'periodic',
+      columns: {
+        fields: [
+          {
+            width: '20%',
+            label: `${t('订阅名称')}`,
+            field: 'name',
+            render: ({ data }) => {
+              return (
+                <Button
+                  theme='primary'
+                  text
+                  onClick={() => {
+                    subscriptionDetail.value = data;
+                    isShowSubscriptionDetailSideslider.value = true;
+                  }}
+                >
+                  {t(`${data.name}`)}
+                </Button>
+              );
             },
-            {
-              label: t('仅发一次'),
-              value: 'one_time',
+          },
+          {
+            label: `${t('通知渠道')}`,
+            field: 'channels',
+            render: ({ data }) => {
+              const content = data.channels
+                .filter(item => item.is_enabled)
+                .map(item => t(ChannelName[item.channel_name]))
+                .toString();
+              return (
+                <Popover
+                  v-slots={{
+                    content,
+                  }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                >
+                  <div
+                    class={{
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                    }}
+                  >
+                    {content}
+                  </div>
+                </Popover>
+              );
             },
-          ],
-        },
-        {
-          label: `${t('发送时间')}`,
-          field: 'send_time',
-        },
-        {
-          label: `${t('最近一次发送时间')}`,
-          field: 'last_send_time',
-          sortable: true,
-        },
-        {
-          label: `${t('发送状态')}`,
-          field: 'send_status',
-          filter: [
-            {
-              label: `${t('发送成功')}`,
-              value: 'success',
+          },
+          {
+            label: `${t('订阅场景')}`,
+            field: 'scenario',
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                  }}
+                >
+                  {t(Scenario[data.scenario])}
+                </div>
+              );
             },
-            {
-              label: `${t('未发送')}`,
-              value: 'no_status',
+          },
+          {
+            label: `${t('发送模式')}`,
+            field: 'send_mode',
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                  }}
+                >
+                  {t(SendMode[data.send_mode])}
+                </div>
+              );
             },
-            // {
-            //   label: `${t('发送部分失败')}`,
-            //   value: 'partial_failed'
-            // },
-            {
-              label: `${t('发送失败')}`,
-              value: 'failed',
+            filter: {
+              list: [
+                {
+                  text: t('周期发送'),
+                  value: 'periodic',
+                },
+                {
+                  text: t('仅发一次'),
+                  value: 'one_time',
+                },
+              ],
+              filterFn: () => true,
             },
-          ],
-        },
-        {
-          label: `${t('创建人')}`,
-          field: 'create_user',
-        },
-        {
-          label: `${t('启/停')}`,
-          field: 'is_enabled',
-        },
-        {
-          label: `${t('创建时间')}`,
-          field: 'create_time',
-          sortable: true,
-        },
-        {
-          label: `${t('操作')}`,
-          field: 'action',
-          width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
-        },
-      ],
+          },
+          {
+            label: `${t('发送时间')}`,
+            field: 'send_time',
+            render: ({ data }) => {
+              const content =
+                data?.frequency?.type === FrequencyType.onlyOnce
+                  ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                  : getSendFrequencyText(data);
+              return (
+                <Popover
+                  v-slots={{
+                    content,
+                  }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                >
+                  <div
+                    class={{
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                    }}
+                  >
+                    {content}
+                  </div>
+                </Popover>
+              );
+            },
+          },
+          {
+            label: `${t('最近一次发送时间')}`,
+            field: 'last_send_time',
+            sort: {
+              value: null,
+            },
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                  }}
+                >
+                  {data.last_send_time ? dayjs(data.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
+                </div>
+              );
+            },
+          },
+          {
+            label: `${t('发送状态')}`,
+            field: 'send_status',
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                  }}
+                >
+                  <i
+                    style='margin-right: 10px;'
+                    class={['icon-circle', data.send_status]}
+                  />
+                  {t(SendStatus[data.send_status])}
+                </div>
+              );
+            },
+            filter: {
+              list: [
+                {
+                  text: `${t('发送成功')}`,
+                  value: 'success',
+                },
+                {
+                  text: `${t('未发送')}`,
+                  value: 'no_status',
+                },
+                // {
+                //   text: `${t('发送部分失败')}`,
+                //   value: 'partial_failed'
+                // },
+                {
+                  text: `${t('发送失败')}`,
+                  value: 'failed',
+                },
+              ],
+              filterFn: () => true,
+            },
+          },
+          {
+            label: `${t('创建人')}`,
+            field: 'create_user',
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
+                  }}
+                >
+                  {data.create_user}
+                </div>
+              );
+            },
+          },
+          {
+            width: '50px',
+            label: `${t('启/停')}`,
+            field: 'is_enabled',
+            render: ({ data, index }) => {
+              return (
+                <div>
+                  <Switcher
+                    v-model={data.is_enabled}
+                    size='small'
+                    theme='primary'
+                    onChange={() => handleSetEnable(index)}
+                  />
+                </div>
+              );
+            },
+          },
+          {
+            label: `${t('创建时间')}`,
+            field: 'create_time',
+            sort: {
+              value: null,
+            },
+            render: ({ data }) => {
+              return <div>{dayjs(data.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+            },
+          },
+          {
+            label: `${t('操作')}`,
+            field: 'action',
+            width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
+            render: row => {
+              return (
+                <div style='display: flex;align-items: center;'>
+                  <Button
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      isShowSendRecord.value = true;
+                      subscriptionDetail.value = row.data;
+                      getSendingRecordList();
+                    }}
+                  >
+                    {t('发送记录')}
+                  </Button>
+
+                  <Button
+                    style='margin-left: 10px;'
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      subscriptionDetail.value = row.data;
+                      isShowEditSideslider.value = true;
+                    }}
+                  >
+                    {t('编辑')}
+                  </Button>
+
+                  {/* 实现方式有问题，看看有没有其它的实现方式 */}
+                  <div>
+                    <Popover
+                      extCls='email-subscription-popover'
+                      v-slots={{
+                        content: () => (
+                          <div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                // 将当前数据深拷贝一次，将 name 增加 _clone 后缀，再把 id 的 key 删掉（让接口直接创建新数据）
+                                // 最后赋值到 subscriptionDetail 中，打开编辑抽屉组件让用户进行修改。
+                                const clonedSubscriptionDetail = deepClone(row.data);
+                                clonedSubscriptionDetail.name = `${clonedSubscriptionDetail.name}_clone`;
+                                subscriptionDetail.value = clonedSubscriptionDetail;
+                                isShowEditSideslider.value = true;
+                                isOnCloneMode = true;
+                              }}
+                            >
+                              {t('克隆')}
+                            </div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                InfoBox({
+                                  extCls: 'report-tips-dialog',
+                                  infoType: 'warning',
+                                  title: t('是否删除 {0} ?', [row.data.name]),
+                                  showMask: true,
+                                  onConfirm: () => {
+                                    return handleDeleteRow(row.data.id)
+                                      .then(() => {
+                                        return true;
+                                      })
+                                      .catch(() => {
+                                        return false;
+                                      });
+                                  },
+                                });
+                              }}
+                            >
+                              {t('删除')}
+                            </div>
+                          </div>
+                        ),
+                      }}
+                      isShow={toggleMap[row.index] || false}
+                      placement='bottom-start'
+                      theme='light'
+                      trigger='click'
+                    >
+                      <i
+                        style='margin-left: 10px;'
+                        class='more-btn icon-monitor icon-mc-more'
+                        onClick={() => (toggleMap[row.index] = true)}
+                      />
+                    </Popover>
+                  </div>
+                </div>
+              );
+            },
+          },
+        ],
+        limit: 0,
+      },
       settings: {
         fields: [],
         checked: [],
+        limit: 0,
         size: 'small',
+        sizeList: [],
+        showLineHeight: false,
       },
     });
-    const emptyType = ref('empty');
     // 根据 table 字段生成对应的字段显隐 setting
-    table.settings.fields = table.columns.map(item => {
+    table.settings.fields = table.columns.fields.map(item => {
       return {
         label: item.label,
         field: item.field,
       };
     });
-    table.settings.checked = table.columns
+    table.settings.checked = table.columns.fields
       // 这里先不展示 创建时间 ，让用户自己手动开。
       .filter(item => !['create_time'].includes(item.field))
       .map(item => item.field);
     // 订阅审批
-    const tableForSelf = reactive<ITable>({
+    const tableForSelf = reactive({
       data: [],
-      columns: [
-        {
-          width: '20%',
-          label: `${t('订阅名称')}`,
-          field: 'content_title',
-        },
-        {
-          label: `${t('通知渠道')}`,
-          field: 'channels',
-        },
-        {
-          label: `${t('订阅场景')}`,
-          field: 'scenario',
-        },
-        {
-          label: `${t('发送模式')}`,
-          field: 'send_mode',
-          filter: [
-            {
-              text: t('周期发送'),
-              value: 'periodic',
+      columns: {
+        fields: [
+          {
+            width: '20%',
+            label: `${t('订阅名称')}`,
+            field: 'name',
+            render: ({ data }) => {
+              return (
+                <Button
+                  theme='primary'
+                  text
+                  onClick={() => {
+                    fetchReportDetail(data.report_id);
+                    isSelfMode.value = true;
+                    isShowSubscriptionDetailSideslider.value = true;
+                  }}
+                >
+                  {t(`${data.content_title}`)}
+                </Button>
+              );
             },
-            {
-              text: t('仅发一次'),
-              value: 'one_time',
+          },
+          {
+            label: `${t('通知渠道')}`,
+            field: 'channels',
+            render: ({ data }) => {
+              const content = data.channels
+                .filter(item => item.is_enabled)
+                .map(item => t(ChannelName[item.channel_name]))
+                .toString();
+              return (
+                <Popover
+                  v-slots={{
+                    content,
+                  }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                >
+                  <div>{content}</div>
+                </Popover>
+              );
             },
-          ],
-        },
-        {
-          label: `${t('发送时间')}`,
-          field: 'send_time',
-        },
-        {
-          label: `${t('审批状态')}`,
-          field: 'status',
-        },
-        {
-          label: `${t('创建人')}`,
-          field: 'create_user',
-        },
-        {
-          label: `${t('操作')}`,
-          field: 'self_action',
-          width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
-        },
-      ],
+          },
+          {
+            label: `${t('订阅场景')}`,
+            field: 'scenario',
+            render: ({ data }) => {
+              return <div>{t(Scenario[data.scenario])}</div>;
+            },
+          },
+          {
+            label: `${t('发送模式')}`,
+            field: 'send_mode',
+            render: ({ data }) => {
+              return <div>{t(SendMode[data.send_mode])}</div>;
+            },
+            filter: {
+              list: [
+                {
+                  text: t('周期发送'),
+                  value: 'periodic',
+                },
+                {
+                  text: t('仅发一次'),
+                  value: 'one_time',
+                },
+              ],
+              filterFn: () => true,
+            },
+          },
+          {
+            label: `${t('发送时间')}`,
+            field: 'send_time',
+            render: ({ data }) => {
+              const content =
+                data?.frequency?.type === FrequencyType.onlyOnce
+                  ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                  : getSendFrequencyText(data);
+              return (
+                <Popover
+                  v-slots={{
+                    content,
+                  }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                >
+                  <div>{content}</div>
+                </Popover>
+              );
+            },
+          },
+          {
+            label: `${t('审批状态')}`,
+            field: 'status',
+            render: ({ data }) => {
+              return (
+                <div>
+                  <i
+                    style='margin-right: 10px;'
+                    class={['icon-circle', data.status]}
+                  />
+                  {ApplyStatus[data.status]}
+                </div>
+              );
+            },
+          },
+          {
+            label: `${t('创建人')}`,
+            field: 'create_user',
+            render: ({ data }) => {
+              return <div>{data.create_user}</div>;
+            },
+          },
+          {
+            label: `${t('操作')}`,
+            field: 'action',
+            width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
+            render: ({ data }) => {
+              return (
+                <div>
+                  <Button
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      window.open(data.approval_url, '_blank');
+                    }}
+                  >
+                    {['SUCCESS', 'FAILED'].includes(data.status) ? t('查看') : t('操作')}
+                  </Button>
+                </div>
+              );
+            },
+          },
+        ],
+        limit: 0,
+      },
       settings: {
         fields: [],
         checked: [],
+        limit: 0,
         size: 'small',
+        sizeList: [],
+        showLineHeight: false,
       },
     });
     // 根据 tableForSelf 字段生成对应的字段显隐 setting
-    tableForSelf.settings.fields = tableForSelf.columns.map(item => {
+    tableForSelf.settings.fields = tableForSelf.columns.fields.map(item => {
       return {
         label: item.label,
         field: item.field,
       };
     });
-    tableForSelf.settings.checked = tableForSelf.columns.map(item => item.field);
+    tableForSelf.settings.checked = tableForSelf.columns.fields.map(item => item.field);
     setTableSetting();
 
     // 发送记录 里控制多个 tooltips 的显隐
     const toggleMapForSendRecord = reactive<TooltipsToggleMapping>({});
     const sendRecordTable = reactive({
       data: [],
-      columns: [
-        {
-          label: `${t('发送时间')}`,
-          field: 'send_time',
-          render: ({ data }) => {
-            return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
+      columns: {
+        fields: [
+          {
+            label: `${t('发送时间')}`,
+            field: 'send_time',
+            render: ({ data }) => {
+              return <div>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+            },
           },
-        },
-        {
-          label: `${t('类型')}`,
-          render: ({ data }) => <span>{t(ChannelName[data.channel_name])}</span>,
-        },
-        {
-          label: `${t('接收人')}`,
-          render: ({ data }) => {
-            const content = data.send_results.map(item => item.id).toString();
-            return (
-              <span
-                style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'
-                v-overflow-text={{ text: content }}
-              >
-                {content}
-              </span>
-            );
+          {
+            label: `${t('类型')}`,
+            render: ({ data }) => {
+              return t(ChannelName[data.channel_name]);
+            },
           },
-        },
-        {
-          label: `${t('发送结果')}`,
-          render: ({ data }) => {
-            return (
-              <span>
-                <i class={['icon-circle', data.send_status]} />
-                {data.send_results.filter(item => item.result).length ? (
-                  <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
-                ) : (
-                  <span
-                    style='margin-left: 10px;'
-                    v-bk-tooltips={{
-                      content: data.send_results.find(item => !item.result)?.message,
-                      placement: 'top',
+          {
+            label: `${t('接收人')}`,
+            render: ({ data }) => {
+              const content = data.send_results.map(item => item.id).toString();
+              return (
+                <Popover
+                  v-slots={{
+                    content: () => {
+                      return <span style='word-break: break-word;'>{content}</span>;
+                    },
+                  }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                >
+                  <div style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'>{content}</div>
+                </Popover>
+              );
+            },
+          },
+          {
+            label: `${t('发送结果')}`,
+            render: ({ data }) => {
+              return (
+                <div>
+                  <i class={['icon-circle', data.send_status]} />
+                  {data.send_results.filter(item => item.result).length ? (
+                    <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
+                  ) : (
+                    <span
+                      style='margin-left: 10px;'
+                      v-bk-tooltips={{
+                        content: data.send_results.find(item => !item.result)?.message,
+                        placement: 'top',
+                      }}
+                    >
+                      {t(SendStatus[data.send_status])}
+                    </span>
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            label: `${t('操作')}`,
+            render: ({ data, index }) => {
+              return (
+                <Popover
+                  extCls='email-subscription-popover'
+                  // zIndex={99999 + index}
+                  v-slots={{
+                    content: () => {
+                      let headerText = '';
+                      let headerConfirmText = '';
+                      if (['success'].includes(data.send_status)) {
+                        const headerTextMap = {
+                          user: '已成功发送 {0} 个内部用户',
+                          email: '已成功发送 {0} 个外部邮件',
+                          wxbot: '已成功发送 {0} 个企业微信群',
+                        };
+                        headerText = headerTextMap[data.channel_name];
+                        const headerConfirmTextMap = {
+                          user: '确定重新发送给以下用户',
+                          email: '确定重新发送给以下邮件',
+                          wxbot: '确定重新发送给以下企业微信群',
+                        };
+                        headerConfirmText = headerConfirmTextMap[data.channel_name];
+                      } else if (['partial_failed', 'failed'].includes(data.send_status)) {
+                        const headerTextMap = {
+                          user: '已成功发送 {0} 个，失败 {1} 个内部用户',
+                          email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
+                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群',
+                        };
+                        headerText = headerTextMap[data.channel_name];
+                        const headerConfirmTextMap = {
+                          user: '确定重新发送给以下失败用户',
+                          email: '确定重新发送给以下失败邮件',
+                          wxbot: '确定重新发送给以下失败企业微信群',
+                        };
+                        headerConfirmText = headerConfirmTextMap[data.channel_name];
+                      }
+
+                      return (
+                        <div class='resend-popover-container'>
+                          <div class='success-header-text'>
+                            {/* 根据 data.channel 如果为 success 就选这些文本
+                            1. 已成功发送 {0} 个内部用户
+                            2. 已成功发送 {0} 个外部邮件
+                            3. 已成功发送 {0} 个企业微信群
+
+                            如果为 partial_failed, failed 就选这些文本
+                            1. 已成功发送 {0} 个，失败 {1} 个企业微信群
+                            2. 已成功发送 {0} 个，失败 {1} 个外部邮件
+                            3. 已成功发送 {0} 个，失败 {1} 个内部用户
+                          */}
+                            <i18n-t keypath={headerText}>
+                              <span class='success-text'>{data.send_results.filter(item => item.result).length}</span>
+                              {['partial_failed', 'failed'].includes(data.send_status) && (
+                                <span class='fail-text'>{data.send_results.filter(item => !item.result).length}</span>
+                              )}
+                            </i18n-t>
+                          </div>
+
+                          <div class='header-confirm-text'>
+                            {/* 根据 data.channel 如果为 success 就选这些文本
+                              1. 确定重新发送给以下用户
+                              2. 确定重新发送给以下邮件
+                              3. 确定重新发送给以下企微群
+
+                              如果为 partial_failed, success 就选这些文本
+                              1. 确定重新发送给以下失败企微群
+                              2. 确定重新发送给以下失败邮件
+                              3. 确定重新发送给以下失败用户
+                            */}
+                            {t(headerConfirmText)}
+                          </div>
+
+                          <div style='margin-top: 10px;'>
+                            <TagInput
+                              v-model={data.selectedTag}
+                              content-width={238}
+                              display-key='id'
+                              list={data.tempSendResult}
+                              placeholder={t('请选择')}
+                              save-key='id'
+                              search-key={['id']}
+                              trigger='focus'
+                              has-delete-icon
+                            />
+                          </div>
+
+                          <div class='footer-operation'>
+                            <Button
+                              style='min-width: 64px;'
+                              disabled={!data.selectedTag.length}
+                              loading={isResending.value}
+                              theme='primary'
+                              onClick={() => {
+                                handleResendSubscription(data, index);
+                              }}
+                            >
+                              {t('确定')}
+                            </Button>
+
+                            <Button
+                              style='min-width: 64px;margin-left: 8px;'
+                              onClick={() => {
+                                toggleMapForSendRecord[index] = false;
+                              }}
+                            >
+                              {t('取消')}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    },
+                  }}
+                  isShow={toggleMapForSendRecord[index] || false}
+                  placement='bottom-start'
+                  theme='light'
+                  trigger='click'
+                  disableOutsideClick
+                >
+                  <Button
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      toggleMapForSendRecord[index] = true;
+                      // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
+                      sendRecordTable.data.forEach(item => {
+                        item.tempSendResult = deepClone(item.send_results);
+                        // 这里将展示 TagInput 用的保存变量。
+
+                        item.selectedTag = [];
+                        // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
+                        item.send_results.forEach(subItem => {
+                          if (item.send_status === 'partial_failed' && !subItem.result) {
+                            item.selectedTag.push(subItem.id);
+                          }
+                          if (item.send_status === 'failed') {
+                            item.selectedTag.push(subItem.id);
+                          }
+                        });
+                      });
                     }}
                   >
-                    {t(SendStatus[data.send_status])}
-                  </span>
-                )}
-              </span>
-            );
+                    {t('重新发送')}
+                  </Button>
+                </Popover>
+              );
+            },
           },
-        },
-        {
-          label: `${t('操作')}`,
-          render: ({ data, index }) => {
-            return (
-              <Popover
-                extCls='email-subscription-popover'
-                // zIndex={99999 + index}
-                v-slots={{
-                  content: () => {
-                    let headerText = '';
-                    let headerConfirmText = '';
-                    if (['success'].includes(data.send_status)) {
-                      const headerTextMap = {
-                        user: '已成功发送 {0} 个内部用户',
-                        email: '已成功发送 {0} 个外部邮件',
-                        wxbot: '已成功发送 {0} 个企业微信群',
-                      };
-                      headerText = headerTextMap[data.channel_name];
-                      const headerConfirmTextMap = {
-                        user: '确定重新发送给以下用户',
-                        email: '确定重新发送给以下邮件',
-                        wxbot: '确定重新发送给以下企业微信群',
-                      };
-                      headerConfirmText = headerConfirmTextMap[data.channel_name];
-                    } else if (['partial_failed', 'failed'].includes(data.send_status)) {
-                      const headerTextMap = {
-                        user: '已成功发送 {0} 个，失败 {1} 个内部用户',
-                        email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
-                        wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群',
-                      };
-                      headerText = headerTextMap[data.channel_name];
-                      const headerConfirmTextMap = {
-                        user: '确定重新发送给以下失败用户',
-                        email: '确定重新发送给以下失败邮件',
-                        wxbot: '确定重新发送给以下失败企业微信群',
-                      };
-                      headerConfirmText = headerConfirmTextMap[data.channel_name];
-                    }
-
-                    return (
-                      <div class='resend-popover-container'>
-                        <div class='success-header-text'>
-                          {/* 根据 data.channel 如果为 success 就选这些文本
-                          1. 已成功发送 {0} 个内部用户
-                          2. 已成功发送 {0} 个外部邮件
-                          3. 已成功发送 {0} 个企业微信群
-
-                          如果为 partial_failed, failed 就选这些文本
-                          1. 已成功发送 {0} 个，失败 {1} 个企业微信群
-                          2. 已成功发送 {0} 个，失败 {1} 个外部邮件
-                          3. 已成功发送 {0} 个，失败 {1} 个内部用户
-                        */}
-                          <i18n-t keypath={headerText}>
-                            <span class='success-text'>{data.send_results.filter(item => item.result).length}</span>
-                            {['partial_failed', 'failed'].includes(data.send_status) && (
-                              <span class='fail-text'>{data.send_results.filter(item => !item.result).length}</span>
-                            )}
-                          </i18n-t>
-                        </div>
-
-                        <div class='header-confirm-text'>
-                          {/* 根据 data.channel 如果为 success 就选这些文本
-                            1. 确定重新发送给以下用户
-                            2. 确定重新发送给以下邮件
-                            3. 确定重新发送给以下企微群
-
-                            如果为 partial_failed, success 就选这些文本
-                            1. 确定重新发送给以下失败企微群
-                            2. 确定重新发送给以下失败邮件
-                            3. 确定重新发送给以下失败用户
-                          */}
-                          {t(headerConfirmText)}
-                        </div>
-
-                        <div style='margin-top: 10px;'>
-                          <TagInput
-                            v-model={data.selectedTag}
-                            content-width={238}
-                            display-key='id'
-                            list={data.tempSendResult}
-                            placeholder={t('请选择')}
-                            save-key='id'
-                            search-key={['id']}
-                            trigger='focus'
-                            has-delete-icon
-                          />
-                        </div>
-
-                        <div class='footer-operation'>
-                          <Button
-                            style='min-width: 64px;'
-                            disabled={!data.selectedTag.length}
-                            loading={isResending.value}
-                            theme='primary'
-                            onClick={() => {
-                              handleResendSubscription(data, index);
-                            }}
-                          >
-                            {t('确定')}
-                          </Button>
-
-                          <Button
-                            style='min-width: 64px;margin-left: 8px;'
-                            onClick={() => {
-                              toggleMapForSendRecord[index] = false;
-                            }}
-                          >
-                            {t('取消')}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  },
-                }}
-                isShow={toggleMapForSendRecord[index] || false}
-                placement='bottom-start'
-                theme='light'
-                trigger='click'
-                disableOutsideClick
-              >
-                <Button
-                  theme='primary'
-                  text
-                  onClick={() => {
-                    toggleMapForSendRecord[index] = true;
-                    // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
-                    sendRecordTable.data.forEach(item => {
-                      item.tempSendResult = deepClone(item.send_results);
-                      // 这里将展示 TagInput 用的保存变量。
-
-                      item.selectedTag = [];
-                      // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
-                      item.send_results.forEach(subItem => {
-                        if (item.send_status === 'partial_failed' && !subItem.result) {
-                          item.selectedTag.push(subItem.id);
-                        }
-                        if (item.send_status === 'failed') {
-                          item.selectedTag.push(subItem.id);
-                        }
-                      });
-                    });
-                  }}
-                >
-                  {t('重新发送')}
-                </Button>
-              </Popover>
-            );
-          },
-        },
-      ],
+        ],
+      },
       isLoading: false,
     });
 
@@ -522,7 +865,6 @@ export default defineComponent({
 
     function handleInputKeydown() {
       if (isManagerOrUser.value) resetAndGetSubscriptionList();
-      emptyType.value = searchKey.value ? 'search-empty' : 'empty';
     }
 
     async function handleDeleteRow(report_id) {
@@ -609,7 +951,6 @@ export default defineComponent({
     }
 
     function handleSetEnable(index) {
-      console.log(index);
       const data = table.data[index];
       createOrUpdateReport(data)
         .then(() => {})
@@ -650,6 +991,7 @@ export default defineComponent({
             })
             .map(item => {
               delete item.result;
+
               item.is_enabled = true;
               return item;
             }),
@@ -669,21 +1011,6 @@ export default defineComponent({
           isResending.value = false;
           toggleMapForSendRecord[index] = false;
         });
-    }
-
-    function handleEmptyOperation(type) {
-      if (type === 'refresh') {
-        emptyType.value = 'empty';
-      } else if (type === 'clear-filter') {
-        searchKey.value = '';
-        emptyType.value = searchKey.value ? 'search-empty' : 'empty';
-      }
-
-      if (isManagerOrUser.value) {
-        resetAndGetSubscriptionList();
-      } else {
-        fetchApplyList();
-      }
     }
 
     async function handleSendMyself() {
@@ -848,260 +1175,6 @@ export default defineComponent({
         });
     });
 
-    function handleSetFormat({ row, rowIndex }, filed) {
-      const isGrayText = queryType.value === 'invalid' || !isManagerOrUser.value ? false : row.is_invalid;
-      switch (filed) {
-        case 'name': {
-          return (
-            <span
-              class='subscription-name'
-              onClick={() => {
-                subscriptionDetail.value = row;
-                isShowSubscriptionDetailSideslider.value = true;
-              }}
-            >
-              {t(`${row.name}`)}
-            </span>
-          );
-        }
-        case 'channels': {
-          const content = row.channels
-            .filter(item => item.is_enabled)
-            .map(item => t(ChannelName[item.channel_name]))
-            .toString();
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {content}
-            </span>
-          );
-        }
-        case 'scenario': {
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {t(Scenario[row.scenario])}
-            </span>
-          );
-        }
-        case 'send_mode': {
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {t(SendMode[row.send_mode])}
-            </span>
-          );
-        }
-        case 'send_time': {
-          const content =
-            row?.frequency?.type === FrequencyType.onlyOnce
-              ? `${getSendFrequencyText(row)} ${dayjs(row.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
-              : getSendFrequencyText(row);
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {content}
-            </span>
-          );
-        }
-        case 'last_send_time': {
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
-            </span>
-          );
-        }
-        case 'send_status': {
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              <i
-                style='margin-right: 10px;'
-                class={['icon-circle', row.send_status]}
-              />
-              {t(SendStatus[row.send_status])}
-            </span>
-          );
-        }
-        case 'create_user': {
-          return (
-            <span
-              class={{
-                'gray-text': isGrayText,
-              }}
-            >
-              {row.create_user}
-            </span>
-          );
-        }
-        case 'is_enabled': {
-          return (
-            <Switcher
-              v-model={row.is_enabled}
-              size='small'
-              theme='primary'
-              onChange={() => handleSetEnable(rowIndex)}
-            />
-          );
-        }
-        case 'create_time': {
-          return <span>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
-        }
-        case 'action': {
-          return (
-            <div style='display: flex;align-items: center;'>
-              <Button
-                theme='primary'
-                text
-                onClick={() => {
-                  isShowSendRecord.value = true;
-                  subscriptionDetail.value = row;
-                  getSendingRecordList();
-                }}
-              >
-                {t('发送记录')}
-              </Button>
-
-              <Button
-                style='margin-left: 10px;'
-                theme='primary'
-                text
-                onClick={() => {
-                  subscriptionDetail.value = row;
-                  isShowEditSideslider.value = true;
-                }}
-              >
-                {t('编辑')}
-              </Button>
-
-              {/* 实现方式有问题，看看有没有其它的实现方式 */}
-              <div>
-                <Popover
-                  extCls='email-subscription-popover'
-                  v-slots={{
-                    content: () => (
-                      <div>
-                        <div
-                          class='popover-item'
-                          onClick={() => {
-                            toggleMap[rowIndex] = false;
-                            // 将当前数据深拷贝一次，将 name 增加 _clone 后缀，再把 id 的 key 删掉（让接口直接创建新数据）
-                            // 最后赋值到 subscriptionDetail 中，打开编辑抽屉组件让用户进行修改。
-                            const clonedSubscriptionDetail = deepClone(row);
-                            clonedSubscriptionDetail.name = `${clonedSubscriptionDetail.name}_clone`;
-                            subscriptionDetail.value = clonedSubscriptionDetail;
-                            isShowEditSideslider.value = true;
-                            isOnCloneMode = true;
-                          }}
-                        >
-                          {t('克隆')}
-                        </div>
-                        <div
-                          class='popover-item'
-                          onClick={() => {
-                            toggleMap[rowIndex] = false;
-                            InfoBox({
-                              extCls: 'report-tips-dialog',
-                              infoType: 'warning',
-                              title: t('是否删除 {0} ?', [row.name]),
-                              showMask: true,
-                              onConfirm: () => {
-                                return handleDeleteRow(row.id)
-                                  .then(() => {
-                                    return true;
-                                  })
-                                  .catch(() => {
-                                    return false;
-                                  });
-                              },
-                            });
-                          }}
-                        >
-                          {t('删除')}
-                        </div>
-                      </div>
-                    ),
-                  }}
-                  isShow={toggleMap[rowIndex] || false}
-                  placement='bottom-start'
-                  theme='light'
-                  trigger='click'
-                >
-                  <i
-                    style='margin-left: 10px;'
-                    class='more-btn icon-monitor icon-mc-more'
-                    onClick={() => (toggleMap[rowIndex] = true)}
-                  />
-                </Popover>
-              </div>
-            </div>
-          );
-        }
-        case 'content_title': {
-          return (
-            <span
-              class='subscription-name'
-              onClick={() => {
-                fetchReportDetail(row.report_id);
-                isSelfMode.value = true;
-                isShowSubscriptionDetailSideslider.value = true;
-              }}
-            >
-              {t(`${row.content_title}`)}
-            </span>
-          );
-        }
-        case 'status': {
-          return (
-            <span>
-              <i
-                style='margin-right: 10px;'
-                class={['icon-circle', row.status]}
-              />
-              {ApplyStatus[row.status]}
-            </span>
-          );
-        }
-        case 'self_action': {
-          return (
-            <div>
-              <Button
-                theme='primary'
-                text
-                onClick={() => {
-                  window.open(row.approval_url, '_blank');
-                }}
-              >
-                {['SUCCESS', 'FAILED'].includes(row.status) ? t('查看') : t('操作')}
-              </Button>
-            </div>
-          );
-        }
-        default: {
-          return <span>--</span>;
-        }
-      }
-    }
-
     watch(route, () => {
       checkNeedShowEditSlider();
     });
@@ -1124,8 +1197,6 @@ export default defineComponent({
       handleInputKeydown,
       handleGoToCreateConfigPage,
       table,
-      emptyType,
-      handleEmptyOperation,
       isShowSendRecord,
       sendRecordTable,
       isShowSubscriptionDetailSideslider,
@@ -1160,7 +1231,6 @@ export default defineComponent({
       computedTableDataForSelf,
       filterConfig,
       isShowHeaderNav,
-      handleSetFormat,
     };
   },
   render() {
@@ -1291,9 +1361,10 @@ export default defineComponent({
                   this.fetchSubscriptionList();
                 },
               }}
+              border={['outer']}
+              columns={this.table.columns.fields as Column[]}
               data={this.table.data}
               settings={this.table.settings}
-              showSettings={true}
               remote-pagination
               onColumnFilter={({ checked, column }) => {
                 let currentIndex = -1;
@@ -1321,52 +1392,26 @@ export default defineComponent({
                 this.page = 1;
                 this.fetchSubscriptionList();
               }}
-              onSettingChange={({ checked, size }) => {
-                this.table.settings.size = size;
-                window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
-              }}
-              onSortChange={({ field, order }) => {
-                if (order !== null) {
-                  this.order = `${order === 'asc' ? '' : '-'}${field}`;
+              onColumnSort={({ column, type }) => {
+                if (type !== 'null') {
+                  this.order = `${type === 'asc' ? '' : '-'}${column.field}`;
                 } else {
                   this.order = '';
                 }
                 this.fetchSubscriptionList();
               }}
-            >
-              {{
-                empty: () => (
-                  <EmptyStatus
-                    type={this.emptyType}
-                    onOperation={this.handleEmptyOperation}
-                  />
-                ),
-                default: () =>
-                  this.table.columns.map(item => (
-                    <TableColumn
-                      key={`manage_table_${item.field}`}
-                      width={item.width}
-                      field={item.field}
-                      filterMultiple={true}
-                      filters={item.filter}
-                      minWidth={item.minWidth}
-                      sortable={item.sortable}
-                      title={item.label}
-                      show-overflow
-                    >
-                      {{
-                        default: row => this.handleSetFormat(row, item.field),
-                      }}
-                    </TableColumn>
-                  )),
+              onSettingChange={({ checked }) => {
+                window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
               }}
-            </Table>
+            />
+
             <Table
               style='margin-top: 16px;background-color: white;'
               v-show={this.createType === 'self'}
+              border={['outer']}
+              columns={this.tableForSelf.columns.fields as Column[]}
               data={this.computedTableDataForSelf}
               settings={this.tableForSelf.settings}
-              showSettings={true}
               onColumnFilter={({ checked, column }) => {
                 if (!checked.length) {
                   this.filterConfig.key = '';
@@ -1377,36 +1422,10 @@ export default defineComponent({
                 this.filterConfig.key = field.toString();
                 this.filterConfig.value = deepClone(checked);
               }}
-              onSettingChange={({ checked, size }) => {
-                this.tableForSelf.settings.size = size;
+              onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
               }}
-            >
-              {{
-                empty: () => (
-                  <EmptyStatus
-                    type={this.emptyType}
-                    onOperation={this.handleEmptyOperation}
-                  />
-                ),
-                default: () =>
-                  this.tableForSelf.columns.map(item => (
-                    <TableColumn
-                      key={`manage_table_${item.field}`}
-                      field={item.field}
-                      filterMultiple={true}
-                      filters={item.filter}
-                      sortable={item.sortable}
-                      title={item.label}
-                      show-overflow
-                    >
-                      {{
-                        default: row => this.handleSetFormat(row, item.field),
-                      }}
-                    </TableColumn>
-                  )),
-              }}
-            </Table>
+            />
           </Loading>
           <Dialog
             width='960'
@@ -1415,9 +1434,9 @@ export default defineComponent({
             title={this.t('发送记录')}
             onClosed={() => {
               this.isShowSendRecord = false;
-              for (const key of Object.keys(this.toggleMapForSendRecord)) {
+              Object.keys(this.toggleMapForSendRecord).forEach(key => {
                 this.toggleMapForSendRecord[key] = false;
-              }
+              });
             }}
           >
             <div>
@@ -1468,15 +1487,9 @@ export default defineComponent({
                 <Table
                   style='margin-top: 16px;'
                   height={400}
-                  virtual-enabled={{
-                    showOverflow: true,
-                    scrollY: {
-                      enabled: true,
-                      gt: 0,
-                    },
-                  }}
-                  columns={this.sendRecordTable.columns as Column[]}
+                  columns={this.sendRecordTable.columns.fields as Column[]}
                   data={this.sendRecordTable.data}
+                  virtual-enabled
                 />
               </Loading>
             </div>
@@ -1486,7 +1499,6 @@ export default defineComponent({
             width={960}
             ext-cls='edit-subscription-sideslider-container'
             v-model={[this.isShowCreateSubscription, 'isShow']}
-            render-directive='if'
             title={this.t('新建订阅')}
             transfer
           >
@@ -1512,15 +1524,24 @@ export default defineComponent({
                   <div class='slider-header-container'>
                     <div class='title-container'>
                       <span class='title'>{this.t('订阅详情')}</span>
-                      <span
-                        style={{
-                          maxWidth: currentLang === 'en' ? '180px' : '250px',
+                      <Popover
+                        v-slots={{
+                          content: () => {
+                            return <span>{this.subscriptionDetail.name}</span>;
+                          },
                         }}
-                        class='sub-title'
-                        v-overflow-text={{ text: this.subscriptionDetail.name }}
+                        maxWidth='300'
+                        placement='bottom'
                       >
-                        -&nbsp;{this.subscriptionDetail.name}
-                      </span>
+                        <span
+                          style={{
+                            maxWidth: currentLang === 'en' ? '180px' : '250px',
+                          }}
+                          class='sub-title'
+                        >
+                          -&nbsp;{this.subscriptionDetail.name}
+                        </span>
+                      </Popover>
                     </div>
 
                     {!this.isSelfMode && (
@@ -1597,7 +1618,6 @@ export default defineComponent({
                 );
               },
             }}
-            render-directive='if'
             transfer
             onHidden={() => {
               this.isSelfMode = false;
@@ -1608,7 +1628,6 @@ export default defineComponent({
             width={960}
             ext-cls='edit-subscription-sideslider-container'
             v-model={[this.isShowEditSideslider, 'isShow']}
-            render-directive='if'
             title={this.t('编辑')}
             transfer
             onHidden={() => {

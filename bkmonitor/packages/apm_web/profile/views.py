@@ -227,7 +227,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if api_type in [APIType.QUERY_SAMPLE_BY_JSON, APIType.SELECT_COUNT]:
             # query_sample / select_count 接口需要传递 dimension_fields 参数
             if not dimension_fields:
-                dimension_fields = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
+                dimension_fields = ",".join(
+                    ["dtEventTimeStamp", "type", "service_name", "period_type", "period", "sample_type"]
+                )
             extra_params["dimension_fields"] = dimension_fields
 
         if filter_labels:
