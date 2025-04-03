@@ -1037,4 +1037,5 @@ export default {
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
   '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
+  '前往 "索引配置" 批量修改别名': 'Go to "Index Configuration" to modify the alias in batches',
 };
