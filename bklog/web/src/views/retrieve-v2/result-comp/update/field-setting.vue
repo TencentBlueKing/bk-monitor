@@ -289,6 +289,7 @@
             height: 32px;
             padding: 0 8px;
             overflow: hidden;
+            font-family: Roboto-Regular;
             line-height: 32px;
             text-overflow: ellipsis;
             white-space: nowrap;
