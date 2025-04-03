@@ -27,7 +27,9 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.api import NodeApi
 from apps.exceptions import ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -36,7 +38,7 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import Environment, EtlConfig
+from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
@@ -70,6 +72,7 @@ from apps.log_databus.serializers import (
     ListCollectorSerlalizer,
     PreCheckSerializer,
     PreviewContainersSerializer,
+    ProxyHostSerializer,
     RetrySerializer,
     RunSubscriptionSerializer,
     SwitchBCSCollectorStorageSerializer,
@@ -87,6 +90,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.exceptions import BkJwtVerifyException
 from apps.log_search.permission import Permission
+from apps.utils.custom_report import BK_CUSTOM_REPORT
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -2470,3 +2474,45 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
         return Response(CollectorHandler.search_object_attribute())
+
+    @list_route(methods=["GET"], url_path="proxy_host_info")
+    def get_proxy_host_info(self, request):
+        params = self.params_valid(ProxyHostSerializer)
+        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": params["bk_biz_id"]})
+        grpc_protocol = OTLPProxyHostConfig.GRPC
+        http_protocol = OTLPProxyHostConfig.HTTP
+        grpc_trace_path = OTLPProxyHostConfig.GRPC_TRACE_PATH
+        http_trace_path = OTLPProxyHostConfig.HTTP_TRACE_PATH
+        ip_protocol = OTLPProxyHostConfig.IP_PROTOCOL
+
+        proxy_host_info = []
+        for host in proxy_hosts:
+            bk_cloud_id = int(host["bk_cloud_id"])
+            # 默认云区域上报proxy，以数据库配置为准！
+            if bk_cloud_id == 0:
+                continue
+            ip = host.get("conn_ip") or host.get("inner_ip")
+            report_url_list = [
+                {
+                    "bk_cloud_id": bk_cloud_id,
+                    "protocol": grpc_protocol,
+                    "report_url": ip_protocol + ip + grpc_trace_path,
+                },
+                {
+                    "bk_cloud_id": bk_cloud_id,
+                    "protocol": http_protocol,
+                    "report_url": ip_protocol + ip + http_trace_path,
+                },
+            ]
+            proxy_host_info.append(report_url_list)
+
+        # 添加自定义上报默认地址
+        report_url_list = []
+        conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
+        for item in conf.get("otlp", {}).get("0", []):
+            protocol, report_url = item.split(":", maxsplit=1)
+            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
+
+        if report_url_list:
+            proxy_host_info.append(report_url_list)
+        return Response(proxy_host_info)
