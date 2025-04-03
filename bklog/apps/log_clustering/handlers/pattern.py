@@ -27,10 +27,13 @@ import arrow
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
+from django.utils.translation import gettext as _
 
+from apps.api import MonitorApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_LABEL,
+    DEFAULT_NOTICE_WAY,
     DOUBLE_PERCENTAGE,
     HOUR_MINUTES,
     IS_NEW_PATTERN_PREFIX,
@@ -50,6 +53,7 @@ from apps.log_clustering.models import (
     ClusteringRemark,
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
+from apps.log_search.models import LogIndexSet
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
@@ -434,6 +438,31 @@ class PatternHandler:
         else:
             remark_obj.owners = owners
         remark_obj.save()
+
+        # 创建/更新 告警组
+        log_index_set = LogIndexSet.objects.filter(index_set_id=self._index_set_id).first()
+        group_name = _("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id)
+        notice_group = MonitorApi.search_user_groups(
+            {"bk_biz_ids": [self._clustering_config.bk_biz_id], "name": group_name}
+        )
+        if not notice_group:
+            MonitorApi.save_notice_group(
+                params={
+                    "bk_biz_id": self._clustering_config.bk_biz_id,
+                    "name": group_name,
+                    "message": "",
+                    "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
+                    "notice_way": DEFAULT_NOTICE_WAY,
+                }
+            )
+        else:
+            MonitorApi.save_notice_group(
+                params={
+                    "id": notice_group[0]["id"],
+                    "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
+                }
+            )
+
         return model_to_dict(remark_obj)
 
     def update_group_fields(self, group_fields: list):
