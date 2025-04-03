@@ -115,7 +115,7 @@ export interface IColumn {
   label: string;
   field: string;
   width?: number | string;
-  filter?: { text: string; value: number | string }[];
+  filter?: { label: string; value: number | string }[];
   sortable?: boolean;
 }
 
