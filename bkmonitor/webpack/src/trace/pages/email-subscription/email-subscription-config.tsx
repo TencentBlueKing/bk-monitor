@@ -241,11 +241,11 @@ export default defineComponent({
           field: 'send_mode',
           filter: [
             {
-              text: t('周期发送'),
+              label: t('周期发送'),
               value: 'periodic',
             },
             {
-              text: t('仅发一次'),
+              label: t('仅发一次'),
               value: 'one_time',
             },
           ],
