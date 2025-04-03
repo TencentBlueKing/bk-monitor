@@ -233,6 +233,10 @@
       catchFieldCustomSortList() {
         return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
       },
+      /** 当前本地用户正在应用的展示字段设置 */
+      localVisibleFields() {
+        return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+      },
       shadowSort() {
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
@@ -312,6 +316,11 @@
           });
         }
       },
+      localVisibleFields() {
+        if (this.isShow && !this.isTemplateConfig) {
+          this.initRequestConfigListShow();
+        }
+      },
     },
     created() {
       this.currentClickConfigID = this.filedSettingConfigID;
@@ -340,14 +349,14 @@
       },
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {
-        let configData = (this.$store.state.visibleFields ?? []).map(e => e.field_name);
         // 如果是从字段模板打开则需要请求接口获取字段列表及配置
         // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
-        if (this.isTemplateConfig) {
-          configData = null;
-          await this.getFiledConfigList();
+        if (!this.isTemplateConfig) {
+          this.initShadowFields(this.localVisibleFields);
+          return;
         }
-        this.initShadowFields(configData);
+        await this.getFiledConfigList();
+        this.initShadowFields();
       },
       /** 保存或应用 */
       async confirmModifyFields() {
