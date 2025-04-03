@@ -28,6 +28,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
+from apps.api import MonitorApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_LABEL,
@@ -434,6 +435,17 @@ class PatternHandler:
         else:
             remark_obj.owners = owners
         remark_obj.save()
+
+        if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
+            return model_to_dict(remark_obj)
+        # 更新告警组
+        MonitorApi.save_notice_group(
+            params={
+                "id": remark_obj.notice_group_id,
+                "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
+            }
+        )
+
         return model_to_dict(remark_obj)
 
     def update_group_fields(self, group_fields: list):

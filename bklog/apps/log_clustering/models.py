@@ -90,6 +90,7 @@ class ClusteringRemark(SoftDeleteModel):
     strategy_id = models.IntegerField(_("策略id"), default=0)
     strategy_enabled = models.BooleanField(_("策略是否启用"), default=False)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_external_app_code, max_length=32, blank=True)
+    notice_group_id = models.IntegerField(_("告警组id"), default=0)
 
     class Meta:
         index_together = ["signature", "group_hash"]
