@@ -183,25 +183,27 @@
         }
 
         .no-data {
-          .bk-exception {
-            top: -30px;
-          }
-
-          .bk-exception-page .bk-exception-img {
-            width: 230px;
-            height: 194px;
-
-            .exception-image {
-              width: 230px;
-            }
-          }
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
 
           .empty-status-container {
+            height: 100%;
             padding: 0;
-          }
 
-          .empty-status-container .bk-exception-footer {
-            height: 0;
+            .bk-exception-page .bk-exception-img {
+              width: 230px;
+              height: 194px;
+  
+              .exception-image {
+                width: 230px;
+              }
+            }
+
+            .bk-exception-footer {
+              margin-top: -12px;
+            }
           }
         }
       }

@@ -26,7 +26,8 @@
 import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Button, Popover, Radio, Table } from 'bkui-vue';
+import { Table, TableColumn } from '@blueking/table';
+import { Button, Popover, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 
 import CommonTip from '../../components/common-tip/common-tip';
@@ -421,19 +422,20 @@ export default defineComponent({
             )}
             {!!this.isEdit &&
               (this.scopeState.bkGroup.value !== 'biz' ? (
-                <div class='max-w836'>
+                <div class='w-836'>
                   <Table
-                    columns={[
-                      {
-                        id: 'name',
-                        label: () => this.scopeState.labelMap[this.scopeState.bkGroup.value],
-                        render: ({ row }) => row.name,
-                      },
-                    ]}
-                    border={['outer']}
+                    autoResize={true}
+                    border={'outer'}
                     data={this.scopeState.tableData}
                     maxHeight={450}
-                  />
+                  >
+                    <TableColumn
+                      key={'name'}
+                      field={'name'}
+                      showOverflow={'tooltip'}
+                      title={this.scopeState?.labelMap?.[this.scopeState?.bkGroup?.value] || ''}
+                    />
+                  </Table>
                 </div>
               ) : (
                 <span>{this.t('业务')}</span>
