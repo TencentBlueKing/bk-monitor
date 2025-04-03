@@ -52,6 +52,7 @@ import {
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
@@ -301,6 +302,7 @@ export default defineComponent({
               cursor: 'pointer', // 手势类型
               r: 20, // 圆半径
               ...nodeAttrs.groupAttrs,
+              fill: isRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
             },
             draggable: true,
             name: 'topo-node-shape',
@@ -326,6 +328,15 @@ export default defineComponent({
               stroke: 'rgba(5, 122, 234, 1)',
             },
             name: 'topo-node-running',
+          });
+          group.addShape('circle', {
+            attrs: {
+              lineWidth: 0,
+              cursor: 'pointer',
+              r: 27,
+              stroke: '#3a84ff4d',
+            },
+            name: 'topo-node-running-shadow',
           });
 
           if (aggregated_nodes?.length) {
@@ -403,7 +414,7 @@ export default defineComponent({
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'cursor',
-              text: accumulatedWidth(entity.entity_type),
+              text: accumulatedWidth(entity?.properties?.entity_show_type || entity.entity_type),
               fontSize: 10,
               ...nodeAttrs.textNameAttrs,
             },
@@ -441,6 +452,7 @@ export default defineComponent({
             });
           } else if (name === 'running') {
             const runningShape = group.find(e => e.get('name') === 'topo-node-running');
+            const runningShadowShape = group.find(e => e.get('name') === 'topo-node-running-shadow');
             const rootBorderShape = group.find(e => e.get('name') === 'topo-node-root-border');
             if (value) {
               rootBorderShape?.attr({
@@ -449,6 +461,11 @@ export default defineComponent({
               runningShape.attr({
                 lineWidth: 3,
                 r: 24,
+                strokeOpacity: 1,
+              });
+              runningShadowShape.attr({
+                lineWidth: 3,
+                r: 27,
                 strokeOpacity: 1,
               });
             } else {
@@ -460,6 +477,12 @@ export default defineComponent({
                 cursor: 'pointer', // 手势类型
                 r: 22, // 圆半径
                 stroke: 'rgba(5, 122, 234, 1)',
+              });
+              runningShadowShape.attr({
+                lineWidth: 0,
+                cursor: 'pointer',
+                r: 27,
+                stroke: '#3a84ff4d',
               });
               activeAnimation.forEach(animation => animation?.stop?.());
               activeAnimation = [];
@@ -1145,14 +1168,25 @@ export default defineComponent({
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
           isNoData.value = combos.length === 0;
           errorData.value.isError = false;
-
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
+          const processedEdges = [];
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
             processedNodes.push(...item.content.nodes);
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            item.content.edges.forEach(edge => {
+              const key = edge.target + edge.source;
+              const index = processedEdges.findIndex(item => item.target + item.source === key);
+              if (index !== -1) {
+                processedEdges[index] = edge;
+              } else {
+                processedEdges.push(edge);
+              }
+            });
+            item.showEdges = [...processedEdges];
           });
           topoRawDataCache.value.diff = diff;
           topoRawDataCache.value.latest = latest;
@@ -1865,31 +1899,42 @@ export default defineComponent({
         /** 切换帧时 */
         showResourceGraph.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
-        const { showNodes, content } = topoRawDataCache.value.diff[value];
+        const { showNodes, content, showEdges } = topoRawDataCache.value.diff[value];
+        const updateEdges = content.edges;
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
-          const showNode = [...showNodes, ...content.nodes].find(item => item.id === id);
+          const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
           const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
           const diffNode = content.nodes.find(item => item.id === id);
+          const diffData = !diffNode && showNode;
+          const updateNode = diffData ? showNode : diffNode;
           if ((!showNode && !diffNode) || deleteNodeIds.includes(id)) {
             const node = graph.findById(id);
             node && graph.hideItem(node);
-          } else if (diffNode) {
-            const node = graph.findById(diffNode.id);
+          } else if (diffNode || diffData) {
+            const node = graph.findById(updateNode.id);
             const model = node?.getModel?.();
             node && graph.showItem(node);
-            node && graph.updateItem(node, { ...diffNode, comboId: model.comboId, subComboId: model.subComboId });
+            node && graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
           }
         });
         const edges = graph.getEdges();
+        const findEdges = (edges, target) => {
+          return edges.find(item => item.source === target.source && target.target === item.target);
+        };
         // biome-ignore lint/complexity/noForEach: <explanation>
         edges.forEach(edge => {
           const edgeModel = edge.getModel();
-          const targetEdge = content.edges.find(
-            item => item.source === edgeModel.source && edgeModel.target === item.target
-          );
+
+          const targetEdge = findEdges(updateEdges, edgeModel);
           if (targetEdge) {
             graph.updateItem(edge, { ...edge, ...targetEdge });
+          } else {
+            const currEdges =
+              findEdges(showEdges, edgeModel) || findEdges(topoRawDataCache.value.complete.edges, edgeModel);
+            if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
+              graph.updateItem(edge, { ...edge, ...currEdges });
+            }
           }
         });
         /** 子combo需要根据节点时候有展示来决定 */
@@ -2031,7 +2076,7 @@ export default defineComponent({
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
           search_type: 'scope',
           search_id: 'traceID',
-          refleshInterval: '-1',
+          refreshInterval: '-1',
           query: rca_trace_info.abnormal_traces_query.query,
           listType: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
@@ -2277,20 +2322,20 @@ export default defineComponent({
                   class='expand-resource'
                   onClick={this.handleExpandResourceChange}
                 >
-                  <i class={`icon-monitor icon-mc-tree expand-icon`} />
+                  <i class={'icon-monitor icon-mc-tree expand-icon'} />
                 </div>
               )}
             </div>
             {this.showResourceGraph && !this.isPlay && (
               <ResourceGraph
                 ref='resourceGraphRef'
-                entityName={this.nodeEntityName}
                 entityId={this.nodeEntityId}
+                entityName={this.nodeEntityName}
                 modelData={this.topoRawDataCache.complete}
                 resourceNodeId={this.resourceNodeId}
+                onCollapseResource={this.handleExpandResourceChange}
                 onHideToolTips={this.handleHideToolTips}
                 onToDetail={this.handleToDetail}
-                onCollapseResource={this.handleExpandResourceChange}
               />
             )}
           </div>
@@ -2319,7 +2364,7 @@ export default defineComponent({
         <div
           id='combo-label-tooltip'
           class='combo-label-tooltip'
-        ></div>
+        />
       </div>
     );
   },

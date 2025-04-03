@@ -403,6 +403,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class SpaceDataLinkMetaReportViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
+
+
 class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.IntelligentDiagnosisMetadataResource)]
 
@@ -465,3 +469,7 @@ class CreateOrUpdateEsRouterViewSet(MetaViewSet):
 
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
+
+
+class GetDataLabelsMapViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetDataLabelsMapResource)]

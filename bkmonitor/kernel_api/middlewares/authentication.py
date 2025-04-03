@@ -150,11 +150,9 @@ class AppWhiteListModelBackend(ModelBackend):
             user, _ = get_user_model().objects.get_or_create(username=username, defaults={"nickname": username})
 
             # 如果用户没有租户id，则设置租户id
-            if not user.tenant_id:
+            if not user.tenant_id or (not settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != DEFAULT_TENANT_ID):
                 user.tenant_id = bk_tenant_id
                 user.save()
-            elif bk_tenant_id != user.tenant_id:
-                raise Exception(f"user {username} tenant_id mismatch, {user.tenant_id} != {bk_tenant_id}")
         except Exception as e:
             logger.error("Auto create & update UserModel fail, username: {}, error: {}".format(username, e))
             return None
@@ -223,7 +221,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
             app_code = request.jwt.app.app_code
             username = request.jwt.user.username
-            bk_tenant_id = request.jwt.app.get("tenant_id") or DEFAULT_TENANT_ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = request.jwt.app.get("tenant_id") or DEFAULT_TENANT_ID
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")

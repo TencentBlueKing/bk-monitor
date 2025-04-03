@@ -118,7 +118,7 @@ def create_or_delete_records(mocker):
     models.AccessVMRecord.objects.create(
         result_table_id="1001_bkmonitor_time_series_50010.__default__",
         vm_result_table_id="vm_test_metric_1",
-        bk_base_data_id=10010,
+        bk_base_data_id=50010,
     )
 
     # Case2.Kafka集群变更 + Topic变更 + VM集群变更
@@ -146,7 +146,7 @@ def create_or_delete_records(mocker):
         result_table_id="1001_bkmonitor_time_series_50011.__default__",
         vm_result_table_id="vm_test_metric_1",
         vm_cluster_id=2,
-        bk_base_data_id=10011,
+        bk_base_data_id=50011,
     )
     models.ClusterInfo.objects.create(
         domain_name='test2.kafka.db',

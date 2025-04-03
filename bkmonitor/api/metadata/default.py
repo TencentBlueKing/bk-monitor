@@ -367,6 +367,9 @@ class SingleQueryEventGroupResource(MetaDataAPIGWResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         label = serializers.CharField(required=False, label="分组标签")
         event_group_name = serializers.CharField(required=False, label="分组名称")
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", child=serializers.IntegerField(label="数据源ID")
+        )
         page = serializers.IntegerField(required=False, label="页数", min_value=1)
         page_size = serializers.IntegerField(required=False, label="页长")
 
@@ -382,6 +385,9 @@ class QueryEventGroupResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         label = serializers.CharField(required=False, label="分组标签")
         event_group_name = serializers.CharField(required=False, label="分组名称")
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", child=serializers.IntegerField(label="数据源ID")
+        )
 
     def perform_request(self, validated_request_data):
         return batch_request(api.metadata.single_query_event_group, validated_request_data, limit=500, app="metadata")
@@ -635,6 +641,7 @@ class ListBCSClusterInfoResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        cluster_ids = serializers.ListField(label="集群ID", child=serializers.CharField(), required=False)
 
 
 class QueryBCSMetricsResource(MetaDataAPIGWResource):
@@ -919,10 +926,13 @@ class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
     action = "/app/custom_metric/detail/"
     method = "GET"
 
+    ignore_error_msg_list = ["custom time series table not found"]
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         model_only = serializers.BooleanField(required=False, default=False)
+        empty_if_not_found = serializers.BooleanField(required=False, default=False)
 
 
 class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
@@ -933,3 +943,14 @@ class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
         table_id = serializers.CharField(required=False, label="结果表ID")
         bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
+
+
+class GetDataLabelsMapResource(MetaDataAPIGWResource):
+    action = "/app/metadata/get_data_labels_map/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+        table_or_labels = serializers.ListField(
+            child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
+        )

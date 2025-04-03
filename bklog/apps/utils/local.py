@@ -153,6 +153,20 @@ def get_request_language_code():
         return settings.LANGUAGE_CODE
 
 
+def get_external_app_code():
+    """
+    获取内外部请求的APP_CODE
+    """
+    is_external = bool(get_request_external_username())
+    if is_external:
+        try:
+            return get_request().META.get("HTTP_BK_APP_CODE", settings.APP_CODE)
+        except Exception:  # pylint: disable=broad-except
+            return settings.APP_CODE
+    else:
+        return settings.APP_CODE
+
+
 def get_request_tenant_id():
     """
     获取请求中的租户ID

@@ -57,7 +57,7 @@ class PieChart extends CommonSimpleChart {
   width = 300;
   showHeaderMoreTool = false;
   needResetChart = true;
-  inited = false;
+  initialized = false;
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
@@ -71,7 +71,7 @@ class PieChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -79,7 +79,7 @@ class PieChart extends CommonSimpleChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -113,7 +113,7 @@ class PieChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
       } else {
         this.emptyText = window.i18n.tc('查无数据');
@@ -205,13 +205,13 @@ class PieChart extends CommonSimpleChart {
       >
         <ChartHeader
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
           showMore={this.showHeaderMoreTool}
           title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='pie-echart-content right-legend'>

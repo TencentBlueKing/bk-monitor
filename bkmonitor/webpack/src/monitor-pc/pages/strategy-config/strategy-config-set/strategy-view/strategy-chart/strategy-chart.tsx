@@ -104,7 +104,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: any;
   // 立即刷新图表
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
 
@@ -202,7 +202,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Watch('dimensions')
   @Watch('timeRange')
   @Watch('detectionConfig', { deep: true })
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   watchDetectionConfig() {
     this.initPanel();
   }

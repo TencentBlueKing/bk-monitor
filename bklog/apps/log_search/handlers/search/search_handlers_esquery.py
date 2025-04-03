@@ -36,7 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
-from apps.exceptions import ApiRequestError, ApiResultError
+from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
@@ -467,9 +467,22 @@ class SearchHandler(object):
 
     @fields_config("apm_relation")
     def apm_relation(self):
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
         try:
-            res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
-        except ApiRequestError as e:
+            if qs.exists():
+                collector_config = qs.first()
+                params = {
+                    "index_set_id": int(self.index_set_id),
+                    "bk_data_id": int(collector_config.bk_data_id),
+                    "bk_biz_id": collector_config.bk_biz_id,
+                }
+                if self.start_time and self.end_time:
+                    params["start_time"] = self.start_time
+                    params["end_time"] = self.end_time
+                res = MonitorApi.query_log_relation(params=params)
+            else:
+                res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
+        except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"fail to request log relation => index_set_id: {self.index_set_id}, exception => {e}")
             return False
 
@@ -2249,52 +2262,15 @@ class SearchHandler(object):
 
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        expand highlight dict by dot
-        input:
-        {
-            "resource.service.name": [
-                "<mark>groupsvr</mark>"
-            ],
-            "resource.deployment.cluster.name": [
-                "<mark>BCS-K8S-12345</mark>"
-            ]
-        }
-        =>
-        output:
-        {
-            "resource.service.name": "<mark>groupsvr</mark>",
-            "resource.deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
-            "resource": {
-                "service.name": "<mark>groupsvr</mark>",
-                "service": {
-                    "name": "<mark>groupsvr</mark>"
-                },
-                "deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
-                "deployment": {
-                    "cluster.name": "<mark>BCS-K8S-12345</mark>",
-                    "cluster": {
-                        "name": "<mark>BCS-K8S-12345</mark>"
-                    }
-                }
-            }
-        }
-        """
         result = {}
         for key, value in dotted_dict.items():
-            joined_value = "".join(value)
             parts = key.split('.')
-            result[key] = joined_value
-            if len(parts) <= 1:
-                continue
             current_level = result
-            for idx, part in enumerate(parts[:-1]):
+            for part in parts[:-1]:
                 if part not in current_level:
                     current_level[part] = {}
-                if idx < len(parts) - 1:
-                    current_level[part][".".join(parts[idx + 1 :])] = joined_value
                 current_level = current_level[part]
-            current_level[parts[-1]] = joined_value
+            current_level[parts[-1]] = "".join(value)
         return result
 
     def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:

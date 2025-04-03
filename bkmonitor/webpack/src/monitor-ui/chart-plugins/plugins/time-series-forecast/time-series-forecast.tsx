@@ -107,7 +107,7 @@ export default class TimeSeriesForecast extends LineChart {
     const result = deepmerge(alertMarkArea, thresholdsMarkArea);
     return { ...result, z: 10 };
   }
-  handleSetThreholds() {
+  handleSetThresholds() {
     const { markLine } = this.panel?.options?.time_series_forecast || {};
     const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
     const max = Math.max(...thresholdList);
@@ -128,7 +128,7 @@ export default class TimeSeriesForecast extends LineChart {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -136,7 +136,7 @@ export default class TimeSeriesForecast extends LineChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -315,8 +315,8 @@ export default class TimeSeriesForecast extends LineChart {
           }
         );
         const resultEndTime = resultEndTimePoint?.value?.[0];
-        // const { canScale, minThreshold } = this.handleSetThreholds();
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+        // const { canScale, minThreshold } = this.handleSetThresholds();
+        const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -340,7 +340,7 @@ export default class TimeSeriesForecast extends LineChart {
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                  : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -436,7 +436,7 @@ export default class TimeSeriesForecast extends LineChart {
           })
         );
         this.metrics = metrics || [];
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -475,7 +475,7 @@ export default class TimeSeriesForecast extends LineChart {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
     const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-    const liHtmls = list
+    const liHtmlList = list
       .sort((a, b) => b.value[1] - a.value[1])
       .map(item => {
         let markColor = 'color: #fafbfd;';
@@ -492,10 +492,10 @@ export default class TimeSeriesForecast extends LineChart {
         }
         if (item.value[1] === null) return '';
         const curSeries: any = this.options.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li class="tooltips-content-item">
                 <span class="item-series"
                  style="background-color:${item.color};">
@@ -507,13 +507,13 @@ export default class TimeSeriesForecast extends LineChart {
                 ${valueObj.text} ${valueObj.suffix || ''}</span>
                 </li>`;
       });
-    if (liHtmls?.length < 1) return '';
+    if (liHtmlList?.length < 1) return '';
     return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
             </ul>
             </div>`;
   }
@@ -810,7 +810,7 @@ export default class TimeSeriesForecast extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            draging={this.panel.draging}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -822,7 +822,7 @@ export default class TimeSeriesForecast extends LineChart {
             onAllMetricClick={this.handleAllMetricClick}
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           />
         )}
         {!this.empty ? (
@@ -831,7 +831,7 @@ export default class TimeSeriesForecast extends LineChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

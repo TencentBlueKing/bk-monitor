@@ -1,0 +1,107 @@
+%group-tag {
+  .value-item {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 4px;
+    margin-top: 6px;
+    margin-left: 6px;
+    line-height: 22px;
+    white-space: nowrap;
+    background-color: #f0f1f5;
+    border-radius: 2px;
+
+    &:hover {
+      background: #dcdee5;
+    }
+
+    &.is-split {
+      background: #dde4eb;
+
+      &:hover {
+        background: #d3dae0;
+      }
+    }
+  }
+
+  .split-flag {
+    margin-right: 2px;
+    font-size: 12px;
+    color: #6498b3;
+  }
+
+  .remote-btn {
+    padding-left: 4px;
+    cursor: pointer;
+  }
+}
+
+.new-metric-view-group-by {
+  overflow: hidden;
+  border-bottom: 1px solid #dcdee5;
+  border-left: 1px solid #dcdee5;
+
+  &:hover {
+    .clear-btn {
+      visibility: visible;
+    }
+  }
+
+  .wrapper {
+    display: flex;
+    width: inherit;
+    min-width: 225px;
+    padding-right: 8px;
+    overflow: hidden;
+  }
+
+  .label {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #313238;
+    background-color: #ebeef5;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .value-wrapper {
+    position: relative;
+    display: flex;
+    padding-bottom: 6px;
+    overflow: hidden;
+    @extend %group-tag;
+  }
+
+  .clear-btn {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    cursor: pointer;
+    visibility: hidden;
+    background: #f0f1f5;
+    border-radius: 2px;
+    transition: background 0.15s ease-in-out;
+
+    &:hover {
+      background: #dcdee5;
+    }
+
+    .icon-monitor {
+      pointer-events: none;
+    }
+  }
+}
+
+.tippy-tooltip.new-metric-view-group-by-more-theme {
+  padding: 8px;
+  @extend %group-tag;
+}

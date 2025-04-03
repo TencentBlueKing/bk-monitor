@@ -2416,11 +2416,6 @@ class ResultTableOption(OptionBase):
     TYPE_STRING = "string"
     TYPE_LIST = "list"
 
-    TYPE_DICT = {
-        TYPE_BOOL: bool,
-        TYPE_STRING: str,
-    }
-
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     name = models.CharField(
         "option名称",
