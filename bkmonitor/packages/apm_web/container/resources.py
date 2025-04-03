@@ -13,7 +13,9 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
-from core.drf_resource import CacheResource, Resource, api, resource
+from bkmonitor.utils.cache import CacheType
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.contrib.cache import TimedCacheResource
 from monitor_web.collecting.constant import CollectStatus
 
 
@@ -59,8 +61,10 @@ class PodDetailResource(Resource):
         return res
 
 
-class ListServicePodsResource(CacheResource):
+class ListServicePodsResource(TimedCacheResource):
     """获取关联 Pod 列表"""
+
+    cache_type = CacheType.APM(60 * 5)
 
     class SpanSourceType:
         """span关联容器来源"""
