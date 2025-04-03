@@ -840,17 +840,26 @@ class Favorite(OperateRecordModel):
         unique_together = [("name", "space_uid", "group_id", "source_app_code", "created_by")]
 
     @classmethod
-    def get_user_favorite(cls, space_uid: str, username: str, order_type: str = FavoriteListOrderType.NAME_ASC.value):
+    def get_user_favorite(
+        cls,
+        space_uid: str,
+        username: str,
+        order_type: str = FavoriteListOrderType.NAME_ASC.value,
+        public_group_ids: list = None,
+    ):
         """获取用户所有能看到的收藏"""
         source_app_code = get_request_app_code()
         favorites = []
+        public_query = Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
+        if public_group_ids:
+            public_query &= Q(group_id__in=public_group_ids)
         qs = cls.objects.filter(
             Q(
                 space_uid=space_uid,
                 created_by=username,
                 visible_type=FavoriteVisibleType.PRIVATE.value,
             )
-            | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
+            | public_query
         )
         qs = qs.filter(source_app_code=source_app_code)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
