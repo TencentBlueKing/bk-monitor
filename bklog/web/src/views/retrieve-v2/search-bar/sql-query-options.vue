@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, Ref, onBeforeUnmount } from 'vue';
+  import { computed, ref, watch, nextTick, Ref, onBeforeUnmount, onMounted, onUnmounted } from 'vue';
 
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
@@ -185,12 +185,6 @@
     showWhichDropdown(showVal);
   };
 
-  // 如果是当前位置 AND | OR | AND NOT 结尾
-  const regExpAndOrNot = /\s(?:AND|OR|AND\s+NOT)\s*/gi;
-
-  // 如果当前位置是 : 结尾，说明需要显示字段值列表
-  const regExpFieldValue = /(:\s*)$/;
-
   /**
    * @description 获取当前输入框左侧内容
    */
@@ -205,6 +199,12 @@
   const emitValueChange = (appendValue: string, retrieve = false, replace = false, type = undefined) => {
     emits('change', appendValue, retrieve, replace, type);
   };
+
+  // 如果是当前位置 AND | OR | AND NOT 结尾
+  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)\s*$/i;
+
+  // 如果当前位置是 : 结尾，说明需要显示字段值列表
+  const regExpFieldValue = /(:\s*)$/;
 
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
@@ -418,24 +418,18 @@
   };
 
   const beforeShowndFn = () => {
-    // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
-    document.addEventListener('keydown', handleKeydown, {
-      capture: true,
+    calculateDropdown();
+    nextTick(() => {
+      setOptionActive();
     });
-    // showWhichDropdown();
-    // calculateDropdown();
-
-    // nextTick(() => {
-    //   setOptionActive();
-    // });
-
-    return (
+    const beforeShownValue =
       showOption.value.showFields ||
       showOption.value.showValue ||
       showOption.value.showColon ||
       showOption.value.showContinue ||
-      (showOption.value.showOperator && operatorSelectList.value.length)
-    );
+      (showOption.value.showOperator && operatorSelectList.value.length);
+
+    return beforeShownValue;
   };
 
   const beforeHideFn = () => {
@@ -489,6 +483,17 @@
     nextTick(() => {
       setOptionActive();
     });
+  });
+
+  onMounted(() => {
+    // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+    document.addEventListener('keydown', handleKeydown, {
+      capture: true,
+    });
+  });
+
+  onUnmounted(() => {
+    beforeHideFn();
   });
 
   onBeforeUnmount(() => {

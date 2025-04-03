@@ -63,10 +63,10 @@ export default (
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = debounce(target => {
+  const delayShowInstance = target => {
     popInstanceUtil?.cancelHide();
     popInstanceUtil?.show(target);
-  }, 120);
+  };
 
   const setModelValue = val => {
     if (Array.isArray(val)) {
@@ -131,7 +131,6 @@ export default (
   };
 
   const hideTippyInstance = () => {
-    delayShowInstance?.cancel?.();
     popInstanceUtil?.hide(180);
   };
 
