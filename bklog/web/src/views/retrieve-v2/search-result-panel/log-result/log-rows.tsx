@@ -92,6 +92,8 @@ export default defineComponent({
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
+    const refResultRowBox: Ref<HTMLElement> = ref();
+
     const popInstanceUtil = new PopInstanceUtil({
       refContent: ref('智能分析'),
       tippyOptions: {
@@ -751,6 +753,27 @@ export default defineComponent({
       refLoadMoreElement,
     });
 
+    const getRootBodyStyle = () => {
+      return {
+        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
+        '--row-offset-left': `${scrollXOffsetLeft.value}px`,
+        '--fix-right-width': `${operatorFixRightWidth.value}px`,
+        '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
+        '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
+        '--offset-right': `${scrollWidth.value - offsetWidth.value}px`,
+      };
+    };
+
+    const setRowboxTransform = () => {
+      if (refResultRowBox.value && refRootElement.value) {
+        const styleList = getRootBodyStyle();
+        for (const style in styleList) {
+          refRootElement.value.style.setProperty(style, styleList[style]);
+        }
+        refResultRowBox.value.style.transform = `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`;
+      }
+    };
+
     const scrollWidth = computed(() => {
       const callback = (acc, item) => {
         acc = acc + (item?.width ?? 0);
@@ -772,31 +795,27 @@ export default defineComponent({
       return offsetWidth.value < scrollWidth.value;
     });
 
-    const debounceSetWheel = debounce(() => {
-      wheelTrigger.value.isWheeling = false;
-    }, 300);
-
+    let isAnimating = false;
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
-        // wheelTrigger.value.isWheeling = true;
-        // wheelTrigger.value.id = uniqueId();
-
-        // debounceSetWheel();
-
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();
           event.preventDefault();
-
-          requestAnimationFrame(() => {
-            const nextOffset = scrollXOffsetLeft.value + event.deltaX;
-            if (nextOffset <= maxOffset && nextOffset >= 0) {
-              scrollXOffsetLeft.value += event.deltaX;
-              refScrollXBar.value?.scrollLeft(nextOffset);
-            }
-          });
+          if (!isAnimating) {
+            isAnimating = true;
+            requestAnimationFrame(() => {
+              isAnimating = false;
+              const nextOffset = scrollXOffsetLeft.value + event.deltaX;
+              if (nextOffset <= maxOffset && nextOffset >= 0) {
+                scrollXOffsetLeft.value += event.deltaX;
+                setRowboxTransform();
+                refScrollXBar.value?.scrollLeft(nextOffset);
+              }
+            });
+          }
         }
       },
     });
@@ -808,16 +827,13 @@ export default defineComponent({
       return operatorWidth + (diff > 0 ? diff : 0);
     });
 
-    const rootBodyStyle = computed(() => {
-      return {
-        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
-        '--row-offset-left': `${scrollXOffsetLeft.value}px`,
-        '--fix-right-width': `${operatorFixRightWidth.value}px`,
-        '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
-        '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-        '--offset-right': `${scrollWidth.value - offsetWidth.value}px`,
-      };
-    });
+    watch(
+      () => [operatorFixRightWidth.value, offsetWidth.value, scrollWidth.value],
+      () => {
+        setRowboxTransform();
+      },
+      { immediate: true },
+    );
 
     const showHeader = computed(() => {
       return showCtxType.value === 'table' && tableList.value.length > 0;
@@ -945,6 +961,7 @@ export default defineComponent({
 
     const handleScrollXChanged = (event: MouseEvent) => {
       scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
+      setRowboxTransform();
     };
 
     const renderScrollXBar = () => {
@@ -1101,6 +1118,7 @@ export default defineComponent({
 
     return {
       refRootElement,
+      refResultRowBox,
       isTableLoading,
       renderRowVNode,
       renderFixRightShadow,
@@ -1117,7 +1135,6 @@ export default defineComponent({
       isRequesting,
       isLoading,
       exceptionMsg,
-      rootBodyStyle,
     };
   },
   render() {
@@ -1125,13 +1142,13 @@ export default defineComponent({
       <div
         ref='refRootElement'
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
-        style={this.rootBodyStyle}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
         onClick={this.onRootClick}
       >
         {this.renderHeadVNode()}
         <div
           id={this.resultContainerId}
+          ref='refResultRowBox'
           class={['bklog-row-box']}
         >
           {this.renderRowVNode()}

@@ -42,7 +42,6 @@
     flex-direction: column;
     width: fit-content;
     min-width: 100%;
-    transform: translate3d(var(--scroll-left), 0, 0);
 
     &::before {
       position: absolute;
