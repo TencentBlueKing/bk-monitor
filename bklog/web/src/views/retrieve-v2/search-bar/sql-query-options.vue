@@ -356,8 +356,9 @@
 
   const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
     const { code } = e;
-    if (code === 'Escape') {
-      emits('cancel');
+    const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
+
+    if (code === 'Escape' || !catchKeyCode.includes(code)) {
       return;
     }
 
@@ -429,6 +430,13 @@
       showOption.value.showContinue ||
       (showOption.value.showOperator && operatorSelectList.value.length);
 
+    if (beforeShownValue) {
+      // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+      document.addEventListener('keydown', handleKeydown, {
+        capture: true,
+      });
+    }
+
     return beforeShownValue;
   };
 
@@ -483,21 +491,6 @@
     nextTick(() => {
       setOptionActive();
     });
-  });
-
-  onMounted(() => {
-    // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
-    document.addEventListener('keydown', handleKeydown, {
-      capture: true,
-    });
-  });
-
-  onUnmounted(() => {
-    beforeHideFn();
-  });
-
-  onBeforeUnmount(() => {
-    beforeHideFn();
   });
 
   defineExpose({

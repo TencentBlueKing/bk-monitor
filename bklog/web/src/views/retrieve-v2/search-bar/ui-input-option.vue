@@ -844,19 +844,20 @@
     handleFieldListKeyupAndKeydown();
   };
 
-  const handleEscKeyEvent = () => {
+  const handleEscKeyEvent = e => {
     if (isConditionValueFocus()) {
+      stopEventPreventDefault(e);
       refValueTagInput?.value.blur();
       conditionValueInstance.hide(100);
       return;
     }
 
     if (isOperatorInstanceActive()) {
+      stopEventPreventDefault(e);
       operatorInstance?.hide();
       return;
     }
 
-    emit('cancel');
     return;
   };
 
@@ -897,8 +898,7 @@
 
     // key esc
     if (e.keyCode === 27) {
-      stopEventPreventDefault(e);
-      handleEscKeyEvent();
+      handleEscKeyEvent(e);
       return;
     }
   };
@@ -913,7 +913,8 @@
 
   const beforeShowndFn = () => {
     setDefaultActiveIndex();
-    document.addEventListener('keydown', handleKeydownClick);
+    document.addEventListener('keydown', handleKeydownClick, { capture: true });
+    document.addEventListener('click', handleDocumentClick);
 
     restoreFieldAndCondition();
     scrollActiveItemIntoView();
@@ -924,11 +925,14 @@
         refFilterInput.value?.focus();
       }
     });
+
+    return true;
   };
 
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick);
-    // handleFieldItemClick(filterFieldList.value[0], 0);
+    document.removeEventListener('click', handleDocumentClick);
+
     resetParams();
   };
 
@@ -1006,16 +1010,13 @@
       return;
     }
 
-    conditionValueInstance?.hide(100);
+    if (conditionValueInstance?.isShown()) {
+      conditionValueInstance?.hide(100);
+    }
   };
-
-  onMounted(() => {
-    document.addEventListener('click', handleDocumentClick);
-  });
 
   onBeforeUnmount(() => {
     afterHideFn();
-    document.removeEventListener('click', handleDocumentClick);
     fieldOptionListInstance.uninstallInstance();
     operatorInstance.uninstallInstance();
     conditionValueInstance.uninstallInstance();

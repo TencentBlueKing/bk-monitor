@@ -105,8 +105,8 @@
   const isInputFocus = ref(false);
   const showIpSelector = ref(false);
 
-  // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
-  let isInputTextFocus = false;
+  // // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
+  // let isInputTextFocus = false;
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
@@ -143,9 +143,10 @@
   const {
     modelValue,
     isDocumentMousedown,
+    isInputTextFocus,
+    setIsInputTextFocus,
     setIsDocumentMousedown,
     getTippyInstance,
-    handleInputBlur,
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
@@ -166,18 +167,20 @@
     onHiddenFn: () => {
       emit('popup-change', { isShow: false });
 
-      if (isDocumentMousedown.value || isInputTextFocus) {
+      if (isDocumentMousedown.value || isInputTextFocus.value) {
         setIsDocumentMousedown(false);
         // 这里blur事件触发会比出发clickoutside收起弹出晚
         // 所以在收起时，需要一个延迟检测
-        if (isInputTextFocus) {
+        if (isInputTextFocus.value) {
           requestAnimationFrame(() => {
-            if (!isInputTextFocus) {
+            if (!isInputTextFocus.value) {
               hideTippyInstance();
             }
           });
+
+          return false;
         }
-        return false;
+        return true;
       }
 
       refPopInstance.value?.afterHideFn?.();
@@ -342,7 +345,7 @@
   };
 
   const handleInputTextClick = () => {
-    if (isInstanceShown() || isInputTextFocus || isAutoFocus.value) {
+    if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
       return;
     }
 
@@ -354,7 +357,7 @@
       return;
     }
 
-    isInputTextFocus = true;
+    setIsInputTextFocus(true);
     isInputFocus.value = true;
     activeIndex.value = null;
     queryItem.value = '';
@@ -367,7 +370,7 @@
   };
 
   const handleFullTextInputBlur = e => {
-    isInputTextFocus = false;
+    setIsInputTextFocus(false);
     inputValueLength.value = 0;
     e.target.style.setProperty('width', '12px');
     e.target.value = '';
