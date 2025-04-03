@@ -139,8 +139,18 @@ class FavoriteHandler(object):
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
-        group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        public_group_ids = []
+        group_info = {}
+        for i in groups:
+            group_info[i["id"]] = i
+            if i["group_type"] == FavoriteGroupType.PUBLIC.value:
+                public_group_ids.append(i["id"])
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid,
+            username=self.username,
+            order_type=order_type,
+            public_group_ids=public_group_ids,
+        )
 
         ret = list()
         for fi in favorites:
