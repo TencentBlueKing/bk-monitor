@@ -130,14 +130,11 @@
           class="bklog-icon bklog-help"
         ></span>
         当前设置仅对个人生效，可以
-        <span style="color: #3a84ff"
-          ><span
-            style="margin-right: 4px; font-size: 14px"
-            class="bklog-icon bklog-save"
-          ></span
-          >另存为模板</span
-        >
-        <span>，也可以使用 <span style="color: #3a84ff">其他模板</span></span>
+        <save-as-popover
+          :confirm-handler="handleUpdateConfig"
+          :display-fields="currentVisibleList"
+          :sort-list="currentSortList"
+        />
       </div>
       <div>
         <bk-button
@@ -167,6 +164,7 @@
   import { mapGetters } from 'vuex';
 
   import LogExport from '../../../../components/log-import/log-import';
+  import saveAsPopover from './children/save-as-popover.vue';
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
@@ -181,6 +179,7 @@
       fieldSetting,
       tableSort,
       LogExport,
+      saveAsPopover,
     },
     props: {
       retrieveParams: {
@@ -287,6 +286,15 @@
       },
       fieldWidth() {
         return this.$store.state.isEnLanguage ? '60' : '114';
+      },
+      currentSortList() {
+        return this.$refs?.tableSortRef?.shadowSort || this.shadowSort;
+      },
+      currentVisibleList() {
+        return (
+          this.$refs?.fieldSettingRef?.shadowVisible?.map(item => item.field_name) ||
+          this.shadowVisible?.map(item => item.field_name)
+        );
       },
       ...mapGetters({
         unionIndexList: 'unionIndexList',
@@ -537,7 +545,9 @@
             }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
-          successMsg && this.messageInfo(successMsg);
+          if (successMsg) {
+            isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
+          }
         } catch (error) {
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
