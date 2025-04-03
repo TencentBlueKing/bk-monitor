@@ -1963,8 +1963,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                     metricCalTypes={this.metricCalTypes}
                                     pageId={this.dashboardId}
                                     panel={this.sceneData.groupPanel}
+                                    refreshImmediate={this.refleshImmediate}
+                                    refreshInterval={this.refleshInterval}
                                     sceneId={this.sceneId}
                                     sceneType={this.localSceneType}
+                                    timeRange={this.timeRange}
                                     timeValue={this.timeOffset}
                                     onGroupChange={this.handleGroupsChange}
                                     onTimeCompareChange={this.handleGroupCompareTimeChange}
