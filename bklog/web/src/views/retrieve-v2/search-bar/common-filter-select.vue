@@ -224,6 +224,7 @@
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
+            @custom-tag-enter="() => handleToggle(true, item, index)"
           ></bklogTagChoice>
         </template>
       </div>

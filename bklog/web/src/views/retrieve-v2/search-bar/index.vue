@@ -274,6 +274,7 @@
       keyword: value,
     });
 
+    inspectResponse.value.is_legal = true;
     setRouteParams();
   };
 

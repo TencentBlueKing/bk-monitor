@@ -36,6 +36,7 @@ export default (
     formatModelValueItem,
     refContent,
     refTarget,
+    refWrapper,
     onShowFn,
     onHiddenFn,
     arrow = true,
@@ -89,7 +90,7 @@ export default (
     return instance?.proxy?.$el;
   };
   const getTargetInput = () => {
-    const target = refTarget?.value ?? getRoot();
+    const target = refWrapper?.value ?? getRoot();
     const input = target?.querySelector('.tag-option-focus-input');
     return input as HTMLInputElement;
   };

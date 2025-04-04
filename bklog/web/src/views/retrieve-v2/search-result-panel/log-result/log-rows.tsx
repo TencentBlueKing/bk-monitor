@@ -705,7 +705,8 @@ export default defineComponent({
 
     const loadMoreTableData = () => {
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
-      if (isRequesting.value || tableDataSize.value === 0) {
+      // visibleFields.value 在字段重置时会清空，所以需要判断
+      if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
         return;
       }
 

@@ -31,6 +31,7 @@ import useLocale from '../../../hooks/use-locale';
 import useResizeObserve from '../../../hooks/use-resize-observe';
 
 import './bklog-tag-choice.scss';
+import { index } from '../../../services/indexSet';
 
 export default defineComponent({
   model: {
@@ -89,7 +90,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['change', 'input', 'toggle', 'focus', 'blur'],
+  emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter'],
   setup(props, { slots, emit }) {
     const isListOpended = ref(false);
     const refRootElement: Ref<HTMLElement> = ref(null);
@@ -356,6 +357,7 @@ export default defineComponent({
         stopDefaultPrevented(e);
 
         emitValue(inputTagValue.value);
+        emit('custom-tag-enter');
         clearInputTag();
       }
     };
@@ -421,6 +423,7 @@ export default defineComponent({
     const handleCustomTagClick = (e: MouseEvent) => {
       emitValue(inputTagValue.value);
       clearInputTag();
+      emit('custom-tag-enter');
       stopDefaultPrevented(e);
     };
 
@@ -516,6 +519,14 @@ export default defineComponent({
           });
         }
       }
+    };
+
+    const handleOptionItemMouseenter = (index: number) => {
+      activeItemIndex.value = index;
+    };
+
+    const handleOptionItemMouseleave = () => {
+      activeItemIndex.value = undefined;
     };
 
     const lastTagWidth = 40;
@@ -722,6 +733,8 @@ export default defineComponent({
             },
           ]}
           onClick={handleCustomTagClick}
+          onMouseenter={() => handleOptionItemMouseenter(null)}
+          onMouseleave={() => handleOptionItemMouseleave()}
         >
           {t('生成“{n}”标签', { n: inputTagValue.value })}
         </div>
@@ -733,10 +746,12 @@ export default defineComponent({
         return <div class='empty-row'>{t('暂无数据')}</div>;
       }
 
-      return optionList.value.map(({ item, selected }) => (
+      return optionList.value.map(({ item, selected }, index) => (
         <div
           class={['bklog-choice-list-item', { 'is-selected': selected }]}
           onClick={() => handleOptionItemClick(item)}
+          onMouseenter={() => handleOptionItemMouseenter(index)}
+          onMouseleave={() => handleOptionItemMouseleave()}
         >
           {slots.item?.(item) ?? getListItemName(item)}
         </div>

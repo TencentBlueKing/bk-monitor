@@ -181,6 +181,11 @@ ul.bklog-tag-choice-input {
     min-width: 1px;
     width: 100%;
     min-height: 32px;
+    margin-bottom: 2px;
+
+    &:last-child {
+      margin-bottom: 0px;
+    }
 
     &:hover {
       background: #f5f7fa;

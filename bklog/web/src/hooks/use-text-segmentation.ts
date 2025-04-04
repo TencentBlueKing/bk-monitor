@@ -187,11 +187,33 @@ export default class UseTextSegmentation {
     return (field?.is_virtual_obj_node ?? false) && field?.field_type === 'object';
   }
 
+  private isJSONStructure(str: string) {
+    const trimmed = str.trim();
+    const len = trimmed.length;
+    if (len === 0) return false; // 空字符串直接返回
+
+    const first = trimmed[0];
+    const last = trimmed[len - 1];
+
+    return (first === '{' && last === '}') || (first === '[' && last === ']');
+  }
+
+  private convertJsonStrToObj(str: string) {
+    if (this.isJSONStructure(str)) {
+      try {
+        return JSON.parse(str);
+      } catch (e) {
+        console.error(e);
+        return str;
+      }
+    }
+
+    return str;
+  }
+
   private convertVirtaulObjToArray() {
-    // this.options.content值为--时，直接JSON.parse会转义报错
-    const target =
-      this.options.data[this.options.field.field_name] ??
-      (['', '--'].includes(this.options.content) ? this.options.content : JSON.parse(this.options.content));
+    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
+
     const convertObjToArray = (root: object, isValue = false) => {
       const result = [];
 

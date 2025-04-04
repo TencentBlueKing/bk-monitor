@@ -70,6 +70,7 @@
       formatModelValueItem,
       refContent: refSqlQueryOption,
       refTarget: refEditorParent,
+      refWrapper: refEditorParent,
       arrow: false,
       newInstance: false,
       addInputListener: false,

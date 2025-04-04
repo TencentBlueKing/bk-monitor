@@ -398,6 +398,7 @@
               this.$store.commit('updateIsSetDefaultTableColumn');
             });
           await this.$store.dispatch('requestIndexSetFieldInfo');
+
           await this.$store.dispatch('requestIndexSetQuery');
         } catch (error) {
           console.warn(error);

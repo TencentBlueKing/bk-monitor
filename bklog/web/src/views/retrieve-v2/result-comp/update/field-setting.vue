@@ -76,8 +76,12 @@
                 class="select-item"
                 v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 :key="item.field_name"
+                @click="e => deleteField(e, item, index)"
               >
-                <span class="icon bklog-icon bklog-ketuodong"></span>
+                <span
+                  data-del-disabled
+                  class="icon bklog-icon bklog-ketuodong"
+                ></span>
                 <span
                   :style="{
                     backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
@@ -88,10 +92,7 @@
                 </span>
                 <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
                 <span class="field-name">({{ item.field_name }})</span>
-                <span
-                  class="bk-icon icon-close-circle-shape delete"
-                  @click="deleteField(item, index)"
-                ></span>
+                <span class="bk-icon icon-close-circle-shape delete"></span>
               </li>
             </transition-group>
           </vue-draggable>
@@ -184,7 +185,11 @@
     shadowVisible.value.push(fieldInfo);
   };
 
-  const deleteField = (fieldName, index) => {
+  const deleteField = (e, fieldName, index) => {
+    if (e.target.hasAttribute('data-del-disabled')) {
+      return;
+    }
+
     shadowVisible.value.splice(index, 1);
   };
 
