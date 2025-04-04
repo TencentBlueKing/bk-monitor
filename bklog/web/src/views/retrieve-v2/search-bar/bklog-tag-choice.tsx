@@ -841,6 +841,7 @@ export default defineComponent({
           'bklog-tag-choice-container',
           {
             'is-focus': isInputFocused.value,
+            'is-choice-active': isInputFocused.value,
             'has-hidden-item': hiddenItemCount.value > 0,
             'is-focus-fixed': props.foucsFixed,
             'is-ellipsis': isFixedOverflowY.value,

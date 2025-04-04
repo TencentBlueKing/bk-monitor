@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed, watch, nextTick } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -144,22 +144,22 @@
     }
   };
 
-  let isChoiceInputFocus = false;
+  const isChoiceInputFocus = ref(false);
 
   const handleChoiceFocus = index => {
-    isChoiceInputFocus = true;
+    isChoiceInputFocus.value = true;
     focusIndex.value = index;
   };
 
   const handleChoiceBlur = index => {
     if (focusIndex.value === index) {
       focusIndex.value = null;
-      isChoiceInputFocus = false;
+      isChoiceInputFocus.value = null;
     }
   };
 
   const handleRowBlur = () => {
-    if (isChoiceInputFocus) {
+    if (isChoiceInputFocus.value) {
       return;
     }
 
@@ -179,12 +179,12 @@
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
-        @blur.capture="handleRowBlur"
-        @focus.capture="e => handleRowFocus(index, e)"
       >
         <div
           class="title"
           v-bk-overflow-tips
+          @blur.capture="handleRowBlur"
+          @focus.capture="e => handleRowFocus(index, e)"
         >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
@@ -195,6 +195,8 @@
           :popover-min-width="100"
           filterable
           @change="handleChange"
+          @blur.native.capture="handleRowBlur"
+          @focus.native.capture="e => handleRowFocus(index, e)"
         >
           <template #trigger>
             <span
@@ -212,7 +214,7 @@
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bklogTagChoice
-            class="value-select"
+            :class="['value-select', { 'is-focus': focusIndex === index }]"
             v-model="commonFilterAddition[index].value"
             :foucs-fixed="true"
             :list="commonFilterAddition[index].list"
@@ -375,7 +377,7 @@
 
       > div {
         &:last-child {
-          &:not(.value-select) {
+          &:not(.is-choice-active) {
             border-top-right-radius: 3px;
             border-bottom-right-radius: 3px;
             border-right: 1px solid #3a84ff;
