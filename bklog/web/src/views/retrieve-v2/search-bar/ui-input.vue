@@ -154,6 +154,7 @@
   } = useFocusInput(props, {
     refContent: refPopInstance,
     refTarget: refHiddenFocus,
+    refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
     onShowFn: instance => {
