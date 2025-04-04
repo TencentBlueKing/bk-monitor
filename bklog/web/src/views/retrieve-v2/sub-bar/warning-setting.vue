@@ -376,6 +376,8 @@
       config: 'strategy-config',
     };
 
+
+    
     if (active.value === 'mission') {
       getQueryString().then(res => {
         window.open(

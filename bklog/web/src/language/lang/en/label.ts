@@ -776,4 +776,5 @@ export default {
   已选字段: 'Selected fields:',
   '请选择 或 输入': 'Please select or enter',
   展示: 'Show',
+  创建告警策略: 'Create Alert Policy',
 };

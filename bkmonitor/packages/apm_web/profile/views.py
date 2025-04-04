@@ -252,9 +252,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 extra_params["order"] = {"expr": order.replace("-", ""), "sort": sort}
             else:
                 if api_type == APIType.QUERY_SAMPLE_BY_JSON:
-                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 t1.stacktrace_id 保持接口返回数据一致
+                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 dtEventTimeStamp,t1.stacktrace_id 保持接口返回数据一致
                     extra_params.setdefault("order", {})
-                    extra_params["order"] = {"expr": "t1.stacktrace_id", "sort": "asc"}
+                    extra_params["order"] = {"expr": "dtEventTimeStamp,t1.stacktrace_id", "sort": "desc"}
 
         if "profile_id" in extra_params.get("label_filter", {}):
             retry_handler = functools.partial(
