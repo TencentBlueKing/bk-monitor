@@ -250,7 +250,7 @@
           </div>
         </template>
       </bk-table-column>
-      
+
       <bk-table-column
         width="200"
         :label="$t('创建告警策略')"
@@ -258,8 +258,19 @@
       >
         <template #default="{ row }">
           <div>
-            <bk-switcher v-if="row.owners.length" theme="primary" v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
-            <bk-switcher v-else v-model="row.strategy_enabled" theme="primary" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
+            <bk-switcher
+              v-if="row.owners.length"
+              theme="primary"
+              v-model="row.strategy_enabled"
+              @change="val => changeStrategy(val, row)"
+            ></bk-switcher>
+            <bk-switcher
+              v-else
+              v-model="row.strategy_enabled"
+              theme="primary"
+              :disabled="true"
+              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
+            ></bk-switcher>
           </div>
         </template>
       </bk-table-column>
@@ -531,7 +542,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.isLimitExpandView;
+        return this.$store.state.storage.isLimitExpandView;
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -876,16 +887,15 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
-
         console.log(val, row);
-        
+
         // 当创建告警策略开启时，不允许删掉最后一个责任人
-        if(row.strategy_enabled && !val.length){
+        if (row.strategy_enabled && !val.length) {
           this.$bkMessage({
-              theme: 'error',
-              message: this.$t('删除失败，开启告警时，需要至少一个责任人')
-            });
-          return
+            theme: 'error',
+            message: this.$t('删除失败，开启告警时，需要至少一个责任人'),
+          });
+          return;
         }
         this.curEditUniqueVal = {
           signature: row.signature,
@@ -1162,11 +1172,19 @@
       },
       renderAlertPolicyHeader(h, { column }) {
         const directive = {
-            name: 'bkTooltips',
-            content: '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
-            placement: 'top'
-        }
-        return <p class="custom-header-cell" >{ column.label } <span class="bklog-icon bklog-help" v-bk-tooltips={ directive } ></span></p>
+          name: 'bkTooltips',
+          content: '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+          placement: 'top',
+        };
+        return (
+          <p class='custom-header-cell'>
+            {column.label}{' '}
+            <span
+              class='bklog-icon bklog-help'
+              v-bk-tooltips={directive}
+            ></span>
+          </p>
+        );
       },
       renderRemarkHeader(h, { column }) {
         const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
@@ -1228,7 +1246,7 @@
             }
           })
           .finally(() => (this.curEditUniqueVal = {}));
-      }
+      },
     },
   };
 </script>

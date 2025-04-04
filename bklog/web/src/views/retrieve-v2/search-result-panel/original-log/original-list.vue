@@ -143,14 +143,14 @@
     inheritAttrs: false,
     computed: {
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
+        formatJson: state => state.storage.tableJsonFormat,
       }),
       scrollContent() {
         return document.querySelector('.result-scroll-container');
       },
       isMonitorTraceLog() {
         return window?.__IS_MONITOR_TRACE__;
-      }
+      },
     },
     activated() {
       // keep-alive之后再进入到原始日志时需要重新布局表格

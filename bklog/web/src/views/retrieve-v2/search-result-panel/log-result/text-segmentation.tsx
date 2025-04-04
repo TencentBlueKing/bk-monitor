@@ -60,8 +60,8 @@ export default defineComponent({
     const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const isWrap = computed(() => store.state.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
+    const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+    const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView || props.forceAll);
     const rootStyle = computed(() => {
       return {
         maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '68px'}`,

@@ -179,9 +179,9 @@
         retrieveParams: 'retrieveParams',
       }),
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
+        formatJson: state => state.storage.tableJsonFormat,
         showFieldAlias: state => state.showFieldAlias ?? false,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;

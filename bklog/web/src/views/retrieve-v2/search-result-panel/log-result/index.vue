@@ -247,10 +247,10 @@
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
         isWrap: 'tableLineIsWrap',
-        jsonFormatDeep: state => state.tableJsonFormatDepth,
-        isJsonFormat: state => state.tableJsonFormat,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
-        showRowIndex: state => state.tableShowRowIndex,
+        jsonFormatDeep: state => state.storage.tableJsonFormatDepth,
+        isJsonFormat: state => state.storage.tableJsonFormat,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
+        showRowIndex: state => state.storage.tableShowRowIndex,
       }),
 
       routeIndexSet() {
@@ -277,10 +277,7 @@
       },
     },
     mounted() {
-      const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-      this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
-      this.handleChangeExpandView(this.expandTextView);
     },
     methods: {
       // 字段设置
@@ -313,24 +310,24 @@
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
       },
       handleShowRowIndexChange(val) {
-        this.$store.commit('updateTableShowRowIndex', val);
+        this.$store.commit('updateStorage', { tableShowRowIndex: val });
       },
       handleChangeExpandView(val) {
-        this.$store.commit('updateIsLimitExpandView', val);
+        this.$store.commit('updateStorage', { isLimitExpandView: val });
       },
       handleChangeIsWarp(val) {
         this.$store.commit('updateTableLineIsWrap', val);
       },
       handleJsonFormat(val) {
-        this.$store.commit('updateTableJsonFormat', val);
+        this.$store.commit('updateStorage', { tableJsonFormat: val });
       },
       handleEmptyFieldFormat(val) {
-        this.$store.commit('updateTableEmptyFieldFormat', val);
+        this.$store.commit('updateStorage', { tableAllowEmptyField: val });
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);
         const target = value > 15 ? 15 : value < 1 ? 1 : value;
-        this.$store.commit('updatetableJsonFormatDepth', target);
+        this.$store.commit('updateStorage', { tableJsonFormatDepth: target });
       },
     },
   };

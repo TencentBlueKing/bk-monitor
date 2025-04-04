@@ -83,8 +83,8 @@
     },
     computed: {
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
-        tableLineIsWrap: state => state.tableLineIsWrap,
+        formatJson: state => state.storage.tableJsonFormat,
+        tableLineIsWrap: state => state.storage.tableLineIsWrap,
       }),
 
       isJsonFormat() {

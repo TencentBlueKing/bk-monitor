@@ -118,9 +118,9 @@ export default defineComponent({
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.tableJsonFormat);
-    const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
-    const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
+    const formatJson = computed(() => store.state.storage.tableJsonFormat);
+    const tableShowRowIndex = computed(() => store.state.storage.tableShowRowIndex);
+    const tableLineIsWrap = computed(() => store.state.storage.tableLineIsWrap);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);

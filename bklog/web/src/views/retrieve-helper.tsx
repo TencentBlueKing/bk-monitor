@@ -51,6 +51,11 @@ export enum RetrieveEvent {
 
   // 趋势图高度变化
   TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
+
+  /**
+   * localStorage 变化
+   */
+  STORAGE_CHANGE = 'storage-change',
 }
 
 class RetrieveHelper {
@@ -143,6 +148,10 @@ class RetrieveHelper {
   setSearchBarHeight(height: number) {
     this.searchBarHeight = height;
     this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
+  }
+
+  setStorage(key: string, value: any) {
+    localStorage.setItem(key, value);
   }
 
   /**
