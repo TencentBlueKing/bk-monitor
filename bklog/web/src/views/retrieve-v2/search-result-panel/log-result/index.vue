@@ -112,10 +112,11 @@
         class="tools-more"
       >
         <div class="operation-icons">
-          <!-- <bk-input
+          <bk-input
             style="width: 240px"
-            v-model="value"
+            v-model="highlightValue"
             placeholder="输入后按 Enter..."
+            @enter="handleHighlightEnter"
           >
             <template slot="prepend">
               <div
@@ -125,7 +126,7 @@
                 高亮
               </div>
             </template>
-          </bk-input> -->
+          </bk-input>
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -185,6 +186,7 @@
   import ExportLog from '../../result-comp/export-log.vue';
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
+  import RetrieveHelper from '../../../retrieve-helper';
 
   export default {
     components: {
@@ -209,7 +211,7 @@
     },
     data() {
       return {
-        value: '',
+        highlightValue: '',
         contentType: 'table',
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
@@ -278,8 +280,12 @@
     },
     mounted() {
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+      RetrieveHelper.setMarkInstance();
     },
     methods: {
+      handleHighlightEnter() {
+        RetrieveHelper.highLightKeywords(this.highlightValue.split(' ').filter(w => w.length > 0));
+      },
       // 字段设置
       handleDropdownShow() {
         this.showFieldsSetting = true;

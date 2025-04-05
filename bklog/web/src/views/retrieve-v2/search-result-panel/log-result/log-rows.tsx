@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, nextTick } from 'vue';
 
 import {
   parseTableRowData,
@@ -41,7 +41,6 @@ import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
-import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
@@ -219,7 +218,7 @@ export default defineComponent({
 
     const searchContainerHeight = ref(52);
 
-    const resultContainerId = ref(uniqueId('result_container_key_'));
+    const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const operatorToolsWidth = computed(() => {
@@ -335,14 +334,14 @@ export default defineComponent({
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
 
-          // const hanldeExpandClick = () => {
-          //   config.expand = !config.expand;
-          // };
+          const hanldeExpandClick = () => {
+            config.expand = !config.expand;
+          };
 
           return (
             <span
               class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-              // onClick={hanldeExpandClick}
+              onClick={hanldeExpandClick}
             >
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
@@ -716,6 +715,7 @@ export default defineComponent({
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
         setRenderList(maxLength);
         debounceSetLoading(0);
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         return;
       }
 
@@ -725,6 +725,7 @@ export default defineComponent({
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           pageIndex.value++;
           debounceSetLoading(0);
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         });
       }
 

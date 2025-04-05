@@ -24,7 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { Ref } from 'vue';
 import { random } from '../common/util';
+
+import OptimizedHighlighter from './optimized-highlighter';
 
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
@@ -84,9 +87,13 @@ class RetrieveHelper {
   // 事件列表
   events: Map<string, ((...args) => void)[]>;
 
+  markInstance: OptimizedHighlighter = undefined;
+
   // 正则表达式提取日志级别
   logLevelRegex =
     /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/i;
+
+  logRowsContainerId: string;
 
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
@@ -94,6 +101,7 @@ class RetrieveHelper {
     this.favoriteWidth = favoriteWidth;
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
+    this.logRowsContainerId = `result_container_key_${random(12)}`;
   }
 
   on(fnName: RetrieveEvent, callbackFn: (...args) => void) {
@@ -106,6 +114,39 @@ class RetrieveHelper {
 
     this.events.set(fnName, [callbackFn]);
     return this;
+  }
+
+  /**
+   * // 初始化 Mark.js 实例
+   * @param target
+   */
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
+    this.markInstance = new OptimizedHighlighter({
+      target: target ?? (() => document.getElementById(this.logRowsContainerId)),
+      chunkStrategy: 'fixed',
+    });
+  }
+
+  highLightKeywords(keywords: string[]) {
+    if (!this.markInstance) {
+      return;
+    }
+
+    const colors = ['#F59500', '#2CAF85', '#3AACFF', '#D25DFA', '#D84A57', '#2196F3', '#9C27B0'];
+    this.markInstance.unmark({});
+    this.markInstance.highlight(
+      keywords.map((keyword, index) => {
+        return {
+          text: keyword,
+          className: `highlight-${index}`,
+          backgroundColor: colors[index % colors.length],
+        };
+      }),
+    );
+  }
+
+  updateMarkElement() {
+    this.markInstance.incrementalUpdate();
   }
 
   /**
