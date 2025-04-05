@@ -230,9 +230,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     options.series[0].data = chartData;
+    options.series.forEach(s => {
+      s.barMinHeight = 2;
+      s.itemStyle.color = params => {
+        return (params.value[1] ?? 0) > 0 ? params.color : '#fff';
+      };
+    });
 
-    // 设置最小高度。避免图表高度过小看不到
-    options.series[0].barMinHeight = 5;
     options.series[0].stack = 'total';
     // 此处为展示用假数据
     // options.series[0].name = 'error';
