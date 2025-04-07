@@ -440,4 +440,135 @@ $grey-bg: #eaebf0;
       }
     }
   }
+  
+  .relation-log-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: 12px;
+    color: #3A84FF;
+    cursor: pointer;
+
+    .icon-monitor {
+      margin-right: 2px;
+      transform: scale(0.70);
+      
+    }
+  }
+}
+
+.event-relation-dialog {
+  .bk-dialog-close {
+    top: 2px;
+    right: 2px;
+    width: 34px;
+    height: 34px;
+    font-size: 34px;
+    font-weight: 400;
+    line-height: 34px;
+    color: #c4c6cc;
+
+    &:hover {
+      background-color: transparent;
+    }
+  }
+
+  .bk-info-box {
+    top: 100px;
+
+    .bk-dialog-header {
+      position: absolute;
+      top: 16px;
+      left: 24px;
+      padding: 0;
+    }
+
+    .bk-dialog-sub-header {
+      padding: 0 24px 0;
+      margin-top: 34px;
+
+      &.has-sub {
+        padding-bottom: 0;
+      }
+    }
+
+    .bk-dialog-footer {
+      padding: 8px 24px;
+      text-align: right;
+      border-top: 1px solid #dcdee5;
+
+      .bk-primary {
+        display: none;
+      }
+
+      button {
+        min-width: 64px;
+      }
+    }
+  }
+  
+
+  .json-view-content {
+    position: relative;
+    height: 607px;
+    padding: 12px;
+    overflow: auto;
+    background-color: #F2F5FA;
+
+    .icon-mc-copy {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      z-index: 1;
+      font-size: 20px;
+      color: #4d4f56;
+      cursor: pointer;
+      border-top: 2px solid transparent;
+  
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: none;
+      }
+
+      .vjs-key {
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
+  }
 }
