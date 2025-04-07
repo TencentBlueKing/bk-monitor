@@ -152,7 +152,7 @@ export const routeQueryKeys = [
   'unionList',
 ];
 
-export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+export const BkLogGlobalStorageKey = 'bk_log_global_storage';
 
 export const getStorageOptions = () => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
@@ -182,7 +182,7 @@ export const getStorageOptions = () => {
       // 是否展示空字段
       tableAllowEmptyField: false,
 
-      //是否展开长字段
+      // 是否展开长字段
       isLimitExpandView: false,
 
       // start | end | center

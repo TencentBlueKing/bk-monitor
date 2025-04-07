@@ -276,7 +276,7 @@ export default class FieldItem extends tsc<object> {
 
             {/* 字段名 */}
             <span>
-              <span class='field-name'>{this.retuanFieldName()}</span>
+              <span class='field-name rtl-text'>{this.retuanFieldName()}</span>
               {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
               {this.fieldItem.children?.length &&
                 (this.expandIconShow ? (

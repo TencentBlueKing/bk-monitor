@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent } from 'vue';
+
+import useStore from '@/hooks/use-store';
 
 import V3Container from './container';
 import V3Collection from './favorite';
@@ -38,13 +40,17 @@ import './index.scss';
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
+    const store = useStore();
+
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle } = useAppInit();
+    const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
     return () => (
       <div
         style={stickyStyle.value}
         class={[
           'v3-bklog-root',
+          { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
         ]}
       >

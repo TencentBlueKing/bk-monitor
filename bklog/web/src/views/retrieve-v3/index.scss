@@ -44,8 +44,8 @@
                   .bklog-row-container {
                     &.row-header {
                       position: fixed;
-                      right: 8px;
                       top: calc(var(--top-searchbar-height) + 52px);
+                      right: 8px;
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
                     }
                   }
@@ -77,6 +77,13 @@
           }
         }
       }
+    }
+  }
+
+  &.is-start-text-ellipsis {
+    .rtl-text {
+      direction: rtl;
+      unicode-bidi: bidi-override;
     }
   }
 }
