@@ -395,7 +395,8 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         ]
         # 设置视图面板的显示位置
         if view_position == "APM":
-            for group in default_detail_config:
+            apm_pod_detail_config = copy.deepcopy(DEFAULT_CONTAINER_DETAIL)
+            for group in apm_pod_detail_config:
                 group["hidden"] = False
                 if "panels" in group and isinstance(group["panels"], list):
                     for panel in group["panels"]:
@@ -404,11 +405,11 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 else:
                     continue
 
-            view_config["order"] = default_detail_config
+            view_config["order"] = apm_pod_detail_config
         else:
             view_config["order"] = cls.get_order(view, default_detail_config)
         # 根据面板位置配置，添加前端显示的面板配置
-        cls.patch_group_panels(DEFAULT_POD_DETAIL, default_where, view_config)
+        cls.patch_group_panels(default_detail_config, default_where, view_config)
         # 设置概览视图的面板
         overview_where = []
         overview_panels = cls.copy_replace_panels_with_where(view_config["panels"], overview_where)
