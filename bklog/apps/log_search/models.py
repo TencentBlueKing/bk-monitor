@@ -1454,10 +1454,16 @@ class UserCustomConfig(SoftDeleteModel):
 
 
 class IndexSetCustomConfig(SoftDeleteModel):
-    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
-    custom_config = models.JSONField(_("自定义配置"))
+    index_set_id = models.IntegerField(_("索引集ID"), null=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_hash = models.CharField("索引集哈希", max_length=32, unique=True)
+    index_set_custom_config = models.JSONField(_("索引集自定义配置"), default=dict)
 
     class Meta:
         verbose_name = _("索引集自定义配置")
         verbose_name_plural = _("索引集自定义配置")
         ordering = ("-updated_at",)
+
+    @classmethod
+    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+        return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()

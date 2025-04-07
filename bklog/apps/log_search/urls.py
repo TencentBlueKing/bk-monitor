@@ -29,7 +29,6 @@ from apps.log_search.views import (
     bizs_views,
     favorite_search_views,
     field_views,
-    index_set_custom_config_views,
     index_set_views,
     meta_views,
     result_table_views,
@@ -50,12 +49,6 @@ router.register(r"bizs", bizs_views.BizsViewSet, basename="bizs")
 router.register(r"index_set", index_set_views.IndexSetViewSet, basename="index_set")
 
 router.register(r"user_custom_config", user_custom_config_views.UserCustomConfigViewSet, basename="user_custom_config")
-
-router.register(
-    r"index_set_custom_config",
-    index_set_custom_config_views.IndexSetCustomConfigViewSet,
-    basename="index_set_custom_config",
-)
 
 router.register(r"search/index_set", search_views.SearchViewSet, basename="search")
 router.register(r"search/index_set", aggs_views.AggsViewSet, basename="aggs")

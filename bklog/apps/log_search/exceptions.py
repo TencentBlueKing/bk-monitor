@@ -581,13 +581,3 @@ class SQLParserException(BaseException):
 class UserCustomConfigNotExistException(BaseException):
     ERROR_CODE = "1101"
     MESSAGE = _("用户自定义配置不存在")
-
-
-# =================================================
-# 索引集自定义配置
-# =================================================
-
-
-class IndexSetCustomConfigNotExistException(BaseException):
-    ERROR_CODE = "1102"
-    MESSAGE = _("索引集自定义配置不存在")
