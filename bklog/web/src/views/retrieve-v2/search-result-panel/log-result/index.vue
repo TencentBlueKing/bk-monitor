@@ -314,6 +314,7 @@
       handleClickTableBtn(active = 'table') {
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
+        RetrieveHelper.highLightKeywords(null, false);
       },
       handleShowRowIndexChange(val) {
         this.$store.commit('updateStorage', { tableShowRowIndex: val });

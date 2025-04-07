@@ -320,6 +320,15 @@ export default defineComponent({
       return originalColumns.value;
     };
 
+    const hanldeAfterExpandClick = (target: HTMLElement) => {
+      const expandTarget = target
+        .closest('.bklog-row-container')
+        ?.querySelector('.bklog-row-observe .expand-view-wrapper');
+      if (expandTarget) {
+        RetrieveHelper.highlightElement(expandTarget);
+      }
+    };
+
     const leftColumns = computed(() => [
       {
         field: '',
@@ -334,8 +343,13 @@ export default defineComponent({
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
 
-          const hanldeExpandClick = () => {
+          const hanldeExpandClick = event => {
             config.expand = !config.expand;
+            nextTick(() => {
+              if (config.expand) {
+                hanldeAfterExpandClick(event.target);
+              }
+            });
           };
 
           return (
@@ -762,7 +776,7 @@ export default defineComponent({
         '--fix-right-width': `${operatorFixRightWidth.value}px`,
         '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
         '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-        '--offset-right': `${scrollWidth.value - offsetWidth.value}px`,
+        '--ai-right-position': `${scrollWidth.value - offsetWidth.value - scrollXOffsetLeft.value}px`,
       };
     };
 
@@ -1109,6 +1123,11 @@ export default defineComponent({
           if (item) {
             const config: RowConfig = tableRowConfig.get(item).value;
             config.expand = !config.expand;
+            nextTick(() => {
+              if (config.expand) {
+                hanldeAfterExpandClick(target);
+              }
+            });
           }
         }
       }

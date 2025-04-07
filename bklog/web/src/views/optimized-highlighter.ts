@@ -76,10 +76,34 @@ export default class OptimizedHighlighter {
     this.observer = this.createObserver();
   }
 
-  public async highlight(keywords: KeywordItem[]): Promise<void> {
-    this.resetState();
-    this.currentKeywords = keywords;
-    this.markKeywords = keywords.map(item => item.text);
+  public highlightElement(target: HTMLElement) {
+    if (this.sections.includes(target)) {
+      const instance = this.chunkMap.get(target)?.instance;
+      instance.unmark();
+      this.instanceExecMark(instance);
+      return;
+    }
+
+    this.sections.push(target);
+    const instance = this.initMarkInsntance(target);
+    this.chunkMap.set(target, { instance, highlighted: false });
+    this.instanceExecMark(instance);
+  }
+
+  public async highlight(keywords: KeywordItem[], reset = true): Promise<void> {
+    if (reset) {
+      this.resetState();
+      if (keywords.length === 0) {
+        return;
+      }
+      this.currentKeywords = keywords;
+    }
+
+    if (this.currentKeywords.length === 0) {
+      return;
+    }
+
+    this.markKeywords = this.currentKeywords.map(item => item.text);
     this.prepareSections();
     this.observeSections();
   }
@@ -116,6 +140,13 @@ export default class OptimizedHighlighter {
       this.observer.disconnect();
     }
     this.resetState();
+  }
+
+  private initMarkInsntance(target: HTMLElement) {
+    return new Mark(target, {
+      acrossElements: true, // 允许跨元素匹配
+      separateWordSearch: false, // 禁用单词拆分
+    });
   }
 
   private mergeConfigs(userConfig: HighlightConfig): Required<HighlightConfig> {
@@ -240,10 +271,7 @@ export default class OptimizedHighlighter {
       if (this.chunkMap.get(element)?.highlighted) continue;
 
       if (!this.chunkMap.get(element)?.instance) {
-        const instance = new Mark(element, {
-          acrossElements: true, // 允许跨元素匹配
-          separateWordSearch: false, // 禁用单词拆分
-        });
+        const instance = this.initMarkInsntance(element);
 
         this.chunkMap.set(element, { instance, highlighted: true });
       }
@@ -254,23 +282,29 @@ export default class OptimizedHighlighter {
     this.isProcessing = false;
   }
 
+  private instanceExecMark(instance: Mark, resolve?: Function) {
+    instance.mark(this.markKeywords, {
+      element: 'mark',
+      exclude: ['mark'],
+
+      done: resolve ?? (() => {}),
+      each: (element: HTMLElement) => {
+        if (element.parentElement?.classList.contains('valid-text')) {
+          element.classList.add('valid-text');
+        }
+        const backgroundColor = this.getBackgroundColor(element.textContent);
+        if (backgroundColor) {
+          element.style.backgroundColor = backgroundColor;
+        }
+      },
+    });
+  }
+
   private async highlightChunk(element: HTMLElement, instance: Mark): Promise<void> {
     if (!element) return;
 
     return new Promise(resolve => {
-      instance.mark(this.markKeywords, {
-        element: 'mark',
-        done: resolve,
-        each: (element: HTMLElement) => {
-          if (element.parentElement?.classList.contains('valid-text')) {
-            element.classList.add('valid-text');
-          }
-          const backgroundColor = this.getBackgroundColor(element.textContent);
-          if (backgroundColor) {
-            element.style.backgroundColor = backgroundColor;
-          }
-        },
-      });
+      this.instanceExecMark(instance, resolve);
     });
   }
 

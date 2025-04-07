@@ -381,7 +381,7 @@
           opacity: 1;
           z-index: 3;
           transition: opacity 0.3s;
-          right: calc(var(--offset-right) + 10px);
+          right: calc(var(--ai-right-position) + 10px);
         }
       }
 

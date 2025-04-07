@@ -127,7 +127,11 @@ class RetrieveHelper {
     });
   }
 
-  highLightKeywords(keywords: string[]) {
+  highlightElement(target) {
+    this.markInstance.highlightElement(target);
+  }
+
+  highLightKeywords(keywords?: string[], reset = true) {
     if (!this.markInstance) {
       return;
     }
@@ -141,13 +145,14 @@ class RetrieveHelper {
     ];
     this.markInstance.unmark({});
     this.markInstance.highlight(
-      keywords.map((keyword, index) => {
+      (keywords ?? []).map((keyword, index) => {
         return {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: colors[index % colors.length],
         };
       }),
+      reset,
     );
   }
 
