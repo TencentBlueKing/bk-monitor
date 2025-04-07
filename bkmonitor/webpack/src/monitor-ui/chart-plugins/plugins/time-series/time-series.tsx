@@ -251,7 +251,7 @@ export class LineChart
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (v == null || v <= 0) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.initialized && this.getPanelData();
     }, this.refreshInterval);
