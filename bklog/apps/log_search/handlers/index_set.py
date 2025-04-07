@@ -1927,41 +1927,42 @@ class IndexSetCustomConfigHandler(object):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids
         self.index_set_type = index_set_type
+        self.index_set_hash = self.get_index_set_hash()
         # 对列表进行排序
         if self.index_set_ids:
             self.index_set_ids.sort()
 
-    def update_or_create(self, index_set_custom_config: dict):
+    def update_or_create(self, index_set_config: dict):
         """
         更新或创建索引集自定义配置
-        :param index_set_custom_config: 索引集自定义配置
+        :param index_set_config: 索引集自定义配置
         """
         if self.index_set_type == IndexSetType.SINGLE.value:
             model_params = {"index_set_id": self.index_set_id}
-            index_set_id = self.index_set_id
         elif self.index_set_type == IndexSetType.UNION.value:
             model_params = {"index_set_ids": self.index_set_ids}
-            index_set_id = self.index_set_ids
-        index_set_hash = IndexSetCustomConfig.get_index_set_hash(index_set_id)
-        model_params.update({"index_set_custom_config": index_set_custom_config})
+        model_params.update({"index_set_config": index_set_config})
 
         obj, _ = IndexSetCustomConfig.objects.update_or_create(
-            index_set_hash=index_set_hash,
+            index_set_hash=self.index_set_hash,
             defaults=model_params,
         )
         return model_to_dict(obj)
 
-    def get_index_set_custom_config(self):
+    def get_index_set_hash(self):
+        """
+        获取索引集hash值
+        """
+        if self.index_set_type == IndexSetType.SINGLE.value:
+            return IndexSetCustomConfig.get_index_set_hash(self.index_set_id)
+        elif self.index_set_type == IndexSetType.UNION.value:
+            return IndexSetCustomConfig.get_index_set_hash(self.index_set_ids)
+
+    def get_index_set_config(self):
         """
         获取索引集自定义配置
         """
-        if self.index_set_type == IndexSetType.SINGLE.value:
-            index_set_id = self.index_set_id
-        elif self.index_set_type == IndexSetType.UNION.value:
-            index_set_id = self.index_set_ids
-
-        index_set_hash = UserIndexSetCustomConfig.get_index_set_hash(index_set_id)
         obj = IndexSetCustomConfig.objects.filter(
-            index_set_hash=index_set_hash,
+            index_set_hash=self.index_set_hash,
         ).first()
-        return obj.index_set_custom_config if obj else {}
+        return obj.index_set_config if obj else {}

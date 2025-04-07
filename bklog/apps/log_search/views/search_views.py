@@ -911,10 +911,8 @@ class SearchViewSet(APIViewSet):
         fields.update({"user_custom_config": index_set_config})
 
         # 添加索引集自定义配置
-        index_set_custom_config = IndexSetCustomConfigHandler(
-            index_set_id=int(index_set_id)
-        ).get_index_set_custom_config()
-        fields.update({"index_set_custom_config": index_set_custom_config})
+        custom_config = IndexSetCustomConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
+        fields.update({"index_set_config": custom_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1708,12 +1706,12 @@ class SearchViewSet(APIViewSet):
             ).update_or_create(index_set_config=data["index_set_config"])
         )
 
-    @list_route(methods=["POST"], url_path="index_set_custom_config")
+    @list_route(methods=["POST"], url_path="custom_config")
     def update_or_create_index_set_config(self, request):
         """
-        @api {post} /search/index_set/index_set_custom_config/ 更新或创建索引集自定义配置
+        @api {post} /search/index_set/custom_config/ 更新或创建索引集自定义配置
         @apiDescription 更新或创建索引集自定义配置
-        @apiName index_set_custom_config
+        @apiName custom_config
         @apiGroup 11_Search
         @apiSuccessExample {json} 成功返回:
         {
@@ -1723,7 +1721,7 @@ class SearchViewSet(APIViewSet):
                 "index_set_id": 495,
                 "index_set_ids": [],
                 "index_set_hash": "35051070e572e47d2c26c241ab88307f",
-                "index_set_custom_config": {
+                "index_set_config": {
                     "fields_width": {
                         "dtEventTimeStamp": 12,
                         "serverIp": 15,
@@ -1741,7 +1739,7 @@ class SearchViewSet(APIViewSet):
                 index_set_id=data.get("index_set_id"),
                 index_set_ids=data.get("index_set_ids"),
                 index_set_type=data["index_set_type"],
-            ).update_or_create(index_set_custom_config=data["index_set_custom_config"])
+            ).update_or_create(index_set_config=data["index_set_config"])
         )
 
     @detail_route(methods=["POST"], url_path="chart")
