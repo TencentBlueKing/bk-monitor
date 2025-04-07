@@ -307,7 +307,7 @@ export default defineComponent({
             return (
               <span
                 style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'
-                v-overflow-text={{ text: content }}
+                v-overflow-tips
               >
                 {content}
               </span>
@@ -649,6 +649,7 @@ export default defineComponent({
               return data.selectedTag.includes(item.id);
             })
             .map(item => {
+              // biome-ignore lint/performance/noDelete: <explanation>
               delete item.result;
               item.is_enabled = true;
               return item;
@@ -1517,7 +1518,7 @@ export default defineComponent({
                           maxWidth: currentLang === 'en' ? '180px' : '250px',
                         }}
                         class='sub-title'
-                        v-overflow-text={{ text: this.subscriptionDetail.name }}
+                        v-overflow-tips
                       >
                         -&nbsp;{this.subscriptionDetail.name}
                       </span>
@@ -1644,6 +1645,7 @@ export default defineComponent({
                       this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
                         if (isOnCloneMode) {
                           // 由于表单会返回 id 的默认值，这里特殊处理删掉。
+                          // biome-ignore lint/performance/noDelete: <explanation>
                           delete response.id;
                         }
                         createOrUpdateReport(response).then(() => {

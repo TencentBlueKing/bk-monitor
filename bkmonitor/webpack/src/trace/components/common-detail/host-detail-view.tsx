@@ -29,7 +29,7 @@ import { type PropType, reactive, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Message, overflowTitle } from 'bkui-vue';
+import { Message, overflowTitle, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
 
@@ -175,7 +175,7 @@ export default defineComponent({
                     <div
                       key={index}
                       class='list-type-item'
-                      v-overflow-title
+                      v-overflow-tips
                     >
                       {item}
                     </div>,
@@ -213,7 +213,7 @@ export default defineComponent({
                 <div
                   key={index}
                   class='tag-item set-item'
-                  v-overflow-title
+                  v-overflow-tips
                 >
                   <span
                     key={`key__${index}`}
@@ -240,7 +240,7 @@ export default defineComponent({
         <div class='common-link-text'>
           <a
             class='link-col'
-            v-overflow-title
+            v-overflow-tips
             onClick={e => {
               // 该元素处于 BkCollapse 组件里，为避免该点击事件触发冒泡导致组件异常的 开启/关闭 ，这里手动禁止冒泡。
               e.stopPropagation();
@@ -301,7 +301,7 @@ export default defineComponent({
       return (
         <div>
           {<div>{val.label}</div>}
-          <bk-progress
+          <Progress
             class={['common-progress-color', `color-${val.status}`]}
             percent={Number((val.value * 0.01).toFixed(2)) || 0}
             showText={false}
@@ -317,7 +317,7 @@ export default defineComponent({
         <div class='common-detail-text'>
           <span
             class='text'
-            v-overflow-title
+            v-overflow-tips
           >
             {text || '--'}
           </span>

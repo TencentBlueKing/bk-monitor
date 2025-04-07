@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { bkTooltips, clickoutside, overflowTitle } from 'bkui-vue';
+import { bkTooltips, clickoutside, overflowTitle, bkEllipsis } from 'bkui-vue';
 
 import authority from './authority';
-import overflowText from './overflow-text';
 import watermark from './watermark';
 
 import type { App } from 'vue';
@@ -39,7 +38,7 @@ const directives: Record<string, any> = {
   clickoutside,
   overflowTitle,
   watermark,
-  overflowText,
+  overflowTips: bkEllipsis,
 };
 
 export default {

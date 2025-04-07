@@ -136,9 +136,7 @@ export default defineComponent({
             {this.curTarget && (
               <span
                 class='compare-target-ip'
-                v-overflow-title={{
-                  type: 'tips',
-                }}
+                v-overflow-tips
               >
                 {this.curTarget}
               </span>

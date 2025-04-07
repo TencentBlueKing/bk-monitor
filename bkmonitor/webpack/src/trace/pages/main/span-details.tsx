@@ -794,19 +794,23 @@ export default defineComponent({
               <span class='left'>
                 <span
                   class='left-title'
-                  v-overflow-title={{
-                    type: 'tips',
-                  }}
+                  v-overflow-tips
                 >
                   {item.label}
                 </span>
                 <div class='operator'>
                   <EnlargeLine
                     class='icon-add-query'
+                    v-bk-tooltips={{
+                      content: t('检索'),
+                    }}
                     onClick={() => handleKvQuery(item)}
                   />
                   <span
                     class='icon-monitor icon-mc-copy'
+                    v-bk-tooltips={{
+                      content: t('复制'),
+                    }}
                     onClick={() => handleCopy(item)}
                   />
                 </div>
