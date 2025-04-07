@@ -101,7 +101,6 @@ class TimedCacheResource(CacheResource):
             except (ValueError, TypeError):
                 start = end = 0
 
-            # 使用更高效的f-string格式化
             key = f"{resource.__self__.__class__.__module__}.{resource.__self__.__class__.__name__}"
 
             # 优化条件判断逻辑
