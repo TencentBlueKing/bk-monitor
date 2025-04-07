@@ -458,6 +458,19 @@ $grey-bg: #eaebf0;
 }
 
 .event-relation-dialog {
+  .bk-dialog-close {
+    width: 34px;
+    height: 34px;
+    font-size: 34px;
+    font-weight: 400;
+    line-height: 34px;
+    color: #c4c6cc;
+
+    &:hover {
+      background-color: transparent;
+    }
+  }
+
   .bk-info-box {
     top: 100px;
 
@@ -502,10 +515,10 @@ $grey-bg: #eaebf0;
 
     .icon-mc-copy {
       position: absolute;
-      top: 9px;
-      right: 9px;
+      top: 7px;
+      right: 7px;
       z-index: 1;
-      font-size: 16px;
+      font-size: 20px;
       color: #4d4f56;
       cursor: pointer;
       border-top: 2px solid transparent;
