@@ -34,9 +34,9 @@ class IndexSetCustomConfigViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        @api {post} /index_set_custom/ 创建索引集自定义配置
+        @api {post} /index_set_custom_config/ 创建索引集自定义配置
         @apiName create_config
-        @apiGroup user_custom_config
+        @apiGroup index_set_custom_config
         @apiParamExample {Json} 请求参数
         {
             "index_set_id": 1,
@@ -62,7 +62,7 @@ class IndexSetCustomConfigViewSet(ModelViewSet):
 
     def partial_update(self, request, *args, index_set_id=None, **kwargs):
         """
-        @api {patch} /index_set_custom/$index_set_id/ 修改索引集自定义配置
+        @api {patch} /index_set_custom_config/$index_set_id/ 修改索引集自定义配置
         @apiName modify_config
         @apiGroup index_set_custom_config
         @apiParamExample {Json} 请求参数
@@ -89,7 +89,7 @@ class IndexSetCustomConfigViewSet(ModelViewSet):
 
     def destroy(self, request, *args, index_set_id=None, **kwargs):
         """
-        @api {delete} /index_set_custom/$index_set_id/ 删除索引集自定义配置
+        @api {delete} /index_set_custom_config/$index_set_id/ 删除索引集自定义配置
         @apiName delete_config
         @apiGroup index_set_custom_config
         @apiSuccessExample {json} 成功返回:
@@ -104,7 +104,7 @@ class IndexSetCustomConfigViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, index_set_id=None, **kwargs):
         """
-        @api {get} /index_set_custom/$index_set_id/ 获取索引集自定义配置
+        @api {get} /index_set_custom_config/$index_set_id/ 获取索引集自定义配置
         @apiName get_config
         @apiGroup index_set_custom_config
         @apiSuccessExample {json} 成功返回:
