@@ -90,15 +90,23 @@ class TimedCacheResource(CacheResource):
         """
 
         def func_key_generator(resource):
-            requests = get_request()
+            request = get_request()
+            try:
+                # 合并获取参数逻辑，增加类型安全校验
+                start_time = request.GET.get('start_time') or request.POST.get('start_time')
+                end_time = request.GET.get('end_time') or request.POST.get('end_time')
 
-            start_time = requests.GET.get('start_time') or requests.POST.get('start_time')
-            end_time = requests.GET.get('end_time') or requests.POST.get('end_time')
-            start = self.round_to_five_minutes(int(start_time))
-            end = self.round_to_five_minutes(int(end_time))
-            key = "{}.{}".format(resource.__self__.__class__.__module__, resource.__self__.__class__.__name__)
-            if start and end:
-                key += f".{start}_{end}"
+                start = self.round_to_five_minutes(int(start_time)) if start_time else 0
+                end = self.round_to_five_minutes(int(end_time)) if end_time else 0
+            except (ValueError, TypeError):
+                start = end = 0
+
+            # 使用更高效的f-string格式化
+            key = f"{resource.__self__.__class__.__module__}.{resource.__self__.__class__.__name__}"
+
+            # 优化条件判断逻辑
+            if all((start, end)):
+                return f"{key}.{start}_{end}"
             return key
 
         self.request = using_cache(
