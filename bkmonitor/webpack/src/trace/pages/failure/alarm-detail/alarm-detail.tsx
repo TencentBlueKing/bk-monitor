@@ -186,19 +186,6 @@ export default defineComponent({
       });
     }
 
-    const tooltipConfig = reactive({
-      showAll: true,
-      contentMethod: ({ column }) => {
-        const { field } = column;
-        if (['id', 'alert_name', 'time'].includes(field)) {
-          // 使用默认行为
-          return null;
-        }
-        // 返回空字符串，控制单元格不显示提示内容
-        return '';
-      },
-    });
-
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
@@ -348,7 +335,15 @@ export default defineComponent({
         minWidth: 134,
         render: ({ data }) => {
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.id,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span
                 class={`event-status status-${data.severity} id-column`}
                 onClick={() => handleShowDetail(data)}
@@ -367,7 +362,15 @@ export default defineComponent({
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.alert_name,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
               {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
             </div>
@@ -462,7 +465,15 @@ export default defineComponent({
         minWidth: 145,
         render: ({ data }) => {
           return (
-            <span class='time-column'>
+            <span
+              class='time-column'
+              v-bk-tooltips={{
+                content: `${formatterTime(data.begin_time)}\n${formatterTime(data.end_time)}`,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               {formatterTime(data.begin_time)} / <br />
               {formatterTime(data.end_time)}
             </span>
@@ -802,7 +813,6 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
-      tooltipConfig,
       handleSettingChange,
     };
   },
@@ -900,7 +910,7 @@ export default defineComponent({
                       // scroll-loading={this.scrollLoading}
                       settings={this.settings}
                       showSettings={true}
-                      tooltip-config={this.tooltipConfig}
+                      tooltip-config={{ showAll: false }}
                       onCellMouseenter={this.handleEnter}
                       onCellMouseleave={() => {
                         this.hoverRowIndex = -1;
