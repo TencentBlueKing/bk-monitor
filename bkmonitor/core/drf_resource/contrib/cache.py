@@ -92,7 +92,6 @@ class TimedCacheResource(CacheResource):
         def func_key_generator(resource):
             request = get_request()
             try:
-                # 合并获取参数逻辑，增加类型安全校验
                 start_time = request.GET.get('start_time') or request.POST.get('start_time')
                 end_time = request.GET.get('end_time') or request.POST.get('end_time')
 
@@ -103,7 +102,6 @@ class TimedCacheResource(CacheResource):
 
             key = f"{resource.__self__.__class__.__module__}.{resource.__self__.__class__.__name__}"
 
-            # 优化条件判断逻辑
             if all((start, end)):
                 return f"{key}.{start}_{end}"
             return key
