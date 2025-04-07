@@ -637,8 +637,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         min_range_milli_seconds = min_range * 1000
         if min_range_milli_seconds > 0 and end - start < min_range_milli_seconds:
             # 如果起止时间小于最小范围 min_range，则将整个起止时间各往外延展一半，整体时长增长一个 min_range
-            start = start - min_range_milli_seconds / 2
-            end = end + min_range_milli_seconds / 2
+            half_min_range_milli_seconds = int(min_range_milli_seconds / 2)
+            start = start - half_min_range_milli_seconds
+            end = end + half_min_range_milli_seconds
 
         return start, end
 
