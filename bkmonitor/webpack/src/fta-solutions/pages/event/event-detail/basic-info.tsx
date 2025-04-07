@@ -233,7 +233,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               data: relationInfo,
               deep: 5,
               showIcon: true,
-              showLine: false
+              // showLine: false
             }
           }),
         ]

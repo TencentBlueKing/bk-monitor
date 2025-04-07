@@ -470,15 +470,24 @@ $grey-bg: #eaebf0;
 
     .bk-dialog-sub-header {
       padding: 0 24px 0;
-      margin-top: 25px;
+      margin-top: 34px;
+
+      &.has-sub {
+        padding-bottom: 0;
+      }
     }
 
     .bk-dialog-footer {
-      padding: 0 24px 8px;
+      padding: 8px 24px;
       text-align: right;
+      border-top: 1px solid #dcdee5;
 
       .bk-primary {
         display: none;
+      }
+
+      button {
+        min-width: 64px;
       }
     }
   }
@@ -528,7 +537,7 @@ $grey-bg: #eaebf0;
 
       .vjs-indent-unit.has-line {
         width: 2em;
-        border-left-style: solid;
+        border-left-style: none;
       }
 
       .vjs-key {
