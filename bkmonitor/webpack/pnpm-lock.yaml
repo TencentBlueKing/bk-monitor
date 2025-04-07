@@ -199,8 +199,8 @@ importers:
         specifier: 0.0.1-beta.4
         version: 0.0.1-beta.4(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
       '@blueking/bk-weweb':
-        specifier: 0.0.33
-        version: 0.0.33
+        specifier: 0.0.35
+        version: 0.0.35
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -345,8 +345,8 @@ importers:
         specifier: 0.3.25-beta.0
         version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
-        specifier: 0.0.33
-        version: 0.0.33
+        specifier: 0.0.35
+        version: 0.0.35
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -1455,8 +1455,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/bk-weweb@0.0.33':
-    resolution: {integrity: sha512-lfp1LNKCPOU1DrPIojtCTtTpf4uLpsXy/wvNnzsrcOk6u/7aNwCpwCOldYuBdEle9UJiGM9czSmo34FLsI2exw==}
+  '@blueking/bk-weweb@0.0.35':
+    resolution: {integrity: sha512-sVBhLhacO2GdmVqHyF5FHR/LGev99gyHQ8qxlG01W+kSg2hyYt207Zgk9/QdGnrbSQ5/kFyRsgXYqVV9RHY9zA==}
     engines: {node: '>=14.18.1'}
 
   '@blueking/bkmonitor-cli@7.0.0-beta.4':
@@ -9308,7 +9308,7 @@ snapshots:
       vue: 2.7.16
       web-worker: 1.5.0
 
-  '@blueking/bk-weweb@0.0.33': {}
+  '@blueking/bk-weweb@0.0.35': {}
 
   '@blueking/bkmonitor-cli@7.0.0-beta.4(@types/node@22.9.0)(@vue/compiler-sfc@3.5.13)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)(vue@3.5.12(typescript@5.6.3))':
     dependencies:
