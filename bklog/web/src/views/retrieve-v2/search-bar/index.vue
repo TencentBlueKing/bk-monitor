@@ -607,7 +607,7 @@
             @click="handleFilterSecClick"
           />
           <BookmarkPop
-            :active-favorite="!activeFavorite"
+            :active-favorite="!activeFavorite.id"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"
