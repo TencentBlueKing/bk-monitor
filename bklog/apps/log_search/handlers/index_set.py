@@ -1927,10 +1927,10 @@ class IndexSetCustomConfigHandler(object):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids
         self.index_set_type = index_set_type
-        self.index_set_hash = self.get_index_set_hash()
         # 对列表进行排序
         if self.index_set_ids:
             self.index_set_ids.sort()
+        self.index_set_hash = self.get_index_set_hash()
 
     def update_or_create(self, index_set_config: dict):
         """
