@@ -132,7 +132,13 @@ class RetrieveHelper {
       return;
     }
 
-    const colors = ['#F59500', '#2CAF85', '#3AACFF', '#D25DFA', '#D84A57', '#2196F3', '#9C27B0'];
+    const colors = [
+      'rgba(245, 149, 0, 0.3)',
+      'rgba(44, 175, 133, 0.3)',
+      'rgba(58, 172, 255, 0.3)',
+      'rgba(210, 93, 250, 0.3)',
+      'rgba(216, 74, 87, 0.3)',
+    ];
     this.markInstance.unmark({});
     this.markInstance.highlight(
       keywords.map((keyword, index) => {

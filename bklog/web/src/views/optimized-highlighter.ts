@@ -73,10 +73,6 @@ export default class OptimizedHighlighter {
   constructor(userConfig: HighlightConfig = { target: document.body }) {
     this.config = this.mergeConfigs(userConfig);
     this.rootElement = getTargetElement(this.config.target);
-    // this.markInstance = new Mark(this.rootElement, {
-    //   acrossElements: true, // 允许跨元素匹配
-    //   separateWordSearch: false, // 禁用单词拆分
-    // });
     this.observer = this.createObserver();
   }
 
@@ -241,15 +237,18 @@ export default class OptimizedHighlighter {
 
     while (this.pendingQueue.length > 0) {
       const element = this.pendingQueue.shift()!;
-      if (this.chunkMap.has(element)) continue;
+      if (this.chunkMap.get(element)?.highlighted) continue;
 
-      const instance = new Mark(element, {
-        acrossElements: true, // 允许跨元素匹配
-        separateWordSearch: false, // 禁用单词拆分
-      });
+      if (!this.chunkMap.get(element)?.instance) {
+        const instance = new Mark(element, {
+          acrossElements: true, // 允许跨元素匹配
+          separateWordSearch: false, // 禁用单词拆分
+        });
 
-      await this.highlightChunk(element, instance);
-      this.chunkMap.set(element, { instance, highlighted: true });
+        this.chunkMap.set(element, { instance, highlighted: true });
+      }
+
+      await this.highlightChunk(element, this.chunkMap.get(element).instance);
     }
 
     this.isProcessing = false;
@@ -281,15 +280,18 @@ export default class OptimizedHighlighter {
 
   private resetState(): void {
     this.pendingQueue = [];
-    this.sections = [];
     this.unmarkChunks();
+    this.sections = [];
   }
 
   private unmarkChunks(): void {
     this.sections.forEach(chunk => {
       if (this.chunkMap.has(chunk)) {
+        chunk.removeAttribute('data-chunk-id');
         const { instance } = this.chunkMap.get(chunk)!;
         instance.unmark();
+
+        this.chunkMap.get(chunk).highlighted = false;
         this.chunkMap.delete(chunk);
       }
     });

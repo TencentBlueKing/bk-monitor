@@ -56,6 +56,7 @@ import {
   indexSetClusteringData,
   getDefaultRetrieveParams,
   getStorageOptions,
+  BkLogGlobalStorageKey,
 } from './default-values.ts';
 import globals from './globals';
 import RequestPool from './request-pool';
@@ -306,7 +307,7 @@ const store = new Vuex.Store({
         state.storage[key] = payload[key];
       });
 
-      localStorage.setItem('bk_log_global_storage', JSON.stringify(state.storage));
+      localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
