@@ -2505,6 +2505,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         params = self.params_valid(ProxyHostSerializer)
+
         proxy_host_info = []
         # 云区域为 0 的地址
         report_url_list = []
@@ -2515,26 +2516,27 @@ class CollectorViewSet(ModelViewSet):
         if report_url_list:
             proxy_host_info.append(report_url_list)
 
-        # 通过接口获取云区域上报proxy
-        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": params["bk_biz_id"]})
-        for host in proxy_hosts:
-            bk_cloud_id = int(host["bk_cloud_id"])
-            # 默认云区域上报proxy，以数据库配置为准！
-            if bk_cloud_id == 0:
-                continue
-            ip = host.get("conn_ip") or host.get("inner_ip")
-            report_url_list = [
-                {
-                    "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.GRPC,
-                    "report_url": OTLPProxyHostConfig.http_scheme + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
-                },
-                {
-                    "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.HTTP,
-                    "report_url": OTLPProxyHostConfig.http_scheme + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
-                },
-            ]
-            proxy_host_info.append(report_url_list)
+        if bk_biz_id := space_uid_to_bk_biz_id(params.get("space_uid", "")):
+            # 通过接口获取云区域上报proxy
+            proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": bk_biz_id})
+            for host in proxy_hosts:
+                bk_cloud_id = int(host["bk_cloud_id"])
+                # 默认云区域上报proxy，以数据库配置为准！
+                if bk_cloud_id == 0:
+                    continue
+                ip = host.get("conn_ip") or host.get("inner_ip")
+                report_url_list = [
+                    {
+                        "bk_cloud_id": bk_cloud_id,
+                        "protocol": OTLPProxyHostConfig.GRPC,
+                        "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
+                    },
+                    {
+                        "bk_cloud_id": bk_cloud_id,
+                        "protocol": OTLPProxyHostConfig.HTTP,
+                        "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
+                    },
+                ]
+                proxy_host_info.append(report_url_list)
 
         return Response(proxy_host_info)

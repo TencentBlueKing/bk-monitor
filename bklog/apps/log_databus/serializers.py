@@ -1727,4 +1727,4 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
 
 
 class ProxyHostSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
