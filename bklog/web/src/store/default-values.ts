@@ -184,6 +184,9 @@ export const getStorageOptions = () => {
 
       //是否展开长字段
       isLimitExpandView: false,
+
+      // start | end | center
+      textEllipsisDir: 'end',
     },
     storage,
   );
