@@ -373,7 +373,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_pod_view_config(cls, view: SceneViewModel, view_config: Dict, default: str = None):
+    def get_pod_view_config(cls, view: SceneViewModel, view_config: Dict, view_position: str = None):
         view_config["panels"] = []
         default_detail_config = copy.deepcopy(DEFAULT_POD_DETAIL)
         default_where = [
@@ -394,7 +394,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             },
         ]
         # 设置视图面板的显示位置
-        if default == "APM":
+        if view_position == "APM":
             for group in default_detail_config:
                 group["hidden"] = False
                 if "panels" in group and isinstance(group["panels"], list):

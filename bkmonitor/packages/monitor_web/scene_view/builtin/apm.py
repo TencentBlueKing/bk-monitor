@@ -651,7 +651,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             pod_view = pod_view.first()
 
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
-        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config, default="APM")
+        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config, view_position="APM")
 
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
