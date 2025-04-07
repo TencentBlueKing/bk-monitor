@@ -76,7 +76,7 @@
                  
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div 
-                    v-if="!props.row.alias_name" 
+                    v-if="aliasShow(props.row)" 
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
                     class="field-name">
                     <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
@@ -95,7 +95,15 @@
                     ></i>
                     </div>
                     <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
-                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name"></bk-input>
+                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name" @blur="checkAliasNameItem(props.row)"></bk-input>
+                    <template v-if="props.row.fieldErr">
+                    <i
+                      style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="props.row.fieldErr"
+                    >
+                    </i>
+                  </template>
                   </div>
                 </div>
                 <bk-form-item
@@ -816,7 +824,7 @@
         });
       },
       checkAliasNameItem(row) {
-        const { field_name: fieldName, query_alias: aliasName, is_delete: isDelete } = row;
+        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -824,17 +832,19 @@
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
             // 别名只支持【英文、数字、下划线】，并且不能以数字开头
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            row.fieldErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
             return false;
+          }else if (aliasName === fieldName) {
+            row.fieldErr = this.$t('重命名与字段名重复');
           }
           if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
             // 别名不能与内置字段名相同
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
+            row.fieldErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
         } 
 
-        row.aliasErr = '';
+        row.fieldErr = '';
         return true;
       },
       checkAliasName() {
@@ -1058,6 +1068,12 @@
             }
           } )
         })
+      },
+      aliasShow(row){
+        if (row.is_built_in) {
+          return true;
+        }
+        return !this.globalsData.field_built_in.find(item => item.id === row.field_name.toLocaleLowerCase())
       }
     },
   };
@@ -1137,6 +1153,13 @@
               }
               .participle-icon-color{
                 background-color: rgb(250, 251, 253) !important;
+              }
+              .tooltips-icon{
+                position: absolute;
+                z-index: 10;
+                color: #ea3636;
+                cursor: pointer;
+                font-size: 16px;
               }
             }
           }
