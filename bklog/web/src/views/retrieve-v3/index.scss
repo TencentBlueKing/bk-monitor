@@ -47,6 +47,17 @@
                       right: 8px;
                       top: calc(var(--top-searchbar-height) + 52px);
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
+
+                      .bklog-list-row {
+                        .bklog-row-cell {
+                          &.header-cell {
+                            &.right {
+                              position: fixed;
+                              top: calc(var(--top-searchbar-height) + 52px);
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }

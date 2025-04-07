@@ -40,6 +40,7 @@ export enum STORAGE_KEY {
 export enum RetrieveEvent {
   // 展示收藏内容
   FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
+
   // 收藏栏是否展示
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
 
@@ -48,6 +49,9 @@ export enum RetrieveEvent {
 
   // 左侧字段设置宽度变化
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
+
+  // 左侧字段设置是否展示
+  LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
 
   // 搜索栏高度变化
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
@@ -70,6 +74,9 @@ class RetrieveHelper {
 
   // 左侧字段设置宽度
   leftFieldSettingWidth: number;
+
+  // 左侧字段设置是否展示
+  leftFieldSettingShown: boolean = true;
 
   // 收藏栏宽度
   favoriteWidth: number;
@@ -109,7 +116,7 @@ class RetrieveHelper {
       if (!this.events.get(fnName).includes(callbackFn)) {
         this.events.get(fnName)?.push(callbackFn);
       }
-      return;
+      return this;
     }
 
     this.events.set(fnName, [callbackFn]);
@@ -215,6 +222,16 @@ class RetrieveHelper {
   setLeftFieldSettingWidth(width: number) {
     this.leftFieldSettingWidth = width;
     this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+  }
+
+  /**
+   * 更新字段设置收否收起
+   * 收起时表头位置计算逻辑需要更新
+   * @param isShown
+   */
+  setLeftFieldIsShown(isShown: boolean) {
+    this.leftFieldSettingShown = isShown;
+    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown);
   }
 
   /**

@@ -40,38 +40,39 @@ export default () => {
   const route = useRoute();
   const searchBarHeight = ref(0);
   const leftFieldSettingWidth = ref(0);
+  const leftFieldSettingShown = ref(true);
+
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
-    searchBarHeight.value = height;
-  });
-
-  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
-    leftFieldSettingWidth.value = width;
-  });
-
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
-    favoriteWidth.value = width;
-  });
-
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
-    isFavoriteShown.value = isShown;
-  });
-
-  RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
-    trendGraphHeight.value = height;
-  });
+  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown => {
+    leftFieldSettingShown.value = isShown;
+  })
+    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+      searchBarHeight.value = height;
+    })
+    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
+      leftFieldSettingWidth.value = width;
+    })
+    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
+      favoriteWidth.value = width;
+    })
+    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
+      isFavoriteShown.value = isShown;
+    })
+    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
+      trendGraphHeight.value = height;
+    });
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
-      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
+      '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
     };

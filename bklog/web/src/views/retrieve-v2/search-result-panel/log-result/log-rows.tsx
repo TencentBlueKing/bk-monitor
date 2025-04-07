@@ -380,6 +380,17 @@ export default defineComponent({
       },
     ]);
 
+    const handleRowAIClcik = (e: MouseEvent, row: any) => {
+      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+
+      oldRow?.classList.remove('ai-active');
+      targetRow?.classList.add('ai-active');
+
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    };
+
     const rightColumns = computed(() => {
       if (window?.__IS_MONITOR_TRACE__) {
         return [];
@@ -396,14 +407,19 @@ export default defineComponent({
             return (
               // @ts-ignore
               <OperatorTools
-                handle-click={event =>
+                handle-click={(type, event) => {
+                  if (type === 'ai') {
+                    handleRowAIClcik(event, row);
+                    return;
+                  }
+
                   props.handleClickTools(
-                    event,
+                    type,
                     row,
                     indexSetOperatorConfig.value,
                     tableRowConfig.get(row).value[ROW_INDEX] + 1,
-                  )
-                }
+                  );
+                }}
                 index={row[ROW_INDEX]}
                 operator-config={indexSetOperatorConfig.value}
                 row-data={row}
@@ -617,7 +633,7 @@ export default defineComponent({
     watch(
       () => [props.contentType, formatJson.value, tableLineIsWrap.value],
       () => {
-        scrollXOffsetLeft.value = 0;
+        scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
 
         showCtxType.value = props.contentType;
@@ -629,7 +645,7 @@ export default defineComponent({
     watch(
       () => [fieldRequestCounter.value],
       () => {
-        scrollXOffsetLeft.value = 0;
+        scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
 
         setTimeout(() => {
@@ -750,7 +766,7 @@ export default defineComponent({
       searchContainerHeight.value = entry.contentRect.height;
     });
 
-    const scrollXOffsetLeft = ref(0);
+    let scrollXOffsetLeft = 0;
     const refScrollXBar = ref();
 
     const afterScrollTop = () => {
@@ -771,22 +787,21 @@ export default defineComponent({
 
     const getRootBodyStyle = () => {
       return {
-        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
-        '--row-offset-left': `${scrollXOffsetLeft.value}px`,
-        '--fix-right-width': `${operatorFixRightWidth.value}px`,
-        '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
-        '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-        '--ai-right-position': `${scrollWidth.value - offsetWidth.value - scrollXOffsetLeft.value}px`,
+        // '--scroll-left': `-${scrollXOffsetLeft}px`,
+        // '--row-offset-left': `${scrollXOffsetLeft}px`,
+        // '--fix-right-width': `${operatorFixRightWidth.value}px`,
+        // '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
+        // '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft}px`,
+        // '--ai-right-position': `${scrollWidth.value - offsetWidth.value - scrollXOffsetLeft}px`,
       };
     };
 
     const setRowboxTransform = () => {
       if (refResultRowBox.value && refRootElement.value) {
-        const styleList = getRootBodyStyle();
-        for (const style in styleList) {
-          refRootElement.value.style.setProperty(style, styleList[style]);
+        refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
+        if (refTableHead.value) {
+          refTableHead.value.scrollLeft = scrollXOffsetLeft;
         }
-        refResultRowBox.value.style.transform = `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`;
       }
     };
 
@@ -824,9 +839,9 @@ export default defineComponent({
             isAnimating = true;
             requestAnimationFrame(() => {
               isAnimating = false;
-              const nextOffset = scrollXOffsetLeft.value + event.deltaX;
+              const nextOffset = scrollXOffsetLeft + event.deltaX;
               if (nextOffset <= maxOffset && nextOffset >= 0) {
-                scrollXOffsetLeft.value += event.deltaX;
+                scrollXOffsetLeft += event.deltaX;
                 setRowboxTransform();
                 refScrollXBar.value?.scrollLeft(nextOffset);
               }
@@ -838,7 +853,7 @@ export default defineComponent({
 
     const operatorFixRightWidth = computed(() => {
       const operatorWidth = operatorToolsWidth.value;
-      const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
+      const diff = scrollWidth.value - scrollXOffsetLeft - offsetWidth.value;
 
       return operatorWidth + (diff > 0 ? diff : 0);
     });
@@ -877,17 +892,6 @@ export default defineComponent({
           </div>
         </div>
       );
-    };
-
-    const handleRowAIClcik = (e: MouseEvent, row: any) => {
-      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
-      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
-      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
-
-      oldRow?.classList.remove('ai-active');
-      targetRow?.classList.add('ai-active');
-
-      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
     };
 
     const renderScrollTop = () => {
@@ -946,16 +950,6 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        showAiAssistant.value ? (
-          <span
-            class='bklog-row-ai'
-            onClick={e => handleRowAIClcik(e, row)}
-            onMouseenter={handleMouseenter}
-            onMouseleave={handleMouseleave}
-          >
-            <img src={require('@/images/rowAiNew.svg')} />
-          </span>
-        ) : null,
       ];
     };
 
@@ -963,20 +957,30 @@ export default defineComponent({
       return renderList.map((row, rowIndex) => {
         const logLevel = RetrieveHelper.getLogLevel(row.item?.log);
 
-        return (
+        return [
           <RowRender
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
           >
             {renderRowCells(row.item, rowIndex)}
-          </RowRender>
-        );
+          </RowRender>,
+          // showAiAssistant.value ? (
+          //   <span
+          //     class='bklog-row-ai'
+          //     onClick={e => handleRowAIClcik(e, row)}
+          //     onMouseenter={handleMouseenter}
+          //     onMouseleave={handleMouseleave}
+          //   >
+          //     <img src={require('@/images/rowAiNew.svg')} />
+          //   </span>
+          // ) : null,
+        ];
       });
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
       setRowboxTransform();
     };
 
