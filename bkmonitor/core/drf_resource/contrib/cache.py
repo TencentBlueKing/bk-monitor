@@ -97,7 +97,7 @@ class TimedCacheResource(CacheResource):
 
                 start = self.round_to_five_minutes(int(start_time)) if start_time else 0
                 end = self.round_to_five_minutes(int(end_time)) if end_time else 0
-            except (ValueError, TypeError):
+            except (AttributeError, ValueError, TypeError):
                 start = end = 0
 
             key = f"{resource.__self__.__class__.__module__}.{resource.__self__.__class__.__name__}"
