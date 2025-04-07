@@ -46,6 +46,8 @@
   const route = useRoute();
   const router = useRouter();
   RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+    console.log(val);
+    
     activeFavorite.value = val;
   });
 
@@ -607,7 +609,7 @@
             @click="handleFilterSecClick"
           />
           <BookmarkPop
-            :active-favorite="!activeFavorite"
+            :active-favorite="!activeFavorite.id"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"
