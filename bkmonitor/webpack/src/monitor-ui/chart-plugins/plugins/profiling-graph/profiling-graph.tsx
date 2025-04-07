@@ -382,6 +382,7 @@ class ProfilingChart extends CommonSimpleChart {
       this.dataType = val;
       // 切换数据类型时，汇聚方法需要切换成后端给的值
       this.aggMethod = this.dataTypeList.find(item => item.key === val).default_agg_method || 'AVG';
+      this.queryParams.data_type = val;
     }
     this.getPanelData();
   }
