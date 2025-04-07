@@ -186,17 +186,19 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
   // 关联信息渲染方式
   getRelationInfo(relationInfo: string) {
-    if (relationInfo.startsWith('{') && relationInfo.endsWith('}')) {
+    try {
+      const parsedInfo = JSON.parse(relationInfo);
       return (
         <span
           class='relation-log-btn'
-          onClick={() => this.handleRelationInfoDialog(JSON.parse(relationInfo))}
+          onClick={() => this.handleRelationInfoDialog(parsedInfo)}
         >
           <span class='icon-monitor icon-guanlian' /> 关联日志
         </span>
       );
-    }
-    return relationInfo;
+    } catch {
+      return relationInfo;
+    };
   }
 
   // 关联日志的渲染方式
