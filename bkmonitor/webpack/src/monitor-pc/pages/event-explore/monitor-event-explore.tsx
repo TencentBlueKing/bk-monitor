@@ -211,9 +211,11 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.showResidentBtn = showResidentBtn || false;
     } else {
       // 选择检索
-      this.dataId = this.dataIdList[0].id;
-      this.dataSourceLabel = 'custom';
-      this.dataTypeLabel = 'event';
+      if (!this.dataId) {
+        this.dataId = this.dataIdList[0].id;
+        this.dataSourceLabel = 'custom';
+        this.dataTypeLabel = 'event';
+      }
       this.queryString = '*';
       this.where = [];
       this.group_by = [];
