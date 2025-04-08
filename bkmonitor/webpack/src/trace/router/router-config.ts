@@ -36,6 +36,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'home',
   },
   {
+    id: 'trace',
+    name: 'Trace 检索',
+    route: 'trace',
+  },
+  {
     id: 'rotation',
     name: '轮值',
     route: 'rotation',
