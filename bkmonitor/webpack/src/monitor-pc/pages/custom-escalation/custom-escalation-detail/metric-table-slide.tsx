@@ -42,19 +42,6 @@ const RADIO_OPTIONS = [
   { id: 'checkedOption', label: window.i18n.tc('勾选项') },
 ];
 
-const FIELD_SETTINGS = {
-  name: { label: '名称', width: 175 },
-  description: { label: '别名', width: 175 },
-  unit: { label: '单位', width: 125 },
-  aggregateMethod: { label: '汇聚方法', width: 125 },
-  interval: { label: '上报周期', width: 125 },
-  // func: { label: '函数', width: 125 },
-  dimension: { label: '关联维度', width: 215 },
-  disabled: { label: '启/停', width: 115 },
-  hidden: { label: '显示', width: 115 },
-  set: { label: '操作', width: 50 },
-};
-
 const ALL_OPTION = 'allOption';
 const CHECKED_OPTION = 'checkedOption';
 
@@ -100,7 +87,12 @@ export default class IndicatorTableSlide extends tsc<any> {
   currentPage = 1;
   pageSize = 20;
   cellHeight = 40;
+  totalPages = 0;
   showTableData = [];
+  bottomLoadingOptions = {
+    size: 'small',
+    isLoading: false,
+  };
 
   // 单位配置
   unitConfig = { mode: ALL_OPTION, checkedList: [] };
@@ -133,7 +125,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
     aggregateMethod: { label: '汇聚方法', width: 125 },
     interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
-    // func: { label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
+    func: { label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
     dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
     disabled: { label: '启/停', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
     hidden: { label: '显示', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
@@ -151,7 +143,6 @@ export default class IndicatorTableSlide extends tsc<any> {
 
   // 数据初始化
   initData() {
-    console.log('2');
     this.localTable = deepClone(this.metricTable);
     this.units = this.unitList;
   }
@@ -166,6 +157,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.localTable = this.metricTable.filter(item => {
       return fuzzyMatch(item.name, this.tableConfig.search) || fuzzyMatch(item.description, this.tableConfig.search);
     });
+    this.initTableData();
   }
 
   // 事件处理
@@ -216,43 +208,31 @@ export default class IndicatorTableSlide extends tsc<any> {
   @Watch('isShow')
   handleIsShowChange(val) {
     if (val) {
-      this.showTableData = [];
-      this.currentPage = 1;
       this.$nextTick(() => {
         const height = window.innerHeight - 160;
         this.pageSize = Math.floor(height / this.cellHeight);
-        this.showTableData.push(...this.localTable.slice(0, this.pageSize));
-        console.log(height, this.showTableData, this.pageSize, this.localTable.length);
+        this.initTableData();
       });
     }
   }
 
-  handleScroll() {
-    const scrollDiv = this.$refs.tableContainerRef;
-    const { scrollHeight, clientHeight, scrollTop } = scrollDiv;
-    const isBottom = scrollHeight - clientHeight === scrollTop;
-    const test = scrollHeight - (scrollTop + clientHeight) < 50;
-    console.log(
-      test,
-      scrollTop,
-      isBottom,
-      'isBottom',
-      this.currentPage,
-      scrollDiv.scrollHeight - scrollDiv.clientHeight
-    );
-    if (isBottom) {
+  initTableData() {
+    this.showTableData = [];
+    this.currentPage = 1;
+    this.totalPages = Math.ceil(this.localTable.length / this.pageSize);
+    this.showTableData.push(...this.localTable.slice(0, this.pageSize));
+  }
+  /** 滚动加载更多 */
+  handleScrollToBottom() {
+    if (this.currentPage < this.totalPages) {
+      this.bottomLoadingOptions.isLoading = true;
       setTimeout(() => {
-        // const startIndex = this.currentPage * this.pageSize;
-        // const endIndex = (this.currentPage + 1) * this.pageSize;
-        // const newData = this.localTable.slice(startIndex, endIndex);
-        // // 如果没有新数据，说明已经加载完毕
-        // if (newData.length === 0) {
-        //   // isAllLoaded.value = true;
-        // } else {
-        //   this.showTableData.push(...newData);
-        //   this.currentPage++;
-        // }
-        // isLoading.value = false;
+        const startIndex = this.showTableData.length;
+        const endIndex = startIndex + this.pageSize;
+        const newData = this.localTable.slice(startIndex, endIndex);
+        this.showTableData = [...this.showTableData, ...newData];
+        this.currentPage++;
+        this.bottomLoadingOptions.isLoading = false;
       }, 1000);
     }
   }
@@ -290,14 +270,16 @@ export default class IndicatorTableSlide extends tsc<any> {
           <div
             ref='tableContainerRef'
             class='slider-table'
-            onScroll={this.handleScroll}
           >
             <bk-table
               ref='metricTableRef'
               v-bkloading={{ isLoading: this.tableConfig.loading }}
               data={this.showTableData}
               empty-text={this.$t('无数据')}
+              max-height={window.innerHeight - 240}
+              scroll-loading={this.bottomLoadingOptions}
               colBorder
+              on-scroll-end={this.handleScrollToBottom}
             >
               <bk-table-column
                 width='60'
