@@ -143,3 +143,4 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
     def clean_dimension_fields(self):
         fields = super().clean_dimension_fields()
         fields += ["process_index", "process_group_id", "process_name"]
+        return fields
