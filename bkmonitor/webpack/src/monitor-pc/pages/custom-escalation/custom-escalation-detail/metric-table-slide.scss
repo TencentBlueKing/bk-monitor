@@ -7,7 +7,7 @@
     }
 
     .slider-table {
-      max-height: calc(90vh - 90px);
+      max-height: calc(90vh - 120px);
       margin-bottom: 32px;
       overflow: scroll;
 
@@ -16,14 +16,14 @@
       }
 
       .cell {
-        color: #4D4F56;
+        color: #4d4f56;
 
         &:has(.slider-input, .bk-tag-selector) {
           padding: 0;
 
           &:hover {
             cursor: pointer;
-            border: 1px solid #A3C5FD;
+            border: 1px solid #a3c5fd;
           }
 
           &:has(.disabled) {
@@ -46,10 +46,10 @@
         }
 
         &:has(.focus) {
-          border: 1px solid #3A84FF;
+          border: 1px solid #3a84ff;
 
           &:hover {
-            border: 1px solid #3A84FF;
+            border: 1px solid #3a84ff;
           }
         }
 
@@ -62,7 +62,7 @@
 
             .bk-icon {
               top: 8px;
-              color: #4D4F56;
+              color: #4d4f56;
             }
 
             .bk-select-name {
@@ -70,15 +70,15 @@
             }
 
             &.is-focus {
-              border: 1px solid #3A84FF;
+              border: 1px solid #3a84ff;
 
               &:hover {
-                border: 1px solid #3A84FF;
+                border: 1px solid #3a84ff;
               }
             }
 
             &:hover {
-              border: 1px solid #A3C5FD;
+              border: 1px solid #a3c5fd;
             }
           }
         }
@@ -88,15 +88,15 @@
           line-height: 39px;
 
           &:has(.tippy-active) {
-            border: 1px solid #3A84FF;
+            border: 1px solid #3a84ff;
 
             &:hover {
-              border: 1px solid #3A84FF;
+              border: 1px solid #3a84ff;
             }
           }
 
           &:hover {
-            border: 1px solid #A3C5FD;
+            border: 1px solid #a3c5fd;
           }
         }
 
@@ -104,7 +104,7 @@
           .bk-icon {
             margin-right: 10px;
             font-size: 14px;
-            color: #979BA5;
+            color: #979ba5;
 
             &:hover {
               cursor: pointer;
@@ -151,7 +151,7 @@
                   height: auto;
                   min-height: 32px;
                   margin-top: 4px;
-                  border: 1px solid #3A84FF;
+                  border: 1px solid #3a84ff;
                 }
               }
             }
