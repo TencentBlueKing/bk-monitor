@@ -912,7 +912,7 @@ class SearchViewSet(APIViewSet):
 
         # 添加索引集自定义配置
         custom_config = IndexSetCustomConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
-        fields.update({"index_set_config": custom_config})
+        fields.update({"custom_config": custom_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")

@@ -943,7 +943,7 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         label=_("索引集ID列表"), required=False, allow_empty=False, child=serializers.IntegerField()
     )
     index_set_type = serializers.ChoiceField(label=_("索引集类型"), required=True, choices=IndexSetType.get_choices())
-    index_set_config = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
+    index_set_config = serializers.JSONField(label=_("索引集自定义配置"), required=True)
 
     def validate(self, attrs):
         index_set_id = attrs.get('index_set_id')
@@ -958,7 +958,7 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
 
 
 class IndexSetCustomConfigSerializer(UserIndexSetCustomConfigSerializer):
-    index_set_config = serializers.JSONField(label=_("索引集自定义配置"), required=True)
+    pass
 
 
 class SearchConditionSerializer(serializers.Serializer):
