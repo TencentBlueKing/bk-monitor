@@ -98,6 +98,9 @@ class UnifyQueryHandler(object):
             self.search_params["start_time"], self.search_params["end_time"]
         )
 
+        # 是否使用了聚类代理查询
+        self.using_clustering_proxy = False
+
         # 初始化索引信息（包括索引类型）
         self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
         self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
@@ -221,6 +224,8 @@ class UnifyQueryHandler(object):
                 index_info["index_set_obj"] = tmp_index_obj
                 index_info["scenario_id"] = tmp_index_obj.scenario_id
                 index_info["storage_cluster_id"] = tmp_index_obj.storage_cluster_id
+                index_info["target_fields"] = tmp_index_obj.target_fields
+                index_info["sort_fields"] = tmp_index_obj.sort_fields
 
                 index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
                 if len(index_set_data_obj_list) > 0:
@@ -417,7 +422,7 @@ class UnifyQueryHandler(object):
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
-        index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
+        index_info = self.index_info_list[0]
         return MappingHandlers(
             indices=index_info["scenario_id"],
             index_set_id=index_info["index_set_id"],
@@ -444,7 +449,7 @@ class UnifyQueryHandler(object):
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "table_id": BaseIndexSetHandler.get_data_label(
                     index_info["origin_scenario_id"], index_info["index_set_id"]
-                ),
+                ) if not self.using_clustering_proxy else index_info["indices"],
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",

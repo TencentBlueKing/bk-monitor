@@ -43,17 +43,14 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
         # 透传size
         self.size: int = params.get("size", 30)
 
-        index_info = self.index_info_list[0]
-        self.index_set = LogIndexSet.objects.filter(index_set_id=index_info["index_set_id"]).first()
-        self.scenario_id = self.index_set.scenario_id
-
     def search(self, *args):
         base_params = copy.deepcopy(self.base_dict)
         body: Dict = {}
+        # 仅支持单索引集
         index_info = self.index_info_list[0]
         scenario_id = index_info["scenario_id"]
-        target_fields = self.index_set.target_fields if self.index_set else []
-        sort_fields = self.index_set.sort_fields if self.index_set else []
+        target_fields = index_info.get("target_fields", [])
+        sort_fields = index_info.get("sort_fields", [])
 
         if sort_fields:
             time_field, _, _ = UnifyQueryHandler.init_time_field(index_info["index_set_id"], scenario_id)
