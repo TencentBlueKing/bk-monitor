@@ -21,12 +21,117 @@ the project delivered to anyone in the future.
 """
 import time
 
+import arrow
 
-class UnifyQueryDslCreateSearchTailBodyScenarioBkData:
+from apps.log_search.models import LogIndexSetData
+
+
+def build_tail_params(params):
+    time_now = arrow.utcnow()
+    params["start_time"] = int(time_now.timestamp())
+    params["end_time"] = int(time_now.shift(days=-1).timestamp())
+    params["bk_biz_id"] = LogIndexSetData.objects.filter(index_set_id=params["index_set_id"]).first().bk_biz_id
+    params["index_set_ids"] = [params["index_set_id"]]
+    return params
+
+
+class CreateSearchTailBodyScenarioLog:
     def __init__(self, **kwargs):
         """
-        上下文查询构造请求参数
-        sort_list, size, start, gseindex, path, ip, keyword
+        实时日志查询构造请求参数（采集项）
+        sort_list, size, start, gseIndex, path, serverIp, keyword, container_id
+        """
+        sort_list = kwargs.get("sort_list")
+        size = kwargs.get("size")
+        start = kwargs.get("start")
+        gse_index = kwargs.get("gseIndex")
+        path = kwargs.get("path")
+        server_ip = kwargs.get("serverIp")
+        bk_host_id = kwargs.get("bk_host_id")
+        zero = kwargs.get("zero", False)
+        ext_container_id = kwargs.get("container_id", "")
+        base_params = kwargs.get("base_params")
+
+        self._body = None
+
+        order_use: str = "asc"
+        if zero:
+            # 用当前时间往后前5分钟开始查询
+            order_use = "desc"
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000)
+            base_params["end_time"] = str(int(time.time() * 1000))
+        elif gse_index:
+            base_params["start_time"] = str(int(time.time() * 1000) - 300000 * 12)
+            base_params["end_time"] = str(int(time.time() * 1000))
+            base_params["query_list"][0]["conditions"]["field_list"].append(
+                {
+                    "field_name": "gseIndex",
+                    "op": "gt",
+                    "value": [str(gse_index)],
+                }
+            )
+        sort = []
+        for item in sort_list:
+            if order_use == "asc":
+                sort.append(f"{item}")
+            elif order_use == "desc":
+                sort.append(f"-{item}")
+        base_params["order_by"] = sort
+        if bk_host_id:
+            base_params["query_list"][0]["conditions"]["field_list"].append(
+                {
+                    "field_name": "bk_host_id",
+                    "op": "eq",
+                    "value": [str(bk_host_id)],
+                }
+            )
+        base_params["query_list"][0]["conditions"]["field_list"].append(
+            {
+                "field_name": "serverIp",
+                "op": "eq",
+                "value": [str(server_ip)],
+            }
+        )
+        if path:
+            base_params["query_list"][0]["conditions"]["field_list"].append(
+                {
+                    "field_name": "path",
+                    "op": "eq",
+                    "value": [str(path)],
+                }
+            )
+        if ext_container_id:
+            base_params["query_list"][0]["conditions"]["field_list"].append(
+                {
+                    "field_name": "__ext.container_id",
+                    "op": "eq",
+                    "value": [str(ext_container_id)],
+                }
+            )
+
+        field_list_len = len(base_params["query_list"][0]["conditions"]["field_list"])
+        if field_list_len > 1:
+            base_params["query_list"][0]["conditions"]["condition_list"] = ["and" for _ in range(field_list_len - 1)]
+
+        if size:
+            base_params["limit"] = size
+        elif zero:
+            base_params["limit"] = 500
+        else:
+            base_params["limit"] = 30
+        base_params["from"] = start
+        self._body = base_params
+
+    @property
+    def body(self):
+        return self._body
+
+
+class CreateSearchTailBodyScenarioBkData:
+    def __init__(self, **kwargs):
+        """
+        实时日志查询构造请求参数（计算平台）
+        sort_list, size, start, gseindex, path, ip, keyword, __ext.container_id
         """
         sort_list = kwargs.get("sort_list")
         size = kwargs.get("size")
@@ -134,103 +239,10 @@ class UnifyQueryDslCreateSearchTailBodyScenarioBkData:
         return self._body
 
 
-class UnifyQueryDslCreateSearchTailBodyScenarioLog:
+class CreateSearchTailBodyCustomField:
     def __init__(self, **kwargs):
         """
-        上下文查询构造请求参数
-        sort_list, size, start, gseIndex, path, serverIp, keyword
-        """
-        sort_list = kwargs.get("sort_list")
-        size = kwargs.get("size")
-        start = kwargs.get("start")
-        gse_index = kwargs.get("gseIndex")
-        path = kwargs.get("path")
-        server_ip = kwargs.get("serverIp")
-        bk_host_id = kwargs.get("bk_host_id")
-        zero = kwargs.get("zero", False)
-        ext_container_id = kwargs.get("container_id", "")
-        base_params = kwargs.get("base_params")
-
-        self._body = None
-
-        order_use: str = "asc"
-        if zero:
-            # 用当前时间往后前5分钟开始查询
-            order_use = "desc"
-            base_params["start_time"] = str(int(time.time() * 1000) - 300000)
-            base_params["end_time"] = str(int(time.time() * 1000))
-        elif gse_index:
-            base_params["start_time"] = str(int(time.time() * 1000) - 300000 * 12)
-            base_params["end_time"] = str(int(time.time() * 1000))
-            base_params["query_list"][0]["conditions"]["field_list"].append(
-                {
-                    "field_name": "gseIndex",
-                    "op": "gt",
-                    "value": [str(gse_index)],
-                }
-            )
-        sort = []
-        for item in sort_list:
-            if order_use == "asc":
-                sort.append(f"{item}")
-            elif order_use == "desc":
-                sort.append(f"-{item}")
-        base_params["order_by"] = sort
-        if bk_host_id:
-            base_params["query_list"][0]["conditions"]["field_list"].append(
-                {
-                    "field_name": "bk_host_id",
-                    "op": "eq",
-                    "value": [str(bk_host_id)],
-                }
-            )
-        base_params["query_list"][0]["conditions"]["field_list"].append(
-            {
-                "field_name": "serverIp",
-                "op": "eq",
-                "value": [str(server_ip)],
-            }
-        )
-        if path:
-            base_params["query_list"][0]["conditions"]["field_list"].append(
-                {
-                    "field_name": "path",
-                    "op": "eq",
-                    "value": [str(path)],
-                }
-            )
-            base_params["query_list"][0]["conditions"]["condition_list"] = ["and"]
-        if ext_container_id:
-            base_params["query_list"][0]["conditions"]["field_list"].append(
-                {
-                    "field_name": "__ext.container_id",
-                    "op": "eq",
-                    "value": [str(ext_container_id)],
-                }
-            )
-
-        field_list_len = len(base_params["query_list"][0]["conditions"]["field_list"])
-        if field_list_len > 1:
-            base_params["query_list"][0]["conditions"]["condition_list"] = ["and" for _ in range(field_list_len - 1)]
-
-        if size:
-            base_params["limit"] = size
-        elif zero:
-            base_params["limit"] = 500
-        else:
-            base_params["limit"] = 30
-        base_params["from"] = start
-        self._body = base_params
-
-    @property
-    def body(self):
-        return self._body
-
-
-class UnifyQueryDslCreateSearchTailBodyCustomField:
-    def __init__(self, **kwargs):
-        """
-        自定义字段实时日志查询构造请求参数
+        实时日志查询构造请求参数（自定义字段）
         """
         size = kwargs.get("size")
         start = kwargs.get("start")

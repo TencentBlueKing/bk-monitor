@@ -97,7 +97,10 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
 )
-from apps.log_unifyquery.handler import UnifyQueryHandler
+from apps.log_unifyquery.builder.tail import build_tail_params
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
 
@@ -446,8 +449,13 @@ class SearchViewSet(APIViewSet):
         """
         data = request.data
         data.update({"search_type_tag": "context"})
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_context())
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            params = build_tail_params(data)
+            query_handler = UnifyQueryContextHandler(params)
+            return Response(query_handler.search())
+        else:
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_context())
 
     @detail_route(methods=["POST"], url_path="tail_f")
     def tailf(self, request, index_set_id=None):
@@ -500,14 +508,13 @@ class SearchViewSet(APIViewSet):
         """
         data = request.data
         data.update({"search_type_tag": "tail"})
-        # search_handler = SearchHandler(index_set_id, data)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            params = UnifyQueryHandler.build_params(data)
-            query_handler = UnifyQueryHandler(params)
-            return Response(query_handler.search_tail_f())
+            params = build_tail_params(data)
+            query_handler = UnifyQueryTailHandler(params)
+            return Response(query_handler.search())
         else:
-            search_handler = SearchHandlerEsquery(index_set_id, data)
-            return Response(search_handler.search_tail_f())
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_tail_f())
 
     @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):

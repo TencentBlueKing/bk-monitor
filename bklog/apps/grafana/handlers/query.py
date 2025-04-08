@@ -46,7 +46,8 @@ from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
-from apps.log_unifyquery.handler import UnifyQueryHandler
+from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.log import logger
 from bk_dataview.grafana import client
 from bkm_ipchooser.constants import ObjectType
@@ -455,8 +456,8 @@ class GrafanaQueryHandler:
             "group_by": query_dict.get("group_by", []),
             "interval": interval,
         }
-        query_handler = UnifyQueryHandler(search_dict)
-        result = query_handler.agg_search(desensitize_configs)
+        query_handler = UnifyQueryAggHandler(search_dict)
+        result = query_handler.search(desensitize_configs)
 
         return result
 

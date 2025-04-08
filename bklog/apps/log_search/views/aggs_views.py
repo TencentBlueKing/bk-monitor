@@ -34,7 +34,7 @@ from apps.log_trace.serializers import (
     UnionSearchAggsTermsSerializer,
     UnionSearchDateHistogramSerializer,
 )
-from apps.log_unifyquery.handler import UnifyQueryHandler
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.drf import detail_route, list_route
 
 

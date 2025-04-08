@@ -618,7 +618,7 @@ class IndexSetHandler(APIModel):
         """
         查询索引集存储的日用量和总用量
         """
-        from apps.log_unifyquery.handler import UnifyQueryHandler
+        from apps.log_unifyquery.handler.handler import UnifyQueryHandler
 
         multi_execute_func = MultiExecuteFunc(max_workers=10)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
