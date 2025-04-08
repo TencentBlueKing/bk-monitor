@@ -226,7 +226,7 @@ export default defineComponent({
 
     const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
     const getMoreAction = () => {
-      if (showMoreAction.value) {
+      if (showMoreAction.value && !isLimitExpandView.value) {
         return (
           <span
             class={['btn-more-action', `word-text`, 'is-show']}
