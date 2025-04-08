@@ -514,6 +514,7 @@ class SearchViewSet(APIViewSet):
         if index_set_obj:
             data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data.update({"index_set_id": index_set_id})
             params = build_tail_params(data)
             query_handler = UnifyQueryTailHandler(params)
             return Response(query_handler.search())
