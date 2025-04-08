@@ -539,16 +539,16 @@ class EventStatisticsInfoResource(Resource):
         return processed_statistics_info
 
     @classmethod
-    def get_statistics_info(cls, query_set, queries, field, statistics_property, method, statistics_info) -> None:
+    def get_statistics_info(cls, queryset, queries, field, statistics_property, method, statistics_info) -> None:
         for query in queries:
-            query_set = query_set.add_query(
+            queryset = queryset.add_query(
                 cls.get_q_by_statistics_property(query, field, statistics_property).metric(
                     field=field, method=method, alias="a"
                 )
             )
-        query_set = cls.set_qs_expression_by_method(query_set, method)
+        queryset = cls.set_qs_expression_by_method(queryset, method)
         try:
-            statistics_info[statistics_property] = query_set.original_data[0]["_result_"]
+            statistics_info[statistics_property] = queryset.original_data[0]["_result_"]
         except (IndexError, KeyError) as exc:
             logger.warning("[EventStatisticsInfoResource] failed to get statistics info, err -> %s", exc)
             raise ValueError(_(f"获取字段统计信息失败，查询函数：{method}"))
