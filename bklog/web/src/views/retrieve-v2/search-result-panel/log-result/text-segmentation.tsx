@@ -158,6 +158,14 @@ export default defineComponent({
       debounceUpdateWidth();
     };
 
+    const formatItemText = (item: WordListItem) => {
+      if (item.isMark) {
+        return item.text.replace(/\s/g, '\u00A0');
+      }
+
+      return item.text;
+    };
+
     onMounted(() => {
       hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
@@ -168,7 +176,7 @@ export default defineComponent({
         (item: WordListItem) => {
           const child = document.createElement(getTagName(item));
           child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-          child.innerText = item.text;
+          child.textContent = item.text;
           return child;
         },
       );
