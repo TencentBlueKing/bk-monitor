@@ -107,12 +107,14 @@
             <label>高亮</label>
             <bklogTagChoice
               :foucsFixed="true"
+              class="bklog-v3-tag-highlight"
               minHeight="30px"
               maxWidth="400px"
               minWidth="200px"
               v-model="highlightValue"
               placeholder="输入后按 Enter..."
               template="tag-input"
+              :onTagRender="handleTagRender"
               @change="handleHighlightEnter"
             >
               <template slot="prepend"> </template>
@@ -277,6 +279,20 @@
       RetrieveHelper.setMarkInstance();
     },
     methods: {
+      handleTagRender(item, index) {
+        const colors = [
+          'rgba(245, 149, 0, 0.3)',
+          'rgba(44, 175, 133, 0.3)',
+          'rgba(58, 172, 255, 0.3)',
+          'rgba(210, 93, 250, 0.3)',
+          'rgba(216, 74, 87, 0.3)',
+        ];
+        return {
+          style: {
+            backgroundColor: colors[index % colors.length],
+          },
+        };
+      },
       handleHighlightEnter() {
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       },

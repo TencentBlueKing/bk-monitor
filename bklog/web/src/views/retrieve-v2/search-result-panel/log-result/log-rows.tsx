@@ -925,10 +925,10 @@ export default defineComponent({
               </div>
             );
           })}
-          <div
+          {/* <div
             style={opStyle}
             class={['hidden-field bklog-row-cell']}
-          ></div>
+          ></div> */}
         </div>,
         expand ? expandOption.render({ row }) : '',
       ];
@@ -1054,7 +1054,12 @@ export default defineComponent({
                     <br />
                     可能是因为分词导致的问题；
                     <br />
-                    <span class='segment-span-tag' onClick={openConfiguration}>点击设置自定义分词</span>
+                    <span
+                      class='segment-span-tag'
+                      onClick={openConfiguration}
+                    >
+                      点击设置自定义分词
+                    </span>
                     <br />
                     <br />
                     将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
@@ -1065,7 +1070,12 @@ export default defineComponent({
                   <div>
                     若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
                     {/* <span class='segment-span-tag'>问题反馈</span> */}
-                    <a class='segment-span-tag' href={`wxwork://message/?username=BK助手`}>问题反馈</a>
+                    <a
+                      class='segment-span-tag'
+                      href={`wxwork://message/?username=BK助手`}
+                    >
+                      问题反馈
+                    </a>
                   </div>
                 </div>
               </div>
@@ -1111,7 +1121,7 @@ export default defineComponent({
 
     const openConfiguration = () => {
       RetrieveHelper.setIndexConfigOpen(true);
-    }
+    };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
     });

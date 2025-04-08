@@ -97,6 +97,9 @@ export default defineComponent({
       type: String,
       default: 'tag-choice',
     },
+    onTagRender: {
+      type: Function,
+    },
   },
   emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
   setup(props, { slots, emit }) {
@@ -841,18 +844,23 @@ export default defineComponent({
           );
         }
 
+        const tagAttrs = props.onTagRender?.(item, index) ?? {};
+
+        tagAttrs.style = Object.assign({}, tagAttrs.style, valueTagStyle.value);
+        tagAttrs.class = [
+          ...(tagAttrs.class ?? []),
+          'bklog-choice-value-item',
+          {
+            'is-edit-item': editItemOption.value.index === index,
+          },
+        ];
+
         return (
           <li
             key={getItemKey(item, index)}
-            style={valueTagStyle.value}
-            class={[
-              'bklog-choice-value-item',
-              {
-                'is-edit-item': editItemOption.value.index === index,
-              },
-            ]}
             data-item-index={index}
             data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
+            {...tagAttrs}
           >
             {getValueContext(item, index)}
           </li>
@@ -901,7 +909,6 @@ export default defineComponent({
         ]}
         onClick={handleContainerClick}
       >
-        {slots.prepend?.()}
         <span
           ref={refFixedPointerElement}
           class='hidden-fixed-pointer'
