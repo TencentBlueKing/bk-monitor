@@ -208,10 +208,10 @@ export default defineComponent({
                   <DatePicker
                     class='date-value-select'
                     v-model={item.workDateRange}
+                    appendToBody={true}
                     format='yyyy-MM-dd'
                     placeholder={`${this.t('如')}: 2019-01-30 至 2019-01-30`}
                     type='daterange'
-                    append-to-body
                     clearable
                     onChange={this.handleEmitData}
                   />
