@@ -63,6 +63,9 @@ export enum RetrieveEvent {
    * localStorage 变化
    */
   STORAGE_CHANGE = 'storage-change',
+
+  // 打开索引配置
+  INDEX_CONFIG_OPEN = 'index-config-open',
 }
 
 class RetrieveHelper {
@@ -272,6 +275,14 @@ class RetrieveHelper {
     this.runEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, favorite);
   }
 
+  /**
+   * 打开索引配置
+   * @param show
+   */
+  setIndexConfigOpen (show: boolean) {
+    this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
+  }
+  
   getScrollSelector() {
     return this.globalScrollSelector;
   }
