@@ -707,6 +707,7 @@ export default defineComponent({
             <div class='right'>
               <DatePicker
                 class='shield-time'
+                appendToBody={true}
                 format={'yyyy-MM-dd HH:mm:ss'}
                 modelValue={this.dateRange}
                 placeholder={this.t('选择屏蔽时间范围')}
