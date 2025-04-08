@@ -1047,6 +1047,8 @@ export default defineComponent({
             </bk-exception>
           );
         }
+        console.log(store);
+        
         if ($t('检索结果为空') === exceptionMsg.value) {
           return (
             <div class='bklog-empty-data'>
@@ -1090,7 +1092,7 @@ export default defineComponent({
                   <div>
                     若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
                     {/* <span class='segment-span-tag'>问题反馈</span> */}
-                    <a class='segment-span-tag' href={`wxwork://message/?username=${window.BKBASE_Global?.HelpAssistant}`}>问题反馈</a>
+                    <a class='segment-span-tag' href={`wxwork://message/?username=BK助手`}>问题反馈</a>
                   </div>
                 </div>
               </div>
