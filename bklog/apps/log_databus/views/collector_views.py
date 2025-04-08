@@ -78,6 +78,7 @@ from apps.log_databus.serializers import (
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
+    UpdateAliasSettingsSerializers,
     UpdateContainerCollectorSerializer,
     ValidateContainerCollectorYamlSerializer,
 )
@@ -2545,3 +2546,8 @@ class CollectorViewSet(ModelViewSet):
             proxy_host_info.append(report_url_list)
 
         return Response(proxy_host_info)
+
+    @detail_route(methods=["POST"], url_path="update_alias_settings")
+    def update_alias_settings(self, request, collector_config_id=None):
+        params = self.params_valid(UpdateAliasSettingsSerializers)
+        return Response(CollectorHandler(collector_config_id).update_alias_settings(params))

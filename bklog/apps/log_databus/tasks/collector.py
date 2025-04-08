@@ -413,3 +413,46 @@ def update_collector_storage_config(storage_cluster_id):
                 collector.collector_config_id,
                 e,
             )
+
+
+@high_priority_task(ignore_result=True)
+def update_alias_settings(collector_config_id, table_id, alias_settings):
+    """
+    更新别名配置
+    """
+    try:
+        handler = CollectorHandler(collector_config_id)
+        collect_config = handler.retrieve()
+        clean_stash = handler.get_clean_stash()
+
+        etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
+        etl_fields = (
+            clean_stash["etl_fields"]
+            if clean_stash
+            else [field for field in collect_config["fields"] if not field["is_built_in"]]
+        )
+
+        etl_params = {
+            "table_id": table_id,
+            "storage_cluster_id": collect_config["storage_cluster_id"],
+            "retention": collect_config["retention"],
+            "allocation_min_days": collect_config["allocation_min_days"],
+            "storage_replies": collect_config["storage_replies"],
+            "es_shards": collect_config["storage_shards_nums"],
+            "etl_params": etl_params,
+            "etl_config": collect_config["etl_config"],
+            "fields": etl_fields,
+            "alias_settings": alias_settings,
+        }
+        etl_handler = EtlHandler.get_instance(collector_config_id)
+        etl_handler.update_or_create(**etl_params)
+        logger.info(
+            "[update_alias_settings] executed successfully, collector_config_id->%s",
+            collector_config_id,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "[update_alias_settings] executed failed, collector_config_id->%s, reason: %s",
+            collector_config_id,
+            e,
+        )

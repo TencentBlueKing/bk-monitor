@@ -1728,3 +1728,7 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
 
 class ProxyHostSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+
+
+class UpdateAliasSettingsSerializers(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
