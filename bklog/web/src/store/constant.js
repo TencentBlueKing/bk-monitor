@@ -82,7 +82,7 @@ export const fieldTypeMap = {
   },
   boolean: {
     name: i18n.t('布尔'),
-    icon: 'bklog-icon bklog-buer',
+    icon: 'bklog-icon bklog-buer-2',
     color: '#F0DFDF',
     textColor: '#CB7979',
   },

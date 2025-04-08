@@ -486,6 +486,7 @@
 
         &:hover .delete {
           display: block;
+          background-color: #f1f4ff;
         }
       }
 

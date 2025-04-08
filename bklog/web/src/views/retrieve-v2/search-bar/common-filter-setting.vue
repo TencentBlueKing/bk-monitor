@@ -574,8 +574,8 @@
       height: 51px;
       padding: 0 24px;
       background-color: #fafbfd;
-      border-top: 1px solid #dcdee5;
       border-radius: 0 0 2px 2px;
+      border: 1px solid #dcdee5;
     }
   }
 
