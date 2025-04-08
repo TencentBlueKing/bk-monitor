@@ -384,7 +384,7 @@ export default class ChartTitle extends tsc<
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
                 interactive: this.showTitleIcon,
-                onShow() {
+                onShow: () => {
                   return !this.$scopedSlots?.title;
                 },
               }}

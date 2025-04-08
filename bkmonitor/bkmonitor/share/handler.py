@@ -14,7 +14,7 @@ import json
 from django.db.models import Q
 
 from bkmonitor.models import ApiAuthToken, MetricListCache
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from core.errors.share import (
     InvalidParamsError,
     ParamsPermissionDeniedError,
@@ -272,7 +272,11 @@ class CustomMetricApiAuthChecker(BaseApiAuthChecker):
 
     def query_configs_check(self, query_configs):
         custom_metric_id = int(self.scene_params["scene_id"].split("_")[-1])
-        config = CustomTSTable.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_metric_id)
+        config = CustomTSTable.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True),
+            pk=custom_metric_id,
+            bk_tenant_id=get_request_tenant_id(),
+        )
         table = query_configs[0].get("table", "")
         if table and not table.startswith(config.table_id):
             raise ParamsPermissionDeniedError(

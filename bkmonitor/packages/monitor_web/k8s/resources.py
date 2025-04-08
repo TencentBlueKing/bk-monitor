@@ -182,7 +182,7 @@ class ScenarioMetricList(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
 
     def perform_request(self, validated_request_data):
         # 使用量、limit使用率、request使用率
@@ -195,7 +195,7 @@ class GetScenarioMetric(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
         metric_id = serializers.CharField(required=True, label="指标id")
 
     def perform_request(self, validated_request_data):
@@ -224,7 +224,9 @@ class GetResourceDetail(Resource):
         bcs_cluster_id: str = serializers.CharField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container", "cluster", "service", "ingress"], label="资源类型"
+            required=True,
+            choices=["pod", "workload", "container", "cluster", "service", "ingress", "node"],
+            label="资源类型",
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
@@ -327,7 +329,7 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         # 用于模糊查询
@@ -335,7 +337,7 @@ class ListK8SResources(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
-        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network", "capacity"])
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
         # 分页
@@ -437,6 +439,11 @@ class ListK8SResources(Resource):
             # 网络场景，pod不需要workload相关信息
             if resource_meta.resource_field == "pod_name":
                 resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
+
+        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+        if scenario == "capacity":
+            column = "node_boot_time_seconds"
+            
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -513,7 +520,7 @@ class ResourceTrendResource(Resource):
         )
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
@@ -521,7 +528,7 @@ class ResourceTrendResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         scenario = serializers.ChoiceField(
-            required=False, label="场景", choices=["performance", "network"], default="performance"
+            required=False, label="场景", choices=["performance", "network", "capacity"], default="performance"
         )
 
     def perform_request(self, validated_request_data):

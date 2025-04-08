@@ -553,7 +553,19 @@ APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
-
+# profiling 汇聚方法映射配置
+APM_PROFILING_AGG_METHOD_MAPPING = {
+    "HEAP-SPACE": "AVG",
+    "WALL-TIME": "SUM",
+    "ALLOC-SPACE": "AVG",
+    "ALLOC_SPACE": "AVG",
+    "CPU-TIME": "SUM",
+    "EXCEPTION-SAMPLES": "SUM",
+    "CPU": "SUM",
+    "INUSE_SPACE": "AVG",
+    "DELAY": "AVG",
+    "GOROUTINE": "AVG",
+}
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
@@ -1079,6 +1091,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")

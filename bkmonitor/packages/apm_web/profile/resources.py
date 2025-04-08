@@ -14,6 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -99,17 +100,6 @@ class QueryServicesDetailResource(Resource):
         对于 count 类型 只允许以下:
         goroutine/syscall/allocations/exception-samples
         """
-        agg_method = {
-            "HEAP-SPACE": "AVG",
-            "WALL-TIME": "SUM",
-            "ALLOC-SPACE": "AVG",
-            "CPU-TIME": "SUM",
-            "EXCEPTION-SAMPLES": "SUM",
-            "CPU": "SUM",
-            "INUSE_SPACE": "AVG",
-            "DELAY": "AVG",
-            "GOROUTINE": "AVG",
-        }
         res = []
         for svr in services:
             if not svr["sample_type"]:
@@ -118,7 +108,7 @@ class QueryServicesDetailResource(Resource):
             sample_type_parts = svr["sample_type"].split("/")
             key = svr["sample_type"]
             name = sample_type_parts[0].upper()
-            default_agg_method = agg_method.get(name, "SUM")
+            default_agg_method = settings.APM_PROFILING_AGG_METHOD_MAPPING.get(name, "SUM")
 
             if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
                 continue

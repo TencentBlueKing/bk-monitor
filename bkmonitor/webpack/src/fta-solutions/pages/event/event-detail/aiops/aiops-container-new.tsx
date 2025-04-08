@@ -543,7 +543,7 @@ export default class AiopsContainer extends tsc<IProps> {
         key='dimension-info-text'
         class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
       >
-        {this.$t('异常维度')}
+        {this.$t('异常维度(组合)')}
         {isLoading ? (
           <div class='skeleton-element inline-skeleton' />
         ) : (
@@ -586,7 +586,7 @@ export default class AiopsContainer extends tsc<IProps> {
         style='marginLeft: 6px'
         class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
       >
-        <i18n path='{0} 个维度'>
+        <i18n path='{0} 条曲线'>
           {!isLoading ? (
             <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
           ) : (

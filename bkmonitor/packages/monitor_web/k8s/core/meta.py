@@ -287,6 +287,10 @@ class K8sResourceMeta(object):
         raise NotImplementedError(f"metric: {order_field} not supported")
 
     @property
+    def meta_prom_with_node_boot_time_seconds(self):
+        return self.tpl_prom_with_nothing("node_boot_time_seconds")
+
+    @property
     def meta_prom_with_container_memory_working_set_bytes(self):
         return self.tpl_prom_with_nothing("container_memory_working_set_bytes")
 
