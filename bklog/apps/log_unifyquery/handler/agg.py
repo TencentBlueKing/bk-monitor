@@ -21,17 +21,21 @@ class UnifyQueryAggHandler(UnifyQueryHandler):
         agg_search
         仪表盘聚合查询
         """
-        desensitize_configs = args
+        desensitize_configs = kwargs.get('desensitize_configs')
         params = copy.deepcopy(self.base_dict)
         method = self.search_params["method"]
         function = f"{method}_over_time"
         interval = self.search_params["interval"]
         group_by = self.search_params["group_by"]
+
+        params["step"] = interval
+        params["order_by"] = []
         # 去重聚合 特殊处理
         if method == "cardinality":
             for q in params["query_list"]:
                 q["function"] = [{"method": method, "dimensions": group_by, "window": interval}]
                 q["time_aggregation"] = {}
+            response = self.query_ts_reference(params)
         else:
             # value_count聚合 特殊处理
             if method == "value_count":
@@ -40,10 +44,8 @@ class UnifyQueryAggHandler(UnifyQueryHandler):
             for q in params["query_list"]:
                 q["function"] = [{"method": method, "dimensions": group_by}]
                 q["time_aggregation"] = {"function": function, "window": interval}
-        params["step"] = interval
-        params["order_by"] = []
-        # 避免ts接口周期对齐处理导致数据起始周期计算不准确问题
-        response = self.query_ts_reference(params)
+            # TODO: 避免ts接口周期对齐处理导致数据起始周期计算不准确问题
+            response = self.query_ts(params)
 
         # 聚合结果处理
         records = self._format_agg_series(response["series"], desensitize_configs)

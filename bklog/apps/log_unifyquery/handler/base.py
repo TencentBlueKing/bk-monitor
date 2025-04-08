@@ -98,9 +98,6 @@ class UnifyQueryHandler(object):
             self.search_params["start_time"], self.search_params["end_time"]
         )
 
-        # 是否使用了聚类代理查询
-        self.using_clustering_proxy = False
-
         # 初始化索引信息（包括索引类型）
         self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
         self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
@@ -247,6 +244,7 @@ class UnifyQueryHandler(object):
                         if clustering_config and clustering_config.clustered_rt:
                             # 如果是查询bkbase端的表，即场景需要对应改为bkdata
                             index_info["scenario_id"] = Scenario.BKDATA
+                            # 是否使用了聚类代理查询
                             index_info["using_clustering_proxy"] = True
                             index_info["indices"] = clustering_config.clustered_rt
                 index_info_list.append(index_info)
@@ -447,9 +445,6 @@ class UnifyQueryHandler(object):
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "table_id": BaseIndexSetHandler.get_data_label(
-                    index_info["origin_scenario_id"], index_info["index_set_id"]
-                ) if not self.using_clustering_proxy else index_info["indices"],
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",
@@ -457,6 +452,14 @@ class UnifyQueryHandler(object):
                 "query_string": self.query_string,
                 "function": [],
             }
+
+            # 是否使用了聚类路由查询
+            clustered_rt = None
+            if index_info.get("using_clustering_proxy", False):
+                clustered_rt = index_info["indices"]
+            query_dict["table_id"] = BaseIndexSetHandler.get_data_label(
+                index_info["origin_scenario_id"], index_info["index_set_id"], clustered_rt
+            )
 
             if self.agg_field:
                 query_dict["field_name"] = self.agg_field

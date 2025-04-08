@@ -446,7 +446,6 @@ class GrafanaQueryHandler:
             ],
             "begin": 0,
             "size": 1,
-            # "time_range": f"1m",
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
             "is_desensitize": False,
@@ -457,7 +456,7 @@ class GrafanaQueryHandler:
             "interval": interval,
         }
         query_handler = UnifyQueryAggHandler(search_dict)
-        result = query_handler.search(desensitize_configs)
+        result = query_handler.search(desensitize_configs=desensitize_configs)
 
         return result
 
