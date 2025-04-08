@@ -131,8 +131,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 点击维度项后展示统计弹窗 */
   async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
-    this.selectField = item;
     if (!item.is_option_enabled || !this.fieldListCount[item.name]) return;
+    this.selectField = item;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
@@ -143,6 +143,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
       interactive: true,
+      onHidden: () => {
+        this.selectField = null;
+      },
     });
     this.popoverInstance?.show(100);
   }
