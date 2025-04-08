@@ -43,8 +43,8 @@ const directives: Record<string, any> = {
 
 export default {
   install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+    for (const [key, directive] of Object.entries(directives)) {
+      app.directive(key, directive);
+    }
   },
 };
