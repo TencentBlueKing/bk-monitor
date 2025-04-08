@@ -1285,6 +1285,7 @@ export default {
   运行状态: 'Run Status',
   服务实例维度注入: 'Service Instance Dimension Injection',
   主机维度注入: 'Host dimension injection',
+  自定义维度注入: 'Custom Dimension Injection',
   维度注入: 'Dimension Injection',
   命令行匹配: 'Command Line Matching',
   命令行参数: 'Command-line Parameters',
