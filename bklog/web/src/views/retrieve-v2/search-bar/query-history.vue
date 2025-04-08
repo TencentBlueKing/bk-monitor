@@ -89,7 +89,7 @@
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
-        const popoverWidth = '350px';
+        const popoverWidth = '560px';
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.historyUlRef,
           trigger: 'manual',

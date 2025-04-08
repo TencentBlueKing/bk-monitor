@@ -82,17 +82,18 @@
 
     .text {
       overflow: hidden;
+      color: #313238;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .bklog-c-ui {
-      background: #ffb848;
+      background: #A3B1CC;
     }
 
-    .bklog-c-sql {
+    .bklog-c-sql{
       font-size: 8px;
-      background: #14b1c7;
+      background: #94C2BD;
     }
 
     .item-text {

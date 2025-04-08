@@ -669,8 +669,8 @@
 
       span {
         margin: 0px 6px 0 0;
-        font-size: 14px;
-        line-height: 20px;
+        font-size: 16px;
+        // line-height: 20px;
       }
     }
   }
@@ -720,7 +720,6 @@
         }
 
         .bk-form-item {
-
           .bk-label {
             padding-right: 12px;
             color: #4d4f56;

@@ -47,6 +47,7 @@
 
     span {
       margin-right: 6px;
+      font-size: 16px;
     }
   }
 </style>
