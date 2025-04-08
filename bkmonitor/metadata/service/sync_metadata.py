@@ -289,7 +289,7 @@ def sync_vm_metadata(vm_info, table_id):
 
     vm_cluster = None
     try:
-        vm_cluster = models.ClusterInfo.objects.get(domain_name=vm_info['select_host'])
+        vm_cluster = models.ClusterInfo.objects.get(domain_name=vm_info['insert_host'])
     except models.ClusterInfo.DoesNotExist:
         # 如果 VM 集群信息不存在，创建新集群
         logger.info(
@@ -299,8 +299,8 @@ def sync_vm_metadata(vm_info, table_id):
             logger.info("sync_vm_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", vm_info, table_id)
             vm_cluster = models.ClusterInfo.objects.create(
                 cluster_name=vm_info['name'],
-                domain_name=vm_info['select_host'],
-                port=vm_info['select_port'],
+                domain_name=vm_info['insert_host'],
+                port=vm_info['insertPort'],
                 cluster_type=models.ClusterInfo.TYPE_VM,
                 is_default_cluster=False,
             )
