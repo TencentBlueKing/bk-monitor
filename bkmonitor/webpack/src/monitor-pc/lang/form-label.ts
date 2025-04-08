@@ -423,6 +423,7 @@ export default {
   维度名称: 'Dimension Name',
   维度下钻: 'Facet',
   异常维度: 'Abnormal Dimension',
+  '异常维度(组合)': 'Abnormal Dimension (combination)',
   指标数据: 'Metrics',
   事件数据: 'Events',
   拨测: 'Synthetics',

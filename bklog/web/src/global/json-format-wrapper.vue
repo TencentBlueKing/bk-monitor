@@ -30,7 +30,7 @@
       :deep="deep"
     >
       <template #nodeValue="{ defaultValue }">
-        <span v-text="defaultValue"></span>
+        <span v-text="formatValue(defaultValue)"></span>
       </template>
     </VueJsonPretty>
   </ShadowWrapper>
@@ -64,6 +64,11 @@
       },
       isShadowContent() {
         return false;
+      },
+    },
+    methods: {
+      formatValue(value) {
+        return `${value}`.replace(/<\/?mark>/gim, '');
       },
     },
   };

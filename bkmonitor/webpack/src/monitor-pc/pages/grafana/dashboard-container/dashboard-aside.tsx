@@ -107,6 +107,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   curFormType: FormType = MoreType.dir;
   /** 选中的仪表盘 */
   checked: string = null;
+  /** 复制的仪表盘 */
+  copiedUid: string = null;
   /** 外链数据 */
   linkList: ILinkItem[] = [
     {
@@ -533,6 +535,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
+    this.copiedUid = item.uid;
     this.formData.name = (this.isCopyDashboard && item?.title) || '';
   }
 
@@ -615,7 +618,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleCopyDashboard() {
     const params = {
-      dashboard_uid: this.checked,
+      dashboard_uid: this.copiedUid,
       folder_id: this.formData.dir,
     };
     return copyDashboardToFolder(params)

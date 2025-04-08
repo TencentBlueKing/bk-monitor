@@ -735,6 +735,10 @@ class StorageHandler(object):
             )
 
             shutdown_collector_warm_storage_config.delay(int(self.cluster_id))
+        elif not current_hot_warm_config_is_enabled and hot_warm_config_is_enabled:
+            from apps.log_databus.tasks.collector import update_collector_storage_config
+
+            update_collector_storage_config.delay(int(self.cluster_id))
 
         # add user_operation_record
         operation_record = {

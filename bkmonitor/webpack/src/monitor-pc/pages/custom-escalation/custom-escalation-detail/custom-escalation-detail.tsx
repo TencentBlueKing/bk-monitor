@@ -1268,8 +1268,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
-            {
-              this.type === 'customTimeSeries' ? (
+            <div class='custom-detail-page-table'>
+              {this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
                   allCheckValue={this.allCheckValue}
@@ -1312,8 +1312,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
-              ) : undefined /* TODO[自定义事件]  */
-            }
+              ) : undefined}
+            </div>
           </div>
           {/* <!-- 展开内容 --> */}
           <div class={['right-window', this.isShowRightWindow ? 'active' : '']}>
