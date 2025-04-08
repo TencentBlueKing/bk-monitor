@@ -250,7 +250,7 @@
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
@@ -414,7 +414,13 @@
     // 获取table表格编辑的数据 新增新的字段对象
     tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
   };
-
+  RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+    hideSingleConfigInput();
+    handleOpenSidebar();
+    nextTick(() => {
+      handleEdit()
+    });
+  });
   function formLableFormatter(label) {
     return `${label} :`;
   }
@@ -714,7 +720,6 @@
         }
 
         .bk-form-item {
-          margin-top: 18px;
 
           .bk-label {
             padding-right: 12px;
