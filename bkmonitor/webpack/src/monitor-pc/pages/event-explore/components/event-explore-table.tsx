@@ -301,7 +301,6 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   getTableColumns(): Array<EventExploreTableColumn> {
     const { TIME, CONTENT, LINK, PREFIX_ICON, TEXT } = ExploreTableColumnTypeEnum;
     const { columns } = this.$route.query;
-    console.log('routerColumns', this.$route.query);
     let routerColumns = [];
     try {
       if (columns) {

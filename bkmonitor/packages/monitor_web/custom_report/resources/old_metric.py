@@ -45,7 +45,8 @@ class ModifyCustomTimeSeriesDesc(Resource):
     @atomic()
     def perform_request(self, validated_request_data):
         time_series_obj = CustomTSTable.objects.filter(
-            time_series_group_id=validated_request_data["time_series_group_id"]
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            time_series_group_id=validated_request_data["time_series_group_id"],
         ).first()
         if not time_series_obj:
             raise ValidationError(

@@ -29,6 +29,9 @@ class DataSourceLabel(object):
     PROMETHEUS = "prometheus"
     DASHBOARD = "dashboard"
 
+    # UnifyQuery 灰度标签
+    BK_MONITOR_COLLECTOR_NEW = "bk_monitor_new"
+
 
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
 class DataTypeLabel(object):
@@ -218,6 +221,7 @@ UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+    (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [

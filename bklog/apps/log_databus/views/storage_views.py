@@ -691,7 +691,7 @@ class StorageViewSet(APIViewSet):
             [
             {
                 "name": "tests",
-                "ip": "1.1.1.1",
+                "ip": "x.x.x.x",
                 "cpu_use": 12,
                 "disk_use": 12,
                 "jvm_mem_use": 90,

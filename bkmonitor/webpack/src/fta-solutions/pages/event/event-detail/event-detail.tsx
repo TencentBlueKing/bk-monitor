@@ -619,6 +619,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         <bk-resize-layout
           class='detail-resize-view'
           auto-minimize={true}
+          collapsible={true}
           initial-divide={500}
           max={660}
           min={480}
