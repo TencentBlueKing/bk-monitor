@@ -434,6 +434,9 @@ class ListK8SResources(Resource):
             # 网络场景默认指标，用nw_container_network_receive_bytes_total
             if not column.startswith("nw_"):
                 column = "nw_container_network_receive_bytes_total"
+            # 网络场景，pod不需要workload相关信息
+            if resource_meta.resource_field == "pod_name":
+                resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
