@@ -24,7 +24,7 @@ from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
-from monitor_web.k8s.scenario import get_metrics
+from monitor_web.k8s.scenario import get_all_metrics, get_metrics
 
 
 class SpaceRelatedSerializer(serializers.Serializer):
@@ -456,59 +456,39 @@ class ListK8SResources(Resource):
         )
         method = serializers.ChoiceField(required=False, choices=["max", "avg", "min", "sum", "count"], default="sum")
         column = serializers.ChoiceField(
-            required=False,
-            choices=[
-                "container_cpu_usage_seconds_total",
-                "kube_pod_cpu_requests_ratio",
-                "kube_pod_cpu_limits_ratio",
-                "container_memory_working_set_bytes",
-                "kube_pod_memory_requests_ratio",
-                "kube_pod_memory_limits_ratio",
-                "container_cpu_cfs_throttled_ratio",
-                "container_network_transmit_bytes_total",
-                "container_network_receive_bytes_total",
-                "nw_container_network_transmit_bytes_total",
-                "nw_container_network_receive_bytes_total",
-                "nw_container_network_receive_errors_ratio",
-                "nw_container_network_transmit_errors_ratio",
-                "nw_container_network_transmit_errors_total",
-                "nw_container_network_receive_errors_total",
-                "nw_container_network_receive_packets_total",
-                "nw_container_network_transmit_packets_total",
-            ],
-            default="container_cpu_usage_seconds_total",
+            required=False, choices=get_all_metrics(), default="container_cpu_usage_seconds_total"
         )
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         with_history: bool = validated_request_data["with_history"]
+        resource_type: str = validated_request_data["resource_type"]
+        query_string: str = validated_request_data["query_string"]
+        filter_dict: dict = validated_request_data["filter_dict"]
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
 
         # 1. 基于resource_type 加载对应资源元信息
-        resource_meta: K8sResourceMeta = load_resource_meta(
-            validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id
-        )
+        resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
         # 2.0 基于filter_dict 加载 filter
-        self.add_filter(resource_meta, validated_request_data["filter_dict"])
-        if validated_request_data["query_string"]:
+        self.add_filter(resource_meta, filter_dict)
+        if query_string:
             # 2.1 基于query_string 加载 filter
             resource_meta.filter.add(
                 load_resource_filter(
-                    validated_request_data["resource_type"],
-                    validated_request_data["query_string"],
+                    resource_type,
+                    query_string,
                     fuzzy=True,
                 )
             )
         resource_list = []
         total_count = 0
         # scrolling 分页特性
-        page_count = validated_request_data["page"] * validated_request_data["page_size"]
+        page_count = page * page_size
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                page_size: int = validated_request_data["page_size"]
-                page: int = validated_request_data["page"]
-
                 # 将传统分页转化为滚动分页
                 if validated_request_data["page_type"] == "scrolling":
                     page_size = page_count
@@ -578,6 +558,19 @@ class ListK8SResources(Resource):
             resource_list = resource_list[:page_count]
         return {"count": total_count, "items": resource_list}
 
+    def set_default_column(self, scenario: str, column: str):
+        """
+        根据场景设置默认列
+        """
+        if scenario == "network":
+            # 网络场景默认指标，用nw_container_network_receive_bytes_total
+            if not column.startswith("nw_"):
+                column = "nw_container_network_receive_bytes_total"
+
+        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+        if scenario == "capacity":
+            column = "node_boot_time_seconds"
+
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
         filter_dict = {
@@ -596,41 +589,7 @@ class ResourceTrendResource(Resource):
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
-        column = serializers.ChoiceField(
-            required=True,
-            choices=[
-                "container_cpu_usage_seconds_total",
-                "kube_pod_cpu_requests_ratio",
-                "kube_pod_cpu_limits_ratio",
-                "container_memory_working_set_bytes",
-                "kube_pod_memory_requests_ratio",
-                "kube_pod_memory_limits_ratio",
-                "container_cpu_cfs_throttled_ratio",
-                "container_network_transmit_bytes_total",
-                "container_network_receive_bytes_total",
-                "nw_container_network_transmit_bytes_total",
-                "nw_container_network_receive_bytes_total",
-                "nw_container_network_receive_errors_ratio",
-                "nw_container_network_transmit_errors_ratio",
-                "nw_container_network_transmit_errors_total",
-                "nw_container_network_receive_errors_total",
-                "nw_container_network_receive_packets_total",
-                "nw_container_network_transmit_packets_total",
-                "node_cpu_seconds_total",
-                "node_cpu_capacity_ratio",
-                "node_cpu_usage_ratio",
-                "node_memory_working_set_bytes",
-                "node_memory_capacity_ratio",
-                "node_memory_usage_ratio",
-                "master_node_count",
-                "worker_node_count",
-                "node_pod_usage",
-                "node_network_receive_bytes_total",
-                "node_network_transmit_bytes_total",
-                "node_network_receive_packets_total",
-                "node_network_transmit_packets_total",
-            ],
-        )
+        column = serializers.ChoiceField(required=True, choices=get_all_metrics())
         resource_type = serializers.ChoiceField(
             required=True,
             choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
