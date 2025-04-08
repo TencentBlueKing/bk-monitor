@@ -237,7 +237,7 @@ class GetResourceDetail(Resource):
         workload_type: str = serializers.CharField(required=False, allow_null=True)
         service_name: str = serializers.CharField(required=False, allow_null=True)
         ingress_name: str = serializers.CharField(required=False, allow_null=True)
-        node_name: str = serializers.CharField(requered=False, allow_null=True)
+        node_name: str = serializers.CharField(required=False, allow_null=True)
 
     def validate_request_data(self, request_data: Dict):
         resource_type = request_data["resource_type"]
