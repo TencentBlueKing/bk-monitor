@@ -26,12 +26,17 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='collectorpluginmeta',
-            name='id',
-            field=models.BigAutoField(primary_key=True, serialize=False, verbose_name='ID'),
+            name='plugin_id',
+            field=models.CharField(max_length=64, verbose_name='插件ID'),
         ),
         migrations.AlterField(
             model_name='collectorpluginmeta',
-            name='plugin_id',
-            field=models.CharField(max_length=64, verbose_name='插件ID'),
+            name='id',
+            field=models.BigIntegerField(primary_key=True, verbose_name='ID'),
+        ),
+        migrations.AlterField(
+            model_name='collectorpluginmeta',
+            name='id',
+            field=models.BigAutoField(primary_key=True, serialize=False, verbose_name='ID'),
         ),
     ]
