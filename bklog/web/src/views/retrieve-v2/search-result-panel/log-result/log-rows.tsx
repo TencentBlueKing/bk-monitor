@@ -1047,8 +1047,6 @@ export default defineComponent({
             </bk-exception>
           );
         }
-        console.log(store);
-        
         if ($t('检索结果为空') === exceptionMsg.value) {
           return (
             <div class='bklog-empty-data'>
