@@ -241,7 +241,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
                 info_version=info_version,
                 config=config,
                 info=info,
+                plugin_id=self.plugin_id,
+                bk_tenant_id=self.bk_tenant_id,
             )
+            version.plugin = self
         return version
 
     def get_plugin_detail(self):

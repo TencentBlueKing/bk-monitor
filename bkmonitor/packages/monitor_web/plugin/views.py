@@ -87,6 +87,15 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
     queryset = CollectorPluginMeta.objects.all()
     serializer_class = Serializer
 
+    # 使用plugin_id作为key
+    lookup_field = "plugin_id"
+
+    def get_queryset(self):
+        """
+        根据租户ID过滤插件
+        """
+        return super().get_queryset().filter(bk_tenant_id=self.request.user.tenant_id)
+
     def get_authenticators(self):
         authenticators = super(CollectorPluginViewSet, self).get_authenticators()
         authenticators = [
@@ -296,13 +305,15 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         return Response(search_result)
 
     def retrieve(self, request, *args, **kwargs):
-        if kwargs["pk"] in ["snmp_v1", "snmp_v2c", "snmp_v3"]:
-            plugin_manager = PluginManagerFactory.get_manager(plugin=kwargs["pk"], plugin_type=PluginType.SNMP_TRAP)
+        if kwargs["plugin_id"] in ["snmp_v1", "snmp_v2c", "snmp_v3"]:
+            plugin_manager = PluginManagerFactory.get_manager(
+                plugin=kwargs["plugin_id"], plugin_type=PluginType.SNMP_TRAP
+            )
             return Response(plugin_manager.get_default_trap_plugin())
 
         # 腾讯云指标采集插件
-        if kwargs["pk"] == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
-            plugins = self.get_virtual_plugins(plugin_id=kwargs["pk"], with_detail=True)
+        if kwargs["plugin_id"] == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
+            plugins = self.get_virtual_plugins(plugin_id=kwargs["plugin_id"], with_detail=True)
             if plugins:
                 return Response(plugins[0])
 
@@ -526,7 +537,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         serializer = ReleaseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            plugin = CollectorPluginMeta.objects.get(plugin_id=kwargs.get("pk"))
+            plugin = CollectorPluginMeta.objects.get(plugin_id=kwargs.get("plugin_id"))
         except CollectorPluginMeta.DoesNotExist:
             raise PluginIDNotExist
 
