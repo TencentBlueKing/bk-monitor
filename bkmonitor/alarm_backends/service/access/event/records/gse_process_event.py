@@ -139,3 +139,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
             "process_name": dimension.get("process_name", ""),
             "agent_version": dimension.get("agent_version", ""),
         }
+
+    def clean_dimension_fields(self):
+        fields = super().clean_dimension_fields()
+        fields += ["process_index", "process_group_id", "process_name"]
