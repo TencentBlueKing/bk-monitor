@@ -103,6 +103,7 @@ from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class SearchViewSet(APIViewSet):
@@ -454,6 +455,7 @@ class SearchViewSet(APIViewSet):
             query_handler = UnifyQueryContextHandler(params)
             return Response(query_handler.search())
         else:
+            data.update({"search_type_tag": "context"})
             query_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(query_handler.search_context())
 
@@ -507,12 +509,16 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = request.data
-        data.update({"search_type_tag": "tail"})
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             params = build_tail_params(data)
             query_handler = UnifyQueryTailHandler(params)
             return Response(query_handler.search())
         else:
+            data.update({"search_type_tag": "tail"})
             query_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(query_handler.search_tail_f())
 
