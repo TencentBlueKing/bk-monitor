@@ -2792,7 +2792,7 @@ class UnionSearchHandler(object):
         return res
 
     def unifyquery_union_search(self, is_export=False):
-        from apps.log_unifyquery.handler.handler import UnifyQueryHandler
+        from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
         if not index_set_objs:

@@ -618,7 +618,7 @@ class IndexSetHandler(APIModel):
         """
         查询索引集存储的日用量和总用量
         """
-        from apps.log_unifyquery.handler.handler import UnifyQueryHandler
+        from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 
         multi_execute_func = MultiExecuteFunc(max_workers=10)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
@@ -639,7 +639,7 @@ class IndexSetHandler(APIModel):
                     "end_time": int(current_time.timestamp()),
                 }
                 multi_execute_func.append(
-                    result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
+                    result_key=f"daily_count_{index_set_id}", func=UnifyQueryFieldHandler(params).get_total_count
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception("query storage usage info error, index_set_id->%s, reason: %s", index_set_id, e)
@@ -1466,13 +1466,17 @@ class BaseIndexSetHandler(object):
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id, collector_config_id, indexes):
+    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
+        if clustered_rt:
+            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
         if collector_config_id:
             return ",".join([index["result_table_id"] for index in indexes])
         return f"bklog_index_set_{str(index_set_id)}.__default__"
 
     @staticmethod
-    def get_data_label(scenario_id, index_set_id):
+    def get_data_label(scenario_id, index_set_id, clustered_rt=None):
+        if clustered_rt:
+            return f"{scenario_id}_index_set_{str(index_set_id)}_clustered"
         return f"{scenario_id}_index_set_{str(index_set_id)}"
 
     def post_create(self, index_set):
