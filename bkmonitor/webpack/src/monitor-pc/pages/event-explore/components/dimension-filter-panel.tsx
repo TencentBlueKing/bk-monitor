@@ -132,7 +132,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
     this.selectField = item;
-    if (!item.is_option_enabled) return;
+    if (!item.is_option_enabled || !this.fieldListCount[item.name]) return;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
@@ -280,8 +280,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
               <div
                 key={item.name}
                 v-bk-tooltips={{
-                  content: this.$t('该维度暂无数据，无法进行统计分析'),
-                  disabled: item.is_option_enabled,
+                  content: this.$t(
+                    item.is_option_enabled ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'
+                  ),
+                  disabled: item.is_option_enabled && this.fieldListCount[item.name],
                   interactive: false,
                   placement: 'right',
                 }}
@@ -290,7 +292,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                   class={{
                     'dimension-item': true,
                     active: this.selectField?.name === item.name,
-                    disabled: !item.is_option_enabled,
+                    disabled: !item.is_option_enabled || !this.fieldListCount[item.name],
                   }}
                   onClick={e => this.handleDimensionItemClick(e, item)}
                 >
