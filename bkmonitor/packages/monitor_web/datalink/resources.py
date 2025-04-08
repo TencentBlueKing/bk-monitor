@@ -652,7 +652,7 @@ class StorageStatusResource(BaseStatusResource):
 
     def perform_request(self, params):
         try:
-            collect_config = CollectConfigMeta.objects.select_related("plugin").get(id=params["collect_config_id"])
+            collect_config = CollectConfigMeta.objects.get(id=params["collect_config_id"])
         except CollectConfigMeta.DoesNotExist:
             return {}
 

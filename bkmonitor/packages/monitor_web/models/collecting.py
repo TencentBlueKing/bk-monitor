@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
 from constants.cmdb import TargetNodeType, TargetObjectType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from monitor_web.collecting.constant import (
     OperationResult,
@@ -73,14 +74,13 @@ class CollectConfigMeta(OperateRecordModelBase):
         (TargetObjectType.CLUSTER, _lazy("集群")),
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
     name = models.CharField("配置名称", max_length=128)
 
     # 采集插件相关配置
     collect_type = models.CharField("采集方式", max_length=32, choices=COLLECT_TYPE_CHOICES, db_index=True)
-    plugin = models.ForeignKey(
-        CollectorPluginMeta, verbose_name="关联插件", related_name="collect_configs", on_delete=models.CASCADE
-    )
+    plugin_id = models.CharField("插件ID", max_length=64)
 
     # 采集目标相关配置
     # 取值范围
@@ -96,6 +96,13 @@ class CollectConfigMeta(OperateRecordModelBase):
     operation_result = models.CharField("最近一次任务结果", max_length=32, choices=OPERATION_RESULT_CHOICES)
 
     label = models.CharField("二级标签", max_length=64, default="")
+
+    @property
+    def plugin(self) -> CollectorPluginMeta:
+        """
+        获取插件（注意不要在循环中使用，否则会触发N+1问题）
+        """
+        return CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
 
     def check_task_is_ready(self, deploying_mapping):
         """

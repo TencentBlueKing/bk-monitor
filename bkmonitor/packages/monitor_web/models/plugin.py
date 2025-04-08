@@ -26,6 +26,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.utils.db.fields import JsonField, YamlField
 from bkmonitor.utils.user import get_global_user
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.constants import EVENT_TYPE
@@ -60,7 +61,9 @@ class CollectorPluginMeta(OperateRecordModelBase):
 
     VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP, PluginType.K8S]
 
-    plugin_id = models.CharField("插件ID", max_length=64, primary_key=True)
+    id = models.BigAutoField("ID", primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    plugin_id = models.CharField("插件ID", max_length=64)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     bk_supplier_id = models.IntegerField("开发商ID", default=0, blank=True)
     plugin_type = models.CharField("插件类型", max_length=32, choices=PLUGIN_TYPE_CHOICES, db_index=True)
@@ -70,6 +73,25 @@ class CollectorPluginMeta(OperateRecordModelBase):
 
     def __str__(self):
         return f"{self.plugin_type}-{self.plugin_id}"
+
+    class Meta:
+        unique_together = ["bk_tenant_id", "plugin_id"]
+
+    @property
+    def versions(self):
+        """
+        插件版本
+        """
+        return PluginVersionHistory.objects.filter(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
+
+    @property
+    def collect_configs(self):
+        """
+        采集配置
+        """
+        from monitor_web.models.collecting import CollectConfigMeta
+
+        return CollectConfigMeta.objects.filter(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
 
     @property
     def is_global(self):
@@ -830,9 +852,8 @@ class PluginVersionHistory(OperateRecordModelBase):
         (Stage.RELEASE, _lazy("发布版本")),
     )
 
-    plugin = models.ForeignKey(
-        CollectorPluginMeta, verbose_name="插件元信息", related_name="versions", on_delete=models.CASCADE
-    )
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    plugin_id = models.CharField("插件ID", max_length=64)
     stage = models.CharField("版本阶段", choices=STAGE_CHOICES, default=Stage.UNREGISTER, max_length=30)
     config = models.ForeignKey(
         CollectorPluginConfig, verbose_name="插件功能配置", related_name="version", on_delete=models.CASCADE
@@ -845,6 +866,23 @@ class PluginVersionHistory(OperateRecordModelBase):
     signature = YamlField("版本签名", default="")
     version_log = models.CharField("版本修改日志", max_length=100, default="")
     is_packaged = models.BooleanField("是否已上传到节点管理", default=False)
+
+    @property
+    def plugin(self) -> CollectorPluginMeta:
+        """
+        获取插件（注意不要直接在循环中直接使用，需要另外进行plugin的批量查询，否则会触发N+1问题）
+        """
+        if getattr(self, "_plugin", None):
+            return self._plugin
+
+        return CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
+
+    @plugin.setter
+    def plugin(self, value: CollectorPluginMeta):
+        """
+        设置插件
+        """
+        self._plugin = value
 
     @property
     def os_type_list(self):
@@ -1000,7 +1038,7 @@ class PluginVersionHistory(OperateRecordModelBase):
 
     class Meta:
         ordering = ["config_version", "info_version", "create_time", "update_time"]
-        unique_together = ["plugin", "config_version", "info_version"]
+        unique_together = ["bk_tenant_id", "plugin_id", "config_version", "info_version"]
 
     def __str__(self):
         return "{}-{}".format(self.plugin_id, self.version)

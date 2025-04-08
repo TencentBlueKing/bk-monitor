@@ -243,8 +243,6 @@ class CollectConfigListResource(Resource):
         return is_need_upgrade
 
     def exists_by_biz(self, bk_biz_id):
-        config_list = CollectConfigMeta.objects.select_related("plugin")
-
         space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
         data_sources = api.metadata.query_data_source_by_space_uid(
             space_uid_list=[space.space_uid], is_platform_data_id=True
@@ -258,7 +256,7 @@ class CollectConfigListResource(Resource):
                 plugin_ids.append(plugin['plugin_id'])
 
         filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
-        return config_list.filter(filter_condition).exists()
+        return CollectConfigMeta.objects.filter(filter_condition).exists()
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data.get("bk_biz_id")
@@ -285,7 +283,7 @@ class CollectConfigListResource(Resource):
         # 获取全量的采集配置数据（包含外键数据）filter(**search_dict)
         config_list = (
             CollectConfigMeta.objects.filter(*new_search)
-            .select_related("plugin", "deployment_config__plugin_version")
+            .select_related("deployment_config__plugin_version")
             .order_by("-id")
         )
 
@@ -364,7 +362,7 @@ class CollectConfigListResource(Resource):
                     "task_status": status["task_status"],
                     "target_object_type": item.target_object_type,
                     "target_node_type": item.deployment_config.target_node_type,
-                    "plugin_id": item.plugin.plugin_id,
+                    "plugin_id": item.plugin_id,
                     "target_nodes_count": len(item.deployment_config.target_nodes),
                     "need_upgrade": self.need_upgrade(item),
                     "config_version": item.deployment_config.plugin_version.config_version,
@@ -1154,7 +1152,7 @@ class UpgradeCollectPluginResource(Resource):
             )
 
         try:
-            collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 pk=data["id"], bk_biz_id=data["bk_biz_id"]
             )
             SaveCollectConfigResource.update_password_inplace(data, collect_config)
@@ -1167,9 +1165,7 @@ class UpgradeCollectPluginResource(Resource):
 
         # 升级采集配置，主动更新指标缓存表
         result_table_id_list = [
-            "{}_{}.{}".format(
-                collect_config.plugin.plugin_type.lower(), collect_config.plugin.plugin_id, metric_msg["table_name"]
-            )
+            "{}_{}.{}".format(collect_config.collect_type.lower(), collect_config.plugin_id, metric_msg["table_name"])
             for metric_msg in collect_config.plugin.current_version.info.metric_json
         ]
         append_metric_list_cache.delay(result_table_id_list)

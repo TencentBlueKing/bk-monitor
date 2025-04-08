@@ -369,12 +369,12 @@ class GetObservationSceneList(Resource):
         collect_configs: List[CollectConfigMeta] = list(
             CollectConfigMeta.objects.filter(
                 bk_biz_id=bk_biz_id, collect_type__in=[PluginType.SNMP_TRAP, PluginType.LOG]
-            ).select_related("plugin")
+            )
         )
         id__event_group_name_map: Dict[int, str] = {}
         for collect_config in collect_configs:
             id__event_group_name_map[collect_config.id] = "{}_{}".format(
-                collect_config.plugin.plugin_type, collect_config.plugin.plugin_id
+                collect_config.collect_type, collect_config.plugin_id
             )
 
         event_group_name__info_map: Dict[str, Dict[str, Any]] = {}
@@ -384,7 +384,7 @@ class GetObservationSceneList(Resource):
             event_group_name__info_map[event_group_info["name"]] = event_group_info
 
         for collect_config in collect_configs:
-            event_group_name: str = "{}_{}".format(collect_config.plugin.plugin_type, collect_config.plugin.plugin_id)
+            event_group_name: str = "{}_{}".format(collect_config.collect_type, collect_config.plugin_id)
             group_info: Optional[Dict[str, Any]] = event_group_name__info_map.get(event_group_name)
             if not group_info:
                 continue
