@@ -394,7 +394,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
-    def nw_tpl_prom_with_rate(self, metric_name, exclude="pod"):
+    def nw_tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""label_replace(sum by (namespace, ingress, service, pod) {self.label_join(exclude)}
@@ -648,7 +648,7 @@ class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSIngress
     column_mapping = {"ingress": "name"}
 
-    def tpl_prom_with_rate(self, metric_name, exclude="pod"):
+    def tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
         """
                 promql示例:
                 sum by (ingress, namespace) (count by (ingress, namespace, service, pod)
@@ -676,7 +676,7 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSService
     column_mapping = {"service": "name"}
 
-    def tpl_prom_with_rate(self, metric_name, exclude="pod"):
+    def tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""sum by (namespace, ingress, service) {self.label_join(exclude)}

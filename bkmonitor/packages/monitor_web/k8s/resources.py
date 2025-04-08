@@ -436,14 +436,11 @@ class ListK8SResources(Resource):
             # 网络场景默认指标，用nw_container_network_receive_bytes_total
             if not column.startswith("nw_"):
                 column = "nw_container_network_receive_bytes_total"
-            # 网络场景，pod不需要workload相关信息
-            if resource_meta.resource_field == "pod_name":
-                resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
 
         # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
         if scenario == "capacity":
             column = "node_boot_time_seconds"
-            
+
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -461,6 +458,9 @@ class ListK8SResources(Resource):
         # promql 查询数据量不足，从db中补充
         try:
             meta_resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            if resource_meta.resource_field == "pod_name" and scenario == "network":
+                # 网络场景，pod不需要workload相关信息
+                [rs.pop("workload") for rs in meta_resource_list]
         except FieldError:
             meta_resource_list = []
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
