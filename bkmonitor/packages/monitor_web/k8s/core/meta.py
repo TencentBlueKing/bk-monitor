@@ -106,8 +106,13 @@ class NetworkWithRelation:
     """网络场景，层级关联支持"""
 
     def label_join(self, filter_exclude=""):
+        label_filters = FilterCollection(self)
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type != "pod":
+                label_filters.add(r_filter)
+
         return f"""(count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{{{self.filter.filter_string(exclude=filter_exclude)}}})
+            (ingress_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}})
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
             * on (namespace, pod) group_left()"""
@@ -394,7 +399,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
-    def nw_tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
+    def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""label_replace(sum by (namespace, ingress, service, pod) {self.label_join(exclude)}
@@ -648,7 +653,7 @@ class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSIngress
     column_mapping = {"ingress": "name"}
 
-    def tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
         """
                 promql示例:
                 sum by (ingress, namespace) (count by (ingress, namespace, service, pod)
@@ -676,7 +681,7 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSService
     column_mapping = {"service": "name"}
 
-    def tpl_prom_with_rate(self, metric_name, exclude="pod_name"):
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""sum by (namespace, ingress, service) {self.label_join(exclude)}
