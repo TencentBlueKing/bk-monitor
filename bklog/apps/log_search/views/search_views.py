@@ -61,6 +61,7 @@ from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
+    IndexSetCustomConfigHandler,
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
     UserIndexSetConfigHandler,
@@ -78,6 +79,7 @@ from apps.log_search.serializers import (
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
+    IndexSetCustomConfigSerializer,
     IndexSetFieldsConfigListSerializer,
     OriginalSearchAttrSerializer,
     QueryStringSerializer,
@@ -907,6 +909,10 @@ class SearchViewSet(APIViewSet):
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
         fields.update({"user_custom_config": index_set_config})
+
+        # 添加索引集自定义配置
+        custom_config = IndexSetCustomConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
+        fields.update({"custom_config": custom_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1694,6 +1700,42 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UserIndexSetCustomConfigSerializer)
         return Response(
             UserIndexSetConfigHandler(
+                index_set_id=data.get("index_set_id"),
+                index_set_ids=data.get("index_set_ids"),
+                index_set_type=data["index_set_type"],
+            ).update_or_create(index_set_config=data["index_set_config"])
+        )
+
+    @list_route(methods=["POST"], url_path="custom_config")
+    def update_or_create_index_set_config(self, request):
+        """
+        @api {post} /search/index_set/custom_config/ 更新或创建索引集自定义配置
+        @apiDescription 更新或创建索引集自定义配置
+        @apiName custom_config
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 7,
+                "index_set_id": 495,
+                "index_set_ids": [],
+                "index_set_hash": "35051070e572e47d2c26c241ab88307f",
+                "index_set_config": {
+                    "fields_width": {
+                        "dtEventTimeStamp": 12,
+                        "serverIp": 15,
+                        "log": 80
+                    }
+                }
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(IndexSetCustomConfigSerializer)
+        return Response(
+            IndexSetCustomConfigHandler(
                 index_set_id=data.get("index_set_id"),
                 index_set_ids=data.get("index_set_ids"),
                 index_set_type=data["index_set_type"],
