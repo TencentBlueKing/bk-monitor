@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import time
 from collections import OrderedDict
-from typing import Any, Dict, List,Literal
+from typing import Any, Dict, List, Literal
 
 from django.core.exceptions import FieldError
 from django.core.paginator import Paginator
@@ -237,6 +237,7 @@ class GetResourceDetail(Resource):
         workload_type: str = serializers.CharField(required=False, allow_null=True)
         service_name: str = serializers.CharField(required=False, allow_null=True)
         ingress_name: str = serializers.CharField(required=False, allow_null=True)
+        node_name: str = serializers.CharField(requered=False, allow_null=True)
 
     def validate_request_data(self, request_data: Dict):
         resource_type = request_data["resource_type"]
@@ -255,6 +256,9 @@ class GetResourceDetail(Resource):
             self.validate_field_exist(resource_type, fields, request_data)
         elif resource_type == "ingress":
             fields = ["ingress_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "node":
+            fields = ["node_name"]
             self.validate_field_exist(resource_type, fields, request_data)
 
         return super().validate_request_data(request_data)
@@ -378,6 +382,7 @@ class GetResourceDetail(Resource):
                 resource.scene_view.get_kubernetes_ingress,
                 ["namespace", "ingress_name"],
             ],
+            "node": [resource.scene_view.get_kubernetes_node, ["node_name"]],
         }
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
@@ -611,6 +616,19 @@ class ResourceTrendResource(Resource):
                 "nw_container_network_receive_errors_total",
                 "nw_container_network_receive_packets_total",
                 "nw_container_network_transmit_packets_total",
+                "node_cpu_seconds_total",
+                "node_cpu_capacity_ratio",
+                "node_cpu_usage_ratio",
+                "node_memory_working_set_bytes",
+                "node_memory_capacity_ratio",
+                "node_memory_usage_ratio",
+                "master_node_count",
+                "worker_node_count",
+                "node_pod_usage",
+                "node_network_receive_bytes_total",
+                "node_network_transmit_bytes_total",
+                "node_network_receive_packets_total",
+                "node_network_transmit_packets_total",
             ],
         )
         resource_type = serializers.ChoiceField(
