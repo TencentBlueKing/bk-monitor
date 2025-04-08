@@ -113,8 +113,9 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import DEFAULT_TIME_FIELD
-from apps.log_search.models import LogIndexSet
+from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_search.views.aggs_views import AggsViewAdapter
 from apps.log_trace.serializers import DateHistogramSerializer
 from apps.utils.drf import custom_params_valid
@@ -1743,6 +1744,47 @@ class DataFlowHandler(BaseAiopsHandler):
         #  填充签名字段打平节点-聚类结果表输出RT
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
         clustering_config.save()
+        # 创建聚类结果表路由信息
+        index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set:
+            try:
+                TransferApi.create_or_update_es_router(
+                    {
+                        "cluster_id": index_set.storage_cluster_id,
+                        "index_set": clustering_config.clustered_rt,
+                        "source_type": Scenario.BKDATA,
+                        "data_label": BaseIndexSetHandler.get_data_label(Scenario.BKDATA, index_set.index_set_id,
+                                                                         clustered_rt=clustering_config.clustered_rt),
+                        "table_id": BaseIndexSetHandler.get_rt_id(index_set.index_set_id,
+                                                                  index_set.collector_config_id,
+                                                                  [], clustered_rt=clustering_config.clustered_rt),
+                        "space_id": index_set.space_uid.split("__")[-1],
+                        "space_type": index_set.space_uid.split("__")[0],
+                        "need_create_index": False,
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": index_set.time_field,
+                                        "type": index_set.time_field_type,
+                                        "unit": index_set.time_field_unit
+                                        if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": "true",
+                            },
+                        ],
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"创建/更新索引({index_set.index_set_id})聚类es路由失败，原因：{e}")
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
