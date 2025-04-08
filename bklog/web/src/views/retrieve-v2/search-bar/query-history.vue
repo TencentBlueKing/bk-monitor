@@ -18,12 +18,12 @@
             @click="handleClickHistory(item)"
           >
             <div class="item-text">
-              <div
-                class="icon"
+              <sapn
+                class="bklog-icon"
                 :class="getClass(item.search_mode)"
               >
-                {{ getText(item.search_mode) }}
-              </div>
+                <!-- {{ getText(item.search_mode) }} -->
+              </sapn>
 
               <div
                 class="text"
@@ -75,8 +75,8 @@
     methods: {
       getClass(searchMode) {
         const classMap = {
-          ui: 'bklog-c-ui',
-          sql: 'bklog-c-sql',
+          ui: 'bklog-ui1',
+          sql: 'bklog-yuju1',
         };
         return classMap[searchMode] || '';
       },
@@ -89,7 +89,7 @@
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
-        const popoverWidth = '350px';
+        const popoverWidth = '560px';
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.historyUlRef,
           trigger: 'manual',

@@ -67,13 +67,13 @@
 
     @include flex-align;
 
-    .icon {
+    .bklog-icon {
       display: inline-block;
-      min-width: 16px;
-      height: 16px;
+      min-width: 14px;
+      height: 14px;
       margin-right: 4px;
       font-size: 12px;
-      line-height: 16px;
+      line-height: 14px;
       color: #fff;
       text-align: center;
       white-space: nowrap;
@@ -82,17 +82,17 @@
 
     .text {
       overflow: hidden;
+      color: #313238;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .bklog-c-ui {
-      background: #ffb848;
+    .bklog-ui1 {
+      background: #A3B1CC;
     }
 
-    .bklog-c-sql {
-      font-size: 8px;
-      background: #14b1c7;
+    .bklog-yuju1{
+      background: #94C2BD;
     }
 
     .item-text {
