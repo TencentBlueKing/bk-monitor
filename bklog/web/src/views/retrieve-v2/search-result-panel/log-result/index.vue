@@ -44,7 +44,7 @@
           class="bklog-option-item"
           :value="showRowIndex"
           theme="primary"
-          @change="handleShowRowIndexChange"
+          @change="val => handleStorageChange(val, 'tableShowRowIndex')"
         >
           <span class="switch-label">{{ $t('显示行号') }}</span>
         </bk-checkbox>
@@ -53,7 +53,7 @@
           class="bklog-option-item"
           v-model="expandTextView"
           theme="primary"
-          @change="handleChangeExpandView"
+          @change="val => handleStorageChange(val, 'isLimitExpandView')"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
         </bk-checkbox>
@@ -62,7 +62,7 @@
           class="bklog-option-item"
           :value="isWrap"
           theme="primary"
-          @change="handleChangeIsWarp"
+          @change="val => handleStorageChange(val, 'tableLineIsWrap')"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
 
@@ -71,18 +71,9 @@
           class="bklog-option-item"
           :value="isJsonFormat"
           theme="primary"
-          @change="handleJsonFormat"
+          @change="val => handleStorageChange(val, 'tableJsonFormat')"
           ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
         >
-        <!-- <bk-checkbox
-          style="margin: 0 12px 0 0"
-          value="false"
-          theme="primary"
-        >
-          <span class="switch-label">
-            {{ $t('转换时间字段') }}
-          </span>
-        </bk-checkbox> -->
 
         <bk-input
           v-if="isJsonFormat"
@@ -100,7 +91,7 @@
           class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"
-          @change="handleEmptyFieldFormat"
+          @change="val => handleStorageChange(val, 'tableAllowEmptyField')"
         >
           <span class="switch-label">
             {{ $t('展示空字段') }}
@@ -112,21 +103,22 @@
         class="tools-more"
       >
         <div class="operation-icons">
-          <bk-input
-            style="width: 240px"
-            v-model="highlightValue"
-            placeholder="输入后按 Enter..."
-            @enter="handleHighlightEnter"
-          >
-            <template slot="prepend">
-              <div
-                class="group-text"
-                style="width: 40px; padding: 0px 0px; color: #4d4f56; text-align: center; background: #fafbfd"
-              >
-                高亮
-              </div>
-            </template>
-          </bk-input>
+          <div class="group-text light-search">
+            <label>高亮</label>
+            <bklogTagChoice
+              :foucsFixed="true"
+              minHeight="30px"
+              maxWidth="400px"
+              minWidth="200px"
+              v-model="highlightValue"
+              placeholder="输入后按 Enter..."
+              template="tag-input"
+              @change="handleHighlightEnter"
+            >
+              <template slot="prepend"> </template>
+            </bklogTagChoice>
+          </div>
+
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -187,12 +179,14 @@
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
   import RetrieveHelper from '../../../retrieve-helper';
+  import bklogTagChoice from '../../search-bar/bklog-tag-choice';
 
   export default {
     components: {
       TableLog,
       FieldsSetting,
       ExportLog,
+      bklogTagChoice,
     },
     inheritAttrs: false,
     props: {
@@ -211,7 +205,7 @@
     },
     data() {
       return {
-        highlightValue: '',
+        highlightValue: [],
         contentType: 'table',
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
@@ -284,7 +278,7 @@
     },
     methods: {
       handleHighlightEnter() {
-        RetrieveHelper.highLightKeywords(this.highlightValue.split(' ').filter(w => w.length > 0));
+        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       },
       // 字段设置
       handleDropdownShow() {
@@ -316,20 +310,8 @@
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
         RetrieveHelper.highLightKeywords(null, false);
       },
-      handleShowRowIndexChange(val) {
-        this.$store.commit('updateStorage', { tableShowRowIndex: val });
-      },
-      handleChangeExpandView(val) {
-        this.$store.commit('updateStorage', { isLimitExpandView: val });
-      },
-      handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWrap', val);
-      },
-      handleJsonFormat(val) {
-        this.$store.commit('updateStorage', { tableJsonFormat: val });
-      },
-      handleEmptyFieldFormat(val) {
-        this.$store.commit('updateStorage', { tableAllowEmptyField: val });
+      handleStorageChange(val, key) {
+        this.$store.commit('updateStorage', { [key]: val });
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);
@@ -393,6 +375,32 @@
           width: 16px;
           font-size: 16px;
           color: #4d4f56;
+        }
+      }
+
+      .light-search {
+        display: flex;
+        align-items: center;
+
+        height: 32px;
+        background: #ffffff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+
+        font-size: 12px;
+        color: #4d4f56;
+
+        label {
+          width: 40px;
+          padding: 0px 0px;
+          color: #4d4f56;
+          text-align: center;
+          background: #fafbfd;
+          border-right: 1px solid #c4c6cc;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       }
 

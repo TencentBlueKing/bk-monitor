@@ -31,7 +31,6 @@ import useLocale from '../../../hooks/use-locale';
 import useResizeObserve from '../../../hooks/use-resize-observe';
 
 import './bklog-tag-choice.scss';
-import { index } from '../../../services/indexSet';
 
 export default defineComponent({
   model: {
@@ -89,8 +88,17 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 模板
+     * tag-choice：下拉弹出，支持键入标签
+     * tag-input：输入框，支持键入标签，没有下拉
+     */
+    template: {
+      type: String,
+      default: 'tag-choice',
+    },
   },
-  emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter'],
+  emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
   setup(props, { slots, emit }) {
     const isListOpended = ref(false);
     const refRootElement: Ref<HTMLElement> = ref(null);
@@ -121,7 +129,13 @@ export default defineComponent({
     const { t } = useLocale();
 
     useResizeObserve(refRootElement, entry => {
-      containerWidth.value = (entry.target as HTMLElement).offsetWidth;
+      const newWidth = (entry.target as HTMLElement).offsetWidth;
+
+      if (newWidth !== containerWidth.value) {
+        containerWidth.value = newWidth;
+        fixedInstance?.repositionTippyInstance();
+        popInstance?.repositionTippyInstance();
+      }
     });
 
     const containerStyle = computed(() => {
@@ -151,7 +165,7 @@ export default defineComponent({
       e.preventDefault();
     };
 
-    if (!props.foucsFixed) {
+    if (!props.foucsFixed && props.template === 'tag-choice') {
       popInstance = new PopInstanceUtil({
         refContent: () => refChoiceList.value,
         arrow: false,
@@ -353,13 +367,15 @@ export default defineComponent({
      * @param e
      */
     const handleInputKeyup = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && inputTagValue.value.length) {
         stopDefaultPrevented(e);
 
         emitValue(inputTagValue.value);
-        emit('custom-tag-enter');
         clearInputTag();
+        emit('custom-tag-enter');
       }
+
+      emit('enter');
     };
 
     const handleDeleteAllClick = e => {
@@ -394,7 +410,6 @@ export default defineComponent({
         const maxWidth = Math.min(charLen * INPUT_MIN_WIDTH, maxTagWidthNumber.value);
 
         target.style.setProperty('width', `${maxWidth}px`);
-        // popInstance.repositionTippyInstance();
         setFixedOverflowY();
       }
     };
@@ -534,6 +549,13 @@ export default defineComponent({
     const inputWidth = 12;
     const hiddenItemCount = ref(0);
     const hiddenItemIndex = ref([]);
+    const getMaxWidth = () => {
+      if (props.maxWidth) {
+        return parseFloat(props.maxWidth.replace('px', ''));
+      }
+
+      return refRootElement.value?.offsetWidth ?? 0;
+    };
 
     const calcItemEllipsis = () => {
       if (isInputFocused.value) {
@@ -546,11 +568,12 @@ export default defineComponent({
 
       return new Promise(resolve => {
         nextTick(() => {
-          const { offsetHeight, scrollHeight, offsetWidth } = (refRootElement.value ?? {}) as HTMLElement;
+          const maxWidth = getMaxWidth();
+          const { offsetHeight, scrollHeight } = (refRootElement.value ?? {}) as HTMLElement;
           if (offsetHeight < scrollHeight) {
             const childList = Array.from(refTagInputContainer.value.children ?? []);
             let width = 0;
-            const avalibleWidth = offsetWidth - closeTagWidth - inputWidth;
+            const avalibleWidth = maxWidth - closeTagWidth - inputWidth;
 
             childList.forEach((item: HTMLElement, index) => {
               if (!item.hasAttribute('data-ignore-element')) {
@@ -742,6 +765,10 @@ export default defineComponent({
     };
 
     const renderOptionList = () => {
+      if (props.template === 'tag-input') {
+        return;
+      }
+
       if (!optionList.value.length) {
         return <div class='empty-row'>{t('暂无数据')}</div>;
       }
@@ -833,6 +860,30 @@ export default defineComponent({
       });
     };
 
+    const getTagOptionsRender = () => {
+      if (props.template === 'tag-input') {
+        return null;
+      }
+
+      return [
+        renderInputTag(),
+        <div
+          class='bklog-choice-value-container'
+          v-bkloading={{ isLoading: props.loading, size: 'small' }}
+        >
+          {renderOptionList()}
+        </div>,
+      ];
+    };
+
+    const getDropdownRender = () => {
+      if (props.template === 'tag-choice') {
+        return <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>;
+      }
+
+      return null;
+    };
+
     return () => (
       <div
         ref={refRootElement}
@@ -845,10 +896,12 @@ export default defineComponent({
             'has-hidden-item': hiddenItemCount.value > 0,
             'is-focus-fixed': props.foucsFixed,
             'is-ellipsis': isFixedOverflowY.value,
+            template: props.template,
           },
         ]}
         onClick={handleContainerClick}
       >
+        {slots.prepend?.()}
         <span
           ref={refFixedPointerElement}
           class='hidden-fixed-pointer'
@@ -858,6 +911,7 @@ export default defineComponent({
           style={rootStyle.value}
           class={[
             'bklog-tag-choice-input',
+            props.template,
             { 'is-focus': isInputFocused.value, 'is-ellipsis': isFixedOverflowY.value },
           ]}
           data-placeholder={placeholderText.value}
@@ -870,7 +924,7 @@ export default defineComponent({
             +{hiddenItemCount.value}
           </li>
         </ul>
-        <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>
+        {getDropdownRender()}
         <span
           class='bk-icon icon-close-circle-shape delete-all-tags'
           onClick={handleDeleteAllClick}
@@ -881,13 +935,7 @@ export default defineComponent({
             style={containerStyle.value}
             class='bklog-tag-choice-list'
           >
-            {renderInputTag()}
-            <div
-              class='bklog-choice-value-container'
-              v-bkloading={{ isLoading: props.loading, size: 'small' }}
-            >
-              {renderOptionList()}
-            </div>
+            {getTagOptionsRender()}
           </div>
         </div>
       </div>

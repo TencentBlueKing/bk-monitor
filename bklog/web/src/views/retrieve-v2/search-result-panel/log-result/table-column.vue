@@ -27,8 +27,7 @@
 <template>
   <div
     class="bklog-column-wrapper"
-    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-    @click.stop="handleClickContent"
+    v-bk-tooltips="{ content: $t('查看调用链'), delay: 500 }"
   >
     <template v-if="isJsonFormat">
       <JsonFormatter
@@ -68,10 +67,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -111,10 +107,6 @@
       },
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
-
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了

@@ -85,6 +85,12 @@
       .bklog-row-cell {
         padding: 4px 12px;
         line-height: 22px;
+        align-self: flex-start;
+
+        &.left,
+        &.right {
+          align-self: stretch;
+        }
 
         .bklog-expand-icon {
           position: relative;
@@ -144,7 +150,8 @@
 
         &.header-cell {
           position: relative;
-          display: inline;
+          display: inline-flex;
+          align-items: center;
           height: 32px;
 
           font-family: var(--table-fount-family);
@@ -169,9 +176,9 @@
           .bklog-header-cell {
             display: flex;
             align-items: center;
-            height: 32px;
+            height: auto;
             font-weight: bold;
-            line-height: 32px;
+            line-height: 1;
             color: #313238;
             font-family: Roboto-Regular;
             .bk-table-caret-wrapper {

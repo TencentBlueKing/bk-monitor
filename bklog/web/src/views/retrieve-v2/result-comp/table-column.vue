@@ -25,15 +25,11 @@
 -->
 
 <template>
-  <div
-    class="bklog-column-container"
-    @click.stop
-  >
+  <div class="bklog-column-container">
     <!-- eslint-disable vue/no-v-html -->
     <span
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-      :class="['field-container', 'add-to', { active: hasClickEvent }]"
-      @click.stop="handleClickContent"
+      v-bk-tooltips="{ content: $t('查看调用链'), delay: 500 }"
+      :class="['field-container', 'add-to']"
     >
       <template v-if="isJsonFormat">
         <JsonFormatter
@@ -67,10 +63,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -98,10 +91,6 @@
       this.unregisterOberver();
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
-
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
