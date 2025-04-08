@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Union
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -20,6 +20,7 @@ from rest_framework import serializers
 from api.itsm.default import TokenVerifyResource
 from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.resource import ApmApplication
 from bkmonitor.models.external_iam import (
@@ -266,13 +267,17 @@ class CreateOrUpdateExternalPermission(Resource):
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
         """
-        biz = resource.cc.get_app_by_id(params["bk_biz_id"])
-        bk_biz_name = biz.bk_biz_name
+        # 如果是非cmdb业务，尝试获取关联cmdb业务，用于审批单据
+        space: Space = SpaceApi.get_space_detail(params["bk_biz_id"])
+        related_space: Union[Space, None] = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
+        if not related_space:
+            raise Exception(f"create approval ticket failed, related space not found, space_uid: {space.space_uid}")
+
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
-                {"key": "bk_biz_id", "value": params["bk_biz_id"]},
-                {"key": "bk_biz_name", "value": bk_biz_name},
+                {"key": "bk_biz_id", "value": related_space.bk_biz_id},
+                {"key": "bk_biz_name", "value": related_space.space_name},
                 {"key": "title", "value": "对外版监控平台授权审批"},
                 {"key": "expire_time", "value": params["expire_time"].strftime("%Y-%m-%d %H:%M:%S")},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
@@ -282,6 +287,7 @@ class CreateOrUpdateExternalPermission(Resource):
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
+
         try:
             data = api.itsm.create_fast_approval_ticket(ticket_data)
         except Exception as e:
