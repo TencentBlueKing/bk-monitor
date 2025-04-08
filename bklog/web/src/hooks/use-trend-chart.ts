@@ -138,11 +138,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     for (const [name, seconds] of intervals) {
       const segments = Math.ceil(duration / seconds);
       if (segments >= barCount) {
+        runningInterval = name;
         return name;
       }
     }
 
-    return intervals[intervals.length - 1]?.[0] ?? '1s';
+    runningInterval = intervals[intervals.length - 1]?.[0] ?? '1s';
+    return runningInterval;
   };
 
   // 时间向下取整
