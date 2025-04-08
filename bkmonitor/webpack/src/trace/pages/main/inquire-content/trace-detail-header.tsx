@@ -29,6 +29,8 @@ import { useI18n } from 'vue-i18n';
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
+import AiSmallWhaleImage from '../../../static/img/ai-small-whale.svg';
+
 import './trace-detail-header.scss';
 
 const traceHeaderProps = {
@@ -76,17 +78,22 @@ export default defineComponent({
         width: 200,
       });
     };
+
+    // const handleAiBtn = () => {
+    // }
+
     return {
       handleCopy,
+      // handleAiBtn,
     };
   },
 
   render() {
-    const { isInTable, traceId } = this.$props;
+    const { isInTable: sideSlider, traceId } = this.$props;
 
     return (
-      <div class={`trace-detail-header ${isInTable ? 'is-in-table' : ''}`}>
-        <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
+      <div class={`trace-detail-header ${sideSlider ? 'in-side-slider' : ''}`}>
+        <span class='trace-id'>{sideSlider ? `Trace ID：${traceId}` : traceId}</span>
         <Popover
           content={this.$t('复制 TraceID')}
           placement='right'
@@ -107,6 +114,16 @@ export default defineComponent({
             onClick={() => this.handleCopy('link')}
           />
         </Popover>
+        {sideSlider && (
+          <div class='ai-wrap'>
+            <img
+              class='ai-img'
+              alt='empty'
+              src={AiSmallWhaleImage}
+              // onClick={this.handleAiBtn}
+            />
+          </div>
+        )}
       </div>
     );
   },
