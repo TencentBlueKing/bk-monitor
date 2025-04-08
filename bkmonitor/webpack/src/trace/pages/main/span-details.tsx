@@ -32,7 +32,7 @@ import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
-import { query } from 'monitor-api/modules/apm_profile';
+import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
@@ -710,24 +710,21 @@ export default defineComponent({
       const halfHour = 18 * 10 ** 8;
       const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
       const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
-      const data: IFlameGraphDataItem =
-        (
-          await query(
-            {
-              bk_biz_id: bizId,
-              app_name: appName.value,
-              service_name: serviceNameProvider.value,
-              start: profilingRerieveStartTime,
-              end: profilingRerieveEndTime,
-              profile_id: originalData.value.span_id,
-              diagram_types: ['flamegraph'],
-            },
-            {
-              needCancel: true,
-            }
-          ).catch(() => false)
-        )?.flame_data ?? false;
-      profilingFlameGraph.value = data;
+      const data: IFlameGraphDataItem = await apmProfileQuery(
+        {
+          bk_biz_id: bizId.value,
+          app_name: appName.value,
+          service_name: serviceNameProvider.value,
+          start: profilingRerieveStartTime,
+          end: profilingRerieveEndTime,
+          profile_id: originalData.value.span_id,
+          diagram_types: ['flamegraph'],
+        },
+        {
+          needCancel: true,
+        }
+      ).catch(() => null);
+      profilingFlameGraph.value = data?.flame_data || null;
     }
 
     /* 折叠 */
@@ -1086,8 +1083,8 @@ export default defineComponent({
       if (activeTab.value === 'Profiling') {
         if (enableProfiling.value) {
           await getFlameGraphData();
-          isTabPanelLoading.value = false;
         }
+        isTabPanelLoading.value = false;
       }
     };
 

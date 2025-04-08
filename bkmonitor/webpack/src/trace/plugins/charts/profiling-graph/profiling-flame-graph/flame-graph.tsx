@@ -146,7 +146,9 @@ export default defineComponent({
     watch(
       [() => props.data, () => props.appName],
       debounce(16, async () => {
-        emit('update:loading', true);
+        if (!props.data) {
+          emit('update:loading', true);
+        }
         showException.value = false;
         chartInstance?.clear();
         chartInstance?.dispose();
@@ -306,7 +308,9 @@ export default defineComponent({
       }
     );
     onBeforeUnmount(() => {
-      removeListener(wrapperRef.value, handleResizeGraph);
+      if (wrapperRef.value) {
+        removeListener(wrapperRef.value, handleResizeGraph);
+      }
     });
     return {
       chartRef,
