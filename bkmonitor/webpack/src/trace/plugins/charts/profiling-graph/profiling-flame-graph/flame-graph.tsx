@@ -45,7 +45,6 @@ import { debounce } from 'throttle-debounce';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import type { BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
 
 import './flame-graph.scss';
 
@@ -54,7 +53,7 @@ export default defineComponent({
   name: 'FlameGraph',
   props: {
     data: {
-      type: Object as () => BaseDataType,
+      type: Object as () => IFlameGraphDataItem,
       default: () => {},
     },
     appName: {
