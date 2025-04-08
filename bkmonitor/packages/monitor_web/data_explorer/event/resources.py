@@ -38,7 +38,6 @@ from .constants import (
     EventCategory,
     EventDimensionTypeEnum,
     EventType,
-    Operation,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -517,34 +516,37 @@ class EventStatisticsInfoResource(Resource):
             ]
         )
         # 格式化统计信息
-        return self.format_statistics_info(statistics_info)
+        return self.process_statistics_info(statistics_info)
 
     @classmethod
-    def format_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
-        statistics_format_info = {}
+    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+        processed_statistics_info = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
             # 平均值取两位小数
             if statistics_property == "avg":
                 value = round(value, 2)
             if statistics_property in ["max", "min", "median", "avg"]:
-                statistics_format_info.setdefault("value_analysis", {})[statistics_property] = value
+                processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
-            statistics_format_info[statistics_property] = value
+            processed_statistics_info[statistics_property] = value
         # 计算百分比
-        statistics_format_info["field_percent"] = (
-            int(statistics_info["field_count"] / statistics_info["total_count"] * 100)
+        processed_statistics_info["field_percent"] = (
+            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
             if statistics_info["total_count"] > 0
             else 0
         )
-        return statistics_format_info
+        return processed_statistics_info
 
     @classmethod
     def get_statistics_info(cls, query_set, queries, field, statistics_property, method, statistics_info) -> None:
-        conditions, expression = cls.build_conditions_and_expression(field, statistics_property, method)
         for query in queries:
-            query_set = query_set.add_query(query.conditions(conditions).metric(field=field, method=method, alias="a"))
-        query_set = query_set.expression(expression)
+            query_set = query_set.add_query(
+                cls.get_q_by_statistics_property(query, field, statistics_property).metric(
+                    field=field, method=method, alias="a"
+                )
+            )
+        query_set = cls.set_qs_expression_by_method(query_set, method)
         try:
             statistics_info[statistics_property] = query_set.original_data[0]["_result_"]
         except (IndexError, KeyError) as exc:
@@ -552,13 +554,15 @@ class EventStatisticsInfoResource(Resource):
             raise ValueError(_(f"获取字段统计信息失败，查询函数：{method}"))
 
     @classmethod
-    def build_conditions_and_expression(cls, field, statistics_property, method):
-        conditions = []
-        expression = "a"
-        if statistics_property == "field_count":
-            # 统计字段出现次数，排除空值
-            conditions.append({"key": field, "method": Operation.NE["value"], "value": [""]})
-        if method in ["max", "min"]:
-            # 求最大值和最小值，表达式适配
-            expression = f"{method}(a)"
-        return conditions, expression
+    def get_q_by_statistics_property(cls, query, field, statistics_property):
+        """
+        根据统计属性设置过滤条件
+        """
+        return query.filter(**{f"{field}__ne": ""}) if statistics_property == "field_count" else query
+
+    @classmethod
+    def set_qs_expression_by_method(cls, queryset, method):
+        """
+        根据查询函数适配表达式
+        """
+        return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")

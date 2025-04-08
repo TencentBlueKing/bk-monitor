@@ -53,6 +53,7 @@ class EventViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resources.EventUpdateTagConfigResource, endpoint="update_tag_config", decorators=[user_visit_record]
         ),
+        ResourceRoute("POST", resources.EventStatisticsInfoResource, endpoint="statistics_info"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
