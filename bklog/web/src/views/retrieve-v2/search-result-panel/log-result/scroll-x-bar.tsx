@@ -46,7 +46,7 @@ export default defineComponent({
 
     const scrollXInnerElementStyle = computed(() => {
       return {
-        width: `${props.innerWidth}px`,
+        width: `${props.innerWidth - 1}px`,
       };
     });
     const refSrollRoot: Ref<HTMLElement> = ref();

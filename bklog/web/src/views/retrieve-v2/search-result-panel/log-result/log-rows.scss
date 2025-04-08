@@ -17,7 +17,7 @@
     > div {
       height: 40px;
       line-height: 40px;
-      color: #3a84ff; //var(--table-fount-color);
+      color: #3a84ff;
     }
   }
 
@@ -75,9 +75,7 @@
       box-sizing: border-box;
       display: inline-flex;
       align-items: stretch;
-      width: var(--scroll-width);
       min-width: fit-content;
-      // min-height: 32px;
 
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
@@ -85,9 +83,8 @@
       color: var(--table-fount-color);
 
       .bklog-row-cell {
-        padding: 0px 12px;
+        padding: 4px 12px;
         line-height: 22px;
-        padding: 4px 0;
 
         .bklog-expand-icon {
           position: relative;
@@ -118,13 +115,13 @@
           display: flex;
           align-items: stretch;
           background-color: #fff;
-          padding: 0;
+          padding: 0px 12px;
 
           .handle-content {
             position: relative;
             display: flex;
             justify-content: space-around;
-            padding: 0 4px;
+            padding: 4px 0;
 
             .handle-card {
               margin-left: 0;
@@ -149,7 +146,6 @@
           position: relative;
           display: inline;
           height: 32px;
-          padding: 0;
 
           font-family: var(--table-fount-family);
           font-size: var(--table-fount-size);
@@ -163,7 +159,7 @@
 
           &.right {
             position: sticky;
-            right: 12px;
+            right: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -283,7 +279,6 @@
 
     .expand-view-wrapper {
       width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 8px);
-      transform: translateX(var(--row-offset-left));
       border-top: 1px solid #dfe0e5;
       position: sticky;
       left: 0;
@@ -328,7 +323,7 @@
       visibility: visible;
       background-color: #fafbfd;
       width: 100%;
-      overflow: hidden;
+      overflow: visible;
 
       .bklog-list-row {
         z-index: 1;
@@ -351,7 +346,6 @@
           opacity: 1;
           z-index: 3;
           transition: opacity 0.3s;
-          right: calc(var(--ai-right-position) + 10px);
         }
       }
 
@@ -364,7 +358,6 @@
         content: '';
         background: #f59789;
         border-radius: 0 1px 1px 0;
-        transform: translateX(var(--row-offset-left));
       }
 
       &.normal {

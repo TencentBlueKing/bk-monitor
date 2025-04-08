@@ -785,22 +785,17 @@ export default defineComponent({
       refLoadMoreElement,
     });
 
-    const getRootBodyStyle = () => {
-      return {
-        // '--scroll-left': `-${scrollXOffsetLeft}px`,
-        // '--row-offset-left': `${scrollXOffsetLeft}px`,
-        // '--fix-right-width': `${operatorFixRightWidth.value}px`,
-        // '--scroll-width': `${Math.max(offsetWidth.value, scrollWidth.value)}px`,
-        // '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft}px`,
-        // '--ai-right-position': `${scrollWidth.value - offsetWidth.value - scrollXOffsetLeft}px`,
-      };
-    };
-
     const setRowboxTransform = () => {
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
         if (refTableHead.value) {
-          refTableHead.value.scrollLeft = scrollXOffsetLeft;
+          refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
+          const fixedRight = refTableHead.value?.querySelector(
+            '.bklog-list-row .bklog-row-cell.header-cell.right',
+          ) as HTMLElement;
+          if (fixedRight) {
+            fixedRight.style.transform = `translateX(${scrollXOffsetLeft}px)`;
+          }
         }
       }
     };
@@ -823,7 +818,7 @@ export default defineComponent({
     });
 
     const hasScrollX = computed(() => {
-      return offsetWidth.value < scrollWidth.value;
+      return scrollWidth.value - offsetWidth.value > 1;
     });
 
     let isAnimating = false;
@@ -898,20 +893,6 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    const handleMouseenter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.show(target);
-      }
-    };
-
-    const handleMouseleave = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.hide();
-      }
-    };
-
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
       const opStyle = {
@@ -965,16 +946,6 @@ export default defineComponent({
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
-          // showAiAssistant.value ? (
-          //   <span
-          //     class='bklog-row-ai'
-          //     onClick={e => handleRowAIClcik(e, row)}
-          //     onMouseenter={handleMouseenter}
-          //     onMouseleave={handleMouseleave}
-          //   >
-          //     <img src={require('@/images/rowAiNew.svg')} />
-          //   </span>
-          // ) : null,
         ];
       });
     };

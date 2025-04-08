@@ -41,22 +41,16 @@
             .bklog-result-box {
               .bklog-result-container {
                 &.show-header {
+                  overflow: visible;
                   .bklog-row-container {
+                    overflow: visible;
                     &.row-header {
-                      position: fixed;
-                      right: 8px;
-                      top: calc(var(--top-searchbar-height) + 52px);
+                      position: sticky;
+                      top: calc(var(--top-searchbar-height));
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
 
-                      .bklog-list-row {
-                        .bklog-row-cell {
-                          &.header-cell {
-                            &.right {
-                              position: fixed;
-                              top: calc(var(--top-searchbar-height) + 52px);
-                            }
-                          }
-                        }
+                      .right {
+                        right: 8px;
                       }
                     }
                   }
