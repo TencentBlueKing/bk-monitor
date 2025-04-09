@@ -4,6 +4,7 @@
     :tippy-options="{ appendTo: 'parent' }"
     placement="bottom-end"
     theme="light"
+    trigger="click"
   >
     <span style="color: #3a84ff; cursor: pointer">
       <span
@@ -95,10 +96,14 @@
     }
 
     .button-wrap {
-      margin-top: 8px;
       display: flex;
-      align-items: center;
       gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+
+      button{
+        font-size: 12px;
+      }
     }
   }
 </style>

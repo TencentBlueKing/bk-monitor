@@ -11,7 +11,9 @@
           class="custom-select-item"
           :key="key"
         >
-          <span class="icon bklog-icon bklog-drag-dots"></span>
+          <span class="icon bklog-icon bklog-ketuodong"></span>
+
+          
           <bk-select
             style="width: 174px"
             v-model="sorts[0]"
@@ -96,7 +98,7 @@
   const dragOptions = {
     animation: 150,
     tag: 'ul',
-    handle: '.bklog-drag-dots',
+    handle: '.bklog-ketuodong',
     'ghost-class': 'sortable-ghost-class',
   };
   const orderList = [
@@ -154,9 +156,12 @@
       justify-content: center;
       margin-bottom: 8px;
 
-      .bklog-drag-dots {
+      .bklog-ketuodong {
+        width: 18px;
         font-size: 18px;
-        color: #979ba5;
+        color: hsl(223, 7%, 62%);
+        text-align: left;
+        cursor: move;
       }
     }
 

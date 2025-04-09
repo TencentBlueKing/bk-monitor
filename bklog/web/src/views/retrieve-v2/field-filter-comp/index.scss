@@ -116,7 +116,6 @@
         z-index: 10;
         padding-bottom: 0;
         background: #fff;
-        border-top: 1px solid #f0f1f5;
 
         .title {
           height: 36px;
@@ -133,7 +132,7 @@
 
       &.not-selected {
         margin-bottom: 0;
-
+        
         .title {
           span.bklog-icon {
             margin-right: 4px;
@@ -143,6 +142,10 @@
             }
           }
         }
+      }
+
+      &.optional-field{
+        border-bottom: 1px solid #f0f1f5;
       }
 
       .title {
