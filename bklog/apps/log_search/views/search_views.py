@@ -1807,3 +1807,8 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(QueryStringSerializer)
         querystring = QueryStringBuilder.to_querystring(params)
         return Response({"querystring": querystring})
+
+    @list_route(methods=["POST"], url_path="grep_query")
+    def grep_query(self, request):
+        # TODO grep语法查询接口,待完善
+        return Response({})
