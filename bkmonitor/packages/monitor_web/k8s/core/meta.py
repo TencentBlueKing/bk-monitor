@@ -537,11 +537,12 @@ class K8sNodeMeta(K8sResourceMeta):
     def meta_prom_with_node_cpu_seconds_total(self):
         return self.tpl_prom_with_rate("node_cpu_seconds_total")
 
-    # @property
-    # def meta_prom_with_node_cpu_capacity_ratio(self):
-    #     return """"sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
-    # /
-    # kube_node_status_allocatable{resource="cpu"} * 100"""
+    @property
+    def meta_prom_with_node_cpu_capacity_ratio(self):
+        # 建设中
+        return """"sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
+    /
+    kube_node_status_allocatable{resource="cpu"} * 100"""
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
