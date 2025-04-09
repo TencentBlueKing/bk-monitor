@@ -110,8 +110,18 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     this.tabRef.checkActiveName();
 
     const updateCurrentSelectedMetricNameList = (metricNameList: string[]) => {
+      // 视图保存的 metric 可能被隐藏，需要过滤掉不存在 metric
+      const allMetricNameMap = this.metricGroupList.reduce<Record<string, boolean>>((result, groupItem) => {
+        for (const metricItem of groupItem.metrics) {
+          Object.assign(result, {
+            [metricItem.metric_name]: true,
+          });
+        }
+        return result;
+      }, {});
+      const realMetricNameList = _.filter(metricNameList, item => allMetricNameMap[item]);
       // 更新 Store 上的 currentSelectedMetricNameList
-      customEscalationViewStore.updateCurrentSelectedMetricNameList(metricNameList);
+      customEscalationViewStore.updateCurrentSelectedMetricNameList(realMetricNameList);
     };
 
     try {
