@@ -897,7 +897,7 @@ export default class CollectIndex extends tsc<IProps> {
                     <Form
                       ref='checkInputForm'
                       style={{ width: '100%', padding: '0px 2px' }}
-                      labelWidth={0}
+                      form-type='vertical'
                       {...{
                         props: {
                           model: this.verifyData,
@@ -905,10 +905,12 @@ export default class CollectIndex extends tsc<IProps> {
                         },
                       }}
                     >
-                      <FormItem property='groupName'>
-                        <span style={{ fontSize: '14px' }}>
-                          分组名称 <span style='color:red'>*</span>
-                        </span>
+                      <FormItem
+                        icon-offset={34}
+                        label='分组名称'
+                        property='groupName'
+                        required
+                      >
                         <Input
                           style={{ marginTop: '4px' }}
                           vModel={this.verifyData.groupName}
