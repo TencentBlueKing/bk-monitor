@@ -179,9 +179,9 @@
         retrieveParams: 'retrieveParams',
       }),
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
+        formatJson: state => state.storage.tableJsonFormat,
         showFieldAlias: state => state.showFieldAlias ?? false,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -480,10 +480,10 @@
           display: block;
           width: auto;
           overflow: hidden;
+          font-family: Roboto-Regular;
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
-          font-family: Roboto-Regular;
         }
 
         :deep(.bklog-ext) {
@@ -495,19 +495,28 @@
 
       .field-value {
         display: flex;
+        align-items: flex-start;
         color: #16171a;
         word-break: break-all;
       }
     }
 
     .relation-monitor-btn {
+      display: flex;
+      column-gap: 2px;
+      align-items: center;
       min-width: fit-content;
       padding-top: 1px;
       padding-right: 6px;
       // margin-left: 12px;
       font-size: 12px;
+      line-height: 22px;
       color: #3a84ff;
       cursor: pointer;
+
+      .bklog-jump {
+        font-size: 14px;
+      }
     }
   }
 </style>

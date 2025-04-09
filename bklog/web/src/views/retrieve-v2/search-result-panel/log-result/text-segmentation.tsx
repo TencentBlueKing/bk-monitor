@@ -60,8 +60,8 @@ export default defineComponent({
     const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const isWrap = computed(() => store.state.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
+    const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+    const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView || props.forceAll);
     const rootStyle = computed(() => {
       return {
         maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '68px'}`,
@@ -158,6 +158,14 @@ export default defineComponent({
       debounceUpdateWidth();
     };
 
+    const formatItemText = (item: WordListItem) => {
+      if (item.isMark) {
+        return item.text.replace(/\s/g, '\u00A0');
+      }
+
+      return item.text;
+    };
+
     onMounted(() => {
       hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
@@ -168,7 +176,7 @@ export default defineComponent({
         (item: WordListItem) => {
           const child = document.createElement(getTagName(item));
           child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-          child.innerText = item.text;
+          child.textContent = item.text;
           return child;
         },
       );
@@ -226,7 +234,7 @@ export default defineComponent({
 
     const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
     const getMoreAction = () => {
-      if (showMoreAction.value) {
+      if (showMoreAction.value && !isLimitExpandView.value) {
         return (
           <span
             class={['btn-more-action', `word-text`, 'is-show']}

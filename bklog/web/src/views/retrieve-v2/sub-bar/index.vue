@@ -14,9 +14,10 @@
   import QueryHistory from '../search-bar/query-history';
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
+  import BarGlobalSetting from './bar-global-setting.tsx';
+  import MoreSetting from './more-setting.vue';
   import RetrieveSetting from './retrieve-setting.vue';
   import WarningSetting from './warning-setting.vue';
-  import MoreSetting from './more-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -27,6 +28,9 @@
   const route = useRoute();
   const router = useRouter();
   const store = useStore();
+
+  const fieldSettingRef = ref(null);
+
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
   // 如果不是采集下发和自定义上报则不展示
@@ -134,6 +138,13 @@
       store.dispatch('requestIndexSetQuery');
     });
   };
+
+  /**
+   * @description: 打开 索引集配置 抽屉页
+   */
+  function handleIndexConfigSliderOpen() {
+    fieldSettingRef.value?.handleShowSlider?.();
+  }
 </script>
 <template>
   <div class="subbar-container">
@@ -154,6 +165,7 @@
       <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        ref="fieldSettingRef"
         class="custom-border-right"
       />
       <WarningSetting class="custom-border-right"></WarningSetting>
@@ -166,6 +178,10 @@
       >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div> -->
+      <BarGlobalSetting
+        class="custom-border-right"
+        @show-index-config-slider="handleIndexConfigSliderOpen"
+      ></BarGlobalSetting>
       <div
         v-if="!isExternal"
         class="more-setting"
@@ -183,12 +199,24 @@
   @import './index.scss';
 
   .box-right-option {
+    .more-setting {
+      height: 100%;
+
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+
     .custom-border-right {
       display: flex;
       align-items: center;
       height: 100%;
       line-height: 20px;
       border-right: 1px solid #eaebf0;
+
+      &:hover {
+        background: #f5f7fa;
+      }
 
       &.query-params-wrap {
         .__bk_date_picker__ {

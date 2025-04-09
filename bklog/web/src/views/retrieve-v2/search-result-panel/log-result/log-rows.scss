@@ -3,7 +3,7 @@
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  // width: fit-content;
+  overflow: hidden;
   width: 100%;
   min-width: 100%;
   min-height: 400px;
@@ -17,7 +17,8 @@
     > div {
       height: 40px;
       line-height: 40px;
-      color: #3a84ff; //var(--table-fount-color);
+      color: #979BA5;
+      font-size: 12px;
     }
   }
 
@@ -40,26 +41,9 @@
     z-index: 1;
     display: flex;
     flex-direction: column;
-    width: fit-content;
+    width: 100%;
     min-width: 100%;
-    transform: translate3d(var(--scroll-left), 0, 0);
-
-    &::before {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      content: '';
-      background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
-        linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
-      background-repeat: no-repeat;
-      background-size:
-        100% 100%,
-        50% 100%;
-      // animation: loading-animation 1.5s infinite;
-    }
+    overflow: hidden;
   }
 
   .bklog-row-container {
@@ -71,9 +55,14 @@
     min-height: 32px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
+    display: inline-flex;
+    align-items: stretch;
 
     .bklog-row-observe {
       width: fit-content;
+      display: inline-flex;
+      flex-direction: column;
+
       min-width: 100%;
       height: 100%;
 
@@ -86,19 +75,23 @@
       position: relative;
       box-sizing: border-box;
       display: inline-flex;
-      align-items: flex-start;
-      width: var(--scroll-width);
+      align-items: stretch;
       min-width: fit-content;
-      // min-height: 32px;
-      padding: 4px 0;
+
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 32px;
       color: var(--table-fount-color);
 
       .bklog-row-cell {
-        padding: 0px 12px;
+        padding: 4px 12px;
         line-height: 22px;
+        align-self: flex-start;
+
+        &.left,
+        &.right {
+          align-self: stretch;
+        }
 
         .bklog-expand-icon {
           position: relative;
@@ -123,30 +116,43 @@
         }
 
         &.right {
-          position: absolute;
+          position: sticky;
           right: 0;
           z-index: 2;
           display: flex;
-          align-items: flex-start;
-          height: 100%;
-          height: 22px;
+          align-items: stretch;
           background-color: #fff;
-          z-index: 2;
+          padding: 0px 12px;
 
           .handle-content {
             position: relative;
             display: flex;
             justify-content: space-around;
+            padding: 4px 0;
 
             .handle-card {
               margin-left: 0;
             }
           }
+
+          &::before {
+            position: absolute;
+            top: 0;
+            left: -8px;
+            bottom: 0px;
+            right: 100%;
+            z-index: 2;
+            min-width: 8px;
+            pointer-events: none;
+            content: '';
+            background-image: linear-gradient(270deg, #0000000f 0%, #00000000 100%);
+          }
         }
 
         &.header-cell {
           position: relative;
-          display: inline;
+          display: inline-flex;
+          align-items: center;
           height: 32px;
 
           font-family: var(--table-fount-family);
@@ -160,7 +166,8 @@
           background-color: #fafbfd;
 
           &.right {
-            position: absolute;
+            position: sticky;
+            right: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -170,9 +177,9 @@
           .bklog-header-cell {
             display: flex;
             align-items: center;
-            height: 32px;
+            height: auto;
             font-weight: bold;
-            line-height: 32px;
+            line-height: 1;
             color: #313238;
             font-family: Roboto-Regular;
             .bk-table-caret-wrapper {
@@ -246,10 +253,6 @@
             }
           }
 
-          .timer-formatter {
-            transform: translateY(-1px);
-          }
-
           .lack-index-filed {
             line-height: 20px;
             border-bottom: 1px dashed #63656e;
@@ -276,34 +279,13 @@
           visibility: hidden;
         }
       }
-
-      &::after {
-        position: absolute;
-        top: 0;
-        right: var(--fix-right-width);
-        bottom: 0;
-        z-index: 2;
-        width: 8px;
-        pointer-events: none;
-        content: '';
-        background-image: linear-gradient(270deg, #0000000f 0%, #00000000 100%);
-      }
-
-      &::before {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 1;
-        width: var(--fix-right-width);
-        content: '';
-        background-color: #fff;
-      }
     }
 
     .expand-view-wrapper {
-      width: 100%;
+      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 8px);
       border-top: 1px solid #dfe0e5;
+      position: sticky;
+      left: 0;
 
       .view-content {
         &.kv-view-content {
@@ -333,8 +315,8 @@
     }
 
     &.row-header {
-      // position: sticky;
-      // top: 0;
+      position: sticky;
+      top: 0;
       z-index: 2;
       box-sizing: content-box;
       display: none;
@@ -344,9 +326,10 @@
       line-height: 32px;
       visibility: visible;
       background-color: #fafbfd;
+      width: 100%;
+      overflow: visible;
 
       .bklog-list-row {
-        // position: sticky;
         z-index: 1;
         padding: 0;
       }
@@ -354,21 +337,6 @@
 
     &:not(.row-header) {
       position: relative;
-
-      .bklog-row-ai {
-        position: absolute;
-        top: 4px;
-        right: 10px;
-        z-index: 3;
-        display: none;
-        padding: 2px;
-        opacity: 0;
-
-        img {
-          width: 20px;
-          height: 20px;
-        }
-      }
 
       &:hover,
       &.ai-active {
@@ -386,46 +354,56 @@
       }
 
       &::before {
-        position: absolute;
-        top: 1px;
-        bottom: 1px;
+        position: sticky;
+        margin: 1px 0;
         left: 0;
         z-index: 1;
-        width: 3.09px;
+        min-width: 3.09px;
         content: '';
         background: #f59789;
         border-radius: 0 1px 1px 0;
-        transform: translateX(var(--row-offset-left));
       }
 
-      &.normal,
+      &.normal {
+        &::before {
+          background: rgb(220, 222, 229);
+        }
+      }
+
       &.TRACE {
         &::before {
-          background: #dcdee5;
+          background: #a3b1cc;
+        }
+      }
+
+      &.FATAL {
+        &::before {
+          background: rgb(212, 109, 93);
         }
       }
 
       &.DEBUG {
         &::before {
-          background: #92d4f1;
+          background: rgb(146, 212, 241);
         }
       }
 
       &.INFO {
         &::before {
-          background: #6fc5bf;
+          background: rgb(111, 197, 191);
         }
       }
 
-      &.WARN {
+      &.WARN,
+      &.WARNING {
         &::before {
-          background: #f5c78e;
+          background: rgb(245, 199, 142);
         }
       }
 
       &.ERROR {
         &::before {
-          background: #f59789;
+          background: rgb(245, 151, 137);
         }
       }
     }
@@ -548,29 +526,14 @@
       }
     }
   }
-
   &.show-header {
     .bklog-row-container {
       &.row-header {
         display: block;
-        transform: translate3d(var(--scroll-left), 0, 0);
       }
     }
   }
-
   &.has-scroll-x {
-    .bklog-row-container {
-      .bklog-list-row {
-        .header-cell {
-          &.right {
-            position: sticky;
-            right: var(--scroll-left);
-            z-index: 1;
-          }
-        }
-      }
-    }
-
     .bklog-row-box {
       will-change: transform;
 
@@ -579,11 +542,6 @@
 
         .bklog-list-row {
           .bklog-row-cell {
-            &.right {
-              position: sticky;
-              right: var(--scroll-left);
-            }
-
             &.hidden-field {
               display: none;
             }

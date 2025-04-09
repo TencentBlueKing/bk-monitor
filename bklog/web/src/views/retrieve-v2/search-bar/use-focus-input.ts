@@ -36,6 +36,7 @@ export default (
     formatModelValueItem,
     refContent,
     refTarget,
+    refWrapper,
     onShowFn,
     onHiddenFn,
     arrow = true,
@@ -53,6 +54,9 @@ export default (
   // 避免容器元素点击时触发 hideOnclick多次渲染
   const isDocumentMousedown = ref(false);
 
+  // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
+  let isInputTextFocus = ref(false);
+
   let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
   const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
@@ -63,10 +67,14 @@ export default (
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = debounce(target => {
-    popInstanceUtil.cancelHide();
-    popInstanceUtil.show(target);
-  }, 120);
+  const delayShowInstance = target => {
+    popInstanceUtil?.cancelHide();
+    popInstanceUtil?.show(target);
+  };
+
+  const setIsInputTextFocus = (val: boolean) => {
+    isInputTextFocus.value = val;
+  };
 
   const setModelValue = val => {
     if (Array.isArray(val)) {
@@ -78,15 +86,13 @@ export default (
   };
 
   let instance = undefined;
-
-  const getTargetInput = () => {
-    const target = instance?.proxy?.$el;
-    const input = target?.querySelector('.tag-option-focus-input');
-    return input as HTMLInputElement;
-  };
-
   const getRoot = () => {
     return instance?.proxy?.$el;
+  };
+  const getTargetInput = () => {
+    const target = refWrapper?.value ?? getRoot();
+    const input = target?.querySelector('.tag-option-focus-input');
+    return input as HTMLInputElement;
   };
 
   const handleContainerClick = (e?) => {
@@ -131,8 +137,7 @@ export default (
   };
 
   const hideTippyInstance = () => {
-    delayShowInstance?.cancel?.();
-    popInstanceUtil.hide(180);
+    popInstanceUtil?.hide(180);
   };
 
   const resizeHeightObserver = target => {
@@ -183,13 +188,13 @@ export default (
   };
 
   const handleKeydown = event => {
-    // 检查是否按下 Ctrl（Windows/Linux）或 Command（Mac）
-    const isModifierPressed = event.ctrlKey || event.metaKey;
+    const isModifierPressed = true;
 
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
+    const isEscKey = event.key === 'Escape' || event.keyCode === 27;
 
-    if (isModifierPressed && isSlashKey) {
+    if (isModifierPressed && isSlashKey && !popInstanceUtil.isShown()) {
       // 阻止浏览器默认行为（如打开浏览器搜索栏）
       event.preventDefault();
       const targetElement = getPopTarget();
@@ -200,14 +205,20 @@ export default (
       }
 
       targetElement?.click?.();
+      return;
+    }
+    if (isEscKey && popInstanceUtil.isShown()) {
+      setIsInputTextFocus(false);
+      popInstanceUtil.hide(100);
     }
   };
 
   onMounted(() => {
     instance = getCurrentInstance();
     document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
-    document?.addEventListener('click', handleContainerClick);
     document?.addEventListener('keydown', handleKeydown);
+    document?.addEventListener('click', handleContainerClick);
+
     setDefaultInputWidth();
 
     if (addInputListener) {
@@ -232,6 +243,8 @@ export default (
   return {
     modelValue,
     isDocumentMousedown,
+    isInputTextFocus,
+    setIsInputTextFocus,
     setIsDocumentMousedown,
     repositionTippyInstance,
     hideTippyInstance,

@@ -111,6 +111,18 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     chartData = data;
   };
 
+  // 默认需要展示的柱子数量
+  const barCount = 60;
+  const intervals: [string, number][] = [
+    ['1d', 86400],
+    ['1h', 3600],
+    ['5m', 300],
+    ['1m', 60],
+    ['30s', 30],
+    ['5s', 5],
+    ['1s', 1],
+  ];
+
   const setRunnningInterval = () => {
     if (retrieveParams.value.interval !== 'auto') {
       runningInterval = retrieveParams.value.interval;
@@ -120,36 +132,19 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const { start_time, end_time } = retrieveParams.value;
 
     // 按照小时统计
-    const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
+    // 按照指定的柱子数量分割
+    const duration = (end_time - start_time) / 1000;
 
-    // 按照分钟统计
-    const durationMin = (end_time / 1000 - start_time / 1000) / 60;
-
-    if (durationHour < 1) {
-      // 小于1小时 1min
-      runningInterval = '1m';
-
-      if (durationMin < 5) {
-        runningInterval = '30s';
+    for (const [name, seconds] of intervals) {
+      const segments = Math.ceil(duration / seconds);
+      if (segments >= barCount) {
+        runningInterval = name;
+        return name;
       }
-
-      if (durationMin < 2) {
-        runningInterval = '5s';
-      }
-
-      if (durationMin < 1) {
-        runningInterval = '1s';
-      }
-    } else if (durationHour < 6) {
-      // 小于6小时 5min
-      runningInterval = '5m';
-    } else if (durationHour < 72) {
-      // 小于72小时 1hour
-      runningInterval = '1h';
-    } else {
-      // 大于72小时 1day
-      runningInterval = '1d';
     }
+
+    runningInterval = intervals[intervals.length - 1]?.[0] ?? '1s';
+    return runningInterval;
   };
 
   // 时间向下取整
@@ -238,6 +233,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     options.series[0].data = chartData;
+    options.series.forEach(s => {
+      s.barMinHeight = 2;
+      s.itemStyle.color = params => {
+        return (params.value[1] ?? 0) > 0 ? params.color : '#fff';
+      };
+    });
+
     options.series[0].stack = 'total';
     // 此处为展示用假数据
     // options.series[0].name = 'error';

@@ -59,13 +59,17 @@
   };
 
   const handleFieldsShowChange = status => {
-    if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
+    if (status) {
+      fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
+      RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
+    }
     isShowFieldStatistics.value = status;
+    RetrieveHelper.setLeftFieldIsShown(status);
   };
 
   const handleFilterWidthChange = width => {
     fieldFilterWidth.value = width;
-    RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
+    RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
   };
 
   const handleUpdateActiveTab = active => {

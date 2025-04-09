@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed, watch, nextTick } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -67,7 +67,6 @@
     { immediate: true, deep: true },
   );
   const activeIndex = ref(-1);
-  const isRequesting = ref(false);
 
   const operatorDictionary = computed(() => {
     const defVal = {
@@ -96,43 +95,27 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const { requestFieldEgges } = useFieldEgges();
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      isRequesting.value = true;
-      requestFieldEgges(
-        item,
-        null,
-        resp => {
-          if (typeof resp === 'boolean') {
-            return;
-          }
-          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-        },
-        () => {
-          isRequesting.value = false;
-        },
-      );
+      requestFieldEgges(item, null, resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      });
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
     activeIndex.value = index;
-    isRequesting.value = true;
-    requestFieldEgges(
-      item,
-      value,
-      resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      },
-      () => {
-        isRequesting.value = false;
-      },
-    );
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
   };
 
   const handleChange = () => {
@@ -161,20 +144,22 @@
     }
   };
 
-  let isChoiceInputFocus = false;
+  const isChoiceInputFocus = ref(false);
 
   const handleChoiceFocus = index => {
-    isChoiceInputFocus = true;
+    isChoiceInputFocus.value = true;
     focusIndex.value = index;
   };
 
-  const handleChoiceBlur = () => {
-    focusIndex.value = null;
-    isChoiceInputFocus = false;
+  const handleChoiceBlur = index => {
+    if (focusIndex.value === index) {
+      focusIndex.value = null;
+      isChoiceInputFocus.value = null;
+    }
   };
 
   const handleRowBlur = () => {
-    if (isChoiceInputFocus) {
+    if (isChoiceInputFocus.value) {
       return;
     }
 
@@ -194,12 +179,12 @@
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
-        @blur.capture="handleRowBlur"
-        @focus.capture="e => handleRowFocus(index, e)"
       >
         <div
           class="title"
           v-bk-overflow-tips
+          @blur.capture="handleRowBlur"
+          @focus.capture="e => handleRowFocus(index, e)"
         >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
@@ -210,6 +195,8 @@
           :popover-min-width="100"
           filterable
           @change="handleChange"
+          @blur.native.capture="handleRowBlur"
+          @focus.native.capture="e => handleRowFocus(index, e)"
         >
           <template #trigger>
             <span
@@ -227,7 +214,7 @@
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bklogTagChoice
-            class="value-select"
+            :class="['value-select', { 'is-focus': focusIndex === index }]"
             v-model="commonFilterAddition[index].value"
             :foucs-fixed="true"
             :list="commonFilterAddition[index].list"
@@ -235,10 +222,11 @@
             :placeholder="$t('请选择 或 输入')"
             max-width="460px"
             @focus="() => handleChoiceFocus(index)"
-            @blur="() => handleChoiceBlur()"
+            @blur="() => handleChoiceBlur(index)"
             @change="handleChange"
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
+            @custom-tag-enter="() => handleToggle(true, item, index)"
           ></bklogTagChoice>
         </template>
       </div>
@@ -291,20 +279,6 @@
     margin-right: 4px;
     margin-bottom: 4px;
     box-sizing: content-box;
-
-    &.is-focus {
-      border-color: #3a84ff;
-      .title {
-        border-left-color: #3a84ff;
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
-      }
-
-      .operator-select {
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
-      }
-    }
 
     .title {
       max-width: 120px;
@@ -386,6 +360,42 @@
     .bk-select-angle {
       font-size: 22px;
       color: #979ba5;
+    }
+
+    &.is-focus {
+      border-color: #3a84ff;
+      .title {
+        border-left-color: #3a84ff;
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      .operator-select {
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      > div {
+        &:last-child {
+          &:not(.is-choice-active) {
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border-right: 1px solid #3a84ff;
+            padding-right: 4px;
+          }
+        }
+      }
+    }
+
+    > div {
+      &:last-child {
+        &:not(.value-select) {
+          border-top-right-radius: 3px;
+          border-bottom-right-radius: 3px;
+          border-right: 1px solid #dbdde1;
+          padding-right: 4px;
+        }
+      }
     }
   }
 </style>

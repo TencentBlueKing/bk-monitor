@@ -46,6 +46,7 @@ export default {
       filterSetting: [],
       filterAddition: [],
       fixedFilterAddition: false,
+      sortList: [],
     },
     activeVersion: 'v2',
   },
@@ -87,6 +88,7 @@ export default {
           displayFields: [],
           filterSetting: [],
           filterAddition: [],
+          sortList: [],
         },
         payload ?? {},
       );

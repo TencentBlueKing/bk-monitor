@@ -88,8 +88,20 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 模板
+     * tag-choice：下拉弹出，支持键入标签
+     * tag-input：输入框，支持键入标签，没有下拉
+     */
+    template: {
+      type: String,
+      default: 'tag-choice',
+    },
+    onTagRender: {
+      type: Function,
+    },
   },
-  emits: ['change', 'input', 'toggle', 'focus', 'blur'],
+  emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
   setup(props, { slots, emit }) {
     const isListOpended = ref(false);
     const refRootElement: Ref<HTMLElement> = ref(null);
@@ -100,6 +112,7 @@ export default defineComponent({
 
     let focusFixedElement: HTMLElement = null;
     let fixedInstance: PopInstanceUtil = null;
+    let popInstance: PopInstanceUtil = null;
 
     const inputTagValue = ref('');
     const tagInputIndex = ref(null);
@@ -119,7 +132,13 @@ export default defineComponent({
     const { t } = useLocale();
 
     useResizeObserve(refRootElement, entry => {
-      containerWidth.value = (entry.target as HTMLElement).offsetWidth;
+      const newWidth = (entry.target as HTMLElement).offsetWidth;
+
+      if (newWidth !== containerWidth.value) {
+        containerWidth.value = newWidth;
+        fixedInstance?.repositionTippyInstance();
+        popInstance?.repositionTippyInstance();
+      }
     });
 
     const containerStyle = computed(() => {
@@ -149,27 +168,29 @@ export default defineComponent({
       e.preventDefault();
     };
 
-    const popInstance = new PopInstanceUtil({
-      refContent: () => refChoiceList.value,
-      arrow: false,
-      onShowFn: () => {
-        emit('toggle', true);
-        return true;
-      },
-      onHiddenFn: () => {
-        emit('toggle', false);
-        return true;
-      },
-      tippyOptions: {
-        hideOnClick: true,
-        interactive: true,
-        appendTo: document.body,
-        placement: 'bottom-start',
-        onShown: () => {
-          popInstance.setIsShowing(false);
+    if (!props.foucsFixed && props.template === 'tag-choice') {
+      popInstance = new PopInstanceUtil({
+        refContent: () => refChoiceList.value,
+        arrow: false,
+        onShowFn: () => {
+          emit('toggle', true);
+          return true;
         },
-      },
-    });
+        onHiddenFn: () => {
+          emit('toggle', false);
+          return true;
+        },
+        tippyOptions: {
+          hideOnClick: true,
+          interactive: true,
+          appendTo: document.body,
+          placement: 'bottom-start',
+          onShown: () => {
+            popInstance.setIsShowing(false);
+          },
+        },
+      });
+    }
 
     const dropdownIconName = computed(() => {
       if (isListOpended.value) {
@@ -300,6 +321,8 @@ export default defineComponent({
           resolve(true);
         }
 
+        editItemOption.value.width = 12;
+        inputTagValue.value = '';
         resolve(false);
       });
     };
@@ -347,12 +370,15 @@ export default defineComponent({
      * @param e
      */
     const handleInputKeyup = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && inputTagValue.value.length) {
         stopDefaultPrevented(e);
 
         emitValue(inputTagValue.value);
         clearInputTag();
+        emit('custom-tag-enter');
       }
+
+      emit('enter');
     };
 
     const handleDeleteAllClick = e => {
@@ -387,7 +413,6 @@ export default defineComponent({
         const maxWidth = Math.min(charLen * INPUT_MIN_WIDTH, maxTagWidthNumber.value);
 
         target.style.setProperty('width', `${maxWidth}px`);
-        popInstance.repositionTippyInstance();
         setFixedOverflowY();
       }
     };
@@ -416,6 +441,7 @@ export default defineComponent({
     const handleCustomTagClick = (e: MouseEvent) => {
       emitValue(inputTagValue.value);
       clearInputTag();
+      emit('custom-tag-enter');
       stopDefaultPrevented(e);
     };
 
@@ -481,7 +507,7 @@ export default defineComponent({
 
           updateFiexedInstanceContent().then(() => {
             setFixedOverflowY();
-            popInstance.repositionTippyInstance();
+            // popInstance.repositionTippyInstance();
           });
         }
 
@@ -513,11 +539,26 @@ export default defineComponent({
       }
     };
 
+    const handleOptionItemMouseenter = (index: number) => {
+      activeItemIndex.value = index;
+    };
+
+    const handleOptionItemMouseleave = () => {
+      activeItemIndex.value = undefined;
+    };
+
     const lastTagWidth = 40;
     const closeTagWidth = 30;
     const inputWidth = 12;
     const hiddenItemCount = ref(0);
     const hiddenItemIndex = ref([]);
+    const getMaxWidth = () => {
+      if (props.maxWidth) {
+        return parseFloat(props.maxWidth.replace('px', ''));
+      }
+
+      return refRootElement.value?.offsetWidth ?? 0;
+    };
 
     const calcItemEllipsis = () => {
       if (isInputFocused.value) {
@@ -530,11 +571,12 @@ export default defineComponent({
 
       return new Promise(resolve => {
         nextTick(() => {
-          const { offsetHeight, scrollHeight, offsetWidth } = (refRootElement.value ?? {}) as HTMLElement;
+          const maxWidth = getMaxWidth();
+          const { offsetHeight, scrollHeight } = (refRootElement.value ?? {}) as HTMLElement;
           if (offsetHeight < scrollHeight) {
             const childList = Array.from(refTagInputContainer.value.children ?? []);
             let width = 0;
-            const avalibleWidth = offsetWidth - closeTagWidth - inputWidth;
+            const avalibleWidth = maxWidth - closeTagWidth - inputWidth;
 
             childList.forEach((item: HTMLElement, index) => {
               if (!item.hasAttribute('data-ignore-element')) {
@@ -554,39 +596,48 @@ export default defineComponent({
       });
     };
 
-    fixedInstance = new PopInstanceUtil({
-      refContent: () => {
-        setFixedValueContent();
-        return focusFixedElement;
-      },
-      arrow: false,
-      tippyOptions: {
-        appendTo: document.body,
-        hideOnClick: true,
-        placement: 'bottom-start',
-        theme: 'log-pure-choice',
-        offset: [0, -1],
-        onShown: () => {
-          isInputFocused.value = true;
-          fixedInstance.setIsShowing(false);
-          nextTick(() => {
-            autoFocusInput();
-            setFixedOverflowY();
-          });
+    if (props.foucsFixed) {
+      fixedInstance = new PopInstanceUtil({
+        refContent: () => {
+          setFixedValueContent();
+          return focusFixedElement;
         },
+        arrow: false,
+        tippyOptions: {
+          appendTo: document.body,
+          hideOnClick: true,
+          placement: 'bottom-start',
+          theme: 'log-pure-choice',
+          offset: [0, -1],
+          onShow: () => {
+            isInputFocused.value = true;
+            emit('toggle', true);
+          },
+          onShown: () => {
+            fixedInstance.setIsShowing(false);
 
-        onHidden: () => {
-          isInputFocused.value = false;
-          fixedInstance.setIsShowing(false);
-          handleEditInputBlur();
-          nextTick(() => {
-            calcItemEllipsis().then(() => {
+            nextTick(() => {
+              autoFocusInput();
               setFixedOverflowY();
             });
-          });
+          },
+
+          onHide: () => {
+            isInputFocused.value = false;
+            emit('toggle', false);
+          },
+          onHidden: () => {
+            fixedInstance.setIsShowing(false);
+            handleEditInputBlur();
+            nextTick(() => {
+              calcItemEllipsis().then(() => {
+                setFixedOverflowY();
+              });
+            });
+          },
         },
-      },
-    });
+      });
+    }
 
     const cloneFixedItem = () => {
       updateFiexedInstanceContent().then(() => {
@@ -646,8 +697,8 @@ export default defineComponent({
     watch(
       () => [props.value],
       () => {
-        if (isInputFocused.value) {
-          execContainerClick();
+        if (isInputFocused.value && props.foucsFixed) {
+          updateFiexedInstanceContent();
           autoFocusInput();
           return;
         }
@@ -708,6 +759,8 @@ export default defineComponent({
             },
           ]}
           onClick={handleCustomTagClick}
+          onMouseenter={() => handleOptionItemMouseenter(null)}
+          onMouseleave={() => handleOptionItemMouseleave()}
         >
           {t('生成“{n}”标签', { n: inputTagValue.value })}
         </div>
@@ -715,14 +768,20 @@ export default defineComponent({
     };
 
     const renderOptionList = () => {
+      if (props.template === 'tag-input') {
+        return;
+      }
+
       if (!optionList.value.length) {
         return <div class='empty-row'>{t('暂无数据')}</div>;
       }
 
-      return optionList.value.map(({ item, selected }) => (
+      return optionList.value.map(({ item, selected }, index) => (
         <div
           class={['bklog-choice-list-item', { 'is-selected': selected }]}
           onClick={() => handleOptionItemClick(item)}
+          onMouseenter={() => handleOptionItemMouseenter(index)}
+          onMouseleave={() => handleOptionItemMouseleave()}
         >
           {slots.item?.(item) ?? getListItemName(item)}
         </div>
@@ -785,23 +844,52 @@ export default defineComponent({
           );
         }
 
+        const tagAttrs = props.onTagRender?.(item, index) ?? {};
+
+        tagAttrs.style = Object.assign({}, tagAttrs.style, valueTagStyle.value);
+        tagAttrs.class = [
+          ...(tagAttrs.class ?? []),
+          'bklog-choice-value-item',
+          {
+            'is-edit-item': editItemOption.value.index === index,
+          },
+        ];
+
         return (
           <li
             key={getItemKey(item, index)}
-            style={valueTagStyle.value}
-            class={[
-              'bklog-choice-value-item',
-              {
-                'is-edit-item': editItemOption.value.index === index,
-              },
-            ]}
             data-item-index={index}
             data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
+            {...tagAttrs}
           >
             {getValueContext(item, index)}
           </li>
         );
       });
+    };
+
+    const getTagOptionsRender = () => {
+      if (props.template === 'tag-input') {
+        return null;
+      }
+
+      return [
+        renderInputTag(),
+        <div
+          class='bklog-choice-value-container'
+          v-bkloading={{ isLoading: props.loading, size: 'small' }}
+        >
+          {renderOptionList()}
+        </div>,
+      ];
+    };
+
+    const getDropdownRender = () => {
+      if (props.template === 'tag-choice') {
+        return <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>;
+      }
+
+      return null;
     };
 
     return () => (
@@ -812,9 +900,11 @@ export default defineComponent({
           'bklog-tag-choice-container',
           {
             'is-focus': isInputFocused.value,
+            'is-choice-active': isInputFocused.value,
             'has-hidden-item': hiddenItemCount.value > 0,
             'is-focus-fixed': props.foucsFixed,
             'is-ellipsis': isFixedOverflowY.value,
+            template: props.template,
           },
         ]}
         onClick={handleContainerClick}
@@ -828,6 +918,7 @@ export default defineComponent({
           style={rootStyle.value}
           class={[
             'bklog-tag-choice-input',
+            props.template,
             { 'is-focus': isInputFocused.value, 'is-ellipsis': isFixedOverflowY.value },
           ]}
           data-placeholder={placeholderText.value}
@@ -840,7 +931,7 @@ export default defineComponent({
             +{hiddenItemCount.value}
           </li>
         </ul>
-        <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>
+        {getDropdownRender()}
         <span
           class='bk-icon icon-close-circle-shape delete-all-tags'
           onClick={handleDeleteAllClick}
@@ -851,13 +942,7 @@ export default defineComponent({
             style={containerStyle.value}
             class='bklog-tag-choice-list'
           >
-            {renderInputTag()}
-            <div
-              class='bklog-choice-value-container'
-              v-bkloading={{ isLoading: props.loading, size: 'small' }}
-            >
-              {renderOptionList()}
-            </div>
+            {getTagOptionsRender()}
           </div>
         </div>
       </div>

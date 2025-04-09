@@ -1,7 +1,6 @@
 <script setup>
   import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
-  import { getOsCommandLabel } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
 
   import CreateLuceneEditor from './codemirror-lucene';
@@ -22,7 +21,7 @@
   };
 
   const { t } = useLocale();
-  const placeholderText = `${getOsCommandLabel()} + / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+  const placeholderText = ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);
@@ -43,6 +42,7 @@
    */
   const setEditorContext = (val, from = 0, to = undefined) => {
     editorInstance?.setValue(val, from, to);
+    // return editorInstance?.getValue();
   };
 
   /**
@@ -70,6 +70,7 @@
       formatModelValueItem,
       refContent: refSqlQueryOption,
       refTarget: refEditorParent,
+      refWrapper: refEditorParent,
       arrow: false,
       newInstance: false,
       addInputListener: false,
@@ -126,16 +127,16 @@
     return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
   });
 
-  const debounceRetrieve = () => {
-    emit('retrieve', modelValue.value);
+  const debounceRetrieve = value => {
+    emit('retrieve', value ?? modelValue.value);
   };
 
-  const closeAndRetrieve = () => {
+  const closeAndRetrieve = value => {
     // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
     // 此时执行查询操作，如果有联想提示，关闭提示弹出
     if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
       hideTippyInstance();
-      debounceRetrieve();
+      debounceRetrieve(value);
     }
   };
 
@@ -191,10 +192,10 @@
   const getMatchFieldLength = () => {
     const leftValue = getFocusLeftValue();
     const lastFragments = leftValue.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
+    const lastFragment = lastFragments[lastFragments.length - 1] ?? '';
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
 
-    return inputField.length ?? 0;
+    return inputField?.length ?? 0;
   };
 
   const getSelectionRenage = (value, replace, type) => {
@@ -202,7 +203,7 @@
     if (replace) {
       return {
         from: 0,
-        to: undefined,
+        to: Infinity,
         buffer: undefined,
       };
     }
@@ -215,17 +216,21 @@
   };
 
   const handleQueryChange = (value, retrieve, replace = true, type = undefined) => {
-    const { from, buffer } = getSelectionRenage(value, replace, type);
+    const { from, buffer, to } = getSelectionRenage(value, replace, type);
+    let toValue = undefined;
+
+    if (to === Infinity) {
+      toValue = to;
+    }
     if (modelValue.value !== value) {
-      let to = undefined;
-      if (buffer && type === 'field') {
-        to = from + buffer;
+      if (!to && buffer && type === 'field') {
+        toValue = from + buffer;
       }
-      setEditorContext(value, from, to);
+      setEditorContext(value, from, toValue);
       nextTick(() => {
-        handleContainerClick();
         if (retrieve) {
-          closeAndRetrieve();
+          const resolvedValue = editorInstance?.getValue();
+          closeAndRetrieve(resolvedValue);
         }
       });
     }

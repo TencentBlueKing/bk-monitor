@@ -251,16 +251,22 @@
   };
 
   const handleSqlRetrieve = value => {
-    beforeQueryBtnClick().then(resp => {
-      if (resp.is_legal) {
-        store.commit('updateIndexItemParams', {
-          keyword: value,
-        });
+    if (value !== '*') {
+      beforeQueryBtnClick().then(resp => {
+        if (resp.is_legal) {
+          store.commit('updateIndexItemParams', {
+            keyword: value,
+          });
 
-        store.dispatch('requestIndexSetQuery');
-        setRouteParams();
-      }
-    });
+          store.dispatch('requestIndexSetQuery');
+          setRouteParams();
+        }
+      });
+      return;
+    }
+
+    store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   const handleSqlQueryChange = value => {
@@ -268,6 +274,7 @@
       keyword: value,
     });
 
+    inspectResponse.value.is_legal = true;
     setRouteParams();
   };
 
@@ -586,12 +593,12 @@
           </div>
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-copy-4', , { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-copy-4', , { disabled: isInputLoading || !isCopyBtnActive }]"
             @click="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click="handleClearBtnClick"
           ></div>
           <div
@@ -600,7 +607,7 @@
             @click="handleFilterSecClick"
           />
           <BookmarkPop
-            :active-favorite="!activeFavorite"
+            :active-favorite="!activeFavorite.id"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"

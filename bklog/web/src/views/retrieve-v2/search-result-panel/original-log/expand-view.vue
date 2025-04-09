@@ -256,7 +256,7 @@
     }
 
     .vjs-value-number {
-      color: #13ce66;
+      color: #2caf5e;
     }
   }
 </style>

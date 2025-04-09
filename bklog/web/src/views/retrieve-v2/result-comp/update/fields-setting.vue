@@ -32,7 +32,7 @@
     <!-- 设置列表字段 -->
     <div class="fields-container">
       <div
-        v-if="isShowLeft"
+        v-if="isTemplateConfig"
         class="fields-config-container"
       >
         <div class="config-container-header">
@@ -84,15 +84,13 @@
           :tab-position="'left'"
           type="unborder-card"
         >
-          <template>
-            <bk-tab-panel
-              v-for="(panel, index) in configTabPanels"
-              :key="panel.name"
-              :name="panel.name"
-              :render-label="e => renderHeader(e, panel, index)"
-            >
-            </bk-tab-panel>
-          </template>
+          <bk-tab-panel
+            v-for="(panel, index) in configTabPanels"
+            :key="panel.name"
+            :name="panel.name"
+            :render-label="e => renderHeader(e, panel, index)"
+          >
+          </bk-tab-panel>
         </bk-tab>
       </div>
       <div>
@@ -105,7 +103,6 @@
             />
           </div>
           <div
-            v-if="!isShowLeft"
             style="padding-left: 12px"
             class="table-sort"
           >
@@ -114,17 +111,18 @@
               ref="tableSortRef"
               style="max-height: 340px; overflow: scroll"
               :init-data="shadowSort"
+              :should-refresh="isShow"
             />
           </div>
         </div>
       </div>
     </div>
     <div
-      :style="{ 'justify-content': !isShowLeft ? 'space-between' : 'flex-end' }"
+      :style="{ 'justify-content': !isTemplateConfig ? 'space-between' : 'flex-end' }"
       class="fields-button-container"
     >
       <div
-        v-if="!isShowLeft"
+        v-if="!isTemplateConfig"
         style="color: #4d4f56"
       >
         <span
@@ -132,14 +130,11 @@
           class="bklog-icon bklog-help"
         ></span>
         当前设置仅对个人生效，可以
-        <span style="color: #3a84ff"
-          ><span
-            style="margin-right: 4px; font-size: 14px"
-            class="bklog-icon bklog-save"
-          ></span
-          >另存为模板</span
-        >
-        <span>，也可以使用 <span style="color: #3a84ff">其他模板</span></span>
+        <save-as-popover
+          :confirm-handler="handleUpdateConfig"
+          :display-fields="currentVisibleList"
+          :sort-list="currentSortList"
+        />
       </div>
       <div>
         <bk-button
@@ -163,12 +158,13 @@
 </template>
 
 <script>
+  import { formatHierarchy } from '@/common/field-resolver';
   import { random, downJsonFile } from '@/common/util';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
   import LogExport from '../../../../components/log-import/log-import';
+  import saveAsPopover from './children/save-as-popover.vue';
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
@@ -183,15 +179,17 @@
       fieldSetting,
       tableSort,
       LogExport,
+      saveAsPopover,
     },
     props: {
       retrieveParams: {
         type: Object,
         required: true,
       },
-      isShowLeft: {
-        type: Boolean,
-        default: false,
+      /** 组件展示状态 -- template:模板配置  list: 列表配置 */
+      configType: {
+        type: String,
+        default: 'list',
       },
       isShow: {
         type: Boolean,
@@ -228,11 +226,25 @@
       };
     },
     computed: {
+      /** 当前组件展示状态是否为 模板配置 */
+      isTemplateConfig() {
+        return this.configType === 'template';
+      },
+      catchFieldCustomSortList() {
+        return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
+      },
+      /** 当前本地用户正在应用的展示字段设置 */
+      localVisibleFields() {
+        return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+      },
       shadowSort() {
+        if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
+          return this.catchFieldCustomSortList;
+        }
         return this.$store.state.indexFieldInfo.sort_list;
       },
       shadowTotal() {
-        return this.$store.state.indexFieldInfo.fields;
+        return formatHierarchy(this.$store.state.indexFieldInfo.fields);
       },
       filterShadowTotal() {
         const fields = this.$store.state.indexFieldInfo.fields;
@@ -279,6 +291,15 @@
       fieldWidth() {
         return this.$store.state.isEnLanguage ? '60' : '114';
       },
+      currentSortList() {
+        return this.$refs?.tableSortRef?.shadowSort || this.shadowSort;
+      },
+      currentVisibleList() {
+        return (
+          this.$refs?.fieldSettingRef?.shadowVisible?.map(item => item.field_name) ||
+          this.shadowVisible?.map(item => item.field_name)
+        );
+      },
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
@@ -295,6 +316,11 @@
           });
         }
       },
+      localVisibleFields() {
+        if (this.isShow && !this.isTemplateConfig) {
+          this.initRequestConfigListShow();
+        }
+      },
     },
     created() {
       this.currentClickConfigID = this.filedSettingConfigID;
@@ -307,6 +333,11 @@
       window.removeEventListener('click', this.handleDocumentClick);
     },
     methods: {
+      /**
+       * @description 自定义监听父级 popover 点击关闭触发事件
+       * @param {Event} e 事件对象
+       *
+       */
       handleDocumentClick(e) {
         if (e.target?.closest?.('.bklog-v3-popover-tag')) {
           return;
@@ -316,22 +347,14 @@
           this.$emit('cancel');
         }
       },
-      getFiledDisplayByFieldName(name) {
-        const field = this.shadowTotal.find(item => item.field_name === name);
-        return this.getFiledDisplay(field);
-      },
-      getFiledDisplay(field) {
-        if (this.showFieldAlias) {
-          return getFieldNameByField(field, this.$store);
-        }
-        const alias = this.fieldAliasMap[field.field_name];
-        if (alias && alias !== field.field_name) {
-          return `${field.field_name}(${alias})`;
-        }
-        return field.field_name;
-      },
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {
+        // 如果是从字段模板打开则需要请求接口获取字段列表及配置
+        // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
+        if (!this.isTemplateConfig) {
+          this.initShadowFields(this.localVisibleFields);
+          return;
+        }
         await this.getFiledConfigList();
         this.initShadowFields();
       },
@@ -345,24 +368,29 @@
           return;
         }
         try {
-          const confirmConfigData = {
-            editStr: this.currentClickConfigData.name,
-            sort_list: currentSortList,
-            display_fields: currentVisibleList,
-            id: this.currentClickConfigData.id,
-          };
-          this.isConfirmSubmit = true;
-          await this.handleUpdateConfig(confirmConfigData);
-          // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
-          if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
-            await this.submitFieldsSet(this.currentClickConfigData.id);
+          // 字段模板保持配置逻辑，表格设置打开时不需要执行
+          if (this.isTemplateConfig) {
+            const confirmConfigData = {
+              editStr: this.currentClickConfigData.name,
+              sort_list: currentSortList,
+              display_fields: currentVisibleList,
+              id: this.currentClickConfigData.id,
+            };
+            this.isConfirmSubmit = true;
+            await this.handleUpdateConfig(confirmConfigData);
+            // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
+            if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
+              await this.submitFieldsSet(this.currentClickConfigData.id);
+            }
           }
+
           this.cancelModifyFields();
           // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
               displayFields: currentVisibleList,
+              sortList: currentSortList,
               fieldsWidth: {},
             })
             .then(() => {
@@ -370,6 +398,7 @@
               this.$store.commit('updateIsSetDefaultTableColumn');
             });
           await this.$store.dispatch('requestIndexSetFieldInfo');
+
           await this.$store.dispatch('requestIndexSetQuery');
         } catch (error) {
           console.warn(error);
@@ -398,94 +427,6 @@
         this.$emit('cancel');
         this.isSortFieldChanged = false;
       },
-      filterStatusIcon(val) {
-        if (val === 'desc') {
-          return 'icon-arrows-down-line';
-        }
-        if (val === 'asc') {
-          return 'icon-arrows-up-line';
-        }
-        return '';
-      },
-      filterOption(val) {
-        if (val === 'desc') {
-          return this.$t('设为升序');
-        }
-        if (val === 'asc') {
-          return this.$t('设为降序');
-        }
-        return '';
-      },
-      addField(fieldInfo) {
-        this.isSortFieldChanged = true;
-        if (this.activeFieldTab === 'visible') {
-          fieldInfo.is_display = true;
-          this.shadowVisible.push(fieldInfo.field_name);
-        } else {
-          fieldInfo.isSorted = true;
-          this.isSortFieldChanged = true;
-          this.shadowSort.push([fieldInfo.field_name, 'asc']);
-        }
-      },
-      deleteField(fieldName, index) {
-        this.isSortFieldChanged = true;
-        const arr = this.shadowTotal;
-        if (this.activeFieldTab === 'visible') {
-          this.shadowVisible.splice(index, 1);
-          for (let i = 0; i < arr.length; i++) {
-            if (arr[i].field_name === fieldName) {
-              arr[i].is_display = false;
-              return;
-            }
-          }
-        } else {
-          this.shadowSort.splice(index, 1);
-          for (let i = 0; i < arr.length; i++) {
-            if (arr[i].field_name === fieldName) {
-              this.isSortFieldChanged = true;
-              arr[i].isSorted = false;
-              return;
-            }
-          }
-        }
-      },
-      addAllField() {
-        if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
-            if (!fieldInfo.is_display) {
-              fieldInfo.is_display = true;
-              this.shadowVisible.push(fieldInfo.field_name);
-            }
-          });
-        } else {
-          this.shadowTotal.forEach(fieldInfo => {
-            if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
-              fieldInfo.isSorted = true;
-              this.isSortFieldChanged = true;
-              this.shadowSort.push([fieldInfo.field_name, 'asc']);
-            }
-          });
-        }
-      },
-      deleteAllField() {
-        if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
-            fieldInfo.is_display = false;
-            this.shadowVisible.splice(0, this.shadowVisible.length);
-          });
-        } else {
-          this.shadowTotal.forEach(fieldInfo => {
-            fieldInfo.isSorted = false;
-            this.isSortFieldChanged = this.isSortFieldChanged || this.shadowSort.length;
-            this.shadowSort.splice(0, this.shadowSort.length);
-          });
-        }
-      },
-      setOrder(item) {
-        this.isSortFieldChanged = true;
-        item[1] = item[1] === 'asc' ? 'desc' : 'asc';
-        this.$forceUpdate();
-      },
       renderHeader(h, row, index) {
         row.index = index;
         return h(fieldsSettingOperate, {
@@ -495,7 +436,6 @@
           },
           on: {
             operateChange: this.handleLeftOperateChange,
-            setPopperInstance: this.setPopperInstance,
           },
         });
       },
@@ -615,7 +555,9 @@
             }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
-          successMsg && this.messageInfo(successMsg);
+          if (successMsg) {
+            isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
+          }
         } catch (error) {
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
@@ -649,8 +591,8 @@
         }
       },
       /** 初始化显示字段 */
-      initShadowFields() {
-        this.activeConfigTab = this.currentClickConfigData.name;
+      initShadowFields(configData) {
+        this.activeConfigTab = this.currentClickConfigData?.name;
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {
@@ -660,6 +602,7 @@
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
         this.shadowVisible =
+          configData ||
           this.currentClickConfigData.display_fields
             ?.map(displayName => {
               for (const field of this.shadowTotal) {
@@ -669,7 +612,8 @@
                 }
               }
             })
-            ?.filter(Boolean) || [];
+            ?.filter(Boolean) ||
+          [];
       },
       /** 获取配置列表 */
       async getFiledConfigList() {
@@ -697,9 +641,6 @@
         } finally {
           this.isLoading = false;
         }
-      },
-      setPopperInstance(status) {
-        this.$emit('set-popper-instance', status);
       },
       searchChange(v) {
         this.keyword = v;

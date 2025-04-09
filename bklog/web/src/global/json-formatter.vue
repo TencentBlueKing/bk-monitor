@@ -56,7 +56,7 @@
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
 
-  const isWrap = computed(() => store.state.tableLineIsWrap);
+  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
       return props.fields;
@@ -126,7 +126,7 @@
     }));
   });
 
-  const depth = computed(() => store.state.tableJsonFormatDepth);
+  const depth = computed(() => store.state.storage.tableJsonFormatDepth);
 
   watch(
     () => [formatCounter.value],
@@ -211,6 +211,12 @@
         }
       }
 
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
+
       .valid-text {
         padding: 2px 0;
         :hover {
@@ -254,8 +260,9 @@
 
         &.focus-text,
         &:hover {
-          background-color: #cddffe;
-          border-radius: 2px;
+          // background-color: #cddffe;
+          // border-radius: 2px;
+          color: #3a84ff;
         }
       }
 
@@ -307,13 +314,20 @@
       font-size: var(--table-fount-size);
       line-height: 22px;
 
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
+
       .valid-text {
         cursor: pointer;
         padding: 2px 0;
         &.focus-text,
         &:hover {
-          background-color: #cddffe;
-          border-radius: 2px;
+          // background-color: #cddffe;
+          // border-radius: 2px;
+          color: #3a84ff;
         }
       }
     }

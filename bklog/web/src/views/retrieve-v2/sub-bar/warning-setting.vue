@@ -21,7 +21,7 @@
         class="bklog-warning-wrapper"
       >
         <bk-tab
-          style="width: 580px; min-height: 200px; background-color: #fff"
+          style="width: 580px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
           type="card"
@@ -44,6 +44,7 @@
                 </span>
               </div>
               <div
+                class="selector-more"
                 style="margin: 0 12px; color: #3a84ff; cursor: pointer"
                 @click="handleJumpMonitor()"
               >
@@ -88,6 +89,7 @@
               :outer-border="false"
               :row-border="false"
               @sort-change="handleSortChange"
+              :stripe="true"
             >
               <bk-table-column
                 :label="$t('告警名称')"
@@ -102,6 +104,7 @@
                       '--severity-color': getLevelColor(row.severity),
                     }"
                     @click="handleViewWarningDetail(row)"
+                    v-bk-overflow-tips="row.alert_name"
                   >
                     <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
@@ -109,7 +112,7 @@
               </bk-table-column>
               <bk-table-column
                 :label="$t('首次发生时间')"
-                min-width="115"
+                min-width="140"
                 sortable="true"
               >
                 <template #default="{ row }">
@@ -376,6 +379,8 @@
       config: 'strategy-config',
     };
 
+
+    
     if (active.value === 'mission') {
       getQueryString().then(res => {
         window.open(
@@ -574,7 +579,7 @@
 
     .bklog-icon {
       margin: 0 6px 0 0;
-      font-size: 14px;
+      font-size: 16px;
     }
   }
 
@@ -608,10 +613,12 @@
           }
 
           .bk-tab-label-item {
-            font-size: 13px;
-
             /* stylelint-disable-next-line declaration-no-important */
             line-height: 42px !important;
+
+            .panel-name{
+              font-size: 13px;
+            }
           }
 
           .active-box {
@@ -636,6 +643,14 @@
         td {
           height: 32px;
           border-bottom: none;
+        }
+
+        .bk-table-empty-text {
+          padding: 20px 0;
+        }
+
+        .bk-table-row-striped td {
+          background-color: #FAFBFD;
         }
       }
     }
@@ -666,8 +681,11 @@
     padding: 4px 4px;
     font-size: 12px;
     background-color: #dcdee5;
-    border: 1px solid #dcdcdc;
     border-radius: 4px;
+  }
+
+  .selector-more{
+    font-size: 12px;
   }
 
   .option {
@@ -679,6 +697,7 @@
     height: 100%;
     color: #4d4f56;
     cursor: pointer;
+    border-radius: 2px;
     transition: background-color 0.3s;
   }
 

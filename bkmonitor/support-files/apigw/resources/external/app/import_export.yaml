@@ -1,0 +1,27 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/import_export/export_config_to_business/:
+    post:
+      operationId: export_config_to_business
+      description: 导出配置到指定业务
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/import_export/export_config_to_business/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: export_config_to_business

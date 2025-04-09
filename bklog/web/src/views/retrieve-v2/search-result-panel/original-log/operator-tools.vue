@@ -117,7 +117,12 @@
       </span>
     </template>
     <template v-if="isAiAssistanceActive">
-      <span class="handle-card ai-assistant"> </span>
+      <span
+        class="handle-card ai-assistant bklog-row-ai"
+        @click.stop="e => handleCheckClick('ai', true, e)"
+      >
+        <img :src="aiImageUrl" />
+      </span>
     </template>
   </div>
 </template>
@@ -155,6 +160,9 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
+      aiImageUrl() {
+        return require('@/images/rowAiNew.svg');
+      },
       isActiveLog() {
         return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
       },
@@ -205,9 +213,9 @@
       },
     },
     methods: {
-      handleCheckClick(clickType, isActive = false) {
+      handleCheckClick(clickType, isActive = false, event) {
         if (!isActive) return;
-        return this.handleClick(clickType);
+        return this.handleClick(clickType, event);
       },
     },
   };
@@ -233,6 +241,15 @@
 
       .bklog-icon {
         cursor: pointer;
+      }
+
+      &.ai-assistant {
+        opacity: 0;
+
+        img {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }

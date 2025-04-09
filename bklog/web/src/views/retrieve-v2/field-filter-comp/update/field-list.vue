@@ -48,6 +48,9 @@
   const isLoading = ref(false);
   const configList = ref([]);
   const searchKeyword = ref('');
+
+  /** 打开 popover 弹窗时获取相对位置需要依据的目标节点 */
+  const popoverTrigger = ref(null);
   /** 字段模版下拉菜单容器实例 */
   const dropdownRef = ref(null);
   /** 字段配置管理 组件实例  */
@@ -93,7 +96,9 @@
       popoverLazyLoaded.value.dropdown = true;
       await nextTick();
     }
-    popoverInstance = $bkPopover(e.currentTarget, {
+    // 兼容日志表格设置icon打开的 列表配置 中需要能够点击打开字段模板逻辑
+    const triggerDom = e?.currentTarget || popoverTrigger.value;
+    popoverInstance = $bkPopover(triggerDom, {
       content: dropdownRef.value,
       trigger: 'click',
       animateFill: false,
@@ -124,8 +129,7 @@
       popoverLazyLoaded.value.setting = true;
       await nextTick();
     }
-    const triggerDom = document.querySelector('.dropdown-trigger');
-    popoverInstance = $bkPopover(triggerDom, {
+    popoverInstance = $bkPopover(popoverTrigger.value, {
       content: settingRef.value,
       trigger: 'click',
       animation: 'slide-toggle',
@@ -158,6 +162,17 @@
     popoverInstance = null;
   }
 
+  /**
+   * @description 由于 fields-setting 组件中自定义监听click事件关闭popover，防止导致字段模板下拉菜单也失效单独处理关闭逻辑
+   *
+   */
+  function handleFieldsSettingHide() {
+    if (!showFieldsSetting.value) {
+      return;
+    }
+    handlePopoverHide();
+  }
+
   const getFiledConfigList = async () => {
     isLoading.value = true;
     try {
@@ -184,6 +199,7 @@
     store
       .dispatch('userFieldConfigChange', {
         displayFields: item.display_fields,
+        sortList: item.sort_list,
         fieldsWidth: {},
       })
       .then(() => {
@@ -197,10 +213,11 @@
   <div class="field-select-config-v2">
     <div
       class="dropdown-trigger"
+      :ref="vm => (popoverTrigger = vm)"
       @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
-      <span> {{ $t('字段模板') }} </span>
+      <span class="trigger-label"> {{ $t('字段模板') }} </span>
     </div>
     <div style="display: none">
       <div
@@ -255,11 +272,11 @@
         "
       >
         <fields-setting
-          :is-show="showFieldsSetting"
           :field-alias-map="fieldAliasMap"
-          :is-show-left="true"
+          :is-show="showFieldsSetting"
           :retrieve-params="retrieveParams"
-          @cancel="handlePopoverHide"
+          config-type="template"
+          @cancel="handleFieldsSettingHide"
           @set-popper-instance="() => {}"
         />
       </div>

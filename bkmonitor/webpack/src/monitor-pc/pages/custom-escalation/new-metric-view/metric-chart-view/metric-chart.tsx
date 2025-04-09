@@ -437,7 +437,7 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const list = [this.panel.targets[0]].map(item => {
+      const list = this.panel.targets.map(item => {
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => {
             metric.method = this.method || metric.method;

@@ -24,7 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { Ref } from 'vue';
 import { random } from '../common/util';
+
+import OptimizedHighlighter from './optimized-highlighter';
 
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
@@ -37,6 +40,7 @@ export enum STORAGE_KEY {
 export enum RetrieveEvent {
   // 展示收藏内容
   FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
+
   // 收藏栏是否展示
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
 
@@ -46,11 +50,22 @@ export enum RetrieveEvent {
   // 左侧字段设置宽度变化
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
 
+  // 左侧字段设置是否展示
+  LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
+
   // 搜索栏高度变化
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
 
   // 趋势图高度变化
   TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
+
+  /**
+   * localStorage 变化
+   */
+  STORAGE_CHANGE = 'storage-change',
+
+  // 打开索引配置
+  INDEX_CONFIG_OPEN = 'index-config-open',
 }
 
 class RetrieveHelper {
@@ -62,6 +77,9 @@ class RetrieveHelper {
 
   // 左侧字段设置宽度
   leftFieldSettingWidth: number;
+
+  // 左侧字段设置是否展示
+  leftFieldSettingShown: boolean = true;
 
   // 收藏栏宽度
   favoriteWidth: number;
@@ -79,9 +97,13 @@ class RetrieveHelper {
   // 事件列表
   events: Map<string, ((...args) => void)[]>;
 
+  markInstance: OptimizedHighlighter = undefined;
+
   // 正则表达式提取日志级别
   logLevelRegex =
     /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/i;
+
+  logRowsContainerId: string;
 
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
@@ -89,6 +111,7 @@ class RetrieveHelper {
     this.favoriteWidth = favoriteWidth;
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
+    this.logRowsContainerId = `result_container_key_${random(12)}`;
   }
 
   on(fnName: RetrieveEvent, callbackFn: (...args) => void) {
@@ -96,11 +119,55 @@ class RetrieveHelper {
       if (!this.events.get(fnName).includes(callbackFn)) {
         this.events.get(fnName)?.push(callbackFn);
       }
-      return;
+      return this;
     }
 
     this.events.set(fnName, [callbackFn]);
     return this;
+  }
+
+  /**
+   * // 初始化 Mark.js 实例
+   * @param target
+   */
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
+    this.markInstance = new OptimizedHighlighter({
+      target: target ?? (() => document.getElementById(this.logRowsContainerId)),
+      chunkStrategy: 'fixed',
+    });
+  }
+
+  highlightElement(target) {
+    this.markInstance.highlightElement(target);
+  }
+
+  highLightKeywords(keywords?: string[], reset = true) {
+    if (!this.markInstance) {
+      return;
+    }
+
+    const colors = [
+      'rgba(245, 149, 0, 0.3)',
+      'rgba(44, 175, 133, 0.3)',
+      'rgba(58, 172, 255, 0.3)',
+      'rgba(210, 93, 250, 0.3)',
+      'rgba(216, 74, 87, 0.3)',
+    ];
+    this.markInstance.unmark({});
+    this.markInstance.highlight(
+      (keywords ?? []).map((keyword, index) => {
+        return {
+          text: keyword,
+          className: `highlight-${index}`,
+          backgroundColor: colors[index % colors.length],
+        };
+      }),
+      reset,
+    );
+  }
+
+  updateMarkElement() {
+    this.markInstance.incrementalUpdate();
   }
 
   /**
@@ -145,6 +212,10 @@ class RetrieveHelper {
     this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
   }
 
+  setStorage(key: string, value: any) {
+    localStorage.setItem(key, value);
+  }
+
   /**
    * 更新字段设置宽度
    * 字段设置在用户手动调整宽度时，需要更新宽度
@@ -154,6 +225,16 @@ class RetrieveHelper {
   setLeftFieldSettingWidth(width: number) {
     this.leftFieldSettingWidth = width;
     this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+  }
+
+  /**
+   * 更新字段设置收否收起
+   * 收起时表头位置计算逻辑需要更新
+   * @param isShown
+   */
+  setLeftFieldIsShown(isShown: boolean) {
+    this.leftFieldSettingShown = isShown;
+    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown);
   }
 
   /**
@@ -194,6 +275,14 @@ class RetrieveHelper {
     this.runEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, favorite);
   }
 
+  /**
+   * 打开索引配置
+   * @param show
+   */
+  setIndexConfigOpen (show: boolean) {
+    this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
+  }
+  
   getScrollSelector() {
     return this.globalScrollSelector;
   }

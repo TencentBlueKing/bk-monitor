@@ -103,17 +103,15 @@ export default class CollectContainer extends tsc<IProps> {
     this.dragList = JSON.parse(JSON.stringify(this.dataList));
   }
   // 新增方法来渲染空消息
-  private renderEmptyMessage() {
+  private renderEmptyMessage(emptyType) {
     return (
       <div class='data-empty'>
         <div class='empty-box'>
           <Exception
             class='exception-wrap-item exception-part'
             scene='part'
-            type='search-empty'
-          >
-            <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
-          </Exception>
+            type={emptyType}
+          ></Exception>
         </div>
       </div>
     );
@@ -155,10 +153,10 @@ export default class CollectContainer extends tsc<IProps> {
                 </transition-group>
               </VueDraggable>
             ) : (
-              this.renderEmptyMessage()
+              this.renderEmptyMessage('empty')
             )
           ) : (
-            this.renderEmptyMessage()
+            this.renderEmptyMessage('search-empty')
           )}
         </div>
       </div>

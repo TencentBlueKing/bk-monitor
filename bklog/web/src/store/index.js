@@ -55,6 +55,8 @@ import {
   logSourceField,
   indexSetClusteringData,
   getDefaultRetrieveParams,
+  getStorageOptions,
+  BkLogGlobalStorageKey,
 } from './default-values.ts';
 import globals from './globals';
 import RequestPool from './request-pool';
@@ -153,16 +155,9 @@ const stateTpl = {
   /** 是否清空了显示字段，展示全量字段 */
   isNotVisibleFieldsShow: false,
   showAlert: false, // 是否展示跑马灯
-  isLimitExpandView: false,
   storeIsShowClusterStep: false,
   retrieveDropdownData: {},
   notTextTypeFields: [],
-  tableLineIsWrap: false,
-  tableJsonFormat: false,
-  tableJsonFormatDepth: 1,
-  tableShowRowIndex: false,
-  // 是否展示空字段
-  tableAllowEmptyField: false,
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
@@ -171,6 +166,9 @@ const stateTpl = {
   // 存放接口报错信息的对象
   apiErrorInfo: {},
   clusterParams: null,
+  storage: {
+    ...getStorageOptions(),
+  },
   features: {
     isAiAssistantActive: false,
   },
@@ -225,7 +223,8 @@ const store = new Vuex.Store({
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
-    isLimitExpandView: state => state.isLimitExpandView,
+    isLimitExpandView: state => state.storage.isLimitExpandView,
+    custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
     common_filter_addition: state =>
       (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(({ field, operator, value }) => ({
         field,
@@ -303,18 +302,12 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-    updatetableJsonFormatDepth(state, val) {
-      state.tableJsonFormatDepth = val;
-    },
-    updateTableJsonFormat(state, val) {
-      state.tableJsonFormat = val;
-    },
-    updateTableShowRowIndex(state, val) {
-      state.tableShowRowIndex = val;
-    },
-    // 更新是否展示空字段
-    updateTableEmptyFieldFormat(state, val) {
-      state.tableAllowEmptyField = val;
+    updateStorage(state, payload) {
+      Object.keys(payload).forEach(key => {
+        state.storage[key] = payload[key];
+      });
+
+      localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
@@ -638,10 +631,7 @@ const store = new Vuex.Store({
     updateNoticeAlert(state, val) {
       state.showAlert = val;
     },
-    updateIsLimitExpandView(state, val) {
-      localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
-      state.isLimitExpandView = val;
-    },
+
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
@@ -734,7 +724,7 @@ const store = new Vuex.Store({
       );
     },
     updateTableLineIsWrap(state, payload) {
-      state.tableLineIsWrap = payload;
+      state.storage.tableLineIsWrap = payload;
     },
     updateShowFieldAlias(state, payload) {
       window.localStorage.setItem('showFieldAlias', payload);
@@ -1176,18 +1166,22 @@ const store = new Vuex.Store({
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
 
-      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
-      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
-      const { datePickerValue } = state.indexItem;
-      const letterRegex = /[a-zA-Z]/;
-      const needTransform = datePickerValue.every(d => letterRegex.test(d));
+      // 如果是第一次请求
+      // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
+      if (!payload?.isPagination) {
+        // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+        // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+        const { datePickerValue } = state.indexItem;
+        const letterRegex = /[a-zA-Z]/;
+        const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
-      const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue, format)
-        : [state.indexItem.start_time, state.indexItem.end_time];
+        const [start_time, end_time] = needTransform
+          ? handleTransformToTimestamp(datePickerValue, format)
+          : [state.indexItem.start_time, state.indexItem.end_time];
 
-      if (needTransform) {
-        commit('updateIndexItem', { start_time, end_time });
+        if (needTransform) {
+          commit('updateIndexItem', { start_time, end_time });
+        }
       }
 
       if (!payload?.isPagination && payload.formChartChange) {
@@ -1209,6 +1203,8 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
+      const { start_time, end_time } = state.indexItem;
+
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
@@ -1216,6 +1212,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
+        sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
       };
 
       // 更新联合查询的begin

@@ -10,8 +10,8 @@
       :is-show.sync="showSlider"
       :quick-close="true"
       :title="$t('索引配置')"
-      :width="800"
       :transfer="true"
+      :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
@@ -38,7 +38,7 @@
             ref="validateForm"
             class="field-setting-form"
             :class="!isEdit ? 'field-preview-form' : ''"
-            :label-width="100"
+            :label-width="94"
             :model="formData"
             :rules="basicRules"
           >
@@ -46,7 +46,7 @@
             <bk-form-item
               ext-cls="en-bk-form"
               :icon-offset="120"
-              :label="$t('采集名')"
+              :label="formLableFormatter($t('采集名'))"
               :property="'collector_config_name'"
               :required="isEdit || isEditConfigName"
               :rules="basicRules.collector_config_name"
@@ -72,7 +72,7 @@
             <bk-form-item
               ext-cls="en-bk-form"
               :icon-offset="120"
-              :label="$t('数据名')"
+              :label="formLableFormatter($t('数据名'))"
               :property="'collector_config_name_en'"
               :required="isEdit"
               :rules="basicRules.collector_config_name_en"
@@ -91,7 +91,7 @@
             </bk-form-item>
             <bk-form-item
               ext-cls="en-bk-form"
-              :label="$t('数据ID')"
+              :label="formLableFormatter($t('数据ID'))"
               :property="'bk_data_id'"
               :required="isEdit"
               :rules="basicRules.bk_data_id"
@@ -108,7 +108,7 @@
             <div class="add-collection-title">{{ $t('存储配置') }}</div>
             <bk-form-item
               ext-cls="en-bk-form"
-              :label="$t('集群名称')"
+              :label="formLableFormatter($t('集群名称'))"
               :property="'storage_cluster_id'"
               :required="isEdit"
               :rules="basicRules.storage_cluster_id"
@@ -130,7 +130,7 @@
             </bk-form-item>
             <bk-form-item
               ext-cls="en-bk-form"
-              :label="$t('日志保存天数')"
+              :label="formLableFormatter($t('日志保存天数'))"
               :property="'retention'"
               :required="isEdit || isEditRetention"
               :rules="basicRules.retention"
@@ -170,10 +170,10 @@
             <setting-table
               v-if="isOriginTableSaved"
               ref="originfieldTable"
-              :original-text-tokenize-on-chars="defaultParticipleStr"
               :extract-method="cleanType"
               :fields="originBuiltFields"
               :is-preview-mode="!isEdit"
+              :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'originLog'"
             >
             </setting-table>
@@ -192,12 +192,12 @@
             <div class="setting-title">{{ $t('索引字段配置') }}</div>
             <setting-table
               ref="indexfieldTable"
-              :original-text-tokenize-on-chars="defaultParticipleStr"
               :built-fields="indexBuiltField"
               :collector-config-id="collectorConfigId"
               :extract-method="cleanType"
               :fields="tableField"
               :is-preview-mode="!isEdit"
+              :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'indexLog'"
             >
             </setting-table>
@@ -242,14 +242,15 @@
   import { computed, ref, nextTick } from 'vue';
 
   import { deepClone } from '@/common/util';
+  import { builtInInitHiddenList } from '@/const/index.js';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import { builtInInitHiddenList } from '@/const/index.js';
+
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
@@ -413,6 +414,16 @@
     // 获取table表格编辑的数据 新增新的字段对象
     tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
   };
+  RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+    hideSingleConfigInput();
+    handleOpenSidebar();
+    nextTick(() => {
+      handleEdit()
+    });
+  });
+  function formLableFormatter(label) {
+    return `${label} :`;
+  }
 
   const handleEdit = () => {
     isEdit.value = true;
@@ -606,7 +617,7 @@
                     isEdit.value = false;
                   });
                 }
-                //请求成功后刷新页面
+                // 请求成功后刷新页面
                 location.reload();
                 // store.dispatch('requestIndexSetFieldInfo',)
               })
@@ -636,6 +647,13 @@
 
     return true;
   });
+
+  defineExpose({
+    handleShowSlider: () => {
+      hideSingleConfigInput();
+      handleOpenSidebar();
+    },
+  });
 </script>
 
 <style lang="scss">
@@ -651,8 +669,8 @@
 
       span {
         margin: 0px 6px 0 0;
-        font-size: 14px;
-        line-height: 20px;
+        font-size: 16px;
+        // line-height: 20px;
       }
     }
   }
@@ -666,10 +684,10 @@
 
       .add-collection-title {
         width: 100%;
-        padding-top: 18px;
+        padding-top: 16px;
         font-size: 14px;
-        font-weight: 600;
-        color: #63656e;
+        font-weight: 700;
+        color: #313238;
       }
 
       .setting-title {
@@ -685,7 +703,7 @@
       }
 
       .field-setting-form {
-        padding: 16px 36px 36px;
+        padding: 4px 40px 36px;
 
         .form-flex-container {
           display: flex;
@@ -702,7 +720,15 @@
         }
 
         .bk-form-item {
-          margin-top: 18px;
+          .bk-label {
+            padding-right: 12px;
+            color: #4d4f56;
+          }
+
+          .bk-form-content {
+            font-size: 12px;
+            color: #313238;
+          }
         }
 
         .source-item {

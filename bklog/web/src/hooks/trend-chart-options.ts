@@ -231,7 +231,7 @@ export default {
         },
       },
       scale: true,
-      min: 'dataMin',
+      min: value => Math.min(0, value.min),
       z: 3,
     },
   ],

@@ -25,7 +25,7 @@
  */
 import { isRef, ref, Ref } from 'vue';
 import { debounce } from 'lodash';
-import tippy, { Props, Placement } from 'tippy.js';
+import tippy, { Props, Placement, Instance } from 'tippy.js';
 
 type PopInstanceUtilType = {
   refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string;
@@ -38,7 +38,7 @@ type PopInstanceUtilType = {
 };
 
 export default class PopInstanceUtil {
-  private tippyInstance;
+  private tippyInstance: Instance<Props>;
   private refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string =
     ref(null);
   private onShowFn;
@@ -166,19 +166,18 @@ export default class PopInstanceUtil {
         return this.onShowFn?.(this.tippyInstance) ?? true;
       },
       onShown: () => {
-        this.isShowing = false;
+        this.setIsShowing(true);
       },
       onHide: () => {
-        this.isShowing = false;
+        this.setIsShowing(false);
         if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
           return false;
         }
 
         this.onBeforeUnmount();
       },
-      onDestroy: () => {
-        this.isShowing = false;
-        this.onBeforeUnmount();
+      onHidden: () => {
+        this.setIsShowing(false);
       },
     };
   }
@@ -209,7 +208,7 @@ export default class PopInstanceUtil {
 
     const content = this.getContent();
     if (this.tippyInstance === null && content) {
-      this.tippyInstance = tippy(target, this.getMergeTippyOptions());
+      this.tippyInstance = tippy(target, this.getMergeTippyOptions()) as any;
     }
   }
 
@@ -218,7 +217,6 @@ export default class PopInstanceUtil {
       return;
     }
 
-    this.isShowing = true;
     cancelHidding && this.cancelHide();
     if (!immediate) {
       this.delayShowInstance(target);
@@ -237,6 +235,7 @@ export default class PopInstanceUtil {
   }
 
   hide(delay?) {
+    this.delayShowInstance.cancel();
     if (delay) {
       // 清理掉之前的隐藏定时器，保证只有一个定时器
       this.cancelHide();

@@ -151,3 +151,43 @@ export const routeQueryKeys = [
   'timezone',
   'unionList',
 ];
+
+export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+
+export const getStorageOptions = () => {
+  const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+  let storage = {};
+  if (storageValue) {
+    try {
+      storage = JSON.parse(storageValue);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  return Object.assign(
+    {
+      // 是否换行
+      tableLineIsWrap: false,
+
+      // 是否展示json解析
+      tableJsonFormat: false,
+
+      // json解析展示层级
+      tableJsonFormatDepth: 1,
+
+      // 是否展示行号
+      tableShowRowIndex: false,
+
+      // 是否展示空字段
+      tableAllowEmptyField: false,
+
+      //是否展开长字段
+      isLimitExpandView: false,
+
+      // start | end | center
+      textEllipsisDir: 'end',
+    },
+    storage,
+  );
+};

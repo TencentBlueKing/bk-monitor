@@ -145,7 +145,6 @@ export default class AiopsDimensionLine extends LineChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params: any = {
         start_time: start_time ? dayjs.tz(start_time).unix() : this.needLegend ? startTime : '',
-
         end_time: end_time ? dayjs.tz(end_time).unix() : this.needLegend ? endTime : '',
       };
       const [zoomStartTime, zoomEndTime] = handleTransformToTimestamp(this.dataZoomTimeRange.timeRange);
@@ -238,8 +237,8 @@ export default class AiopsDimensionLine extends LineChart {
             }, []),
             stack: item.stack || random(10),
             unit: item.unit,
-            markArea: this.createMarkArea(),
-            markLine: enableThreshold ? this.createdMarkLine(item.thresholds || []) : {},
+            // markArea: this.createMarkArea(),
+            // markLine: enableThreshold ? this.createdMarkLine(item.thresholds || []) : {},
           })) as any
         );
         /** 默认以这个宽度来进行刻度划分，主要为了解决 watch 未首次监听宽度自动计算splitNumber */

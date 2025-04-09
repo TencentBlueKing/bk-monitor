@@ -19,8 +19,8 @@
   const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
-  const isWrap = computed(() => store.state.tableLineIsWrap);
-  const isLimitExpandView = computed(() => store.state.isLimitExpandView);
+  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+  const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
   const isIntersecting = ref(false);

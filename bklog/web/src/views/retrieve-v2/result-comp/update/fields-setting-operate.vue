@@ -57,7 +57,8 @@
         :maxlength="10"
         :placeholder="$t('请输入配置名')"
         size="small"
-        @blur="emitOperate('update')"
+        @blur="handleUpdateName"
+        @enter="handleUpdateName"
       ></bk-input>
     </div>
     <div style="display: none">
@@ -86,6 +87,7 @@
 
 <script>
   import { deepClone } from '@/components/monitor-echarts/utils';
+  import { debounce } from 'lodash';
 
   import SettingMoreMenu from './setting-more-menu';
 
@@ -121,31 +123,37 @@
     methods: {
       /** 用户配置操作 */
       async emitOperate(type) {
-        let finalType = type;
         // 进入编辑状态
-        if (finalType === 'edit') {
+        if (type === 'edit') {
           this.nameStr = this.configItem.name;
-        }
-        // 更新字段名称
-        if (finalType === 'update') {
-          // 更新前判断名称是否合法
-          if (!this.nameStr) {
-            this.isInputError = true;
-            return;
-          }
-          // 如果名称未修改则不请求接口直接切换查看状态
-          if (this.nameStr === this.configItem.name) {
-            finalType = 'cancel';
-          }
         }
         const submitData = deepClone(this.configItem);
         submitData.editStr = this.nameStr;
-        this.$emit('operateChange', finalType, submitData);
+        this.$emit('operateChange', type, submitData);
         // 进入编辑态时 focus 聚焦到input框
         this.$nextTick(() => {
           type === 'edit' && this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
         });
       },
+
+      /**
+       * @description input 失焦/enter 后更新字段名称回调方法
+       *
+       */
+      handleUpdateName: debounce(function () {
+        let execOperate = 'update';
+        // 更新前判断名称是否合法
+        if (!this.nameStr) {
+          this.isInputError = true;
+          return;
+        }
+        // 如果名称未修改则不请求接口直接切换查看状态
+        if (this.nameStr === this.configItem.name) {
+          execOperate = 'cancel';
+        }
+
+        this.emitOperate(execOperate);
+      }, 300),
 
       /**
        * @description 更多 下拉菜单 点击事件后回调

@@ -181,6 +181,11 @@ ul.bklog-tag-choice-input {
     min-width: 1px;
     width: 100%;
     min-height: 32px;
+    margin-bottom: 2px;
+
+    &:last-child {
+      margin-bottom: 0px;
+    }
 
     &:hover {
       background: #f5f7fa;
@@ -204,6 +209,8 @@ ul.bklog-tag-choice-input {
   }
   .bklog-choice-value-container {
     min-height: 32px;
+    max-height: 300px;
+    overflow-y: auto;
   }
 
   .empty-row {
@@ -235,33 +242,35 @@ ul.bklog-tag-choice-input {
 
         ul.bklog-tag-choice-input {
           background-color: #fff;
-          padding-bottom: 4px;
+          padding-bottom: 2px;
           border-radius: 3px;
           width: 100%;
 
-          &.is-focus {
-            border-right: solid 1px #3a84ff;
-            position: relative;
-            background-color: transparent;
-
-            &.is-ellipsis {
-              border-bottom: solid 1px #3a84ff;
-              border-bottom-left-radius: 3px;
-              background-color: #fff;
-            }
-
-            &::before {
-              content: '';
-              left: 0;
-              right: 0px;
-              top: var(--bklog-choice-min-height);
-              bottom: 0;
-              border-bottom-left-radius: 0;
-              border-bottom-right-radius: 3px;
+          &.tag-choice {
+            &.is-focus {
+              border-right: solid 1px #3a84ff;
+              position: relative;
               background-color: transparent;
-              pointer-events: none;
-              border-left: solid 1px #3a84ff;
-              position: absolute;
+
+              &.is-ellipsis {
+                border-bottom: solid 1px #3a84ff;
+                border-bottom-left-radius: 3px;
+                background-color: #fff;
+              }
+
+              &::before {
+                content: '';
+                left: 0;
+                right: 0px;
+                top: var(--bklog-choice-min-height);
+                bottom: 0;
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 3px;
+                background-color: transparent;
+                pointer-events: none;
+                border-left: solid 1px #3a84ff;
+                position: absolute;
+              }
             }
           }
         }

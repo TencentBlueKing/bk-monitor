@@ -91,8 +91,8 @@
 
   .field-filter-container-new {
     height: calc(100vh - var(--top-searchbar-height) - 210px);
-
     overflow-y: auto;
+    font-family: Roboto-Regular;
     font-size: 12px;
     line-height: 20px;
     color: #63656e;
@@ -106,18 +106,38 @@
       border-bottom: 1px solid #e1ecff;
     }
 
-    .field-filter-roll {
-      overflow-y: auto;
-    }
-
     .fields-container {
       padding-bottom: 4px;
       margin-bottom: 9px;
 
+      &.inside-fields {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        padding-bottom: 0;
+        background: #fff;
+        border-top: 1px solid #f0f1f5;
+
+        .title {
+          height: 36px;
+          margin-bottom: 0;
+          cursor: pointer;
+        }
+
+        .filed-list {
+          &:has(> li) {
+            padding-bottom: 14px;
+          }
+        }
+      }
+
       &.not-selected {
+        margin-bottom: 0;
+
         .title {
           span.bklog-icon {
             margin-right: 4px;
+
             &:not(.is-expand-all) {
               transform: rotate(270deg);
             }

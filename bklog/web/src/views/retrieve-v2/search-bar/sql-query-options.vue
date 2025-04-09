@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, Ref, onBeforeUnmount } from 'vue';
+  import { computed, ref, watch, nextTick, Ref } from 'vue';
 
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
@@ -14,6 +14,7 @@
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
   import useFieldEgges from './use-field-egges';
+  import { getOsCommandLabel } from '@/common/util';
 
   const props = defineProps({
     value: {
@@ -130,7 +131,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = null;
+    activeIndex.value = 0;
   };
 
   /**
@@ -185,12 +186,6 @@
     showWhichDropdown(showVal);
   };
 
-  // 如果是当前位置 AND | OR | AND NOT 结尾
-  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)$/gi;
-
-  // 如果当前位置是 : 结尾，说明需要显示字段值列表
-  const regExpFieldValue = /(:\s*)$/;
-
   /**
    * @description 获取当前输入框左侧内容
    */
@@ -206,6 +201,12 @@
     emits('change', appendValue, retrieve, replace, type);
   };
 
+  // 如果是当前位置 AND | OR | AND NOT 结尾
+  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)\s*$/i;
+
+  // 如果当前位置是 : 结尾，说明需要显示字段值列表
+  const regExpFieldValue = /(:\s*)$/;
+
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
     if (!originFieldList().length) {
@@ -216,18 +217,21 @@
     fieldList.value = [];
 
     const value = getFocusLeftValue();
-    const trimValue = value.trim();
 
-    if (!trimValue.length) {
+    if (!value.length) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
       return;
     }
 
+    const isEndOrNot = regExpAndOrNot.test(value);
+    const isEndWidthEmpty = /\s+$/.test(value);
+
     // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
-    if (regExpAndOrNot.test(trimValue)) {
-      if (/\s+$/.test(value)) {
+    if (isEndOrNot) {
+      if (isEndWidthEmpty) {
         showWhichDropdown('Fields');
+
         fieldList.value.push(...originFieldList());
         return;
       }
@@ -237,7 +241,7 @@
     }
 
     // 如果是以 : 结尾，说明需要显示字段值列表
-    if (regExpFieldValue.test(trimValue)) {
+    if (regExpFieldValue.test(value)) {
       const lastFragments = value.split(separator);
       const lastFragment = lastFragments[lastFragments.length - 1];
       const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
@@ -288,7 +292,7 @@
 
     showColonOperator(field as string);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -298,11 +302,15 @@
    * @param {string} type
    */
   const handleClickColon = (type: string) => {
-    emitValueChange(type);
+    let target = type;
+    if (type === ': *') {
+      target = `${target} `;
+    }
+    emitValueChange(target);
     calculateDropdown();
 
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -315,7 +323,7 @@
     // 当前输入值可能的情况 【name:"a】【age:】
     emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -329,7 +337,7 @@
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -347,10 +355,24 @@
     e.stopImmediatePropagation();
   };
 
-  const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
+  const handleKeydown = (e: {
+    preventDefault?: any;
+    code?: any;
+    ctrlKey?: boolean;
+    metaKey: boolean;
+    keyCode: number;
+  }) => {
     const { code } = e;
-    if (code === 'Escape') {
-      emits('cancel');
+    const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
+
+    if (code === 'Escape' || !catchKeyCode.includes(code)) {
+      return;
+    }
+
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
+      stopEventPreventDefault(e);
+      handleRetrieve();
       return;
     }
 
@@ -363,10 +385,10 @@
     const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
       stopEventPreventDefault(e);
-
       if (hasHover && !activeIndex.value) {
         activeIndex.value = 0;
       }
+
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
@@ -411,25 +433,30 @@
   };
 
   const beforeShowndFn = () => {
-    document.addEventListener('keydown', handleKeydown);
-    showWhichDropdown();
     calculateDropdown();
-
     nextTick(() => {
       setOptionActive();
     });
 
-    return (
+    const beforeShownValue =
       showOption.value.showFields ||
       showOption.value.showValue ||
       showOption.value.showColon ||
       showOption.value.showContinue ||
-      (showOption.value.showOperator && operatorSelectList.value.length)
-    );
+      (showOption.value.showOperator && operatorSelectList.value.length);
+
+    if (beforeShownValue) {
+      // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+      document.addEventListener('keydown', handleKeydown, {
+        capture: true,
+      });
+    }
+
+    return beforeShownValue;
   };
 
   const beforeHideFn = () => {
-    document.removeEventListener('keydown', handleKeydown);
+    document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
 
   // 查询语法按钮部分
@@ -479,10 +506,6 @@
     nextTick(() => {
       setOptionActive();
     });
-  }, 100);
-
-  onBeforeUnmount(() => {
-    beforeHideFn();
   });
 
   defineExpose({
@@ -694,7 +717,7 @@
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">Enter</span>
+          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
       </div>

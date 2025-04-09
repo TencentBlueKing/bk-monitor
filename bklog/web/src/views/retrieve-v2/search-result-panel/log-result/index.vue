@@ -44,7 +44,7 @@
           class="bklog-option-item"
           :value="showRowIndex"
           theme="primary"
-          @change="handleShowRowIndexChange"
+          @change="val => handleStorageChange(val, 'tableShowRowIndex')"
         >
           <span class="switch-label">{{ $t('显示行号') }}</span>
         </bk-checkbox>
@@ -53,7 +53,7 @@
           class="bklog-option-item"
           v-model="expandTextView"
           theme="primary"
-          @change="handleChangeExpandView"
+          @change="val => handleStorageChange(val, 'isLimitExpandView')"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
         </bk-checkbox>
@@ -62,7 +62,7 @@
           class="bklog-option-item"
           :value="isWrap"
           theme="primary"
-          @change="handleChangeIsWarp"
+          @change="val => handleStorageChange(val, 'tableLineIsWrap')"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
 
@@ -71,18 +71,9 @@
           class="bklog-option-item"
           :value="isJsonFormat"
           theme="primary"
-          @change="handleJsonFormat"
+          @change="val => handleStorageChange(val, 'tableJsonFormat')"
           ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
         >
-        <!-- <bk-checkbox
-          style="margin: 0 12px 0 0"
-          value="false"
-          theme="primary"
-        >
-          <span class="switch-label">
-            {{ $t('转换时间字段') }}
-          </span>
-        </bk-checkbox> -->
 
         <bk-input
           v-if="isJsonFormat"
@@ -100,7 +91,7 @@
           class="bklog-option-item"
           :value="isAllowEmptyField"
           theme="primary"
-          @change="handleEmptyFieldFormat"
+          @change="val => handleStorageChange(val, 'tableAllowEmptyField')"
         >
           <span class="switch-label">
             {{ $t('展示空字段') }}
@@ -112,20 +103,24 @@
         class="tools-more"
       >
         <div class="operation-icons">
-          <!-- <bk-input
-            style="width: 240px"
-            v-model="value"
-            placeholder="输入后按 Enter..."
-          >
-            <template slot="prepend">
-              <div
-                class="group-text"
-                style="width: 40px; padding: 0px 0px; color: #4d4f56; text-align: center; background: #fafbfd"
-              >
-                高亮
-              </div>
-            </template>
-          </bk-input> -->
+          <div class="group-text light-search">
+            <label>高亮</label>
+            <bklogTagChoice
+              :foucsFixed="true"
+              class="bklog-v3-tag-highlight"
+              minHeight="30px"
+              maxWidth="400px"
+              minWidth="200px"
+              v-model="highlightValue"
+              placeholder="输入后按 Enter..."
+              template="tag-input"
+              :onTagRender="handleTagRender"
+              @change="handleHighlightEnter"
+            >
+              <template slot="prepend"> </template>
+            </bklogTagChoice>
+          </div>
+
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -158,10 +153,10 @@
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
-                  :isShow="showFieldsSetting"
                   :field-alias-map="fieldAliasMap"
-                  :is-show-left="isShowLeft"
+                  :is-show="showFieldsSetting"
                   :retrieve-params="retrieveParams"
+                  config-type="list"
                   @cancel="cancelModifyFields"
                   @set-popper-instance="setPopperInstance"
                 />
@@ -185,12 +180,15 @@
   import ExportLog from '../../result-comp/export-log.vue';
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
+  import RetrieveHelper from '../../../retrieve-helper';
+  import bklogTagChoice from '../../search-bar/bklog-tag-choice';
 
   export default {
     components: {
       TableLog,
       FieldsSetting,
       ExportLog,
+      bklogTagChoice,
     },
     inheritAttrs: false,
     props: {
@@ -209,10 +207,9 @@
     },
     data() {
       return {
-        value: '',
+        highlightValue: [],
         contentType: 'table',
         showFieldsSetting: false,
-        isShowLeft: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
         expandTextView: false,
@@ -248,10 +245,10 @@
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
         isWrap: 'tableLineIsWrap',
-        jsonFormatDeep: state => state.tableJsonFormatDepth,
-        isJsonFormat: state => state.tableJsonFormat,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
-        showRowIndex: state => state.tableShowRowIndex,
+        jsonFormatDeep: state => state.storage.tableJsonFormatDepth,
+        isJsonFormat: state => state.storage.tableJsonFormat,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
+        showRowIndex: state => state.storage.tableShowRowIndex,
       }),
 
       routeIndexSet() {
@@ -278,22 +275,34 @@
       },
     },
     mounted() {
-      const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-      this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
-      this.handleChangeExpandView(this.expandTextView);
+      RetrieveHelper.setMarkInstance();
     },
     methods: {
+      handleTagRender(item, index) {
+        const colors = [
+          'rgba(245, 149, 0, 0.3)',
+          'rgba(44, 175, 133, 0.3)',
+          'rgba(58, 172, 255, 0.3)',
+          'rgba(210, 93, 250, 0.3)',
+          'rgba(216, 74, 87, 0.3)',
+        ];
+        return {
+          style: {
+            backgroundColor: colors[index % colors.length],
+          },
+        };
+      },
+      handleHighlightEnter() {
+        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+      },
       // 字段设置
       handleDropdownShow() {
         this.showFieldsSetting = true;
-        this.isShowLeft = false;
-        this.isShowLeft = localStorage.getItem('fieldSettingsIsShowLeft') === 'true';
       },
       handleDropdownHide() {
         this.showFieldsSetting = false;
         localStorage.setItem('fieldSettingsIsShowLeft', false);
-        this.isShowLeft = false;
       },
       cancelModifyFields() {
         this.closeDropdown();
@@ -315,26 +324,15 @@
       handleClickTableBtn(active = 'table') {
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
+        RetrieveHelper.highLightKeywords(null, false);
       },
-      handleShowRowIndexChange(val) {
-        this.$store.commit('updateTableShowRowIndex', val);
-      },
-      handleChangeExpandView(val) {
-        this.$store.commit('updateIsLimitExpandView', val);
-      },
-      handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWrap', val);
-      },
-      handleJsonFormat(val) {
-        this.$store.commit('updateTableJsonFormat', val);
-      },
-      handleEmptyFieldFormat(val) {
-        this.$store.commit('updateTableEmptyFieldFormat', val);
+      handleStorageChange(val, key) {
+        this.$store.commit('updateStorage', { [key]: val });
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);
         const target = value > 15 ? 15 : value < 1 ? 1 : value;
-        this.$store.commit('updatetableJsonFormatDepth', target);
+        this.$store.commit('updateStorage', { tableJsonFormatDepth: target });
       },
     },
   };
@@ -393,6 +391,32 @@
           width: 16px;
           font-size: 16px;
           color: #4d4f56;
+        }
+      }
+
+      .light-search {
+        display: flex;
+        align-items: center;
+
+        height: 32px;
+        background: #ffffff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+
+        font-size: 12px;
+        color: #4d4f56;
+
+        label {
+          width: 40px;
+          padding: 0px 0px;
+          color: #4d4f56;
+          text-align: center;
+          background: #fafbfd;
+          border-right: 1px solid #c4c6cc;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       }
 

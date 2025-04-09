@@ -129,6 +129,8 @@
                 color: #e71818;
                 background: #f5f7fa;
                 border-radius: 2px;
+                word-break: break-all;
+                white-space: break-word;
               }
 
               &:last-child {
