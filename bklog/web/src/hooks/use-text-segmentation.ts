@@ -42,6 +42,7 @@ export type WordListItem = {
   text: string;
   isMark: boolean;
   isCursorText: boolean;
+  isBlobWord?: boolean;
   startIndex?: number;
   endIndex?: number;
   left?: number;
