@@ -268,7 +268,7 @@ class CreateOrUpdateExternalPermission(Resource):
         2. 新增权限 - 实例视角
         """
         # 如果是非cmdb业务，尝试获取关联cmdb业务，用于审批单据
-        space: Space = SpaceApi.get_space_detail(params["bk_biz_id"])
+        space: Space = SpaceApi.get_space_detail(bk_biz_id=params["bk_biz_id"])
         related_space: Union[Space, None] = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
         if not related_space:
             raise Exception(f"create approval ticket failed, related space not found, space_uid: {space.space_uid}")
