@@ -535,22 +535,39 @@ class K8sNodeMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_node_cpu_seconds_total(self):
-        return self.tpl_prom_with_rate("node_cpu_seconds_total")
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['mode!="idle"'])
+        return self.tpl_prom_with_rate("node_cpu_seconds_total", filter_string=filter_string)
 
     @property
     def meta_prom_with_node_cpu_capacity_ratio(self):
-        # 建设中
-        return """"sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
-    /
-    kube_node_status_allocatable{resource="cpu"} * 100"""
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['resource="cpu"'])
+        return (
+            f'{self.tpl_prom_with_nothing("kube_pod_container_resource_requests", filter_string=filter_string)}'
+            f'/'
+            f'{self.tpl_prom_with_nothing("kube_node_status_allocatable", filter_string=filter_string)}'
+        )
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
-        return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total')})) * 100"
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['mode="idle"'])
+        return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
-    def tpl_prom_with_rate(self, metric_name, exclude=""):
-        filter_string = self.filter.filter_string(exclude=exclude)
-        filter_string += ',mode!="idle"'
+    def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
+        if not filter_string:
+            filter_string = self.filter.filter_string(exclude=exclude)
+        if self.agg_interval:
+            return (
+                f"sum by (node) ({self.agg_method}_over_time("
+                f"{metric_name}{{{filter_string}}}[{self.agg_interval}:]))"
+            )
+        return f"{self.method} by (namespace) ({metric_name}{{{filter_string}}})"
+
+    def tpl_prom_with_rate(self, metric_name, exclude="", filter_string=""):
+        if not filter_string:
+            filter_string = self.filter.filter_string(exclude=exclude)
         if self.agg_interval:
             return (
                 f"sum by (node) "
