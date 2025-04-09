@@ -29,6 +29,22 @@ class EventHandler:
 
     def _discover_service_k8s_event_relations(self, service_name: str):
         """自动发现服务 k8s 事件关联关系"""
+        table_relation_map: Dict[str, Dict[str, Any]] = {
+            relation["table"]: relation
+            for relation in EventServiceRelation.fetch_relations(self.bk_biz_id, self.app_name, service_name)
+        }
+        k8s_event_relation: Optional[Dict[str, Any]] = table_relation_map.get(EventCategory.K8S_EVENT.value)
+        if k8s_event_relation and not k8s_event_relation["options"].get("is_auto"):
+            # 调用接口相比于查询 DB 是一个更重的操作，这里应该先判断是否开启自动关联，再查询关联关系，减少无效调用。
+            logger.info(
+                "[_discover_service_k8s_event_relations] auto discover disabled:"
+                "bk_biz_id -> %s, app_name -> %s, service_name -> %s",
+                self.bk_biz_id,
+                self.app_name,
+                service_name,
+            )
+            return
+
         end_time: int = int(datetime.datetime.now().timestamp())
         start_time: int = end_time - int(datetime.timedelta(hours=1).total_seconds())
         workloads: List[Dict[str, str]] = ContainerHelper.list_apm_service_workloads(
@@ -37,21 +53,6 @@ class EventHandler:
         if not workloads:
             logger.info(
                 "[_discover_service_k8s_event_relations] no workloads found: "
-                "bk_biz_id -> %s, app_name -> %s, service_name -> %s",
-                self.bk_biz_id,
-                self.app_name,
-                service_name,
-            )
-            return
-
-        table_relation_map: Dict[str, Dict[str, Any]] = {
-            relation["table"]: relation
-            for relation in EventServiceRelation.fetch_relations(self.bk_biz_id, self.app_name, service_name)
-        }
-        k8s_event_relation: Optional[Dict[str, Any]] = table_relation_map.get(EventCategory.K8S_EVENT.value)
-        if k8s_event_relation and not k8s_event_relation["options"].get("is_auto"):
-            logger.info(
-                "[_discover_service_k8s_event_relations] auto discover disabled:"
                 "bk_biz_id -> %s, app_name -> %s, service_name -> %s",
                 self.bk_biz_id,
                 self.app_name,
