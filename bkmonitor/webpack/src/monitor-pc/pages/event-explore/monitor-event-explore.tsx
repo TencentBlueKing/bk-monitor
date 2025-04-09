@@ -204,16 +204,18 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.group_by = group_by;
       this.filter_dict = filter_dict;
       this.timeRange = compareValue.tools.timeRange;
-      this.refreshInterval = compareValue.tools.refreshInterval || compareValue.tools.refreshInterval;
+      this.refreshInterval = compareValue.tools.refreshInterval || -1;
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
       this.commonWhere = commonWhere || [];
       this.showResidentBtn = showResidentBtn || false;
     } else {
       // 选择检索
-      this.dataId = this.dataIdList[0].id;
-      this.dataSourceLabel = 'custom';
-      this.dataTypeLabel = 'event';
+      if (!this.dataId) {
+        this.dataId = this.dataIdList[0].id;
+        this.dataSourceLabel = 'custom';
+        this.dataTypeLabel = 'event';
+      }
       this.queryString = '*';
       this.where = [];
       this.group_by = [];

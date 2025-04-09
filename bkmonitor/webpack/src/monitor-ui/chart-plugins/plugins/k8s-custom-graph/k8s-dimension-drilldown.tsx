@@ -51,8 +51,8 @@ const drillListMap = {
   [SceneEnum.Network]: {
     namespace: ['ingress', 'service', 'pod'],
     ingress: ['service', 'pod'],
-    service: ['pod'],
-    pod: [],
+    service: ['ingress', 'pod'],
+    pod: ['ingress', 'service'],
   },
 };
 @Component
@@ -93,7 +93,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   async handleDrillDown(id: number | string, e: Event) {
     this.drillDownId = id;
-    /** 下钻列表只有一个选项，直接下钻，不需要暂时popover */
+    /** 下钻列表只有一个选项，直接下钻，不需要popover */
     if (this.drillDownList.length === 1) {
       this.handleDrillDownChange(this.drillDownList[0]);
     } else {

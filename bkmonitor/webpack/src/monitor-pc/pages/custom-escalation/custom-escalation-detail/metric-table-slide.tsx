@@ -42,19 +42,6 @@ const RADIO_OPTIONS = [
   { id: 'checkedOption', label: window.i18n.tc('勾选项') },
 ];
 
-const FIELD_SETTINGS = {
-  name: { label: '名称', width: 175 },
-  description: { label: '别名', width: 175 },
-  unit: { label: '单位', width: 125 },
-  aggregateMethod: { label: '汇聚方法', width: 125 },
-  interval: { label: '上报周期', width: 125 },
-  // func: { label: '函数', width: 125 },
-  dimension: { label: '关联维度', width: 215 },
-  disabled: { label: '启/停', width: 115 },
-  hidden: { label: '显示', width: 115 },
-  set: { label: '操作', width: 50 },
-};
-
 const ALL_OPTION = 'allOption';
 const CHECKED_OPTION = 'checkedOption';
 
@@ -91,11 +78,21 @@ export default class IndicatorTableSlide extends tsc<any> {
   @Ref() metricSliderPopover: any;
   @Ref('metricTableRef') metricTableRef: HTMLDivElement;
   @InjectReactive('metricFunctions') metricFunctions;
+  @Ref('tableContainerRef') tableContainerRef: HTMLDivElement;
 
   localTable: IMetricItem[] = [];
   units: any[] = [];
   inputFocus = -1;
   width = 1400;
+  currentPage = 1;
+  pageSize = 20;
+  cellHeight = 40;
+  totalPages = 0;
+  showTableData = [];
+  bottomLoadingOptions = {
+    size: 'small',
+    isLoading: false,
+  };
 
   // 单位配置
   unitConfig = { mode: ALL_OPTION, checkedList: [] };
@@ -122,6 +119,19 @@ export default class IndicatorTableSlide extends tsc<any> {
   // 删除列表
   delArray = [];
 
+  fieldSettings = {
+    name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
+    description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
+    unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
+    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props) },
+    interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
+    func: { label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
+    dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
+    disabled: { label: '启/停', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    hidden: { label: '显示', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    set: { label: '操作', width: 50, renderFn: props => this.renderOperations(props) },
+  };
+
   // 生命周期钩子
   created() {
     this.initData();
@@ -147,11 +157,12 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.localTable = this.metricTable.filter(item => {
       return fuzzyMatch(item.name, this.tableConfig.search) || fuzzyMatch(item.description, this.tableConfig.search);
     });
+    this.initTableData();
   }
 
   // 事件处理
   async handleSave() {
-    const newRows = this.localTable.filter(row => row.isNew);
+    const newRows = this.showTableData.filter(row => row.isNew);
 
     // 并行执行所有验证
     const validationResults = await Promise.all(
@@ -171,27 +182,60 @@ export default class IndicatorTableSlide extends tsc<any> {
       row.error = undefined;
     }
     // 提交
-    this.$emit('saveInfo', this.localTable, this.delArray);
+    this.$emit('saveInfo', this.showTableData, this.delArray);
   }
 
   @Emit('hidden')
   handleCancel() {
     this.delArray = [];
     this.localTable = deepClone(this.metricTable);
+    this.initTableData();
     this.tableConfig.search = '';
     return false;
   }
 
   // 响应式处理
-  @Watch('metricTable', { immediate: true, deep: true })
+  @Watch('metricTable', { deep: true })
   handleMetricTableChange(newVal: IMetricItem[]) {
     this.localTable = deepClone(newVal);
   }
 
-  @Watch('unitList', { immediate: true })
+  @Watch('unitList')
   handleUnitListChange(newVal: any[]) {
     this.units = newVal;
     this.localUnitConfig = deepClone(this.unitConfig);
+  }
+
+  @Watch('isShow')
+  handleIsShowChange(val) {
+    if (val) {
+      this.$nextTick(() => {
+        const height = window.innerHeight - 160;
+        this.pageSize = Math.floor(height / this.cellHeight);
+        this.initTableData();
+      });
+    }
+  }
+
+  initTableData() {
+    this.showTableData = [];
+    this.currentPage = 1;
+    this.totalPages = Math.ceil(this.localTable.length / this.pageSize);
+    this.showTableData.push(...this.localTable.slice(0, this.pageSize));
+  }
+  /** 滚动加载更多 */
+  handleScrollToBottom() {
+    if (this.currentPage < this.totalPages) {
+      this.bottomLoadingOptions.isLoading = true;
+      setTimeout(() => {
+        const startIndex = this.showTableData.length;
+        const endIndex = startIndex + this.pageSize;
+        const newData = this.localTable.slice(startIndex, endIndex);
+        this.showTableData = [...this.showTableData, ...newData];
+        this.currentPage++;
+        this.bottomLoadingOptions.isLoading = false;
+      }, 1000);
+    }
   }
 
   // 主渲染逻辑
@@ -224,15 +268,54 @@ export default class IndicatorTableSlide extends tsc<any> {
               on-change={this.handleSearchChange}
             />
           </div>
-          <div class='slider-table'>
+          <div
+            ref='tableContainerRef'
+            class='slider-table'
+          >
             <bk-table
               ref='metricTableRef'
               v-bkloading={{ isLoading: this.tableConfig.loading }}
-              data={this.localTable}
+              data={this.showTableData}
               empty-text={this.$t('无数据')}
+              max-height={window.innerHeight - 240}
+              scroll-loading={this.bottomLoadingOptions}
               colBorder
+              on-scroll-end={this.handleScrollToBottom}
             >
-              {Object.entries(FIELD_SETTINGS).map(([key, config]) => {
+              <bk-table-column
+                width='60'
+                label='序列'
+                type='index'
+              ></bk-table-column>
+              <div slot='empty'>
+                <div class='empty-slider-table'>
+                  <div class='empty-img'>
+                    <bk-exception
+                      class='exception-wrap-item exception-part'
+                      scene='part'
+                      type='empty'
+                    >
+                      <span class='empty-text'>{this.$t('暂无数据')}</span>
+                    </bk-exception>
+                  </div>
+                  {this.tableConfig.search ? (
+                    <div
+                      class='add-row'
+                      onClick={this.handleClearSearch}
+                    >
+                      {this.$t('清空检索')}
+                    </div>
+                  ) : (
+                    <div
+                      class='add-row'
+                      onClick={() => this.handleAddRow(-1)}
+                    >
+                      {this.$t('新增指标')}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {Object.entries(this.fieldSettings).map(([key, config]) => {
                 if (!this.tableConfig.fieldSettings[key].checked) return null;
 
                 return (
@@ -241,44 +324,24 @@ export default class IndicatorTableSlide extends tsc<any> {
                     width={config.width}
                     scopedSlots={{
                       default: props => {
-                        switch (key) {
-                          case 'name':
-                            return this.renderNameColumn(props);
-                          case 'description':
-                            return this.renderDescriptionColumn(props);
-                          case 'unit':
-                            return this.renderUnitColumn(props);
-                          case 'disabled':
-                          case 'hidden':
-                            return this.renderSwitch(props.row, key);
-                          case 'status':
-                            return this.renderStatusPoint(props.row);
-                          case 'aggregateMethod':
-                            return this.renderAggregateMethod(props.row);
-                          case 'interval':
-                            return this.renderInterval(props.row);
-                          case 'dimension':
-                            return this.renderDimension(props.row, props.$index);
-                          case 'func':
-                            return this.renderFunction(props.row);
-                          case 'set':
-                            return this.renderOperations(props);
-                          default:
-                            return props.row[key] || '--';
+                        /** 自定义 */
+                        if (config?.renderFn) {
+                          return config?.renderFn(props, key);
                         }
+                        return props.row[key] || '--';
                       },
                       header:
                         key === 'unit'
                           ? () => (
-                              <bk-popover
-                                ref='metricSliderPopover'
-                                placement='bottom-start'
-                                tippyOptions={{ appendTo: 'parent' }}
-                              >
-                                {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
-                                {this.renderUnitConfigPopover()}
-                              </bk-popover>
-                            )
+                            <bk-popover
+                              ref='metricSliderPopover'
+                              placement='bottom-start'
+                              tippyOptions={{ appendTo: 'parent' }}
+                            >
+                              {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
+                              {this.renderUnitConfigPopover()}
+                            </bk-popover>
+                          )
                           : null,
                     }}
                     label={this.$t(config.label)}
@@ -291,7 +354,6 @@ export default class IndicatorTableSlide extends tsc<any> {
 
           <div class='slider-footer'>
             <bk-button
-              // disabled={!this.localTable.length}
               theme='primary'
               onClick={this.handleSave}
             >
@@ -317,6 +379,10 @@ export default class IndicatorTableSlide extends tsc<any> {
         }, new Map())
         .values()
     );
+  }
+
+  handleClearSearch() {
+    this.tableConfig.search = '';
   }
 
   // 渲染辅助方法
@@ -363,8 +429,12 @@ export default class IndicatorTableSlide extends tsc<any> {
         >
           <bk-input
             class={{ 'is-error': props.row.error, 'slider-input': true }}
-            v-model={props.row.name}
-            onBlur={() => this.validateName(props.row)}
+            // v-model={props.row.name}
+            value={props.row.name}
+            onBlur={v => {
+              props.row.name = v;
+              this.validateName(props.row);
+            }}
             onInput={() => this.clearError(props.row)}
           />
         </div>
@@ -376,10 +446,8 @@ export default class IndicatorTableSlide extends tsc<any> {
   renderDescriptionColumn(props: { row: IMetricItem; $index: number }) {
     return (
       <bk-input
-        class={['slider-input', this.inputFocus === props.$index ? 'focus' : '']}
+        class='slider-input'
         v-model={props.row.description}
-        onBlur={() => (this.inputFocus = -1)}
-        onFocus={() => (this.inputFocus = props.$index)}
       />
     );
   }
@@ -594,7 +662,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   // 异步验证逻辑
   async validateAsync(row: IMetricItem): Promise<string> {
     try {
-      const isValid = await validateCustomTsGroupLabel({ data_label: row.name });
+      const isValid = await validateCustomTsGroupLabel({ data_label: row.name }, { needMessage: false });
       return isValid ? '' : (this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string);
     } catch {
       return this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string;
@@ -606,7 +674,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   // 行操作处理
-  handleAddRow(index: number) {
+  handleAddRow(index = -1) {
     const newRow = {
       name: '',
       isNew: true,
@@ -614,17 +682,17 @@ export default class IndicatorTableSlide extends tsc<any> {
       type: 'metric',
       dimensions: [],
     };
-    this.localTable.splice(index + 1, 0, newRow);
+    this.showTableData.splice(index + 1, 0, newRow);
   }
 
   handleRemoveRow(index: number) {
-    const currentDelData = this.localTable[index];
+    const currentDelData = this.showTableData[index];
     if (!currentDelData.isNew) {
       this.delArray.push({
         type: 'metric',
         name: currentDelData.name,
       });
     }
-    this.localTable.splice(index, 1);
+    this.showTableData.splice(index, 1);
   }
 }

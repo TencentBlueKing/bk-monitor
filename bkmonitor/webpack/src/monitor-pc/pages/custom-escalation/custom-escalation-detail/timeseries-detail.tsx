@@ -58,7 +58,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   }
 
   @Emit('handleExport')
-  handleDownload() { }
+  handleDownload() {}
 
   @Emit('handleUpload')
   handleUpload(data) {
@@ -108,7 +108,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
 
   render() {
     return (
-      <div>
+      <div class='timeseries-detail-page'>
         <div class='list-header'>
           <div class='detail-information-title'>{this.$t('指标与维度')}</div>
           <div class='head'>
@@ -142,7 +142,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
             </div>
           </div>
         </div>
-        {this.getCmpByActiveTab(this.activeTab)}
+        <div class='timeseries-detail-page-content'>{this.getCmpByActiveTab(this.activeTab)}</div>
       </div>
     );
   }
