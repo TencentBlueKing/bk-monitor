@@ -400,8 +400,8 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
-        params["from"] = offset or 0
         params["limit"] = limit or 1
+        params["_from"] = offset or 0
         params["timezone"] = timezone.get_current_timezone_name()
 
         params_json: str = json.dumps(params)
