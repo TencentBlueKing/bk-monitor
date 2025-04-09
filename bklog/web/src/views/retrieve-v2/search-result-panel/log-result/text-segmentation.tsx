@@ -176,6 +176,12 @@ export default defineComponent({
         (item: WordListItem) => {
           const child = document.createElement(getTagName(item));
           child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
+
+          if (item.isBlobWord) {
+            child.innerHTML = item.text;
+            return child;
+          }
+
           child.textContent = item.text;
           return child;
         },
