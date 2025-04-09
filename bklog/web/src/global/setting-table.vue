@@ -869,7 +869,7 @@
         });
       },
       checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -878,6 +878,12 @@
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }else if (queryAlias === fieldName) {
+            row.aliasErr = this.$t('别名与字段名重复');
+            return false;
+          }else if (queryAlias === aliasName) {
+            row.aliasErr = this.$t('别名与重命名重复');
             return false;
           }
           if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
@@ -1073,7 +1079,7 @@
         if (row.is_built_in) {
           return true;
         }
-        return !this.globalsData.field_built_in.find(item => item.id === row.field_name.toLocaleLowerCase())
+        return !row.alias_name
       }
     },
   };

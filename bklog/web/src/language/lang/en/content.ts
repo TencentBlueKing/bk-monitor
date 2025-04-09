@@ -1034,4 +1034,6 @@ export default {
   '删除失败，开启告警时，需要至少一个责任人':
     'Failed to delete. When the alarm is turned on, at least one responsible person is required',
   重命名与字段名重复: 'Rename and field name duplicate',
+  别名与字段名重复: 'Alias and field name duplicate',
+  别名与重命名重复: 'Alias and rename duplicate',
 };
