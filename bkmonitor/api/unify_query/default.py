@@ -152,6 +152,8 @@ class QueryRawResource(UnifyQueryAPIResource):
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
+        limit = serializers.IntegerField(required=False, default=1)
+        offset = serializers.IntegerField(required=False, default=0)
         space_uid = serializers.CharField(allow_null=True)
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)

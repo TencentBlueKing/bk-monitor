@@ -400,10 +400,9 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
+        params["from"] = offset or 0
+        params["limit"] = limit or 1
         params["timezone"] = timezone.get_current_timezone_name()
-
-        for query in params["query_list"]:
-            query.update({"limit": limit or 1, "from": offset or 0})
 
         params_json: str = json.dumps(params)
         logger.info("UNIFY_QUERY: %s", params_json)
