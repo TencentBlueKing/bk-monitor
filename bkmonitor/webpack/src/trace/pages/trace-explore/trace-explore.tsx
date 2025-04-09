@@ -23,19 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent } from 'vue';
+
+import { useTraceExploreStore } from '../../store/modules/explore';
 
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
-    const a = shallowRef('hello world');
-    return {
-      a,
-    };
+    const store = useTraceExploreStore();
+    console.log(store);
+
+    return {};
   },
   render() {
-    return <div class='trace-explore'>{this.a}</div>;
+    return (
+      <div class='trace-explore'>
+        <div class='favorite-panel' />
+        <div class='main-panel'>
+          <div class='header-panel' />
+          <div class='trace-explore-content'>
+            <div class='skeleton-element filter-skeleton' />
+
+            <div class='content-container'>
+              <div class='dimension-filter-panel' />
+              <div class='result-content-panel' />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   },
 });
