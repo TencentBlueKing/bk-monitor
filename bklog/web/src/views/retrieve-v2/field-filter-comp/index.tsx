@@ -537,7 +537,7 @@ export default class FieldFilterComp extends tsc<object> {
                 <span>{this.$t('显示字段')}</span>
                 <FieldSelectConfig />
               </div>
-              {!!this.visibleFields.length ? (
+              {!!this.visibleFields.filter(item => item.filterVisible).length ? (
                 <VueDraggable
                   class='filed-list'
                   v-model={this.dragVisibleFields}
@@ -571,7 +571,7 @@ export default class FieldFilterComp extends tsc<object> {
             </div>
           )}
           <div class='field-filter-roll'>
-            {!!this.indexSetFields().length && (
+            {!!this.indexSetFields().filter(item => item.filterVisible).length && (
               <div class='fields-container not-selected'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
@@ -605,7 +605,7 @@ export default class FieldFilterComp extends tsc<object> {
               </div>
             )}
             {/* 内置字段 */}
-            {!!this.builtInFields().length && (
+            {!!this.builtInFields().filter(item => item.filterVisible).length && (
               <div class='fields-container not-selected inside-fields'>
                 <div
                   class='title'
