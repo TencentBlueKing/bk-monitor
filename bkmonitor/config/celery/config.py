@@ -92,6 +92,11 @@ class Config:
             "schedule": crontab(minute="*/60"),
             "enabled": True,
         },
+        "apm_web.tasks.": {
+            "task": "apm_web.tasks.discover_apps_k8s_event_relations",
+            "schedule": crontab(minute="*/60"),
+            "enabled": True,
+        },
         "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
             "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
             "schedule": crontab(minute="*/60"),
