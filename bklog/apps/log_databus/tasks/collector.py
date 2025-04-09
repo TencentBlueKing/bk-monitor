@@ -416,7 +416,7 @@ def update_collector_storage_config(storage_cluster_id):
 
 
 @high_priority_task(ignore_result=True)
-def update_alias_settings(collector_config_id, table_id, alias_settings):
+def update_alias_settings(collector_config_id, alias_settings):
     """
     更新别名配置
     """
@@ -433,7 +433,7 @@ def update_alias_settings(collector_config_id, table_id, alias_settings):
         )
 
         etl_params = {
-            "table_id": table_id,
+            "table_id": handler.data.collector_config_name_en,
             "storage_cluster_id": collect_config["storage_cluster_id"],
             "retention": collect_config["retention"],
             "allocation_min_days": collect_config["allocation_min_days"],

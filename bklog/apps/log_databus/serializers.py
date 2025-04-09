@@ -1731,4 +1731,4 @@ class ProxyHostSerializer(serializers.Serializer):
 
 
 class UpdateAliasSettingsSerializers(serializers.Serializer):
-    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    alias_settings = AliasSettingSerializer(many=True, required=True)

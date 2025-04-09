@@ -4901,14 +4901,13 @@ class CollectorHandler(object):
         return_data["scope"] = scope_data
         return return_data
 
-    def update_alias_settings(self, params):
+    def update_alias_settings(self, alias_settings):
         """
         修改别名配置
         """
         from apps.log_databus.tasks.collector import update_alias_settings
 
-        alias_settings = params["alias_settings"]
-        update_alias_settings.delay(self.collector_config_id, self.data.collector_config_name_en, alias_settings)
+        update_alias_settings.delay(self.collector_config_id, alias_settings)
         return
 
 
