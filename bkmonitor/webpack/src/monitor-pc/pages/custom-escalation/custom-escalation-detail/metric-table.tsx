@@ -349,6 +349,7 @@ export default class IndicatorTable extends tsc<any, any> {
             ext-cls='description-input'
             readonly={this.editingIndex !== props.$index}
             value={props.row.description}
+            show-overflow-tooltips
             onBlur={() => {
               this.editingIndex = -1;
               this.handleEditDescription(props.row);
@@ -452,8 +453,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {group.checked && (
             <bk-table-column
               key='group'
+              width='200'
               label={this.$t('分组')}
-              minWidth='200'
               prop='group'
               scopedSlots={groupSlot}
             />
@@ -738,7 +739,8 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('别名')}：</span>
               {!this.canEditName ? (
                 <div
-                  class='info-content'
+                  class='info-content info-text'
+                  v-bk-overflow-tips
                   onClick={() => this.handleShowEditDescription(metricData.description)}
                 >
                   {metricData.description || '-'}
