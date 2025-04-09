@@ -66,6 +66,9 @@ export enum RetrieveEvent {
 
   // 打开索引配置
   INDEX_CONFIG_OPEN = 'index-config-open',
+
+  // 搜索按钮点击触发
+  SEARCH_BTN_CLICK = 'search-btn-click',
 }
 
 class RetrieveHelper {
@@ -279,10 +282,10 @@ class RetrieveHelper {
    * 打开索引配置
    * @param show
    */
-  setIndexConfigOpen (show: boolean) {
+  setIndexConfigOpen(show: boolean) {
     this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
   }
-  
+
   getScrollSelector() {
     return this.globalScrollSelector;
   }
@@ -295,6 +298,16 @@ class RetrieveHelper {
     const isMac = userAgent.includes('Macintosh');
     const isWin = userAgent.includes('Windows');
     return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
+  }
+
+  /**
+   * 触发指定事件
+   * 功能相当于 event bus
+   * @param eventName
+   * @param args
+   */
+  fire(eventName: RetrieveEvent, ...args) {
+    this.runEvent(eventName, ...args);
   }
 
   /**

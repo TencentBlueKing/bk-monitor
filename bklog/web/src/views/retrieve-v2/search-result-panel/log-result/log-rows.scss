@@ -333,6 +333,15 @@
         z-index: 1;
         padding: 0;
       }
+
+      &::before {
+        content: '';
+        min-width: 3.09px;
+        height: 100%;
+        background-color: #fafbfd;
+        position: sticky;
+        left: 0;
+      }
     }
 
     &:not(.row-header) {
@@ -357,7 +366,7 @@
         z-index: 1;
         min-width: 3.09px;
         content: '';
-        background: #f59789;
+        background: transparent;
         border-radius: 0 1px 1px 0;
       }
 

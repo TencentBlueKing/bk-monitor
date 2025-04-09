@@ -201,10 +201,12 @@
           }
         });
 
+        RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
         return;
       }
 
       getBtnQueryResult();
+      RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
     }
   };
 
