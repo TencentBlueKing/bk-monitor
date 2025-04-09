@@ -443,7 +443,7 @@ class ListK8SResources(Resource):
         # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
         if scenario == "capacity":
             column = "node_boot_time_seconds"
-            
+
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -519,6 +519,7 @@ class ResourceTrendResource(Resource):
                 'nw_container_network_receive_errors_total',
                 'nw_container_network_receive_packets_total',
                 'nw_container_network_transmit_packets_total',
+                'node_cpu_seconds_total',
             ],
         )
         resource_type = serializers.ChoiceField(

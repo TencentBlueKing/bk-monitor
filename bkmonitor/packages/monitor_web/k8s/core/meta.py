@@ -533,6 +533,31 @@ class K8sNodeMeta(K8sResourceMeta):
     column_mapping = {"node": "name"}
     only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]
 
+    @property
+    def meta_prom_with_node_cpu_seconds_total(self):
+        return self.tpl_prom_with_rate("node_cpu_seconds_total")
+
+    # @property
+    # def meta_prom_with_node_cpu_capacity_ratio(self):
+    #     return """"sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
+    # /
+    # kube_node_status_allocatable{resource="cpu"} * 100"""
+
+    @property
+    def meta_prom_with_node_cpu_usage_ratio(self):
+        return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total')})) * 100"
+
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
+        filter_string = self.filter.filter_string(exclude=exclude)
+        filter_string += ',mode!="idle"'
+        if self.agg_interval:
+            return (
+                f"sum by (node) "
+                f"({self.agg_method}_over_time(rate("
+                f"{metric_name}{{{filter_string}}}[1m])[{self.agg_interval}:]))"
+            )
+        return f"{self.method} by (node) " f"(rate({metric_name}{{{filter_string}}}[1m]))"
+
 
 class NameSpaceQuerySet(list):
     def count(self):
