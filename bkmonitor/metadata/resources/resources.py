@@ -361,7 +361,7 @@ class ModifyResultTableResource(Resource):
             logger.error(
                 "ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e.__cause__
             )
-            # raise e.__cause__
+            raise e.__cause__
         except Exception as e:  # pylint: disable=broad-except
             logger.error("ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e)
             raise e
