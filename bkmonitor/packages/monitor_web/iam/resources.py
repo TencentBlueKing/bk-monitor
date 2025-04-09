@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from api.itsm.default import TokenVerifyResource
 from bk_dataview.permissions import GrafanaRole
@@ -261,23 +262,17 @@ class CreateOrUpdateExternalPermission(Resource):
                 raise serializers.ValidationError(f"{authorizer}无此操作权限")
             return attrs
 
-    def create_approval_ticket(self, authorized_users, params):
+    def create_approval_ticket(self, space: Space, authorized_users, params):
         """
         创建ITSM审批单据并创建审批记录，保存单据号和跳转url
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
         """
-        # 如果是非cmdb业务，尝试获取关联cmdb业务，用于审批单据
-        space: Space = SpaceApi.get_space_detail(bk_biz_id=params["bk_biz_id"])
-        related_space: Union[Space, None] = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
-        if not related_space:
-            raise Exception(f"create approval ticket failed, related space not found, space_uid: {space.space_uid}")
-
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
-                {"key": "bk_biz_id", "value": related_space.bk_biz_id},
-                {"key": "bk_biz_name", "value": related_space.space_name},
+                {"key": "bk_biz_id", "value": space.bk_biz_id},
+                {"key": "bk_biz_name", "value": space.space_name},
                 {"key": "title", "value": "对外版监控平台授权审批"},
                 {"key": "expire_time", "value": params["expire_time"].strftime("%Y-%m-%d %H:%M:%S")},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
@@ -311,6 +306,14 @@ class CreateOrUpdateExternalPermission(Resource):
         2. 基于实例资源视角
            2.1 编辑：删除存量权限，如有新增则创建审批单据
         """
+        # 如果是非cmdb业务，尝试获取关联cmdb业务，用于审批单据
+        space: Space = SpaceApi.get_space_detail(bk_biz_id=validated_request_data["bk_biz_id"])
+        related_space: Union[Space, None] = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
+        if not related_space:
+            raise ValidationError(
+                f"create approval ticket failed, related space not found, space_uid: {space.space_uid}"
+            )
+
         authorized_users = validated_request_data.pop("authorized_users")
         view_type = validated_request_data.pop("view_type", "user")
         operate_type = validated_request_data.pop("operate_type", "create")
@@ -378,7 +381,7 @@ class CreateOrUpdateExternalPermission(Resource):
             approval_users = add_authorized_users or authorized_users
             approval_resources = add_resources or resources
             validated_request_data["resources"] = approval_resources
-            self.create_approval_ticket(approval_users, validated_request_data)
+            self.create_approval_ticket(space, approval_users, validated_request_data)
         return {"need_approval": need_approval}
 
 
