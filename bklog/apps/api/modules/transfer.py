@@ -429,14 +429,14 @@ class _TransferApi(object):
         )
         self.create_or_update_es_router = DataAPI(
             method="POST",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "metadata_create_or_update_es_router/",
+            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_or_update_es_router/",
             module=self.MODULE,
             description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
         )
         self.list_kafka_tail = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT_NEW + "metadata_kafka_tail/",
+            url=MONITOR_APIGATEWAY_ROOT + "metadata_kafka_tail/",
             module=self.MODULE,
             description=_("查询结果表MQ的最新数据"),
             before_request=add_esb_info_before_request,
