@@ -11,8 +11,10 @@
     word-break: break-all;
     white-space: pre-line;
     overflow: hidden;
-    mark{
-      background-color: #FAEEB1;
+    width: 100%;
+
+    mark {
+      background-color: #faeeb1;
     }
   }
 
@@ -75,8 +77,8 @@
     display: flex;
   }
 }
-.bklog-root-field{
-  mark{
-    background-color: #FAEEB1;
+.bklog-root-field {
+  mark {
+    background-color: #faeeb1;
   }
 }

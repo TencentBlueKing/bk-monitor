@@ -247,6 +247,7 @@
         font-family: var(--bklog-v3-row-ctx-font);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
+        white-space: pre-wrap;
       }
 
       .menu-list {
