@@ -23,43 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { shallowRef } from 'vue';
 
-import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { useTraceExploreStore } from '../../store/modules/explore';
+import type { IFilterItem } from './typing';
 
-import './trace-explore.scss';
-export default defineComponent({
-  name: 'TraceExplore',
-  props: {},
-  setup() {
-    const store = useTraceExploreStore();
-
-    const loading = shallowRef(false);
-
-    console.log(store);
-
-    return {
-      loading,
-    };
-  },
-  render() {
-    return (
-      <div class='trace-explore'>
-        <div class='favorite-panel' />
-        <div class='main-panel'>
-          <div class='header-panel' />
-          <div class='trace-explore-content'>
-            {this.loading ? <div class='skeleton-element filter-skeleton' /> : <RetrievalFilter />}
-
-            <div class='content-container'>
-              <div class='dimension-filter-panel' />
-              <div class='result-content-panel' />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  },
-});
+export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
+/**
+ * @description 缓存ui数据
+ * @param v
+ */
+export function setCacheUIData(v: IFilterItem[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
+}
+export function getCacheUIData(): IFilterItem[] {
+  const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
+  try {
+    return JSON.parse(uiDataSrt) || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+}
