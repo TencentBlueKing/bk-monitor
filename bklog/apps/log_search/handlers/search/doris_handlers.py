@@ -141,3 +141,12 @@ class GrepParser:
     def parse(self, input_string):
         """解析输入字符串并返回结构化数据"""
         return self.parser.parse(input_string, lexer=self.lexer)
+
+
+if __name__ == '__main__':
+    obj = GrepParser()
+    # test_input = 'grep -v pattern | egrep "test" | xx'
+    # test_input = 'grep "hello"'
+    test_input = 'egrep "error|warning"'
+    result = obj.parse(test_input)
+    print(result)
