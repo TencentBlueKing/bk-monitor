@@ -461,6 +461,9 @@ class ListK8SResources(Resource):
         # promql 查询数据量不足，从db中补充
         try:
             meta_resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            if resource_meta.resource_field == "pod_name" and scenario == "network":
+                # 网络场景，pod不需要workload相关信息
+                [rs.pop("workload") for rs in meta_resource_list]
         except FieldError:
             meta_resource_list = []
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set

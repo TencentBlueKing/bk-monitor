@@ -75,6 +75,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 加载更多loading */
   loadMoreLoading = {};
 
+  initCount = 0;
+
   get localCommonParams() {
     return {
       ...this.commonParams,
@@ -123,6 +125,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   async init() {
     if (!this.localCommonParams.bcs_cluster_id) return;
+    this.initCount += 1;
+    const cacheInitCount = this.initCount;
     const dimension = new K8sDimension({
       ...this.localCommonParams,
       query_string: this.searchValue,
@@ -133,8 +137,11 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.loading = true;
     await dimension.init();
     this.loading = false;
-    this.showDimensionList = dimension.showDimensionData;
-    this.initLoading(this.showDimensionList);
+    // 因为这里接口会比较多，且请求时间不一致，需要通过变量确保接口顺序一致
+    if (cacheInitCount === this.initCount) {
+      this.showDimensionList = dimension.showDimensionData;
+      this.initLoading(this.showDimensionList);
+    }
   }
 
   initLoading(data: GroupListItem[]) {
