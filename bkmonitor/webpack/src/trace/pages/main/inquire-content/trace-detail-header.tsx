@@ -115,14 +115,20 @@ export default defineComponent({
           />
         </Popover>
         {sideSlider && (
-          <div class='ai-wrap'>
-            <img
-              class='ai-img'
-              alt='empty'
-              src={AiSmallWhaleImage}
-              // onClick={this.handleAiBtn}
-            />
-          </div>
+          <Popover
+            content={this.$t('AI小鲸解读')}
+            placement='right'
+            theme='light'
+          >
+            <div class='ai-wrap'>
+              <img
+                class='ai-img'
+                alt='empty'
+                src={AiSmallWhaleImage}
+                // onClick={this.handleAiBtn}
+              />
+            </div>
+          </Popover>
         )}
       </div>
     );

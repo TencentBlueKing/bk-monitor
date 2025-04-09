@@ -64,6 +64,7 @@ export default {
   入口服务的第一个接口: 'This is the entry point of the Root Service.',
   包含根span的trace: 'Trace containing root span',
   '复制 TraceID': 'Copy TraceID',
+  AI小鲸解读: 'AI Little Whale Interpretation',
   '动态：只能选择节点，策略目标按节点动态变更。静态：只能选择主机IP，采集目标不会变更。':
     'Dynamic: Only nodes can be selected, and the rule target can be dynamically changed by node. Static: Only the host IP can be selected, and the collection target will not change. ',
   '动态：只能选择节点，采集目标按节点动态变更。静态：只能选择主机IP，采集目标不会变更。':
