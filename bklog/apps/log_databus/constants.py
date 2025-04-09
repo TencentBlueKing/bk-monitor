@@ -705,3 +705,15 @@ class CollectorBatchOperationType(ChoicesEnum):
         (START, _("启用")),
         (MODIFY_STORAGE, _("修改存储配置")),
     )
+
+
+class OTLPProxyHostConfig(object):
+    """
+    OTLP代理主机配置信息
+    """
+
+    GRPC = "grpc"
+    GRPC_TRACE_PATH = ":4317"
+    HTTP = "http"
+    HTTP_TRACE_PATH = ":4318/v1/traces"
+    HTTP_SCHEME = "http://"

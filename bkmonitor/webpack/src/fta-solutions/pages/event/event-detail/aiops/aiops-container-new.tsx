@@ -543,12 +543,20 @@ export default class AiopsContainer extends tsc<IProps> {
         key='dimension-info-text'
         class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
       >
-        {this.$t('异常维度')}
-        {isLoading ? (
-          <div class='skeleton-element inline-skeleton' />
-        ) : (
-          [<font key='font'> {this.info?.dimensionInfo.anomaly_dimension_count}</font>, isExitDimensionInfo ? ',' : '']
-        )}
+        {this.$t('异常维度(组合)')}
+        {isLoading
+          ? [
+              <div
+                key={'skeleton'}
+                class='skeleton-element inline-skeleton'
+              />,
+              this.$t('个'),
+            ]
+          : [
+              <font key='font'> {this.info?.dimensionInfo.anomaly_dimension_count}</font>,
+              this.$t('个'),
+              isExitDimensionInfo ? ',' : '',
+            ]}
       </span>,
       <span
         key='dimension-count-text'
@@ -561,6 +569,7 @@ export default class AiopsContainer extends tsc<IProps> {
         ) : (
           <div class='skeleton-element inline-skeleton' />
         )}
+        {this.$t('个')}
       </span>,
     ];
   }
@@ -586,7 +595,7 @@ export default class AiopsContainer extends tsc<IProps> {
         style='marginLeft: 6px'
         class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
       >
-        <i18n path='{0} 个维度'>
+        <i18n path='{0} 条曲线'>
           {!isLoading ? (
             <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
           ) : (

@@ -211,6 +211,12 @@
         }
       }
 
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
+
       .valid-text {
         padding: 2px 0;
         :hover {
@@ -307,6 +313,12 @@
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
       line-height: 22px;
+
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
 
       .valid-text {
         cursor: pointer;

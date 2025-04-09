@@ -272,9 +272,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      this.hideMetrics = res || [];
-    });
+    this.getHideMetrics();
   }
 
   mounted() {
@@ -341,15 +339,30 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }));
   }
 
+  /** 获取隐藏的指标项 */
+  getHideMetrics() {
+    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
+      let hideMetrics = res || [];
+      if (this.scene === SceneEnum.Network) {
+        hideMetrics = Array.from(
+          new Set([
+            ...hideMetrics,
+            'nw_container_network_transmit_errors_total',
+            'nw_container_network_receive_errors_total',
+          ])
+        );
+      }
+      this.hideMetrics = hideMetrics;
+    });
+  }
+
   handleSceneChange(value) {
     this.scene = value;
     this.initGroupBy();
     this.initFilterBy();
     this.getScenarioMetricList();
     this.showCancelDrill = false;
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      this.hideMetrics = res || [];
-    });
+    this.getHideMetrics();
     this.setRouteParams();
   }
 

@@ -61,7 +61,7 @@ function removeUndefined(obj) {
 @Component
 export default class ToolsMixin extends Vue {
   // 图表的数据时间间隔
-  @InjectReactive('timeRange') readonly toolTimeRange!: TimeRangeType;
+  @InjectReactive('timeRange') toolTimeRange!: TimeRangeType;
   /**
    * @description: 跳转到策略
    * @param {PanelModel} panel
@@ -153,8 +153,8 @@ export default class ToolsMixin extends Vue {
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-      }#/strategy-config/add/?${result?.query_configs?.length ? `data=${JSON.stringify(result)}&` : ''}from=${this.toolTimeRange[0]}&to=${
-        this.toolTimeRange[1]
+      }#/strategy-config/add/?${result?.query_configs?.length ? `data=${JSON.stringify(result)}&` : ''}from=${this.toolTimeRange?.[0] || ''}&to=${
+        this.toolTimeRange?.[1] || ''
       }&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     } catch (e) {
@@ -203,8 +203,8 @@ export default class ToolsMixin extends Vue {
       if (query.result_table_id) {
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
-          this.toolTimeRange[1]
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange?.[0] || ''}&to=${
+          this.toolTimeRange?.[1] || ''
         }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);
         return;
@@ -216,8 +216,8 @@ export default class ToolsMixin extends Vue {
         query.result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
-          this.toolTimeRange[1]
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange?.[0] || ''}&to=${
+          this.toolTimeRange?.[1] || ''
         }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);
       });
@@ -234,8 +234,8 @@ export default class ToolsMixin extends Vue {
       item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
     );
     if (!autoNavTo) return targets;
+    const [start_time, end_time] = this.toolTimeRange || ['', ''];
     if (isLog) {
-      const [start_time, end_time] = this.toolTimeRange || [];
       const queryConfig = targets[0].data.query_configs[0];
       const retrieveParams: ILogUrlParams = {
         // 检索参数
@@ -255,8 +255,8 @@ export default class ToolsMixin extends Vue {
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
       }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(removeUndefined(targets)))}&from=${
-        this.toolTimeRange[0]
-      }&to=${this.toolTimeRange[1]}&timezone=${(this as any).timezone || window.timezone}`;
+        start_time
+      }&to=${end_time}&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     }
   }
