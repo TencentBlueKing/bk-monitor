@@ -178,7 +178,7 @@ export default defineComponent({
         >
           <div class='setting-content'>
             <div class='setting-item'>
-              <div class='item-label'>{$t('显示')}</div>
+              <div class='item-label'>{$t('字段名称设置')}</div>
               <div class='item-main'>
                 {checkboxRender(showFieldAlias.value, GLOBAL_SETTING_OPTIONS.showFieldAlias, setShowFieldAlias)}
                 <div
