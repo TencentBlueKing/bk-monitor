@@ -1,6 +1,11 @@
 $text-color: #313238;
 $text-secondary: #979ba5;
 $border-color: #d9d9d9;
+@mixin text-x-ellipsis {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .indicator-table-content {
   height: 100%;
@@ -134,6 +139,12 @@ $border-color: #d9d9d9;
           color: #3a84ff;
         }
 
+        .cell {
+          &:has(.table-group-box) {
+            overflow: visible;
+          }
+        }
+
         .table-group-box {
           overflow: visible;
 
@@ -198,6 +209,7 @@ $border-color: #d9d9d9;
           .description-input {
             input {
               background-color: #fff !important;
+              @include text-x-ellipsis();
               border: none;
 
               &:hover {
@@ -513,6 +525,10 @@ $border-color: #d9d9d9;
                   border-radius: 2px;
                 }
               }
+            }
+
+            .info-text {
+              @include text-x-ellipsis();
             }
 
             .switcher-btn {
