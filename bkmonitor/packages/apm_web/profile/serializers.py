@@ -69,6 +69,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
+    agg_method = serializers.CharField(max_length=64, label="聚合方法", default=None)
 
 
 class ProfileQueryExportSerializer(ProfileQuerySerializer):

@@ -41,7 +41,7 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
 import AiopsContainer from './aiops/aiops-container-new';
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import BasicInfo from './basic-info';
@@ -203,7 +203,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   /** 是否需要展示右侧的AI相关的视图 */
   get isShowAiopsView() {
-    return !!(window as any).enable_aiops;
+    return window.enable_aiops_event_center_biz_list?.some?.(id => +id === +this.bkBizId);
   }
 
   /* 权限校验 */
@@ -416,7 +416,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       return;
     }
     const interval = this.basicInfo.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.basicInfo.begin_time, this.basicInfo.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.basicInfo.begin_time, this.basicInfo.end_time, interval);
     const params: any = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
@@ -614,11 +614,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   /** 判断当前是否需要展示AI相关的内容，需要的话则左右布局，并支持拖拽拉伸 */
 
   renderLayoutContent() {
+    if (this.isLoading) return undefined;
     if (this.isShowAiopsView) {
       return (
         <bk-resize-layout
           class='detail-resize-view'
           auto-minimize={true}
+          collapsible={true}
           initial-divide={500}
           max={660}
           min={480}

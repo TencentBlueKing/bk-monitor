@@ -648,7 +648,8 @@ class ServiceHandler:
             services = api.apm_api.query_profile_services_detail(
                 bk_biz_id=app.bk_biz_id,
                 app_name=app.app_name,
-                last_check_time__gt=start_time,
+                # profiling 数据状态依赖周期任务，这里在无数据周期的基础上，再往前探查10分钟数据
+                last_check_time__gt=start_time - 10 * 60,
             )
             for i in services:
                 res[i["name"]].update({TelemetryDataType.PROFILING.value: DataStatus.NORMAL})

@@ -31,6 +31,8 @@ interface K8sDimensionDrillDownProps {
   dimension: string;
   enableTip?: boolean;
 }
+import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+
 import type { K8sGroupDimension } from 'monitor-pc/pages/monitor-k8s/k8s-dimension';
 
 import './k8s-dimension-drilldown.scss';
@@ -38,14 +40,25 @@ import './k8s-dimension-drilldown.scss';
 interface K8sDimensionDrillDownEvents {
   onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
 }
+
 const drillListMap = {
-  namespace: ['workload', 'pod', 'container'],
-  workload: ['pod', 'container'],
-  pod: ['container'],
-  container: [],
+  [SceneEnum.Performance]: {
+    namespace: ['workload', 'pod', 'container'],
+    workload: ['pod', 'container'],
+    pod: ['container'],
+    container: [],
+  },
+  [SceneEnum.Network]: {
+    namespace: ['ingress', 'service', 'pod'],
+    ingress: ['service', 'pod'],
+    service: ['ingress', 'pod'],
+    pod: ['ingress', 'service'],
+  },
 };
 @Component
 export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {
+  /** 场景 */
+  @InjectReactive({ from: 'scene', default: SceneEnum.Performance }) scene: SceneEnum;
   /** 维度 */
   @Prop({ type: String }) dimension: string;
   /** 下钻id */
@@ -64,8 +77,10 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   /** 可选的下钻列表 */
   get drillDownList() {
-    const list = drillListMap[this.dimension] || [];
-    return list.filter(item => item !== this.groupInstance.getResourceType());
+    const list = drillListMap[this.scene][this.dimension] || [];
+    if (this.scene === SceneEnum.Performance) return list.filter(item => item !== this.groupInstance.getResourceType());
+    if (this.scene === SceneEnum.Network) return list;
+    return list;
   }
 
   /** 下钻icon是否展示 */
@@ -78,7 +93,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   async handleDrillDown(id: number | string, e: Event) {
     this.drillDownId = id;
-    /** 下钻列表只有一个选项，直接下钻，不需要暂时popover */
+    /** 下钻列表只有一个选项，直接下钻，不需要popover */
     if (this.drillDownList.length === 1) {
       this.handleDrillDownChange(this.drillDownList[0]);
     } else {

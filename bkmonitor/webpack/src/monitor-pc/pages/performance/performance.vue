@@ -133,13 +133,13 @@ export default class Performance extends Vue {
   };
   // 无状态数据接口 | 全量数据接口 记录请求响应较快的接口
   fastInterface: 'getHostPerformance' | 'getMetricHostList' = 'getHostPerformance';
-  refleshIntervalInstance = null;
+  refreshIntervalInstance = null;
   panelKey = '';
   emptyStatusType: EmptyStatusType = 'empty';
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 立即刷新图表
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
 
   @Provide('tableInstance') readonly tableStore = this.tableInstance;
 
@@ -153,20 +153,20 @@ export default class Performance extends Vue {
   //     }
   //   });
   // }
-  @Watch('refleshInterval')
+  @Watch('refreshInterval')
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  handleRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.initPerformance();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) this.initPerformance();
   }
   get bizList() {

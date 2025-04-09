@@ -150,6 +150,8 @@ class ListProfileDepartmentsResource(BkUserApiResource):
     获取用户的部门信息
     """
 
+    ignore_error_msg_list = ["could not be found"]
+
     @property
     def action(self):
         if self.use_apigw():

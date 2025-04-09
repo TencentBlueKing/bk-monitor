@@ -320,7 +320,7 @@ export default class MonitorEcharts extends Vue {
   // 是使用组件内的无数据设置
   @Prop({ default: true }) readonly setNoData: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: 0 }) readonly refreshInterval: number;
   @Prop({ default: '' }) readonly subtitle: string;
   // 图表类型
   @Prop({ default: 'line' }) readonly chartType: ChartType;
@@ -399,7 +399,7 @@ export default class MonitorEcharts extends Vue {
   chartSubTitle = '';
   chartOptionInstance = null;
   hasInitChart = false;
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   legend: { show: boolean; list: ILegendItem[] } = {
     show: false,
     list: [],
@@ -486,11 +486,11 @@ export default class MonitorEcharts extends Vue {
               left: 0,
               top: 0,
             };
-            const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-            if (canSetBootom > 0) {
-              position.top = +pos[1] - Math.min(20, canSetBootom);
+            const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+            if (canSetBottom > 0) {
+              position.top = +pos[1] - Math.min(20, canSetBottom);
             } else {
-              position.top = +pos[1] + canSetBootom - 20;
+              position.top = +pos[1] + canSetBottom - 20;
             }
             const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
             if (canSetLeft > 0) {
@@ -583,16 +583,16 @@ export default class MonitorEcharts extends Vue {
   onLocalChartHeightChange() {
     this?.chart?.resize?.();
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0 || !this.getSeriesData) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       // 上次接口未返回时不执行请求
       !this.loading && this.chart && this.handleSeriesData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -618,13 +618,13 @@ export default class MonitorEcharts extends Vue {
   }
 
   activated() {
-    this.onRefleshIntervalChange(this.refleshInterval);
+    this.onRefreshIntervalChange(this.refreshInterval);
     if (this.autoresize) {
       this.chart?.resize?.();
     }
   }
   deactivated() {
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   beforeDestroy() {
     this.timeRange = [];
@@ -635,7 +635,7 @@ export default class MonitorEcharts extends Vue {
       this.intersectionObserver.disconnect();
     }
     this.annotation.show = false;
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();
@@ -975,7 +975,7 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
     const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-    const liHtmls = list
+    const liHtmlList = list
       .slice(0, 50)
       .sort((a, b) => b.value[1] - a.value[1])
       .map(item => {
@@ -995,10 +995,10 @@ export default class MonitorEcharts extends Vue {
         }
         if (item.value[1] === null) return '';
         const curSeries = this.curChartOption.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li class="tooltips-content-item">
                 <span class="item-series"
                  style="background-color:${item.color};">
@@ -1008,7 +1008,7 @@ export default class MonitorEcharts extends Vue {
                 ${valueObj.text} ${valueObj.suffix || ''}</span>
                 </li>`;
       });
-    if (liHtmls?.length < 1) return '';
+    if (liHtmlList?.length < 1) return '';
     // 如果超出屏幕高度，则分列展示
     let ulStyle = '';
     const maxLen = Math.ceil((window.innerHeight - 100) / 20);
@@ -1027,7 +1027,7 @@ export default class MonitorEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
             </ul>
             </div>`;
   }

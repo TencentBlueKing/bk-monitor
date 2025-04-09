@@ -40,10 +40,11 @@ import EventExplore from './event-explore';
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
-import type { IFormData } from './typing';
+import type { HideFeatures, IFormData } from './typing';
 
 /** 上一次选择的dataId */
-const EVENT_RETRIEVAL_DEFAULT_DATA_ID = 'event_retrieval_default_data_id';
+const EVENT_EXPLORE_DEFAULT_DATA_ID = 'event_explore_default_data_id';
+const LOG_EXPLORE_DEFAULT_DATA_ID = 'log_explore_default_data_id';
 
 @Component
 export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
@@ -55,13 +56,15 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refreshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refreshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   /** 图表框选范围事件所需参数 -- 开启框选功能 */
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
   @ProvideReactive('showRestore') showRestore = false;
+
+  @ProvideReactive('hideFeatures') hideFeatures: HideFeatures = [];
 
   cacheTimeRange = [];
   timer = null;
@@ -92,17 +95,30 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   /** 过滤条件 */
   filter_dict: IFormData['filter_dict'] = {};
   /** 用于 日志 和 事件关键字切换 换成查询 */
-  cacheQuery = null;
+  cacheQuery = new Map<string, Record<string, any>>();
   filterMode = EMode.ui;
   /** 是否展示常驻筛选 */
   showResidentBtn = false;
 
+  get defaultDataIdKey() {
+    if (this.dataTypeLabel === 'log') return LOG_EXPLORE_DEFAULT_DATA_ID;
+    return EVENT_EXPLORE_DEFAULT_DATA_ID;
+  }
+  created() {
+    const { hideFeatures } = this.$route.query;
+    try {
+      this.hideFeatures = JSON.parse(decodeURIComponent(hideFeatures?.toString() || '[]'));
+    } catch {
+      this.hideFeatures = [];
+    }
+  }
   async mounted() {
     const isShowFavorite =
       JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
+
     this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
-    this.defaultDataId = await this.handleGetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID);
+    this.defaultDataId = await this.handleGetUserConfig(this.defaultDataIdKey);
     await this.getDataIdList(!this.dataId);
   }
 
@@ -188,16 +204,18 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.group_by = group_by;
       this.filter_dict = filter_dict;
       this.timeRange = compareValue.tools.timeRange;
-      this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
+      this.refreshInterval = compareValue.tools.refreshInterval || -1;
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
       this.commonWhere = commonWhere || [];
       this.showResidentBtn = showResidentBtn || false;
     } else {
       // 选择检索
-      this.dataId = this.dataIdList[0].id;
-      this.dataSourceLabel = 'custom';
-      this.dataTypeLabel = 'event';
+      if (!this.dataId) {
+        this.dataId = this.dataIdList[0].id;
+        this.dataSourceLabel = 'custom';
+        this.dataTypeLabel = 'event';
+      }
       this.queryString = '*';
       this.where = [];
       this.group_by = [];
@@ -252,7 +270,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.dataId = dataId;
-    this.handleSetUserConfig(EVENT_RETRIEVAL_DEFAULT_DATA_ID, JSON.stringify(dataId));
+    this.handleSetUserConfig(this.defaultDataIdKey, JSON.stringify(dataId));
     this.where = [];
     this.queryString = '';
     this.commonWhere = [];
@@ -261,22 +279,34 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
 
   /** 事件类型切换 */
   async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
-    const cacheQuery = {
-      where: this.where,
-      dataId: this.dataId,
-      query_string: this.queryString,
-      group_by: this.group_by,
-      filter_dict: this.filter_dict,
-    };
+    this.cacheQuery.set(
+      this.dataTypeLabel,
+      structuredClone({
+        where: this.where,
+        dataId: this.dataId,
+        query_string: this.queryString,
+        group_by: this.group_by,
+        filter_dict: this.filter_dict,
+        dataIdList: this.dataIdList,
+      })
+    );
+    const cacheQuery = this.cacheQuery.get(dataType.data_type_label);
+    let list = cacheQuery?.dataIdList || [];
+    if (!list.length) {
+      list = await getDataSourceConfig({
+        data_source_label: dataType.data_source_label,
+        data_type_label: dataType.data_type_label,
+        return_dimensions: false,
+      }).catch(() => []);
+    }
+    this.dataId = cacheQuery?.dataId || list[0]?.id || '';
+    this.dataIdList = list;
     this.dataSourceLabel = dataType.data_source_label;
     this.dataTypeLabel = dataType.data_type_label;
-    this.dataId = this.cacheQuery?.dataId || '';
-    this.where = this.cacheQuery?.where || [];
-    this.queryString = this.cacheQuery?.query_string || '';
-    this.group_by = this.cacheQuery?.group_by || [];
-    this.filter_dict = this.cacheQuery?.filter_dict || {};
-    this.cacheQuery = cacheQuery;
-    await this.getDataIdList(!this.dataId);
+    this.where = cacheQuery?.where || [];
+    this.queryString = cacheQuery?.query_string || '';
+    this.group_by = cacheQuery?.group_by || [];
+    this.filter_dict = cacheQuery?.filter_dict || {};
     this.setRouteParams();
   }
 
@@ -428,43 +458,45 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     return (
       <EventExplore
         scopedSlots={{
-          favorite: () => (
-            <div
-              style={{ display: this.isShowFavorite ? 'block' : 'none' }}
-              class='left-favorite-panel'
-              slot='favorite'
-            >
-              <FavoriteContainer
-                ref='favoriteContainer'
+          favorite: () =>
+            !this.hideFeatures.includes('favorite') ? (
+              <div
+                style={{ display: this.isShowFavorite ? 'block' : 'none' }}
+                class='left-favorite-panel'
+                slot='favorite'
+              >
+                <FavoriteContainer
+                  ref='favoriteContainer'
+                  dataId={this.dataId}
+                  favoriteSearchType='event'
+                  isShowFavorite={this.isShowFavorite}
+                  onFavoriteListChange={this.handleFavoriteListChange}
+                  onSelectFavorite={this.handleSelectFavorite}
+                  onShowChange={this.favoriteShowChange}
+                />
+              </div>
+            ) : undefined,
+          header: () =>
+            !this.hideFeatures.includes('header') ? (
+              <EventRetrievalHeader
+                slot='header'
                 dataId={this.dataId}
-                favoriteSearchType='event'
+                dataIdList={this.dataIdList}
+                dataSourceLabel={this.dataSourceLabel}
+                dataTypeLabel={this.dataTypeLabel}
                 isShowFavorite={this.isShowFavorite}
-                onFavoriteListChange={this.handleFavoriteListChange}
-                onSelectFavorite={this.handleSelectFavorite}
-                onShowChange={this.favoriteShowChange}
+                refreshInterval={this.refreshInterval}
+                timeRange={this.timeRange}
+                timezone={this.timezone}
+                onDataIdChange={this.handleDataIdChange}
+                onEventTypeChange={this.handleEventTypeChange}
+                onFavoriteShowChange={this.favoriteShowChange}
+                onImmediateRefresh={this.handleImmediateRefresh}
+                onRefreshChange={this.handleRefreshChange}
+                onTimeRangeChange={this.handleTimeRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
               />
-            </div>
-          ),
-          header: () => (
-            <EventRetrievalHeader
-              slot='header'
-              dataId={this.dataId}
-              dataIdList={this.dataIdList}
-              dataSourceLabel={this.dataSourceLabel}
-              dataTypeLabel={this.dataTypeLabel}
-              isShowFavorite={this.isShowFavorite}
-              refreshInterval={this.refreshInterval}
-              timeRange={this.timeRange}
-              timezone={this.timezone}
-              onDataIdChange={this.handleDataIdChange}
-              onEventTypeChange={this.handleEventTypeChange}
-              onFavoriteShowChange={this.favoriteShowChange}
-              onImmediateRefresh={this.handleImmediateRefresh}
-              onRefreshChange={this.handleRefreshChange}
-              onTimeRangeChange={this.handleTimeRangeChange}
-              onTimezoneChange={this.handleTimezoneChange}
-            />
-          ),
+            ) : undefined,
         }}
         commonWhere={this.commonWhere}
         currentFavorite={this.currentFavorite}
@@ -476,6 +508,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         filter_dict={this.filter_dict}
         filterMode={this.filterMode}
         group_by={this.group_by}
+        hideFeatures={this.hideFeatures}
         queryString={this.queryString}
         source={APIType.MONITOR}
         where={this.where}

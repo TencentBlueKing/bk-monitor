@@ -15,12 +15,12 @@ import datetime
 import json
 import logging
 import os
-import re
 import shutil
 import tarfile
 import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict
 from uuid import uuid4
 
 from django.conf import settings
@@ -29,7 +29,6 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
-from api.grafana.exporter import DashboardExporter
 from bk_dataview.api import get_or_create_org
 from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request
@@ -37,7 +36,6 @@ from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
-from constants.data_source import DataSourceLabel
 from constants.strategy import TargetFieldType
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.tasks import step
@@ -56,6 +54,7 @@ from monitor_web.export_import.constant import (
     ImportDetailStatus,
     ImportHistoryStatus,
 )
+from monitor_web.export_import.import_config import get_strategy_config, get_view_config
 from monitor_web.export_import.parse_config import (
     CollectConfigParse,
     StrategyConfigParse,
@@ -438,23 +437,19 @@ class ExportPackageResource(Resource):
 
         dashboard_file_path = os.path.join(self.package_path, "view_config_directory")
         os.makedirs(dashboard_file_path)
-        org_id = get_or_create_org(self.bk_biz_id)["id"]
-        data_sources = api.grafana.get_all_data_source(org_id=org_id)["data"]
 
-        for view_config_id in self.view_config_ids:
-            result = api.grafana.get_dashboard_by_uid(uid=view_config_id, org_id=org_id)
-            if result["result"] and result["data"].get("dashboard"):
-                dashboard = result["data"]["dashboard"]
-                DashboardExporter(data_sources).make_exportable(dashboard)
-                view_config_file_name = dashboard.get("title", "dashboard")
-            else:
-                continue
+        view_config = get_view_config(self.bk_biz_id, self.view_config_ids)
+
+        # 仪表盘数据导出处理流程
+        for uid, config in view_config.items():
+            dashboard = config["dashboard"]
+            view_config_file_name = dashboard.get("title", "dashboard")
 
             with open(
                 os.path.join(
                     self.package_path,
                     "view_config_directory",
-                    "{}_{}.json".format(convert_filename(view_config_file_name), view_config_id),
+                    "{}_{}.json".format(convert_filename(view_config_file_name), uid),
                 ),
                 "w",
             ) as fs:
@@ -464,53 +459,15 @@ class ExportPackageResource(Resource):
         if not self.strategy_config_ids:
             return
 
+        # 创建策略配置存储目录
         os.makedirs(os.path.join(self.package_path, "strategy_config_directory"))
-        result = resource.strategies.get_strategy_list_v2(
-            bk_biz_id=self.bk_biz_id,
-            conditions=[{"key": "id", "value": self.strategy_config_ids}],
-            page=0,
-            page_size=0,
-            with_user_group=True,
-            with_user_group_detail=True,
-            # 导出时不要转换 grafana 相关配置
-            convert_dashboard=False,
-        )["strategy_config_list"]
+        # 获取策略配置列表
+        strategy_configs = get_strategy_config(self.bk_biz_id, self.strategy_config_ids)
 
-        target_type_to_dimensions = {
-            TargetObjectType.HOST: ["bk_target_ip", "bk_target_cloud_id"],
-            TargetObjectType.SERVICE: ["bk_target_service_instance_id"],
-        }
-        for result_data in result:
-            strategy_config_file_name = result_data.get("name")
-            strategy_id = result_data.pop("id")
-            # 判断是否是指标拆分字段，如果是，处理为未拆分策略配置
-            for item_msg in result_data["items"]:
-                item_msg["target"] = [[]]
-                for query_config in item_msg["query_configs"]:
-                    if query_config.get("result_table_id", "").endswith("_cmdb_level"):
-                        extend_msg = query_config["origin_config"]
-                        strategy_instance = StrategyModel.objects.get(id=strategy_id)
-                        target_type = strategy_instance.target_type
-                        query_config["result_table_id"] = extend_msg["result_table_id"]
-                        query_config["agg_dimension"] = extend_msg["agg_dimension"]
-                        query_config["extend_fields"] = {}
-                        query_config["agg_dimension"].extend(target_type_to_dimensions[target_type])
-
-                    # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
-                    data_label = query_config.get("data_label", None)
-                    if (
-                        settings.ENABLE_DATA_LABEL_EXPORT
-                        and data_label
-                        and (
-                            query_config.get("data_source_label", None)
-                            in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
-                        )
-                    ):
-                        query_config["metric_id"] = re.sub(
-                            rf"\b{query_config['result_table_id']}\b", data_label, query_config["metric_id"]
-                        )
-                        query_config["result_table_id"] = data_label
-
+        for config in strategy_configs:
+            strategy_config_file_name = config.get("name")
+            strategy_id = config.pop("id")
+            # 写入处理后的策略配置到文件
             with open(
                 os.path.join(
                     self.package_path,
@@ -519,7 +476,7 @@ class ExportPackageResource(Resource):
                 ),
                 "w",
             ) as fs:
-                fs.write(json.dumps(result_data, indent=4))
+                fs.write(json.dumps(config, indent=4))
 
     @step(state="MAKE_PACKAGE", message=_("文件打包中..."))
     def make_package(self):
@@ -1120,3 +1077,224 @@ class AddMonitorTargetResource(Resource):
         StrategyModel.objects.filter(id__in=strategy_config_ids).update(is_enabled=True)
 
         return "success"
+
+
+class ExportConfigToBusinessResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="当前业务ID")
+        strategy_config_ids = serializers.ListField(required=False, default=[], label="需要导出的策略配置ID列表")
+        view_config_ids = serializers.ListField(required=False, default=[], label="需要导出的视图配置ID列表")
+        target_bk_biz_id = serializers.IntegerField(required=True, label="目标业务ID")
+
+        def validate(self, attrs):
+            # 检查当前业务ID和目标业务ID是否相同
+            if attrs.get("bk_biz_id") == attrs.get("target_bk_biz_id"):
+                raise ValidationError(_("当前业务ID和目标业务ID不能相同"))
+            return attrs
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target_biz_id = None
+        self.bk_biz_id = None
+        self.strategy_config_ids = []
+        self.view_config_ids = []
+        self.uuids = []
+        self.parse_objs = []
+        self.all_count = dict([("total", 0), ("success", 0), ("failed", 0)])
+        self.strategy_count = dict([("total", 0), ("success", 0), ("failed", 0)])
+        self.view_count = dict([("total", 0), ("success", 0), ("failed", 0)])
+        self.type_map = {
+            ConfigType.STRATEGY: self.strategy_count,
+            ConfigType.VIEW: self.view_count,
+        }
+        self.suffix = "_imported"
+        self.existed_folders = set()
+        self.existed_folders_info = {}
+        # 忽略的策略，当前仅支持导入未配置处理套餐的策略
+        self.ignore_strategies = []
+
+    def perform_request(self, validated_request_data):
+        self.bk_biz_id = validated_request_data["bk_biz_id"]
+        self.target_biz_id = validated_request_data["target_bk_biz_id"]
+        self.strategy_config_ids = validated_request_data["strategy_config_ids"]
+        self.view_config_ids = validated_request_data["view_config_ids"]
+
+        if not any([self.view_config_ids, self.strategy_config_ids]):
+            raise ValidationError(_("未选择任何配置"))
+
+        self.parse_view_config()
+        self.parse_strategy_config()
+
+        result = resource.export_import.import_config({"bk_biz_id": self.target_biz_id, "uuid_list": self.uuids})
+
+        config_list = list(map(self.handle_return_data, self.parse_objs))
+        config_list.extend(self.ignore_strategies)
+        return {
+            "config_list": config_list,
+            "all_count": self.all_count,
+            "strategy_count": self.strategy_count,
+            "view_count": self.view_count,
+            "import_history_id": result["import_history_id"],
+        }
+
+    def parse_view_config(self):
+        """
+        解析仪表盘配置，并保存到数据库
+        """
+        if not self.view_config_ids:
+            return
+        view_config = get_view_config(self.bk_biz_id, self.view_config_ids)
+        org_id = get_or_create_org(self.target_biz_id)["id"]
+
+        for config in view_config.values():
+            self.create_folder(config, org_id)
+            dashboard = config.get("dashboard")
+            # 为新导入的仪表盘名称添加后缀
+            dashboard["title"] = (
+                dashboard.get("title") + self.suffix if dashboard.get("title") else dashboard.get("title")
+            )
+
+            parse_manager = ViewConfigParse(file_path=None)
+            parse_manager.file_content = dashboard
+            parse_result = parse_manager.check_msg()
+
+            unique_id = str(uuid4())
+            self.uuids.append(unique_id)
+
+            parse_obj = ImportParse.objects.create(
+                name=parse_result["name"],
+                label="view",
+                uuid=unique_id,
+                type=ConfigType.VIEW,
+                config=parse_result["config"],
+                file_status=parse_result["file_status"],
+                error_msg=parse_result.get("error_msg", ""),
+                file_id=0,  # 没有保存对应的UploadedFileInfo,所以这里设置为0
+            )
+            self.parse_objs.append(parse_obj)
+
+    def parse_strategy_config(self):
+        """解析策略配置文件并创建对应数据库记录"""
+        if not self.strategy_config_ids:
+            return
+
+        strategy_configs = get_strategy_config(self.bk_biz_id, self.strategy_config_ids)
+
+        for config in strategy_configs:
+            # 暂时只导入没有配置处理套餐的策略
+            if config.get("actions", []):
+                info = {
+                    "name": config.get("name"),
+                    "uuid": "",
+                    "file_status": ImportDetailStatus.FAILED,
+                    "error_msg": "该策略已配置处理套餐，无法导入",
+                    "label": config.get("labels", ""),
+                    "type": ConfigType.STRATEGY,
+                }
+                self.all_count["total"] += 1
+                self.all_count["failed"] += 1
+                self.strategy_count["total"] += 1
+                self.strategy_count["failed"] += 1
+
+                self.ignore_strategies.append(info)
+                continue
+
+            config.pop("id")
+            self.change_name_and_biz_id(config)
+            parse_manager = StrategyConfigParse(file_path=None)
+            parse_manager.file_content = config
+            parse_result, _ = parse_manager.check_msg()
+
+            unique_id = str(uuid4())
+            self.uuids.append(unique_id)
+
+            # 创建策略配置解析记录
+            parse_obj = ImportParse.objects.create(
+                name=parse_result["name"],
+                label=parse_result["config"].get("scenario", ""),
+                uuid=unique_id,
+                type=ConfigType.STRATEGY,
+                config=parse_result["config"],
+                file_status=parse_result["file_status"],
+                error_msg=parse_result.get("error_msg", ""),
+                file_id=0,  # 没有保存对应的UploadedFileInfo,所以这里设置为0
+            )
+            self.parse_objs.append(parse_obj)
+
+    def create_folder(self, view_config: Dict, org_id: int):
+        """创建仪表盘目录"""
+        dashboard = view_config.get("dashboard")
+
+        folder_title = view_config.get("meta", {}).get("folderTitle")
+        if not folder_title:
+            return
+
+        folder_title = folder_title + self.suffix
+        if folder_title in self.existed_folders:
+            dashboard["folderId"] = self.existed_folders_info[folder_title]
+            return
+
+        result = api.grafana.create_folder(org_id=org_id, title=folder_title)
+        # code 409表示目录已存在
+        if result["result"] or result["code"] == 409:
+            if result["code"] == 409:
+                folders = api.grafana.search_folder_or_dashboard(
+                    org_id=org_id, query=folder_title, delete=False, limit=1000
+                )
+                # 获取已存在的目录的id
+                for r in folders.get("data", []):
+                    if r["title"] == folder_title:
+                        dashboard["folderId"] = r["id"]
+                        break
+                else:
+                    # 没找到已存在的目录
+                    return
+
+            else:
+                dashboard["folderId"] = result["data"]["id"]
+
+            self.existed_folders.add(folder_title)
+            self.existed_folders_info[folder_title] = dashboard["folderId"]
+
+    def change_name_and_biz_id(self, config: Dict):
+        """修改名称和业务ID"""
+
+        def change(d):
+            if not isinstance(d, dict):
+                return
+            if not d.get("name", "").endswith(self.suffix):
+                d["name"] = d.get("name", "") + self.suffix
+            d["bk_biz_id"] = self.target_biz_id
+
+        change(config)
+        for gp in config.get("notice", {}).get("user_group_list", []):
+            # 告警组名称加后缀
+            change(gp)
+            for duty_rule in gp.get("duty_rules_info", []):
+                # 值班规则名称加后缀
+                change(duty_rule)
+
+    def handle_return_data(self, model_obj: ImportParse):
+        # 返回文件解析的结果
+        if model_obj.type == ConfigType.VIEW:
+            label_info = model_obj.label
+        else:
+            label_msg = resource.commons.get_label_msg(model_obj.label)
+            label_info = "{}-{}".format(label_msg["first_label_name"], label_msg["second_label_name"])
+        self.all_count["total"] += 1
+        self.type_map[model_obj.type]["total"] += 1
+        if model_obj.file_status == ImportDetailStatus.SUCCESS:
+            self.all_count["success"] += 1
+            self.type_map[model_obj.type]["success"] += 1
+        else:
+            self.all_count["failed"] += 1
+            self.type_map[model_obj.type]["failed"] += 1
+
+        return {
+            "name": model_obj.name,
+            "uuid": model_obj.uuid,
+            "file_status": model_obj.file_status,
+            "error_msg": model_obj.error_msg,
+            "label": label_info,
+            "type": model_obj.type,
+        }
