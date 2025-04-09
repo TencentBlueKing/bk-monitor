@@ -79,8 +79,7 @@ const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
-const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY_4';
-
+const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
