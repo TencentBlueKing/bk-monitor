@@ -313,8 +313,6 @@
         padding: 2px 0;
         &.focus-text,
         &:hover {
-          // background-color: #cddffe;
-          // border-radius: 2px;
           color: #3a84ff;
         }
       }

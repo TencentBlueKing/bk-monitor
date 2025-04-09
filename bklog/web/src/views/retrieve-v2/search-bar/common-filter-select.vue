@@ -45,7 +45,7 @@
         storedItem ||
         storeItem || {
           field: item.field_name || '',
-          operator: '=',
+          operator: item.field_operator[0]?.operator ?? '=',
           value: [],
           list: [],
         }

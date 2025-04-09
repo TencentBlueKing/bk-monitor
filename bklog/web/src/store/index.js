@@ -1037,6 +1037,7 @@ const store = new Vuex.Store({
 
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
+        commit('updateStorage', { searchType: payload.search_mode === 'ui' ? 0 : 1 });
       }
     },
 

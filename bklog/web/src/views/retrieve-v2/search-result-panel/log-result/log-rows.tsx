@@ -344,6 +344,10 @@ export default defineComponent({
           const config: RowConfig = tableRowConfig.get(row).value;
 
           const hanldeExpandClick = event => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
             config.expand = !config.expand;
             nextTick(() => {
               if (config.expand) {
@@ -1101,8 +1105,12 @@ export default defineComponent({
     const onRootClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      if (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) {
-        const index = parseInt(target.getAttribute('data-row-index'), 10);
+      if (
+        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
+        !(target?.classList.contains('segment-content') || target?.parentElement?.classList.contains('segment-content'))
+      ) {
+        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
+        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
 
         if (index >= 0) {
           const { item } = renderList[index] ?? {};

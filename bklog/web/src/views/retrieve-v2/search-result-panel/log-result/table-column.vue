@@ -122,7 +122,7 @@
   .bklog-column-wrapper {
     display: flex;
     align-items: flex-start;
-    height: 100%;
+    height: fit-content;
     padding: 0;
   }
 </style>

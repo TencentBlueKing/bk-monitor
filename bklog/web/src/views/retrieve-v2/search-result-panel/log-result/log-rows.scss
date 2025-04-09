@@ -17,7 +17,7 @@
     > div {
       height: 40px;
       line-height: 40px;
-      color: #979BA5;
+      color: #979ba5;
       font-size: 12px;
     }
   }
@@ -343,13 +343,10 @@
         background-color: #fafbfd;
 
         .bklog-row-ai {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          opacity: 1;
-          z-index: 3;
-          transition: opacity 0.3s;
+          img {
+            opacity: 1;
+            transition: opacity 0.3s;
+          }
         }
       }
 
