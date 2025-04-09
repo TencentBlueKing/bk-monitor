@@ -252,6 +252,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
                 ref='correlationNav'
                 isCorrelationMetrics={this.isCorrelationMetrics}
                 list={this.panelMap[key]}
+                type={key === 'dimensionPanels' ? 'dimension' : 'index'}
                 onActive={this.handleActive}
               />
             </div>,

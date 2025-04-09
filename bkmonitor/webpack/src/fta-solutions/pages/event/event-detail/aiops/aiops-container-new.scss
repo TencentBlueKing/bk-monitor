@@ -78,6 +78,31 @@
       padding-right: 4px;
       line-height: 20px;
       background: #dfe4f0;
+      position: relative;
+      .aiops-overflow-ellipsis {
+        width: 44px;
+        height: 24px;
+        background: #f0f3fa;
+        border-radius: 2px;
+        position: absolute;
+        right: 40px;
+        top: 14px;
+        padding: 2px;
+        z-index: 10;
+        .ellipsis-item {
+          display: inline-block;
+          color: #979ba5;
+          font-size: 12px;
+          width: 50%;
+          text-align: center;
+          border-radius: 1px;
+          cursor: pointer;
+          &.active {
+            background: #fff;
+            color: #3a84ff;
+          }
+        }
+      }
 
       .bk-icon {
         font-size: 30px;
