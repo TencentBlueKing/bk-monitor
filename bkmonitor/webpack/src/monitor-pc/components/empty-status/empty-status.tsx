@@ -46,6 +46,7 @@ interface IEmptyStatusEvent {
 // 默认类型对应的文本枚举
 export const defaultTextMap: IEmptyStatusTextMap = {
   incidentEmpty: window.i18n.t('当前空间下暂无故障'),
+  incidentNotEnabled: '',
   empty: window.i18n.t('查无数据'),
   'search-empty': window.i18n.t('搜索结果为空'),
   500: window.i18n.t('数据获取异常'),
@@ -65,7 +66,7 @@ export default class EmptyStatus extends tsc<IEmptyStatusProps, IEmptyStatusEven
   }
 
   get filterType() {
-    return this.type === 'incidentEmpty' ? 'empty' : this.type;
+    return ['incidentEmpty', 'incidentNotEnabled'].includes(this.type) ? 'empty' : this.type;
   }
   // 默认类型的操作
   get defaultOperation() {

@@ -16,6 +16,7 @@ from apm_web.models import (
     Application,
     AppServiceRelation,
     CMDBServiceRelation,
+    EventServiceRelation,
     LogServiceRelation,
 )
 from core.drf_resource import api
@@ -25,6 +26,12 @@ class CMDBServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CMDBServiceRelation
         fields = ["template_id", "updated_at", "updated_by"]
+
+
+class EventServiceRelationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventServiceRelation
+        fields = ["table", "relations", "options", "updated_at", "updated_by"]
 
 
 class LogServiceRelationSerializer(serializers.ModelSerializer):
@@ -71,6 +78,7 @@ class ServiceConfigSerializer(serializers.Serializer):
     log_relation = LogServiceRelationSerializer(required=False, allow_null=True)
     apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
     uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
+    event_relation = serializers.ListSerializer(required=False, default=[], child=EventServiceRelationSerializer())
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
 

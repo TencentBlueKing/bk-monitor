@@ -25,11 +25,15 @@
  * IN THE SOFTWARE.
  */
 
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+
 export enum EDimensionKey {
   container = 'container',
   namespace = 'namespace',
   pod = 'pod',
   workload = 'workload',
+  ingress = 'ingress',
+  service = 'service',
 }
 /**
  * @description: k8s tab类型枚举
@@ -77,6 +81,14 @@ export enum K8sTableColumnKeysEnum {
    * @description: workload_type - workload_type
    */
   WORKLOAD_TYPE = 'workload_type',
+  /**
+   * @description: ingress - 网络场景特有维度字段
+   */
+  INGRESS = 'ingress',
+  /**
+   * @description: service - 网络场景特有维度字段
+   */
+  SERVICE = 'service',
   /**
    * @description: container_cpu_usage_seconds_total - CPU使用量
    */
@@ -141,6 +153,7 @@ export type K8sSortType = '' | 'asc' | 'desc';
 
 export enum SceneEnum {
   Performance = 'performance',
+  Network = 'network',
 }
 
 export interface GroupListItem<T = string> {
@@ -162,8 +175,7 @@ export interface K8sDimensionParams extends ICommonParams {
 export interface ICommonParams {
   scenario: SceneEnum;
   bcs_cluster_id: string;
-  start_time: number;
-  end_time: number;
+  timeRange: TimeRangeType;
 }
 
 export interface IK8SMetricItem {

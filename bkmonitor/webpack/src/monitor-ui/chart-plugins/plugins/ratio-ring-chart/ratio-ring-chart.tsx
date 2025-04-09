@@ -65,7 +65,7 @@ class RatioRingChart extends CommonSimpleChart {
   needResetChart = true;
   isLegendFullContainer = false;
   legendData = [];
-  inited = false;
+  initialized = false;
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
@@ -109,7 +109,7 @@ class RatioRingChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -117,7 +117,7 @@ class RatioRingChart extends CommonSimpleChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -152,7 +152,7 @@ class RatioRingChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item)) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.$nextTick(() => {
           this.handleResetLegendHeight();
@@ -322,13 +322,13 @@ class RatioRingChart extends CommonSimpleChart {
       <div class='ratio-ring-chart'>
         <ChartHeader
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
           metrics={this.metrics}
           showMore={false}
           title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='ratio-ring-chart-content'>

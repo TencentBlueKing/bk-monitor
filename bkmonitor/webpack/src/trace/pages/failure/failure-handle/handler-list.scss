@@ -7,14 +7,14 @@
     display: flex;
     width: 100%;
     padding: 16px 12px 8px;
-
+    
     .head-input {
       // width: calc(100% - 40px);
       border: 0;
-
+      background: #f0f1f5;
       .bk-input--text {
         background: #f0f1f5;
-        color: #979ba5;
+        color: #313238;
         &::placeholder {
           color: #979ba5;
         }
@@ -25,9 +25,18 @@
       }
 
       .bk-input--suffix-icon {
-        background: #f0f1f5;
+        background: inherit;
         color: #979ba5;
         font-size: 16px;
+      }
+    }
+
+    .is-focused {
+      border: 1px solid #3a84ff;
+      box-shadow: none !important;
+      background: #fff;
+      .bk-input--text {
+        background: #fff;
       }
     }
 

@@ -111,7 +111,7 @@
               <template #default="props">
                 <div class="source-box">
                   <span
-                    v-if="builtInInitHiddenList.includes(props.row.field_name) || builtInInitHiddenList.includes(props.row.alias_name)"
+                    v-if="props.row.is_built_in"
                     class="source-built"
                     >{{ $t('内置') }}</span
                   >
@@ -602,7 +602,6 @@
 <script>
   import { mapGetters } from 'vuex';
   import { deepClone } from '../../common/util';
-  import { builtInInitHiddenList } from '@/const/index.js'
   export default {
     name: 'FieldTable',
     props: {
@@ -733,7 +732,6 @@
             },
           ],
         },
-        builtInInitHiddenList ,
       };
     },
     computed: {
@@ -1027,7 +1025,7 @@
         if (row.alias_name) {
           return;
         }
-        const { field_name, is_delete, field_index } = row;
+        const { field_name, is_delete, field_index, is_time } = row;
         let result = '';
         let aliasResult = '';
         let width = 220;
@@ -1061,7 +1059,7 @@
             aliasResult = this.$t('检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖');
             width = 220;
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-            result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+            result = this.filedNameIsConflict(field_index, field_name, is_time) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
             result = '';
           }
@@ -1082,7 +1080,7 @@
         let queryResult = '';
         row.btnShow = false;
         if (!alias_name) {
-          row.alias_name_show = false;
+          this.$set(row, 'alias_name_show', false);
           row.btnShow = true;
           return false;
         }
@@ -1091,7 +1089,9 @@
             queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
           } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
-          } else if (this.selectEtlConfig === 'bk_log_json') {
+          } else if (alias_name === row.field_name) {
+            queryResult = this.$t('重命名与字段名重复');
+          }  else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
             queryResult = this.filedNameIsConflict(field_index, alias_name)
@@ -1269,14 +1269,19 @@
         row.is_delete = !row.is_delete;
         this.$emit('handle-table-data', this.changeTableList);
       },
-      filedNameIsConflict(fieldIndex, fieldName) {
-        const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-        return otherFieldNameList.some(item => item.field_name === fieldName);
+      
+      filedNameIsConflict(fieldIndex, fieldName, is_time = false) {
+        const otherFieldNameList = this.formData.tableList.filter(item => {
+          // 指定日志时间的字段名会重复
+          return item.field_index !== fieldIndex && (!is_time || !item.is_time);
+        });
+        return otherFieldNameList.some(item => item.field_name === fieldName );
       },
       /** 当前字段是否禁用 */
       getFieldEditDisabled(row) {
         if (row?.is_delete) return true;
         if (row?.is_built_in) return true;
+        if (row?.field_type === 'object') return true;
         if (this.selectEtlConfig === 'bk_log_json') return false;
         return this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
       },

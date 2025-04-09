@@ -27,14 +27,19 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce, deepClone } from 'monitor-common/utils';
+
 import CollectContainer from './collect-container';
 import SharedDialog from './component/shared-dialog';
-import ManageGroupDialog from './manage-group-dialog';
+import FavoriteManageDialog from './favorite-manage-dialog';
+// import ManageGroupDialog from './manage-group-dialog';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-index.scss';
+
+const VIEW_DATA_ID_KEY = 'bk_monitor_favorite_view_data_id';
 
 @Component
 export default class CollectIndex extends tsc<FavoriteIndexType.IProps, FavoriteIndexType.IEvent> {
@@ -43,15 +48,18 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   @Prop({ default: false, type: Boolean }) isShowFavorite: boolean; // 是否展开收藏列表
   @Prop({ default: false, type: Boolean }) favoriteLoading: boolean; // 请求中
   @Prop({ default: 'metric', type: String }) favoriteSearchType: string; // 当前页收藏类型
+  @Prop({ default: '' }) dataId: string; // 数据id
+
   @Ref('checkInputForm') checkInputFormRef: any;
   @Ref('popoverGroup') popoverGroupRef: any;
   @Ref('popoverSort') popoverSortRef: any;
+  @Ref('collectContainer') collectContainerRef: CollectContainer;
   isShowManageDialog = false; // 是否展示管理弹窗
   isShowSharedDialog = false;
   isSearchFilter = false; // 是否搜索过滤
   isShowAddNewFavoriteDialog = false; // 是否展示编辑收藏弹窗
-  searchLoading = false; // 搜索的容器loading
   searchVal = ''; // 搜索
+  allExpand = true; // 是否全部展开
   // groupName = ''; // 新增或编辑组名
   verifyData = {
     groupName: '',
@@ -106,13 +114,15 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   groupList: IFavList.groupList[] = []; // 分组列表
   filterCollectList: IFavList.favGroupList[] = []; // 搜索的收藏列表
   emptyStatusType: EmptyStatusType = 'empty';
+  /** 是否仅查看数据Id */
+  isViewDataId = JSON.parse(localStorage.getItem(VIEW_DATA_ID_KEY) || 'true');
 
   get isNewSearch() {
     return this.favCheckedValue === null;
   }
 
   get allFavoriteNumber() {
-    return this.favoritesList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
+    return this.favoritesList.reduce((pre: number, cur) => pre + cur.favorites.length, 0);
   }
 
   @Watch('isShowFavorite', { immediate: true })
@@ -131,6 +141,11 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   operateChangeFavoriteList() {
     this.handleSearchFavorite(); // 更新收藏列表
     this.initGroupList(); // 更新组列表
+  }
+
+  @Watch('dataId')
+  watchDataIdChange() {
+    this.handleSearchFavorite();
   }
 
   @Emit('operateChange')
@@ -192,10 +207,6 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     }
   }
 
-  handleInputSearchFavorite() {
-    if (this.searchVal === '') this.handleSearchFavorite();
-  }
-
   /** 收藏排序 */
   handleClickSortBtn(clickType: string) {
     if (clickType === 'sort') {
@@ -211,13 +222,22 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   }
 
   /** 收藏搜索 */
-  handleSearchFavorite(isRequest = false) {
+  @Debounce(100)
+  handleSearchFavorite() {
     if (this.emptyStatusType !== '500') this.emptyStatusType = this.searchVal ? 'search-empty' : 'empty';
-    if (isRequest) this.searchLoading = true;
-    let showFavList = this.favoritesList;
+    let showFavList = deepClone(this.favoritesList);
     // 当前只有未分组和个人收藏时 判断未分组是否有数据 如果没有 则不展示未分组
     if (showFavList.length === 2 && !showFavList[1].favorites.length) {
       showFavList = [showFavList[0]];
+    }
+    if (this.favoriteSearchType === 'event' && this.isViewDataId) {
+      showFavList = showFavList.map(item => {
+        const favorites = item.favorites.filter(
+          favorite => favorite.config.queryConfig?.result_table_id === this.dataId
+        );
+        item.favorites = favorites;
+        return item;
+      });
     }
     if (this.searchVal === '') {
       this.filterCollectList = showFavList;
@@ -225,17 +245,14 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
       return;
     }
     this.isSearchFilter = true;
-    setTimeout(() => {
-      this.filterCollectList = showFavList
-        .map(item => ({
-          ...item,
-          favorites: item.favorites.filter(
-            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
-          ),
-        }))
-        .filter(item => item.favorites.length);
-      if (isRequest) this.searchLoading = false;
-    }, 500);
+    this.filterCollectList = showFavList
+      .map(item => ({
+        ...item,
+        favorites: item.favorites.filter(
+          fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
+        ),
+      }))
+      .filter(item => item.favorites.length);
   }
 
   handleEmptyOperation(type: EmptyStatusOperationType) {
@@ -250,11 +267,30 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     }
   }
 
+  handleCollapseAll() {
+    this.collectContainerRef?.handleExpandAll(!this.allExpand);
+    this.allExpand = !this.allExpand;
+  }
+
+  @Emit('close')
+  handleClose() {}
+
+  handleIsViewDataIdChange(check: boolean) {
+    this.isViewDataId = check;
+    this.handleSearchFavorite();
+    localStorage.setItem(VIEW_DATA_ID_KEY, String(check));
+  }
+
+  favoriteManageDialogChange(show: boolean) {
+    this.isShowManageDialog = show;
+  }
+
   render() {
     return (
-      <div class='retrieve-collect-index'>
+      <div class='retrieve-collect-index-comp'>
         <CollectContainer
-          collectLoading={this.searchLoading || this.favoriteLoading}
+          ref='collectContainer'
+          collectLoading={this.favoriteLoading}
           dataList={this.filterCollectList}
           emptyStatusType={this.emptyStatusType}
           favCheckedValue={this.favCheckedValue}
@@ -266,31 +302,54 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
           <div class='search-container'>
             <div class='fl-jcsb'>
               <span class='search-title fl-jcsb'>
-                {this.$t('收藏查询')}
+                {this.$t('收藏夹')}
                 <span class='favorite-number'>{this.allFavoriteNumber}</span>
               </span>
-              <span
-                class='icon-monitor icon-mc-wholesale-editor'
-                onClick={() => (this.isShowManageDialog = true)}
-              />
+              <div class='tools'>
+                <span
+                  class='icon-monitor icon-shezhi1'
+                  onClick={() => (this.isShowManageDialog = true)}
+                />
+                <span
+                  class='icon-monitor icon-gongneng-shouqi'
+                  v-bk-tooltips={{ content: this.$t('收起收藏夹') }}
+                  onClick={this.handleClose}
+                />
+              </div>
             </div>
-            <div class='search-box fl-jcsb'>
-              <bk-input
-                vModel={this.searchVal}
-                placeholder={this.$t('搜索收藏名')}
-                right-icon='bk-icon icon-search'
-                onEnter={this.handleSearchFavorite}
-                onKeyup={this.handleInputSearchFavorite}
-                onRightIconClick={this.handleSearchFavorite}
-              />
-              <div class='fl-jcsb operate-box'>
+            <bk-input
+              class='search-input'
+              vModel={this.searchVal}
+              native-attributes={{
+                spellcheck: false,
+              }}
+              placeholder={this.$t('搜索收藏名')}
+              right-icon='bk-icon icon-search'
+              onEnter={this.handleSearchFavorite}
+              onInput={this.handleSearchFavorite}
+              onRightIconClick={this.handleSearchFavorite}
+            />
+            <div class='data-tool-btn fl-jcsb'>
+              {this.favoriteSearchType === 'event' && (
+                <bk-checkbox
+                  class='view-data'
+                  value={this.isViewDataId}
+                  onChange={this.handleIsViewDataIdChange}
+                >
+                  {this.$t('仅查看当前数据 ID')}
+                </bk-checkbox>
+              )}
+              <div class='tools-btn'>
                 <bk-popover
                   ref='popoverGroup'
                   ext-cls='new-group-popover'
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <span class='bk-icon icon-plus-circle' />
+                  <i
+                    class='icon-monitor icon-xinjianwenjianjia tool-icon'
+                    v-bk-tooltips={{ content: this.$t('新建收藏分组') }}
+                  />
                   <div slot='content'>
                     <bk-form
                       ref='checkInputForm'
@@ -324,15 +383,22 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                     </div>
                   </div>
                 </bk-popover>
+                <i
+                  class={['icon-monitor ml12', this.allExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
+                  v-bk-tooltips={{ content: this.$t(this.allExpand ? '全部收起' : '全部展开') }}
+                  onClick={this.handleCollapseAll}
+                />
                 <bk-popover
                   ref='popoverSort'
+                  class='ml12'
                   ext-cls='sort-group-popover'
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <div class='icon-box'>
-                    <span class='bk-icon icon-sort' />
-                  </div>
+                  <span
+                    class='icon-monitor icon-paixu1'
+                    v-bk-tooltips={{ content: this.$t('调整排序') }}
+                  />
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                     <bk-radio-group
@@ -340,7 +406,12 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                       vModel={this.sortType}
                     >
                       {this.groupSortList.map(item => (
-                        <bk-radio value={item.id}>{item.name}</bk-radio>
+                        <bk-radio
+                          key={item.id}
+                          value={item.id}
+                        >
+                          {item.name}
+                        </bk-radio>
                       ))}
                     </bk-radio-group>
                     <div class='operate-button'>
@@ -361,14 +432,21 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             class={['new-search', { active: this.isNewSearch }]}
             onClick={() => this.handleEmitOperateChange('new-search', undefined)}
           >
-            <span class='bk-icon icon-enlarge-line' />
+            <span class='icon-monitor icon-xinjiansuo' />
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>
-        <ManageGroupDialog
+        {/* <ManageGroupDialog
           v-model={this.isShowManageDialog}
           favoriteSearchType={this.favoriteSearchType}
           onSubmit={(value: boolean) => value && this.handleEmitOperateChange('request-query-history')}
+        /> */}
+        <FavoriteManageDialog
+          favoriteList={this.favoritesList}
+          favoriteType={this.favoriteSearchType}
+          show={this.isShowManageDialog}
+          onOperateChange={this.handleEmitOperateChange}
+          onShowChange={this.favoriteManageDialogChange}
         />
         <SharedDialog
           v-model={this.isShowSharedDialog}

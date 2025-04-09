@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from django.db import models
 from django.db.transaction import atomic
@@ -53,6 +53,7 @@ class CustomGroupBase(models.Model):
     table_id = models.CharField(verbose_name="结果表ID", max_length=128, db_index=True, null=True)
     # 自定义上报速率限制，默认为-1，跟随应用动态调整。如果手动指定，则优先使用使用数据库中的设置
     max_rate = models.IntegerField(verbose_name="上报速率限制", default=-1)
+    max_future_time_offset = models.IntegerField(verbose_name="上报最大时间偏移", default=-1)
     # 事件标签，默认是其他类型
     label = models.CharField(verbose_name="事件标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     is_enable = models.BooleanField(verbose_name="是否启用", default=True)
@@ -97,6 +98,10 @@ class CustomGroupBase(models.Model):
 
     @classmethod
     def default_result_table_options(cls):
+        pass
+
+    @classmethod
+    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
         pass
 
     @classmethod
@@ -204,7 +209,7 @@ class CustomGroupBase(models.Model):
         :param data_label: 数据标签
         :return: group object
         """
-
+        # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
         # 1. 参数检查
         filter_kwargs = cls.pre_check(
             label=label, bk_data_id=bk_data_id, custom_group_name=custom_group_name, bk_biz_id=bk_biz_id
@@ -239,9 +244,10 @@ class CustomGroupBase(models.Model):
 
         if default_storage_config is not None:
             default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
-
         else:
             default_storage_config = cls.DEFAULT_STORAGE_CONFIG
+
+        cls.process_default_storage_config(custom_group, default_storage_config)
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})

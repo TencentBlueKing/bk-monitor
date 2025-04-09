@@ -34,9 +34,9 @@ import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
 export const TIMEZONE_KEY = 'timezone';
-export const REFLESH_INTERVAL_KEY = 'refleshInterval';
+export const REFLESH_INTERVAL_KEY = 'refreshInterval';
 export const VIEWOPTIONS_KEY = 'viewOptions';
-export const REFLESH_IMMEDIATE_KEY = 'refleshImmediate';
+export const REFLESH_IMMEDIATE_KEY = 'refreshImmediate';
 export const TIME_OFFSET_KEY = 'timeOffset';
 export const CHART_PROVIDER_KEY = 'CHART_PROVIDER_KEY';
 export const QUERY_DATA_KEY = 'queryData';
@@ -50,11 +50,11 @@ export interface IChartProvider {
   // 时区
   readonly timezone: Ref<string>;
   // 图表数据刷新间隔
-  readonly refleshInterval: Ref<number>;
+  readonly refreshInterval: Ref<number>;
   // 通用图表查询数据配置
   readonly viewOptions: Ref<IViewOptions>;
   // 图表是否立即刷新
-  readonly refleshImmediate: Ref<number | string>;
+  readonly refreshImmediate: Ref<number | string>;
   // 图表对比数据
   readonly timeOffset: Ref<number[] | string[]>;
 }
@@ -97,27 +97,27 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   }
 
   // 数据时间间隔
-  const refleshInterval = useRefleshIntervalInject();
+  const refreshInterval = useRefreshIntervalInject();
   let refleshIntervalTimer = 0;
   let unWatchRefleshInterval: WatchStopHandle | null = null;
-  if (refleshInterval) {
+  if (refreshInterval) {
     unWatchRefleshInterval = watch(
-      refleshInterval,
+      refreshInterval,
       v => {
         window.clearInterval(refleshIntervalTimer);
         if (v <= 0) return;
         refleshIntervalTimer = window.setInterval(() => {
           getPanelData();
-        }, refleshInterval.value);
+        }, refreshInterval.value);
       },
       { immediate: true }
     );
   }
   // 图表是否立即刷新
-  const refleshImmediate = useRefleshImmediateInject();
+  const refreshImmediate = useRefreshImmediateInject();
   let unWatchRefleshImmediate: WatchStopHandle | null = null;
-  if (refleshImmediate) {
-    unWatchRefleshImmediate = watch(refleshImmediate, v => v && getPanelData());
+  if (refreshImmediate) {
+    unWatchRefleshImmediate = watch(refreshImmediate, v => v && getPanelData());
   }
 
   // 图表对比数据
@@ -169,20 +169,20 @@ export const useTimezoneProvider = (timezone: Ref<string>) => {
 };
 export const useTimezoneInject = () => inject<Ref<string>>(TIMEZONE_KEY);
 
-export const useRefleshIntervalProvider = (refleshInterval: Ref<number>) => {
-  provide(REFLESH_INTERVAL_KEY, refleshInterval);
+export const useRefleshIntervalProvider = (refreshInterval: Ref<number>) => {
+  provide(REFLESH_INTERVAL_KEY, refreshInterval);
 };
-export const useRefleshIntervalInject = () => inject<Ref<number>>(REFLESH_INTERVAL_KEY);
+export const useRefreshIntervalInject = () => inject<Ref<number>>(REFLESH_INTERVAL_KEY);
 
 export const useViewOptionsProvider = (viewOptions: IViewOptions) => {
   provide(VIEWOPTIONS_KEY, viewOptions);
 };
 export const useViewOptionsInject = () => inject<Ref<IViewOptions>>(VIEWOPTIONS_KEY);
 
-export const useRefleshImmediateProvider = (refleshImmediate: boolean) => {
-  provide(REFLESH_IMMEDIATE_KEY, refleshImmediate);
+export const useRefleshImmediateProvider = (refreshImmediate: boolean) => {
+  provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
 };
-export const useRefleshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
+export const useRefreshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
 
 export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);

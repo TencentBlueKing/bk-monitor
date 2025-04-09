@@ -9,11 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.core.exceptions import FieldError
 from django.core.paginator import Paginator
-from django.db.models import Count
+from django.db.models import Count, Q, QuerySet
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
@@ -81,6 +81,90 @@ class WorkloadOverview(Resource):
         return [[key, value] for key, value in kind_map.items()]
 
 
+class NamespaceWorkloadOverview(Resource):
+    class RequestSerializer(SpaceRelatedSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id = serializers.CharField(required=True, label="集群id")
+        query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
+        page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
+        page = serializers.IntegerField(required=False, default=1, label="页数")
+
+    @classmethod
+    def _get_workload_count(cls, workload_overview: List[List[int]]) -> int:
+        return sum([item[1] for item in workload_overview])
+
+    @classmethod
+    def _get_workload_count_by_queryset(cls, queryset: QuerySet[BCSWorkload]) -> int:
+        queryset = queryset.values("type").annotate(count=Count("name", distinct=True))
+        return sum([item["count"] for item in queryset])
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
+        query_string: str = validated_request_data["query_string"]
+
+        workload_count: int = 0
+        filter_dict: Dict[str, List[str]] = {}
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
+        queryset: QuerySet[BCSWorkload] = BCSWorkload.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        if query_string:
+            namespaces: List[str] = []
+            queryset = queryset.filter(Q(namespace__icontains=query_string) | Q(name__icontains=query_string))
+            for item in queryset.values("type", "namespace").order_by().annotate(count=Count("name", distinct=True)):
+                namespaces.append(item["namespace"])
+                workload_count += item["count"]
+
+            filter_dict["namespace"] = list(set(namespaces))
+        else:
+            workload_count: int = self._get_workload_count_by_queryset(queryset)
+
+        namespace_page: Dict[str, Any] = ListK8SResources().perform_request(
+            {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "resource_type": "namespace",
+                "scenario": "performance",
+                "query_string": "",
+                "filter_dict": filter_dict,
+                "page": page,
+                "page_size": page_size,
+                "page_type": "scrolling",
+                "with_history": False,
+                "start_time": 0,
+                "end_time": 0,
+            }
+        )
+        namespace_page["workload_count"] = workload_count
+
+        for namespace_info in namespace_page.get("items", []):
+            query_kwargs: Dict[str, Any] = {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "namespace": namespace_info["namespace"],
+            }
+            workload_overview: List[List[int]] = WorkloadOverview().perform_request(
+                {
+                    **query_kwargs,
+                    "query_string": query_string,
+                }
+            )
+            namespace_workload_count: int = self._get_workload_count(workload_overview)
+
+            query_from: str = "workload"
+            if not namespace_workload_count and query_string:
+                query_from: str = "namespace"
+                # 获取不到说明关键字仅命中 Namespace，去掉关键字再请求一遍 Workload
+                workload_overview = WorkloadOverview().perform_request(query_kwargs)
+                namespace_workload_count = self._get_workload_count(workload_overview)
+
+            namespace_info["query_from"] = query_from
+            namespace_info["workload_overview"] = workload_overview
+            namespace_info["workload_count"] = namespace_workload_count
+
+        return namespace_page
+
+
 class ScenarioMetricList(Resource):
     """
     获取场景下指标列表
@@ -98,7 +182,7 @@ class ScenarioMetricList(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
 
     def perform_request(self, validated_request_data):
         # 使用量、limit使用率、request使用率
@@ -111,7 +195,7 @@ class GetScenarioMetric(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
         metric_id = serializers.CharField(required=True, label="指标id")
 
     def perform_request(self, validated_request_data):
@@ -140,7 +224,9 @@ class GetResourceDetail(Resource):
         bcs_cluster_id: str = serializers.CharField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container", "cluster", "service", "ingress"], label="资源类型"
+            required=True,
+            choices=["pod", "workload", "container", "cluster", "service", "ingress", "node"],
+            label="资源类型",
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
@@ -243,7 +329,7 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         # 用于模糊查询
@@ -251,7 +337,7 @@ class ListK8SResources(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
-        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network", "capacity"])
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
         # 分页
@@ -350,6 +436,14 @@ class ListK8SResources(Resource):
             # 网络场景默认指标，用nw_container_network_receive_bytes_total
             if not column.startswith("nw_"):
                 column = "nw_container_network_receive_bytes_total"
+            # 网络场景，pod不需要workload相关信息
+            if resource_meta.resource_field == "pod_name":
+                resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
+
+        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+        if scenario == "capacity":
+            column = "node_boot_time_seconds"
+
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -366,7 +460,12 @@ class ListK8SResources(Resource):
             resource_id_set.add(tuple(sorted(record.items())))
         # promql 查询数据量不足，从db中补充
         try:
-            meta_resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            meta_resource_list: List[dict] = [
+                k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()
+            ]
+            if resource_meta.resource_field == "pod_name" and scenario == "network":
+                # 网络场景，pod不需要workload相关信息
+                [rs.pop("workload") for rs in meta_resource_list if rs.get("workload")]
         except FieldError:
             meta_resource_list = []
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
@@ -422,11 +521,12 @@ class ResourceTrendResource(Resource):
                 'nw_container_network_receive_errors_total',
                 'nw_container_network_receive_packets_total',
                 'nw_container_network_transmit_packets_total',
+                'node_cpu_seconds_total',
             ],
         )
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
@@ -434,7 +534,7 @@ class ResourceTrendResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         scenario = serializers.ChoiceField(
-            required=False, label="场景", choices=["performance", "network"], default="performance"
+            required=False, label="场景", choices=["performance", "network", "capacity"], default="performance"
         )
 
     def perform_request(self, validated_request_data):

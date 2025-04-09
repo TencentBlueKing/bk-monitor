@@ -15,7 +15,14 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
-from bkmonitor.models import BCSContainer, BCSIngress, BCSPod, BCSService, BCSWorkload
+from bkmonitor.models import (
+    BCSContainer,
+    BCSIngress,
+    BCSNode,
+    BCSPod,
+    BCSService,
+    BCSWorkload,
+)
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -99,8 +106,13 @@ class NetworkWithRelation:
     """网络场景，层级关联支持"""
 
     def label_join(self, filter_exclude=""):
+        label_filters = FilterCollection(self)
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type != "pod":
+                label_filters.add(r_filter)
+
         return f"""count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{{{self.filter.filter_string(exclude=filter_exclude)}}})
+            (ingress_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}})
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
             * on (namespace, pod) group_left()"""
@@ -109,6 +121,14 @@ class NetworkWithRelation:
         if metric_name.startswith("nw_"):
             return metric_name[3:]
         return metric_name
+
+    @property
+    def pod_filters(self):
+        pod_filters = FilterCollection(self)
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type == "pod":
+                pod_filters.add(r_filter)
+        return pod_filters
 
 
 class K8sResourceMeta(object):
@@ -280,6 +300,10 @@ class K8sResourceMeta(object):
         raise NotImplementedError(f"metric: {order_field} not supported")
 
     @property
+    def meta_prom_with_node_boot_time_seconds(self):
+        return self.tpl_prom_with_nothing("node_boot_time_seconds")
+
+    @property
     def meta_prom_with_container_memory_working_set_bytes(self):
         return self.tpl_prom_with_nothing("container_memory_working_set_bytes")
 
@@ -376,21 +400,16 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
-        pod_filters = FilterCollection(self)
-        for filter_id, r_filter in self.filter.filters.items():
-            if r_filter.resource_type == "pod":
-                pod_filters.add(r_filter)
-
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""label_replace(sum by (namespace, ingress, service, pod) ({self.label_join(exclude)}
             sum by (namespace, pod)
-            ({self.agg_method}_over_time(rate({metric_name}{{{pod_filters.filter_string()}}}[1m])[{self.agg_interval}:]))),
+            ({self.agg_method}_over_time(rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:]))),
             "pod_name", "$1", "pod", "(.*)")"""
 
         return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod) ({self.label_join(exclude)}
                     sum by (namespace, pod)
-                    (rate({metric_name}[1m]))),
+                    (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m]))),
             "pod_name", "$1", "pod", "(.*)")"""
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
@@ -509,7 +528,35 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
 
 class K8sNodeMeta(K8sResourceMeta):
-    pass
+    resource_field = "name"
+    resource_class = BCSNode
+    column_mapping = {"node": "name"}
+    only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]
+
+    @property
+    def meta_prom_with_node_cpu_seconds_total(self):
+        return self.tpl_prom_with_rate("node_cpu_seconds_total")
+
+    # @property
+    # def meta_prom_with_node_cpu_capacity_ratio(self):
+    #     return """"sum(kube_pod_container_resource_requests{resource="cpu"}) by (node)
+    # /
+    # kube_node_status_allocatable{resource="cpu"} * 100"""
+
+    @property
+    def meta_prom_with_node_cpu_usage_ratio(self):
+        return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total')})) * 100"
+
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
+        filter_string = self.filter.filter_string(exclude=exclude)
+        filter_string += ',mode!="idle"'
+        if self.agg_interval:
+            return (
+                f"sum by (node) "
+                f"({self.agg_method}_over_time(rate("
+                f"{metric_name}{{{filter_string}}}[1m])[{self.agg_interval}:]))"
+            )
+        return f"{self.method} by (node) " f"(rate({metric_name}{{{filter_string}}}[1m]))"
 
 
 class NameSpaceQuerySet(list):
@@ -646,11 +693,12 @@ class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
         if self.agg_interval:
             return f"""sum by (ingress, namespace) ({self.label_join(exclude)}
             sum by (namespace, pod)
-            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+            ({self.agg_method}_over_time(
+            rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
         return f"""{self.agg_method} by (ingress, namespace) ({self.label_join(exclude)}
                     sum by (namespace, pod)
-                    (rate({metric_name}[1m])))"""
+                    (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
 
 class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
@@ -663,11 +711,12 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
         if self.agg_interval:
             return f"""sum by (namespace, ingress, service) ({self.label_join(exclude)}
             sum by (namespace, pod)
-            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+            ({self.agg_method}_over_time(
+            rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
         return f"""{self.agg_method} by (namespace, ingress, service) ({self.label_join(exclude)}
                     sum by (namespace, pod)
-                    (rate({metric_name}[1m])))"""
+                    (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
 
 class K8sWorkloadMeta(K8sResourceMeta):

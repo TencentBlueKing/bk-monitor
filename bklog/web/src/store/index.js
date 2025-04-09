@@ -237,7 +237,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
-        format
+        format,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -1157,18 +1157,22 @@ const store = new Vuex.Store({
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
 
-      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
-      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
-      const { datePickerValue } = state.indexItem;
-      const letterRegex = /[a-zA-Z]/;
-      const needTransform = datePickerValue.every(d => letterRegex.test(d));
+      // 如果是第一次请求
+      // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
+      if (!payload?.isPagination) {
+        // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+        // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+        const { datePickerValue } = state.indexItem;
+        const letterRegex = /[a-zA-Z]/;
+        const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
-      const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue, format)
-        : [state.indexItem.start_time, state.indexItem.end_time];
+        const [start_time, end_time] = needTransform
+          ? handleTransformToTimestamp(datePickerValue, format)
+          : [state.indexItem.start_time, state.indexItem.end_time];
 
-      if (needTransform) {
-        commit('updateIndexItem', { start_time, end_time });
+        if (needTransform) {
+          commit('updateIndexItem', { start_time, end_time });
+        }
       }
 
       if (!payload?.isPagination && payload.formChartChange) {
@@ -1189,6 +1193,8 @@ const store = new Vuex.Store({
       const searchUrl = !state.indexItem.isUnionIndex
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
+
+      const { start_time, end_time } = state.indexItem;
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1497,7 +1503,6 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
-
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1572,7 +1577,6 @@ const store = new Vuex.Store({
           const { field, operator, value } = item;
           const targetField = getTargetField(field);
 
-
           let newSearchValue = null;
           if (searchMode === 'ui') {
             if (targetField?.is_virtual_obj_node) {
@@ -1585,7 +1589,7 @@ const store = new Vuex.Store({
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
               newSearchValue = `\"${value[0]}\"`;
-            } else{
+            } else {
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }
@@ -1707,7 +1711,7 @@ const store = new Vuex.Store({
           ...state.retrieve.catchFieldCustomConfig,
           ...userConfig,
         };
-        delete indexSetConfig.isUpdate
+        delete indexSetConfig.isUpdate;
         const queryParams = {
           index_set_id: state.indexId,
           index_set_type: getters.isUnionSearch ? 'union' : 'single',

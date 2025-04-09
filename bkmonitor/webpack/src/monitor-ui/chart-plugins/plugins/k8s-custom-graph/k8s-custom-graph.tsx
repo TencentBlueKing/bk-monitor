@@ -181,9 +181,10 @@ class K8SCustomChart extends CommonSimpleChart {
     if (!(await this.beforeGetPanelData())) {
       return;
     }
+    if (!this.$el?.clientWidth) return;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (
       this.panel.targets.some(item =>
@@ -194,7 +195,7 @@ class K8SCustomChart extends CommonSimpleChart {
       this.emptyText = window.i18n.tc('暂不支持');
     } else {
       try {
-        this.unregisterOberver();
+        this.unregisterObserver();
         const series = [];
         const metrics = [];
         this.legendSorts = [];
@@ -465,7 +466,7 @@ class K8SCustomChart extends CommonSimpleChart {
                         }
                         return v;
                       }
-                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
                 },
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
@@ -492,7 +493,7 @@ class K8SCustomChart extends CommonSimpleChart {
             })
           );
           this.handleDrillDownOption(this.metrics);
-          this.inited = true;
+          this.initialized = true;
           this.empty = false;
           if (!this.hasSetEvent) {
             setTimeout(this.handleSetLegendEvent, 300);
@@ -502,7 +503,7 @@ class K8SCustomChart extends CommonSimpleChart {
             this.handleResize();
           }, 100);
         } else {
-          this.inited = this.metrics.length > 0;
+          this.initialized = this.metrics.length > 0;
           this.emptyText = window.i18n.tc('暂无数据');
           this.empty = true;
         }
@@ -515,7 +516,7 @@ class K8SCustomChart extends CommonSimpleChart {
 
     this.cancelTokens = [];
     this.handleLoadingChange(false);
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
   isSpecialSeries(name: string) {
     return ['request', 'limit'].includes(name);
@@ -575,7 +576,7 @@ class K8SCustomChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    const tranformSeries = series.map((item, index) => {
+    const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
@@ -677,7 +678,7 @@ class K8SCustomChart extends CommonSimpleChart {
       }
     }
     this.legendData = result;
-    return tranformSeries;
+    return transformSeries;
   }
 
   // 设置x轴label formatter方法
@@ -722,7 +723,7 @@ class K8SCustomChart extends CommonSimpleChart {
    * @param {number} num
    * @return {*}
    */
-  handleYxisLabelFormatter(num: number): string {
+  handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -745,11 +746,11 @@ class K8SCustomChart extends CommonSimpleChart {
   /**
    * @description: 设置精确度
    * @param {number} data
-   * @param {ValueFormatter} formattter
+   * @param {ValueFormatter} formatter
    * @param {string} unit
    * @return {*}
    */
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -771,7 +772,7 @@ class K8SCustomChart extends CommonSimpleChart {
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formattter(cur, precision).text)] = 1;
+        pre[Number(formatter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -1033,8 +1034,8 @@ class K8SCustomChart extends CommonSimpleChart {
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          descrition={this.panel.descrition}
-          draging={this.panel.draging}
+          description={this.panel.description}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics || this.panel.externalData?.metrics}
@@ -1054,7 +1055,7 @@ class K8SCustomChart extends CommonSimpleChart {
               ref='chart'
               class={`chart-instance ${showLegend ? 'is-table-legend' : ''}`}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

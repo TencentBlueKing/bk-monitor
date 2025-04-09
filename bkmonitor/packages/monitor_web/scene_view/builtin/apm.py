@@ -179,6 +179,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-container",
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
+        "apm_service-service-default-event",
         "apm_service-service-default-overview",
         "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
@@ -651,7 +652,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             pod_view = pod_view.first()
 
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
-        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
+        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config, view_position="APM")
 
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
@@ -768,6 +769,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "host",
                         "container",
                         "log",
+                        "event",
                         "profiling",
                         "custom_metric",
                     ]

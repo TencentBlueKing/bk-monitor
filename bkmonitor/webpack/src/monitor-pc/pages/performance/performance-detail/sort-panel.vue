@@ -81,7 +81,7 @@
             class="group-item"
             :class="{ 'is-dragover': dragover.groupId === group.id }"
             :style="{
-              'border-top-color': dragover.groupId === group.id ? '#a3c5fd' : index === 0 ? '#f0f1f5' : 'transparent'
+              'border-top-color': dragover.groupId === group.id ? '#a3c5fd' : index === 0 ? '#f0f1f5' : 'transparent',
             }"
             hide-arrow
             :key="group.id"
@@ -93,8 +93,10 @@
             @drop.native="group.id !== '__UNGROUP__' && handleGroupDrop(group, $event)"
           >
             <div
-              :class="['group-item-title',
-                       { 'enable-auto-grouping': enableAutoGrouping && group.id !== '__UNGROUP__' }]"
+              :class="[
+                'group-item-title',
+                { 'enable-auto-grouping': enableAutoGrouping && group.id !== '__UNGROUP__' },
+              ]"
               @mouseenter="handleMouseEnter(group)"
               @mouseleave="handleMouseLeave"
             >
@@ -112,10 +114,10 @@
                   class="ml5 text-ellipsis"
                   :title="group.title"
                   v-if="group.id !== editId"
-                >{{ group.title
-                 }}<span style="color: #979ba5">{{
-                   group.id === '__UNGROUP__' ? `（${group.panels.length}）` : ''
-                 }}</span>
+                  >{{ group.title
+                  }}<span style="color: #979ba5">{{
+                    group.id === '__UNGROUP__' ? `（${group.panels.length}）` : ''
+                  }}</span>
                   <span
                     v-if="enableAutoGrouping && group.id !== '__UNGROUP__'"
                     class="icon-monitor icon-bianji"
@@ -159,7 +161,7 @@
                   class="auto-rules"
                   v-if="enableAutoGrouping && group.id !== '__UNGROUP__' && group.id !== editId"
                 >
-                  <span class="auto-rules-title">{{$t('匹配规则')}}</span>
+                  <span class="auto-rules-title">{{ $t('匹配规则') }}</span>
                   <span
                     class="auto-rules-content"
                     @click.stop="() => {}"
@@ -167,7 +169,7 @@
                     <more-list
                       :key="`${group.id}_${JSON.stringify(group.auto_rules)}`"
                       :list="group.auto_rules"
-                      @change="(value) => handleAtuoRulesChange(value, index)"
+                      @change="value => handleAtuoRulesChange(value, index)"
                     />
                   </span>
                 </span>
@@ -329,7 +331,7 @@ export default class SortPanel extends Vue {
     groupId: '',
     itemId: '',
   };
-  private draging = {
+  private dragging = {
     groupId: '',
     itemId: '',
   };
@@ -609,7 +611,7 @@ export default class SortPanel extends Vue {
   // 分组拖拽开始事件
   handleDragGroupStart(group: IHostGroup, e: DragEvent) {
     e.dataTransfer.setData('groupId', group.id);
-    this.draging = {
+    this.dragging = {
       groupId: group.id,
       itemId: '',
     };
@@ -664,7 +666,7 @@ export default class SortPanel extends Vue {
       groupId: '',
       itemId: '',
     };
-    this.draging = {
+    this.dragging = {
       groupId: '',
       itemId: '',
     };
@@ -678,7 +680,7 @@ export default class SortPanel extends Vue {
         groupId: group.id,
       })
     );
-    this.draging = {
+    this.dragging = {
       itemId: item.id,
       groupId: group.id,
     };
@@ -861,7 +863,7 @@ export default class SortPanel extends Vue {
 }
 
 .flip-list-move {
-  transition: transform .5s;
+  transition: transform 0.5s;
 }
 
 .create-group {
@@ -950,7 +952,7 @@ export default class SortPanel extends Vue {
 
       .icon-mc-triangle-down {
         color: #c4c6cc;
-        transition: transform .2s ease-in-out;
+        transition: transform 0.2s ease-in-out;
         transform: rotate(-90deg);
 
         &.expand {

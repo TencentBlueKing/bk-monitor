@@ -342,7 +342,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   isMultivariateAnomalyDetection = false;
   multivariateAnomalyDetectionParams = {
     metrics: [],
-    refleshKey: '',
+    refreshKey: '',
   };
 
   targetDetailLoading = false;
@@ -426,6 +426,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       return false;
     }
     return this.metricData[0]?.canSetDetEctionRules || this.editMode === 'Source';
+  }
+
+  // 是否显示判断条件
+  get isNeedJudgingCondition() {
+    return this.metricData?.[0]?.data_type_label !== 'alert';
   }
 
   created() {
@@ -973,7 +978,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
   handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
-    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    this.multivariateAnomalyDetectionParams.refreshKey = random(8);
   }
 
   render() {
@@ -1238,52 +1243,60 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
               {panelItem(
                 this.$tc('判断条件'),
                 <div class='analyzing-conditions'>
-                  {commonItem(
-                    this.$t('触发条件'),
-                    <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
-                      <span class='bold-span'>{triggerConfig.checkWindow}</span>
-                      <span class='bold-span'>{aggList.find(item => triggerConfig.checkType === item.id).name}</span>
-                      <span class='bold-span'>{triggerConfig.count}</span>
-                    </i18n>
-                  )}
-                  {commonItem(
-                    this.$t('恢复条件'),
-                    <i18n
-                      class='i18n-path'
-                      path='连续{0}个周期内不满足触发条件{1}'
-                    >
-                      <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                      {!isRecoveryDisable(this.metricData) &&
-                      isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
-                        <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
-                      ) : null}
-                    </i18n>
-                  )}
-                  {commonItem(
-                    this.$t('无数据'),
-                    noDataConfig.isEnabled ? (
-                      <i18n
-                        path={
-                          noDataConfig.dimensions.length
-                            ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
-                            : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
-                        }
-                      >
-                        <span />
-                        <span class='bold-span'>{noDataConfig.continuous}</span>
-                        {noDataConfig.dimensions.length ? (
-                          <span class='bold-span'>
-                            {noDataConfig.dimensions
-                              .map(id => this.dimensionsMap?.[id as string]?.name || id)
-                              .join(',')}
-                          </span>
-                        ) : undefined}
-                        <span class='bold-span'>{levelList.find(item => noDataConfig.level === item.id).name}</span>
-                      </i18n>
-                    ) : (
-                      '--'
-                    )
-                  )}
+                  {this.isNeedJudgingCondition
+                    ? [
+                        commonItem(
+                          this.$t('触发条件'),
+                          <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
+                            <span class='bold-span'>{triggerConfig.checkWindow}</span>
+                            <span class='bold-span'>
+                              {aggList.find(item => triggerConfig.checkType === item.id).name}
+                            </span>
+                            <span class='bold-span'>{triggerConfig.count}</span>
+                          </i18n>
+                        ),
+                        commonItem(
+                          this.$t('恢复条件'),
+                          <i18n
+                            class='i18n-path'
+                            path='连续{0}个周期内不满足触发条件{1}'
+                          >
+                            <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                            {!isRecoveryDisable(this.metricData) &&
+                            isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                              <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                            ) : null}
+                          </i18n>
+                        ),
+                        commonItem(
+                          this.$t('无数据'),
+                          noDataConfig.isEnabled ? (
+                            <i18n
+                              path={
+                                noDataConfig.dimensions.length
+                                  ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
+                                  : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
+                              }
+                            >
+                              <span />
+                              <span class='bold-span'>{noDataConfig.continuous}</span>
+                              {noDataConfig.dimensions.length ? (
+                                <span class='bold-span'>
+                                  {noDataConfig.dimensions
+                                    .map(id => this.dimensionsMap?.[id as string]?.name || id)
+                                    .join(',')}
+                                </span>
+                              ) : undefined}
+                              <span class='bold-span'>
+                                {levelList.find(item => noDataConfig.level === item.id).name}
+                              </span>
+                            </i18n>
+                          ) : (
+                            '--'
+                          )
+                        ),
+                      ]
+                    : undefined}
                   {commonItem(
                     this.$t('生效时间段'),
                     this.timeRanges.length

@@ -90,6 +90,21 @@ class ProfilingChart extends CommonSimpleChart {
   topoSrc = '';
   dataTypeList: DataTypeItem[] = [];
   dataType = '';
+  aggMethodList: DataTypeItem[] = [
+    {
+      key: 'AVG',
+      name: 'AVG',
+    },
+    {
+      key: 'SUM',
+      name: 'SUM',
+    },
+    {
+      key: 'LAST',
+      name: 'LAST',
+    },
+  ];
+  aggMethod = '';
   /** trend图表数据 */
   trendSeriesData = [];
   trendLoading = false;
@@ -168,6 +183,7 @@ class ProfilingChart extends CommonSimpleChart {
       start: (start_time ? dayjs.tz(start_time).unix() : startTime) * 10 ** 6,
       end: (end_time ? dayjs.tz(end_time).unix() : endTime) * 10 ** 6,
       data_type: this.dataType,
+      agg_method: this.aggMethod,
     };
 
     return params;
@@ -198,7 +214,7 @@ class ProfilingChart extends CommonSimpleChart {
           this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
           this.applicationId = data?.application_id ?? -1;
 
-          if (this.enableProfiling && this.isProfilingDataNormal) {
+          if (this.enableProfiling) {
             initQuery();
           } else {
             this.emptyText = '';
@@ -229,6 +245,7 @@ class ProfilingChart extends CommonSimpleChart {
         if (res?.data_types?.length) {
           this.dataTypeList = res.data_types;
           this.dataType = this.dataTypeList[0].key;
+          this.aggMethod = this.dataTypeList[0]?.default_agg_method || 'AVG';
           this.queryParams = {
             app_name,
             service_name,
@@ -357,11 +374,16 @@ class ProfilingChart extends CommonSimpleChart {
         break;
     }
   }
-  handleDataTypeChange(val) {
-    if (this.dataType === val) return;
-
-    this.dataType = val;
-    this.queryParams.data_type = val;
+  handleDataTypeChange(val, type?: string) {
+    if ([this.dataType, this.aggMethod].includes(val)) return;
+    if (type === 'agg') {
+      this.aggMethod = val;
+    } else {
+      this.dataType = val;
+      // 切换数据类型时，汇聚方法需要切换成后端给的值
+      this.aggMethod = this.dataTypeList.find(item => item.key === val).default_agg_method || 'AVG';
+      this.queryParams.data_type = val;
+    }
     this.getPanelData();
   }
   getUrlParamsString(obj) {
@@ -404,6 +426,7 @@ class ProfilingChart extends CommonSimpleChart {
   handleDateDiffChange(enable) {
     this.enableDateDiff = enable;
     this.setDiffDefaultDate();
+    this.handleQuery();
   }
   handleTrendSeriesData(data) {
     this.trendSeriesData = data;
@@ -414,20 +437,28 @@ class ProfilingChart extends CommonSimpleChart {
   }
 
   setDiffDefaultDate() {
-    if (this.enableDateDiff && this.trendSeriesData.length) {
-      const { datapoints } = this.trendSeriesData[0];
-      const len = datapoints.length;
-      const start = datapoints[0][1];
-      const end = datapoints[len - 1][1];
-      const mid = start + (end - start) / 2;
-      this.diffDate = [
-        [start, mid],
-        [mid, end],
-      ];
+    if (this.enableDateDiff) {
+      if (this.trendSeriesData?.length) {
+        const { datapoints } = this.trendSeriesData[0];
+        const len = datapoints.length;
+        const start = datapoints[0][1];
+        const end = datapoints[len - 1][1];
+        const mid = start + (end - start) / 2;
+        this.diffDate = [
+          [start, mid],
+          [mid, end],
+        ];
+      } else {
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const mid = startTime + (endTime - startTime) / 2;
+        this.diffDate = [
+          [startTime * 1000, mid * 1000],
+          [mid * 1000, endTime * 1000],
+        ];
+      }
     } else {
       this.diffDate = [];
     }
-    this.handleQuery();
   }
 
   handleBrushEnd(data, type) {
@@ -470,7 +501,7 @@ class ProfilingChart extends CommonSimpleChart {
   render() {
     return (
       <div class='profiling-retrieval-chart'>
-        {this.enableProfiling && this.isProfilingDataNormal ? (
+        {this.enableProfiling ? (
           [
             <div
               key={'main'}
@@ -495,6 +526,23 @@ class ProfilingChart extends CommonSimpleChart {
                           class={item.key === this.dataType ? 'is-selected' : ''}
                           size='small'
                           onClick={() => this.handleDataTypeChange(item.key)}
+                        >
+                          {item.name}
+                        </bk-button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div class='data-type'>
+                  <span>{this.$t('汇聚方法')}</span>
+                  <div class='bk-button-group data-type-list'>
+                    {this.aggMethodList.map(item => {
+                      return (
+                        <bk-button
+                          key={item.key}
+                          class={item.key === this.aggMethod ? 'is-selected' : ''}
+                          size='small'
+                          onClick={() => this.handleDataTypeChange(item.key, 'agg')}
                         >
                           {item.name}
                         </bk-button>
