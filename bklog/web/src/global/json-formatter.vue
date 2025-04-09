@@ -232,6 +232,7 @@
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
+        white-space: pre-wrap;
       }
 
       .menu-list {
