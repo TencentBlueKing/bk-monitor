@@ -276,7 +276,7 @@ $border-color: #d9d9d9;
       background: #f5f7fa;
       border: 1px solid #dcdee5;
       border-left: none;
-
+      height: calc(100% - 40px);
       .metric-card {
         padding: 14px 12px 8px 24px;
 

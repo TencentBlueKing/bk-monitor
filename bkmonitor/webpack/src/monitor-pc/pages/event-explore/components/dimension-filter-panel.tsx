@@ -86,7 +86,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 搜索结果列表 */
   searchResultList: IDimensionField[] = [];
   /** 已选择的字段 */
-  selectField: IDimensionField = null;
+  selectField = '';
+  slideField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
 
@@ -131,8 +132,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 点击维度项后展示统计弹窗 */
   async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
-    this.selectField = item;
     if (!item.is_option_enabled || !this.fieldListCount[item.name]) return;
+    this.selectField = item.name;
+    this.slideField = item;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
@@ -143,6 +145,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
       interactive: true,
+      onHidden: () => {
+        this.selectField = '';
+      },
     });
     this.popoverInstance?.show(100);
   }
@@ -291,7 +296,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                 <div
                   class={{
                     'dimension-item': true,
-                    active: this.selectField?.name === item.name,
+                    active: this.selectField === item.name,
                     disabled: !item.is_option_enabled || !this.fieldListCount[item.name],
                   }}
                   onClick={e => this.handleDimensionItemClick(e, item)}
@@ -328,9 +333,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
-          isDimensions={this.selectField?.is_dimensions}
+          isDimensions={this.slideField?.is_dimensions}
           popoverInstance={this.popoverInstance}
-          selectField={this.selectField?.name}
+          selectField={this.slideField?.name}
           source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}

@@ -27,6 +27,7 @@ import { Prop, Component, Emit, Watch, InjectReactive, Inject } from 'vue-proper
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
+import { bkMessage, makeMessage } from 'monitor-api/utils';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -610,6 +611,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
 
     this.tableLoading[loadingKey] = true;
+
     if (config.needRefresh) {
       this.asyncDataCache.clear();
     }
@@ -635,10 +637,28 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       method,
     };
 
-    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam).catch(() => ({
-      count: 0,
-      items: [],
-    }));
+    const abortController = new AbortController();
+    this.abortControllerQueue.add(abortController);
+    let isAborted = false;
+    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam, {
+      signal: abortController.signal,
+      needMessage: false,
+    }).catch(err => {
+      if (err?.message === 'canceled') {
+        isAborted = true;
+      } else {
+        const message = makeMessage(err.error_details || err.message);
+        bkMessage(message);
+      }
+      return {
+        count: 0,
+        items: [],
+      };
+    });
+    this.abortControllerQueue.delete(abortController);
+    if (isAborted) {
+      return;
+    }
     const resourceParam = this.formatTableData(data.items, resourceType as K8sTableColumnResourceKey);
     this.tableData = data.items;
     this.tableDataTotal = data.count;
