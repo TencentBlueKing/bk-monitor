@@ -1,11 +1,10 @@
 from typing import Any, Dict, List
 
+from django.conf import settings
+
 from apps.api import JobApi
 from apps.constants import DEFAULT_EXECUTE_SCRIPT_TIMEOUT, ScriptType
 from apps.log_commons.adapt_ipv6 import fill_bk_host_id, fill_ip_and_cloud_id
-from apps.utils.local import activate_request
-from apps.utils.thread import generate_request
-from django.conf import settings
 
 
 class JobHelper:
@@ -68,6 +67,4 @@ class JobHelper:
         }
         if script_param:
             kwargs["script_param"] = script_param
-        # 调用JOB平台的fast_execute_script 执行脚本时用operator用户调用
-        activate_request(generate_request(username=bk_username))
         return JobApi.fast_execute_script(kwargs, request_cookies=False)
