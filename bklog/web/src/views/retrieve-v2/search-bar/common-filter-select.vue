@@ -10,9 +10,12 @@
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
+  import RetrieveHelper from '../../retrieve-helper';
+  import { useRoute } from 'vue-router/composables';
 
   const { $t } = useLocale();
   const store = useStore();
+  const route = useRoute();
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -31,7 +34,7 @@
     const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
 
     const isSameIndex = additionValue?.indexId === store.state.indexId;
-    const storedValue = isSameIndex ? additionValue.value : [];
+    const storedValue = isSameIndex ? additionValue?.value ?? [] : [];
 
     // 合并策略优化
     commonFilterAddition.value = filterFieldsList.value.map(item => {
@@ -134,7 +137,12 @@
     );
 
     store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
-    store.dispatch('requestIndexSetQuery');
+
+    if (route.query.tab !== 'graphAnalysis') {
+      store.dispatch('requestIndexSetQuery');
+    }
+
+    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
   };
 
   const focusIndex = ref(null);

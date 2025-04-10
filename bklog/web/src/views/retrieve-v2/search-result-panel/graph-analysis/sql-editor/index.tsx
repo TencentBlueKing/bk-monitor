@@ -73,6 +73,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const filter_addition = computed(() => store.getters.common_filter_addition);
 
     const requestId = 'graphAnalysis_searchSQL';
 
@@ -85,7 +86,7 @@ export default defineComponent({
 
       isRequesting.value = true;
       emit('change', undefined, isRequesting.value);
-
+      RequestPool.execCanceToken(requestId);
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
       const { start_time, end_time, keyword, addition } = retrieveParams.value;
@@ -137,7 +138,7 @@ export default defineComponent({
             index_set_id: indexSetId.value,
           },
           data: {
-            addition,
+            addition: [...addition, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
             start_time,
             end_time,
             keyword,
@@ -281,7 +282,10 @@ export default defineComponent({
       sqlPreviewHeight.value = refSqlPreviewElement.value.offsetHeight;
     });
 
-    RetrieveHelper.on(RetrieveEvent.SEARCH_BTN_CLICK, debounceQuery);
+    RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, async () => {
+      await handleSyncAdditionToSQL();
+      debounceQuery();
+    });
 
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
