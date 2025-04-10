@@ -82,6 +82,8 @@
     }
 
     .bk-table-row {
+      min-height: var(--row-min-height, 42px);
+
       &:has(.drill-down-icon.active) {
         .col-item-operate {
           visibility: visible;
