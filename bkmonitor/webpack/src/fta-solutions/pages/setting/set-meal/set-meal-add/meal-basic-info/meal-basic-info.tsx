@@ -72,7 +72,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   };
 
   get bizList() {
-    return this.$store.getters.bizList;
+    return this.$store.getters.bizList.filter(item => +item.bk_biz_id === +this.basicInfo.bizId);
   }
 
   // 校验

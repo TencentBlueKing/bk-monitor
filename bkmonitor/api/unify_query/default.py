@@ -138,6 +138,54 @@ class QueryDataResource(UnifyQueryAPIResource):
         instant = serializers.BooleanField(required=False)
 
 
+class QueryRawResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/raw"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        limit = serializers.IntegerField(required=False, default=1)
+        # from 是 Python 关键字，此处加下划线，真正请求时转回 _from
+        _from = serializers.IntegerField(required=False, default=0)
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+
+    def perform_request(self, params):
+        params["from"] = params.pop("_from", 0)
+        return super().perform_request(params)
+
+
+class QueryReferenceResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/reference"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+        look_back_delta = serializers.CharField(required=False, default="1m")
+
+
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
     """
     查询数据

@@ -77,7 +77,7 @@ def udp_handler(url, method, timeout, headers, data):
                     "[push_to_gateway] send metrics to (%s:%s) error: %s, len: %s", address, port, e, len(sliced_data)
                 )
                 raise
-        logger.info("[push_to_gateway] send metrics success, len: %s", len(data))
+        logger.debug("[push_to_gateway] send metrics success, len: %s", len(data))
 
     return handle
 

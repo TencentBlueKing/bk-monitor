@@ -87,7 +87,7 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    refleshInterval: {
+    refreshInterval: {
       type: Number,
       default: 0,
     },
@@ -175,7 +175,7 @@ export default defineComponent({
     const chartSubTitle = ref('');
     const chartOptionInstance = ref(null);
     const hasInitChart = ref(false);
-    const refleshIntervalInstance = ref(0);
+    const refreshIntervalInstance = ref(0);
     const legend = ref({ show: false, list: [] });
     const curChartOption = ref(null);
     let chart = null;
@@ -296,11 +296,11 @@ export default defineComponent({
                 top: 0,
                 left: 0,
               };
-              const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-              if (canSetBootom) {
-                position.top = +pos[1] - Math.min(20, canSetBootom);
+              const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+              if (canSetBottom) {
+                position.top = +pos[1] - Math.min(20, canSetBottom);
               } else {
-                position.top = +pos[1] + canSetBootom - 20;
+                position.top = +pos[1] + canSetBottom - 20;
               }
               const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
               if (canSetLeft) {
@@ -384,23 +384,23 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    const onRefleshIntervalChange = newVal => {
-      if (refleshIntervalInstance.value) {
-        window.clearInterval(refleshIntervalInstance.value);
+    const onRefreshIntervalChange = newVal => {
+      if (refreshIntervalInstance.value) {
+        window.clearInterval(refreshIntervalInstance.value);
       }
       if (newVal <= 0 || !props.getSeriesData) return;
-      refleshIntervalInstance.value = window.setInterval(() => {
+      refreshIntervalInstance.value = window.setInterval(() => {
         // 当loading为false且chart存在时，执行某些操作（如更新序列数据）
         if (!loading.value && chart) {
           handleSeriesData();
         }
-      }, props.refleshInterval);
+      }, props.refreshInterval);
     };
-    // 观察`refleshInterval`的变化
+    // 观察`refreshInterval`的变化
     watch(
-      () => props.refleshInterval,
+      () => props.refreshInterval,
       newVal => {
-        onRefleshIntervalChange(newVal);
+        onRefreshIntervalChange(newVal);
       },
       { immediate: true }
     );
@@ -436,7 +436,7 @@ export default defineComponent({
 
     // 使用onActivated替代activated生命周期钩子
     onActivated(() => {
-      onRefleshIntervalChange(props.refleshInterval);
+      onRefreshIntervalChange(props.refreshInterval);
       if (props.autoresize && chart?.resize) {
         chart.resize();
       }
@@ -444,7 +444,7 @@ export default defineComponent({
 
     // 使用onDeactivated替代deactivated生命周期钩子
     onDeactivated(() => {
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onBeforeUnmount替代beforeDestroy生命周期钩子
@@ -458,7 +458,7 @@ export default defineComponent({
         intersectionObserver.value.disconnect();
       }
       annotation.value.show = false;
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onUnmounted替代destroyed生命周期钩子
@@ -672,7 +672,7 @@ export default defineComponent({
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +curValue.value.yAxis) - Math.abs(b.value - +curValue.value.yAxis));
       const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-      const liHtmls = list
+      const liHtmlList = list
         .slice(0, 50)
         .sort((a, b) => b.value[1] - a.value[1])
         .map(item => {
@@ -693,10 +693,10 @@ export default defineComponent({
           }
           if (item.value[1] === null) return '';
           const curSeries = curChartOption.value.series[item.seriesIndex];
-          const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+          const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
           const minBase = curSeries.minBase || 0;
           const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-          const valueObj = unitFormater(item.value[1] - minBase, precision);
+          const valueObj = unitFormatter(item.value[1] - minBase, precision);
           return `<li class="tooltips-content-item">
                         <span class="item-series"
                          style="background-color:${item.color};">
@@ -706,7 +706,7 @@ export default defineComponent({
                         ${valueObj.text} ${valueObj.suffix || ''}</span>
                         </li>`;
         });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmlList?.length < 1) return '';
       let ulStyle = '';
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && tooltipSize.value) {
@@ -725,7 +725,7 @@ export default defineComponent({
                         ${pointTime}
                     </p>
                     <ul class="tooltips-content" style="${ulStyle}">
-                        ${liHtmls?.join('')}
+                        ${liHtmlList?.join('')}
                     </ul>
                     </div>`;
     };
@@ -775,6 +775,7 @@ export default defineComponent({
           break;
         case 'relate-alert':
           emit('relate-alert');
+          break;
         default:
           break;
       }
@@ -1190,7 +1191,10 @@ export default defineComponent({
             <div class='time'>{this.scatterTips.data.time}</div>
             <div class='bottom'>
               {this.scatterTips.data.list.map(item => (
-                <div class='info-item'>
+                <div
+                  key={item.label}
+                  class='info-item'
+                >
                   <span class='label'>{item.label}: </span>
                   {item.type === 'link' && (
                     <span class='content'>

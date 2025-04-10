@@ -43,6 +43,11 @@ export interface ILegendItem {
   dimensions?: Record<string, string>;
   lineStyleType?: 'dashed' | 'solid';
   silent?: boolean;
+  latest?: number;
+  timeOffset?: number | string;
+  maxTime?: number;
+  minTime?: number;
+  latestTime?: number;
 }
 export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';

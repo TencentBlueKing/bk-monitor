@@ -9,14 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from django.middleware.csrf import get_token
-from django.utils import timezone
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from common.context_processors import (
@@ -190,21 +188,6 @@ class EnhancedGetContextResource(Resource):
         if getattr(request, "external_user", None):
             context = {k: v for k, v in context.items() if k in external_fields}
             context["UIN"] = request.external_user
-
-            if context_type not in [ContextType.EXTRA.value]:
-                biz_id_list: Set[int] = set(
-                    ExternalPermission.objects.filter(
-                        authorized_user=request.external_user, expire_time__gt=timezone.now()
-                    )
-                    .values_list("bk_biz_id", flat=True)
-                    .distinct()
-                )
-                context["SPACE_LIST"] = [space for space in context["SPACE_LIST"] if space["bk_biz_id"] in biz_id_list]
-                if context["BK_BIZ_ID"] not in biz_id_list:
-                    if context["SPACE_LIST"]:
-                        context["BK_BIZ_ID"] = context["SPACE_LIST"][0]["bk_biz_id"]
-                    else:
-                        context["BK_BIZ_ID"] = -1
 
         # 补充默认业务ID
         default_biz_config = UserConfig.objects.filter(

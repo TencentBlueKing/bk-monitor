@@ -994,6 +994,7 @@ class ResultTable(models.Model):
         is_enable=None,
         time_option=None,
         data_label=None,
+        need_delete_storages=None,
     ):
         """
         修改结果表的配置
@@ -1010,6 +1011,7 @@ class ResultTable(models.Model):
         :param is_enable: 是否启用结果表
         :param time_option: 时间字段配置
         :param data_label: 数据标签
+        :param need_delete_storages 需要删除额外存储配置
         :return: True | raise Exception
         """
 
@@ -1153,6 +1155,20 @@ class ResultTable(models.Model):
 
             ex_storage.create_table(self.table_id, is_sync_db=True, **ex_storage_config)
             logger.info("result_table->[%s] has create real ex_storage on type->[%s]", self.table_id, ex_storage_type)
+
+        # 删除额外存储配置
+        need_delete_storages = need_delete_storages or {}
+        for storage_type, delete_storage in need_delete_storages.items():
+            if storage_type not in self.REAL_STORAGE_DICT:
+                logger.info(
+                    "try to delete storage->[%s] for table->[%s] but storage is not exists.",
+                    storage_type,
+                    self.table_id,
+                )
+                continue
+            ex_storage = self.REAL_STORAGE_DICT[storage_type]
+            ex_storage.objects.filter(table_id=self.table_id).delete()
+            logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
 
         # 更新结果表option配置
         if option is not None:
@@ -2400,11 +2416,6 @@ class ResultTableOption(OptionBase):
     TYPE_STRING = "string"
     TYPE_LIST = "list"
 
-    TYPE_DICT = {
-        TYPE_BOOL: bool,
-        TYPE_STRING: str,
-    }
-
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     name = models.CharField(
         "option名称",
@@ -2791,6 +2802,15 @@ class ESFieldQueryAliasOption(BaseModel):
         # 获取当前数据库中的记录（包括软删除记录）
         existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
         existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
+
+        if not query_alias_settings:
+            logger.info(
+                "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old "
+                "records",
+                table_id,
+            )
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)
+            return
 
         # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
         incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}

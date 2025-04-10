@@ -4,6 +4,17 @@
   border-radius: 2px 2px 0 0;
   box-shadow: 0 2px 4px 0 #1919290d;
 
+  .btn-alert-policy {
+    position: absolute;
+    height: 42px;
+    line-height: 42px;
+    right: -2px;
+    top: 0px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #4d4f56;
+  }
+
   .retrieve-panel {
     position: relative;
     display: inline-block;

@@ -8,11 +8,25 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+from io import StringIO
+from typing import Any, Dict, List
 
 from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import gettext as _
+from pypinyin import lazy_pinyin
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.request import get_request
+from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.data_explorer.event import resources as event_resources
 from monitor_web.data_explorer.serializers import (
     BulkDeleteFavoriteSerializer,
     BulkUpdateFavoriteSerializer,
@@ -30,18 +44,13 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from pypinyin import lazy_pinyin
-from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
-
-from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.utils.request import get_request
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from packages.monitor_web.data_explorer.event.resources import EventTopKResource
+from packages.monitor_web.data_explorer.event.serializers import (
+    EventDownloadTopKRequestSerializer,
+)
+from packages.monitor_web.data_explorer.event.utils import (
+    generate_file_download_response,
+)
 
 
 def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
@@ -357,7 +366,6 @@ class FavoriteViewSet(ModelViewSet):
 
 
 class QueryHistoryViewSet(ModelViewSet):
-
     queryset = QueryHistory.objects.all().order_by("-id")
     serializer_class = QueryHistorySerializer
 
@@ -385,4 +393,31 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.data_explorer.get_promql_query_config, endpoint="get_promql_query_config"),
         ResourceRoute("POST", resource.data_explorer.get_event_view_config, endpoint="get_event_view_config"),
         ResourceRoute("POST", resource.data_explorer.get_group_by_count, endpoint="get_group_by_count"),
+        ResourceRoute("POST", event_resources.EventLogsResource, endpoint="event/logs"),
+        ResourceRoute("POST", event_resources.EventTopKResource, endpoint="event/topk"),
+        ResourceRoute("POST", event_resources.EventTotalResource, endpoint="event/total"),
+        ResourceRoute("POST", event_resources.EventViewConfigResource, endpoint="event/view_config"),
+        ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
+        ResourceRoute("POST", event_resources.EventStatisticsInfoResource, endpoint="event/statistics_info"),
     ]
+
+    @action(methods=["POST"], detail=False, url_path="event/download_topk")
+    def download_topk(self, request, *args, **kwargs):
+        serializer = EventDownloadTopKRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data: Dict[str, Any] = serializer.validated_data
+        return generate_file_download_response(
+            DataExplorerViewSet.generate_topk_file_content(EventTopKResource().perform_request(validated_data)),
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+        )
+
+    @classmethod
+    def generate_topk_file_content(cls, api_topk_response) -> str:
+        output = StringIO()
+        try:
+            for item in api_topk_response[0]["list"]:
+                output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
+            return output.getvalue()
+        finally:
+            # 确保资源被释放
+            output.close()

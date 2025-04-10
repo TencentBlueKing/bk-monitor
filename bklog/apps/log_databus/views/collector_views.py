@@ -27,7 +27,9 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.api import NodeApi
 from apps.exceptions import ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -36,7 +38,7 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import Environment, EtlConfig
+from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
@@ -62,6 +64,7 @@ from apps.log_databus.serializers import (
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
     FastContainerCollectorCreateSerializer,
+    FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
@@ -69,11 +72,13 @@ from apps.log_databus.serializers import (
     ListCollectorSerlalizer,
     PreCheckSerializer,
     PreviewContainersSerializer,
+    ProxyHostSerializer,
     RetrySerializer,
     RunSubscriptionSerializer,
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
+    UpdateAliasSettingsSerializers,
     UpdateContainerCollectorSerializer,
     ValidateContainerCollectorYamlSerializer,
 )
@@ -86,8 +91,11 @@ from apps.log_search.constants import (
 )
 from apps.log_search.exceptions import BkJwtVerifyException
 from apps.log_search.permission import Permission
+from apps.utils.custom_report import BK_CUSTOM_REPORT
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -2431,6 +2439,9 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
+        if request.data.get("environment") == Environment.CONTAINER:
+            data = self.params_valid(FastContainerCollectorUpdateSerializer)
+            return Response(CollectorHandler(collector_config_id).fast_contain_update(data))
         data = self.params_valid(FastCollectorUpdateSerializer)
         return Response(CollectorHandler(collector_config_id).fast_update(data))
 
@@ -2466,3 +2477,77 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
         return Response(CollectorHandler.search_object_attribute())
+
+    @list_route(methods=["GET"], url_path="proxy_host_info")
+    def get_proxy_host_info(self, request):
+        """
+        @api {get} /databus/collectors/proxy_host_info/ 获取自定义上报代理信息
+        @apiName proxy_host_info
+        @apiDescription 获取自定义上报代理信息
+        @apiGroup 10_Collector
+        @apiParam {Int} bk_biz_id 所属业务
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                [
+                    {
+                        "bk_cloud_id": 3,
+                        "protocol": "grpc",
+                        "report_url": "http://x.x.x.x:4317"
+                    },
+                    {
+                        "bk_cloud_id": 3,
+                        "protocol": "http",
+                        "report_url": "http://x.x.x.x:4318/v1/traces"
+                    }
+                ]
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(ProxyHostSerializer)
+
+        proxy_host_info = []
+        # 云区域为 0 的地址
+        report_url_list = []
+        conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
+        for item in conf.get("otlp", {}).get("0", []):
+            protocol, report_url = item.split(":", maxsplit=1)
+            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
+        if report_url_list:
+            proxy_host_info.append(report_url_list)
+
+        space = SpaceApi.get_related_space(params.get("space_uid"), SpaceTypeEnum.BKCC.value)
+        if not space or not space.bk_biz_id:
+            return Response(proxy_host_info)
+
+        # 通过接口获取云区域上报proxy
+        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": space.bk_biz_id})
+        for host in proxy_hosts:
+            bk_cloud_id = int(host["bk_cloud_id"])
+            # 默认云区域上报proxy，以数据库配置为准！
+            if bk_cloud_id == 0:
+                continue
+            ip = host.get("conn_ip") or host.get("inner_ip")
+            report_url_list = [
+                {
+                    "bk_cloud_id": bk_cloud_id,
+                    "protocol": OTLPProxyHostConfig.GRPC,
+                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
+                },
+                {
+                    "bk_cloud_id": bk_cloud_id,
+                    "protocol": OTLPProxyHostConfig.HTTP,
+                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
+                },
+            ]
+            proxy_host_info.append(report_url_list)
+
+        return Response(proxy_host_info)
+
+    @detail_route(methods=["POST"], url_path="update_alias_settings")
+    def update_alias_settings(self, request, collector_config_id=None):
+        params = self.params_valid(UpdateAliasSettingsSerializers)
+        return Response(CollectorHandler(collector_config_id).update_alias_settings(params["alias_settings"]))

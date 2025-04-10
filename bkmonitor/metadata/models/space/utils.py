@@ -32,7 +32,13 @@ from .constants import (
     SpaceStatus,
     SpaceTypes,
 )
-from .space import Space, SpaceDataSource, SpaceResource, SpaceType
+from .space import (
+    Space,
+    SpaceDataSource,
+    SpaceResource,
+    SpaceType,
+    SpaceTypeToResultTableFilterAlias,
+)
 
 logger = logging.getLogger("metadata")
 
@@ -46,6 +52,35 @@ def get_related_spaces(space_type_id, space_id, target_space_type_id=SpaceTypes.
         resource_type=space_type_id, resource_id=space_id, space_type_id=target_space_type_id
     )
     return list(filtered_resources.values_list('space_id', flat=True))
+
+
+def get_negative_space_related_info(negative_biz_id):
+    """
+    获取负数ID的关联信息,空间类型、空间ID、归属业务ID（如有）
+    @param negative_biz_id: 负数ID
+    @return: dict
+    """
+    logger.info("get_negative_space_related_info: try to get negative_biz_id->[%s] related info", negative_biz_id)
+    try:
+        space = Space.objects.get(id=abs(negative_biz_id))
+        related_bk_biz_id = None
+        related_records = SpaceResource.objects.filter(
+            resource_type=SpaceTypes.BKCC.value,
+            space_id=space.space_id,
+            space_type_id=SpaceTypes.BKCI.value,
+        )
+        if related_records.exists():
+            related_bk_biz_id = related_records.last().resource_id
+    except Space.DoesNotExist:
+        logger.error("get_negative_space_related_info: negative_biz_id->[%s] not found", negative_biz_id)
+        raise ValueError("negative_biz_id->[%s] not found", negative_biz_id)
+
+    return {
+        'negative_biz_id': negative_biz_id,
+        'bk_biz_id': related_bk_biz_id,
+        'space_type': space.space_type_id,
+        'space_id': space.space_id,
+    }
 
 
 def get_biz_ids_by_space_ids(space_type, space_ids):
@@ -1120,3 +1155,40 @@ def cached_cluster_k8s_data_id() -> List:
     cluster_data_id = {cluster_info["cluster_id"]: cluster_info["K8sMetricDataID"] for cluster_info in cluster_data_ids}
     cache.set(key, cluster_data_id, 1 * 60 * 60)
     return cluster_data_id
+
+
+def update_filters_with_alias(space_type, space_id, values):
+    """
+    更新 _values 中的 filters，将 key 替换为 filter_alias.
+    :param space_type: 空间类型，用于查询 SpaceTypeToResultTableFilterAlias
+    :param space_id: 空间 ID，用于日志记录
+    :param values: 存放表数据的字典，格式为 {'table_id': {'filters': [...]}}
+    :return: 更新后的 values 字典
+    """
+    # 获取所有的 filter_alias 映射关系
+    alias_map = {
+        (alias.table_id, alias.space_type): alias.filter_alias
+        for alias in SpaceTypeToResultTableFilterAlias.objects.filter(space_type=space_type, status=True)
+    }
+
+    # 遍历 values 字典
+    for table_id, table_data in values.items():
+        # 如果当前 table_id 在 alias_map 中存在映射关系
+        if (table_id, space_type) in alias_map:
+            logger.info(
+                "update_filters_with_alias: space_type->[%s],space_id->[%s],found filter_alias->[%s] for "
+                "table_id->[%s]",
+                space_type,
+                space_id,
+                alias_map[(table_id, space_type)],
+                table_id,
+            )
+            # 获取当前表的 filter_alias
+            filter_alias = alias_map[(table_id, space_type)]
+            # 遍历 filters，替换 key 为 filter_alias
+            for filter_dict in table_data.get('filters', []):
+                for key in list(filter_dict.keys()):
+                    # 替换 key 为 filter_alias
+                    filter_dict[filter_alias] = filter_dict.pop(key)
+
+    return values

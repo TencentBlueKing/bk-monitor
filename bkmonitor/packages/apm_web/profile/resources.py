@@ -14,6 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -107,11 +108,19 @@ class QueryServicesDetailResource(Resource):
             sample_type_parts = svr["sample_type"].split("/")
             key = svr["sample_type"]
             name = sample_type_parts[0].upper()
+            default_agg_method = settings.APM_PROFILING_AGG_METHOD_MAPPING.get(name, "SUM")
 
             if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
                 continue
 
-            res.append({"key": key, "name": name, "is_large": svr.get("is_large", False)})
+            res.append(
+                {
+                    "key": key,
+                    "name": name,
+                    "is_large": svr.get("is_large", False),
+                    "default_agg_method": default_agg_method,
+                }
+            )
 
         return res
 
@@ -234,14 +243,14 @@ class QueryProfileBarGraphResource(Resource):
 
         labels = query_template.parse_labels(
             **query_params,
-            label_filter={"profile_id": "op_is_not_null", **filter_labels},
+            label_filter={"span_id": "op_is_not_null", **filter_labels},
             limit=self.POINT_LABEL_LIMIT,
         )
         if labels:
             trace_data[timestamp] = [
                 {
                     "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                    "span_id": i.get("labels", {}).get("profile_id", "unknown"),
+                    "span_id": i.get("labels", {}).get("span_id", "unknown"),
                 }
                 for i in labels
             ]
@@ -260,7 +269,7 @@ class QueryProfileBarGraphResource(Resource):
             end_time=end_time * 1000,
             sample_type=validate_data["data_type"],
             service_name=validate_data["service_name"],
-            label_filter={"profile_id": "op_is_not_null", **validate_data["filter_labels"]},
+            label_filter={"span_id": "op_is_not_null", **validate_data["filter_labels"]},
         )
 
         trace_data = {}

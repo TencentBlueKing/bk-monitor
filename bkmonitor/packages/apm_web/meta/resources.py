@@ -341,6 +341,11 @@ class ApplicationInfoResource(Resource):
                 instance.set_init_apdex_config()
                 data["application_apdex_config"] = instance.get_config_by_key(Application.APDEX_CONFIG_KEY).config_value
 
+        def handle_event_config(self, instance, data):
+            if Application.EVENT_CONFIG_KEY not in data:
+                instance.set_init_event_config()
+                data[Application.EVENT_CONFIG_KEY] = instance.event_config
+
         def handle_es_storage_shards(self, instance, data):
             # 旧应用没有分片数设置 -> 获取当前索引集群分片数
             if "es_shards" not in data["application_datasource_config"]:
@@ -407,6 +412,7 @@ class ApplicationInfoResource(Resource):
             self.handle_sampler_config(instance, data)
             # 处理维度配置
             # self.handle_dimension_config(instance, data)
+            self.handle_event_config(instance, data)
             data["plugin_id"] = instance.plugin_id
             data["deployment_ids"] = instance.deployment_ids
             data["language_ids"] = instance.language_ids
@@ -785,6 +791,17 @@ class SetupResource(Resource):
                 self._application.qps_config,
                 self._params["application_qps_config"],
                 self._application.QPS_CONFIG_KEY,
+                override=True,
+            )
+
+    class EventSetupProcessor(SetupProcessor):
+        update_key = [Application.EVENT_CONFIG_KEY]
+
+        def setup(self):
+            self._application.setup_config(
+                self._application.event_config,
+                self._params[Application.EVENT_CONFIG_KEY],
+                self._application.EVENT_CONFIG_KEY,
                 override=True,
             )
 
@@ -1382,7 +1399,7 @@ class MetaInstrumentGuides(Resource):
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
                     "enabled": app.is_enabled_profiling,
-                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope/ingest",
+                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
                 },
             }
             return attrs

@@ -163,5 +163,9 @@ export default {
   cluster: 'cluster',
   workload_type: 'workload_type',
   container: 'container',
+  ingress: 'ingress',
+  service: 'service',
   内存使用率: 'Memory Usage',
+  变更人: 'Changed by',
+  变更时间: 'Changed at',
 };

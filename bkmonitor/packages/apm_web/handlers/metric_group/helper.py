@@ -199,7 +199,9 @@ class MetricHelper:
                 promql = (
                     f"count by (metric_name, {monitor_name_key}) (count_over_time(label_replace("
                     f"{{__name__=~\"custom:{metric_table_id}:.*\", "
-                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\", "
+                    f"__name__!~\"^rpc_(client|server)_(handled|started)_total\", "
+                    f"__name__!~\"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)\", "
+                    f"__name__!~\"^(bk_apm_|apm_).*\", "
                     f"{service_name_key}=\"{service_name}\"}}, "
                     f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
                 )
@@ -208,7 +210,9 @@ class MetricHelper:
                 promql = (
                     f"count by (metric_name, {monitor_name_key}, {service_name_key}) (count_over_time(label_replace("
                     f"{{__name__=~\"custom:{metric_table_id}:.*\", "
-                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\"}}, "
+                    f"__name__!~\"^rpc_(client|server)_(handled|started)_total\", "
+                    f"__name__!~\"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)\", "
+                    f"__name__!~\"^(bk_apm_|apm_).*\"}}, "
                     f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
                 )
 

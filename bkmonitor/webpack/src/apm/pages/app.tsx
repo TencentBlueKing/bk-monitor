@@ -92,7 +92,7 @@ export default class App extends tsc<object> {
   created() {
     this.needMenu && this.handleSetNeedMenu();
     this.bizId = this.$store.getters.bizId;
-    this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
+    this.menuToggle = localStorage.getItem('navigationToggle') === 'true';
     Vue.prototype.$authorityStore = authorityStore;
     this.getDocsLinkMapping();
   }
@@ -212,7 +212,7 @@ export default class App extends tsc<object> {
     this.keyword = v;
   }
   handleToggleClick(v: boolean) {
-    localStorage.setItem('navigationToogle', String(v));
+    localStorage.setItem('navigationToggle', String(v));
   }
   // 左侧栏业务列表选择
   menuSelect() {

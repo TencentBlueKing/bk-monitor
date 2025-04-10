@@ -59,7 +59,7 @@ export default defineComponent({
       default: '0',
     },
     showMore: Boolean,
-    draging: Boolean,
+    dragging: Boolean,
     isInstant: Boolean,
     showAddMetric: {
       type: Boolean,
@@ -141,7 +141,7 @@ export default defineComponent({
     );
     function handleShowMenu(e: any) {
       // console.log('handleShowMenu', isAlertListShown);
-      if (!props.draging) {
+      if (!props.dragging) {
         if (!props.showMore || isAlertListShown.value) return;
         showMenu.value = !showMenu.value;
         const rect = chartTitleRef.value?.getBoundingClientRect();

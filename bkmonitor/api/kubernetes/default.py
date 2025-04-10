@@ -2053,7 +2053,12 @@ class FetchBCSClusterAlertEnabledIDList(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, params):
-        data = BCSCluster.objects.filter(bk_biz_id=params["bk_biz_id"], alert_status="enabled").values("bcs_cluster_id")
+        bk_biz_id = params["bk_biz_id"]
+        if bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            data = BCSCluster.objects.filter(space_uid=space_uid, alert_status="enabled").values("bcs_cluster_id")
+        else:
+            data = BCSCluster.objects.filter(bk_biz_id=bk_biz_id, alert_status="enabled").values("bcs_cluster_id")
         return [item["bcs_cluster_id"] for item in data]
 
 

@@ -2,6 +2,7 @@
 
 from .bkdata_link import *  # noqa
 from .data_pipeline import *  # noqa
+from .datalink_operation import *  # noqa
 from .es import *  # noqa
 from .resources import *  # noqa
 from .space import *  # noqa

@@ -277,6 +277,8 @@ class SendMsg(CheckCMSIResource):
         content = serializers.CharField()
         msg_type = serializers.CharField()
         is_content_base64 = serializers.BooleanField(default=False)
+        # 支持邮件附件
+        attachments = serializers.ListField(child=serializers.DictField(child=serializers.CharField()), required=False)
 
         def validate(self, attrs):
             if attrs["is_content_base64"]:

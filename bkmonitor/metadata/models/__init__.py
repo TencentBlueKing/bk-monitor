@@ -82,6 +82,7 @@ from .space import (
     SpaceResource,
     SpaceStickyInfo,
     SpaceType,
+    SpaceTypeToResultTableFilterAlias,
 )
 from .storage import (
     ArgusStorage,
@@ -92,6 +93,7 @@ from .storage import (
     KafkaStorage,
     KafkaTopicInfo,
     RedisStorage,
+    SpaceRelatedStorageInfo,
     StorageClusterRecord,
     StorageResultTable,
 )
@@ -162,6 +164,7 @@ __all__ = [
     "SpaceResource",
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
+    "SpaceTypeToResultTableFilterAlias",
     # data pipeline
     "DataPipeline",
     "DataPipelineSpace",
@@ -169,6 +172,7 @@ __all__ = [
     "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
+    "SpaceRelatedStorageInfo",
     # vm data link
     "DataLinkResource",
     "DataLinkResourceConfig",

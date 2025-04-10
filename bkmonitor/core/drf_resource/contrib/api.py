@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import json
 import logging
+from typing import Optional
 
 import requests
 import six
@@ -24,8 +25,11 @@ from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 from requests.exceptions import HTTPError, ReadTimeout
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.user import make_userinfo
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.contrib.cache import CacheResource
 from core.errors.api import BKAPIError
 from core.errors.iam import APIPermissionDeniedError
@@ -74,34 +78,45 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     TIMEOUT = 60
     # 是否直接使用标准格式数据，兼容BCS非标准返回的情况
     IS_STANDARD_FORMAT = True
+    METRIC_REPORT_NOW = True
 
-    @abc.abstractproperty
+    ignore_error_msg_list = []
+
+    @property
+    @abc.abstractmethod
     def base_url(self):
         """
         api gateway 基本url生成规则
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def module_name(self):
         """
         在apigw中的模块名
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def action(self):
         """
         url的后缀，通常是指定特定资源
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def method(self):
         """
         请求方法，仅支持GET或POST
         """
         raise NotImplementedError
+
+    @method.setter
+    def method(self, value):
+        pass
 
     @staticmethod
     def split_request_data(data):
@@ -123,15 +138,25 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         assert self.method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"], _("method仅支持GET或POST或PUT或DELETE或PATCH")
         self.method = self.method.upper()
         self.session = requests.session()
+        self.bk_tenant_id: Optional[str] = None
 
     def request(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
         # 如果参数中传递了用户信息，则记录下来，以便接口请求时使用
         if BK_USERNAME_FIELD in request_data:
             setattr(self, "bk_username", request_data[BK_USERNAME_FIELD])
+
+        # 如果参数中传递了租户ID，则记录下来，以便接口请求时使用
+        if "bk_tenant_id" in request_data:
+            self.bk_tenant_id = request_data["bk_tenant_id"]
+
         return super(APIResource, self).request(request_data, **kwargs)
 
     def full_request_data(self, validated_request_data):
+        # 如果请求参数中传递了用户信息，则直接返回
+        if "bk_username" in validated_request_data:
+            return validated_request_data
+
         # 组装通用参数： 1. 用户信息 2. SaaS凭证
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
@@ -163,6 +188,20 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             auth_params.update(make_userinfo())
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
+        # 多租户模式下添加租户ID
+        # 如果是web请求，通过用户名获取租户ID
+        # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            request = get_request(peaceful=True)
+            if self.bk_tenant_id:
+                headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
+            elif request and request.user.tenant_id:
+                headers["X-Bk-Tenant-Id"] = request.user.tenant_id
+            else:
+                headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
+        else:
+            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
+            headers["X-Bk-Tenant-Id"] = "default"
         return headers
 
     def perform_request(self, validated_request_data):
@@ -171,6 +210,22 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         validated_request_data = dict(validated_request_data)
         validated_request_data = self.full_request_data(validated_request_data)
+
+        # 获取租户ID
+        if not self.bk_tenant_id:
+            if "bk_tenant_id" in validated_request_data:
+                # 如果传递了租户ID，则直接使用
+                self.bk_tenant_id = validated_request_data["bk_tenant_id"]
+            elif (
+                validated_request_data.get("bk_biz_id") and isinstance(validated_request_data.get("bk_biz_id"), int)
+            ) or (validated_request_data.get("space_uid") and isinstance(validated_request_data.get("space_uid"), str)):
+                # 如果传递了业务ID或空间ID，则获取关联的租户ID
+                space: Optional[Space] = SpaceApi.get_space_detail(
+                    bk_biz_id=validated_request_data.get("bk_biz_id", 0),
+                    space_uid=validated_request_data.get("space_uid"),
+                )
+                if space:
+                    self.bk_tenant_id = space.bk_tenant_id
 
         # 拼接最终请求的url
         request_url = self.get_request_url(validated_request_data)
@@ -261,14 +316,20 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             errors = result_json.get("errors", "")
             if errors:
                 msg = f"{msg}(detail:{errors})"
-            request_id = result_json.pop("request_id", "") or result.headers.get("x-bkapi-request-id", "")
-            logger.error(
-                "【Module: " + self.module_name + "】【Action: " + self.action + "】(%s) get error：%s",
-                request_id,
-                msg,
-                extra=dict(module_name=self.module_name, url=request_url),
-            )
-            self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
+
+            # 忽略某些错误信息，避免过多日志
+            for ignore_msg in self.ignore_error_msg_list:
+                if ignore_msg in msg:
+                    break
+            else:
+                request_id = result_json.pop("request_id", "") or result.headers.get("x-bkapi-request-id", "")
+                logger.error(
+                    "【Module: " + self.module_name + "】【Action: " + self.action + "】(%s) get error：%s",
+                    request_id,
+                    msg,
+                    extra=dict(module_name=self.module_name, url=request_url),
+                )
+                self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
             # 调试使用
             # msg = u"【模块：%s】接口【%s】返回结果错误：%s###%s" % (
             #     self.module_name, request_url, validated_request_data, result_json)
@@ -295,7 +356,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 exception=exception_type,
                 user_name=getattr(self, 'bk_username', ''),
             ).inc()
-            metrics.report_all()
+            if self.METRIC_REPORT_NOW:
+                metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
             logger.exception(f"APIResource: Failed to report api_failed_requests metrics,error:{err}")
 
@@ -311,7 +373,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 code=code,
                 role=settings.ROLE,
             ).inc()
-            metrics.report_all()
+            if self.METRIC_REPORT_NOW:
+                metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
             logger.exception(f"APIResource: Failed to report api_requests metrics,error:{err}")
 

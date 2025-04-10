@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Pattern, Set, Tuple
+from typing import Any, Callable, Dict, List, Pattern, Set, Tuple
 
 import arrow
 from django.conf import settings
@@ -211,6 +211,14 @@ class AddNullDataProcessor:
         start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
         end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
 
+        # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
+        time_alignment: bool = params.get("time_alignment", True)
+        if not time_alignment:
+            if start_time > params["start_time"] * 1000:
+                start_time -= interval
+            if end_time < params["end_time"] * 1000:
+                end_time += interval
+
         for row in data:
             time_to_value = defaultdict(lambda: None)
             for point in row["datapoints"]:
@@ -220,6 +228,12 @@ class AddNullDataProcessor:
             last_datapoint_timestamp = None
             for timestamp in range(start_time, end_time, interval):
                 if time_to_value[timestamp] is None:
+                    if not time_alignment:
+                        # 补 0 代替补 Null
+                        row["datapoints"].append([0, timestamp])
+                        last_datapoint_timestamp = timestamp
+                        continue
+
                     # 如果当前点没有值且和开始时间相同，则补充空点
                     if timestamp == start_time:
                         row["datapoints"].append([None, timestamp])
@@ -537,6 +551,9 @@ class UnifyQueryRawResource(ApiAuthResource):
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
+        time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
+        query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
+        unit = serializers.CharField(label="单位", default="", allow_blank=True)
 
         @classmethod
         def to_str(cls, value):
@@ -799,8 +816,11 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 数据查询
         data_sources = []
+        time_alignment: bool = params.get("time_alignment", True)
         for query_config_index, query_config in enumerate(params["query_configs"]):
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
+            if not time_alignment:
+                query_config["time_alignment"] = time_alignment
             data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
             if hasattr(data_source, "group_by"):
                 query_config["group_by"] = data_source.group_by
@@ -831,12 +851,19 @@ class UnifyQueryRawResource(ApiAuthResource):
         )
         safe_push_to_gateway(registry=OPERATION_REGISTRY)
 
-        points = query.query_data(
+        query_method_map: Dict[str, Callable[[Any], List[Dict]]] = {
+            "query_data": query.query_data,
+            "query_reference": query.query_reference,
+        }
+        query_method: Callable[[Any], List[Dict]] = query_method_map.get(params.get("query_method"), query.query_data)
+
+        points = query_method(
             start_time=params["start_time"] * 1000,
             end_time=params["end_time"] * 1000,
             limit=params["limit"],
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
+            time_alignment=time_alignment,
         )
 
         # 如果存在数据后过滤条件，则进行过滤
@@ -861,6 +888,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         """
         获取单位信息
         """
+        # 如果查询配置中指定了单位，则直接返回
+        if params.get("unit"):
+            return params["unit"]
+
         # 多指标无单位
         if len(params["query_configs"]) > 1 or not metrics:
             return ""
@@ -906,6 +937,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+                    (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
                     (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
                 )

@@ -68,9 +68,9 @@ class BkDataStorageAdmin(admin.ModelAdmin):
     search_fields = ("table_id", "bk_data_result_table_id")
 
 
-class CustomReportSubscriptionConfigAdmin(admin.ModelAdmin):
-    search_fields = ("bk_biz_id", "subscription_id")
-    list_display = ("bk_biz_id", "subscription_id", "config")
+class CustomReportSubscriptionAdmin(admin.ModelAdmin):
+    search_fields = ("bk_biz_id", "subscription_id", "bk_data_id")
+    list_display = ("bk_biz_id", "subscription_id", "bk_data_id", "config")
 
 
 class PingServerSubscriptionConfigAdmin(admin.ModelAdmin):
@@ -154,6 +154,12 @@ class ClusterInfoAdmin(admin.ModelAdmin):
     )
     search_fields = ("cluster_name", "cluster_type", "registered_system")
     list_filter = ("cluster_type", "registered_system")
+
+
+class SpaceRelatedStorageInfoAdmin(admin.ModelAdmin):
+    list_display = ("space_type_id", "space_id", "storage_type", "cluster_id")
+    search_fields = ("cluster_id", "space_id")
+    list_filter = ("cluster_id", "storage_type")
 
 
 class KafkaTopicInfoAdmin(admin.ModelAdmin):
@@ -251,6 +257,12 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
+class SpaceTypeToResultTableFilterAliasAdmin(admin.ModelAdmin):
+    list_display = ("space_type", "table_id", "filter_alias", "status")
+    search_fields = ("space_type", "table_id")
+    list_filter = ("space_type", "table_id")
+
+
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -261,9 +273,10 @@ admin.site.register(models.ESStorage, ESStorageAdmin)
 admin.site.register(models.EventGroup, EventGroupAdmin)
 admin.site.register(models.TimeSeriesGroup, TimeSeriesGroupAdmin)
 admin.site.register(models.TimeSeriesMetric, TimeSeriesMetricAdmin)
-admin.site.register(models.CustomReportSubscriptionConfig, CustomReportSubscriptionConfigAdmin)
+admin.site.register(models.CustomReportSubscription, CustomReportSubscriptionAdmin)
 admin.site.register(models.PingServerSubscriptionConfig, PingServerSubscriptionConfigAdmin)
 admin.site.register(models.ClusterInfo, ClusterInfoAdmin)
+admin.site.register(models.SpaceRelatedStorageInfo, SpaceRelatedStorageInfoAdmin)
 admin.site.register(models.KafkaTopicInfo, KafkaTopicInfoAdmin)
 admin.site.register(models.DataSource, DataSourceAdmin)
 admin.site.register(models.DataSourceOption, DataSourceOptionAdmin)
@@ -283,3 +296,4 @@ admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
 admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
 admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)
+admin.site.register(models.SpaceTypeToResultTableFilterAlias, SpaceTypeToResultTableFilterAliasAdmin)

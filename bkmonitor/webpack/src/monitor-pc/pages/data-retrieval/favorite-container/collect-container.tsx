@@ -45,6 +45,7 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
   @Prop({ type: Boolean, default: false }) isSearchFilter: boolean; // 是否搜索过滤
   @Prop({ type: Boolean, default: false }) collectLoading: boolean; // 搜索loading
   @Prop({ type: String, default: 'empty' }) emptyStatusType: EmptyStatusType; // 空状态类型
+
   dragList: IFavList.favGroupList[] = []; // 可拖拽的收藏列表
 
   @Provide('handleUserOperate')
@@ -87,13 +88,19 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
     return true;
   }
 
+  handleExpandAll(expand: boolean) {
+    for (const item of this.dragList) {
+      (this.$refs[`collectGroup_${item.id}`] as CollectGroup)?.handleExpand(expand);
+    }
+  }
+
   @Emit('handleOperation')
   handleOperation(type: EmptyStatusOperationType) {
     return type;
   }
   render() {
     return (
-      <div class='retrieve-collect-container'>
+      <div class='retrieve-collect-container-comp'>
         {this.$slots.default}
         <div
           class='group-container'
@@ -112,6 +119,7 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
                 {this.dragList.map(item => (
                   <div key={`${item.id}`}>
                     <CollectGroup
+                      ref={`collectGroup_${item.id}`}
                       collectItem={item}
                       favCheckedValue={this.favCheckedValue}
                       groupList={this.groupList}

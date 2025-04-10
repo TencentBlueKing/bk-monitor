@@ -60,7 +60,7 @@ export default defineComponent({
       type: Array as PropType<ISelectMenuOption[]>,
       default: () => [],
     },
-    refleshInterval: {
+    refreshInterval: {
       type: Number,
       default: -1,
     },
@@ -71,14 +71,14 @@ export default defineComponent({
   },
   emits: [
     'update:showLeft',
-    'update:refleshInterval',
+    'update:refreshInterval',
     'deleteCollect',
     'selectCollect',
     'timeRangeChange',
     'timezoneChange',
-    'refleshIntervalChange',
+    'refreshIntervalChange',
     'menuSelectChange',
-    'immediateReflesh',
+    'immediateRefresh',
   ],
   setup(props, { emit }) {
     function handleDeleteCollect(id: number | string) {
@@ -128,11 +128,11 @@ export default defineComponent({
           </span>
           <span class='inquire-header-append-item'>
             <RefreshRate
-              value={props.refleshInterval}
-              onImmediate={() => emit('immediateReflesh')}
+              value={props.refreshInterval}
+              onImmediate={() => emit('immediateRefresh')}
               onSelect={val => {
-                emit('update:refleshInterval', val);
-                emit('refleshIntervalChange', val);
+                emit('update:refreshInterval', val);
+                emit('refreshIntervalChange', val);
               }}
             />
             <SelectMenu

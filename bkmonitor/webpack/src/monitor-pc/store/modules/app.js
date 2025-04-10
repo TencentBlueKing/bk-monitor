@@ -45,7 +45,7 @@ export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 // 设置 biz bg color
 export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
 // 切换业务id全局标识
-export const SET_BIZ_CHANGE_PEDDING = 'SET_BIZ_CHANGE_PEDDING';
+export const SET_BIZ_CHANGE_PENDING = 'SET_BIZ_CHANGE_PENDING';
 export const SET_PADDING_ROUTE = 'SET_PADDING_ROUTE';
 
 const state = {
@@ -66,7 +66,7 @@ const state = {
   bkUrl: '',
   bkNodemanHost: '', // 节点管理域名
   loginUrl: '', // 登录Url
-  navToggle: localStorage.getItem('navigationToogle') === 'true',
+  navToggle: localStorage.getItem('navigationToggle') === 'true',
   collectingConfigFileMaxSize: null, // 插件参数文件大小限制单位M
   enable_cmdb_level: false, // 是否启用功能视图勾选Topo节点的功能开关
   siteUrl: '',
@@ -83,8 +83,10 @@ const state = {
   bizIdMap: new Map(),
   paddingRoute: null,
   k8sV2EnableList: [],
+  eventExploreV2EnableList: [],
   defaultBizId: '',
   defaultBizIdApiId: '',
+  customMetricV2EnableList: [],
 };
 
 const mutations = {
@@ -152,7 +154,7 @@ const mutations = {
   [SET_BIZ_BGCOLOR](state, val) {
     state.bizBgColor = val;
   },
-  [SET_BIZ_CHANGE_PEDDING](state, val) {
+  [SET_BIZ_CHANGE_PENDING](state, val) {
     state.bizIdChangePedding = val;
   },
   setNavToggle(state, status) {

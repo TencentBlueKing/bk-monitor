@@ -30,7 +30,7 @@ import { random } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
@@ -44,7 +44,7 @@ import K8sTableNew, {
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
-import { type K8sGroupDimension, K8sPerformanceGroupDimension, sceneDimensionMap } from './k8s-dimension';
+import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
 import {
   type IK8SMetricItem,
   type ICommonParams,
@@ -58,7 +58,14 @@ import type { TimeRangeType } from '../../components/time-range/time-range';
 
 import './monitor-k8s-new.scss';
 
-const HIDE_METRICS_KEY = 'monitor_hide_metrics';
+const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
+
+/** 网络场景默认隐藏的指标 */
+const networkDefaultHideMetrics = [
+  'nw_container_network_receive_errors_total',
+  'nw_container_network_transmit_errors_total',
+];
+
 const tabList = [
   {
     label: window.i18n.t('K8S对象列表'),
@@ -84,13 +91,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refreshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refreshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   // 场景
+  @ProvideReactive('scene')
   scene: SceneEnum = SceneEnum.Performance;
   // 集群
   cluster = '';
@@ -105,7 +113,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
   @ProvideReactive('groupInstance')
-  groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
+  groupInstance: K8sGroupDimension = K8sGroupDimension.createInstance(SceneEnum.Performance);
 
   // 是否展示撤回下钻
   showCancelDrill = false;
@@ -188,14 +196,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return {
       scenario: this.scene,
       bcs_cluster_id: this.cluster,
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
+      timeRange: this.timeRange,
     };
-  }
-
-  @ProvideReactive('formatTimeRange')
-  get formatTimeRange() {
-    return handleTransformToTimestamp(this.timeRange);
   }
 
   get tableCommonParam() {
@@ -277,9 +279,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      this.hideMetrics = res || [];
-    });
+    this.getHideMetrics();
   }
 
   mounted() {
@@ -304,6 +304,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       return pre;
     }, {});
   }
+
+  /** 重新实例化 GroupBy */
+  initGroupBy() {
+    this.groupInstance = K8sGroupDimension.createInstance(this.scene);
+  }
+
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
     if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
@@ -340,9 +346,26 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }));
   }
 
+  /** 获取隐藏的指标项 */
+  getHideMetrics() {
+    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
+      if (this.scene === SceneEnum.Network && !res) {
+        /** 网络场景初始化，默认隐藏丢包量指标 */
+        this.hideMetrics = [...networkDefaultHideMetrics];
+      } else {
+        this.hideMetrics = res || [];
+      }
+    });
+  }
+
   handleSceneChange(value) {
     this.scene = value;
+    this.initGroupBy();
     this.initFilterBy();
+    this.getScenarioMetricList();
+    this.showCancelDrill = false;
+    this.getHideMetrics();
+    this.setRouteParams();
   }
 
   handleImmediateRefresh() {
@@ -402,8 +425,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param drillDownDimension 下钻维度
    */
   handleDrillDown(filterById: string, filterByDimension: string, drillDownDimension: string) {
-    this.groupByChange(drillDownDimension, true);
     this.filterByChange(filterById, filterByDimension, true);
+    this.groupByChange(drillDownDimension, true);
   }
 
   /** 清除某个维度的filterBy */
@@ -415,7 +438,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(hideMetrics));
+    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项 */
+    if (
+      this.scene === SceneEnum.Network &&
+      this.hideMetrics.length === networkDefaultHideMetrics.length &&
+      this.hideMetrics.every(item => networkDefaultHideMetrics.includes(item))
+    ) {
+      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(null));
+    } else {
+      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(this.hideMetrics));
+    }
   }
 
   /** 指标列表项点击 */
@@ -495,6 +527,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = scene as SceneEnum;
     this.activeTab = activeTab as K8sNewTabEnum;
     if (JSON.parse(groupBy as string).length) {
+      this.initGroupBy();
       this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
     }
     if (!filterBy) {
@@ -699,7 +732,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                       slot='label'
                     >
                       <i class={['icon-monitor', panel.icon]} />
-                      <span class='panel-name'>{this.$t(panel.label)}</span>
+                      <span class='panel-name'>{panel.label}</span>
                     </div>
                   </bk-tab-panel>
                 ))}

@@ -36,7 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
-from apps.exceptions import ApiRequestError, ApiResultError
+from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
@@ -249,7 +249,7 @@ class SearchHandler(object):
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone")
+        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -390,6 +390,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            time_zone=self.time_zone,
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
@@ -466,9 +467,22 @@ class SearchHandler(object):
 
     @fields_config("apm_relation")
     def apm_relation(self):
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
         try:
-            res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
-        except ApiRequestError as e:
+            if qs.exists():
+                collector_config = qs.first()
+                params = {
+                    "index_set_id": int(self.index_set_id),
+                    "bk_data_id": int(collector_config.bk_data_id),
+                    "bk_biz_id": collector_config.bk_biz_id,
+                }
+                if self.start_time and self.end_time:
+                    params["start_time"] = self.start_time
+                    params["end_time"] = self.end_time
+                res = MonitorApi.query_log_relation(params=params)
+            else:
+                res = MonitorApi.query_log_relation(params={"index_set_id": int(self.index_set_id)})
+        except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"fail to request log relation => index_set_id: {self.index_set_id}, exception => {e}")
             return False
 
@@ -1550,6 +1564,7 @@ class SearchHandler(object):
             self.storage_cluster_id,
             self.time_field,
             self.search_dict.get("bk_biz_id"),
+            time_zone=self.time_zone,
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1917,6 +1932,7 @@ class SearchHandler(object):
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
                 only_search=True,
                 index_set=self.index_set,
+                time_zone=self.time_zone,
             )
         return self._mapping_handlers
 
@@ -2140,6 +2156,8 @@ class SearchHandler(object):
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
+            else:
+                log = self.convert_keys(log)
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
@@ -2196,6 +2214,36 @@ class SearchHandler(object):
         result.update({"aggs": agg_dict})
         return result
 
+    def convert_keys(self, data):
+        new_dict = {}
+
+        for key, value in data.items():
+            # 如果值是字典，递归调用
+            if isinstance(value, dict):
+                value = self.convert_keys(value)  # 递归处理嵌套字典
+            # 如果值是列表，处理列表中的每个字典
+            elif isinstance(value, list):
+                value = [self.convert_keys(item) if isinstance(item, dict) else item for item in value]
+
+            # 如果键中有点，进行转换
+            if '.' in key:
+                # 分割键
+                parts = key.split('.')
+                nested_dict = new_dict
+
+                for part in parts[:-1]:  # 所有部分，除了最后一部分
+                    if part not in nested_dict:
+                        nested_dict[part] = {}
+                    nested_dict = nested_dict[part]
+
+                # 设置最后一个部分的值
+                nested_dict[parts[-1]] = value
+            else:
+                # 如果没有点，直接赋值
+                new_dict[key] = value
+
+        return new_dict
+
     @classmethod
     def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -2204,6 +2252,8 @@ class SearchHandler(object):
         if not isinstance(base_dict, dict):
             return base_dict
         for key, value in update_dict.items():
+            if key not in base_dict:
+                continue
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
             else:
