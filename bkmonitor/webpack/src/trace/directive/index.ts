@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { bkTooltips } from 'bkui-vue';
+import { bkTooltips, bkEllipsis } from 'bkui-vue';
 
 import authority from './authority';
 import overflowText from './overflow-text';
@@ -38,6 +38,7 @@ const directives: Record<string, any> = {
   bkTooltips,
   watermark,
   overflowText,
+  bkOverflowTips: bkEllipsis,
 };
 
 export default {

@@ -576,7 +576,6 @@ export default defineComponent({
     const expandOption = {
       render: ({ row }) => {
         const config = tableRowConfig.get(row);
-
         return (
           <ExpandView
             data={row}

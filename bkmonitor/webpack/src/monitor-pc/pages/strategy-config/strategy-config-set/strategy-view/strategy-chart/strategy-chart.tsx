@@ -577,7 +577,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       <div class={['aiops-chart-strategy-wrap', { 'time-series-forecast': this.hasTimeSeriesForecast }]}>
         {!!this.panel && (
           <ChartWrapper
-            needHoverStryle={false}
+            needHoverStyle={false}
             panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
           />
