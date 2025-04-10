@@ -128,7 +128,7 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     for (const segment of segments) {
       const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
       const isMark = MARK_REGEX.test(segment);
-      const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
+      const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
 
       if (isMark) {
         tokens.push({
@@ -143,7 +143,7 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
             text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
             isMark: false,
             isCursorText: false,
-            isBlobWord: true,
+            isBlobWord: false,
           });
         }
       }
@@ -193,8 +193,7 @@ export const setScrollLoadCell = (
   };
 
   const appendPageItems = (size?) => {
-    const length = wordList?.length ?? 0;
-    if (startIndex >= length) {
+    if (startIndex > wordList.length) {
       requestAnimationFrame(appendLastTag);
       startIndex = length;
       return false;
@@ -218,7 +217,7 @@ export const setScrollLoadCell = (
       const { offsetHeight, scrollHeight } = rootElement;
       const { scrollTop } = rootElement;
       if (scrollHeight - offsetHeight - scrollTop < 60) {
-        startIndex = startIndex + pageSize;
+        // startIndex = startIndex + pageSize;
         appendPageItems();
       }
     }
