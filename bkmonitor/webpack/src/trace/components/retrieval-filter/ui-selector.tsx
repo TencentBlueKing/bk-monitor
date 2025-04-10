@@ -30,7 +30,8 @@ import { shallowRef } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import { $bkPopover } from 'bkui-vue';
 
-import { type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { EFieldType, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import UiSelectorOptions from './ui-selector-options';
 
 import './ui-selector.scss';
 
@@ -92,10 +93,11 @@ export default defineComponent({
           content: selectorRef.value,
           trigger: 'click',
           placement: 'bottom-start',
-          theme: 'light common-monitor',
+          theme: 'light common-monitor padding-0',
           arrow: true,
           boundary: 'window',
           zIndex: 998,
+          padding: 0,
           onHide: () => {
             destroyPopoverInstance();
             cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
@@ -167,8 +169,33 @@ export default defineComponent({
       handleShowSelect(customEvent);
     }
 
+    function handleCancel() {
+      destroyPopoverInstance();
+      hideInput();
+    }
+    function handleConfirm(value: IFilterItem) {
+      const localValue$ = JSON.parse(JSON.stringify(localValue.value));
+      if (value) {
+        if (updateActive.value > -1) {
+          localValue$.splice(updateActive.value, 1, value);
+        } else {
+          localValue$.push(value);
+        }
+      }
+      localValue.value = localValue$;
+      destroyPopoverInstance();
+      hideInput();
+      handleChange();
+    }
+
     return {
+      inputValue,
+      showSelector,
+      localValue,
+      updateActive,
       handleAdd,
+      handleCancel,
+      handleConfirm,
     };
   },
   render() {
@@ -185,7 +212,26 @@ export default defineComponent({
           <span class='add-text'>{this.$t('添加条件')}</span>
         </div>
         <div style='display: none;'>
-          <div ref='selector'>xxxx</div>
+          <div ref='selector'>
+            <UiSelectorOptions
+              fields={[
+                {
+                  type: EFieldType.all,
+                  name: '*',
+                  alias: this.$tc('全文检索'),
+                  is_option_enabled: false,
+                  supported_operations: [],
+                },
+                ...this.fields,
+              ]}
+              getValueFn={this.getValueFn}
+              keyword={this.inputValue}
+              show={this.showSelector}
+              value={this.localValue?.[this.updateActive]}
+              onCancel={this.handleCancel}
+              onConfirm={this.handleConfirm}
+            />
+          </div>
         </div>
       </div>
     );

@@ -43,3 +43,14 @@ export function getCacheUIData(): IFilterItem[] {
     return [];
   }
 }
+export function isNumeric(str) {
+  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+}
+export function getTitleAndSubtitle(str) {
+  const regex = /^(.*?)（(.*?)）$/;
+  const match = str.match(regex);
+  return {
+    title: match?.[1] || str,
+    subtitle: match?.[2],
+  };
+}

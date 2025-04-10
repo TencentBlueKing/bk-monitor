@@ -286,3 +286,9 @@ body {
   --disable-color: #dcdee5;
   --button-default-hover-border-color: #979ba5;
 }
+
+.bk-popover.bk-pop2-content {
+  &.padding-0 {
+    padding: 0;
+  }
+}
