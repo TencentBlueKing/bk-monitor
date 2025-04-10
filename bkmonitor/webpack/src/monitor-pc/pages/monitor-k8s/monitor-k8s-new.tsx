@@ -676,6 +676,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <GroupByCondition
                 dimensionTotal={this.dimensionTotal}
                 groupInstance={this.groupInstance}
+                scene={this.scene}
                 title={this.$tc('聚合维度')}
                 onChange={this.handleGroupChecked}
               />
