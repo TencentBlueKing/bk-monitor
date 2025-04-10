@@ -49,10 +49,6 @@ class Migration(migrations.Migration):
             unique_together={('table_id', 'bk_tenant_id')},
         ),
         migrations.AlterUniqueTogether(
-            name='essnapshotindice',
-            unique_together={('table_id', 'bk_tenant_id')},
-        ),
-        migrations.AlterUniqueTogether(
             name='esstorage',
             unique_together={('table_id', 'bk_tenant_id')},
         ),
