@@ -282,6 +282,7 @@ class EsSnapshotRepository(models.Model):
 
 class EsSnapshotIndice(models.Model):
     table_id = models.CharField("结果表id", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     snapshot_name = models.CharField("快照名称", max_length=150)
 
     cluster_id = models.IntegerField("集群id")
@@ -296,6 +297,7 @@ class EsSnapshotIndice(models.Model):
     class Meta:
         verbose_name = "快照物理索引记录"
         verbose_name_plural = "快照物理索引记录"
+        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def batch_to_json(cls, table_id, snapshot_name):
