@@ -350,7 +350,7 @@ export default class FieldFilterComp extends tsc<object> {
       Object.keys(this.$refs).forEach(refName => {
         if (refName.startsWith('bigTreeRef-')) {
           const bigTreeRef = this.$refs[refName];
-          bigTreeRef.filter(searchKeyword);
+          bigTreeRef?.filter(searchKeyword);
         }
       });
     });
@@ -504,7 +504,7 @@ export default class FieldFilterComp extends tsc<object> {
           ref='fieldFilter'
           class='field-filter-container-new'
         >
-          {!this.totalFields.length && (
+          {!this.totalFields.filter(item => item.filterVisible).length && (
             <EmptyStatus
               style={{ marginTop: '20%' }}
               emptyType={this.searchKeyword ? 'search-empty' : '500'}
@@ -531,13 +531,13 @@ export default class FieldFilterComp extends tsc<object> {
               )}
             </EmptyStatus>
           )}
-          {!!this.totalFields.length && (
+          {!!this.totalFields.filter(item => item.filterVisible).length && (
             <div class='fields-container is-selected'>
               <div class='title'>
                 <span>{this.$t('显示字段')}</span>
                 <FieldSelectConfig />
               </div>
-              {!!this.visibleFields.length ? (
+              {!!this.visibleFields.filter(item => item.filterVisible).length ? (
                 <VueDraggable
                   class='filed-list'
                   v-model={this.dragVisibleFields}
@@ -571,8 +571,8 @@ export default class FieldFilterComp extends tsc<object> {
             </div>
           )}
           <div class='field-filter-roll'>
-            {!!this.indexSetFields().length && (
-              <div class='fields-container not-selected'>
+            {!!this.indexSetFields().filter(item => item.filterVisible).length && (
+              <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item, index) =>
@@ -605,7 +605,7 @@ export default class FieldFilterComp extends tsc<object> {
               </div>
             )}
             {/* 内置字段 */}
-            {!!this.builtInFields().length && (
+            {!!this.builtInFields().filter(item => item.filterVisible).length && (
               <div class='fields-container not-selected inside-fields'>
                 <div
                   class='title'

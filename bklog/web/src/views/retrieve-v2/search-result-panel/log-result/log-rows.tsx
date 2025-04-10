@@ -972,6 +972,19 @@ export default defineComponent({
       );
     };
 
+    const isFieldSettingShow = computed(() => {
+      return !store.getters.isUnionSearch && !isExternal.value;
+    });
+
+    const hasCollectorConfigId = computed(() => {
+      const indexSetList = store.state.retrieve.indexSetList;
+      const indexSetId = route.params?.indexId;
+      const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+      return currentIndexSet?.collector_config_id;
+    });
+
+    const isExternal = computed(() => store.state.isExternal);
+    
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
         return;
@@ -1130,7 +1143,14 @@ export default defineComponent({
     };
 
     const openConfiguration = () => {
-      RetrieveHelper.setIndexConfigOpen(true);
+      if(isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value){
+        RetrieveHelper.setIndexConfigOpen(true);
+      }else{
+        bkMessage({
+          theme: 'primary',
+          message: '第三方ES、计算平台索引集类型不支持自定义分词',
+        });
+      }
     };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();

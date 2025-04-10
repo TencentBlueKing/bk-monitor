@@ -1045,4 +1045,6 @@ export default {
   重命名与字段名重复: 'Rename and field name duplicate',
   别名与字段名重复: 'Alias and field name duplicate',
   别名与重命名重复: 'Alias and rename duplicate',
+  '第三方ES、计算平台索引集类型不支持自定义分词':
+    'Third-party ES, calculation platform index set type does not support custom tokenization',
 };

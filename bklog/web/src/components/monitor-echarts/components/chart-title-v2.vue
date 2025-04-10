@@ -440,7 +440,7 @@
 
     .chart-title {
       width: 100%;
-      padding: 0 10px;
+      padding: 0 4px;
       margin-left: -10px;
       font-size: 12px;
       color: #4d4f56;
