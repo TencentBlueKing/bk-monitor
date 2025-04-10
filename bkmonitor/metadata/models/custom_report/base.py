@@ -101,6 +101,7 @@ class CustomGroupBase(models.Model):
     def default_result_table_options(cls):
         pass
 
+    @classmethod
     def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
         pass
 
@@ -219,12 +220,14 @@ class CustomGroupBase(models.Model):
 
         logger.info(
             "create_custom_group: bk_biz_id->[%s],bk_tenant_id->[%s], custom_group_name->[%s], label->[%s], "
-            "operator->[%s]",
+            "operator->[%s],default_storage_config->[%s],bk_tenant_id->[%s]",
             bk_biz_id,
             bk_tenant_id,
             custom_group_name,
             label,
             operator,
+            default_storage_config,
+            bk_tenant_id,
         )
 
         # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
