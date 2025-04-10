@@ -85,3 +85,10 @@
     }
   }
 }
+
+.is-start-text-ellipsis {
+  .rtl-text {
+    direction: rtl;
+    // unicode-bidi: bidi-override; // 会影响DOM顺序
+  }
+}

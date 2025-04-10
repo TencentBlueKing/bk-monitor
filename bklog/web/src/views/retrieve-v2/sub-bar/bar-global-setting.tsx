@@ -50,6 +50,11 @@ const GLOBAL_SETTING_OPTIONS: Record<string, IOption[]> = {
       name: window.$t('别名'),
     },
   ],
+  /** 文本省略方向 */
+  textEllipsisDirs: [
+    { value: 'end', name: 'ab...' },
+    { value: 'start', name: '...yz' },
+  ],
 };
 
 export default defineComponent({
@@ -70,9 +75,16 @@ export default defineComponent({
     const popoverInstance = ref<Instance>(null);
     /** 显示配置 */
     const showFieldAlias = ref(true);
+    // 文本省略方向
+    const textEllipsisDir = ref('end');
+
+    const initDefaultSettings = () => {
+      showFieldAlias.value = store.state.showFieldAlias ?? Boolean(localStorage.getItem('showFieldAlias')) ?? true;
+      textEllipsisDir.value = store.state.storage.textEllipsisDir ?? localStorage.getItem('textEllipsisDir') ?? 'end';
+    };
 
     onMounted(() => {
-      showFieldAlias.value = localStorage.getItem('showFieldAlias') === 'true';
+      initDefaultSettings();
     });
 
     /**
@@ -82,6 +94,13 @@ export default defineComponent({
      */
     function setShowFieldAlias(value: boolean) {
       showFieldAlias.value = value;
+    }
+    /**
+     * @description 修改文本省略方向
+     * @param {'start' | 'end'} value
+     */
+    function setTextEllipsisDir(value: string) {
+      textEllipsisDir.value = value;
     }
 
     /**
@@ -107,6 +126,7 @@ export default defineComponent({
         onHidden: () => {
           popoverInstance.value?.destroy?.();
           popoverInstance.value = null;
+          initDefaultSettings();
         },
       });
       nextTick(() => {
@@ -139,6 +159,8 @@ export default defineComponent({
     function handleConfirm() {
       localStorage.setItem('showFieldAlias', showFieldAlias.value + '');
       store.commit('updateShowFieldAlias', showFieldAlias.value);
+      // 存入localstorage
+      store.commit('updateStorage', { textEllipsisDir: textEllipsisDir.value });
       handlePopoverHide();
     }
 
@@ -188,6 +210,12 @@ export default defineComponent({
                   <span class='link-text'>{$t('前往 "索引配置" 批量修改别名')}</span>
                   <i class='bklog-icon bklog-jump' />
                 </div>
+              </div>
+            </div>
+            <div class='setting-item'>
+              <div class='item-label'>{$t('文本溢出（省略设置）')}</div>
+              <div class='item-main'>
+                {checkboxRender(textEllipsisDir.value, GLOBAL_SETTING_OPTIONS.textEllipsisDirs, setTextEllipsisDir)}
               </div>
             </div>
           </div>
