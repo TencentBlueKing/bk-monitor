@@ -155,6 +155,9 @@ export default class CollectIndex extends tsc<IProps> {
   // 勾选是否查看当前索引集
   isShowCurrentIndexList = 'yes';
 
+  // 是否隐藏收藏
+  isHidden = false;
+
   @Ref('popoverGroup') popoverGroupRef: Popover;
   @Ref('popoverSort') popoverSortRef: Popover;
   @Ref('collectContainer') collectContainerRef: CollectContainer;
@@ -324,6 +327,8 @@ export default class CollectIndex extends tsc<IProps> {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
     try {
       this.favoriteLoading = true;
+      // 收藏列表更新时默认是展开的
+      this.isHidden = false;
       await this.$store.dispatch('requestFavoriteList');
     } catch (err) {
       this.favoriteLoading = false;
@@ -573,7 +578,7 @@ export default class CollectIndex extends tsc<IProps> {
             window.open(shareUrl, '_blank');
           } else {
             console.log('routeData', `${shareUrl}`);
-            copyMessage(shareUrl, this.$t('复制成功'));
+            copyMessage(shareUrl, this.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。'));
           }
         }
         break;
@@ -788,9 +793,10 @@ export default class CollectIndex extends tsc<IProps> {
   handleCollapse() {
     this.isShowCollect = !this.isShowCollect;
   }
-  // 折叠收藏夹文件全部收起
-  handleGroupHidden() {
-    this.collectContainerRef.handleGroupHidden();
+  // 折叠收藏夹文件全部收起或全部展开
+  handleGroupIsHidden() {
+    this.isHidden = !this.isHidden;
+    this.collectContainerRef.handleGroupIsHidden(this.isHidden);
   }
 
   handleFavoriteSetttingClick() {
@@ -892,7 +898,7 @@ export default class CollectIndex extends tsc<IProps> {
                     <Form
                       ref='checkInputForm'
                       style={{ width: '100%', padding: '0px 2px' }}
-                      labelWidth={0}
+                      form-type='vertical'
                       {...{
                         props: {
                           model: this.verifyData,
@@ -900,10 +906,12 @@ export default class CollectIndex extends tsc<IProps> {
                         },
                       }}
                     >
-                      <FormItem property='groupName'>
-                        <span style={{ fontSize: '14px' }}>
-                          分组名称 <span style='color:red'>*</span>
-                        </span>
+                      <FormItem
+                        icon-offset={34}
+                        label='分组名称'
+                        property='groupName'
+                        required
+                      >
                         <Input
                           style={{ marginTop: '4px' }}
                           vModel={this.verifyData.groupName}
@@ -932,9 +940,9 @@ export default class CollectIndex extends tsc<IProps> {
                 </Popover>
                 <span
                   style={{ fontSize: '16px' }}
-                  class='bklog-icon bklog-shouqi'
-                  v-bk-tooltips={this.$t('全部收起')}
-                  onClick={() => this.handleGroupHidden()}
+                  class={`bklog-icon ${!this.isHidden ? 'bklog-zhankai-2' : 'bklog-shouqi'}`}
+                  v-bk-tooltips={this.$t(`${!this.isHidden ? '全部收起' : '全部展开'}`)}
+                  onClick={() => this.handleGroupIsHidden()}
                 ></span>
                 <Popover
                   ref='popoverSort'

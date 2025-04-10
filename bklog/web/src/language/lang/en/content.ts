@@ -1050,6 +1050,8 @@ export default {
   别名与重命名重复: 'Alias and rename duplicate',
   '第三方ES、计算平台索引集类型不支持自定义分词':
     'Third-party ES, calculation platform index set type does not support custom tokenization',
+  '复制分享链接成功，通过链接，可直接查询对应收藏日志。':
+    'The share link was copied successfully, and through the link, you can directly access the corresponding bookmarked logs.',
   联想到以下: 'Associated with the following:',
   个收藏: 'favorite items',
 };
