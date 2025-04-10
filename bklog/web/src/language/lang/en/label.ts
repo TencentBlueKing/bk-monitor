@@ -750,4 +750,5 @@ export default {
   '最多展示近10条策略，点击查看更多': 'Up to 10 most recent strategies, click to view more',
   未恢复: 'Unrecovered',
   已恢复: 'Recovered',
+  创建告警策略: 'Create Alert Policy',
 };

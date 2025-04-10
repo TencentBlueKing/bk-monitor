@@ -107,6 +107,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   curFormType: FormType = MoreType.dir;
   /** 选中的仪表盘 */
   checked: string = null;
+  /** 复制的仪表盘 */
+  copiedUid: string = null;
   /** 外链数据 */
   linkList: ILinkItem[] = [
     {
@@ -138,7 +140,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   /** 仪表盘列表 */
   grafanaList: ITreeMenuItem[] = [];
   /** 置顶的空间列表 */
-  spacestickyList: string[] = [];
+  spaceStickyList: string[] = [];
 
   /** 新增操作选项 */
   get addOptions(): IIconBtnOptions[] {
@@ -249,7 +251,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    * @param list 空间uid
    */
   handleWatchSpaceStickyList(list: string[]) {
-    this.spacestickyList = list;
+    this.spaceStickyList = list;
   }
   /**
    * 获取置顶列表
@@ -259,7 +261,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
-    this.spacestickyList = res;
+    this.spaceStickyList = res;
   }
 
   handleMessage(e: any) {
@@ -533,6 +535,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
+    this.copiedUid = item.uid;
     this.formData.name = (this.isCopyDashboard && item?.title) || '';
   }
 
@@ -580,11 +583,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         try {
           const res = await migrateDashboard({ dashboard_uid: item.uid, bk_biz_id: this.bizId });
           const failedTotal = res.failed_total === 0;
-            this.$bkMessage({
-              message: Object.keys(res).length ? this.$t(`更新成功${!failedTotal ? ',部分旧面板更新失败' : ''}`) : this.$t('仪表盘内没有要更新的旧面板'),
-              theme: failedTotal ? 'success' : 'warning',
-            });
-            this.handleFetchGrafanaTree();
+          this.$bkMessage({
+            message: Object.keys(res).length
+              ? this.$t(`更新成功${!failedTotal ? ',部分旧面板更新失败' : ''}`)
+              : this.$t('仪表盘内没有要更新的旧面板'),
+            theme: failedTotal ? 'success' : 'warning',
+          });
+          this.handleFetchGrafanaTree();
         } catch (error) {
           this.$bkMessage({ message: error, theme: 'error' });
         }
@@ -613,7 +618,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleCopyDashboard() {
     const params = {
-      dashboard_uid: this.checked,
+      dashboard_uid: this.copiedUid,
       folder_id: this.formData.dir,
     };
     return copyDashboardToFolder(params)
@@ -716,7 +721,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             <BizSelect
               bizList={this.bizIdList}
               minWidth={380}
-              stickyList={this.spacestickyList}
+              stickyList={this.spaceStickyList}
               theme={'dark'}
               value={+this.bizId}
               onChange={this.handleBizChange}

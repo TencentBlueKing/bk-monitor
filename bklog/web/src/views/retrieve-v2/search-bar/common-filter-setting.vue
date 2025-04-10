@@ -27,7 +27,7 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
-            <div style=" height: 40px;padding: 4px 8px">
+            <div style="height: 40px; padding: 4px 8px">
               <bk-input
                 behavior="simplicity"
                 left-icon="bk-icon icon-search"
@@ -197,16 +197,9 @@
     };
     isLoading.value = true;
 
-    store
-      .dispatch('userFieldConfigChange', param)
-      .then(res => {
-        if (res.result) {
-          window.mainComponent.messageSuccess($t('提交成功'));
-        }
-      })
-      .finally(() => {
-        isLoading.value = false;
-      });
+    store.dispatch('userFieldConfigChange', param).finally(() => {
+      isLoading.value = false;
+    });
   };
 
   const confirmModifyFields = async () => {
@@ -481,9 +474,8 @@
         .field-name {
           display: inline;
         }
-        
-        .delete {
 
+        .delete {
           position: absolute;
           top: 8px;
           right: 12px;
@@ -492,7 +484,7 @@
           color: #c4c6cc;
           text-align: right;
           cursor: pointer;
-          }
+        }
 
         &:hover .delete {
           display: block;
@@ -508,7 +500,6 @@
         background-color: #dcdee5;
 
         .bklog-double-arrow {
-
           position: absolute;
 
           display: flex;
@@ -539,5 +530,4 @@
       border-radius: 0 0 2px 2px;
     }
   }
-
 </style>

@@ -59,7 +59,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
     interval: 'auto',
@@ -159,7 +159,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
           isShowStatisticalValue={this.showStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
-        ></LayoutChartTable>
+        />
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   <span
                     class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.name) ? 'down' : 'right'}`}
                     slot='icon'
-                  ></span>
+                  />
                   {item.name}
                 </span>
                 <div

@@ -103,6 +103,7 @@ export default class PageHeader extends tsc<object> {
               v-model={this.currentCustomTimeSeriesId}
               clearable={false}
               popover-min-width={240}
+              searchable
               onChange={this.handleSeriesChange}
             >
               <div

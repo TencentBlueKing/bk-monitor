@@ -33,7 +33,7 @@ import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { type IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
+import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
@@ -45,7 +45,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { timeToDayNum, handleSetFormatterFunc, handleYxisLabelFormatter } from './utils';
+import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type {
@@ -93,7 +93,7 @@ class NewMetricChart extends CommonSimpleChart {
   }));
   customScopedVars: Record<string, any> = {};
   width = 300;
-  inited = false;
+  initialized = false;
   metrics = [];
   collectIntervalDisplay = '1m';
   cancelTokens = [];
@@ -193,11 +193,11 @@ class NewMetricChart extends CommonSimpleChart {
   /**
    * @description: 设置精确度
    * @param {number} data
-   * @param {ValueFormatter} formattter
+   * @param {ValueFormatter} formatter
    * @param {string} unit
    * @return {*}
    */
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -219,7 +219,7 @@ class NewMetricChart extends CommonSimpleChart {
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formattter(cur, precision).text)] = 1;
+        pre[Number(formatter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -237,7 +237,7 @@ class NewMetricChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    const tranformSeries = series.map((item, index) => {
+    const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
@@ -358,7 +358,7 @@ class NewMetricChart extends CommonSimpleChart {
       }
     }
     this.legendData = result;
-    return tranformSeries;
+    return transformSeries;
   }
 
   convertJsonObject(obj) {
@@ -375,7 +375,7 @@ class NewMetricChart extends CommonSimpleChart {
       return this.$t('当前');
     }
     const matches = timeStr.match(/(\d+)([dh])/);
-    const number = parseInt(matches[1], 10);
+    const number = Number.parseInt(matches[1], 10);
     const unit = matches[2];
     if (unit === 'd') {
       return `${number}天前`;
@@ -408,26 +408,26 @@ class NewMetricChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.legendData = [];
     this.legendSorts = [];
-    this.inited = false;
+    this.initialized = false;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver();
       return;
     }
     this.formatterFunc = generateFormatterFunc(this.timeRange);
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     this.loading = true;
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = this.handleTime();
       const series = [];
       const metrics = [];
-      let params = {
+      const params = {
         start_time: start_time ? dayjs(start_time).unix() : startTime,
         end_time: end_time ? dayjs(end_time).unix() : endTime,
       };
@@ -437,7 +437,7 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const list = [this.panel.targets[0]].map(item => {
+      const list = this.panel.targets.map(item => {
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => {
             metric.method = this.method || metric.method;
@@ -580,7 +580,7 @@ class NewMetricChart extends CommonSimpleChart {
                       }
                       return v;
                     }
-                  : (v: number) => handleYxisLabelFormatter(v - this.minBase),
+                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -608,13 +608,13 @@ class NewMetricChart extends CommonSimpleChart {
             },
           })
         );
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         setTimeout(() => {
           this.handleResize();
         }, 100);
       } else {
-        this.inited = this.metrics.length > 0;
+        this.initialized = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -769,7 +769,7 @@ class NewMetricChart extends CommonSimpleChart {
                   content: this.$t(item.text),
                   delay: 200,
                 }}
-              ></i>
+              />
             </div>
             <ul
               class='metric-dropdown-list-tool'
@@ -799,7 +799,7 @@ class NewMetricChart extends CommonSimpleChart {
             delay: 200,
           }}
           onClick={() => this.handleIconClick(item, 0)}
-        ></i>
+        />
       );
     });
   }
@@ -844,7 +844,7 @@ class NewMetricChart extends CommonSimpleChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited ? (
+              {this.initialized ? (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
