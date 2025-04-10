@@ -51,7 +51,8 @@
             <bklogTagChoice
               :foucsFixed="true"
               class="bklog-v3-tag-highlight"
-              minHeight="30px"
+              focusBorderColor="#c4c6cc"
+              minHeight="32px"
               maxWidth="400px"
               minWidth="200px"
               v-model="highlightValue"
@@ -328,23 +329,23 @@
       .light-search {
         display: flex;
         align-items: center;
-
-        height: 32px;
         background: #ffffff;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
-
         font-size: 12px;
         color: #4d4f56;
 
         label {
+          border-left: 1px solid #c4c6cc;
+          border-top: 1px solid #c4c6cc;
+          border-bottom: 1px solid #c4c6cc;
+          border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
+          border-right: none;
           width: 40px;
           padding: 0px 0px;
           color: #4d4f56;
           text-align: center;
           background: #fafbfd;
-          border-right: 1px solid #c4c6cc;
-          height: 30px;
+          height: 32px;
           display: flex;
           align-items: center;
           justify-content: center;

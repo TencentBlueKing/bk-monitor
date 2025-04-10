@@ -100,6 +100,14 @@ export default defineComponent({
     onTagRender: {
       type: Function,
     },
+    borderColor: {
+      type: String,
+      default: '#c4c6cc',
+    },
+    focusBorderColor: {
+      type: String,
+      default: '#3a84ff',
+    },
   },
   emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
   setup(props, { slots, emit }) {
@@ -136,6 +144,10 @@ export default defineComponent({
 
       if (newWidth !== containerWidth.value) {
         containerWidth.value = newWidth;
+        if (focusFixedElement?.children?.[0]) {
+          (focusFixedElement.children[0] as HTMLElement).style.width = `${newWidth + 2}px`;
+        }
+
         fixedInstance?.repositionTippyInstance();
         popInstance?.repositionTippyInstance();
       }
@@ -426,15 +438,17 @@ export default defineComponent({
     };
 
     const setFixedValueContent = () => {
+      const copyNode = refTagInputContainer.value.cloneNode(true) as HTMLElement;
+      copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 2}px`;
       if (!focusFixedElement) {
         focusFixedElement = document.createElement('div');
         focusFixedElement.classList.add('bklog-choice-fixed-content');
 
-        focusFixedElement.appendChild(refTagInputContainer.value.cloneNode(true));
+        focusFixedElement.appendChild(copyNode);
         focusFixedElement.appendChild(refChoiceList.value);
         setFocuseFixedPopEvent();
       } else {
-        focusFixedElement.childNodes[0].replaceWith(refTagInputContainer.value.cloneNode(true));
+        focusFixedElement.childNodes[0].replaceWith(copyNode);
       }
     };
 
@@ -738,6 +752,8 @@ export default defineComponent({
         '--bklog-choice-max-width': props.maxWidth ?? '120px',
         '--bklog-choice-max-height': props.maxHeight ?? '100%',
         '--bklog-choice-min-height': props.minHeight,
+        '--bklog-choice-focus-border-color': props.focusBorderColor,
+        '--bklog-choice-border-color': props.borderColor,
       };
     });
 

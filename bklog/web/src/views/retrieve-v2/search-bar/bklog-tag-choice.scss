@@ -6,6 +6,7 @@
   padding: 0 0 0 4px;
   overflow: hidden;
   position: relative;
+  border: solid 1px var(--bklog-choice-border-color);
 
   .hidden-fixed-pointer {
     position: absolute;
@@ -48,6 +49,7 @@
   &.is-focus {
     &:not(.is-focus-fixed) {
       max-height: var(--bklog-choice-max-height);
+      transition: all 0.3s;
 
       .bklog-tag-choice-input {
         display: inline-flex;
@@ -59,6 +61,10 @@
         overflow: visible;
         width: var(--bklog-choice-max-width);
       }
+    }
+
+    &.is-focus-fixed {
+      border-right: solid 1px transparent;
     }
   }
 }
@@ -75,6 +81,7 @@ ul.bklog-tag-choice-input {
   vertical-align: top;
   list-style: none;
   margin-bottom: 5px;
+  transition: all 0.3s;
 
   li.bklog-choice-value-item {
     display: inline-block;
@@ -235,7 +242,7 @@ ul.bklog-tag-choice-input {
 
     .tippy-content {
       padding: 0;
-      background-color: transparent;
+      background-color: #fff;
 
       .bklog-choice-fixed-content {
         border-radius: 3px;
@@ -246,14 +253,17 @@ ul.bklog-tag-choice-input {
           border-radius: 3px;
           width: 100%;
 
-          &.tag-choice {
+          &.tag-choice,
+          &.tag-input {
             &.is-focus {
-              border-right: solid 1px #3a84ff;
+              border-right: solid 1px var(--bklog-choice-focus-border-color);
+              border-bottom: solid 1px var(--bklog-choice-focus-border-color);
+              min-height: calc(var(--bklog-choice-min-height) - 1px);
               position: relative;
               background-color: transparent;
 
               &.is-ellipsis {
-                border-bottom: solid 1px #3a84ff;
+                border-bottom: solid 1px var(--bklog-choice-focus-border-color);
                 border-bottom-left-radius: 3px;
                 background-color: #fff;
               }
@@ -268,7 +278,7 @@ ul.bklog-tag-choice-input {
                 border-bottom-right-radius: 3px;
                 background-color: transparent;
                 pointer-events: none;
-                border-left: solid 1px #3a84ff;
+                border-left: solid 1px var(--bklog-choice-focus-border-color);
                 position: absolute;
               }
             }
