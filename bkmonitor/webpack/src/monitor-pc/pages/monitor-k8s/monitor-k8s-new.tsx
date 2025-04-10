@@ -58,7 +58,14 @@ import type { TimeRangeType } from '../../components/time-range/time-range';
 
 import './monitor-k8s-new.scss';
 
-const HIDE_METRICS_KEY = 'monitor_hide_metrics';
+const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
+
+/** 网络场景默认隐藏的指标 */
+const networkDefaultHideMetrics = [
+  'nw_container_network_receive_errors_total',
+  'nw_container_network_transmit_errors_total',
+];
+
 const tabList = [
   {
     label: window.i18n.t('K8S对象列表'),
@@ -342,17 +349,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 获取隐藏的指标项 */
   getHideMetrics() {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      let hideMetrics = res || [];
-      if (this.scene === SceneEnum.Network) {
-        hideMetrics = Array.from(
-          new Set([
-            ...hideMetrics,
-            'nw_container_network_transmit_errors_total',
-            'nw_container_network_receive_errors_total',
-          ])
-        );
+      if (this.scene === SceneEnum.Network && !res) {
+        /** 网络场景初始化，默认隐藏丢包量指标 */
+        this.hideMetrics = [...networkDefaultHideMetrics];
+      } else {
+        this.hideMetrics = res || [];
       }
-      this.hideMetrics = hideMetrics;
     });
   }
 
@@ -436,7 +438,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(hideMetrics));
+    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项 */
+    if (
+      this.scene === SceneEnum.Network &&
+      this.hideMetrics.length === networkDefaultHideMetrics.length &&
+      this.hideMetrics.every(item => networkDefaultHideMetrics.includes(item))
+    ) {
+      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(null));
+    } else {
+      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(this.hideMetrics));
+    }
   }
 
   /** 指标列表项点击 */
@@ -665,6 +676,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <GroupByCondition
                 dimensionTotal={this.dimensionTotal}
                 groupInstance={this.groupInstance}
+                scene={this.scene}
                 title={this.$tc('聚合维度')}
                 onChange={this.handleGroupChecked}
               />

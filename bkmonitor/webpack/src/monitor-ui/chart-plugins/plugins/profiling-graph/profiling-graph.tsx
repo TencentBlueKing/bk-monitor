@@ -198,8 +198,7 @@ class ProfilingChart extends CommonSimpleChart {
       }
       this.handleQuery(start_time, end_time);
     };
-
-    if (this.isFirstLoad) {
+    if (this.isFirstLoad || !this.enableProfiling || !this.isProfilingDataNormal) {
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const { app_name, service_name } = this.viewOptions.filters as any;
 
@@ -211,10 +210,12 @@ class ProfilingChart extends CommonSimpleChart {
       })
         .then(data => {
           this.enableProfiling = data?.is_enabled_profiling ?? false;
-          this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
+          if (this.isFirstLoad) {
+            this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
+          }
           this.applicationId = data?.application_id ?? -1;
 
-          if (this.enableProfiling) {
+          if (this.enableProfiling && this.isProfilingDataNormal) {
             initQuery();
           } else {
             this.emptyText = '';
@@ -333,7 +334,6 @@ class ProfilingChart extends CommonSimpleChart {
       });
   }
   handleTimeRangeChange() {
-    this.isFirstLoad = true;
     this.getPanelData();
   }
   handleTextDirectionChange(val: TextDirectionType) {
@@ -501,7 +501,7 @@ class ProfilingChart extends CommonSimpleChart {
   render() {
     return (
       <div class='profiling-retrieval-chart'>
-        {this.enableProfiling ? (
+        {this.enableProfiling && this.isProfilingDataNormal ? (
           [
             <div
               key={'main'}
@@ -659,7 +659,7 @@ class ProfilingChart extends CommonSimpleChart {
                 )}
               </div>
             </div>,
-            <keep-alive key={'keep-aliave'}>
+            <keep-alive key={'keep-alive'}>
               <CommonDetail
                 collapse={this.collapseInfo}
                 maxWidth={500}
