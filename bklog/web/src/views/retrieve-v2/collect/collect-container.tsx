@@ -90,10 +90,10 @@ export default class CollectContainer extends tsc<IProps> {
     return true;
   }
 
-  handleGroupHidden() {
+  handleGroupIsHidden(hidden: boolean) {
     this.collectGroupRefs.forEach(groupRef => {
-      if (groupRef && typeof groupRef.handleGroupHidden === 'function') {
-        groupRef.handleGroupHidden();
+      if (groupRef && typeof groupRef.handleGroupIsHidden === 'function') {
+        groupRef.handleGroupIsHidden(hidden);
       }
     });
   }

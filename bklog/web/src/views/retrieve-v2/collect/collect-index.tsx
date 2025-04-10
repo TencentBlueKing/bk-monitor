@@ -155,6 +155,9 @@ export default class CollectIndex extends tsc<IProps> {
   // 勾选是否查看当前索引集
   isShowCurrentIndexList = 'yes';
 
+  // 是否隐藏收藏
+  isHidden = false;
+
   @Ref('popoverGroup') popoverGroupRef: Popover;
   @Ref('popoverSort') popoverSortRef: Popover;
   @Ref('collectContainer') collectContainerRef: CollectContainer;
@@ -329,6 +332,8 @@ export default class CollectIndex extends tsc<IProps> {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
     try {
       this.favoriteLoading = true;
+      // 收藏列表更新时默认是展开的
+      this.isHidden = false;
       await this.$store.dispatch('requestFavoriteList');
     } catch (err) {
       this.favoriteLoading = false;
@@ -793,9 +798,10 @@ export default class CollectIndex extends tsc<IProps> {
   handleCollapse() {
     this.isShowCollect = !this.isShowCollect;
   }
-  // 折叠收藏夹文件全部收起
-  handleGroupHidden() {
-    this.collectContainerRef.handleGroupHidden();
+  // 折叠收藏夹文件全部收起或全部展开
+  handleGroupIsHidden() {
+    this.isHidden = !this.isHidden;
+    this.collectContainerRef.handleGroupIsHidden(this.isHidden);
   }
 
   handleFavoriteSetttingClick() {
@@ -939,9 +945,9 @@ export default class CollectIndex extends tsc<IProps> {
                 </Popover>
                 <span
                   style={{ fontSize: '16px' }}
-                  class='bklog-icon bklog-shouqi'
-                  v-bk-tooltips={this.$t('全部收起')}
-                  onClick={() => this.handleGroupHidden()}
+                  class={`bklog-icon ${!this.isHidden ? 'bklog-zhankai-2' : 'bklog-shouqi'}`}
+                  v-bk-tooltips={this.$t(`${!this.isHidden ? '全部收起' : '全部展开'}`)}
+                  onClick={() => this.handleGroupIsHidden()}
                 ></span>
                 <Popover
                   ref='popoverSort'
