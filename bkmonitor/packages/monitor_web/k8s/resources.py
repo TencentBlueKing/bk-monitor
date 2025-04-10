@@ -312,8 +312,8 @@ class GetResourceDetail(Resource):
             ],
             "expression": "",
             "alias": "result",
-            "start_time": time.time() - 3600,
-            "end_time": time.time(),
+            "start_time": int(time.time()) - 3600,
+            "end_time": int(time.time()),
             "slimit": 10001,
             "down_sample_range": "",
         }
