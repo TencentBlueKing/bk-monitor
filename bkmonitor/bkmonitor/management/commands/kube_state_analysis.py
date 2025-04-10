@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Dict, List
 
-import arrow
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils.translation import gettext as _
@@ -36,8 +35,7 @@ doc = """
     处理方案：
         - 修改数据库，将这两个内置策略的query_config内容替换为正确的promql查询语句。
         - 判断条件：
-            - 如果没更新过，则对query_config进行替换。
-            - 如果曾经被修改过，但是未修改query_config，则对query_config进行替换。
+            - 未修改query_config，则对query_config进行替换。
         - 最后输出被修改过query_config的策略的相关信息，待人工处理。
 
     处理步骤：
@@ -224,6 +222,8 @@ class QueryConfigProcessor:
         qc = {key: self[key] for key in default_query_config.keys()}
         # 对列表进行排序，使得顺序一致
         self.handle_list(qc)
+        print(self["strategy_id"], qc, "\n", default_query_config)
+        print(qc == default_query_config)
         return qc == default_query_config
 
 
@@ -286,24 +286,17 @@ def kube_state_metrics_analysis(preview=True):
     query_configs_to_update = []
     items_to_update = []
 
-    time_delta = 1 * 60  # 1分钟
-
     for strategy in strategies:
         try:
-            create_time = arrow.get(strategy.create_time).timestamp
-            update_time = arrow.get(strategy.update_time).timestamp
-
-            # 被更新过,如果创建时间和更新时间相差大于1分钟，则认为被更新过
-            modified = abs(create_time - update_time) > time_delta
-
             promql = None
             related_item_ids = set()  # 关联的监控项ID
             not_handle_qc_ids = []  # 未处理的query_config ID
             for qc in query_configs_mapping[strategy.id]:
                 default_qc = promql_mapping[qc.config.get("metric_field")]["default_query_configs"]
 
-                # 更新过，但是没有更改query_config，则不处理
-                if modified and not QueryConfigProcessor(qc).is_same_query_config(default_qc):
+                # 有更改query_config，则不处理
+                if not QueryConfigProcessor(qc).is_same_query_config(default_qc):
+                    print(f"不处理{strategy.id}")
                     not_handle_qc_ids.append(qc.id)
                     continue
 
@@ -357,3 +350,16 @@ def kube_state_metrics_analysis(preview=True):
         ItemModel.objects.bulk_update(items_to_update, fields=["origin_sql"])
 
     print("\n执行结束\n")
+
+
+# 回滚
+from bkmonitor.models import QueryConfigModel, StrategyHistoryModel
+from bkmonitor.strategy.new_strategy import Strategy
+
+
+def rollback(strategy_id):
+    record = StrategyHistoryModel.objects.filter(strategy_id=strategy_id).first()
+    s = Strategy(**record.content)
+    s.id = strategy_id
+    print(QueryConfigModel.objects.filter(strategy_id=strategy_id).delete())
+    s.save()
