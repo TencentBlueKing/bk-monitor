@@ -35,7 +35,7 @@
       type: Boolean,
     },
   });
-  const emit = defineEmits(['refresh', 'saveCurrentActiveFavorite']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -283,7 +283,7 @@
     } catch (error) {}
   };
   const saveCurrentFavorite = () => {
-    emit('saveCurrentActiveFavorite');
+    emit('save-current-active-favorite');
   };
   // 提交表单校验
   const handleSubmitFormData = () => {

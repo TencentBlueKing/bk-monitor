@@ -27,8 +27,6 @@
 import { Component, Prop, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Popover } from 'bk-magic-vue';
-
 import { utcFormatDate } from '../../../common/util';
 import { IGroupItem, IFavoriteItem } from './collect-index';
 import GroupDropdown from './component/group-dropdown';
@@ -154,8 +152,8 @@ export default class CollectGroup extends tsc<ICollectProps> {
     return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
   }
 
-  handleGroupHidden() {
-    this.isHiddenList = true;
+  handleGroupIsHidden(hidden: boolean) {
+    this.isHiddenList = hidden;
   }
   render() {
     const groupDropdownSlot = groupName => {

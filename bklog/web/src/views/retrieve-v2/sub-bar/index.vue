@@ -18,7 +18,7 @@
   import MoreSetting from './more-setting.vue';
   import RetrieveSetting from './retrieve-setting.vue';
   import WarningSetting from './warning-setting.vue';
-
+  import { bkMessage } from 'bk-magic-vue';
   const props = defineProps({
     showFavorites: {
       type: Boolean,
@@ -143,7 +143,14 @@
    * @description: 打开 索引集配置 抽屉页
    */
   function handleIndexConfigSliderOpen() {
-    fieldSettingRef.value?.handleShowSlider?.();
+    if(isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value){
+      fieldSettingRef.value?.handleShowSlider?.();
+    }else{
+      bkMessage({
+        theme: 'primary',
+        message: '第三方ES、计算平台索引集类型不支持自定义分词',
+      });
+    }
   }
 </script>
 <template>

@@ -537,6 +537,10 @@
         &:hover .delete {
           display: block;
         }
+
+        .delete:hover {
+          color: #979ba5;
+        }
       }
 
       .sort-icon {
@@ -574,8 +578,8 @@
       height: 51px;
       padding: 0 24px;
       background-color: #fafbfd;
-      border-radius: 0 0 2px 2px;
       border: 1px solid #dcdee5;
+      border-radius: 0 0 2px 2px;
     }
   }
 

@@ -27,7 +27,6 @@
 <template>
   <div
     class="bklog-column-wrapper"
-    v-bk-tooltips="{ content: $t('查看调用链'), delay: 500 }"
   >
     <template v-if="isJsonFormat">
       <JsonFormatter

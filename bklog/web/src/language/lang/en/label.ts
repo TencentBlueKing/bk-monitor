@@ -760,6 +760,7 @@ export default {
   '搜索 字段名': 'Search field name',
   新建收藏分组: 'Create a new collection group',
   全部收起: 'Collapse all',
+  全部展开: 'Expand all',
   '仅个人可见)': 'Visible only to me)',
   调整排序: 'Adjust sorting',
   日志告警测试: 'Log alarm test',
@@ -777,4 +778,5 @@ export default {
   '请选择 或 输入': 'Please select or enter',
   展示: 'Show',
   创建告警策略: 'Create Alert Policy',
+  字段名称设置: 'Field name settings',
 };
