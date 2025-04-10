@@ -796,7 +796,7 @@ export default class AiopsContainer extends tsc<IProps> {
                         key={item.key}
                         class={['ellipsis-item', { active: this.currentModeConfig[config.name] === item.key }]}
                         v-bk-tooltips={{
-                          content: item.tips,
+                          content: this.$t(item.tips),
                         }}
                         onClick={e => {
                           e.stopPropagation();
