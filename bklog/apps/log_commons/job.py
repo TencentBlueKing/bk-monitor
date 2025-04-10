@@ -64,6 +64,7 @@ class JobHelper:
             "task_name": task_name,
             "target_server": target_server,
             "timeout": timeout,
+            "operator": bk_username,
         }
         if script_param:
             kwargs["script_param"] = script_param
