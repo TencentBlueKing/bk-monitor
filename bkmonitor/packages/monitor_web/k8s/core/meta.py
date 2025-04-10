@@ -111,10 +111,10 @@ class NetworkWithRelation:
             if r_filter.resource_type != "pod":
                 label_filters.add(r_filter)
 
-        return f"""count by ((bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
+        return f"""(count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
             (ingress_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}}) * 0 + 1)
             * on (namespace, service) group_left(pod)
-            (count by (service, namespace, pod) (pod_with_service_relation) * 0 + 1)
+            (count by (service, namespace, pod) (pod_with_service_relation))
             * on (namespace, pod) group_left()"""
 
     def clean_metric_name(self, metric_name):
@@ -464,9 +464,9 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_cpu_system_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -481,9 +481,9 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_cpu_system_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -498,9 +498,9 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -515,9 +515,9 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -697,16 +697,6 @@ class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"ingress": "name"}
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
-        """
-                promql示例:
-                sum by (ingress, namespace) (count by (ingress, namespace, service, pod)
-                (ingress_with_service_relation{ingress="bkunifyquery-test"})
-                * on (namespace, service) group_left(pod)
-                 (count by (service, namespace, pod)(pod_with_service_relation))
-                * on (namespace, pod) group_left(ingress)
-                sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total[1m])[1m:]))
-        )
-        """
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""sum by (ingress, namespace) ({self.label_join(exclude)}
@@ -792,9 +782,9 @@ class K8sWorkloadMeta(K8sResourceMeta):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
-    (count by (workload_kind, workload_name, namespace, pod_name) (
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -809,9 +799,9 @@ class K8sWorkloadMeta(K8sResourceMeta):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
-    (count by (workload_kind, workload_name, namespace, pod_name) (
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -826,9 +816,9 @@ class K8sWorkloadMeta(K8sResourceMeta):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -843,9 +833,9 @@ class K8sWorkloadMeta(K8sResourceMeta):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
-    (count by (workload_kind, workload_name, pod_name, namespace) (
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
@@ -936,9 +926,9 @@ class K8sContainerMeta(K8sResourceMeta):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
@@ -953,9 +943,9 @@ class K8sContainerMeta(K8sResourceMeta):
             self.meta_prom_with_container_cpu_usage_seconds_total
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
@@ -970,9 +960,9 @@ class K8sContainerMeta(K8sResourceMeta):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
@@ -987,9 +977,9 @@ class K8sContainerMeta(K8sResourceMeta):
             self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_memory_working_set_bytes{{{self.filter.filter_string()}}}
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
