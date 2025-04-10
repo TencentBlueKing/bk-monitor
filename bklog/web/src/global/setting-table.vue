@@ -905,14 +905,7 @@
         return new Promise((resolve, reject) => {
           try {
             let result = true;
-            const data = this.tableAllList
-            data.forEach(field => {
-              if (field.hasOwnProperty('expand')) {
-                if (field.expand === false) {
-                  data.push(...field.children)
-                } 
-              }
-            })
+            const data = this.getAllData();
             data.forEach(row => {
               if (!this.checkQueryAliasItem(row)) {
                 result = false;
