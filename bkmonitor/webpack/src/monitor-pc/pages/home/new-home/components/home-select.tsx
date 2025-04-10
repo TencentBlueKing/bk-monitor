@@ -135,12 +135,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
-    // bus.$on('handle-keyup-nav', this.handleKeyupNav);
+    bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
-    // bus.$off('handle-keyup-nav', this.handleKeyupNav);
+    bus.$off('handle-keyup-nav', this.handleKeyupNav);
   }
   /** 按下'/'，搜索框自动聚焦 */
   handleKeyupNav(e: KeyboardEvent) {

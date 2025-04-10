@@ -333,15 +333,15 @@ export default class IndicatorTableSlide extends tsc<any> {
                       header:
                         key === 'unit'
                           ? () => (
-                              <bk-popover
-                                ref='metricSliderPopover'
-                                placement='bottom-start'
-                                tippyOptions={{ appendTo: 'parent' }}
-                              >
-                                {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
-                                {this.renderUnitConfigPopover()}
-                              </bk-popover>
-                            )
+                            <bk-popover
+                              ref='metricSliderPopover'
+                              placement='bottom-start'
+                              tippyOptions={{ appendTo: 'parent' }}
+                            >
+                              {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
+                              {this.renderUnitConfigPopover()}
+                            </bk-popover>
+                          )
                           : null,
                     }}
                     label={this.$t(config.label)}

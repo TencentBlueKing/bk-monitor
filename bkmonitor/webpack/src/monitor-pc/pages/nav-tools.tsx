@@ -147,15 +147,15 @@ class NavTools extends DocumentLinkMixin {
     ];
   }
   mounted() {
-    // document.addEventListener('keydown', this.handleKeyupSearch);
+    document.addEventListener('keydown', this.handleKeyupSearch);
     bus.$on(HANDLE_SHOW_SETTING, this.handleShowSetting);
-    // bus.$on('handle-keyup-search', this.handleKeyupSearch);
+    bus.$on('handle-keyup-search', this.handleKeyupSearch);
     bus.$on(HANDLE_MENU_CHANGE, this.handleSet);
     window.addEventListener('blur', this.hidePopoverSetOrHelp);
   }
   beforeDestroy() {
-    // document.removeEventListener('keydown', this.handleKeyupSearch);
-    // bus.$off('handle-keyup-search', this.handleKeyupSearch);
+    document.removeEventListener('keydown', this.handleKeyupSearch);
+    bus.$off('handle-keyup-search', this.handleKeyupSearch);
     bus.$off(HANDLE_MENU_CHANGE, this.handleSet);
     window.removeEventListener('blur', this.hidePopoverSetOrHelp);
   }
