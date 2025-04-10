@@ -99,7 +99,7 @@ class GetJobListResource(GetJobPlanListResource):
     def perform_request(self, params):
         result = super().perform_request(params)
         for plan in result:
-            plan["bk_job_id"] = plan.pop("id")
+            plan["bk_job_id"] = plan["id"]
         return result
 
 
