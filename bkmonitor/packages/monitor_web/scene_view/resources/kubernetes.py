@@ -1310,8 +1310,11 @@ class GetKubernetesNode(ApiAuthResource):
         item.update_monitor_status(params)
 
     def perform_request(self, params: Dict) -> List[Dict]:
-        ip = params.pop("node_ip")
-        params["ip"] = ip
+        if params.get("node_ip"):
+            params["ip"] = params.pop("node_ip")
+        if params.get("node_name"):
+            params["name"] = params.pop("node_name")
+
         item = BCSNode.load_item(params)
         if item:
             self.refresh_monitor_status(item)
