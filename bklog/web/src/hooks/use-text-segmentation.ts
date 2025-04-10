@@ -42,6 +42,7 @@ export type WordListItem = {
   text: string;
   isMark: boolean;
   isCursorText: boolean;
+  isBlobWord?: boolean;
   startIndex?: number;
   endIndex?: number;
   left?: number;
@@ -92,7 +93,7 @@ export default class UseTextSegmentation {
 
   getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      this.handleSegmentClick(e.target, (e.target as HTMLElement).innerHTML);
+      this.handleSegmentClick(e.target, (e.target as HTMLElement).textContent);
     }
   }
 

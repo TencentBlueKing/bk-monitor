@@ -533,6 +533,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
         # 新版自定义时序灰度业务列表
         ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
+        # 事件中心AIOps功能灰度业务列表
+        ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]
 )
 

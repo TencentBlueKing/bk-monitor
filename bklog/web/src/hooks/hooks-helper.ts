@@ -123,15 +123,30 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
 
   if (processedLength < str.length) {
     const remaining = str.slice(processedLength);
-    const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
 
-    for (let i = 0; i < chunkCount; i++) {
-      tokens.push({
-        text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-        isMark: false,
-        isCursorText: false,
-        isBlobWord: true,
-      });
+    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
+    for (const segment of segments) {
+      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
+      const isMark = MARK_REGEX.test(segment);
+      const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
+
+      if (isMark) {
+        tokens.push({
+          text: segment.replace(MARK_REGEX, '$1'),
+          isMark: true,
+          isCursorText: false,
+          isBlobWord: false,
+        });
+      } else {
+        for (let i = 0; i < chunkCount; i++) {
+          tokens.push({
+            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+            isMark: false,
+            isCursorText: false,
+            isBlobWord: true,
+          });
+        }
+      }
     }
   }
 

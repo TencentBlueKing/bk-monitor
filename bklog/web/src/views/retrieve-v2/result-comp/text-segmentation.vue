@@ -215,6 +215,7 @@
       &.segment-content {
         span {
           font: var(--bklog-v3-row-ctx-font);
+          white-space: pre-line;
         }
 
         .btn-more-action {

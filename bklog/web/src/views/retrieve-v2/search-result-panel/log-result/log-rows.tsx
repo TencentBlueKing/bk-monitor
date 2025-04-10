@@ -344,6 +344,10 @@ export default defineComponent({
           const config: RowConfig = tableRowConfig.get(row).value;
 
           const hanldeExpandClick = event => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
             config.expand = !config.expand;
             nextTick(() => {
               if (config.expand) {
@@ -608,11 +612,13 @@ export default defineComponent({
 
     const expandOption = {
       render: ({ row }) => {
+        const config = tableRowConfig.get(row);
         return (
           <ExpandView
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
+            row-index={config[ROW_INDEX]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) =>
               handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
@@ -966,6 +972,19 @@ export default defineComponent({
       );
     };
 
+    const isFieldSettingShow = computed(() => {
+      return !store.getters.isUnionSearch && !isExternal.value;
+    });
+
+    const hasCollectorConfigId = computed(() => {
+      const indexSetList = store.state.retrieve.indexSetList;
+      const indexSetId = route.params?.indexId;
+      const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+      return currentIndexSet?.collector_config_id;
+    });
+
+    const isExternal = computed(() => store.state.isExternal);
+    
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
         return;
@@ -1101,8 +1120,12 @@ export default defineComponent({
     const onRootClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      if (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) {
-        const index = parseInt(target.getAttribute('data-row-index'), 10);
+      if (
+        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
+        !(target?.classList.contains('segment-content') || target?.parentElement?.classList.contains('segment-content'))
+      ) {
+        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
+        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
 
         if (index >= 0) {
           const { item } = renderList[index] ?? {};
@@ -1120,7 +1143,14 @@ export default defineComponent({
     };
 
     const openConfiguration = () => {
-      RetrieveHelper.setIndexConfigOpen(true);
+      if(isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value){
+        RetrieveHelper.setIndexConfigOpen(true);
+      }else{
+        bkMessage({
+          theme: 'primary',
+          message: '第三方ES、计算平台索引集类型不支持自定义分词',
+        });
+      }
     };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();

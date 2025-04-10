@@ -104,6 +104,9 @@
         type: Array,
         require: true,
       },
+      rowIndex: {
+        type: Number,
+      },
     },
     data() {
       return {
@@ -126,11 +129,17 @@
             return sortA.localeCompare(sortB);
           });
       },
+      jsonList() {
+        if (this.rowIndex === undefined) {
+          return this.listData ?? this.data;
+        }
+
+        return this.$store.state.indexSetQueryResult?.origin_log_list?.[this.rowIndex] ?? this.listData ?? this.data;
+      },
       jsonShowData() {
         return this.kvListData.reduce((pre, cur) => {
-          const showTableData = cur.field_type === '__virtual__' ? this.listData : this.data;
           const fieldName = getFieldNameByField(cur, this.$store);
-          pre[fieldName] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
+          pre[fieldName] = this.tableRowDeepView(this.jsonList, cur.field_name, cur.field_type) ?? '';
           return pre;
         }, {});
       },

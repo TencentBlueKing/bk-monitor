@@ -37,7 +37,7 @@ import { format } from 'sql-formatter';
 
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
-
+import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import './index.scss';
 
 export default defineComponent({
@@ -280,6 +280,8 @@ export default defineComponent({
 
       sqlPreviewHeight.value = refSqlPreviewElement.value.offsetHeight;
     });
+
+    RetrieveHelper.on(RetrieveEvent.SEARCH_BTN_CLICK, debounceQuery);
 
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 

@@ -20,6 +20,8 @@
       font-size: 12px;
       line-height: 40px;
       color: #979BA5;
+      color: #979ba5;
+      font-size: 12px;
     }
   }
 
@@ -335,6 +337,15 @@
         z-index: 1;
         padding: 0;
       }
+
+      &::before {
+        content: '';
+        min-width: 3.09px;
+        height: 100%;
+        background-color: #fafbfd;
+        position: sticky;
+        left: 0;
+      }
     }
 
     &:not(.row-header) {
@@ -345,13 +356,10 @@
         background-color: #fafbfd;
 
         .bklog-row-ai {
-          z-index: 3;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          opacity: 1;
-          transition: opacity 0.3s;
+          img {
+            opacity: 1;
+            transition: opacity 0.3s;
+          }
         }
       }
 
@@ -362,7 +370,7 @@
         min-width: 3.09px;
         margin: 1px 0;
         content: '';
-        background: #f59789;
+        background: transparent;
         border-radius: 0 1px 1px 0;
       }
 

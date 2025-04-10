@@ -49,31 +49,12 @@
     activeFavorite.value = val;
   });
 
-  const getDefaultActiveIndex = () => {
-    if (route.query.search_mode) {
-      return queryParams.findIndex(m => m === route.query.search_mode);
-    }
-
-    if (route.query.keyword?.length) {
-      return 1;
-    }
-
-    // addition 是一个json字符串，解析出来之后至少为 [{'field': ''}], 所以这里判定长度至少 包含 '[{}]'
-    if (route.query.addition?.length > 4) {
-      return 0;
-    }
-
-    return Number(localStorage.getItem('bkLogQueryType') ?? 0);
-  };
-
   const inspectResponse = ref({
     is_legal: true,
     is_resolved: true,
     keyword: '',
     message: '',
   });
-
-  const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -88,6 +69,8 @@
       offset: [0, 10],
     },
   });
+
+  const activeIndex = computed(() => store.state.storage.searchType);
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
@@ -158,31 +141,6 @@
     { immediate: true, deep: true },
   );
 
-  watch(searchMode, () => {
-    const idex = queryParams.findIndex(m => m === searchMode.value);
-    if (idex >= 0) {
-      activeIndex.value = idex;
-    }
-  });
-
-  watch(
-    activeIndex,
-    () => {
-      store.commit('updateIndexItemParams', {
-        search_mode: queryParams[activeIndex.value],
-      });
-
-      router.replace({
-        params: { ...route.params },
-        query: {
-          ...(route.query ?? {}),
-          search_mode: queryParams[activeIndex.value],
-        },
-      });
-    },
-    { immediate: true },
-  );
-
   const setRouteParams = () => {
     const query = { ...route.query };
 
@@ -243,10 +201,12 @@
           }
         });
 
+        RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
         return;
       }
 
       getBtnQueryResult();
+      RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
     }
   };
 
@@ -302,9 +262,24 @@
   };
 
   const handleQueryTypeChange = () => {
-    activeIndex.value = activeIndex.value === 0 ? 1 : 0;
-    localStorage.setItem('bkLogQueryType', activeIndex.value);
+    store.commit('updateStorage', { searchType: activeIndex.value === 0 ? 1 : 0 });
+    store.commit('updateIndexItemParams', {
+      search_mode: queryParams[activeIndex.value],
+    });
+
+    router.replace({
+      params: { ...route.params },
+      query: {
+        ...(route.query ?? {}),
+        search_mode: queryParams[activeIndex.value],
+      },
+    });
+
+    if (addition.value.length > 0 || (keyword.value !== '*' && keyword.value !== '')) {
+      handleBtnQueryClick();
+    }
   };
+
   const sourceSQLStr = ref('');
   const sourceUISQLAddition = ref([]);
   const initSourceSQLStr = (params, search_mode) => {
@@ -314,6 +289,7 @@
       sourceSQLStr.value = params?.keyword ?? '';
     }
   };
+
   watch(
     () => activeFavorite.value?.id,
     () => {

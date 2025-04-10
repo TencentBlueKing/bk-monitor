@@ -426,18 +426,27 @@
       min-height: 24px;
       padding-left: 8px;
 
-      &:hover {
-        cursor: pointer;
-        background-color: #f0f1f5;
-
-        .field-text,
-        .field-value {
-          /* stylelint-disable-next-line declaration-no-important */
-          color: #498eff !important;
-          text-decoration: underline; /* 悬停时添加下划线 */
-          text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+      .field-value {
+        :deep(.valid-text) {
+          &:hover {
+            text-decoration: underline; /* 悬停时添加下划线 */
+            text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+          }
         }
       }
+
+      // &:hover {
+      //   cursor: pointer;
+      //   background-color: #f0f1f5;
+
+      //   .field-text,
+      //   .field-value {
+      //     /* stylelint-disable-next-line declaration-no-important */
+      //     color: #498eff !important;
+      //     text-decoration: underline; /* 悬停时添加下划线 */
+      //     text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+      //   }
+      // }
 
       .field-label {
         display: flex;

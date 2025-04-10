@@ -4901,6 +4901,15 @@ class CollectorHandler(object):
         return_data["scope"] = scope_data
         return return_data
 
+    def update_alias_settings(self, alias_settings):
+        """
+        修改别名配置
+        """
+        from apps.log_databus.tasks.collector import update_alias_settings
+
+        update_alias_settings.delay(self.collector_config_id, alias_settings)
+        return
+
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:
     """

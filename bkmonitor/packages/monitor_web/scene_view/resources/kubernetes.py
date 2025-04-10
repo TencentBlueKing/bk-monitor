@@ -1243,6 +1243,7 @@ class GetKubernetesNode(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
         node_ip = serializers.CharField(required=False, allow_null=True)
+        node_name = serializers.CharField(required=False, allow_null=True)
 
     @staticmethod
     def get_performance_data(bk_biz_id, bcs_cluster_id):

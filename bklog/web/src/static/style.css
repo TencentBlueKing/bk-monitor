@@ -662,3 +662,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-object-2:before {
 	content: "\e204";
 }
+.bklog-ai-mofabang:before {
+	content: "\e207";
+}
+.bklog-consola:before {
+	content: "\e208";
+}

@@ -121,6 +121,7 @@
         class="handle-card ai-assistant bklog-row-ai"
         @click.stop="e => handleCheckClick('ai', true, e)"
       >
+        <span class="bklog-icon bklog-ai-mofabang"></span>
         <img :src="aiImageUrl" />
       </span>
     </template>
@@ -244,11 +245,17 @@
       }
 
       &.ai-assistant {
-        opacity: 0;
+        position: relative;
 
         img {
           width: 20px;
           height: 20px;
+          opacity: 0;
+          background-color: #fff;
+          position: absolute;
+          top: 0;
+          left: 0;
+          cursor: pointer;
         }
       }
     }

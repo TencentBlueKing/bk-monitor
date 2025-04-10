@@ -203,7 +203,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   /** 是否需要展示右侧的AI相关的视图 */
   get isShowAiopsView() {
-    return !!(window as any).enable_aiops;
+    return window.enable_aiops_event_center_biz_list?.some?.(id => +id === +this.bkBizId);
   }
 
   /* 权限校验 */
@@ -614,11 +614,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   /** 判断当前是否需要展示AI相关的内容，需要的话则左右布局，并支持拖拽拉伸 */
 
   renderLayoutContent() {
+    if (this.isLoading) return undefined;
     if (this.isShowAiopsView) {
       return (
         <bk-resize-layout
           class='detail-resize-view'
           auto-minimize={true}
+          collapsible={true}
           initial-divide={500}
           max={660}
           min={480}

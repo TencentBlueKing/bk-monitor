@@ -330,10 +330,10 @@ class ModifyResultTableResource(Resource):
 
     def perform_request(self, request_data):
         table_id = request_data.pop("table_id")
-        query_alias_settings = request_data.pop("query_alias_settings", [])
+        query_alias_settings = request_data.pop("query_alias_settings", None)
         operator = request_data.get("operator", None)
 
-        if query_alias_settings:
+        if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
             try:
                 logger.info(
                     "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],"

@@ -187,6 +187,9 @@ export const getStorageOptions = () => {
 
       // start | end | center
       textEllipsisDir: 'end',
+
+      // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
+      searchType: 0,
     },
     storage,
   );

@@ -1268,8 +1268,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
-            {
-              this.type === 'customTimeSeries' ? (
+            <div class='custom-detail-page-table'>
+              {this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
                   allCheckValue={this.allCheckValue}
@@ -1312,8 +1312,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
-              ) : undefined /* TODO[自定义事件]  */
-            }
+              ) : undefined}
+            </div>
           </div>
           {/* <!-- 展开内容 --> */}
           <div class={['right-window', this.isShowRightWindow ? 'active' : '']}>
@@ -1459,7 +1459,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {this.metricTable.length > 0 && (
+        {
           <IndicatorTableSlide
             autoDiscover={this.autoDiscover}
             cycleOption={this.cycleOption}
@@ -1470,15 +1470,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             onHidden={v => (this.isShowMetricSlider = v)}
             onSaveInfo={this.handleSaveSliderInfo}
           />
-        )}
-        {this.dimensions.length > 0 && (
+        }
+        {
           <DimensionTableSlide
             dimensionTable={this.dimensions}
             isShow={this.isShowDimensionSlider}
             onHidden={v => (this.isShowDimensionSlider = v)}
             onSaveInfo={this.handleSaveSliderInfo}
           />
-        )}
+        }
       </div>
     );
   }

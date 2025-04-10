@@ -114,13 +114,10 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   // 默认需要展示的柱子数量
   const barCount = 60;
   const intervals: [string, number][] = [
-    ['1d', 86400],
-    ['1h', 3600],
-    ['5m', 300],
-    ['1m', 60],
-    ['30s', 30],
-    ['5s', 5],
-    ['1s', 1],
+    ['d', 86400],
+    ['h', 3600],
+    ['m', 60],
+    ['s', 1],
   ];
 
   const setRunnningInterval = () => {
@@ -136,9 +133,10 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const duration = (end_time - start_time) / 1000;
 
     for (const [name, seconds] of intervals) {
-      const segments = Math.ceil(duration / seconds);
+      const segments = Math.floor(duration / seconds);
       if (segments >= barCount) {
-        runningInterval = name;
+        const interval = Math.floor(duration / barCount);
+        runningInterval = `${interval >= 1 ? interval : 1}${name}`;
         return name;
       }
     }
