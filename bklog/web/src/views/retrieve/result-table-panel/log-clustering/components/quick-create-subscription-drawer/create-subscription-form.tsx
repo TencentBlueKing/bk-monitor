@@ -801,6 +801,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   error-display-type='normal'
                   label={this.$t('最大展示数量')}
                   property='scenario_config__log_display_count'
+                  style='margin-top: 20px;'
                   required
                 >
                   <bk-input
