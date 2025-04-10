@@ -518,6 +518,7 @@ export default class AiopsContainer extends tsc<IProps> {
         key='metricsView'
         ref='metricsView'
         info={this.tabData.index?.info || {}}
+        type={this.tabActive}
         metricRecommendationErr={isDimension ? this.dimensionDrillDownErr : this.metricRecommendationErr}
         metricRecommendationLoading={isDimension ? this.dimensionDrillDownLoading : this.metricRecommendationLoading}
         panelMap={this.panelMap}

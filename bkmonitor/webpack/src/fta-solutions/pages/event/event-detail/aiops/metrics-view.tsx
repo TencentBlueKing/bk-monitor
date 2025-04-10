@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -46,6 +46,7 @@ interface IProps {
   info?: IInfo;
   metricRecommendationErr?: string;
   metricRecommendationLoading: boolean;
+  type?: string;
 }
 interface IMetrics {
   metric_name?: string;
@@ -73,6 +74,8 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) info: IInfo;
   /** panel 数据 */
   @Prop({ type: Object, default: () => {} }) panelMap: IPanelMap;
+
+  @Prop({ type: String, default: '' }) type: string;
   /** 关联指标是否展示中 */
   @InjectReactive('isCorrelationMetrics') isCorrelationMetrics: boolean;
   // 视图变量
@@ -81,6 +84,8 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 指标布局列
   @ProvideReactive('layoutActive') layoutActive = 0;
+
+  @Inject('currentModeConfig') currentModeConfig: {};
 
   loading = false;
   /** 关联指标是否触发吸附 */
@@ -98,10 +103,11 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
     const len = this.panelMap?.dimensionPanels?.length || 3;
     return len > 3 ? 3 : len;
   }
-  // @Watch('info')
-  // handleChangePanelInfo() {
-  //   this.layoutActive = this.info.default_column > 1 ? 2 : 0;
-  // }
+
+  /** 是否为后位省略 */
+  get isBackEllipsis() {
+    return this.currentModeConfig[this.type] === 'back';
+  }
   /** 指标加载全部 */
   handleLoadPanels(panel) {
     panel.showMore = false;
@@ -164,6 +170,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       <div class='panel-warp'>
         {item.panels?.length > 0 ? (
           <DashboardPanel
+            class={this.isBackEllipsis ? 'metrics-view-aiops' : ''}
             id={item.metric_name}
             key={item.metric_name}
             column={props.column}
