@@ -346,6 +346,13 @@ class ClusteringMonitorHandler(object):
             .first()
         )
 
+        if remark_obj.strategy_id:
+            conditions = [{"key": "strategy_id", "value": [remark_obj.strategy_id]}]
+            result_data = MonitorApi.search_alarm_strategy_v3({"bk_biz_id": self.bk_biz_id, "conditions": conditions})
+            if not result_data["strategy_config_list"]:
+                remark_obj.strategy_id = 0
+                remark_obj.save()
+
         # 启动告警
         if params["strategy_enabled"]:
             # 不存在责任人
@@ -431,8 +438,10 @@ class ClusteringMonitorHandler(object):
             }
         ]
 
-        # 告警组不存在
-        if not remark_obj.notice_group_id:
+        notice_group = MonitorApi.search_user_groups(
+            {"bk_biz_ids": [self.bk_biz_id], "ids": [remark_obj.notice_group_id]}
+        )
+        if not notice_group:
             log_index_set = LogIndexSet.objects.filter(index_set_id=label_index_set_id).first()
             group_name = _("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id)
             group = MonitorUtils.save_notice_group(

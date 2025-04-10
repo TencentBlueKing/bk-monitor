@@ -116,7 +116,6 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
-    console.log(appName);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
@@ -724,7 +723,7 @@ export default defineComponent({
           needCancel: true,
         }
       ).catch(() => null);
-      profilingFlameGraph.value = data?.flame_data || null;
+      profilingFlameGraph.value = data?.flame_data || [];
     }
 
     /* 折叠 */
@@ -1455,7 +1454,9 @@ export default defineComponent({
                                 serviceName={serviceNameProvider.value}
                                 start={profilingRerieveStartTime}
                                 textDirection={ellipsisDirection.value}
-                                onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                                onUpdate:loading={val => {
+                                  isTabPanelLoading.value = val;
+                                }}
                               />
                             ) : (
                               <div class='exception-guide-wrap'>

@@ -100,7 +100,6 @@ if (hasRouteHash) {
         window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-        window.enable_aiops_event_center_biz_list = [2, 10];
         const bizId = setGlobalBizId();
         if (bizId === false) return;
         // document.title = window.page_title;

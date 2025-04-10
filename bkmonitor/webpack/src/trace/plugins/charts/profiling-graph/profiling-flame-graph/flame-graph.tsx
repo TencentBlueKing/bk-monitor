@@ -143,6 +143,11 @@ export default defineComponent({
         isCompared: localIsCompared.value,
       });
     }
+    function hiddenLoading() {
+      nextTick(() => {
+        emit('update:loading', false);
+      });
+    }
     watch(
       [() => props.data, () => props.appName],
       debounce(16, async () => {
@@ -178,7 +183,10 @@ export default defineComponent({
             }
             showException.value = false;
             await nextTick();
-            if (!chartRef.value?.clientWidth) return;
+            if (!chartRef.value?.clientWidth) {
+              hiddenLoading();
+              return;
+            }
             localIsCompared.value = props.isCompared;
             showException.value = false;
             profilingData.value = recursionData(data);
@@ -234,18 +242,18 @@ export default defineComponent({
                 contextMenuRect.value = { left: params.event.offsetX, top: params.event.offsetY };
                 showContextMenu.value = true;
               });
-              emit('update:loading', false);
+              hiddenLoading();
             }, 16);
             nextTick(() => {
-              emit('update:loading', false);
+              hiddenLoading();
             });
             return;
           }
           showException.value = true;
-          emit('update:loading', false);
+          hiddenLoading();
         } catch (e) {
-          console.error(e);
-          emit('update:loading', false);
+          console.warn(e);
+          hiddenLoading();
           showException.value = true;
         }
       }),

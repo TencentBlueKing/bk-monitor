@@ -195,7 +195,7 @@ export default class MultipleMetricView extends tsc<IProps> {
           >
             <ChartWrapper
               needCheck={false}
-              needHoverStryle={false}
+              needHoverStyle={false}
               panel={panel}
             />
           </div>

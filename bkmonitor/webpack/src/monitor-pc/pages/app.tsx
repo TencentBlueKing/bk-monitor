@@ -79,7 +79,7 @@ const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
-const NEW_USER_GUIDE_KEY = 'NEW_UER_GUIDE_KEY_1';
+const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
@@ -252,7 +252,7 @@ export default class App extends tsc<object> {
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;
-    const value = await userConfigModal.handleGetUserConfig<string[]>(NEW_USER_GUIDE_KEY);
+    const value = await userConfigModal.handleGetUserConfig<string[]>(NEW_UER_GUDE_KEY);
     this.needNewUserGuide = !value;
   }
   mounted() {
@@ -558,7 +558,7 @@ export default class App extends tsc<object> {
   }
   handleNoticeDone() {
     // NEW_UER_GUIDE_KEY新手指引字段存储到后台
-    userConfigModal.handleSetUserConfig(NEW_USER_GUIDE_KEY, JSON.stringify(['done']));
+    userConfigModal.handleSetUserConfig(NEW_UER_GUDE_KEY, JSON.stringify(['done']));
   }
   handleHeaderNavClick(id: string) {
     this.headerNavChange = PATCH_ROUTES.includes(this.$route.name) ? true : this.headerNav !== id;

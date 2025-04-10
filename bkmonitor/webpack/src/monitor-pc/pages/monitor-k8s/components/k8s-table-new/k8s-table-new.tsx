@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit, Watch, InjectReactive, Inject } from 'vue-property-decorator';
+import { Prop, Component, Emit, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
+import { bkMessage, makeMessage } from 'monitor-api/utils';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -161,6 +162,7 @@ const tableMetricCategoryForNameMap = {
 };
 const SCROLL_CONTAINER_DOM = '.bk-table-body-wrapper';
 const DISABLE_TARGET_DOM = '.bk-table-body';
+const TABLE_ROW_MIN_HEIGHT = 42;
 
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
@@ -176,6 +178,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   static getWorkloadValue(columnKey: K8sTableColumnResourceKey, index: 0 | 1) {
     return row => (row?.[columnKey] as string)?.split(':')?.[index] || '--';
   }
+
+  @Ref('tableViewportContainer') tableViewportContainer: HTMLElement;
 
   /** 当前页面 tab */
   @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
@@ -580,6 +584,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   debounceGetK8sList() {
     this.getK8sList({ needRefresh: true });
   }
+
+  /**
+   * @description 计算滚动边界（兼容屏幕过大，或dpr过小，显示记录条数不足以显示滚动条从而无法触发触底滚动逻辑的场景）
+   * @returns {number} page 保证能够触发触底加载逻辑的最低页数
+   */
+  calculateRollingBoundary() {
+    if (!this.tableViewportContainer) {
+      return 1;
+    }
+    const wrapperContainer = this.tableViewportContainer;
+    const wrapperRect = wrapperContainer?.getBoundingClientRect?.();
+    const wrapperStyle = window.getComputedStyle(wrapperContainer);
+    const wrapperPaddingHeight =
+      Number.parseInt(wrapperStyle?.paddingTop) + Number.parseInt(wrapperStyle?.paddingBottom);
+    const scrollHeight = wrapperRect?.height - (wrapperPaddingHeight || 0) - TABLE_ROW_MIN_HEIGHT;
+    return Math.ceil(scrollHeight / TABLE_ROW_MIN_HEIGHT / this.pagination.pageSize) + 1 || 1;
+  }
+
   /**
    * @description 获取k8s列表
    * @param {boolean} config.needRefresh 是否需要刷新表格状态
@@ -589,18 +611,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading || !this.metricList?.length) {
       return;
     }
+
     this.abortAsyncData();
     let loadingKey = 'scrollLoading';
     const initPagination = () => {
-      this.pagination.page = 1;
+      this.pagination.page = this.calculateRollingBoundary() || 1;
       loadingKey = 'loading';
     };
     let pageRequestParam = {};
     // 是否启用前端分页
     if (enabledFrontendLimit) {
+      await this.$nextTick();
       initPagination();
     } else {
       if (!config.needIncrement) {
+        await this.$nextTick();
         initPagination();
       }
       pageRequestParam = {
@@ -610,6 +635,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
 
     this.tableLoading[loadingKey] = true;
+
     if (config.needRefresh) {
       this.asyncDataCache.clear();
     }
@@ -635,10 +661,28 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       method,
     };
 
-    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam).catch(() => ({
-      count: 0,
-      items: [],
-    }));
+    const abortController = new AbortController();
+    this.abortControllerQueue.add(abortController);
+    let isAborted = false;
+    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam, {
+      signal: abortController.signal,
+      needMessage: false,
+    }).catch(err => {
+      if (err?.message === 'canceled') {
+        isAborted = true;
+      } else {
+        const message = makeMessage(err.error_details || err.message);
+        bkMessage(message);
+      }
+      return {
+        count: 0,
+        items: [],
+      };
+    });
+    this.abortControllerQueue.delete(abortController);
+    if (isAborted) {
+      return;
+    }
     const resourceParam = this.formatTableData(data.items, resourceType as K8sTableColumnResourceKey);
     this.tableData = data.items;
     this.tableDataTotal = data.count;
@@ -1117,11 +1161,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   render() {
     return (
-      <div class='k8s-table-new'>
+      <div
+        ref='tableViewportContainer'
+        class='k8s-table-new'
+      >
         <bk-table
           key={this.refreshKey}
           ref='table'
-          style={{ display: !this.tableLoading.loading ? 'block' : 'none' }}
+          style={{
+            display: !this.tableLoading.loading ? 'block' : 'none',
+            '--row-min-height': `${TABLE_ROW_MIN_HEIGHT}px`,
+          }}
           height='100%'
           default-sort={{
             prop: this.sortContainer.prop,

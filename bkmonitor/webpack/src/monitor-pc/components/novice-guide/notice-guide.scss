@@ -16,7 +16,7 @@ body {
   bottom: 0;
   left: 0;
   z-index: 100000;
-  background: rgba(0,0,0,.6);
+  background: rgba(0, 0, 0, 0.6);
 
   .step-box {
     position: absolute;
@@ -67,7 +67,7 @@ body {
       margin-top: -20px;
       font-weight: 700;
       color: #979ba5;
-      cursor: pointer
+      cursor: pointer;
     }
 
     .step-close-icon:hover {
@@ -100,7 +100,7 @@ body {
         border-radius: 10px;
       }
 
-      .ukown-btn {
+      .known-btn {
         padding-bottom: 5px;
         font-size: 12px;
         line-height: 20px;
@@ -135,6 +135,8 @@ body {
         top: 0;
         left: 50%;
         display: flex;
+        align-items: center;
+        justify-content: center;
         width: 86px;
         height: 86px;
         font-size: 55px;
@@ -143,8 +145,6 @@ body {
         border: 13px solid #dcffe2;
         border-radius: 50%;
         transform: translate(-50%, -27px);
-        align-items: center;
-        justify-content: center;
 
         &:after {
           position: absolute;
@@ -191,10 +191,12 @@ body {
 }
 
 .guide-fade-leave-active {
-  transition: visibility .15s linear, opacity .1s linear;
+  transition:
+    visibility 0.15s linear,
+    opacity 0.1s linear;
 }
 
 .guide-fade-leave-to {
-  opacity: 0;
   visibility: hidden;
+  opacity: 0;
 }

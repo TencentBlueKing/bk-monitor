@@ -71,37 +71,25 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   }
 
   calcLatestMetricsList() {
-    // 编辑状态不过滤当前编辑 dimension
-    const selectDimensionNameMap = this.localValue.reduce<Record<string, boolean>>((result, item) => {
-      if (this.currentEditDimension?.key === item.key) {
-        return result;
-      }
-      return Object.assign(result, {
-        [item.key]: true,
-      });
-    }, {});
-
     const dimensionCountMap: Record<string, number> = {};
-    this.currentSelectedMetricList.forEach(({ dimensions }) => {
-      dimensions.forEach(({ name }) => {
-        dimensionCountMap[name] = (dimensionCountMap[name] || 0) + 1;
-      });
-    });
+
+    for (const metricItem of this.currentSelectedMetricList) {
+      for (const dimensionItem of metricItem.dimensions) {
+        dimensionCountMap[dimensionItem.name] = (dimensionCountMap[dimensionItem.name] || 0) + 1;
+      }
+    }
 
     const commonDimensionList: IMetrics['dimensions'] = [];
     const otherDimensionList: IMetrics['dimensions'] = [];
-    this.currentSelectedMetricList.forEach(metricsItem => {
-      metricsItem.dimensions.forEach(dimensionItem => {
-        if (selectDimensionNameMap[dimensionItem.name]) {
-          return;
-        }
+    for (const metricsItem of this.currentSelectedMetricList) {
+      for (const dimensionItem of metricsItem.dimensions) {
         if (dimensionCountMap[dimensionItem.name] > 1) {
           commonDimensionList.push(dimensionItem);
-          return;
+          continue;
         }
         otherDimensionList.push(dimensionItem);
-      });
-    });
+      }
+    }
 
     const nextMetricsList: IMetrics[] = [];
 

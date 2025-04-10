@@ -222,7 +222,7 @@ class EventViewConfigResource(Resource):
 
     @classmethod
     def is_option_enabled(cls, field_type) -> bool:
-        return field_type in {EventDimensionTypeEnum.KEYWORD.value}
+        return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
     def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:

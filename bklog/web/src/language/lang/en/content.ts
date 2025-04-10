@@ -298,6 +298,7 @@ export default {
   您没有相应资源的访问权限: 'You do not have access to the corresponding resources',
   '已选择 {0} 个{1}': 'Selected {0} {1}',
   别名不能与内置字段名相同: 'The alias cannot be the same as the built-in field name',
+  重命名不能与内置字段名相同: 'The rename cannot be the same as the built-in field name',
   '采集目标未变更，无需下发': 'The collection target has not changed, and no distribution is required',
   同步计算平台的结果表失败: 'Failed to synchronize the result table of the BK-Base',
   同步计算平台的结果表成功: 'Successfully synchronized the result table of the BK-Base',
@@ -450,6 +451,8 @@ export default {
     'Setting this column as time will cancel the column that has already been set as time. do you want to continue?',
   '别名只支持【英文、数字、下划线】，并且不能以数字开头':
     'Aliases only support [english, numbers, underscores], and cannot start with a number.',
+  '重命名只支持【英文、数字、下划线】，并且不能以数字开头':
+    'Renaming only supports [English, numbers, and underscores], and cannot start with a number.',
   '勾选需要审批后需等待审批通过后，才会继续进行存储流程':
     'Checking requires approval and storage process will continue only after approval is passed.',
   '暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员':
@@ -1034,4 +1037,6 @@ export default {
   '删除失败，开启告警时，需要至少一个责任人':
     'Failed to delete. When the alarm is turned on, at least one responsible person is required',
   重命名与字段名重复: 'Rename and field name duplicate',
+  别名与字段名重复: 'Alias and field name duplicate',
+  别名与重命名重复: 'Alias and rename duplicate',
 };

@@ -1243,6 +1243,7 @@ class GetKubernetesNode(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
         node_ip = serializers.CharField(required=False, allow_null=True)
+        node_name = serializers.CharField(required=False, allow_null=True)
 
     @staticmethod
     def get_performance_data(bk_biz_id, bcs_cluster_id):
@@ -1309,8 +1310,11 @@ class GetKubernetesNode(ApiAuthResource):
         item.update_monitor_status(params)
 
     def perform_request(self, params: Dict) -> List[Dict]:
-        ip = params.pop("node_ip")
-        params["ip"] = ip
+        if params.get("node_ip"):
+            params["ip"] = params.pop("node_ip")
+        if params.get("node_name"):
+            params["name"] = params.pop("node_name")
+
         item = BCSNode.load_item(params)
         if item:
             self.refresh_monitor_status(item)

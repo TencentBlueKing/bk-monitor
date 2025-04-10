@@ -17,6 +17,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from ...constants import (
+    DIMENSION_PREFIX,
     SYSTEM_EVENT_TRANSLATIONS,
     DisplayFieldType,
     EventDomain,
@@ -37,7 +38,10 @@ class HostEventProcessor(BaseEventProcessor):
 
     @classmethod
     def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
-        return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
+        return any(f"{DIMENSION_PREFIX}{field}" in origin_event["origin_data"] for field in ["bk_target_ip", "ip"]) or (
+            origin_event["_meta"]["__domain"],
+            origin_event["_meta"]["__source"],
+        ) == (
             EventDomain.SYSTEM.value,
             EventSource.HOST.value,
         )
@@ -82,6 +86,9 @@ class HostEventProcessor(BaseEventProcessor):
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed_events: List[Dict[str, Any]] = []
         for origin_event in origin_events:
+            if not self._need_process(origin_event):
+                processed_events.append(origin_event)
+                continue
             handler = {
                 SystemEventTypeEnum.OOM.value: OOMHandler,
                 SystemEventTypeEnum.DiskFull.value: DiskFullHandler,
@@ -89,10 +96,7 @@ class HostEventProcessor(BaseEventProcessor):
                 SystemEventTypeEnum.PingUnreachable.value: PingUnreachableHandler,
                 SystemEventTypeEnum.CoreFile.value: CoreFileHandler,
                 SystemEventTypeEnum.AgentLost.value: AgentLostHandler,
-            }.get(origin_event["event_name"]["value"])
-            if handler is None:
-                processed_events.append(origin_event)
-                continue
+            }.get(origin_event["event_name"]["value"], DefaultHostHandler)
             origin_data = origin_event["origin_data"]
             host_info = create_host_info(
                 origin_data,
@@ -136,12 +140,14 @@ class HostEventProcessor(BaseEventProcessor):
                 },
             }
 
-            event_name = origin_event["event_name"]
+            event_name_value = origin_event["event_name"]["value"]
             processed_event["event_name"] = {
-                "value": event_name["value"],
+                "value": event_name_value,
                 "alias": _("{alias}（{name}）").format(
-                    alias=SYSTEM_EVENT_TRANSLATIONS.get(event_name["value"], event_name), name=event_name["value"]
-                ),
+                    alias=SYSTEM_EVENT_TRANSLATIONS.get(event_name_value), name=event_name_value
+                )
+                if SYSTEM_EVENT_TRANSLATIONS.get(event_name_value)
+                else event_name_value,
             }
             processed_events.append(processed_event)
         return processed_events
@@ -275,3 +281,17 @@ class CoreFileHandler(SpecificHostEventHandler):
     @classmethod
     def create_detail(cls, host_info) -> Dict[str, Any]:
         return {"corefile": host_info["corefile"], "executable": host_info["executable"]}
+
+
+class DefaultHostHandler(SpecificHostEventHandler):
+    @classmethod
+    def add_other_fields(cls, origin_data: Dict[str, Any]) -> Dict[str, Any]:
+        return create_host_info(origin_data, [])
+
+    @classmethod
+    def create_event_content_alias(cls, host_info: Dict[str, Any]) -> str:
+        return host_info["event.content"]["alias"]
+
+    @classmethod
+    def create_detail(cls, host_info) -> Dict[str, Any]:
+        return {}

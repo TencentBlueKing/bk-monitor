@@ -57,7 +57,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
-import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
+import ProfilingGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 
@@ -87,7 +87,6 @@ interface IChartWrapperProps {
   chartChecked?: boolean;
   collapse?: boolean;
   detectionConfig?: IDetectionConfig;
-  needHoverStryle?: boolean;
   needCheck?: boolean;
   customMenuList?: ChartTitleMenuType[];
   isSingleChart?: boolean;
@@ -165,7 +164,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
 
   /** hover样式 */
-  get needHoverStryle() {
+  get needHoverStyle() {
     const { time_series_forecast, time_series_list } = this.panel?.options || {};
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
   }
@@ -466,7 +465,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'profiling':
         return (
-          <ProfilinGraph
+          <ProfilingGraph
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             onErrorMsg={this.handleErrorMsgChange}
@@ -651,7 +650,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.isChecked,
           'is-collapsed': this.isCollapsed,
-          'hover-style': this.needCheck && this.needHoverStryle,
+          'hover-style': this.needCheck && this.needHoverStyle,
           'row-chart': this.panel.type === 'row',
         }}
         // onMouseenter={() => (this.showHeaderMoreTool = true)}

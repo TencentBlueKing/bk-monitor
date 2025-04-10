@@ -114,7 +114,7 @@ class SearchModule(CMDBBaseResource):
     def get_request_url(self, params: dict):
         if "bk_set_id" not in params:
             params = params.copy()
-            params["bk_set_id"] = ""
+            params["bk_set_id"] = 0
         return super().get_request_url(params)
 
 

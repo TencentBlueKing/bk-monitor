@@ -18,6 +18,7 @@
     word-break: break-all;
     white-space: pre-line;
     overflow: hidden;
+    width: 100%;
   }
 
   &.is-wheeling {
@@ -54,7 +55,7 @@
           'PingFang SC',
           'Microsoft Yahei',
           monospace;
-
+        white-space: pre-wrap;
         content-visibility: auto;
         // contain-intrinsic-size: 20px 40px; /* 预估初始高度 */
       }

@@ -42,6 +42,7 @@
           .segment-content {
             span {
               color: #934c04;
+              white-space: pre-wrap;
 
               &.valid-text {
                 cursor: pointer;
