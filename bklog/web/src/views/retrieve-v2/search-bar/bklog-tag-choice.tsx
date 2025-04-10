@@ -145,7 +145,7 @@ export default defineComponent({
       if (newWidth !== containerWidth.value) {
         containerWidth.value = newWidth;
         if (focusFixedElement?.children?.[0]) {
-          (focusFixedElement.children[0] as HTMLElement).style.width = `${newWidth + 2}px`;
+          (focusFixedElement.children[0] as HTMLElement).style.width = `${newWidth + 4}px`;
         }
 
         fixedInstance?.repositionTippyInstance();
@@ -439,7 +439,7 @@ export default defineComponent({
 
     const setFixedValueContent = () => {
       const copyNode = refTagInputContainer.value.cloneNode(true) as HTMLElement;
-      copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 2}px`;
+      copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 4}px`;
       if (!focusFixedElement) {
         focusFixedElement = document.createElement('div');
         focusFixedElement.classList.add('bklog-choice-fixed-content');

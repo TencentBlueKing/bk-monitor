@@ -53,7 +53,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html' }"
       >
         <span
-          :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-consola ${!isCanClickWebConsole && 'is-disable'}`"
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
         ></span>
       </span>

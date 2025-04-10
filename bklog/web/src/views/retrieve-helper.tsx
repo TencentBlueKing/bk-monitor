@@ -38,25 +38,39 @@ export enum STORAGE_KEY {
 }
 
 export enum RetrieveEvent {
-  // 展示收藏内容
+  /**
+   * 展示收藏内容
+   */
   FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
 
-  // 收藏栏是否展示
+  /**
+   * 收藏栏是否展示
+   */
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
 
-  // 收藏栏宽度变化
+  /**
+   * 收藏栏宽度变化
+   */
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
-  // 左侧字段设置宽度变化
+  /**
+   * 左侧字段设置宽度变化
+   */
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
 
-  // 左侧字段设置是否展示
+  /**
+   * 左侧字段设置是否展示
+   */
   LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
 
-  // 搜索栏高度变化
+  /**
+   * 搜索栏高度变化
+   */
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
 
-  // 趋势图高度变化
+  /**
+   * 趋势图高度变化
+   */
   TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
 
   /**
@@ -64,10 +78,14 @@ export enum RetrieveEvent {
    */
   STORAGE_CHANGE = 'storage-change',
 
-  // 打开索引配置
+  /**
+   * 打开索引配置
+   */
   INDEX_CONFIG_OPEN = 'index-config-open',
 
-  // 搜索条件改变
+  /**
+   * 搜索条件改变
+   */
   SEARCH_VALUE_CHANGE = 'search-value-change',
 }
 

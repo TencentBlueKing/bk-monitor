@@ -261,6 +261,7 @@ ul.bklog-tag-choice-input {
               min-height: calc(var(--bklog-choice-min-height) - 1px);
               position: relative;
               background-color: transparent;
+              border-bottom-left-radius: 0px;
 
               &.is-ellipsis {
                 border-bottom: solid 1px var(--bklog-choice-focus-border-color);

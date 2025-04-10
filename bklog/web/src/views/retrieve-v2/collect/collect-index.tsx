@@ -311,8 +311,8 @@ export default class CollectIndex extends tsc<IProps> {
 
   @Watch('activeFavorite', { deep: true })
   changeActiveFavorite(val) {
-    RetrieveHelper.setFavoriteActive(val);
     this.updateActiveFavorite(val);
+    RetrieveHelper.setFavoriteActive(val);
   }
   @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
@@ -448,6 +448,8 @@ export default class CollectIndex extends tsc<IProps> {
     });
 
     this.setRouteParams();
+
+    // RetrieveHelper.
   }
 
   /**

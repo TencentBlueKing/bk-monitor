@@ -213,7 +213,7 @@
 
       .tab-right {
         position: sticky;
-        right: calc(var(--scroll-left) + 10px);
+        right: 20px;
         display: flex;
         align-items: center;
 
@@ -265,8 +265,8 @@
       color: #9d694c !important;
     }
 
-    .vjs-value-string{
-      color: #357A94;
+    .vjs-value-string {
+      color: #357a94;
     }
 
     .vjs-value-number {
