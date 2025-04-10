@@ -46,8 +46,6 @@
   const route = useRoute();
   const router = useRouter();
   RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
-    console.log(val);
-    
     activeFavorite.value = val;
   });
 
