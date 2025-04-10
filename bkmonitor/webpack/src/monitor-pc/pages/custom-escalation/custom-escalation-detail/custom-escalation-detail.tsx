@@ -1459,7 +1459,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {this.metricTable.length > 0 && (
+        {
           <IndicatorTableSlide
             autoDiscover={this.autoDiscover}
             cycleOption={this.cycleOption}
@@ -1470,15 +1470,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             onHidden={v => (this.isShowMetricSlider = v)}
             onSaveInfo={this.handleSaveSliderInfo}
           />
-        )}
-        {this.dimensions.length > 0 && (
+        }
+        {
           <DimensionTableSlide
             dimensionTable={this.dimensions}
             isShow={this.isShowDimensionSlider}
             onHidden={v => (this.isShowDimensionSlider = v)}
             onSaveInfo={this.handleSaveSliderInfo}
           />
-        )}
+        }
       </div>
     );
   }
