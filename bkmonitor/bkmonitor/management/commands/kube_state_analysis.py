@@ -64,7 +64,8 @@ TERMINATED_REASON_METRIC_FIELD = 'kube_pod_container_status_terminated_reason'
 # pod近30分钟重启次数过多，promql
 RESTARTS_TOTAL_PROMQL = (
     r'increase(sum by (pod_name, bcs_cluster_id, namespace, container_name)'
-    r'(bkmonitor:kube_pod_container_status_restarts_total{bk_job="kube-state-metrics"})[30m:])'
+    r'(bkmonitor:kube_pod_container_status_restarts_total{job="kube-state-metrics",'
+    r'pod_name!="",namespace!="bkmonitor-operator",container!="tke-monitor-agent"})[30m:])'
 )
 # 因OOM重启，promql
 TERMINATED_REASON_PROMQL = (
