@@ -779,6 +779,7 @@ class StorageHandler(object):
     ):
         # 有传用户但是没有密码，通过接口查询该cluster密码信息
         # version_info 为True，会返回连接状态和版本信息的元组，False只返回连接状态bool
+        version = ""
         if self.cluster_id:
             params = {"cluster_type": STORAGE_CLUSTER_TYPE, "cluster_id": int(self.cluster_id)}
             clusters = TransferApi.get_cluster_info(params)
@@ -809,8 +810,9 @@ class StorageHandler(object):
                 password = cluster_obj["auth_info"].get("password")
                 # 新增批量获取状态时schema
                 schema = cluster_config.get("schema") or DEFAULT_ES_SCHEMA
+            version = cluster_config.get("version", "")
 
-        connect_result = self._send_detective(domain_name, port, username, password, version_info, schema)
+        connect_result = self._send_detective(version, domain_name, port, username, password, version_info, schema)
         return connect_result
 
     def list_node_attrs(
@@ -828,6 +830,7 @@ class StorageHandler(object):
         获取集群各节点的属性
         """
         # 有传用户但是没有密码，通过接口查询该cluster密码信息
+        version = ""
         if self.cluster_id:
             params = {"cluster_type": STORAGE_CLUSTER_TYPE, "cluster_id": int(self.cluster_id)}
             cluster_obj = TransferApi.get_cluster_info(params)[0]
@@ -856,8 +859,10 @@ class StorageHandler(object):
                 username = cluster_obj["auth_info"].get("username")
                 password = cluster_obj["auth_info"].get("password")
 
+            version = cluster_config.get("version", "")
+
         es_client = get_es_client(
-            version="", hosts=[domain_name], username=username, password=password, scheme=schema, port=port
+            version=version, hosts=[domain_name], username=username, password=password, scheme=schema, port=port
         )
         # 数据节点
         datanode_list = []
@@ -970,13 +975,20 @@ class StorageHandler(object):
         }
 
     def _send_detective(
-        self, domain_name: str, port: int, username="", password="", version_info=False, schema=DEFAULT_ES_SCHEMA
+        self,
+        version: str,
+        domain_name: str,
+        port: int,
+        username="",
+        password="",
+        version_info=False,
+        schema=DEFAULT_ES_SCHEMA,
     ) -> Union[bool, tuple]:
         # socket ping
         es_socket_ping(host=domain_name, port=port)
         # 利用es_client对用户名和密码的连通性进行验证, version默认走es7
         es_client = get_es_client(
-            version="", hosts=[domain_name], username=username, password=password, port=port, scheme=schema
+            version=version, hosts=[domain_name], username=username, password=password, port=port, scheme=schema
         )
         es_client_ping(es_client)
 
