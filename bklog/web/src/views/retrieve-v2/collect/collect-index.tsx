@@ -578,7 +578,7 @@ export default class CollectIndex extends tsc<IProps> {
             window.open(shareUrl, '_blank');
           } else {
             console.log('routeData', `${shareUrl}`);
-            copyMessage(shareUrl, this.$t('复制成功'));
+            copyMessage(shareUrl, this.$t('复制分享链接成功，您可以xxx'));
           }
         }
         break;
