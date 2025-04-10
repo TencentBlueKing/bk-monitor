@@ -278,6 +278,8 @@
     etl_config: '',
     fields:[]
   });
+  const formDataCopy = ref({});
+  const fieldsCopy = ref([]);
   const isEdit = ref(false);
   const isEditConfigName = ref(false);
   const isEditRetention = ref(false);
@@ -414,11 +416,17 @@
   };
 
   const handleEdit = () => {
+    formDataCopy.value = deepClone(formData.value);
+    fieldsCopy.value = deepClone(indexfieldTable.value.getData());
     isEdit.value = true;
   };
 
-  const handleCancel = () => {
-    isEdit.value = false;
+  const handleCancel = async() => {
+    formData.value = deepClone(formDataCopy.value);
+    tableField.value = deepClone(fieldsCopy.value);
+    nextTick(() => {
+      isEdit.value = false;
+    });
   };
 
   const handleOpenSidebar = async () => {
