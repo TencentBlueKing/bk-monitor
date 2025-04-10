@@ -1,6 +1,9 @@
 import { computed, defineComponent } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
+
+import './index.scss';
+
 export default defineComponent({
   setup() {
     const store = useStore();
@@ -24,7 +27,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div>
+      <div class='bklog-v3-storage'>
         <bk-checkbox
           style='margin: 0 12px'
           class='bklog-option-item'
@@ -63,16 +66,17 @@ export default defineComponent({
           <span class='switch-label'>{$t('JSON 解析')}</span>
         </bk-checkbox>
 
-        <bk-input
-          v-if='isJsonFormat'
-          style='margin: 0 12px 0 0'
-          class='json-depth-num'
-          max='15'
-          min='1'
-          value={jsonFormatDeep.value}
-          type='number'
-          on-change={handleJsonFormatDeepChange}
-        ></bk-input>
+        {isJsonFormat.value && (
+          <bk-input
+            style='margin: 0 12px 0 0'
+            class='json-depth-num'
+            max='15'
+            min='1'
+            value={jsonFormatDeep.value}
+            type='number'
+            on-change={handleJsonFormatDeepChange}
+          ></bk-input>
+        )}
 
         <bk-checkbox
           style='margin: 0 12px 0 0'

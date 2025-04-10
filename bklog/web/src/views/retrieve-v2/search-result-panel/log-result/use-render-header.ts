@@ -29,7 +29,7 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
+import TimeFormatterSwitcher from '../../components/result-cell-element/time-formatter-switcher';
 
 export default () => {
   const store = useStore();

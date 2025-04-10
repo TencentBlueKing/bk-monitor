@@ -188,12 +188,6 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
-        isWrap: state => state.storage.tableLineIsWrap,
-        jsonFormatDeep: state => state.storage.tableJsonFormatDepth,
-        isJsonFormat: state => state.storage.tableJsonFormat,
-        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
-        showRowIndex: state => state.storage.tableShowRowIndex,
-        expandTextView: state => state.storage.isLimitExpandView,
       }),
 
       routeIndexSet() {
@@ -270,14 +264,6 @@
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
         RetrieveHelper.highLightKeywords(null, false);
-      },
-      handleStorageChange(val, key) {
-        this.$store.commit('updateStorage', { [key]: val });
-      },
-      handleJsonFormatDeepChange(val) {
-        const value = Number(val);
-        const target = value > 15 ? 15 : value < 1 ? 1 : value;
-        this.$store.commit('updateStorage', { tableJsonFormatDepth: target });
       },
     },
   };

@@ -44,8 +44,8 @@ import { bkMessage } from 'bk-magic-vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
-import ExpandView from '../original-log/expand-view.vue';
-import OperatorTools from '../original-log/operator-tools.vue';
+import ExpandView from '../result-cell-element/expand-view.vue';
+import OperatorTools from '../result-cell-element/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
@@ -984,7 +984,7 @@ export default defineComponent({
     });
 
     const isExternal = computed(() => store.state.isExternal);
-    
+
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
         return;
@@ -1143,9 +1143,9 @@ export default defineComponent({
     };
 
     const openConfiguration = () => {
-      if(isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value){
+      if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
         RetrieveHelper.setIndexConfigOpen(true);
-      }else{
+      } else {
         bkMessage({
           theme: 'primary',
           message: '第三方ES、计算平台索引集类型不支持自定义分词',
