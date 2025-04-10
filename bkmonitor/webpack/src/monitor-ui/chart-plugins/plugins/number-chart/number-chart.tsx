@@ -58,7 +58,7 @@ class NumberChart extends CommonSimpleChart {
    * @description: 获取图表数据
    */
   async getPanelData(start_time?: string, end_time?: string) {
-    this.unregisterOberver();
+    this.unregisterObserver();
     this.handleLoadingChange(true);
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {

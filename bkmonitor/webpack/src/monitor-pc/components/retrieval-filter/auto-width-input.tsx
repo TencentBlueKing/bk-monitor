@@ -40,6 +40,7 @@ interface IProps {
   onInput?: (value: string) => void;
   onEnter?: () => void;
   onBackspace?: () => void;
+  onBackspaceNull?: () => void;
 }
 @Component
 export default class AutoWidthInput extends tsc<IProps> {
@@ -49,6 +50,8 @@ export default class AutoWidthInput extends tsc<IProps> {
   @Prop({ type: Number, default: 22 }) height: number;
   @Prop({ type: Number, default: 12 }) initWidth: number;
   @Prop({ type: String, default: '' }) placeholder: string;
+
+  cacheValue = '';
 
   @Ref('input') inputRef: HTMLInputElement;
 
@@ -81,7 +84,11 @@ export default class AutoWidthInput extends tsc<IProps> {
     }
     if (key === 'Backspace' || key === 8) {
       this.$emit('backspace');
+      if (!this.cacheValue) {
+        this.$emit('backspaceNull');
+      }
     }
+    this.cacheValue = event.target.value;
   }
 
   render() {

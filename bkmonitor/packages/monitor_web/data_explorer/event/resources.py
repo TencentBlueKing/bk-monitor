@@ -144,7 +144,7 @@ class EventViewConfigResource(Resource):
     @classmethod
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
-        data_labels_map = get_data_labels_map(bk_biz_id, tables)
+        data_labels_map = get_data_labels_map(bk_biz_id, tuple(sorted(tables)))
         dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
             "dimensions", "result_table_id"
         )
@@ -222,7 +222,7 @@ class EventViewConfigResource(Resource):
 
     @classmethod
     def is_option_enabled(cls, field_type) -> bool:
-        return field_type in {EventDimensionTypeEnum.KEYWORD.value}
+        return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
     def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
@@ -289,25 +289,9 @@ class EventTopKResource(Resource):
         # 只计算维度的去重数量，不需要 topk 值
         if limit == DIMENSION_DISTINCT_VALUE:
             for field in valid_fields:
-                # 对多线程获取失败的进行补偿
-                if field not in field_distinct_map:
-                    logger.warning(
-                        "[EventTopKResource] distinct_count not found, try to compensate: field -> %s", field
-                    )
-                    self.calculate_field_distinct_count(
-                        lock,
-                        queryset,
-                        query_configs,
-                        field,
-                        dimension_metadata_map,
-                        field_distinct_map,
-                        field_topk_map,
-                        need_empty,
-                    )
-
                 topk_field_map[field] = {
                     "field": field,
-                    "distinct_count": field_distinct_map[field],
+                    "distinct_count": field_distinct_map.get(field, 0),
                     "list": [],
                 }
 
@@ -342,7 +326,7 @@ class EventTopKResource(Resource):
                         "value": "" if not field_value or field_value == " " else field_value,
                         "alias": "--" if not field_value or field_value == " " else field_value,
                         "count": field_count,
-                        "proportions": round(100 * (field_count / total), 2),
+                        "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
                     for field_value, field_count in sorted_fields
                 ],
@@ -495,3 +479,90 @@ class EventTotalResource(Resource):
         except Exception as exc:
             logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
             return {"total": 0}
+
+
+class EventStatisticsInfoResource(Resource):
+    RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        queries = [
+            get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
+        ]
+        field = validated_request_data["field"]
+        statistics_property_method_map = {
+            "total_count": "count",
+            "field_count": "count",
+            "distinct_count": "cardinality",
+        }
+        if field["type"] == EventDimensionTypeEnum.INTEGER.value:
+            # 数值类型，支持更多统计方法
+            statistics_property_method_map.update({"max": "max", "min": "min", "median": "cp50", "avg": "avg"})
+
+        statistics_info = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.get_statistics_info,
+                    args=(
+                        get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
+                        queries,
+                        field["name"],
+                        statistics_property,
+                        method,
+                        statistics_info,
+                    ),
+                )
+                for statistics_property, method in statistics_property_method_map.items()
+            ]
+        )
+        # 格式化统计信息
+        return self.process_statistics_info(statistics_info)
+
+    @classmethod
+    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+        processed_statistics_info = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            # 平均值取两位小数
+            if statistics_property == "avg":
+                value = round(value, 2)
+            if statistics_property in ["max", "min", "median", "avg"]:
+                processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            processed_statistics_info[statistics_property] = value
+        # 计算百分比
+        processed_statistics_info["field_percent"] = (
+            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
+            if statistics_info["total_count"] > 0
+            else 0
+        )
+        return processed_statistics_info
+
+    @classmethod
+    def get_statistics_info(cls, queryset, queries, field, statistics_property, method, statistics_info) -> None:
+        for query in queries:
+            queryset = queryset.add_query(
+                cls.get_q_by_statistics_property(query, field, statistics_property).metric(
+                    field=field, method=method, alias="a"
+                )
+            )
+        queryset = cls.set_qs_expression_by_method(queryset, method)
+        try:
+            statistics_info[statistics_property] = queryset.original_data[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("[EventStatisticsInfoResource] failed to get statistics info, err -> %s", exc)
+            raise ValueError(_(f"获取字段统计信息失败，查询函数：{method}"))
+
+    @classmethod
+    def get_q_by_statistics_property(cls, query, field, statistics_property):
+        """
+        根据统计属性设置过滤条件
+        """
+        return query.filter(**{f"{field}__ne": ""}) if statistics_property == "field_count" else query
+
+    @classmethod
+    def set_qs_expression_by_method(cls, queryset, method):
+        """
+        根据查询函数适配表达式
+        """
+        return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")

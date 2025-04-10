@@ -181,6 +181,8 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
             # 是否开启新版自定义时序
             "ENABLE_CUSTOM_TS_V2_BIZ_LIST": settings.ENABLE_CUSTOM_TS_V2_BIZ_LIST,
+            # 是否开启事件中心AIOps功能
+            "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
         }
     )
 

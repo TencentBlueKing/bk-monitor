@@ -141,6 +141,7 @@ export default {
   已经选择了: 'Selected',
   '{0} 个指标': '{0} Metrics',
   '{0} 个维度': '{0} Dimensions',
+  '{0} 条曲线': '{0} Curves',
   '{0} 个检测成功': '{0} Detection successful',
   '{0} 个检测失败': '{0} Detection failed',
   '{num} 个': '{num}',

@@ -1637,7 +1637,7 @@ class TestBkApmTraceDataSource:
                 'query_string': '*',
                 "conditions": {"field_list": [], "condition_list": []},
                 "function": [{"method": "count", "dimensions": ["span_name"]}],
-                "time_aggregation": {},
+                "time_aggregation": {"function": "count_over_time", 'window': "0s"},
                 "keep_columns": [],
             }
         ]

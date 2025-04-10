@@ -62,7 +62,7 @@ class BCSClusterInfo(models.Model):
             "is_system": True,
             "usage": "event",
             # 背景：k8s 事件具有一致的 data_label，便于对多集群进行聚合查询
-            "data_label": DATA_TYPE_K8S_EVENT
+            "data_label": DATA_TYPE_K8S_EVENT,
         },
     }
 
@@ -253,7 +253,7 @@ class BCSClusterInfo(models.Model):
                 is_split_measurement=register_info.get("is_split_measurement", False),
                 default_storage_config=default_storage_config,
                 additional_options=additional_options,
-                data_label=register_info.get("data_label")
+                data_label=register_info.get("data_label"),
             )
 
             logger.info(
@@ -479,6 +479,7 @@ class BCSClusterInfo(models.Model):
             "api_key_prefix": self.api_key_prefix,
             "is_skip_ssl_verify": self.is_skip_ssl_verify,
             "cert_content": self.cert_content,
+            "k8s_event_data_id": self.K8sEventDataID,
         }
 
 

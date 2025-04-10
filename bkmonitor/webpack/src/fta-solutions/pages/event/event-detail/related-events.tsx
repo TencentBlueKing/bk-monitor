@@ -133,7 +133,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
 
   tableColumns: IColumnItem[] = []; // 表格字段
 
-  isLoading = true;
+  isLoading = false;
 
   queryString = '';
   searchType: SearchType = 'event';
@@ -233,7 +233,13 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   allowHTML: true,
                 }}
               >
-                {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
+                {tags.slice(0, 2).map(item => [
+                  <span
+                    key={'tags-item'}
+                    class='tags-item'
+                  >{`${item.key}: ${item.value}`}</span>,
+                  <br key={2} />,
+                ])}
               </span>
             ) : (
               '--'
@@ -342,7 +348,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     ];
   }
 
-  @Watch('show')
+  @Watch('show', { immediate: true })
   handleShow(v) {
     if (v) {
       this.queryString = '';
@@ -583,10 +589,16 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     return (
       <div class='detail-form'>
         <div class='detail-form-top'>
-          {topItems.map(child => (
-            <div class='top-form-item'>
+          {topItems.map((child, index) => (
+            <div
+              key={index}
+              class='top-form-item'
+            >
               {child.children.map(item => (
-                <div class='item-col'>
+                <div
+                  key={item.title}
+                  class='item-col'
+                >
                   <div class='item-label'>{item.title}</div>
                   <div class='item-content'>{item.content}</div>
                 </div>

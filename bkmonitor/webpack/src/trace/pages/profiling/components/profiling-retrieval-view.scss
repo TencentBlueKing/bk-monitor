@@ -4,13 +4,39 @@
   width: 100%;
   height: 100%;
 
-  .data-type {
+  .btn-group-wrap {
     display: flex;
     align-items: center;
     margin-bottom: 16px;
+  }
+
+  .data-type {
+    display: flex;
+    align-items: center;
+
 
     &-list {
       margin-left: 16px;
+    }
+
+    & + .data-type {
+      margin-left: 24px;
+    }
+  }
+
+  .data-type-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .data-type-item {
+    display: flex;
+    align-items: center;
+    margin-right: 16px;
+    margin-bottom: 8px;
+
+    &-label {
     }
   }
 

@@ -82,7 +82,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* controller */
   controller = null;
   /* 刷新 */
-  refleshKey = random(8);
+  refreshKey = random(8);
   /* 当前可选项选中位置 按上键减一， 按下键加一 */
   activeIndex = -1;
   /* 监听容器宽度的变化 */
@@ -167,7 +167,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       const delIndex = this.localValue.findIndex(item => item?.type === 'input');
       if (delIndex > -1) {
         this.localValue.splice(delIndex, 1);
-        this.refleshKey = random(8);
+        this.refreshKey = random(8);
         this.getFilterLocalList();
         setTimeout(() => {
           this.handleOverflow();
@@ -477,7 +477,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   render() {
     return (
       <div
-        key={this.refleshKey}
+        key={this.refreshKey}
         class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         onClick={this.handleClickWrap}
       >

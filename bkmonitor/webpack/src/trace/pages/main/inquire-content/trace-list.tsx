@@ -854,7 +854,7 @@ export default defineComponent({
             app_name: route.query?.app_name,
             search_type: 'scope',
             search_id: 'traceID',
-            refleshInterval: '-1',
+            refreshInterval: '-1',
             listType: 'trace',
             start_time: 'now-1h',
             end_time: 'now',

@@ -197,7 +197,7 @@ export class TableChart extends CommonSimpleChart {
     }
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -276,7 +276,7 @@ export class TableChart extends CommonSimpleChart {
         );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.emptyText = window.i18n.tc('查无数据');
       } else {
@@ -479,8 +479,8 @@ export class TableChart extends CommonSimpleChart {
         {this.hasTitle ? (
           <ChartHeader
             class='draggable-handle'
-            descrition={this.description}
-            draging={this.panel.draging}
+            description={this.description}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             showMore={false}
             subtitle={this.panel.subTitle}

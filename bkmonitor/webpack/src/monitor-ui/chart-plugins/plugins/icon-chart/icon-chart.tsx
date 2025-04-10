@@ -51,7 +51,7 @@ type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
 class IconChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
-  inited = false;
+  initialized = false;
   emptyText = window.i18n.tc('查无数据');
   empty = true;
 
@@ -61,7 +61,7 @@ class IconChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -69,7 +69,7 @@ class IconChart extends CommonSimpleChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -102,7 +102,7 @@ class IconChart extends CommonSimpleChart {
       data && this.updateChartData(data);
       if (data) {
         this.updateChartData(data);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!data.length) {
           this.emptyText = window.i18n.tc('查无数据');

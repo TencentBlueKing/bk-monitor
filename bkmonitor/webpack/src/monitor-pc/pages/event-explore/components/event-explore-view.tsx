@@ -99,6 +99,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   scrollSubject: ExploreSubject = null;
   /** 刷新表格数据，重新请求 */
   refreshTable = random(8);
+  /** 数据总条数total请求中止控制器 */
+  abortController: AbortController = null;
 
   /** view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理 */
   get eventQueryParams() {
@@ -184,10 +186,17 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    */
   async getEventTotal() {
     this.total = 0;
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
     if (!this.eventQueryParams) {
       return;
     }
-    const { total } = await getEventTotal(this.eventQueryParams, this.source);
+    this.abortController = new AbortController();
+    const { total } = await getEventTotal(this.eventQueryParams, this.source, {
+      signal: this.abortController.signal,
+    });
     this.total = total;
   }
 

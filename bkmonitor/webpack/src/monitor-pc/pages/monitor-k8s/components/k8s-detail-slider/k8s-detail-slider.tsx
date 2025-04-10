@@ -89,6 +89,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   get groupByField() {
     if (this.resourceDetail.container) return K8sTableColumnKeysEnum.CONTAINER;
     if (this.resourceDetail.pod) return K8sTableColumnKeysEnum.POD;
+    if (this.resourceDetail.service) return K8sTableColumnKeysEnum.SERVICE;
     if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
     if (this.resourceDetail?.externalParam?.isCluster) {
       return K8sTableColumnKeysEnum.CLUSTER;
@@ -169,6 +170,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
               workload_type: workload_type,
               pod_name: this.resourceDetail?.pod,
               container_name: this.resourceDetail?.container,
+              service_name: this.resourceDetail?.service,
             }).filter(([, v]) => !!v)
           ),
         },

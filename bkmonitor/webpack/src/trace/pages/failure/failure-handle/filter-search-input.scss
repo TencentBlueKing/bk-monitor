@@ -119,6 +119,10 @@
         color: #ea3636;
       }
     }
+
+    .is-focused {
+      box-shadow: none !important;
+    }
   }
 }
 

@@ -11,9 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 
-import six
 from django.conf import settings
-from gevent.monkey import saved
 
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
@@ -38,21 +36,27 @@ __all__ = [
 ]
 
 
-gevent_active = "time" in saved
-
-
-class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    # 这里为啥不用https？
-    # 因为python3.6 + gevent模式下，ssl库会出现如下异常
-    # RecursionError: maximum recursion depth exceeded
-    if gevent_active:
-        base_url = "%s/api/c/compapi/v2/cc/" % settings.BK_COMPONENT_API_URL.replace("https://", "http://")
-    else:
-        base_url = "%s/api/c/compapi/v2/cc/" % settings.BK_COMPONENT_API_URL
-
+class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     module_name = "cmdb"
-
     return_type = list
+
+    def use_apigw(self):
+        """
+        是否使用apigw
+        """
+        return settings.ENABLE_MULTI_TENANT_MODE or settings.CMDB_USE_APIGW
+
+    @property
+    def base_url(self):
+        if self.use_apigw():
+            return settings.CMDB_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-cmdb/prod/"
+        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/cc/"
+
+    def get_request_url(self, params: dict):
+        request_url = super().get_request_url(params)
+        if "bk_supplier_account" not in params:
+            params["bk_supplier_account"] = settings.BK_SUPPLIER_ACCOUNT
+        return request_url.format(**params)
 
     def full_request_data(self, validated_request_data):
         setattr(self, "bk_username", get_backend_username())
@@ -83,8 +87,11 @@ class SearchSet(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-    action = "search_set"
     method = "POST"
+
+    @property
+    def action(self):
+        return "/api/v3/set/search/{bk_supplier_account}/{bk_biz_id}" if self.use_apigw() else "/search_set/"
 
 
 class SearchModule(CMDBBaseResource):
@@ -93,8 +100,22 @@ class SearchModule(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-    action = "search_module"
+
+    @property
+    def action(self):
+        return (
+            "/api/v3/module/search/{bk_supplier_account}/{bk_biz_id}/{bk_set_id}"
+            if self.use_apigw()
+            else "/search_module/"
+        )
+
     method = "POST"
+
+    def get_request_url(self, params: dict):
+        if "bk_set_id" not in params:
+            params = params.copy()
+            params["bk_set_id"] = 0
+        return super().get_request_url(params)
 
 
 class GetBizInternalModule(CMDBBaseResource):
@@ -103,7 +124,15 @@ class GetBizInternalModule(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_CACHE_ALWAYS
-    action = "get_biz_internal_module"
+
+    @property
+    def action(self):
+        return (
+            "/api/v3/topo/internal/{bk_supplier_account}/{bk_biz_id}"
+            if self.use_apigw()
+            else "/get_biz_internal_module/"
+        )
+
     method = "GET"
     # 接口返回字典
     return_type = dict
@@ -115,8 +144,18 @@ class SearchBizInstTopo(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_CACHE_ALWAYS
-    action = "search_biz_inst_topo"
-    method = "GET"
+
+    @property
+    def action(self):
+        return "/api/v3/find/topoinst/biz/{bk_biz_id}" if self.use_apigw() else "/search_biz_inst_topo/"
+
+    @property
+    def method(self):
+        return "POST" if self.use_apigw() else "GET"
+
+    @method.setter
+    def method(self, value):
+        pass
 
 
 class GetMainlineObjectTopo(CMDBBaseResource):
@@ -125,8 +164,12 @@ class GetMainlineObjectTopo(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-    action = "get_mainline_object_topo"
-    method = "GET"
+
+    @property
+    def action(self):
+        return "/api/v3/find/topomodelmainline" if self.use_apigw() else "/get_mainline_object_topo/"
+
+    method = "POST"
 
 
 class ListServiceInstanceDetail(CMDBBaseResource):
@@ -135,7 +178,12 @@ class ListServiceInstanceDetail(CMDBBaseResource):
     """
 
     # 分页接口，上层缓存封装，因此这里实时获取
-    action = "list_service_instance_detail"
+    @property
+    def action(self):
+        return (
+            "/api/v3/findmany/proc/service_instance/details" if self.use_apigw() else "/list_service_instance_detail/"
+        )
+
     method = "POST"
 
 
@@ -145,7 +193,14 @@ class ListServiceInstanceBySetTemplate(CMDBBaseResource):
     """
 
     # 分页接口，上层缓存封装，因此这里实时获取
-    action = "list_service_instance_by_set_template"
+    @property
+    def action(self):
+        return (
+            "/api/v3/findmany/proc/service/set_template/list_service_instance/biz/{bk_biz_id}"
+            if self.use_apigw()
+            else "/list_service_instance_by_set_template/"
+        )
+
     method = "POST"
 
 
@@ -155,7 +210,11 @@ class SearchObjectAttribute(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-    action = "search_object_attribute"
+
+    @property
+    def action(self):
+        return "/api/v3/find/objectattr" if self.use_apigw() else "/search_object_attribute/"
+
     method = "POST"
 
 
@@ -165,7 +224,11 @@ class SearchBusiness(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_CACHE_ALWAYS
-    action = "search_business"
+
+    @property
+    def action(self):
+        return "/api/v3/biz/search/{bk_supplier_account}" if self.use_apigw() else "/search_business/"
+
     method = "POST"
 
 
@@ -179,7 +242,11 @@ class ListServiceCategory(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_CACHE_ALWAYS
-    action = "list_service_category"
+
+    @property
+    def action(self):
+        return "/api/v3/findmany/proc/service_category" if self.use_apigw() else "/list_service_category/"
+
     method = "POST"
 
     return_type = return_info_with_list
@@ -190,7 +257,10 @@ class ListBizHostsTopo(CMDBBaseResource):
     查询业务主机及关联拓扑
     """
 
-    action = "list_biz_hosts_topo"
+    @property
+    def action(self):
+        return "/api/v3/hosts/app/{bk_biz_id}/list_hosts_topo" if self.use_apigw() else "/list_biz_hosts_topo/"
+
     method = "POST"
 
 
@@ -199,7 +269,10 @@ class ListBizHosts(CMDBBaseResource):
     查询业务主机
     """
 
-    action = "list_biz_hosts"
+    @property
+    def action(self):
+        return "/api/v3/hosts/app/{bk_biz_id}/list_hosts" if self.use_apigw() else "/list_biz_hosts/"
+
     method = "POST"
 
 
@@ -209,7 +282,10 @@ class FindHostTopoRelation(CMDBBaseResource):
     查询业务主机
     """
 
-    action = "find_host_topo_relation"
+    @property
+    def action(self):
+        return "/api/v3/host/topo/relation/read" if self.use_apigw() else "/find_host_topo_relation/"
+
     method = "POST"
 
 
@@ -218,7 +294,10 @@ class FindHostBizRelation(CMDBBaseResource):
     查询主机业务关系信息
     """
 
-    action = "find_host_biz_relations"
+    @property
+    def action(self):
+        return "/api/v3/hosts/modules/read" if self.use_apigw() else "/find_host_biz_relations/"
+
     method = "POST"
 
 
@@ -227,7 +306,10 @@ class SearchCloudArea(CMDBBaseResource):
     查询云区域
     """
 
-    action = "search_cloud_area"
+    @property
+    def action(self):
+        return "/api/v3/findmany/cloudarea" if self.use_apigw() else "/search_cloud_area/"
+
     method = "POST"
 
 
@@ -236,7 +318,10 @@ class ListServiceTemplate(CMDBBaseResource):
     查询服务模板列表
     """
 
-    action = "list_service_template"
+    @property
+    def action(self):
+        return "/api/v3/findmany/proc/service_template" if self.use_apigw() else "/list_service_template/"
+
     method = "POST"
 
 
@@ -245,7 +330,10 @@ class ListSetTemplate(CMDBBaseResource):
     查询集群模板列表
     """
 
-    action = "list_set_template"
+    @property
+    def action(self):
+        return "/api/v3/findmany/topo/set_template/bk_biz_id/{bk_biz_id}" if self.use_apigw() else "/list_set_template/"
+
     method = "POST"
 
 
@@ -254,7 +342,14 @@ class FindHostByServiceTemplate(CMDBBaseResource):
     获取服务模板下的主机
     """
 
-    action = "find_host_by_service_template"
+    @property
+    def action(self):
+        return (
+            "/api/v3/findmany/hosts/by_service_templates/biz/{bk_biz_id}"
+            if self.use_apigw()
+            else "/find_host_by_service_template/"
+        )
+
     method = "POST"
 
 
@@ -264,7 +359,14 @@ class FindHostBySetTemplate(CMDBBaseResource):
     获取集群模板下的主机
     """
 
-    action = "find_host_by_set_template"
+    @property
+    def action(self):
+        return (
+            "/api/v3/findmany/hosts/by_set_templates/biz/{bk_biz_id}"
+            if self.use_apigw()
+            else "/find_host_by_set_template/"
+        )
+
     method = "POST"
 
 
@@ -273,7 +375,10 @@ class ListHostsWithoutBiz(CMDBBaseResource):
     跨业务主机查询
     """
 
-    action = "list_hosts_without_biz"
+    @property
+    def action(self):
+        return "/api/v3/hosts/list_hosts_without_app" if self.use_apigw() else "/list_hosts_without_biz/"
+
     method = "POST"
 
 
@@ -282,7 +387,12 @@ class FindTopoNodePaths(CMDBBaseResource):
     查询拓扑节点所在的拓扑路径
     """
 
-    action = "find_topo_node_paths"
+    @property
+    def action(self):
+        return (
+            "/api/v3/cache/find/cache/topo/node_path/biz/{bk_biz_id}" if self.use_apigw() else "/find_topo_node_paths/"
+        )
+
     method = "POST"
 
 
@@ -291,7 +401,10 @@ class SearchDynamicGroup(CMDBBaseResource):
     查询动态分组列表
     """
 
-    action = "search_dynamic_group"
+    @property
+    def action(self):
+        return "/api/v3/dynamicgroup/search/{bk_biz_id}" if self.use_apigw() else "/search_dynamic_group/"
+
     method = "POST"
 
 
@@ -300,7 +413,10 @@ class ExecuteDynamicGroup(CMDBBaseResource):
     执行动态分组
     """
 
-    action = "execute_dynamic_group"
+    @property
+    def action(self):
+        return "/api/v3/dynamicgroup/data/{bk_biz_id}/{id}" if self.use_apigw() else "/execute_dynamic_group/"
+
     method = "POST"
 
 

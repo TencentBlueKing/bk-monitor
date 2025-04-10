@@ -248,11 +248,12 @@ class CustomReportSubscription(models.Model):
                         group_info = api.monitor.custom_time_series_detail(
                             bk_biz_id=group.bk_biz_id, time_series_group_id=group.custom_group_id
                         )
-                    except BKAPIError:
+                    except BKAPIError as e:
                         logger.warning(
                             f"[{r['bk_data_id']}]get custom time series group[{group.custom_group_id}] detail error"
                         )
-                        redis_client.hset("bkmonitor:disabled_ts_group", str(group.custom_group_id), 1)
+                        if e.data.get("code") == 400 and "custom time series table not found" in e.data.get("message"):
+                            redis_client.hset("bkmonitor:disabled_ts_group", str(group.custom_group_id), 1)
                         continue
 
                     # prometheus格式: bk-collector-application.conf

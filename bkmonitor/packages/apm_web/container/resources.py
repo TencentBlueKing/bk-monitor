@@ -9,10 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
-from core.drf_resource import Resource, api, resource
+from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.request import get_request
+from core.drf_resource import CacheResource, Resource, api, resource
 from monitor_web.collecting.constant import CollectStatus
 
 
@@ -58,8 +61,10 @@ class PodDetailResource(Resource):
         return res
 
 
-class ListServicePodsResource(Resource):
+class ListServicePodsResource(CacheResource):
     """获取关联 Pod 列表"""
+
+    cache_type = CacheType.APM(60 * 5)
 
     class SpanSourceType:
         """span关联容器来源"""
@@ -74,6 +79,44 @@ class ListServicePodsResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         service_name = serializers.CharField(label="服务名称")
         span_id = serializers.CharField(label="Span Id", required=False)
+
+    def round_to_five_minutes(self, timestamps):
+        """将时间戳按5分钟取整"""
+        if timestamps is None:
+            return None
+        period = 5 * 60  # 5分钟秒数
+        return int(timestamps // period) * period
+
+    def _wrap_request(self):
+        """
+        将原有的request方法替换为支持缓存的request方法
+        """
+
+        def func_key_generator(resource):
+            request = get_request()
+            try:
+                start_time = request.GET.get("start_time") or request.POST.get("start_time")
+                end_time = request.GET.get("end_time") or request.POST.get("end_time")
+
+                start = self.round_to_five_minutes(int(start_time)) if start_time else 0
+                end = self.round_to_five_minutes(int(end_time)) if end_time else 0
+            except (AttributeError, ValueError, TypeError):
+                start = end = 0
+
+            key = f"{resource.__self__.__class__.__module__}.{resource.__self__.__class__.__name__}"
+
+            if all((start, end)):
+                return f"{key}.{start}_{end}"
+            return key
+
+        self.request = using_cache(
+            cache_type=self.cache_type,
+            backend_cache_type=self.backend_cache_type,
+            user_related=self.cache_user_related,
+            compress=self.cache_compress,
+            is_cache_func=self.cache_write_trigger,
+            func_key_generator=func_key_generator,
+        )(self.request)
 
     def perform_request(self, validated_data):
         # 获取服务关联的 Pod 节点

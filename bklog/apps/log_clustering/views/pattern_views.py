@@ -23,12 +23,14 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
+from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PatternSearchSerlaizer,
+    PatternStrategySerializer,
     SetOwnerSerializer,
     SetRemarkSerializer,
     UpdateGroupFieldsSerializer,
@@ -367,3 +369,30 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(UpdateGroupFieldsSerializer)
         return Response(PatternHandler(index_set_id, {}).update_group_fields(group_fields=params["group_fields"]))
+
+    @detail_route(methods=["POST"], url_path="pattern_strategy")
+    def pattern_strategy(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/pattern_strategy/ 日志聚类-告警策略开关
+        @apiName pattern_strategy
+        @apiGroup log_clustering
+        @apiParam {String} pattern_strategy 告警策略开关
+        @apiParamExample {json} 请求参数
+        {
+            "signature": "xxxxxxxxxx",
+            "origin_pattern": "xxxxx",
+            "groups": {
+                "__ext.container_id": "xxxxxxxxxx"
+            },
+            "strategy_enabled": true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {"strategy_id": 1234},
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(PatternStrategySerializer)
+        return Response(ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_pattern_strategy(params))

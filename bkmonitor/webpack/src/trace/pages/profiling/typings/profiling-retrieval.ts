@@ -73,6 +73,7 @@ export interface RetrievalFormData {
 export interface DataTypeItem {
   key: string;
   name: string;
+  default_agg_method?: string;
 }
 
 export interface ServiceItem {

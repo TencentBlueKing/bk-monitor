@@ -384,7 +384,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   </div>
                 </bk-popover>
                 <i
-                  class='icon-monitor icon-shouqi3 ml12'
+                  class={['icon-monitor ml12', this.allExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
                   v-bk-tooltips={{ content: this.$t(this.allExpand ? '全部收起' : '全部展开') }}
                   onClick={this.handleCollapseAll}
                 />

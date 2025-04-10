@@ -49,7 +49,7 @@ export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('timezone') readonly timezone: string;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
   // 视图变量
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 当前使用的业务id
@@ -94,7 +94,7 @@ export default class MonitorRetrieve extends tsc<void> {
               indexSetApi: this.indexSetApi,
               timeRange: this.timeRange,
               timezone: this.timezone,
-              refleshImmediate: this.refleshImmediate,
+              refreshImmediate: this.refreshImmediate,
               handleChartDataZoom: this.handleChartDataZoom,
             },
           }),

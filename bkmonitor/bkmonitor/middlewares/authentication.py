@@ -41,6 +41,7 @@ class ApiTokenAuthBackend(ModelBackend):
                 user.tenant_id = tenant_id
                 user.save()
         except Exception:
+            logger.exception("ApiTokenAuthBackend authenticate error, username: %s, tenant_id: %s", username, tenant_id)
             return None
         return user
 

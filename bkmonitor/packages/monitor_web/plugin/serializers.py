@@ -56,7 +56,7 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         mode = serializers.ChoiceField(required=True, choices=PARAM_MODE_CHOICES, label="模式")
         type = serializers.ChoiceField(
             required=True,
-            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list"],
+            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list", "custom"],
             label="类型",
         )
         name = serializers.CharField(required=True, label="名称")

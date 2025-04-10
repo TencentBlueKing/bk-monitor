@@ -211,6 +211,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data_type: str = None,
         sample_type: str = None,
         order: str = None,
+        agg_method: str = None,
+        agg_interval: int = 60,
         converter: Optional[ConverterType] = None,
     ) -> Union[DorisProfileConverter, TreeConverter, dict]:
         """
@@ -226,7 +228,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if api_type in [APIType.QUERY_SAMPLE_BY_JSON, APIType.SELECT_COUNT]:
             # query_sample / select_count 接口需要传递 dimension_fields 参数
             if not dimension_fields:
-                dimension_fields = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
+                dimension_fields = ",".join(
+                    ["dtEventTimeStamp", "type", "service_name", "period_type", "period", "sample_type"]
+                )
             extra_params["dimension_fields"] = dimension_fields
 
         if filter_labels:
@@ -248,9 +252,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 extra_params["order"] = {"expr": order.replace("-", ""), "sort": sort}
             else:
                 if api_type == APIType.QUERY_SAMPLE_BY_JSON:
-                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 t1.stacktrace_id 保持接口返回数据一致
+                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 dtEventTimeStamp,t1.stacktrace_id 保持接口返回数据一致
                     extra_params.setdefault("order", {})
-                    extra_params["order"] = {"expr": "t1.stacktrace_id", "sort": "asc"}
+                    extra_params["order"] = {"expr": "dtEventTimeStamp,t1.stacktrace_id", "sort": "desc"}
 
         if "profile_id" in extra_params.get("label_filter", {}):
             retry_handler = functools.partial(
@@ -294,7 +298,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 c.convert(r)
             elif converter == ConverterType.Tree:
                 c = TreeConverter()
-                c.convert(r)
+                c.convert(r, agg_method, agg_interval)
             else:
                 raise ValueError(f"不支持的 Profiling 转换器: {converter}")
         except Exception as e:  # noqa
@@ -393,6 +397,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=validate_data.get("filter_labels"),
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
+                agg_method=validate_data["agg_method"],
+                agg_interval=cls.get_agg_interval(start_time, end_time),
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -439,6 +445,15 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data.update(tree_converter.get_sample_type())
         return data
 
+    @classmethod
+    def get_agg_interval(cls, start, end):
+        """
+        获取聚合周期（规则：5分钟内取秒级聚合，5分钟以上分钟级别聚合）
+        params: start , end  (单位: 毫秒)
+        return: 返回聚合周期(单位：秒)
+        """
+        return 1 if end - start <= 5 * 60 * 1000 else 60
+
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
     @user_visit_record
     def samples(self, request: Request):
@@ -459,6 +474,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 diff_profile_id=validate_data.get("diff_profile_id"),
                 diff_filter_labels=validate_data.get("diff_filter_labels"),
                 sample_type=validate_data["data_type"],
+                agg_interval=self.get_agg_interval(start, end),
             )
 
             if len(validate_data["diagram_types"]) == 0:
@@ -499,6 +515,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=validate_data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
                 sample_type=validate_data["data_type"],
+                agg_method=validate_data["agg_method"],
+                agg_interval=self.get_agg_interval(diff_start_time, diff_end_time),
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -551,16 +569,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         is_compared=False,
         diff_profile_id=None,
         diff_filter_labels=None,
+        agg_interval=60,
     ):
         """获取时序表数据"""
-
-        if end - start <= 5 * 60 * 1000:
-            # 5 分钟内向秒取整
-            # 向秒取整
-            dimension = "FLOOR(dtEventTimeStamp / 1000) * 1000"
-        else:
-            # 向分钟取整
-            dimension = "FLOOR((dtEventTimeStamp / 1000) / 60) * 60000"
+        interval = agg_interval * 1000
+        dimension = f"FLOOR(dtEventTimeStamp / {interval}) * {interval}"
 
         tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,
@@ -609,10 +622,24 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return tendency_data, compare_tendency_result
 
     @staticmethod
-    def enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
+    def enlarge_duration(start: int, end: int, offset: int, min_range: int = 0) -> Tuple[int, int]:
+        """
+        params:
+            - start, end: unit microseconds
+            - offset, min_range: unit seconds
+
+        return: unit milliseconds
+        """
         # start & end all in microsecond, so we need to convert it to millisecond
         start = int(start / 1000 + offset * 1000)
         end = int(end / 1000 + offset * 1000)
+
+        min_range_milli_seconds = min_range * 1000
+        if min_range_milli_seconds > 0 and end - start < min_range_milli_seconds:
+            # 如果起止时间小于最小范围 min_range，则将整个起止时间各往外延展一半，整体时长增长一个 min_range
+            half_min_range_milli_seconds = int(min_range_milli_seconds / 2)
+            start = start - half_min_range_milli_seconds
+            end = end + half_min_range_milli_seconds
 
         return start, end
 
@@ -654,7 +681,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=0, min_range=3600)
 
         # 因为 bkbase label 接口已经改为返回原始格式的所以这里改成取前 5000条 label 进行提取 key 列表
         results = self.query(
@@ -688,7 +715,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=0, min_range=3600)
         results = self.query(
             api_type=APIType.LABEL_VALUES,
             app_name=app_name,

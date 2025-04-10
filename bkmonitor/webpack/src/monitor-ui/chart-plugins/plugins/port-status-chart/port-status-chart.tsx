@@ -66,7 +66,7 @@ class PortStatusChart extends CommonSimpleChart {
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -101,7 +101,7 @@ class PortStatusChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.emptyText = window.i18n.tc('查无数据');
       } else {
@@ -121,7 +121,7 @@ class PortStatusChart extends CommonSimpleChart {
       <ul class='port-status-chart'>
         <ChartTitle
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}

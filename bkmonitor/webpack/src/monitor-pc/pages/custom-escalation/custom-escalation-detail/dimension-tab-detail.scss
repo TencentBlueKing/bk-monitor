@@ -1,7 +1,6 @@
-
 .dimension-table-content {
   padding: 16px;
-  border-top: 1px solid #DCDEE5;
+  border-top: 1px solid #dcdee5;
   height: 100%;
   .dimension-table-header {
     margin-bottom: 12px;
@@ -21,7 +20,7 @@
     }
   }
   .dimension-table {
-    transition: width .5s;
+    transition: width 0.5s;
     .common-title {
       display: flex;
       align-items: center;
@@ -30,7 +29,7 @@
         .icon-info-circle {
           width: 12.25px;
           height: 11.25px;
-          color: #979BA5;
+          color: #979ba5;
           margin-left: 2px;
           &:hover {
             cursor: pointer;
@@ -43,7 +42,7 @@
       overflow: hidden;
       padding: 4px 5px 6px;
       &:hover {
-        background-color: #EAEBF0;
+        background-color: #eaebf0;
       }
       .table-group-tags {
         display: flex;
@@ -57,11 +56,11 @@
           white-space: nowrap;
           margin-right: 8px;
           font-size: 12px;
-          color: #4D4F56;
+          color: #4d4f56;
           text-align: left;
           line-height: 22px;
-          background: #FAFBFD;
-          border: 1px solid #DCDEE5;
+          background: #fafbfd;
+          border: 1px solid #dcdee5;
           border-radius: 2px;
         }
       }
@@ -87,10 +86,10 @@
       }
     }
     .description-input {
-      background-color: #FFF;
+      background-color: #fff;
       input {
         border: none;
-        background-color: #FFF!important;
+        background-color: #fff !important;
       }
       &.control-active {
         input {
@@ -106,7 +105,8 @@
     }
   }
   .table-container {
-    height: calc(100% - 52px);
+    height: calc(100% - 50px);
+    overflow-y: auto;
   }
 
   .editable-text {
@@ -148,7 +148,7 @@
       padding: 12px 16px 16px 16px;
     }
     .tippy-arrow {
-      bottom: -1px!important;
+      bottom: -1px !important;
     }
     .info {
       font-family: MicrosoftYaHei;

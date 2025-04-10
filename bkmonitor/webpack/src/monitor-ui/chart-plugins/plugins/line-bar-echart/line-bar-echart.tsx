@@ -32,7 +32,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_LINE_OPTIONS } from '../../constants';
-import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
+import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMixin } from '../../mixins';
 import BaseEchart from '../monitor-base-echart';
 
 import type { ICommonCharts, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
@@ -76,11 +76,11 @@ interface ILineEchartProps {
 }
 @Component
 class LineBarEChart
-  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMxin & LegendMixin & ChartLoadingMixin>(
+  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMixin & LegendMixin & ChartLoadingMixin>(
     ResizeMixin,
     IntersectionMixin,
     LegendMixin,
-    ToolsMxin,
+    ToolsMixin,
     ChartLoadingMixin
   )
   implements ICommonCharts
@@ -94,7 +94,7 @@ class LineBarEChart
    * @description: 获取图表数据
    */
   async getPanelData() {
-    this.unregisterOberver();
+    this.unregisterObserver();
     this.handleLoadingChange(true);
     const data = await this.mockData().finally(() => this.handleLoadingChange(false));
     data && this.updateChartData(data);

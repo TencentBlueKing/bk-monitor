@@ -101,7 +101,6 @@ class CicdPipelineContext(BaseContext):
                 pipeline["pipelineId"]: {"pipeline_name": pipeline["pipelineName"]}
                 for pipeline in list(
                     UnifyQuerySet()
-                    .scope(bk_biz_id=entities[0]["bk_biz_id"])
                     .start_time(min(timestamps) - one_hour_ms)
                     .end_time(max(timestamps) + one_hour_ms)
                     .time_agg(False)

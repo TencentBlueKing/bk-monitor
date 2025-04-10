@@ -54,7 +54,7 @@ interface IApmHeatmapProps {
 @Component
 class ApmHeatmap extends CommonSimpleChart {
   metrics = [];
-  inited = false;
+  initialized = false;
   options = {};
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
@@ -75,7 +75,7 @@ class ApmHeatmap extends CommonSimpleChart {
     }
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const interval = reviewInterval(this.viewOptions.interval, startTime - endTime, this.panel.collect_interval);
@@ -323,16 +323,16 @@ class ApmHeatmap extends CommonSimpleChart {
           },
         ],
       };
-      this.inited = true;
+      this.initialized = true;
       this.empty = false;
     } else {
-      this.inited = this.metrics.length > 0;
+      this.initialized = this.metrics.length > 0;
       this.emptyText = window.i18n.tc('暂无数据');
       this.empty = true;
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
   handleClickItem(item) {
     this.$emit('zrClick', {
@@ -345,8 +345,8 @@ class ApmHeatmap extends CommonSimpleChart {
       <div class='apm-heatmap'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
-          descrition={this.panel.descrition}
-          draging={this.panel.draging}
+          description={this.panel.description}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
           needMoreMenu={false}
@@ -361,7 +361,7 @@ class ApmHeatmap extends CommonSimpleChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

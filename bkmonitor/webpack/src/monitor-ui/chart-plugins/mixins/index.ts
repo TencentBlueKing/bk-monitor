@@ -28,5 +28,5 @@ export { default as ErrorMsgMixins } from './error-msg';
 export { default as IntersectionMixin } from './intersection';
 export { default as LegendMixin } from './legend';
 export { default as ResizeMixin } from './resize';
-export { default as ToolsMxin } from './tools';
+export { default as ToolsMixin } from './tools';
 export { default as WaterMakerMixin } from './watermark';

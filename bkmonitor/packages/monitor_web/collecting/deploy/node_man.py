@@ -89,10 +89,13 @@ class NodeManInstaller(BaseInstaller):
                 for dms_key, dms_value in list(param_value.items()):
                     if param["type"] == "host":
                         dms_insert_params[dms_key] = "{{ " + f"cmdb_instance.host.{dms_value} or '-'" + " }}"
-                    else:
+                    elif param["type"] == "service":
                         dms_insert_params[dms_key] = (
                             "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '-'" + " }}"
                         )
+                    elif param["type"] == "custom":
+                        # 自定义维度k， v 注入
+                        dms_insert_params[dms_key] = dms_value
 
         if self.plugin.plugin_type == PluginType.PROCESS:
             # processbeat 配置

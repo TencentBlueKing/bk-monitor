@@ -49,6 +49,14 @@ export default defineComponent({
       type: Array as PropType<DataTypeItem[]>,
       default: () => [],
     },
+    aggMethod: {
+      type: String,
+      default: 'AVG',
+    },
+    aggMethodList: {
+      type: Array as PropType<DataTypeItem[]>,
+      default: () => [],
+    },
     formData: {
       type: Object as PropType<RetrievalFormData>,
       required: true,
@@ -58,7 +66,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['update:dataType'],
+  emits: ['update:dataType', 'update:aggMethod'],
   setup(props) {
     const { t } = useI18n();
 
@@ -167,26 +175,49 @@ export default defineComponent({
   render() {
     return (
       <div class='profiling-retrieval-view-component'>
-        <div class='data-type'>
-          {this.$t('数据类型')}
-          <Button.ButtonGroup
-            class='data-type-list'
-            size='small'
-          >
-            {this.dataTypeList.map(item => {
-              return (
-                <Button
-                  key={item.key}
-                  selected={item.key === this.dataType}
-                  onClick={() => {
-                    this.$emit('update:dataType', item.key);
-                  }}
-                >
-                  {item.name}
-                </Button>
-              );
-            })}
-          </Button.ButtonGroup>
+        <div class='btn-group-wrap'>
+          <div class='data-type'>
+            {this.$t('数据类型')}
+            <Button.ButtonGroup
+              class='data-type-list'
+              size='small'
+            >
+              {this.dataTypeList.map(item => {
+                return (
+                  <Button
+                    key={item.key}
+                    selected={item.key === this.dataType}
+                    onClick={() => {
+                      this.$emit('update:dataType', item.key);
+                    }}
+                  >
+                    {item.name}
+                  </Button>
+                );
+              })}
+            </Button.ButtonGroup>
+          </div>
+          <div class='data-type'>
+            {this.$t('汇聚方法')}
+            <Button.ButtonGroup
+              class='data-type-list'
+              size='small'
+            >
+              {this.aggMethodList.map(item => {
+                return (
+                  <Button
+                    key={item.key}
+                    selected={item.key === this.aggMethod}
+                    onClick={() => {
+                      this.$emit('update:aggMethod', item.key);
+                    }}
+                  >
+                    {item.name}
+                  </Button>
+                );
+              })}
+            </Button.ButtonGroup>
+          </div>
         </div>
         <TrendChart
           comparisonDate={this.comparisonPosition}

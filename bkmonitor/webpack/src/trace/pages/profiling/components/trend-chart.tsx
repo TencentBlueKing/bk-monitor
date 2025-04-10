@@ -84,7 +84,7 @@ export default defineComponent({
     const timeSeriesChartRef = ref();
 
     const timezone = ref<string>(getDefaultTimezone());
-    const refleshImmediate = ref<number | string>('');
+    const refreshImmediate = ref<number | string>('');
     const defaultViewOptions = ref<IViewOptions>({});
     const collapse = ref(true);
     const panel = ref<PanelModel>(null);
@@ -105,7 +105,7 @@ export default defineComponent({
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
     provide(REFLESH_INTERVAL_KEY, refreshInterval);
-    provide(REFLESH_IMMEDIATE_KEY, refleshImmediate);
+    provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
     provide(VIEWOPTIONS_KEY, defaultViewOptions);
     provide(TIME_OFFSET_KEY, ref([]));
 

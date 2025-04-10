@@ -145,18 +145,18 @@ export default class ApmTimeSeries extends TimeSeries {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
     }
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
     }
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -184,7 +184,7 @@ export default class ApmTimeSeries extends TimeSeries {
         const noTransformVariables = !!this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const stack = item?.data?.stack || '';
-          const newPrarams = {
+          const newParams = {
             ...variablesService.transformVariables(
               item.data,
               {
@@ -205,7 +205,7 @@ export default class ApmTimeSeries extends TimeSeries {
             ),
           };
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](newParams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -311,7 +311,7 @@ export default class ApmTimeSeries extends TimeSeries {
           }
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, maxThreshold } = this.handleSetThreholds();
+        const { canScale, maxThreshold } = this.handleSetThresholds();
 
         let chartBaseOptions = MONITOR_LINE_OPTIONS;
         if (this.disableZoom) {
@@ -393,7 +393,7 @@ export default class ApmTimeSeries extends TimeSeries {
           })
         );
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent && this.needSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -404,7 +404,7 @@ export default class ApmTimeSeries extends TimeSeries {
           this.setChartInstance();
         }, 100);
       } else {
-        this.inited = this.metrics.length > 0;
+        this.initialized = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -414,8 +414,8 @@ export default class ApmTimeSeries extends TimeSeries {
       console.error(e);
     }
     // 初始化刷新定时器
-    if (!this.refleshIntervalInstance && this.refleshInterval) {
-      this.handleRefleshIntervalChange(this.refleshInterval);
+    if (!this.refreshIntervalInstance && this.refreshInterval) {
+      this.handleRefreshIntervalChange(this.refreshInterval);
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
@@ -498,10 +498,10 @@ export default class ApmTimeSeries extends TimeSeries {
           <ChartHeader
             class='draggable-handle'
             customArea={this.detailsSideData.show}
-            descrition={this.panel.options?.header?.tips || ''}
-            draging={this.panel.draging}
+            description={this.panel.options?.header?.tips || ''}
+            dragging={this.panel.dragging}
             drillDownOption={this.drillDownOptions}
-            inited={this.inited}
+            initialized={this.initialized}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -558,7 +558,7 @@ export default class ApmTimeSeries extends TimeSeries {
               onMouseenter={() => this.handleBaseChartMouseover(true)}
               onMouseleave={() => this.handleBaseChartMouseover(false)}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

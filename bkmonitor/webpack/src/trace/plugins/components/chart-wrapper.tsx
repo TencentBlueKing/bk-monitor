@@ -80,7 +80,7 @@ export default defineComponent({
     });
 
     /** hover样式 */
-    const needHoverStryle = computed(() => {
+    const needHoverStyle = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { time_series_forecast, time_series_list } = props.panel?.options || {};
       return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
@@ -176,7 +176,7 @@ export default defineComponent({
     }
 
     return {
-      needHoverStryle,
+      needHoverStyle,
       showHeaderMoreTool,
       handlePanel2Chart,
       loading,
@@ -199,7 +199,7 @@ export default defineComponent({
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
-          'hover-style': this.needCheck && this.needHoverStryle,
+          'hover-style': this.needCheck && this.needHoverStyle,
           'row-chart': this.panel.type === 'row',
         }}
       >

@@ -35,6 +35,7 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_adapter.home.alert_redirect import (
@@ -152,7 +153,7 @@ def external(request):
         if not authorizer_map.value.get(str(request.biz_id)):
             logger.error(f"业务{request.biz_id}无对应授权人")
             return HttpResponseForbidden(f"业务{request.biz_id}无对应授权人")
-        user = auth.authenticate(username=authorizer_map.value[str(request.biz_id)])
+        user = auth.authenticate(username=authorizer_map.value[str(request.biz_id)], tenant_id=DEFAULT_TENANT_ID)
         auth.login(request, user)
         setattr(request, "COOKIES", {k: v for k, v in request.COOKIES.items() if k != "bk_token"})
     else:
@@ -224,7 +225,7 @@ def dispatch_external_proxy(request):
             authorizer_map, _ = GlobalConfig.objects.get_or_create(
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
-            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)])
+            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)], tenant_id=DEFAULT_TENANT_ID)
             auth.login(request, user)
             setattr(fake_request, "user", request.user)
         logger.info(

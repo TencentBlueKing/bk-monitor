@@ -83,7 +83,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
   ipNodeType: INodeType = 'TOPO';
   ipObjectType: TargetObjectType = null;
   loading = false;
-  inited = false;
+  initialized = false;
   originValue: IIpV6Value = undefined;
   countInstanceType: CoutIntanceName = 'host';
   get hasStrategy() {
@@ -108,7 +108,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
   @Watch('showDialog', { immediate: true })
   async onShowDialogChange(v: boolean) {
     if (v) {
-      this.inited = false;
+      this.initialized = false;
       if (this.hasStrategy) {
         // 策略增删目标
         await this.getStrategyConfigTargets();
@@ -123,7 +123,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       }
       this.countInstanceType = this.ipObjectType === 'SERVICE' ? 'service_instance' : 'host';
       this.panelList = getPanelListByObjectType(this.ipObjectType);
-      setTimeout(() => (this.inited = true), 100);
+      setTimeout(() => (this.initialized = true), 100);
     }
   }
   @Emit('closeDialog')
@@ -189,7 +189,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
             mode={'dialog'}
             originalValue={this.originValue}
             panelList={this.panelList}
-            showDialog={this.inited && this.showDialog}
+            showDialog={this.initialized && this.showDialog}
             showViewDiff={!!this.originValue}
             value={this.ipCheckValue}
             onChange={this.handleIpChange}

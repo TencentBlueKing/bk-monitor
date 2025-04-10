@@ -32,12 +32,12 @@
   >
     <template slot="dropdown-trigger">
       <div
-        :class="['dropdown-trigger', { active: isDropdownShow, 'refresh-trigger': isRefleshInterval }]"
+        :class="['dropdown-trigger', { active: isDropdownShow, 'refresh-trigger': isRefreshInterval }]"
         @click="handleTirrger"
       >
         <div
           v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }"
-          :class="['trigger-name', { 'refresh-name': isRefleshInterval }]"
+          :class="['trigger-name', { 'refresh-name': isRefreshInterval }]"
         >
           <i
             v-if="icon"
@@ -57,11 +57,11 @@
           </span>
         </div>
         <i
-          v-if="!isRefleshInterval && !readonly"
+          v-if="!isRefreshInterval && !readonly"
           :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"
         />
         <i
-          v-if="isRefleshInterval"
+          v-if="isRefreshInterval"
           v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }"
           class="icon-monitor icon-mc-alarm-recovered"
           @click.stop="$emit('on-icon-click')"
@@ -97,7 +97,7 @@ export default class DropDownMenu extends Vue {
   @Prop({ default: false }) readonly textActive: boolean;
   @Prop({ default: '' }) readonly iconTitle: string;
   @Prop({ default: false }) readonly readonly: boolean;
-  @Prop({ default: false }) readonly isRefleshInterval: boolean;
+  @Prop({ default: false }) readonly isRefreshInterval: boolean;
 
   isDropdownShow = false;
   active: string | number = '';

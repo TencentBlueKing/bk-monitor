@@ -51,6 +51,7 @@ from metadata.models.space.utils import (
     get_biz_ids_by_space_ids,
     get_related_spaces,
     reformat_table_id,
+    update_filters_with_alias,
 )
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
@@ -380,6 +381,9 @@ class SpaceTableIDRedis:
         # 追加关联的BKCI的ES结果表，适配ES多空间功能
         _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
 
+        # 替换自定义过滤条件别名
+        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
+
         # 二段式校验&补充
         values_to_redis = {}
         for key, value in _values.items():
@@ -416,6 +420,9 @@ class SpaceTableIDRedis:
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
 
+        # 替换自定义过滤条件别名
+        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
+
         # 二段式校验&补充
         values_to_redis = {}
         for key, value in _values.items():
@@ -448,6 +455,9 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
+
+        # 替换自定义过滤条件别名
+        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
 
         # 二段式校验&补充
         values_to_redis = {}

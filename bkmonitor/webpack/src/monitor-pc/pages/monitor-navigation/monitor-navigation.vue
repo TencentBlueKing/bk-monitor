@@ -384,7 +384,7 @@ export default {
   async created() {
     this.handleGlobalBiz();
     this.handleSetNeedMenu();
-    this.nav.toggle = localStorage.getItem('navigationToogle') === 'true';
+    this.nav.toggle = localStorage.getItem('navigationToggle') === 'true';
     this.nav.toggleSet = this.nav.toggle;
     Vue.prototype.$authorityStore = authorityStore;
   },
@@ -441,7 +441,7 @@ export default {
     },
     handleToggleClick(v) {
       this.nav.toggleSet = v;
-      localStorage.setItem('navigationToogle', v);
+      localStorage.setItem('navigationToggle', v);
       this.$store.commit('app/setNavToggle', v);
     },
     handleBizChange(v) {

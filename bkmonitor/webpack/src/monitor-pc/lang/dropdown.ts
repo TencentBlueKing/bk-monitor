@@ -124,6 +124,7 @@ export default {
   存储: 'Storage',
   容量: 'Capacity',
   成本: 'Cost',
+  '生成 “{0}” 选项': 'Generate "{0}" Options',
   '生成 "{0}" Tag': 'Generate "{0}" Tag',
   新开标签页: 'Open in New Tab',
   另存为新收藏: 'Save as New Favorite',

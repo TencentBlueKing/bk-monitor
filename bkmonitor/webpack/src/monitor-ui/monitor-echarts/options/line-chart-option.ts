@@ -45,7 +45,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           yAxis: {
             axisLabel: {
               color: '#979BA5',
-              formatter: this.handleYxisLabelFormatter,
+              formatter: this.handleYAxisLabelFormatter,
             },
           },
         },
@@ -100,7 +100,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       legendData.push(...cover.map((item: any) => ({ name: item.name, hidden: true })));
     }
     const [firstSery] = newSeries || [];
-    const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds(series);
+    const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds(series);
     const yAxis = [];
     yAxis.push({
       ...this.defaultOption.yAxis,
@@ -115,7 +115,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
               return v;
             }
-          : (v: number) => this.handleYxisLabelFormatter(v - minBase),
+          : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
       },
       max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
       min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
@@ -146,7 +146,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                 }
                 return v;
               }
-            : (v: number) => this.handleYxisLabelFormatter(v - minBase),
+            : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
         },
         max: (v: { min: number; max: number }) => v.max,
         min: (v: { min: number; max: number }) => v.min,
@@ -516,7 +516,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     };
   }
 
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -538,7 +538,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[formatter(cur, precision).text] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -549,7 +549,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     return precision;
   }
 
-  handleSetThreholds(series: any) {
+  handleSetThresholds(series: any) {
     let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
     thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
       pre.push(...cur.map((set: any) => set.yAxis));

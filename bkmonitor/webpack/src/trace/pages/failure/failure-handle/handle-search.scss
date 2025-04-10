@@ -95,7 +95,9 @@
         }
 
         .bk-tree-node:not(.is-root).level-line::before {
-          top: calc(50%);
+          width: calc(var(--indent) - 7px);
+          top: 50%;
+          left: calc(0px - var(--indent) + 8px);
         }
 
         .bk-node-action .bk-node-prefix {
@@ -105,6 +107,7 @@
 
         .bk-tree-node .node-virtual-line {
           top: -10px;
+          left: calc(var(--depth) * var(--indent) * -1 + 8px);
         }
       }
 

@@ -59,7 +59,7 @@ export default class MonitorK8s extends tsc<object> {
   /** 定位详情文案 */
   subName = '';
 
-  get positonText() {
+  get positionText() {
     const label = this.tabName;
     const value = this.sceneType === 'overview' ? window.i18n.tc('概览') : this.subName;
     return `${label}：${value}`;
@@ -100,7 +100,7 @@ export default class MonitorK8s extends tsc<object> {
   handleRouterBack() {
     this.backToOverviewKey = random(8);
   }
-  handleSecendTypeChange(type) {
+  handleSceneTypeChange(type) {
     this.sceneType = type;
   }
   handleAddCluster() {
@@ -120,7 +120,7 @@ export default class MonitorK8s extends tsc<object> {
           sceneType={this.sceneType}
           toggleTabSearchFilterKeys={['bcs_cluster_id']}
           tab2SceneType
-          onSceneTypeChange={this.handleSecendTypeChange}
+          onSceneTypeChange={this.handleSceneTypeChange}
           onTabChange={this.handleSceneTabChange}
           onTitleChange={this.handleTitleChange}
         >
@@ -128,7 +128,7 @@ export default class MonitorK8s extends tsc<object> {
             slot='nav'
             callbackRouterBack={this.handleRouterBack}
             needShadow={true}
-            positionText={this.positonText}
+            positionText={this.positionText}
             routeList={this.routeList}
             needCopyLink
           />

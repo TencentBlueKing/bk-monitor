@@ -1996,7 +1996,7 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
 
             # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
-            agg_func_name: str = "{method}_over_time".format(method={"sum": "count"}[method])
+            agg_func_name: str = "{method}_over_time".format(method={"sum": "count"}.get(method, method))
             query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
 
             query["field_name"] = metric["field"]
@@ -2117,7 +2117,6 @@ class CustomEventDataSource(BkMonitorLogDataSource):
     data_source_label = DataSourceLabel.CUSTOM
     data_type_label = DataTypeLabel.EVENT
     INNER_DIMENSIONS = ["target", "event_name"]
-    NEED_AUTO_FILTER = True
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, name="", *args, **kwargs):
@@ -2150,17 +2149,15 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        if kwargs.get("is_time_agg", True):
-            for metric in self.metrics:
-                if metric["field"] == "event.count":
-                    metric["method"] = "SUM"
-                else:
-                    metric["field"] = "_index"
-                    metric["method"] = "COUNT"
+        for metric in self.metrics:
+            if metric["field"] == "event.count":
+                metric["method"] = "SUM"
+            else:
+                metric["field"] = "_index"
+                metric["method"] = "COUNT"
 
-        if self.NEED_AUTO_FILTER:
-            # 平台级且业务不等于绑定的平台业务
-            self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
+        # 平台级且业务不等于绑定的平台业务
+        self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
 
     def add_recovery_filter(self, datasource):
         """
@@ -2215,12 +2212,12 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         return records[:limit]
 
 
-class NewCustomEventDataSource(CustomEventDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.EVENT
+class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR_NEW
+    data_type_label = DataTypeLabel.LOG
+
+    _INDEX: str = "_index"
     INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
-    # 查询路由下沉到 metadata
-    NEED_AUTO_FILTER = False
 
     OPERATOR_MAPPING: Dict[str, str] = {
         "neq": "ne",
@@ -2230,6 +2227,12 @@ class NewCustomEventDataSource(CustomEventDataSource):
         "exclude": "ncontains",
     }
 
+    PERCENTILES_AGG_TRANSLATE = {
+        CpAggMethods["cp50"].vargs_list[0]: "50.0",
+        CpAggMethods["cp90"].vargs_list[0]: "90.0",
+        CpAggMethods["cp95"].vargs_list[0]: "95.0",
+        CpAggMethods["cp99"].vargs_list[0]: "99.0",
+    }
     ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
 
     def __init__(self, *args, **kwargs):
@@ -2238,15 +2241,23 @@ class NewCustomEventDataSource(CustomEventDataSource):
         self.time_alignment: bool = kwargs.get("time_alignment", True)
         self.reference_name: str = kwargs.get("reference_name") or "a"
 
+        if self.is_time_agg:
+            for metric in self.metrics:
+                if metric["field"] == "event.count" and metric["method"] == "COUNT":
+                    metric["method"] = "SUM"
+                elif metric["field"] == self._INDEX:
+                    metric["method"] = "COUNT"
+
+    def process_unify_query_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        # TODO 日志关键字在配置告警时，需要通过 distinct_calculate 按 IP / 管控区域 对事件进行去重，后续切换时需要考虑。
+        records: List[Dict[str, Any]] = self._remove_dimensions_prefix(records)
+        records: List[Dict[str, Any]] = self._filter_by_advance_method(records)
+        return records
+
     def _get_unify_query_table(self) -> str:
         if self.table in {"system_event", "k8s_event", "cicd_event"}:
             return self.table
         return f"{self.table}.__default__"
-
-    def process_unify_query_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        records: List[Dict[str, Any]] = self._remove_dimensions_prefix(records)
-        records: List[Dict[str, Any]] = self._filter_by_advance_method(records)
-        return records
 
     def to_unify_query_config(self) -> List[Dict]:
         group_by: List[str] = self._get_group_by()
@@ -2277,7 +2288,8 @@ class NewCustomEventDataSource(CustomEventDataSource):
             function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
             if method in CpAggMethods:
                 cp_agg_method = CpAggMethods[method]
-                function["vargs_list"] = cp_agg_method.vargs_list
+                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
+                function["method"] = "percentiles"
                 query["time_aggregation"]["position"] = cp_agg_method.position
                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
 
@@ -2289,12 +2301,11 @@ class NewCustomEventDataSource(CustomEventDataSource):
                     agg_func_name: str = "{method}_over_time".format(method=method)
                     query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
                 else:
-                    query["function"].append(
-                        {"method": "date_histogram", "dimensions": group_by, "window": f"{self.interval}s"}
-                    )
+                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
+                    function["window"] = f"{self.interval}s"
 
             field: str = metric["field"]
-            if self.is_dimensions_field(field) and field != "_index":
+            if self.is_dimensions_field(field) and field != self._INDEX:
                 query["field_name"] = f"dimensions.{field}"
             else:
                 query["field_name"] = field
@@ -2322,6 +2333,37 @@ class NewCustomEventDataSource(CustomEventDataSource):
             query_list.append(query)
 
         return query_list
+
+
+class NewCustomEventDataSource(NewBkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.EVENT
+
+    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # 添加自定义事件过滤条件
+        if kwargs.get("custom_event_name"):
+            self.filter_dict["event_name"] = kwargs["custom_event_name"]
+
+        # 过滤掉恢复事件
+        self.filter_dict["event_type__neq"] = RECOVERY
+
+    @classmethod
+    def add_recovery_filter(cls, datasource):
+        """
+        去除原有默认的异常事件筛选，增加恢复过滤条件
+        :return: 增加恢复事件筛选的DataSource
+        """
+        # 原有 datasource 默认不筛选恢复事件，弹出
+        datasource.filter_dict.pop("event_type__neq")
+
+        # 新增恢复事件筛选条件
+        datasource.filter_dict["event_type__eq"] = RECOVERY
+
+        return datasource
 
 
 class BkMonitorEventDataSource(DataSource):
@@ -2653,6 +2695,7 @@ def load_data_source(data_source_label: str, data_type_label: str) -> Type[DataS
         BkFtaEventDataSource,
         BkApmTraceDataSource,
         NewCustomEventDataSource,
+        NewBkMonitorLogDataSource,
         BkApmTraceTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]

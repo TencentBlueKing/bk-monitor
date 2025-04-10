@@ -59,7 +59,7 @@ export default class MessageChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
-    this.unregisterOberver();
+    this.unregisterObserver();
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
@@ -106,7 +106,7 @@ export default class MessageChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = !this.series.length;
         this.emptyText = window.i18n.tc('查无数据');
       } else {

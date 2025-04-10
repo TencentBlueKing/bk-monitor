@@ -673,7 +673,7 @@ export default {
         show: false,
         ready: false,
         left: 0,
-        draging: false,
+        dragging: false,
       },
     };
   },
@@ -1032,12 +1032,13 @@ export default {
 <style lang="scss" scoped>
 .ip-select {
   display: flex;
+  font-size: 12px;
+  color: #63656e;
   background-color: #fff;
   border-radius: 2px;
-  color: #63656e;
-  font-size: 12px;
 
   &-left {
+    position: relative;
     flex: 0 0 240px;
     min-width: 240px;
     background-image: linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
@@ -1045,7 +1046,6 @@ export default {
       linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
       linear-gradient(0deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
     background-size: 100% 100%;
-    position: relative;
 
     .left-tab {
       display: flex;
@@ -1053,39 +1053,40 @@ export default {
       font-size: 14px;
 
       &-item {
-        flex: 1;
         display: flex;
+        flex: 1;
         align-items: center;
         justify-content: center;
-        border: 1px solid #dcdee5;
         background: #fafbfd;
+        border: 1px solid #dcdee5;
 
         &:first-child {
           border-right: 0;
         }
 
         &.active {
+          height: 41px;
           background: #fff;
           border-bottom: 0;
-          height: 41px;
         }
 
         &.tab-item:hover {
+          color: #3a84ff;
+          cursor: pointer;
+
           /* stylelint-disable-next-line declaration-no-important */
           border-color: #3a84ff !important;
-          cursor: pointer;
-          color: #3a84ff;
         }
 
         &.tab-disabled {
           color: #c4c6cc;
 
           &:hover {
+            color: #c4c6cc;
             cursor: not-allowed;
 
             /* stylelint-disable-next-line declaration-no-important */
             border-color: #dcdee5 !important;
-            color: #c4c6cc;
           }
         }
       }
@@ -1099,35 +1100,35 @@ export default {
       }
 
       &-wrap {
+        position: relative;
         height: calc(var(--height) - 142px);
         overflow: auto;
-        position: relative;
       }
 
       .search-none {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         height: 250px;
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
       }
     }
 
     .left-footer {
-      height: 32px;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
       display: flex;
       align-items: center;
-      border: 1px solid #dcdee5;
+      height: 32px;
       color: #c4c6cc;
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      right: 0;
+      border: 1px solid #dcdee5;
 
       ::placeholder {
         color: #979ba5;
@@ -1142,15 +1143,15 @@ export default {
       }
 
       &-icon {
-        font-size: 14px;
         flex: 0 0 34px;
+        font-size: 14px;
         text-align: center;
       }
 
       &-input {
-        color: #63656e;
-        height: 30px;
         width: 100%;
+        height: 30px;
+        color: #63656e;
         border: 0;
       }
     }
@@ -1158,12 +1159,12 @@ export default {
 
   &-right {
     flex: 1;
+    overflow: auto;
     background-image: linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
       linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
       linear-gradient(0deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
     background-size: 100% 100%;
     border-left: 0;
-    overflow: auto;
 
     .right-wrap {
       border: 1px solid #dcdee5;
@@ -1178,15 +1179,15 @@ export default {
       }
 
       .topo-list {
-        color: #63656e;
         font-size: 12px;
+        color: #63656e;
 
         &-item {
-          height: 40px;
           display: flex;
           align-items: center;
-          border-bottom: 1px solid #dfe0e5;
+          height: 40px;
           padding-left: 32px;
+          border-bottom: 1px solid #dfe0e5;
 
           &:hover {
             background-color: #f0f1f5;
@@ -1198,13 +1199,13 @@ export default {
             color: #979ba5;
 
             .status-host {
-              color: #3a84ff;
               font-weight: bold;
+              color: #3a84ff;
             }
 
             .status-unusual {
-              color: #ea3636;
               font-weight: bold;
+              color: #ea3636;
             }
           }
 
@@ -1218,20 +1219,20 @@ export default {
 
     .right-empty {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
       margin-top: 164px;
 
       .icon-monitor {
+        margin-bottom: 8px;
         font-size: 28px;
         color: #dcdee5;
-        margin-bottom: 8px;
       }
 
       &-title {
-        font-size: 14px;
         margin-bottom: 3px;
+        font-size: 14px;
       }
 
       &-desc {

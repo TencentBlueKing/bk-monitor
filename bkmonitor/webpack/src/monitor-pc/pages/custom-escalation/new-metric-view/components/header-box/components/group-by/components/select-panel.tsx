@@ -34,6 +34,7 @@ interface IProps {
   value: { field: string; split: boolean }[];
   data: {
     name: string;
+    alias: string;
   }[];
   splitable: boolean;
 }
@@ -125,7 +126,10 @@ export default class AppendValue extends tsc<IProps, IEmit> {
         this.renderData = Object.freeze(this.data);
       } else {
         this.renderData = Object.freeze(
-          _.filter(this.data, item => item.name.toLocaleLowerCase().includes(filterKey.toLocaleLowerCase()))
+          _.filter(this.data, item => {
+            const keyWord = filterKey.toLocaleLowerCase();
+            return item.name.toLocaleLowerCase().includes(keyWord) || item.alias.toLocaleLowerCase().includes(keyWord);
+          })
         );
       }
 
@@ -147,6 +151,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
             {dimensionData.name}
+            <span class='dimension-alias'>{dimensionData.alias}</span>
           </bk-checkbox>
           {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>

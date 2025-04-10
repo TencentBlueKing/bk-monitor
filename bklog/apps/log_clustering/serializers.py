@@ -127,6 +127,13 @@ class SetOwnerSerializer(serializers.Serializer):
     groups = serializers.DictField(default=dict)
 
 
+class PatternStrategySerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
+    strategy_enabled = serializers.BooleanField(default=False)
+
+
 class UpdateGroupFieldsSerializer(serializers.Serializer):
     group_fields = serializers.ListField(child=serializers.CharField(), allow_empty=True, default=list)
 

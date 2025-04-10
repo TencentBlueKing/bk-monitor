@@ -118,7 +118,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   get authorityResource() {
     return { application_name: this.$route.query?.['filter-app_name'] || '' };
   }
-  get positonText() {
+  get positionText() {
     const value =
       this.sceneType === 'overview'
         ? this.tabName === window.i18n.tc('服务')
@@ -219,7 +219,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     if (navId === 'application') {
       this.appName = item.id;
       this.getServiceList();
-      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
       this.viewOptions = {
         filters: {
           app_name: this.appName,
@@ -232,7 +232,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           from,
           interval,
           timezone,
-          refleshInterval,
+          refreshInterval,
           dashboardId,
           'filter-app_name': this.appName,
         },
@@ -293,7 +293,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       },
     });
   }
-  handleSecendTypeChange(type) {
+  handleSceneTypeChange(type) {
     this.sceneType = type;
   }
   /** 详情返回列表操作刷新列表的数据 */
@@ -344,7 +344,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             sceneId={'apm_application'}
             sceneType={'overview'}
             tab2SceneType
-            onSceneTypeChange={this.handleSecendTypeChange}
+            onSceneTypeChange={this.handleSceneTypeChange}
             onTabChange={this.handleSceneTabChange}
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
@@ -353,7 +353,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
               slot='nav'
               needBack={false}
               needShadow={true}
-              positionText={this.positonText}
+              positionText={this.positionText}
               routeList={this.routeList}
               needCopyLink
               onNavSelect={this.handleNavSelect}

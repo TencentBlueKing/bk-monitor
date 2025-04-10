@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Any, Dict
+import re
+from typing import Any, Dict, List, Set
 
 from rest_framework.exceptions import NotFound
 
@@ -23,10 +24,26 @@ logger = logging.getLogger(__name__)
 
 
 class QueryEsResource(Resource):
+    _INDEX_PATTERN = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_\d+$")
+
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
         use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
+
+    @classmethod
+    def _process_index_names(cls, index_names: List[str]) -> List[str]:
+        processed_index_names: Set[str] = set()
+        for index_name in index_names:
+            match = cls._INDEX_PATTERN.match(index_name)
+            if not match:
+                # 不满足合并条件也要进行检索
+                processed_index_names.add(index_name)
+            else:
+                processed_index_names.add(
+                    "{prefix}_{date}_*".format(prefix=match.group("prefix"), date=match.group("date"))
+                )
+        return list(processed_index_names)
 
     def perform_request(self, validated_request_data):
         table_id = validated_request_data["table_id"]
@@ -49,7 +66,7 @@ class QueryEsResource(Resource):
                     "version": storage_info["cluster_config"]["version"],
                 }
             )
-            extra["index_names"] = storage.get_index_names()
+            extra["index_names"] = self._process_index_names(storage.get_index_names())
 
         data = GetEsDataResource().request(
             index_name=validated_request_data["table_id"],

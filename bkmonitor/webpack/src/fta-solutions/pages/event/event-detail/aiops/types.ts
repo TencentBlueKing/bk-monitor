@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 export enum ETabNames {
+  diagnosis = 'diagnosis',
   dimension = 'dimension',
   index = 'index',
 }
@@ -72,4 +73,30 @@ export enum EventReportType {
   Click = 'event_detail_click',
   Tips = 'event_detail_tips',
   View = 'event_detail_view',
+}
+
+export interface TabConfig {
+  name: string;
+  icon: string;
+  titleKey: string;
+  loading: boolean;
+  error?: string;
+  infoType: 'dimensionInfo' | 'indexInfo';
+  contentRenderer?: () => void;
+  dataItems: {
+    path: string;
+    labelKey: string;
+    showComma?: boolean;
+  }[];
+}
+
+export interface IIncidentDetail {
+  id: string;
+  incident_name: string;
+  status_alias: string;
+  duration: string;
+  bk_biz_name: string;
+  current_topology: Record<string, unknown>;
+  begin_time:number;
+  end_time:number;
 }

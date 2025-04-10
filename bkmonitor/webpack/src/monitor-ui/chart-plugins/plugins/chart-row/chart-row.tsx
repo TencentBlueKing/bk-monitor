@@ -41,7 +41,7 @@ export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {
   @Prop({ required: true, type: Object }) readonly panel: PanelModel;
 
   handleCollapsed() {
-    if (!this.panel.draging) {
+    if (!this.panel.dragging) {
       this.$emit('collapse', !this.panel.collapsed);
     }
     this.panel.updateDragging(false);

@@ -802,7 +802,7 @@ class SetupResource(Resource):
                 self._application.event_config,
                 self._params[Application.EVENT_CONFIG_KEY],
                 self._application.EVENT_CONFIG_KEY,
-                override=True
+                override=True,
             )
 
     def perform_request(self, validated_data):
@@ -1399,7 +1399,7 @@ class MetaInstrumentGuides(Resource):
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
                     "enabled": app.is_enabled_profiling,
-                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope/ingest",
+                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
                 },
             }
             return attrs

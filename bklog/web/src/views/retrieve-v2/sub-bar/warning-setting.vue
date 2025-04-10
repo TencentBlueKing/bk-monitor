@@ -375,6 +375,8 @@
       config: 'strategy-config',
     };
 
+
+    
     if (active.value === 'mission') {
       getQueryString().then(res => {
         window.open(
@@ -646,13 +648,13 @@
 
       .severity-level {
         position: absolute;
-        left: 0;
         top: 2px;
+        left: 0;
         display: inline-block;
         min-width: 2px;
         min-height: 14px;
-        background-color: var(--severity-color);
         margin-right: 2px;
+        background-color: var(--severity-color);
       }
     }
   }

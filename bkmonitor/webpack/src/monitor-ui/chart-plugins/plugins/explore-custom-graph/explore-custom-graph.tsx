@@ -186,7 +186,7 @@ export class ExploreCustomChart extends TimeSeries {
           ref='chart'
           class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
         >
-          {this.inited && (
+          {this.initialized && (
             <BaseEchart
               ref='baseChart'
               width={this.width}
@@ -230,7 +230,7 @@ export class ExploreCustomChart extends TimeSeries {
             triggerDescription: this.wrapperHeaderDescriptionSlotRender,
             headerCustom: this.wrapperHeaderCustomSlotRender,
           }}
-          description={this.panel?.descrition}
+          description={this.panel?.description}
           title={this.panel?.title}
         >
           {this.requestSuccessContentRender()}

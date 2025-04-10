@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Tuple
 
 import arrow
 from django.utils.functional import cached_property
@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR, NO_DATA_LEVEL
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.calendar import CalendarCacheManager
+from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
@@ -133,10 +134,10 @@ class Strategy(object):
     def actions(self):
         return self.config.get("actions", [])
 
-    def in_alarm_time(self, now_time=None) -> (bool, str):
+    def in_alarm_time(self, now_time=None) -> Tuple[bool, str]:
         """
         是否在策略生效期间
-        :return: bool
+        :return: bool, str
         """
         if not self.config:
             return True, ""
@@ -189,7 +190,12 @@ class Strategy(object):
 
         # 再看看日历，是不是处于休息日
         calendar_ids = uptime.get("calendars") or []
-        calendars = CalendarCacheManager.mget(calendar_ids)
+        if calendar_ids:
+            calendars = CalendarCacheManager.mget(
+                calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+            )
+        else:
+            calendars = []
 
         item_messages = []
         for items in calendars:

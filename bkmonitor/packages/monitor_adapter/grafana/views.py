@@ -34,6 +34,7 @@ from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkm_space.api import SpaceApi
 from bkmonitor.iam.action import ActionEnum
 from bkmonitor.models.external_iam import ExternalPermission
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
@@ -140,7 +141,7 @@ class GrafanaSwitchOrgView(SwitchOrgView):
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
             authorizer = authorizer_map.value[org_name]
-            user = auth.authenticate(username=authorizer)
+            user = auth.authenticate(username=authorizer, tenant_id=DEFAULT_TENANT_ID)
             setattr(request, "user", user)
 
             # 过滤外部用户仪表盘
@@ -190,7 +191,7 @@ class GrafanaProxyView(ProxyView):
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
             authorizer = authorizer_map.value[org_name]
-            user = auth.authenticate(username=authorizer)
+            user = auth.authenticate(username=authorizer, tenant_id=DEFAULT_TENANT_ID)
             setattr(request, "user", user)
 
         response = super(GrafanaProxyView, self).dispatch(request, *args, **kwargs)

@@ -25,14 +25,9 @@
  */
 import { listK8sResources, workloadOverview } from 'monitor-api/modules/k8s';
 
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { sceneDimensionMap } from '../../k8s-dimension';
 import { EDimensionKey } from '../../typings/k8s-new';
-export enum EGroupBy {
-  container = 'container',
-  namespace = 'namespace',
-  pod = 'pod',
-  workload = 'workload',
-}
-
 export interface IFilterByItem {
   key: string;
   value: string[];
@@ -67,9 +62,6 @@ export interface IValueItem {
   }[];
 }
 
-const sceneDimensionMap = {
-  performance: [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container],
-};
 export class FilterByOptions {
   commonParams: Record<string, any> = {}; // 通用参数
   dimensionData = []; // 维度数据
@@ -105,8 +97,12 @@ export class FilterByOptions {
           setData(countData);
         });
       } else {
+        const { timeRange, ...commonParams } = this.commonParams;
+        const formatTimeRange = handleTransformToTimestamp(timeRange);
         listK8sResources({
-          ...this.commonParams,
+          ...commonParams,
+          start_time: formatTimeRange[0],
+          end_time: formatTimeRange[1],
           resource_type: dimension,
           page: 1,
           page_size: 1,
@@ -124,8 +120,12 @@ export class FilterByOptions {
   async getNextPageData(dimension: EDimensionKey, categoryDim?: string) {
     this.nextPage(dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),
@@ -183,8 +183,12 @@ export class FilterByOptions {
   async initOfType(dimension: EDimensionKey, categoryDim?: string) {
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),
@@ -200,12 +204,7 @@ export class FilterByOptions {
   }
 
   queryStringParams(dimension: EDimensionKey, categoryDim?: string) {
-    const dimensionIndex = [
-      EDimensionKey.namespace,
-      EDimensionKey.workload,
-      EDimensionKey.pod,
-      EDimensionKey.container,
-    ];
+    const dimensionIndex = sceneDimensionMap[this.scenario];
     const filterDict = {};
     if (!this.isUpdate) {
       for (const key of dimensionIndex) {
@@ -247,8 +246,12 @@ export class FilterByOptions {
     this.commonParams.query_string = search;
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
+    const { timeRange, ...commonParams } = this.commonParams;
+    const formatTimeRange = handleTransformToTimestamp(timeRange);
     const data = await listK8sResources({
-      ...this.commonParams,
+      ...commonParams,
+      start_time: formatTimeRange[0],
+      end_time: formatTimeRange[1],
       resource_type: dimension,
       page: page,
       ...this.queryStringParams(dimension, categoryDim),

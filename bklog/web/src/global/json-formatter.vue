@@ -198,6 +198,12 @@
         }
       }
 
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
+
       .valid-text {
         :hover {
           color: #3a84ff;
@@ -226,6 +232,7 @@
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
+        white-space: pre-wrap;
       }
 
       .menu-list {
@@ -289,6 +296,12 @@
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 20px;
+
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
 
       .valid-text {
         cursor: pointer;

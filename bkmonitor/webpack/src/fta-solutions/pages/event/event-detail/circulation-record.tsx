@@ -64,7 +64,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     operate: [],
     isAll: false,
     first: true,
-    loading: true,
+    loading: false,
     abnormal: false,
     defaultClickCollapseIndex: -1,
     isEnd: false,
@@ -108,7 +108,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
 
   public emptyType: EmptyStatusType = 'empty';
 
-  @Watch('show')
+  @Watch('show', { immediate: true })
   handleShow(v: boolean) {
     if (v && !this.circulationRecord.list.length) {
       this.dataReset();
@@ -157,7 +157,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
       operate: [],
       isAll: false,
       first: true,
-      loading: true,
+      loading: false,
       abnormal: false,
       defaultClickCollapseIndex: -1,
       isEnd: false,
@@ -175,6 +175,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     if (this.lastLogOffset === this.circulationRecord.offset) return;
     this.circulationRecord.abnormal = false;
     const operate = conditions || this.conditions;
+    this.circulationRecord.loading = true;
     const list = await EventDetail.getlistEventLog({
       bk_biz_id: this.detail.bk_biz_id,
       id: this.detail.id,
@@ -214,7 +215,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
    */
   listLinkCompatibility(list) {
     return list.map(item => {
-      if (!!item?.routerInfo) {
+      if (item?.routerInfo) {
         const routerName = item.routerInfo?.routerName;
         const params = item.routerInfo?.params;
         if (routerName === 'alarm-shield-detail') {
@@ -229,11 +230,11 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
           };
         }
-      } else if (!!item?.url) {
+      } else if (item?.url) {
         if (typeof item.url === 'string') {
           const match = item.url.match(/\/alarm-shield-detail\/(\d+)/);
           const id = match?.[1];
-          if (!!id) {
+          if (id) {
             return {
               ...item,
               url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
@@ -425,7 +426,15 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
       //   <span class="can-click" on-click={() => this.handleNoticeDetail(item.offset)}> { this.$t('点击查看明细') } </span>
       // ]
     } else if (item.operate === 'ACK') {
-      dom = [item.contents[0], <span class='alarm-ack'>{item.contents[1]}</span>];
+      dom = [
+        item.contents[0],
+        <span
+          key={'alarm-ack'}
+          class='alarm-ack'
+        >
+          {item.contents[1]}
+        </span>,
+      ];
     } else if (
       item.contents.length > 1 &&
       (item.operate === 'CREATE' || item.operate === 'CONVERGE' || item.operate === 'EVENT_DROP')

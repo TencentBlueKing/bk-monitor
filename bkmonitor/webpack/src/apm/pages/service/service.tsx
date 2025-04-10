@@ -97,7 +97,7 @@ export default class Service extends tsc<object> {
     return this.$store.getters.bizId;
   }
 
-  get positonText() {
+  get positionText() {
     const label = this.tabName;
 
     const value =
@@ -230,7 +230,7 @@ export default class Service extends tsc<object> {
       }
     } else {
       this.serviceName = item.id;
-      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
       this.$router.replace({
         name: this.$route.name,
         query: {
@@ -238,7 +238,7 @@ export default class Service extends tsc<object> {
           from,
           interval,
           timezone,
-          refleshInterval,
+          refreshInterval,
           dashboardId,
           'filter-app_name': item.app_name,
           'filter-service_name': item.service_name,
@@ -319,7 +319,7 @@ export default class Service extends tsc<object> {
               slot='nav'
               needBack={false}
               needShadow={true}
-              positionText={this.positonText}
+              positionText={this.positionText}
               routeList={this.routeList}
               needCopyLink
               onNavSelect={this.handleNavSelect}

@@ -467,6 +467,7 @@ export const getCustomEventSeries = async (params: Record<string, any>): Promise
         yAxisIndex: 1,
         xAxisIndex: 0,
         z: 10,
+        // name: 'event-no-tips',
         emphasis: {
           scale: 1.666,
         },
@@ -487,6 +488,7 @@ export const getCustomEventSeries = async (params: Record<string, any>): Promise
           shadowBlur: 10,
           shadowColor: 'rgba(25, 100, 150, 0.5)',
           shadowOffsetY: 5,
+
           color: new graphic.RadialGradient(0.4, 0.3, 1, [
             {
               offset: 0,

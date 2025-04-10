@@ -199,12 +199,12 @@
             :show-name="showText"
             icon="icon-zidongshuaxin"
             class="time-interval"
-            v-model="tools.refleshInterval"
-            :text-active="tools.refleshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-reflesh')"
+            v-model="tools.refreshInterval"
+            :text-active="tools.refreshInterval !== -1"
+            @on-icon-click="$emit('on-immediate-refresh')"
             @change="handleValueChange('interval')"
-            :is-reflesh-interval="true"
-            :list="refleshList"
+            :is-refresh-interval="true"
+            :list="refreshList"
           />
         </slot>
       </div>
@@ -347,7 +347,7 @@ export default class ComparePanel extends Vue {
       return DEFAULT_REFLESH_LIST;
     },
   })
-  readonly refleshList: IOption[];
+  readonly refreshList: IOption[];
   // 是否需要拆分视图
   @Prop({ default: true }) needSplit: boolean;
 
@@ -366,7 +366,7 @@ export default class ComparePanel extends Vue {
   // 对比数据
   compare: ICompareOption = { type: 'none', value: '' };
   // 工具数据
-  tools: IToolsOption = { timeRange: 1 * 60 * 60 * 1000, refleshInterval: -1, searchValue: [] };
+  tools: IToolsOption = { timeRange: 1 * 60 * 60 * 1000, refreshInterval: -1, searchValue: [] };
   resizeHandler: Function = null;
   showText = false;
   iconList = ['icon-mc-one-column', 'icon-mc-two-column', 'icon-mc-three-column'];

@@ -341,7 +341,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             resizable: true,
           },
         },
-        this.bizIds.length > 1 || this.bizIds?.[0] === -1
+        this.bizIds.length > 1 || [-1, -2].includes(this.bizIds?.[0])
           ? {
               id: 'bk_biz_name',
               name: this.$t('空间名'),

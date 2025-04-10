@@ -185,10 +185,10 @@ export default defineComponent({
     const showRestore = ref(false);
     let cancelTokenSource = null;
     const timezone = ref<string>(getDefaultTimezone());
-    const refleshImmediate = ref<number | string>('');
+    const refreshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
-    const refleshInterval = ref<number>(-1);
+    const refreshInterval = ref<number>(-1);
     const refleshIntervalInstace = ref<any>(null);
     const defaultViewOptions = ref<IViewOptions>({});
     /** 查询语句提示文本 */
@@ -220,8 +220,8 @@ export default defineComponent({
     provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
-    provide(REFLESH_INTERVAL_KEY, refleshInterval);
-    provide(REFLESH_IMMEDIATE_KEY, refleshImmediate);
+    provide(REFLESH_INTERVAL_KEY, refreshInterval);
+    provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
     provide(VIEWOPTIONS_KEY, defaultViewOptions);
     provide(TIME_OFFSET_KEY, ref([]));
     const autoQueryPopover = ref(null);
@@ -723,7 +723,7 @@ export default defineComponent({
         search_id: searchIdType.value,
         start_time: timeRange.value[0],
         end_time: timeRange.value[1],
-        refleshInterval: refleshInterval.value,
+        refreshInterval: refreshInterval.value,
       };
       // 来自故障根因跳转到span中需要额外使用的参数
       if (route.query?.incident_query) {
@@ -930,7 +930,7 @@ export default defineComponent({
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
       handleQueryScopeDebounce(true);
-      refleshImmediate.value = random(10);
+      refreshImmediate.value = random(10);
     }
     // 表头排序收集
     function handleTraceListColumnSort(value: any) {
@@ -1070,7 +1070,7 @@ export default defineComponent({
       handleScopeQueryChange();
     }
     /* 自动刷新 */
-    function handleRefleshIntervalChange(val: number) {
+    function handleRefreshIntervalChange(val: number) {
       const fn = () => {
         if (state.searchType === 'accurate') {
           handleQueryTraceId();
@@ -1078,19 +1078,19 @@ export default defineComponent({
           handleScopeQueryChange();
         }
       };
-      refleshInterval.value = val;
+      refreshInterval.value = val;
       clearInterval(refleshIntervalInstace.value);
-      if (refleshInterval.value === -1) {
+      if (refreshInterval.value === -1) {
         fn();
         return;
       }
       refleshIntervalInstace.value = setInterval(() => {
         fn();
-      }, refleshInterval.value);
+      }, refreshInterval.value);
       setRouterQueryParams();
     }
     /** 立即刷新 */
-    function handleImmediateReflesh() {
+    function handleImmediateRefresh() {
       handleClickQuery();
     }
     /** 更多操作 */
@@ -1119,7 +1119,7 @@ export default defineComponent({
       } else if (searchType === 'scope') {
         const {
           app_name: appName,
-          refleshInterval: interval,
+          refreshInterval: interval,
           start_time: startTime,
           end_time: endTime,
           query: keyword,
@@ -1133,8 +1133,8 @@ export default defineComponent({
           curTimestamp.value = handleTransformToTimestamp(timeRange.value);
         }
         if (interval) {
-          refleshInterval.value = Number(interval);
-          handleRefleshIntervalChange(refleshInterval.value);
+          refreshInterval.value = Number(interval);
+          handleRefreshIntervalChange(refreshInterval.value);
         }
         if (keyword?.length) {
           queryString.value = keyword as string;
@@ -1699,7 +1699,7 @@ export default defineComponent({
             class='inquire-right-header'
             v-models={[
               [state.showLeft, 'showLeft'],
-              [refleshInterval.value, 'refleshInterval'],
+              [refreshInterval.value, 'refreshInterval'],
               [timeRange.value, 'timeRange'],
               [timezone.value, 'timezone'],
             ]}
@@ -1707,9 +1707,9 @@ export default defineComponent({
             favoritesList={collectList.value}
             menuList={headerToolMenuList}
             onDeleteCollect={handleDeleteCollect}
-            onImmediateReflesh={handleImmediateReflesh}
+            onImmediateRefresh={handleImmediateRefresh}
             onMenuSelectChange={handleMenuSelectChange}
-            onRefleshIntervalChange={handleRefleshIntervalChange}
+            onRefreshIntervalChange={handleRefreshIntervalChange}
             onSelectCollect={handleSelectCollect}
             onTimeRangeChange={handleTimeRangeChange}
             onTimezoneChange={handleTimezoneChange}

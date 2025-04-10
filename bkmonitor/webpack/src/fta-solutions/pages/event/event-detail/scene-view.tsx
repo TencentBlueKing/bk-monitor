@@ -32,7 +32,7 @@ import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { BookMarkModel, type IBookMark, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 import { type IDetail, setBizIdToPanel } from './type';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -80,7 +80,7 @@ export default class SceneView extends tsc<IProps> {
   async getSceneData() {
     this.loading = true;
     const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.detail.begin_time, this.detail.end_time, interval);
     this.timeRange = [startTime, endTime];
     this.bkBizId = this.detail.bk_biz_id;
     this.viewOptions = {

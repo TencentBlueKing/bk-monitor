@@ -51,7 +51,7 @@ class CallerBarChart extends CommonSimpleChart {
   width = 960;
   minBase = 0;
   needResetChart = true;
-  inited = false;
+  initialized = false;
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
@@ -142,7 +142,7 @@ class CallerBarChart extends CommonSimpleChart {
    * @param {number} num
    * @return {*}
    */
-  handleYxisLabelFormatter(num: number): string {
+  handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -175,9 +175,9 @@ class CallerBarChart extends CommonSimpleChart {
     }
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.dimensionParam,
@@ -230,7 +230,7 @@ class CallerBarChart extends CommonSimpleChart {
       const res = await Promise.all(promiseList);
 
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
       } else {
         this.emptyText = window.i18n.tc('查无数据');
@@ -274,7 +274,7 @@ class CallerBarChart extends CommonSimpleChart {
         yAxis: {
           ...this.baseOptions.yAxis,
           axisLabel: {
-            formatter: (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+            formatter: (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
           },
         },
         series: seriesData,
@@ -324,7 +324,7 @@ class CallerBarChart extends CommonSimpleChart {
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

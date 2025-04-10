@@ -38,7 +38,7 @@ import {
   IntersectionMixin,
   LegendMixin,
   ResizeMixin,
-  ToolsMxin,
+  ToolsMixin,
 } from 'monitor-ui/chart-plugins/mixins';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
@@ -67,7 +67,7 @@ const handleSetTooltip = params => {
   const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ss');
 
   // 构建每个数据点的 HTML 列表项
-  const liHtmls = params
+  const liHtmlList = params
     .map(item => {
       return `
           <li class="tooltips-content-item" style="--series-color: ${item.color}">
@@ -82,14 +82,14 @@ const handleSetTooltip = params => {
   return `
       <div class="monitor-chart-tooltips">
           <p class="tooltips-header">${pointTime}</p>
-          <ul class="tooltips-content">${liHtmls}</ul>
+          <ul class="tooltips-content">${liHtmlList}</ul>
       </div>`;
 };
 
 @Component
 class HomeAlarmChart extends Mixins<
-  ChartLoadingMixin & IntersectionMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins
->(IntersectionMixin, ChartLoadingMixin, ToolsMxin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
+  ChartLoadingMixin & IntersectionMixin & ToolsMixin & ResizeMixin & LegendMixin & ErrorMsgMixins
+>(IntersectionMixin, ChartLoadingMixin, ToolsMixin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
   @Prop() currentActiveId: number;
   @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
@@ -215,7 +215,7 @@ class HomeAlarmChart extends Mixins<
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver();
       return;
@@ -225,7 +225,7 @@ class HomeAlarmChart extends Mixins<
     this.emptyText = window.i18n.tc('加载中...');
     this.loading = true;
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选

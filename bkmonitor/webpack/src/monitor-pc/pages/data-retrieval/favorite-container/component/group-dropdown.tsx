@@ -261,6 +261,8 @@ export default class GroupDropdown extends tsc<FavoriteIndexType.IDropProps> {
           this.resetGroupNamePopoverInstance = null;
           this.clearStatus();
           this.titlePopoverInstance?.set({ hideOnClick: true });
+          this.titlePopoverInstance?.hide();
+          this.titlePopoverInstance?.destroy();
         },
         onShow: () => {
           this.titlePopoverInstance?.set({ hideOnClick: false });

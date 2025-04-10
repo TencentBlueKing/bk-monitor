@@ -103,5 +103,5 @@ export const noticeMethod = [
 
 export interface IMultivariateAnomalyDetectionParams {
   metrics: MetricDetail[];
-  refleshKey: string;
+  refreshKey: string;
 }

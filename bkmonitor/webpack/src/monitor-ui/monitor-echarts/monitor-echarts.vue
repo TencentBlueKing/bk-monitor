@@ -34,9 +34,7 @@
       v-if="chartTitle || $slots.title"
     >
       <slot name="title">
-        <div class="header-title">
-          {{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}
-        </div>
+        <div class="header-title">{{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}</div>
       </slot>
       <div
         class="header-tools"
@@ -61,7 +59,7 @@
       :style="{
         flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
         minHeight: height - (chartTitle ? 36 : 0) + 'px',
-        maxHeight: height - (chartTitle ? 36 : 0) + 'px'
+        maxHeight: height - (chartTitle ? 36 : 0) + 'px',
       }"
       @blur="handleCharBlur"
       @dblclick="handleChartDblClick"
@@ -76,7 +74,7 @@
         class="echart-legend"
         :style="{
           maxHeight: (chartOption.legend.toTheRight ? height - (chartTitle ? 36 : 0) - 5 : 30) + 'px',
-          marginRight: chartOption.legend.toTheRight ? '20px' : '2px'
+          marginRight: chartOption.legend.toTheRight ? '20px' : '2px',
         }"
       >
         <chart-legend
@@ -187,7 +185,7 @@ export default class MonitorEcharts extends Vue {
   childProps = {};
   annotation: IAnnotation = { x: 0, y: 0, show: false, title: '', name: '', color: '' };
   curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
   legend: { show: boolean; list: ILegendItem[] } = {
@@ -209,7 +207,7 @@ export default class MonitorEcharts extends Vue {
   // 是使用组件内的无数据设置
   @Prop({ default: true }) setNoData: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) refleshInterval: number;
+  @Prop({ default: 0 }) refreshInterval: number;
   // 图表类型
   @Prop({ default: 'line' }) chartType: 'line' | 'bar' | 'pie' | 'map';
   // 背景图
@@ -330,15 +328,15 @@ export default class MonitorEcharts extends Vue {
   onHeightChange() {
     this.chart?.resize();
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0 || !this.getSeriesData) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -373,7 +371,7 @@ export default class MonitorEcharts extends Vue {
       this.intersectionObserver.disconnect();
     }
     this.annotation.show = false;
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();
@@ -536,7 +534,7 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params.map(item => {
+    const liHtmlList = params.map(item => {
       let markColor = "color: '#fafbfd';";
       if (data[0].value === item.value[1]) {
         markColor = "color: '#ffffff';font-weight: bold;";
@@ -565,7 +563,7 @@ export default class MonitorEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul style="padding: 0;margin: 0;">
-                ${liHtmls.join('')}
+                ${liHtmlList.join('')}
             </ul>
             </div>`;
   }

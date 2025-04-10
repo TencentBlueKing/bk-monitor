@@ -426,7 +426,7 @@ export default class SearchComp extends tsc<IProps> {
     }
     const operatorItem = findOperatorItem ?? {}; // 找不到则是ip选择器
     // 空字符串切割会时会生成一个带有空字符串的数组 空字符串应该使用空数组
-    const inputValueList = value !== '' ? value.toString().split(',') : [];
+    const inputValueList = value !== '' ? [value.toString()] : [];
     // 检查条件列表中是否存在具有相同操作符和字段ID的条件
     const isExistCondition = this.conditionList.some(item => item.operator === operator && item.id === field);
     // 获取条件列表中的最后一个条件

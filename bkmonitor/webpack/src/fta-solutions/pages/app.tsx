@@ -60,7 +60,7 @@ export default class App extends tsc<object> {
   private needCopyLink = false;
   private needBack = false;
   private needMenu = !window.__POWERED_BY_BK_WEWEB__;
-  private spacestickyList: string[] = []; /** 置顶的空间列表 */
+  private spaceStickyList: string[] = []; /** 置顶的空间列表 */
 
   private globalSettingShow = false;
   get navActive() {
@@ -110,7 +110,7 @@ export default class App extends tsc<object> {
   created() {
     this.needMenu && this.handleSetNeedMenu();
     this.bizId = this.$store.getters.bizId;
-    this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
+    this.menuToggle = localStorage.getItem('navigationToggle') === 'true';
     Vue.prototype.$authorityStore = authorityStore;
   }
   mounted() {
@@ -128,7 +128,7 @@ export default class App extends tsc<object> {
    * @param list 空间uid
    */
   handleWatchSpaceStickyList(list: string[]) {
-    this.spacestickyList = list;
+    this.spaceStickyList = list;
   }
   /**
    * 获取置顶列表
@@ -138,7 +138,7 @@ export default class App extends tsc<object> {
       username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
-    this.spacestickyList = res;
+    this.spaceStickyList = res;
   }
   /**
    * 处理路由面包屑数据
@@ -249,7 +249,7 @@ export default class App extends tsc<object> {
     this.keyword = v;
   }
   handleToggleClick(v: boolean) {
-    localStorage.setItem('navigationToogle', String(v));
+    localStorage.setItem('navigationToggle', String(v));
   }
   // 左侧栏业务列表选择
   menuSelect() {
@@ -353,7 +353,7 @@ export default class App extends tsc<object> {
                   bizList={this.bizIdList}
                   isShrink={!this.menuToggle}
                   minWidth={380}
-                  stickyList={this.spacestickyList}
+                  stickyList={this.spaceStickyList}
                   theme='dark'
                   value={+this.bizId}
                   onChange={this.handleBizChange}

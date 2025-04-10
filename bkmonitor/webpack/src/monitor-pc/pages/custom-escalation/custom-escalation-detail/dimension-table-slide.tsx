@@ -109,13 +109,39 @@ export default class DimensionTableSlide extends tsc<any> {
           <bk-table
             class='slider-table'
             data={this.localTable}
-            empty-text={this.$t('无数据')}
             colBorder
           >
+            <div slot='empty'>
+              <div class='empty-slider-table'>
+                <div class='empty-img'>
+                  <bk-exception
+                    class='exception-wrap-item exception-part'
+                    scene='part'
+                    type='empty'
+                  >
+                    <span class='empty-text'>{this.$t('暂无数据')}</span>
+                  </bk-exception>
+                </div>
+                {this.search ? (
+                  <div
+                    class='add-row'
+                    onClick={this.handleClearSearch}
+                  >
+                    {this.$t('清空检索')}
+                  </div>
+                ) : (
+                  <div
+                    class='add-row'
+                    onClick={() => this.handleAddRow(-1)}
+                  >
+                    {this.$t('新增维度')}
+                  </div>
+                )}
+              </div>
+            </div>
             {Object.entries(FIELD_SETTINGS).map(([key, config]) => (
               <bk-table-column
                 key={key}
-                width={config.width}
                 scopedSlots={{
                   default: props => {
                     switch (key) {
@@ -135,6 +161,7 @@ export default class DimensionTableSlide extends tsc<any> {
                   },
                 }}
                 label={this.$t(config.label)}
+                minWidth={config.width}
                 prop={key}
               />
             ))}
@@ -172,6 +199,10 @@ export default class DimensionTableSlide extends tsc<any> {
     this.localTable = this.dimensionTable.filter(item => {
       return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.description, this.search);
     });
+  }
+
+  handleClearSearch() {
+    this.search = '';
   }
 
   // 保存逻辑

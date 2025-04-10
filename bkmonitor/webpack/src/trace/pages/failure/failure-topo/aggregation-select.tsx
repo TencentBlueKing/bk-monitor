@@ -87,7 +87,7 @@ export default defineComponent({
           v-slots={{
             default: () => (
               <div class='aggregation-select-trigger'>
-                <i class='icon-monitor icon-menu-set trigger-icon' />
+                <i class='icon-monitor icon-shezhi1 trigger-icon' />
                 {this.$t('聚合规则')}
               </div>
             ),

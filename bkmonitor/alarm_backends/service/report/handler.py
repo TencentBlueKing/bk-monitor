@@ -356,13 +356,17 @@ class ReportHandler:
                 graph_info = split_graph_id(graph)
                 bk_biz_id, var_bk_biz_ids = self.parse_graph_info(graph_info, is_superuser, user_bizs, receivers)
 
+                variables = {}
+                if graph_info[2] != "*":
+                    variables = {"bk_biz_id": var_bk_biz_ids}
+
                 total_graphs.append(
                     {
                         "bk_biz_id": bk_biz_id,
                         "uid": graph_info[1],
                         "panel_id": graph_info[2],
                         "image_size": self.image_size_mapper.get(content["row_pictures_num"]),
-                        "variables": {"bk_biz_id": var_bk_biz_ids},
+                        "variables": variables,
                         "tag": graph,
                         "from_time": from_time_stamp,
                         "to_time": to_time_stamp,

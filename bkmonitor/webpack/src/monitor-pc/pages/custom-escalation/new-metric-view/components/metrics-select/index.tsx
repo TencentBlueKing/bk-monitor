@@ -43,8 +43,8 @@ export default class HeaderFilter extends tsc<object, IEmit> {
   searchKey = '';
   isExpandAll = false;
 
-  get currentSelectedMetricNameList() {
-    return customEscalationViewStore.currentSelectedMetricNameList;
+  get metricGroupList() {
+    return customEscalationViewStore.metricGroupList;
   }
 
   handleClearChecked() {
@@ -59,6 +59,13 @@ export default class HeaderFilter extends tsc<object, IEmit> {
   handleExpandAllGroup() {
     this.isExpandAll = true;
     this.metricGroupRef.expandAll(true);
+  }
+
+  created() {
+    // 默认会选中一个指标，如果只有一个分组此时是全部展开状态
+    if (this.metricGroupList.length === 1) {
+      this.isExpandAll = true;
+    }
   }
 
   render() {
@@ -98,7 +105,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
                 v-bk-tooltips={this.$t('全部收起')}
                 onClick={this.handleFlodAllGroup}
               >
-                <i class='icon-monitor icon-shouqi3' />
+                <i class='icon-monitor icon-zhankai2' />
               </div>
             ) : (
               <div
@@ -106,7 +113,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
                 v-bk-tooltips={this.$t('全部展开')}
                 onClick={this.handleExpandAllGroup}
               >
-                <i class='icon-monitor icon-zhankai2' />
+                <i class='icon-monitor icon-shouqi3' />
               </div>
             )}
           </div>

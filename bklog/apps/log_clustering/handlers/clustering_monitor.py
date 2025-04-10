@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
@@ -30,22 +31,33 @@ from apps.log_clustering.constants import (
     AGG_DIMENSION,
     ALARM_INTERVAL_CLUSTERING,
     DEFAULT_AGG_METHOD,
+    DEFAULT_ALGORITHMS,
     DEFAULT_DATA_SOURCE_LABEL_BKDATA,
     DEFAULT_DATA_TYPE_LABEL_BKDATA,
     DEFAULT_EXPRESSION,
     DEFAULT_LABEL,
     DEFAULT_METRIC_CLUSTERING,
     DEFAULT_NO_DATA_CONFIG,
+    DEFAULT_NOTICE_WAY,
     DEFAULT_PATTERN_MONITOR_MSG,
     DEFAULT_SCENARIO,
     ITEM_NAME_CLUSTERING,
+    PATTERN_MONITOR_MSG_BY_SWITCH,
     TRIGGER_CONFIG,
     StrategiesType,
 )
-from apps.log_clustering.exceptions import ClusteringIndexSetNotExistException
-from apps.log_clustering.models import ClusteringConfig, SignatureStrategySettings
+from apps.log_clustering.exceptions import (
+    ClusteringIndexSetNotExistException,
+    ClusteringOwnersNotExistException,
+)
+from apps.log_clustering.models import (
+    ClusteringConfig,
+    ClusteringRemark,
+    SignatureStrategySettings,
+)
 from apps.log_clustering.utils.monitor import MonitorUtils
 from apps.log_search.models import LogIndexSet
+from apps.utils.local import get_external_app_code
 
 
 class ClusteringMonitorHandler(object):
@@ -307,3 +319,197 @@ class ClusteringMonitorHandler(object):
             strategy_type=strategy_type,
             params=params,
         )
+
+    def create_or_update_pattern_strategy(self, params=None):
+        # 日志聚类-告警策略 开关控制启/停
+        data_list = self.index_set.get_indexes(has_applied=True)
+        table_id = ",".join(data["result_table_id"] for data in data_list)
+        return self.save_pattern_strategy(
+            table_id=table_id,
+            params=params,
+        )
+
+    @atomic
+    def save_pattern_strategy(self, table_id, params):
+        # 策略
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
+        remark_obj = (
+            ClusteringRemark.objects.filter(condition)
+            .filter(
+                bk_biz_id=self.clustering_config.bk_biz_id,
+                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
+            )
+            .filter(source_app_code=get_external_app_code())
+            .first()
+        )
+
+        if remark_obj.strategy_id:
+            conditions = [{"key": "strategy_id", "value": [remark_obj.strategy_id]}]
+            result_data = MonitorApi.search_alarm_strategy_v3({"bk_biz_id": self.bk_biz_id, "conditions": conditions})
+            if not result_data["strategy_config_list"]:
+                remark_obj.strategy_id = 0
+                remark_obj.save()
+
+        # 启动告警
+        if params["strategy_enabled"]:
+            # 不存在责任人
+            if not remark_obj.owners:
+                raise ClusteringOwnersNotExistException()
+            remark_obj.strategy_enabled = params["strategy_enabled"]
+            remark_obj.save()
+        # 停用告警
+        else:
+            # 不存在策略ID
+            if not remark_obj.strategy_id:
+                return {"strategy_id": None}
+            # 存在策略ID
+            else:
+                remark_obj.strategy_enabled = params["strategy_enabled"]
+                remark_obj.save()
+
+        # 获取维度条件
+        groups = params.get("groups", {})
+        agg_dimension = ["__dist_05"]
+        agg_condition = [
+            {
+                "key": "__dist_05",
+                "dimension_name": "__dist_05",
+                "value": [params["signature"]],
+                "method": "eq",
+                "condition": "and",
+            }
+        ]
+        if groups:
+            group_data = list(groups.keys())
+            agg_dimension += group_data
+            agg_condition += [
+                {"key": agg, "dimension_name": agg, "value": [groups[agg]], "method": "eq", "condition": "and"}
+                for agg in group_data
+            ]
+
+        label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
+        labels = DEFAULT_LABEL.copy()
+        name = _("{}#{}_日志聚类数量告警").format(self.index_set.index_set_name, remark_obj.id)
+        time_field = self.index_set.time_field
+
+        items = [
+            {
+                "name": "COUNT({})".format(self.index_set.index_set_name),
+                "no_data_config": DEFAULT_NO_DATA_CONFIG,
+                "target": [],
+                "expression": DEFAULT_EXPRESSION,
+                "functions": [],
+                "origin_sql": "",
+                "query_configs": [
+                    {
+                        "data_source_label": "bk_log_search",
+                        "data_type_label": "log",
+                        "alias": DEFAULT_EXPRESSION,
+                        "result_table_id": table_id,
+                        "agg_method": "COUNT",
+                        "agg_interval": 60,
+                        "agg_dimension": agg_dimension,
+                        "agg_condition": agg_condition,
+                        "metric_field": "_index",
+                        "unit": "",
+                        "metric_id": "bk_log_search.index_set.{}".format(label_index_set_id),
+                        "index_set_id": label_index_set_id,
+                        "query_string": "*",
+                        "custom_event_name": "",
+                        "functions": [],
+                        "time_field": time_field,
+                        "bkmonitor_strategy_id": "_index",
+                        "alert_name": "_index",
+                    }
+                ],
+                "algorithms": DEFAULT_ALGORITHMS,
+            }
+        ]
+        detects = [
+            {
+                "level": 2,
+                "expression": "",
+                "trigger_config": TRIGGER_CONFIG,
+                "recovery_config": {"check_window": 5},
+                "connector": "and",
+            }
+        ]
+
+        notice_group = MonitorApi.search_user_groups(
+            {"bk_biz_ids": [self.bk_biz_id], "ids": [remark_obj.notice_group_id]}
+        )
+        if not notice_group:
+            log_index_set = LogIndexSet.objects.filter(index_set_id=label_index_set_id).first()
+            group_name = _("{}#{}_日志聚类告警组").format(log_index_set.index_set_name, remark_obj.id)
+            group = MonitorUtils.save_notice_group(
+                bk_biz_id=self.bk_biz_id,
+                name=group_name,
+                message="",
+                notice_receiver=[{"type": "user", "id": name} for name in remark_obj.owners],
+                notice_way=DEFAULT_NOTICE_WAY,
+            )
+            user_groups = [group["id"]]
+            remark_obj.notice_group_id = group["id"]
+            remark_obj.save()
+        else:
+            user_groups = [remark_obj.notice_group_id]
+
+        notice = {
+            "config_id": 0,
+            "user_groups": user_groups,
+            "signal": ["abnormal"],
+            "options": {
+                "converge_config": {"need_biz_converge": True},
+                "exclude_notice_ways": {"recovered": [], "closed": [], "ack": []},
+                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": []},
+                "upgrade_config": {"is_enabled": False, "user_groups": []},
+                "assign_mode": ["by_rule", "only_notice"],
+                "chart_image_enabled": False,
+            },
+            "config": {
+                "interval_notify_mode": "standard",
+                "notify_interval": ALARM_INTERVAL_CLUSTERING,
+                "template": [
+                    {
+                        "signal": "abnormal",
+                        "message_tmpl": PATTERN_MONITOR_MSG_BY_SWITCH,
+                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
+                    },
+                    {
+                        "signal": "recovered",
+                        "message_tmpl": PATTERN_MONITOR_MSG_BY_SWITCH,
+                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
+                    },
+                    {
+                        "signal": "closed",
+                        "message_tmpl": PATTERN_MONITOR_MSG_BY_SWITCH,
+                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
+                    },
+                ],
+            },
+        }
+        request_params = {
+            "type": "monitor",
+            "bk_biz_id": self.bk_biz_id,
+            "scenario": DEFAULT_SCENARIO,
+            "name": name,
+            "labels": labels,
+            "is_enabled": params["strategy_enabled"],
+            "items": items,
+            "detects": detects,
+            "actions": [],
+            "notice": notice,
+        }
+
+        if remark_obj.strategy_id:
+            request_params["id"] = remark_obj.strategy_id
+
+        strategy = MonitorApi.save_alarm_strategy_v3(params=request_params)
+        strategy_id = strategy["id"]
+        remark_obj.strategy_id = strategy_id
+        remark_obj.save()
+
+        return {"strategy_id": strategy_id}

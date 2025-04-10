@@ -159,13 +159,13 @@ export default class BarAlarmChart extends tsc<IProps> {
   }
 
   beforeDestroy() {
-    this.unregisterOberver();
+    this.unregisterObserver();
     document.removeEventListener('wheel', this.tipsHide);
   }
 
   registerObserver() {
     if (this.intersectionObserver) {
-      this.unregisterOberver();
+      this.unregisterObserver();
     }
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
@@ -178,7 +178,7 @@ export default class BarAlarmChart extends tsc<IProps> {
     this.intersectionObserver.observe(this.$el);
   }
 
-  unregisterOberver() {
+  unregisterObserver() {
     if (this.intersectionObserver) {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();

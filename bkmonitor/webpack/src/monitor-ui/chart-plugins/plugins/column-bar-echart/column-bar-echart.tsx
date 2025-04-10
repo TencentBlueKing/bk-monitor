@@ -75,7 +75,7 @@ class ColumnBarEchart extends CommonSimpleChart {
     this.empty = true;
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -106,7 +106,7 @@ class ColumnBarEchart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item.length)) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.data = res;
       } else {
@@ -168,7 +168,7 @@ class ColumnBarEchart extends CommonSimpleChart {
       <div class='column-bar-chart'>
         <ChartHeader
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
           metrics={this.metrics}
           title={this.panel.title}

@@ -819,3 +819,33 @@ def deserialize_and_decompress(compressed_data):
     data = json.loads(json_str)
 
     return data
+
+
+def format_percent(
+    percent: Union[int, float], precision: int = 2, sig_fig_cnt: int = 2, readable_precision=6
+) -> Union[int, float]:
+    if isinstance(percent, int):
+        return percent
+
+    sign: int = 0
+    sign = (-1, 1)[percent > 0]
+    percent = abs(percent)
+
+    def _with_sign(_f: float) -> float:
+        return sign * _f
+
+    # 如果数据小于可读精度，直接范围可读精度最小值，突出异常比
+    if 0.0 < percent < 10**-readable_precision:
+        return _with_sign(10**-readable_precision)
+
+    # 如果数据小于最小精度，保留两位有效数字
+    if percent < 10**-precision:
+        return _with_sign(float(format(percent, f".{sig_fig_cnt}g")))
+
+    rounded_percent: float = float(format(percent, f".{precision}f"))
+    # 如果超精度四舍五入进位，例如 99.9999 -> 100，则采用截断而不是保留位数的方式处理为 99.999，避免数据失真
+    if rounded_percent - percent < (10 ** -(precision + 1)) * 5:
+        factor = 10.0**precision
+        return _with_sign(math.trunc(percent * factor) / factor)
+
+    return _with_sign(rounded_percent)

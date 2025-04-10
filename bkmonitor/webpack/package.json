@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@blueking/bkmonitor-cli": "5.0.0-beta.21",
+    "@blueking/bkmonitor-cli": "7.0.0-beta.4",
     "@blueking/stylelint-config": "0.0.3",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.13.0",

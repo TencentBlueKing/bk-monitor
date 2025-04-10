@@ -34,7 +34,7 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { formatDuration } from '../../../../trace/components/trace-view/utils/date';
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 
 import type { IDetail } from './type';
 import type { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -126,7 +126,7 @@ export default class TraceInfo extends tsc<IProps> {
   init() {
     this.loading = true;
     const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.detail.begin_time, this.detail.end_time, interval);
     this.startTime = dayjs.tz(startTime).unix();
     this.endTime = dayjs.tz(endTime).unix();
     traceListById({

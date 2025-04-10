@@ -206,7 +206,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             : String(appSearchParams.is_enabled_profiling),
       },
     };
-    this.$router.replace(routerParams).catch(() => { });
+    this.$router.replace(routerParams).catch(() => {});
   }
   /**
    * @description 时间范围
@@ -365,8 +365,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 isSplitPanel={false}
                 showListMenu={false}
                 timeRange={this.timeRange}
-                onImmediateReflesh={() => this.handleImmediateRefresh()}
-                onRefleshChange={this.handleRefreshChange}
+                onImmediateRefresh={() => this.handleImmediateRefresh()}
+                onRefreshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
               {/* <ListMenu

@@ -109,7 +109,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                     key='dimension-info-text'
                     class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
                   >
-                    {this.$t('异常维度')}
+                    {this.$t('异常维度(组合)')}
                     <font> {this.dimensionInfo.anomaly_dimension_count}</font>
                     {isExitDimensionInfo ? ',' : ''}
                   </span>,

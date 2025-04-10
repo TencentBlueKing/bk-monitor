@@ -92,7 +92,7 @@ export default class ApmEventExplore extends tsc<object> {
           [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
         ) as EMode;
         this.commonWhere = JSON.parse((commonWhere as string) || '[]');
-        this.showResidentBtn = JSON.parse(showResidentBtn as string) || false;
+        this.showResidentBtn = JSON.parse((showResidentBtn as string) || 'false') || false;
       } catch (error) {
         console.log('route query:', error);
       }

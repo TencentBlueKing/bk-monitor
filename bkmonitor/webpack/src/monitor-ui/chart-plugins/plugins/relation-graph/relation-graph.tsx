@@ -294,7 +294,7 @@ export class RelationGraph extends CommonSimpleChart {
     this.empty = true;
     this.isRendered = false;
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -414,7 +414,7 @@ export class RelationGraph extends CommonSimpleChart {
       const res = await Promise.all(promiseList).catch(() => false);
 
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         if (this.isOverview) {
           this.empty = !this.graphData.nodes.length;
           this.emptyText = !this.graphData.nodes.length ? window.i18n.tc('查无数据') : '';

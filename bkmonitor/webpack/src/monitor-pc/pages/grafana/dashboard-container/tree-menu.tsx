@@ -57,7 +57,7 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
   localData: TreeMenuItem[] = [];
   /** 当前选中项 */
   localChecked: string = null;
-  inited = false;
+  initialized = false;
 
   @Watch('checked', { immediate: true })
   checkedChange(val: string) {
@@ -77,7 +77,7 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
   @Watch('data', { immediate: true })
   handleDataChange(data: ITreeMenuItem[]) {
     if (!!data) {
-      this.inited = true;
+      this.initialized = true;
       this.localData = this.handleTreeData(data);
       this.checkedChange(this.checked);
     }
@@ -89,7 +89,9 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
       const newItem = new TreeMenuItem(
         {
           ...item,
-          expend: !this.inited ? this.defaultExpend : this.localData?.find(set => set.id === item.id)?.expend ?? false,
+          expend: !this.initialized
+            ? this.defaultExpend
+            : (this.localData?.find(set => set.id === item.id)?.expend ?? false),
           level,
         },
         {

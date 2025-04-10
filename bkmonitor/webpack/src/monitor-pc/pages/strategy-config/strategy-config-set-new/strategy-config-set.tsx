@@ -391,7 +391,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 场景智能检测视图参数 */
   multivariateAnomalyDetectionParams = {
     metrics: [],
-    refleshKey: '',
+    refreshKey: '',
   };
   /* 是否开启场景智能检测功能 */
   showMultivariateAnomalyDetection = false;
@@ -1634,7 +1634,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.defaultCheckedTarget.target_detail = target;
     if (this.isMultivariateAnomalyDetection) {
       /* refleshKey用于控制图表数据刷新 */
-      this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+      this.multivariateAnomalyDetectionParams.refreshKey = random(8);
     }
   }
 
@@ -2557,7 +2557,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
-    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    this.multivariateAnomalyDetectionParams.refreshKey = random(8);
   }
 
   metricDataContent() {

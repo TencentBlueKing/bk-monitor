@@ -146,3 +146,8 @@ class RegexTemplateNotExistException(BaseClusteringException):
 class RegexTemplateReferencedException(BaseClusteringException):
     ERROR_CODE = "024"
     MESSAGE = _("该模板已被其他索引集引用，不允许删除: {regex_template_id}")
+
+
+class ClusteringOwnersNotExistException(BaseClusteringException):
+    ERROR_CODE = "025"
+    MESSAGE = _("日志聚类-告警创建责任人不存在")

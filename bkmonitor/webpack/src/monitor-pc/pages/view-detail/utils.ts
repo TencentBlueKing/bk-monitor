@@ -168,7 +168,7 @@ export const downJsonFile = (jsonStr: string, name = 'json-file.json') => {
   downFile(href, name);
 };
 
-export const refleshList = [
+export const refreshList = [
   // 刷新间隔列表
   {
     name: 'off',

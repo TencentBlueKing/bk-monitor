@@ -159,7 +159,7 @@ class ReadOnlyAiSetting:
         if len(query_configs) > 1:
             results[DIMENSION_DRILL]["is_supported"] = False
             results[METRIC_RECOMMEND]["is_supported"] = False
-            not_supported_msg = _("多指标计算的指标")
+            not_supported_msg = _("多指标计算")
         elif len(query_configs) == 1:
             if query_configs[0]["data_type_label"] != DataTypeLabel.TIME_SERIES:
                 results[DIMENSION_DRILL]["is_supported"] = False
@@ -173,8 +173,10 @@ class ReadOnlyAiSetting:
                 results[DIMENSION_DRILL]["is_supported"] = False
                 results[METRIC_RECOMMEND]["is_supported"] = False
 
-            if query_configs[0]["data_source_label"] == DataSourceLabel.PROMETHEUS:
-                not_supported_msg = _("PromSQL查询的指标")
+                if query_configs[0]["data_source_label"] == DataSourceLabel.PROMETHEUS:
+                    not_supported_msg = _("PromSQL查询的指标")
+                elif query_configs[0]["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
+                    not_supported_msg = _("日志平台指标")
 
         results[DIMENSION_DRILL]["error_msg"] = not_supported_msg
         results[METRIC_RECOMMEND]["error_msg"] = not_supported_msg

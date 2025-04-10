@@ -6,8 +6,8 @@
   .left-favorite-panel {
     width: 240px;
     height: 100%;
-    background: #EBEEF5;
-    border-right: 1px solid  #DCDEE5;
+    background: #ebeef5;
+    border-right: 1px solid #dcdee5;
   }
 
   .right-main-panel {
@@ -19,7 +19,8 @@
     .event-retrieval-content {
       display: flex;
       flex-direction: column;
-      height: calc(100% - 52px);
+      // height: calc(100% - 52px);
+      height: 100%;
       padding: 8px;
 
       .filter-skeleton {
@@ -47,10 +48,9 @@
   }
 }
 
-
 .tippy-tooltip.light-theme.event-source-select-popover-theme {
   padding: 0;
   background-color: #fff;
-  border: 1px solid #DCDEE5;
+  border: 1px solid #dcdee5;
   box-shadow: 0 2px 6px 0 #0000001a;
 }

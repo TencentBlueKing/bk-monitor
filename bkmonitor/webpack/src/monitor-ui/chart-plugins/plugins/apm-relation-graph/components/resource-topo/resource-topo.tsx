@@ -114,7 +114,7 @@ class ResourceTopo extends CommonSimpleChart {
       paths: this.paths.length ? this.paths.join(',') : 'default',
     };
     if (!params.app_name || !params.service_name) return;
-    this.unregisterOberver();
+    this.unregisterObserver();
     this.cancelFn?.();
     this.loading = true;
     const data: IResourceData = await nodeRelation(params, {

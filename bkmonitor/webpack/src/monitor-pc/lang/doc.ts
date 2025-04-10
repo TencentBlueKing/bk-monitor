@@ -68,6 +68,7 @@ export default {
   '维度名:主机字段名，如host_ip:bk_host_innerip': 'dimension name: Host field name, such as host_ip:bk_host_innerip',
   '维度名:实例标签名，如cluster_name:cluster_name':
     'Dimension name: instance tag name, such as cluster_name:cluster_name.',
+  '维度名:维度值，如tag: host': 'Dimension name: dimension value, such as tag: host',
   '维度（Dimension）': 'Dimension',
   'snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。':
     'snmp trap will set up snmp trap server by default to receive event data sent by different devices. The default port is 162. Pay attention to select the corresponding snmp version, this version is V2c. ',

@@ -28,6 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
+import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
 import {
   fieldTypeMap,
@@ -93,6 +94,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
   rightRefreshKey = random(8);
   rightFocus = false;
   cacheCheckedName = '';
+  isMacSystem = false;
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -117,6 +119,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
       })),
       type: this.checkedItem?.type,
     };
+  }
+
+  created() {
+    this.isMacSystem = detectOperatingSystem() === 'macOS';
   }
 
   mounted() {
@@ -561,7 +567,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
             <span class='desc-item-name'>{this.$t('收起查询')}</span>
           </span>
           <span class='desc-item'>
-            <span class='desc-item-box'>Ctrl+Enter</span>
+            <span class='desc-item-box'>{`${this.isMacSystem ? 'Cmd' : 'Ctrl'}+Enter`}</span>
             <span class='desc-item-name'>{this.$t('提交查询')}</span>
           </span>
           <div class='operate-btns'>
@@ -571,7 +577,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               theme='primary'
               onClick={() => this.handleConfirm()}
             >
-              {`${this.$t('确定')} Ctrl + Enter`}
+              {`${this.$t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
             </bk-button>
             <bk-button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</bk-button>
           </div>
