@@ -178,8 +178,13 @@
         /* stylelint-disable-next-line declaration-no-important */
         font-size: var(--table-fount-size) !important;
 
-        .vjs-tree__node {
+        .vjs-tree-node {
           line-height: 22px;
+          .vjs-value {
+            &.vjs-value-string {
+              white-space: pre-wrap;
+            }
+          }
         }
       }
 
