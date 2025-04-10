@@ -48,49 +48,63 @@
           </bk-button>
         </div>
         <bk-checkbox
-          :value="showRowIndex"
-          theme="primary"
-          @change="handleShowRowIndexChange"
           style="margin: 0 12px"
           class="bklog-option-item"
+          :value="showRowIndex"
+          theme="primary"
+          @change="val => handleStorageChange(val, 'tableShowRowIndex')"
         >
-          <span class="switch-label">{{ $t('行号') }}</span>
+          <span class="switch-label">{{ $t('显示行号') }}</span>
         </bk-checkbox>
         <bk-checkbox
-          v-model="expandTextView"
-          theme="primary"
-          @change="handleChangeExpandView"
           style="margin: 0 12px 0 0"
           class="bklog-option-item"
+          :value="expandTextView"
+          theme="primary"
+          @change="val => handleStorageChange(val, 'isLimitExpandView')"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
         </bk-checkbox>
         <bk-checkbox
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           :value="isWrap"
           theme="primary"
-          class="bklog-option-item"
-          @change="handleChangeIsWarp"
-          style="margin: 0 12px 0 0"
+          @change="val => handleStorageChange(val, 'tableLineIsWrap')"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
 
         <bk-checkbox
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           :value="isJsonFormat"
           theme="primary"
-          @change="handleJsonFormat"
-          style="margin: 0 12px 0 0"
-          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
+          @change="val => handleStorageChange(val, 'tableJsonFormat')"
+          ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
         >
 
         <bk-input
-          type="number"
-          class="json-depth-num"
-          :value="jsonFormatDeep"
-          :min="1"
-          :max="15"
-          @change="handleJsonFormatDeepChange"
           v-if="isJsonFormat"
+          style="margin: 0 12px 0 0"
+          class="json-depth-num"
+          :max="15"
+          :min="1"
+          :value="jsonFormatDeep"
+          type="number"
+          @change="handleJsonFormatDeepChange"
         ></bk-input>
+
+        <bk-checkbox
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
+          :value="isAllowEmptyField"
+          theme="primary"
+          @change="val => handleStorageChange(val, 'tableAllowEmptyField')"
+        >
+          <span class="switch-label">
+            {{ $t('展示空字段') }}
+          </span>
+        </bk-checkbox>
       </div>
       <div class="tools-more">
         <div class="operation-icons">
@@ -185,7 +199,6 @@
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
-        expandTextView: false,
         isInitActiveTab: false,
       };
     },
@@ -211,10 +224,12 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
-        isWrap: 'tableLineIsWrap',
+        isWrap: state => state.storage.tableLineIsWrap,
         jsonFormatDeep: state => state.storage.tableJsonFormatDepth,
         isJsonFormat: state => state.storage.tableJsonFormat,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
         showRowIndex: state => state.storage.tableShowRowIndex,
+        expandTextView: state => state.storage.isLimitExpandView,
       }),
 
       routeIndexSet() {
@@ -278,17 +293,8 @@
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
       },
-      handleShowRowIndexChange(val) {
-        this.$store.commit('updateStorage', { tableShowRowIndex: val });
-      },
-      handleChangeExpandView(val) {
-        this.$store.commit('updateStorage', { isLimitExpandView: val });
-      },
-      handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWrap', val);
-      },
-      handleJsonFormat(val) {
-        this.$store.commit('updateStorage', { tableJsonFormat: val });
+      handleStorageChange(val, key) {
+        this.$store.commit('updateStorage', { [key]: val });
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);

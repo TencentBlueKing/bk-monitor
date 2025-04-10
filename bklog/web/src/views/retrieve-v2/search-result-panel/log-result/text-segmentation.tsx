@@ -158,14 +158,6 @@ export default defineComponent({
       debounceUpdateWidth();
     };
 
-    const formatItemText = (item: WordListItem) => {
-      if (item.isMark) {
-        return item.text.replace(/\s/g, '\u00A0');
-      }
-
-      return item.text;
-    };
-
     onMounted(() => {
       hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);

@@ -195,7 +195,7 @@ export const setScrollLoadCell = (
   const appendPageItems = (size?) => {
     if (startIndex > wordList.length) {
       requestAnimationFrame(appendLastTag);
-      startIndex = length;
+      startIndex = wordList.length;
       return false;
     }
 

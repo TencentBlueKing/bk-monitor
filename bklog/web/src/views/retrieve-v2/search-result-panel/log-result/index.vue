@@ -39,64 +39,7 @@
             {{ type === 'table' ? '表格' : '原始' }}
           </span>
         </div>
-        <bk-checkbox
-          style="margin: 0 12px"
-          class="bklog-option-item"
-          :value="showRowIndex"
-          theme="primary"
-          @change="val => handleStorageChange(val, 'tableShowRowIndex')"
-        >
-          <span class="switch-label">{{ $t('显示行号') }}</span>
-        </bk-checkbox>
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          v-model="expandTextView"
-          theme="primary"
-          @change="val => handleStorageChange(val, 'isLimitExpandView')"
-        >
-          <span class="switch-label">{{ $t('展开长字段') }}</span>
-        </bk-checkbox>
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          :value="isWrap"
-          theme="primary"
-          @change="val => handleStorageChange(val, 'tableLineIsWrap')"
-          ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
-        >
-
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          :value="isJsonFormat"
-          theme="primary"
-          @change="val => handleStorageChange(val, 'tableJsonFormat')"
-          ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
-        >
-
-        <bk-input
-          v-if="isJsonFormat"
-          style="margin: 0 12px 0 0"
-          class="json-depth-num"
-          :max="15"
-          :min="1"
-          :value="jsonFormatDeep"
-          type="number"
-          @change="handleJsonFormatDeepChange"
-        ></bk-input>
-
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          :value="isAllowEmptyField"
-          theme="primary"
-          @change="val => handleStorageChange(val, 'tableAllowEmptyField')"
-        >
-          <span class="switch-label">
-            {{ $t('展示空字段') }}
-          </span>
-        </bk-checkbox>
+        <ResultStorage></ResultStorage>
       </div>
       <div
         v-if="!isMonitorTrace"
@@ -182,6 +125,7 @@
   import TableLog from './log-result.vue';
   import RetrieveHelper from '../../../retrieve-helper';
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
+  import ResultStorage from '../../components/result-storage/index';
 
   export default {
     components: {
@@ -189,6 +133,7 @@
       FieldsSetting,
       ExportLog,
       bklogTagChoice,
+      ResultStorage,
     },
     inheritAttrs: false,
     props: {
@@ -212,7 +157,6 @@
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
-        expandTextView: false,
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
         tippyOptions: {
@@ -244,11 +188,12 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
-        isWrap: 'tableLineIsWrap',
+        isWrap: state => state.storage.tableLineIsWrap,
         jsonFormatDeep: state => state.storage.tableJsonFormatDepth,
         isJsonFormat: state => state.storage.tableJsonFormat,
         isAllowEmptyField: state => state.storage.tableAllowEmptyField,
         showRowIndex: state => state.storage.tableShowRowIndex,
+        expandTextView: state => state.storage.isLimitExpandView,
       }),
 
       routeIndexSet() {
