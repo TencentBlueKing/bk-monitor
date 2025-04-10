@@ -111,8 +111,8 @@ class NetworkWithRelation:
             if r_filter.resource_type != "pod":
                 label_filters.add(r_filter)
 
-        return f"""count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}})
+        return f"""(count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
+            (ingress_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}}) * 0 + 1)
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
             * on (namespace, pod) group_left()"""
