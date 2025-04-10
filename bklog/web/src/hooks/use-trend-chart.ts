@@ -32,7 +32,6 @@ import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
-import { deepClone } from '../common/util';
 import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
@@ -131,11 +130,10 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 按照小时统计
     // 按照指定的柱子数量分割
     const duration = (end_time - start_time) / 1000;
-
+    const segments = Math.floor(duration / barCount);
     for (const [name, seconds] of intervals) {
-      const segments = Math.floor(duration / seconds);
-      if (segments >= barCount) {
-        const interval = Math.floor(duration / barCount);
+      if (segments >= seconds) {
+        const interval = Math.floor(segments / seconds);
         runningInterval = `${interval >= 1 ? interval : 1}${name}`;
         return name;
       }

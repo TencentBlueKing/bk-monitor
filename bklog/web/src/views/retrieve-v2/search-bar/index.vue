@@ -201,12 +201,12 @@
           }
         });
 
-        RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
+        RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         return;
       }
 
       getBtnQueryResult();
-      RetrieveHelper.fire(RetrieveEvent.SEARCH_BTN_CLICK);
+      RetrieveHelper.searchValueChange(searchMode.value, uiQueryValue.value);
     }
   };
 

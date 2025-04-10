@@ -67,8 +67,8 @@ export enum RetrieveEvent {
   // 打开索引配置
   INDEX_CONFIG_OPEN = 'index-config-open',
 
-  // 搜索按钮点击触发
-  SEARCH_BTN_CLICK = 'search-btn-click',
+  // 搜索条件改变
+  SEARCH_VALUE_CHANGE = 'search-value-change',
 }
 
 class RetrieveHelper {
@@ -228,6 +228,15 @@ class RetrieveHelper {
   setLeftFieldSettingWidth(width: number) {
     this.leftFieldSettingWidth = width;
     this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+  }
+
+  /**
+   * 检索值变化
+   * @param type 检索类型：ui/sql/filter
+   * @param value
+   */
+  searchValueChange(type: 'ui' | 'sql' | 'filter', value: string | Array<any>) {
+    this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
   /**

@@ -44,8 +44,8 @@ import { bkMessage } from 'bk-magic-vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
-import ExpandView from '../result-cell-element/expand-view.vue';
-import OperatorTools from '../result-cell-element/operator-tools.vue';
+import ExpandView from '../../components/result-cell-element/expand-view.vue';
+import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
