@@ -583,7 +583,7 @@ export default class CollectIndex extends tsc<IProps> {
             window.open(shareUrl, '_blank');
           } else {
             console.log('routeData', `${shareUrl}`);
-            copyMessage(shareUrl, this.$t('复制分享链接成功，您可以xxx'));
+            copyMessage(shareUrl, this.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。'));
           }
         }
         break;
