@@ -253,7 +253,7 @@ class DurationSpace(CheckStep):
             return APIPending("api worker duration cost %s" % duration, self.story)
         self.story.info("api worker duration cost %s" % duration)
 
-        if records[0]["_result_"] == 0:
+        if records and records[0]["_result_"] == 0:
             # 尝试从kafka拉取最新的一条数据。
             p = self.check_from_kafka(1001)
             if not p:
