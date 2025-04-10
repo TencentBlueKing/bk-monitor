@@ -297,7 +297,6 @@ class EsSnapshotIndice(models.Model):
     class Meta:
         verbose_name = "快照物理索引记录"
         verbose_name_plural = "快照物理索引记录"
-        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def batch_to_json(cls, table_id, snapshot_name):
