@@ -3,11 +3,12 @@
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  overflow: hidden;
+  justify-content: flex-end;
   width: 100%;
   min-width: 100%;
   min-height: 400px;
   margin-top: 6px;
+  overflow: hidden;
   border-top: solid 1px #dfe0e5;
 
   .bklog-requsting-loading {
@@ -16,7 +17,9 @@
 
     > div {
       height: 40px;
+      font-size: 12px;
       line-height: 40px;
+      color: #979BA5;
       color: #979ba5;
       font-size: 12px;
     }
@@ -50,18 +53,18 @@
     position: relative;
     z-index: 2;
     box-sizing: border-box;
+    display: inline-flex;
+    align-items: stretch;
     width: fit-content;
     min-width: 100%;
     min-height: 32px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
-    display: inline-flex;
-    align-items: stretch;
 
     .bklog-row-observe {
-      width: fit-content;
       display: inline-flex;
       flex-direction: column;
+      width: fit-content;
 
       min-width: 100%;
       height: 100%;
@@ -84,9 +87,9 @@
       color: var(--table-fount-color);
 
       .bklog-row-cell {
+        align-self: flex-start;
         padding: 4px 12px;
         line-height: 22px;
-        align-self: flex-start;
 
         &.left,
         &.right {
@@ -121,8 +124,8 @@
           z-index: 2;
           display: flex;
           align-items: stretch;
-          background-color: #fff;
           padding: 0px 12px;
+          background-color: #fff;
 
           .handle-content {
             position: relative;
@@ -138,9 +141,9 @@
           &::before {
             position: absolute;
             top: 0;
-            left: -8px;
-            bottom: 0px;
             right: 100%;
+            bottom: 0px;
+            left: -8px;
             z-index: 2;
             min-width: 8px;
             pointer-events: none;
@@ -178,10 +181,11 @@
             display: flex;
             align-items: center;
             height: auto;
+            font-family: Roboto-Regular;
             font-weight: bold;
             line-height: 1;
             color: #313238;
-            font-family: Roboto-Regular;
+
             .bk-table-caret-wrapper {
               position: relative;
               display: inline-flex;
@@ -282,10 +286,10 @@
     }
 
     .expand-view-wrapper {
-      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 8px);
-      border-top: 1px solid #dfe0e5;
       position: sticky;
       left: 0;
+      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 8px);
+      border-top: 1px solid #dfe0e5;
 
       .view-content {
         &.kv-view-content {
@@ -321,13 +325,13 @@
       box-sizing: content-box;
       display: none;
       width: fit-content;
+      width: 100%;
       min-width: 100%;
       height: 32px;
+      overflow: visible;
       line-height: 32px;
       visibility: visible;
       background-color: #fafbfd;
-      width: 100%;
-      overflow: visible;
 
       .bklog-list-row {
         z-index: 1;
@@ -361,10 +365,10 @@
 
       &::before {
         position: sticky;
-        margin: 1px 0;
         left: 0;
         z-index: 1;
         min-width: 3.09px;
+        margin: 1px 0;
         content: '';
         background: transparent;
         border-radius: 0 1px 1px 0;
@@ -532,6 +536,7 @@
       }
     }
   }
+
   &.show-header {
     .bklog-row-container {
       &.row-header {
@@ -539,6 +544,7 @@
       }
     }
   }
+
   &.has-scroll-x {
     .bklog-row-box {
       will-change: transform;

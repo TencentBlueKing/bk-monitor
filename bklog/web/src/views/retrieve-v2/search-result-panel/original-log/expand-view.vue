@@ -267,5 +267,9 @@
     .vjs-value-number {
       color: #2caf5e;
     }
+
+    .vjs-indent-unit.has-line {
+      border-left: 1px solid #bfcbd9;
+    }
   }
 </style>

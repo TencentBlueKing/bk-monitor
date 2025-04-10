@@ -572,7 +572,7 @@ export default class FieldFilterComp extends tsc<object> {
           )}
           <div class='field-filter-roll'>
             {!!this.indexSetFields().filter(item => item.filterVisible).length && (
-              <div class='fields-container not-selected'>
+              <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item, index) =>
