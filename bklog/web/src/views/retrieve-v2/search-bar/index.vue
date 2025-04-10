@@ -46,6 +46,8 @@
   const route = useRoute();
   const router = useRouter();
   RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+    console.log(val);
+    
     activeFavorite.value = val;
   });
 
@@ -366,6 +368,7 @@
       if (res.result) {
         window.mainComponent.messageSuccess($t('保存成功'));
         initSourceSQLStr(res.data.params, res.data.search_mode);
+        store.dispatch('requestFavoriteList');
         handleRefresh(true);
       }
     } catch (error) {}
@@ -583,7 +586,7 @@
             @click="handleFilterSecClick"
           />
           <BookmarkPop
-            :active-favorite="!activeFavorite.id"
+            :active-favorite="!activeFavorite?.id"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"

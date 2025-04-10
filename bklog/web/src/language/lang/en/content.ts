@@ -1050,4 +1050,6 @@ export default {
   别名与重命名重复: 'Alias and rename duplicate',
   '第三方ES、计算平台索引集类型不支持自定义分词':
     'Third-party ES, calculation platform index set type does not support custom tokenization',
+  联想到以下: 'Associated with the following:',
+  个收藏: 'favorite items',
 };
