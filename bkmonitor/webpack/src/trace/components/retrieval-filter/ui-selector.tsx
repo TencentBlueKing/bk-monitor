@@ -81,6 +81,16 @@ export default defineComponent({
       cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
     }
 
+    /**
+     * 处理显示选择器的点击事件
+     * @param {MouseEvent} event - 鼠标事件对象
+     * @description
+     * 1. 如果已存在 popover 实例则更新目标和内容
+     * 2. 否则创建新的 popover 实例并配置相关属性
+     * 3. popover 隐藏时销毁实例并重新绑定键盘事件
+     * 4. 延迟 100ms 显示 popover
+     * @private
+     */
     async function handleShowSelect(event: MouseEvent) {
       if (popoverInstance.value) {
         popoverInstance.value.update(event.target, {
@@ -118,6 +128,16 @@ export default defineComponent({
       showSelector.value = false;
     }
 
+    /**
+     * 处理添加按钮点击事件
+     * @param {MouseEvent} event - 鼠标事件对象
+     * @description
+     * 1. 阻止事件冒泡
+     * 2. 重置激活状态为-1
+     * 3. 创建自定义事件对象,将currentTarget作为target
+     * 4. 显示选择器
+     * 5. 隐藏输入框
+     */
     function handleAdd(event: MouseEvent) {
       event.stopPropagation();
       updateActive.value = -1;
@@ -131,6 +151,16 @@ export default defineComponent({
 
     /**
      * @description 清空
+     */
+    /**
+     * 清空选择器的值并重置状态
+     * @param {MouseEvent} event - 鼠标事件对象
+     * @description
+     * 1. 阻止事件冒泡
+     * 2. 清空本地选中值
+     * 3. 重置激活状态为-1
+     * 4. 隐藏输入框
+     * 5. 触发change事件回调
      */
     function handleClear(event?: MouseEvent) {
       event?.stopPropagation?.();
@@ -149,6 +179,11 @@ export default defineComponent({
       emit('change', localValue.value);
     }
 
+    /**
+     * 处理斜杠键按下事件
+     * 当按下斜杠键且输入框为空且选择器未显示时,触发组件点击事件并执行清理
+     * @param {KeyboardEvent} event 键盘事件对象
+     */
     function handleKeyDownSlash(event) {
       if (event.key === '/' && !inputValue.value && !showSelector.value) {
         event.preventDefault();
@@ -157,6 +192,16 @@ export default defineComponent({
       }
     }
 
+    /**
+     * 处理组件点击事件
+     * @param {MouseEvent} event - 鼠标事件对象
+     * @description
+     * 1. 阻止事件冒泡
+     * 2. 重置更新激活状态为 -1
+     * 3. 设置输入框焦点状态为 true
+     * 4. 获取占位符元素并创建自定义事件
+     * 5. 触发显示选择器的处理函数
+     */
     function handleClickComponent(event?: MouseEvent) {
       event?.stopPropagation();
       updateActive.value = -1;
@@ -173,6 +218,17 @@ export default defineComponent({
       destroyPopoverInstance();
       hideInput();
     }
+    /**
+     * 处理确认选择的过滤项
+     * @param {IFilterItem} value - 选中的过滤项值
+     * @description
+     * 1. 深拷贝当前本地值
+     * 2. 如果存在更新索引,则替换对应位置的值,否则追加到末尾
+     * 3. 更新本地值
+     * 4. 销毁弹出层实例
+     * 5. 隐藏输入框
+     * 6. 触发变更回调
+     */
     function handleConfirm(value: IFilterItem) {
       const localValue$ = JSON.parse(JSON.stringify(localValue.value));
       if (value) {

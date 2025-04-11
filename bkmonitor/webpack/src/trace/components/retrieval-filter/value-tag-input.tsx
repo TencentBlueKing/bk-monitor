@@ -51,10 +51,24 @@ export default defineComponent({
       { immediate: true }
     );
 
+    /**
+     * 处理点击事件
+     * 将编辑状态设置为 true 并使输入框获得焦点
+     * @private
+     */
     function handleClick() {
       isEdit.value = true;
       inputFocus();
     }
+    /**
+     * 处理输入框值变化的函数
+     * @param {Event} event - 输入事件对象
+     * @description
+     * 1. 获取输入框的值
+     * 2. 计算字符长度
+     * 3. 根据字符长度动态设置输入框宽度
+     * 4. 去除输入值中的换行符并更新本地值
+     */
     function handleInput(event) {
       const input = event.target;
       const value = input.value;
@@ -63,6 +77,11 @@ export default defineComponent({
       localValue.value = value.replace(/(\r\n|\n|\r)/gm, '');
     }
 
+    /**
+     * 处理键盘按键事件
+     * @param {KeyboardEvent} event 键盘事件对象
+     * @description 当按下回车键时,触发值变更并退出编辑状态
+     */
     function handleKeyUp(event) {
       const key = event.key || event.keyCode || event.which;
       if (key === 'Enter' || key === 13) {
@@ -71,16 +90,32 @@ export default defineComponent({
         isEdit.value = false;
       }
     }
+    /**
+     * 处理键盘按键事件
+     * @description 阻止回车键的默认行为
+     * @param {KeyboardEvent} event - 键盘事件对象
+     */
     function handleKeyDown(event) {
       const key = event.key || event.keyCode || event.which;
       if (key === 'Enter' || key === 13) {
         event.preventDefault();
       }
     }
+    /**
+     * 聚焦输入框
+     * 等待下一个 tick 后将焦点设置到输入框元素
+     * @returns {Promise<void>}
+     */
     async function inputFocus() {
       await nextTick();
       inputRef.value?.focus?.();
     }
+    /**
+     * 处理输入框失焦事件
+     * 当输入框处于编辑状态时,失焦后会:
+     * 1. 关闭编辑状态
+     * 2. 触发值变更事件
+     */
     function handleBlur() {
       if (isEdit.value) {
         isEdit.value = false;

@@ -72,6 +72,15 @@ export default defineComponent({
       handleShowShowDropDown(true);
     }
 
+    /**
+     * 处理下拉框显示状态的切换
+     * @param {boolean} v - 是否显示下拉框
+     * @description
+     * 1. 设置下拉框的显示状态
+     * 2. 当下拉框显示时，添加点击外部区域的监听
+     * 3. 点击外部区域时，关闭下拉框，取消焦点状态，并触发失焦事件
+     * 4. 使用 setTimeout 延迟 100ms 添加监听，避免与其他点击事件冲突
+     */
     function handleShowShowDropDown(v: boolean) {
       isShowDropDown.value = v;
       if (isShowDropDown.value) {
@@ -91,12 +100,28 @@ export default defineComponent({
     function handleSelectorBlur() {
       emit('selectorBlur');
     }
+    /**
+     * 处理选中值的回调函数
+     * @param {IValue} item - 选中的值对象
+     * @description
+     * 1. 重置当前激活项索引为-1
+     * 2. 如果已选中列表中存在相同id的值则直接返回
+     * 3. 将选中项添加到本地值列表中
+     * 4. 触发值变更回调
+     */
     function handleCheck(item: IValue) {
       activeIndex.value = -1;
       if (localValue.value.some(v => v.id === item.id)) return;
       localValue.value.push(item);
       handleChange();
     }
+    /**
+     * 处理点击事件
+     * - 如果下拉框未显示,则显示下拉框
+     * - 设置当前激活项为最后一项
+     * - 设置焦点状态为 true
+     * - 触发选择器获得焦点事件
+     */
     function handleClick() {
       if (!isShowDropDown.value) {
         handleShowShowDropDown(true);
@@ -105,6 +130,11 @@ export default defineComponent({
       isFocus.value = true;
       handleSelectorFocus();
     }
+    /**
+     * 处理输入框值变化
+     * @param {string} value - 输入框的值
+     * @description 更新输入值,显示下拉框,重置选中状态
+     */
     function handleInput(value: string) {
       inputValue.value = value;
       if (!isShowDropDown.value) {
@@ -112,10 +142,25 @@ export default defineComponent({
       }
       isChecked.value = false;
     }
+    /**
+     * 处理输入框失焦事件
+     * 延迟 300ms 后清空输入值
+     * @returns {Promise<void>}
+     */
     async function handleBlur() {
       await promiseTimeout(300);
       inputValue.value = '';
     }
+    /**
+     * 处理输入框回车事件
+     * 当输入框有值且未被选中时,将输入值添加到本地数据中
+     * 如果输入值已存在则清空输入框
+     * 添加成功后:
+     * - 清空输入框
+     * - 更新选中索引
+     * - 触发change事件
+     * - 保持输入框焦点
+     */
     function handleEnter() {
       if (!inputValue.value || isChecked.value) {
         return;
@@ -130,6 +175,12 @@ export default defineComponent({
       handleChange();
       isFocus.value = true;
     }
+    /**
+     * 处理退格键在输入为空时的逻辑
+     * - 当输入值为空时,如果有活动索引,则将其减1
+     * - 如果本地值长度大于1,则删除活动索引后的一个值
+     * - 如果本地值长度为1,则清空本地值并延迟300ms后触发点击事件
+     */
     async function handleBackspaceNull() {
       if (!inputValue.value) {
         if (activeIndex.value > 0) {
@@ -152,9 +203,20 @@ export default defineComponent({
       localValue.value.splice(index, 1);
       handleChange();
     }
+    /**
+     * 处理值变更事件
+     * 触发 change 事件，将当前本地值传递给父组件
+     * @emits change - 值变更时触发，参数为当前选中的值
+     */
     function handleChange() {
       emit('change', localValue.value);
     }
+    /**
+     * 处理标签更新
+     * @param {string} v - 标签值
+     * @param {number} index - 需要更新的标签索引
+     * @description 更新或删除指定索引位置的标签值,并触发变更事件
+     */
     function handleTagUpdate(v: string, index: number) {
       if (v) {
         localValue.value.splice(index, 1, { id: v, name: v });

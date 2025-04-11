@@ -96,12 +96,27 @@ export default defineComponent({
         cleanup = useEventListener(document, 'keydown', handleKeydownEvent);
       }
     }
+    /**
+     * @description 初始化数据状态
+     * 重置选项列表、悬浮索引、分页数据和结束标记
+     */
     function dataInit() {
       localOptions.value = [];
       hoverActiveIndex.value = -1;
       page.value = 1;
       isEnd.value = false;
     }
+    /**
+     * 处理键盘事件的函数，用于实现选项列表的上下键导航和回车选择功能
+     * @param {KeyboardEvent} event - 键盘事件对象
+     *
+     * @description
+     * - 当按下向上箭头键时，将选中项索引减1
+     * - 当按下向下箭头键时，将选中项索引加1
+     * - 当按下回车键时，触发选项确认
+     * - 如果 needUpDownCheck 为 false，则不处理任何键盘事件
+     * - 索引变化时会自动处理边界情况，确保不会超出有效范围
+     */
     function handleKeydownEvent(event: KeyboardEvent) {
       if (!props.needUpDownCheck) {
         return;
@@ -133,6 +148,15 @@ export default defineComponent({
         }
       }
     }
+    /**
+     * 更新选中状态并处理滚动位置
+     *
+     * 该函数执行两个主要操作：
+     * 1. 根据悬停索引位置发送选中状态
+     * 2. 将当前选中项滚动到可视区域
+     *
+     * @emits isChecked - 发送选中状态，当悬停索引在有效范围内时为 true
+     */
     function updateSelection() {
       emit('isChecked', hoverActiveIndex.value >= 0 && hoverActiveIndex.value <= localOptions.value.length - 1);
       nextTick(() => {
@@ -145,6 +169,11 @@ export default defineComponent({
         }
       });
     }
+    /**
+     * 处理选项回车事件
+     * 当鼠标悬停在某个选项上时(hoverActiveIndex不为-1),
+     * 触发该选项的选中事件
+     */
     function handleOptionsEnter() {
       if (hoverActiveIndex.value !== -1) {
         const item = renderOptions.value?.[hoverActiveIndex.value];
@@ -153,6 +182,15 @@ export default defineComponent({
         }
       }
     }
+    /**
+     * 处理滚动事件,实现滚动加载更多数据的功能
+     * @param {Event} event - 滚动事件对象
+     * @description
+     * 1. 监听滚动容器的滚动位置
+     * 2. 当滚动到底部时(距离底部小于3px),触发加载更多
+     * 3. 通过 scrollLoading 和 isEnd 标记控制加载状态
+     * 4. 加载成功后更新本地选项数据
+     */
     async function handleScroll(event) {
       const container = event.target;
       const scrollTop = container.scrollTop;
@@ -168,9 +206,24 @@ export default defineComponent({
         }
       }
     }
+    /**
+     * 处理选中事件
+     * @param {IValue} item - 选中的值对象
+     * @description 当选项被选中时触发，通过 emit 方法向父组件发送 'select' 事件并传递选中项
+     */
     function handleCheck(item: IValue) {
       emit('select', item);
     }
+    /**
+     * 获取值数据的异步函数
+     * @param {boolean} isScroll - 是否为滚动加载，默认为 false
+     * @returns {Promise<Array>} 返回获取到的数据列表
+     * @description
+     * - 当启用选项时，通过 getValueFn 获取数据
+     * - 支持分页加载和搜索功能
+     * - 处理加载状态和滚动加载状态
+     * - 判断是否到达数据末尾
+     */
     async function getValueData(isScroll = false) {
       let list = [];
       if (isScroll) {
@@ -192,6 +245,12 @@ export default defineComponent({
       loading.value = false;
       return list;
     }
+    /**
+     * 过滤本地选项列表
+     * @param {IValue[]} list - 选项值列表
+     * @returns {IValue[]} 过滤后的列表
+     * @description 当列表为空时,页码加1;返回原始列表
+     */
     function localOptionsFilter(list: IValue[]) {
       if (!list.length) {
         page.value += 1;

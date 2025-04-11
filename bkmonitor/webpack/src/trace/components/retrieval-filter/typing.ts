@@ -396,7 +396,7 @@ export const VALUE_TAG_INPUT_EMITS = {
   input: (_v: string) => {},
   change: (_v: string) => {},
   delete: (_e?: MouseEvent) => {},
-};
+} as const;
 export const VALUE_OPTIONS_PROPS = {
   selected: {
     type: Array as PropType<string[]>,
@@ -442,4 +442,4 @@ export const VALUE_OPTIONS_PROPS = {
 export const VALUE_OPTIONS_EMITS = {
   isChecked: (_v: boolean) => {},
   select: (_v: IValue) => {},
-};
+} as const;
