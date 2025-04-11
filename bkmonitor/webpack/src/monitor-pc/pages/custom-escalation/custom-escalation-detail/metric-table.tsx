@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { deepClone } from 'monitor-common/utils';
 
@@ -35,11 +36,11 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
-import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { matchRuleFn } from '../group-manage-dialog';
-import { fuzzyMatch } from './metric-table-slide';
 
 import './metric-table.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 export const statusMap = new Map([
   [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
@@ -47,6 +48,10 @@ export const statusMap = new Map([
 ]);
 
 interface ILabel {
+  name: string;
+}
+interface IFunc {
+  id: string;
   name: string;
 }
 interface IMetricDetail {
@@ -57,10 +62,7 @@ interface IMetricDetail {
   unit: string;
   aggregate_method: string;
   disabled?: boolean;
-  function: {
-    id: string;
-    name: string;
-  };
+  function: IFunc[];
   hidden: boolean;
   dimensions?: string[];
   reportInterval: string;
@@ -88,9 +90,10 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) groupSelectList: IListItem[];
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => [], type: Array }) dimensionTable;
-  @Prop({ default: () => {} }) allDataPreview;
+  @Prop({ default: () => { } }) allDataPreview;
   @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
+  @Prop({ default: () => [] }) search: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
   @Prop({ default: () => new Map(), type: Map }) metricGroupsMap: Map<string, any>;
 
@@ -145,7 +148,6 @@ export default class IndicatorTable extends tsc<any, any> {
     list: [{ id: 0, name: I18N.t('添加至分组') }],
   };
   editingIndex = -1;
-  search = '';
 
   emptyType = 'empty'; // 空状态
   groupWidth = 200;
@@ -154,17 +156,14 @@ export default class IndicatorTable extends tsc<any, any> {
     return window.innerWidth < 1920 ? 388 : 456;
   }
 
-  get selectionLeng() {
+  get selectionLength() {
     const selectionList = this.metricTableVal.filter(item => item.selection);
     return selectionList.length;
   }
 
   get metricTableVal() {
-    const filterTable = this.metricTable.filter(item => {
-      return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.description, this.search);
-    });
-    this.tableInstance.total = filterTable.length;
-    return filterTable.slice(
+    this.tableInstance.total = this.metricTable.length;
+    return this.metricTable.slice(
       this.tableInstance.pageSize * (this.tableInstance.page - 1),
       this.tableInstance.pageSize * this.tableInstance.page
     );
@@ -172,6 +171,50 @@ export default class IndicatorTable extends tsc<any, any> {
 
   get groups() {
     return Array.from(this.groupsMap.keys());
+  }
+
+  get metricSearchData() {
+    return [
+      {
+        name: window.i18n.t('名称'),
+        id: 'name',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('别名'),
+        id: 'description',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('单位'),
+        id: 'unit',
+        multiple: false,
+        children: this.unitList,
+      },
+      {
+        name: window.i18n.t('函数'),
+        id: 'func',
+        multiple: false,
+        children: this.metricFunctions,
+      },
+      {
+        name: window.i18n.t('汇聚方法'),
+        id: 'aggregate',
+        multiple: false,
+        children: METHOD_LIST,
+      },
+      {
+        name: window.i18n.t('显/隐'),
+        id: 'show',
+        multiple: false,
+        children: [
+          { id: 'true', name: window.i18n.t('显示') },
+          { id: 'false', name: window.i18n.t('隐藏') },
+        ],
+      },
+    ];
   }
 
   created() {
@@ -349,6 +392,7 @@ export default class IndicatorTable extends tsc<any, any> {
             ext-cls='description-input'
             readonly={this.editingIndex !== props.$index}
             value={props.row.description}
+            show-overflow-tooltips
             onBlur={() => {
               this.editingIndex = -1;
               this.handleEditDescription(props.row);
@@ -452,8 +496,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {group.checked && (
             <bk-table-column
               key='group'
+              width='200'
               label={this.$t('分组')}
-              minWidth='200'
               prop='group'
               scopedSlots={groupSlot}
             />
@@ -528,7 +572,7 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   @Emit('rowCheck')
-  handleRowCheck() {}
+  handleRowCheck() { }
 
   handleCheckChange({ value }) {
     this.updateAllSelection(value === 2);
@@ -543,6 +587,9 @@ export default class IndicatorTable extends tsc<any, any> {
   handleClickSlider(): boolean {
     return true;
   }
+
+  @Emit('searchChange')
+  handleSearchChange() { }
 
   async updateCustomFields(k, v, metricName, showMsg = false) {
     try {
@@ -608,9 +655,6 @@ export default class IndicatorTable extends tsc<any, any> {
 
   /** 编辑函数 */
   async editFunction(func, metricInfo) {
-    if (!func?.name || func?.name === metricInfo?.function?.name) {
-      return;
-    }
     metricInfo.function = func;
     await this.updateCustomFields('function', func, metricInfo.name);
   }
@@ -666,6 +710,7 @@ export default class IndicatorTable extends tsc<any, any> {
   getGroupCpm(row, index, showFoot = true) {
     return (
       <bk-select
+        key={row.name}
         clearable={false}
         value={row.labels?.map(item => item.name)}
         displayTag
@@ -681,11 +726,11 @@ export default class IndicatorTable extends tsc<any, any> {
               !this.getIsDisable(row.name, item.id)
                 ? { disabled: true }
                 : {
-                    content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
-                    placements: ['right'],
-                    boundary: 'window',
-                    allowHTML: false,
-                  }
+                  content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
+                  placements: ['right'],
+                  boundary: 'window',
+                  allowHTML: false,
+                }
             }
             disabled={this.getIsDisable(row.name, item.id)}
             name={item.name}
@@ -721,6 +766,11 @@ export default class IndicatorTable extends tsc<any, any> {
       this.showDetail = false;
       return;
     }
+
+    const getKey = obj => {
+      return `${obj?.name || ''}_${obj?.description}`;
+    };
+
     return (
       <div class='metric-card'>
         <div class='card-header'>
@@ -738,7 +788,8 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('别名')}：</span>
               {!this.canEditName ? (
                 <div
-                  class='info-content'
+                  class='info-content info-text'
+                  v-bk-overflow-tips
                   onClick={() => this.handleShowEditDescription(metricData.description)}
                 >
                   {metricData.description || '-'}
@@ -843,13 +894,13 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('函数')}：</span>
               <div class='info-content'>
                 {
-                  <FunctionMenu
+                  <FunctionSelect
+                    key={getKey(metricData)}
                     class='init-add'
-                    list={this.metricFunctions}
-                    onFuncSelect={v => this.editFunction(v, metricData)}
-                  >
-                    {metricData.function?.name ?? '-'}
-                  </FunctionMenu>
+                    v-model={metricData.function}
+                    isMultiple={false}
+                    onValueChange={params => this.editFunction(params, metricData)}
+                  />
                 }
               </div>
             </div>
@@ -950,12 +1001,12 @@ export default class IndicatorTable extends tsc<any, any> {
             <bk-popover
               ext-cls='header-select-btn-popover'
               arrow={false}
-              disabled={!this.selectionLeng}
+              disabled={!this.selectionLength}
               placement='bottom-start'
               theme='light common-monitor'
               trigger='click'
             >
-              <div class={['header-select-btn', { 'btn-disabled': !this.selectionLeng }]}>
+              <div class={['header-select-btn', { 'btn-disabled': !this.selectionLength }]}>
                 <span class='btn-name'> {this.$t('批量操作')} </span>
                 <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
               </div>
@@ -974,7 +1025,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   >
                     <div class='list-item'>{option.name}</div>
                     <div
-                      class='header-select-list'
+                      class='header-select-list mh-300'
                       slot='content'
                     >
                       {Array.from(this.groupsMap.keys()).map(group => (
@@ -1016,11 +1067,14 @@ export default class IndicatorTable extends tsc<any, any> {
               </div>
             )}
           </div>
-          <bk-input
+          <SearchSelect
+            class='search-table'
             ext-cls='search-table'
-            v-model={this.search}
-            placeholder={this.$t('搜索')}
-            right-icon='icon-monitor icon-mc-search'
+            data={this.metricSearchData}
+            modelValue={this.search}
+            placeholder={this.$t('搜索指标')}
+            show-popover-tag-change
+            on-change={this.handleSearchChange}
           />
         </div>
         <div class='strategy-config-wrap'>

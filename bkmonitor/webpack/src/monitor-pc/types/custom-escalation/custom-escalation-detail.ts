@@ -41,8 +41,8 @@ export interface IEditParams {
   name: string;
   scenario: string;
   is_enable: boolean;
-  data_label: string;
-  is_platform: boolean;
+  data_label?: string;
+  is_platform?: boolean;
 }
 
 export interface IDetailData {
