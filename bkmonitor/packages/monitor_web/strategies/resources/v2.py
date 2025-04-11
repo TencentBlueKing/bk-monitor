@@ -85,6 +85,7 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -3215,9 +3216,7 @@ class ListIntelligentModelsResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         algorithm = validated_request_data["algorithm"]
-        plans = api.bkdata.list_scene_service_plans(
-            scene_id=get_scene_id_by_algorithm(validated_request_data["algorithm"])
-        )
+        plans = AlgorithmChoiceConfig.objects.filter(algorithm=algorithm)
 
         # 判断该算法是否在ai设置中，如果在ai设置中则需要挑选出开启默认配置的plan_id进行赋值
         default_plan_id = None
@@ -3239,31 +3238,23 @@ class ListIntelligentModelsResource(Resource):
                 default_plan_id = config.to_dict().get("default_plan_id")
 
         model_list = []
-
         for plan in plans:
-            if algorithm == AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting and "hour" not in plan["plan_name"]:
+            if algorithm == AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting and "hour" not in plan.name:
                 # TODO: 时序预测目前只支持小时级别的模型
                 continue
-            plan_document = plan.get("plan_document", {})
             model_list.append(
                 {
-                    "name": plan["plan_alias"],
-                    "id": plan["plan_id"],
-                    # 判断是否有默认的plan_id，如果有的话则比较plan_id是否相同，如果没有的话则取原本的is_default
-                    "is_default": default_plan_id == plan["plan_id"] if default_plan_id else plan["is_default"],
-                    "document": plan.get("plan_description", ""),
-                    "description": plan_document.get("instroduction", ""),
-                    "instruction": plan_document.get("content", ""),
-                    "visual_type": plan["visual_type"],
-                    "latest_release_id": plan["latest_plan_version_id"],
-                    "ts_freq": plan["ts_freq"],
-                    "ts_depend": plan["ts_depend"],
+                    "name": plan.alias,
+                    "id": plan.id,
+                    "document": plan.document,
+                    "is_default": default_plan_id == plan.id if default_plan_id else plan.is_default,
+                    "description": plan.description,
+                    "ts_freq":plan.ts_freq,
+                    "instruction": plan.instruction,
                 }
             )
-
         # 默认is_default在最前面，除此外，按照ID降序排序
         model_list = sorted(model_list, key=lambda x: (not x["is_default"], -int(x["id"])))
-
         return model_list
 
 
@@ -3277,58 +3268,17 @@ class GetIntelligentModelResource(Resource):
         id = serializers.CharField(required=True, label="模型ID")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
         plan_id = validated_request_data["id"]
-        plan = api.bkdata.get_scene_service_plan(plan_id=plan_id)
-
-        ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-
-        plan_args_mapping = {}
-
-        multivariate_anomaly_detection = ai_setting.multivariate_anomaly_detection
-        for scene in multivariate_anomaly_detection.get_scene_list():
-            scene_config = getattr(multivariate_anomaly_detection, scene)
-            if scene_config and not scene_config.is_enabled:
-                continue
-            plan_args_mapping[scene_config.default_plan_id] = scene_config.plan_args
-
-        # 离群检测特殊处理
-        # 由于plan返回的plan_name是蛇形命名，此处需要转为驼峰比较
-        plan_name = plan["plan_name"]
-        plan_name = ''.join(word.title() for word in plan_name.split("_"))
-
-        if plan_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
-            for index, arg in enumerate(plan["variable_info"]["parameter"]):
-                if arg["variable_name"] == "$cluster":
-                    plan["variable_info"]["parameter"].pop(index)
-
-        plan_document = plan.get("plan_document", {})
-
+        plan = AlgorithmChoiceConfig.objects.filter(id=plan_id).first()
         result = {
-            "name": plan["plan_alias"],
-            "id": plan["plan_id"],
-            "is_default": plan["is_default"],
-            "document": plan.get("plan_description", ""),
-            "description": plan_document.get("instroduction", ""),
-            "instruction": plan_document.get("content", ""),
-            "latest_release_id": plan["latest_plan_version_id"],
-            "visual_type": plan["visual_type"],
-            "ts_freq": plan["ts_freq"],
-            "ts_depend": plan["ts_depend"],
+            "name": plan.alias,
+            "id": plan.id,
+            "document": plan.document,
+            "description": plan.description,
+            "ts_freq": plan.ts_freq,
+            "instruction": plan.instruction,
+            "args":plan.variable_info.get("parameter",[])
         }
-
-        plan_id = int(plan_id)
-        if plan_args_mapping and plan_id in plan_args_mapping.keys():
-            args = []
-            for arg in plan["variable_info"]["parameter"]:
-                if arg["sensitivity"] == "public":
-                    if arg.get("properties", {}).get("input_type") == "range":
-                        arg["default_value"] = plan_args_mapping[plan_id].get("sensitivity", arg["default_value"])
-                    args.append(arg)
-            result["args"] = args
-        else:
-            result["args"] = [arg for arg in plan["variable_info"]["parameter"] if arg["sensitivity"] == "public"]
-
         return result
 
 
