@@ -1,11 +1,11 @@
-from typing import List
-
 import ply.lex as lex
 import ply.yacc as yacc
 
+from apps.exceptions import GrepParseError
 from apps.utils.log import logger
 
 tokens = ("COMMAND", "ARG", "DOUBLE_QUOTED_STRING", "SINGLE_QUOTED_STRING", "RAW_PATTERN", "PIPE")
+
 
 # 定义词法规则
 t_PIPE = r"\|"  # noqa: F841
@@ -25,40 +25,27 @@ def t_ARG(t):  # noqa: F841
 
 
 def t_DOUBLE_QUOTED_STRING(t):  # noqa: F841
-    r'\"(?:\\["\\tnr?]|\\[^"]|[^"\\])*\"'
-    # 处理双引号内的转义字符
+    r'\"(?:\\["\\tnr]|\\[^"]|[^"\\])*\"'
+    # 去掉引号
     t.value = t.value[1:-1]
     return t
 
 
 def t_SINGLE_QUOTED_STRING(t):  # noqa: F841
-    r"""'(\\['\\tnr]|\\x[0-9a-fA-F]{2}|[^'\\])*'"""
-    # 单引号字符串不处理转义，直接去掉引号
+    r"""'(?:\\["\\tnr?]|\\[^"]|[^"\\])*'"""
+    # 去掉引号
     t.value = t.value[1:-1]
     return t
 
 
 def t_RAW_PATTERN(t):  # noqa: F841
-    r"""(?:\\[|"'\s\\]|[^\s|"'\\-])+"""
-    if '\\' in t.value:
-        t.value = (
-            t.value.replace(r'\ ', ' ')
-            .replace(r'\|', '|')
-            .replace(r'\"', '"')
-            .replace(r"\'", "'")
-            .replace(r'\\\\', '\\')
-        )
+    r"""(?:\\[|"'\s\+\?\.\*\{\}\(\)\^\$]|[^\s|"'\\-])+"""
     return t
 
 
 def t_error(t):  # noqa: F841
-    # 跳过无法识别的字符
-    logger.info("Illegal character: [%s]'", t.value[0])
-    t.lexer.skip(1)
-
-
-# 构建词法分析器
-lexer = lex.lex()
+    logger.info("lexical parsing failed: illegal character [%s] at position [%s]", t.value, t.lexpos)
+    raise GrepParseError()
 
 
 # 定义语法规则
@@ -77,14 +64,18 @@ def p_command(p):  # noqa: F841
     pattern_args, pattern = p[2]
     result = []
     i = 0
-    # 对pattern进行转义
+    # 对pattern中的转义字符进行处理
     while i < len(pattern):
         if pattern[i] == '\\' and i + 1 < len(pattern):
             if cmd != "egrep" and pattern[i + 1] in ["+", "?", "{", "}"]:
                 # 直接取转义后的字符
                 result.append(pattern[i + 1])
                 i += 2
-            elif pattern[i + 1] in ["."]:
+            elif cmd == "egrep":
+                # grep命令下需要在这些字符前加上反斜杠
+                result.append(pattern[i])
+                i += 1
+            elif pattern[i + 1] in [".", "*", "^", "$"]:
                 result.append(pattern[i])
                 i += 1
             else:
@@ -92,8 +83,13 @@ def p_command(p):  # noqa: F841
                 result.append(pattern[i + 1])
                 i += 2
         else:
-            result.append(pattern[i])
-            i += 1
+            if cmd != "egrep" and pattern[i] in ["+", "?", "{", "}"]:
+                # grep命令下需要在这些字符前加上反斜杠
+                result.append(f"\\{pattern[i]}")
+                i += 1
+            else:
+                result.append(pattern[i])
+                i += 1
 
     pattern = "".join(result)
     # 默认命令是grep
@@ -146,40 +142,27 @@ def p_pattern_raw(p):  # noqa: F841
     p[0] = p[1]
 
 
+def p_error(p):
+    logger.info("syntax parsing failed: illegal character [%s] at position [%s]", p.value, p.lexpos)
+    raise GrepParseError()
+
+
+# 延迟初始化词法分析器
+_base_lexer = None
+
+
+def get_base_lexer():
+    global _base_lexer
+    if _base_lexer is None:
+        _base_lexer = lex.lex()
+    return _base_lexer
+
+
 # 构建并返回语法分析器
 parser = yacc.yacc()
 
 
 def grep_parser(input_string):
-    """解析输入字符串并返回结构化数据"""
-    return parser.parse(input_string, lexer=lexer)
-
-
-def convert_to_where_clause(commands: List[dict]):
-    """
-    将解析后的grep命令转换为 doris SQL的where子句
-    :param commands: 解析后的grep命令列表
-    :return: 查询条件
-    """
-    conditions = []
-
-    for cmd in commands:
-        args = cmd["args"]
-        pattern = cmd["pattern"]
-
-        # 构建正则表达式条件
-        regex_op = "REGEXP"
-        if "v" in args:
-            regex_op = f"NOT {regex_op}"
-
-        field_name = "log"
-        if "i" in args:
-            field_name = "LOWER(log)"
-
-        # 构建条件表达式
-        condition = f"{field_name} {regex_op} '{pattern}'"
-        conditions.append(condition)
-
-    # 组合所有条件
-    where_clause = " AND ".join(conditions)
-    return f"WHERE {where_clause}"
+    # 克隆 lexer
+    local_lexer = get_base_lexer().clone()
+    return parser.parse(input_string, lexer=local_lexer)

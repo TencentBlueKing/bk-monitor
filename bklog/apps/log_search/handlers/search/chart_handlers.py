@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import re
 import time
+from typing import List
 
 import arrow
 from django.utils.module_loading import import_string
@@ -57,6 +58,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
+from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -230,39 +232,11 @@ class ChartHandler(object):
         return build_condition(query_tree)
 
     @classmethod
-    def generate_sql(
-        cls,
-        addition,
-        start_time,
-        end_time,
-        sql_param=None,
-        keyword=None,
-        action=SQLGenerateMode.COMPLETE.value,
-    ) -> dict:
+    def addition_to_where_clause(cls, addition: List[dict]):
         """
-        根据过滤条件生成sql
+        把addition转化为where子句
         :param addition: 过滤条件
-        :param sql_param: SQL条件
-        :param start_time: 开始时间
-        :param end_time: 结束时间
-        :param keyword: 搜索关键字
-        :param action: 生成SQL的方式
         """
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
-        additional_where_clause = (
-            f"thedate >= {start_date} AND thedate <= {end_date} AND "
-            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
-        )
-
-        if keyword and keyword != "*":
-            # 加上keyword的查询条件
-            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
-            keyword = enhance_lucene_adapter.enhance()
-            where_clause = cls.lucene_to_where_clause(keyword)
-            if where_clause:
-                additional_where_clause += f" AND {where_clause}"
-
         sql = ""
         for condition in addition:
             field_name = condition["field"]
@@ -315,7 +289,44 @@ class ChartHandler(object):
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
+        return sql
 
+    @classmethod
+    def generate_sql(
+        cls,
+        addition,
+        start_time,
+        end_time,
+        sql_param=None,
+        keyword=None,
+        action=SQLGenerateMode.COMPLETE.value,
+    ) -> dict:
+        """
+        根据过滤条件生成sql
+        :param addition: 过滤条件
+        :param sql_param: SQL条件
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :param keyword: 搜索关键字
+        :param action: 生成SQL的方式
+        """
+        start_date = arrow.get(start_time).format("YYYYMMDD")
+        end_date = arrow.get(end_time).format("YYYYMMDD")
+        additional_where_clause = (
+            f"thedate >= {start_date} AND thedate <= {end_date} AND "
+            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
+        )
+
+        if keyword and keyword != "*":
+            # 加上keyword的查询条件
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
+            keyword = enhance_lucene_adapter.enhance()
+            where_clause = cls.lucene_to_where_clause(keyword)
+            if where_clause:
+                additional_where_clause += f" AND {where_clause}"
+
+        # 把addition转化为sql条件
+        sql = cls.addition_to_where_clause(addition)
         if sql:
             additional_where_clause += f" AND {sql}"
 
@@ -339,6 +350,75 @@ class ChartHandler(object):
         else:
             final_sql = f"{SQL_PREFIX} {SQL_SUFFIX}"
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
+
+    @staticmethod
+    def convert_to_where_clause(commands: List[dict]):
+        """
+        将解析后的grep命令转换为 doris SQL的where子句
+        :param commands: 解析后的grep命令列表
+        :return: 查询条件
+        """
+        conditions = []
+
+        for cmd in commands:
+            args = cmd["args"]
+            pattern = f"'{cmd['pattern']}'"
+
+            # 构建正则表达式条件
+            regex_op = "REGEXP"
+            if "v" in args:
+                regex_op = f"NOT {regex_op}"
+
+            field_name = "log"
+            if "i" in args:
+                field_name = "LOWER(log)"
+                pattern = f"LOWER({pattern})"
+
+            # 构建条件表达式
+            condition = f"{field_name} {regex_op} {pattern}"
+            conditions.append(condition)
+
+        # 返回所有组合条件
+        return " AND ".join(conditions)
+
+    @classmethod
+    def generate_where_clause(
+        cls,
+        addition,
+        start_time,
+        end_time,
+        grep_query,
+    ) -> dict:
+        """
+        根据过滤条件生成sql
+        :param addition: 过滤条件
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :param grep_query: grep查询
+        """
+        start_date = arrow.get(start_time).format("YYYYMMDD")
+        end_date = arrow.get(end_time).format("YYYYMMDD")
+        grep_where_clause = ""
+        if grep_query:
+            grep_syntax_list = grep_parser(grep_query)
+            grep_where_clause = cls.convert_to_where_clause(grep_syntax_list)
+
+        date_where_clause = (
+            f"thedate >= {start_date} AND thedate <= {end_date} AND "
+            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
+        )
+
+        if grep_where_clause:
+            additional_where_clause = grep_where_clause + " AND " + date_where_clause
+        else:
+            additional_where_clause = f"WHERE {date_where_clause}"
+
+        # 把addition转化为sql条件
+        sql = cls.addition_to_where_clause(addition)
+        if sql:
+            additional_where_clause += f" AND {sql}"
+
+        return {"where_clause": additional_where_clause}
 
 
 class UIChartHandler(ChartHandler):

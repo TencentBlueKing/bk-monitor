@@ -127,3 +127,10 @@ class UnknownLuceneOperatorException(BaseException):
 
     ERROR_CODE = "500"
     MESSAGE = _("非法的lucene语法")
+
+
+class GrepParseError(BaseException):
+    """grep解析失败"""
+
+    ERROR_CODE = "501"
+    MESSAGE = _("grep语法解析失败")
