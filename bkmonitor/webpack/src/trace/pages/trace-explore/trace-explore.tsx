@@ -29,6 +29,7 @@ import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter'
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import TraceExploreLayout from './components/trace-explore-layout';
+import TraceExploreView from './trace-explore-view/trace-explore-view';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -139,7 +140,11 @@ export default defineComponent({
                     />
                   </div>
                 ),
-                default: () => <div class='result-content-panel' />,
+                default: () => (
+                  <div class='result-content-panel'>
+                    <TraceExploreView />
+                  </div>
+                ),
               }}
             </TraceExploreLayout>
           </div>
