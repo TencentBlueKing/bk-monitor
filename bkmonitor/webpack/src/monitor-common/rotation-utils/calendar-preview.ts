@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { randomColor } from '../utils';
+import { randomColor } from './utils';
 
 export interface ICalendarDataUser {
   color: string;
@@ -235,7 +235,7 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
   }));
   tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
   let maxRow = 0;
-  tempData.forEach(item => {
+  for (const item of tempData) {
     if (result.length) {
       for (let i = 0; i <= maxRow; i++) {
         const preItem = (JSON.parse(JSON.stringify(result)) as (ICalendarDataDataItem & { timeRangeNum: number[] })[])
@@ -264,7 +264,7 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
         row: 0,
       });
     }
-  });
+  }
   return {
     maxRow,
     result,
@@ -284,7 +284,7 @@ export function calendarDataConversion(data: ICalendarData) {
       `${dates[6].year}-${dates[6].month + 1}-${dates[6].day} 23:59`,
     ];
     const temp = [];
-    users.forEach(u => {
+    for (const u of users) {
       const { timeRange } = u;
       const rowTotalTimeRangeNum = rowTotalTimeRange.map(item => new Date(item).getTime());
       const timeRangeNum = timeRange.map(item => new Date(item).getTime());
@@ -308,7 +308,7 @@ export function calendarDataConversion(data: ICalendarData) {
           },
         });
       }
-    });
+    }
     const rowData = setRowYOfOverlap(temp);
     return {
       ...row,
@@ -403,13 +403,14 @@ export function setPreviewDataOfServer(
   userIndexResetOfpreviewData(params, autoOrders).forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
     if (item.work_times.length) {
-      timeRangeMerger(item.work_times).forEach(work => {
+      const works = timeRangeMerger(item.work_times);
+      for (const work of works) {
         data.push({
           users,
           color: colorFn(item.user_index === undefined ? index : item.user_index),
           timeRange: [work.start_time, work.end_time],
         });
-      });
+      }
     }
   });
   return data;
@@ -432,13 +433,13 @@ export function userIndexResetOfpreviewData(params: IDutyPlans[], autoOrders?: {
     return curIndex + count;
   };
   const temp: { [key: string]: Set<number> } = {};
-  params.forEach(plan => {
+  for (const plan of params) {
     const o = plan?.order || 0;
     if (!temp?.[o]) {
       temp[o] = new Set();
     }
     temp[o].add(plan.user_index);
-  });
+  }
   return params.map(plan => {
     return {
       ...plan,
