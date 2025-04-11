@@ -62,6 +62,7 @@ def get_custom_event_group_queryset(bk_biz_id: int) -> QuerySet[CustomEventGroup
 class ValidateCustomEventGroupName(Resource):
     """
     校验自定义事件名称是否合法
+    要求业务内唯一且不与全平台自定义事件名称冲突
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -71,6 +72,7 @@ class ValidateCustomEventGroupName(Resource):
 
     def perform_request(self, params: dict):
         try:
+            # 调用 metadata 接口查询自定义事件组
             event_groups = api.metadata.query_event_group(
                 event_group_name=params["name"], bk_biz_id=params["bk_biz_id"]
             )
@@ -88,6 +90,7 @@ class ValidateCustomEventGroupName(Resource):
 
         if is_exist:
             raise CustomValidationNameError(msg=_("自定义事件名称已存在"))
+
         return True
 
 
@@ -197,9 +200,11 @@ class QueryCustomEventGroup(Resource):
         serializer = CustomEventGroupSerializer(paginator.page(params["page"]), many=True, context=context)
         groups = serializer.data
 
+        # 获取策略数
         table_ids = [group["table_id"] for group in groups]
         strategy_count_mapping = self.get_strategy_count_for_each_group(table_ids, params.get("bk_biz_id"))
 
+        # 获取数据标签
         label_display_dict = get_label_display_dict()
         for group in groups:
             group["scenario_display"] = label_display_dict.get(group["scenario"], [group["scenario"]])
@@ -232,7 +237,9 @@ class GetCustomEventGroup(Resource):
         serializer = CustomEventGroupDetailSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         event_info_list = api.metadata.get_event_group.request.refresh(
-            event_group_id=event_group_id, need_refresh=need_refresh, event_infos_limit=event_infos_limit
+            event_group_id=event_group_id,
+            need_refresh=params["need_refresh"],
+            event_infos_limit=params["event_infos_limit"],
         )
         data["event_info_list"] = list()
 
@@ -332,6 +339,7 @@ class QueryCustomEventTarget(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_event_group_id = serializers.IntegerField(required=True, label="事件分组ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, params):
         group = get_custom_event_group_queryset(params["bk_biz_id"]).get(bk_event_group_id=params["bk_event_group_id"])

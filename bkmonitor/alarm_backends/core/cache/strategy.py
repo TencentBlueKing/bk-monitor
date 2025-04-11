@@ -1013,11 +1013,12 @@ class StrategyCacheManager(CacheManager):
             strategy_config for strategy_config in strategy_configs if is_valid_strategy_config(strategy_config)
         ]
 
-        cmdb_levels = [cmdb_level["bk_obj_id"] for cmdb_level in api.cmdb.get_mainline_object_topo()]
-
         # 按业务、查询配置md5分组添加抑制条件
         strategy_configs.sort(key=itemgetter("bk_biz_id"))
         for bk_biz_id, strategies_biz in groupby(strategy_configs, key=itemgetter("bk_biz_id")):
+            cmdb_levels = [
+                cmdb_level["bk_obj_id"] for cmdb_level in api.cmdb.get_mainline_object_topo(bk_biz_id=bk_biz_id)
+            ]
             try:
                 strategies_biz = list(strategies_biz)
                 strategies_biz.sort(key=get_query_sort_key)

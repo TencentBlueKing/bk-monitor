@@ -23,6 +23,11 @@ from .utils import ensure_data_id_resource, is_equal_config
 logger = logging.getLogger("metadata")
 
 
+# ------------------------------------------------- #
+# ------- 集群ID全租户唯一，无需额外补充租户信息--------- #
+# ------------------------------------------------- #
+
+
 class BCSResource(models.Model):
     """kubernetes资源描述"""
 

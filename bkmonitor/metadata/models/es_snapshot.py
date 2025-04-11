@@ -282,6 +282,7 @@ class EsSnapshotRepository(models.Model):
 
 class EsSnapshotIndice(models.Model):
     table_id = models.CharField("结果表id", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     snapshot_name = models.CharField("快照名称", max_length=150)
 
     cluster_id = models.IntegerField("集群id")

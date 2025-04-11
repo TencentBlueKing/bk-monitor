@@ -41,11 +41,15 @@ class HostCollector(BaseCollector):
 
     @cached_property
     def cloud_id_to_name(self):
+        id_to_name = {}
         try:
-            clouds = api.cmdb.search_cloud_area()
-            return {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+            for tenant in api.bk_login.get_tenant():
+                clouds = api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"])
+                id_to_name.update({cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds})
         except Exception:
-            return {}
+            pass
+
+        return id_to_name
 
     @cached_property
     def biz_collector_status_list(self):

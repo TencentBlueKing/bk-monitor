@@ -58,6 +58,7 @@ from constants.strategy import (
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor_web.collecting.utils import chunks
+from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import (
     CollectConfigMeta,
     CustomEventGroup,
@@ -945,7 +946,11 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
             custom_event.bk_event_group_id
-            for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
+            for custom_event in CustomEventGroup.objects.filter(
+                type=EVENT_TYPE.CUSTOM_EVENT,
+            )
+            .filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True))
+            .only("bk_event_group_id")
         ]
         # 增加自定义事件筛选，不在监控创建的策略配置时不展示
         for result in custom_event_result:

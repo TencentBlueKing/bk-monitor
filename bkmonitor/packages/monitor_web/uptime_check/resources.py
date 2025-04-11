@@ -38,6 +38,7 @@ from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.local import with_client_operator
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
 from bkmonitor.utils.time_tools import (
     get_timestamp_range_by_biz_date,
@@ -1175,6 +1176,8 @@ class TaskGraphAndMapResource(Resource):
 
 
 def get_node_host_dict(nodes):
+    request = get_request()
+
     # 配置hostid的节点
     bk_host_ids = []
     # 配置ip的节点
@@ -1187,10 +1190,10 @@ def get_node_host_dict(nodes):
         else:
             ips.append(node.ip)
     if bk_host_ids:
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, bk_host_ids=bk_host_ids)["hosts"]
         # 兼容bk_host_id不存在的拨测节点
     if ips:
-        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+        hosts += api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, ips=ips)["hosts"]
 
     # 按id 和 host_key 记录节点主机信息
     node_to_host = {host.bk_host_id: host for host in hosts}
@@ -2936,6 +2939,7 @@ class TopoTemplateHostResource(Resource):
     """
 
     def perform_request(self, validated_request_data):
+        request = get_request()
         bk_biz_id = validated_request_data["bk_biz_id"]
         output_fields = validated_request_data.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS)
         new_hosts = []
@@ -2968,7 +2972,9 @@ class TopoTemplateHostResource(Resource):
                 getattr(host, field, "") for host in new_hosts for field in output_fields if getattr(host, field, "")
             ]
         else:
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=[host["bk_host_id"] for host in hosts])["hosts"]
+            hosts = api.cmdb.get_host_without_biz(
+                bk_tenant_id=request.user.tenant_id, bk_host_ids=[host["bk_host_id"] for host in hosts]
+            )["hosts"]
             new_hosts = [
                 getattr(host, field, "") for host in hosts for field in output_fields if getattr(host, field, "")
             ]
