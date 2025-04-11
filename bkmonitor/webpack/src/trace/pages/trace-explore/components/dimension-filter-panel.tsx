@@ -25,22 +25,22 @@
  */
 
 import { defineComponent, ref, watch, type PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { Input, OverflowTitle } from 'bkui-vue';
+import { useDebounceFn } from '@vueuse/core';
+import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
+import { AngleDownLine } from 'bkui-vue/lib/icon';
 
 import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
 import { useTraceExploreStore } from '../../../store/modules/explore';
+import { convertToTree } from '../utils';
 import FieldTypeIcon from './field-type-icon';
+import StatisticsList from './statistics-list';
 
 import type { IDimensionFieldTreeItem, ConditionChangeEvent, IDimensionField } from '../typing';
-// import StatisticsList from './statistics-list';
-
-import { AngleDownLine } from 'bkui-vue/lib/icon';
-
-import { convertToTree } from '../utils';
 
 import './dimension-filter-panel.scss';
 
@@ -54,6 +54,7 @@ export default defineComponent({
   },
   emits: ['conditionChange', 'close', 'showEventSourcePopover'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const store = useTraceExploreStore();
     const emptyStatus = ref<EmptyStatusType>('empty');
     /** 字段列表的count统计 */
@@ -124,35 +125,36 @@ export default defineComponent({
     }
 
     /** 关键字搜索 */
-    const handleSearch = (keyword: string) => {
+    const handleSearch = useDebounceFn((keyword: string) => {
       searchVal.value = keyword;
       if (!searchVal.value) {
         searchResultList.value = props.list;
         emptyStatus.value = 'empty';
       } else {
         emptyStatus.value = 'search-empty';
-        searchResultList.value = props.list.filter(item => item.pinyinStr.includes(searchVal.value));
+        searchResultList.value = props.list.filter(item => item.alias.includes(searchVal.value));
       }
       dimensionTreeList.value = convertToTree(searchResultList.value);
-    };
+    }, 100);
 
     function renderDimensionItem(item: IDimensionFieldTreeItem, level = 0) {
+      const disabled = !item.children && (!item.is_option_enabled || !fieldListCount.value[item.name]);
       return (
         <div
-          key={item.levelName || item.alias}
+          key={item.alias}
           style={{ '--level': level }}
-          // v-bk-tooltips={{
-          //   content: t(item.is_option_enabled ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'),
-          //   disabled: item.is_option_enabled && fieldListCount.value[item.name],
-          //   interactive: false,
-          //   placement: 'right',
-          // }}
+          v-bk-tooltips={{
+            content: t(item.is_option_enabled ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'),
+            disabled: !disabled,
+            interactive: false,
+            placement: 'right',
+          }}
         >
           <div
             class={{
               'dimension-item': true,
-              active: selectField.value?.name === item.name,
-              // disabled: !item.is_option_enabled || !fieldListCount.value[item.name],
+              active: activeFieldName.value === item.name,
+              disabled,
               'leaf-item': !item.children,
             }}
             onClick={e => handleDimensionItemClick(e, item)}
@@ -171,7 +173,12 @@ export default defineComponent({
               >
                 {item.count}
               </span>,
-              <AngleDownLine key='object-arrow' />,
+              <span
+                key='object-arrow'
+                class='object-arrow'
+              >
+                <AngleDownLine />
+              </span>,
             ]}
             {item.is_option_enabled &&
               !item.children && [
@@ -199,60 +206,44 @@ export default defineComponent({
 
     /** 已选择的字段 */
     const selectField = ref<IDimensionField>(null);
+    const activeFieldName = ref('');
     /** popover实例 */
     const popoverInstance = ref(null);
     const statisticsListRef = ref(null);
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
-      if (item.children) {
+      activeFieldName.value = item.name;
+      if (item?.children) {
         item.expand = !item.expand;
       } else {
+        if (!item.is_option_enabled || !fieldListCount.value[item.name]) return;
+        selectField.value = item;
+        popoverInstance.value = $bkPopover({
+          target: e.currentTarget as HTMLDivElement,
+          content: statisticsListRef.value.$refs.dimensionPopover,
+          trigger: 'click',
+          placement: 'right',
+          theme: 'light',
+          arrow: true,
+          boundary: 'viewport',
+          extCls: 'statistics-dimension-popover-cls',
+          width: 400,
+          distance: -5,
+          onHide() {
+            activeFieldName.value = '';
+          },
+        });
+        setTimeout(() => {
+          popoverInstance.value.show();
+        }, 100);
       }
-
-      // if (!item.is_option_enabled || !fieldListCount.value[item.name]) return;
-      // selectField.value = item;
-      // popoverInstance.value = $bkPopover({
-      //   target: e.currentTarget as HTMLDivElement,
-      //   content: statisticsListRef.value.$refs.dimensionPopover,
-      //   placement: 'right',
-      //   width: 400,
-      //   disabled: false,
-      //   isShow: true,
-      //   always: false,
-      //   height: 'auto',
-      //   maxWidth: '120',
-      //   maxHeight: 'auto',
-      //   allowHtml: false,
-      //   renderType: 'auto',
-      //   trigger: 'click',
-      //   theme: 'light event-retrieval-dimension-filter',
-      //   arrow: true,
-      //   padding: 0,
-      //   offset: 0,
-      //   zIndex: 9999,
-      //   disableTeleport: false,
-      //   autoPlacement: false,
-      //   autoVisibility: false,
-      //   disableOutsideClick: false,
-      //   disableTransform: false,
-      //   modifiers: [],
-      //   popoverDelay: 0,
-      //   extCls: 'auto-input-popover',
-      //   componentEventDelay: 0,
-      //   forceClickoutside: false,
-      //   immediate: false,
-      //   clickContentAutoHide: false,
-      //   renderDirective: 'if',
-      //   referenceCls: '',
-      //   hideIgnoreReference: false,
-      // });
-      // popoverInstance.value?.show(100);
     }
 
     function destroyPopover() {
-      popoverInstance.value?.hide(100);
-      popoverInstance.value?.destroy();
+      activeFieldName.value = '';
+      popoverInstance.value?.hide(0);
+      popoverInstance.value?.uninstall();
       popoverInstance.value = null;
     }
 
@@ -287,6 +278,8 @@ export default defineComponent({
     }
 
     return {
+      t,
+      activeFieldName,
       emptyStatus,
       fieldListCount,
       searchVal,
@@ -310,10 +303,10 @@ export default defineComponent({
     return (
       <div class='dimension-filter-panel-comp'>
         <div class='header'>
-          <div class='title'>{this.$t('维度过滤')}</div>
+          <div class='title'>{this.t('维度过滤')}</div>
           <i
             class='icon-monitor icon-gongneng-shouqi'
-            v-bk-tooltips={{ content: this.$t('收起') }}
+            v-bk-tooltips={{ content: this.t('收起') }}
             onClick={this.handleClose}
           />
         </div>
@@ -323,7 +316,7 @@ export default defineComponent({
             native-attributes={{
               spellcheck: false,
             }}
-            placeholder={this.$t('搜索 维度字段')}
+            placeholder={this.t('搜索 维度字段')}
             type='search'
             clearable
             show-clear-only-hover
@@ -335,31 +328,20 @@ export default defineComponent({
         {this.dimensionTreeList.length ? (
           <div class='dimension-list'>{this.dimensionTreeList.map(item => this.renderDimensionItem(item, 0))}</div>
         ) : (
-          // <Tree
-          //   class='dimension-tree'
-          //   data={this.dimensionTreeList}
-          //   show-node-type-icon={false}
-          // >
-          //   {{
-          //     nodeAction: data => undefined,
-          //     nodeType: data => (data.children ? undefined : <FieldTypeIcon type={data.type} />),
-          //     node: this.renderDimensionItem,
-          //   }}
-          // </Tree>
           <EmptyStatus
             type={this.emptyStatus}
             onOperation={this.emptyOperation}
           />
         )}
 
-        {/* <StatisticsList
+        <StatisticsList
           ref='statisticsListRef'
+          fieldType={this.selectField?.type}
           isDimensions={this.selectField?.is_dimensions}
-          popoverInstance={this.popoverInstance}
           selectField={this.selectField?.name}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
-        /> */}
+        />
       </div>
     );
   },

@@ -53,7 +53,7 @@ export default defineComponent({
 
     onMounted(() => {
       setTimeout(() => {
-        fieldList.value = [
+        const data = [
           {
             name: 'time',
             alias: '数据上报时间（time）',
@@ -86,17 +86,19 @@ export default defineComponent({
           },
           {
             name: 'a.d.e',
+            alias: 'a.d.e',
             type: 'keyword',
             is_option_enabled: true,
-            disabled: true,
           },
           {
             name: 'a.d.f',
+            alias: 'a.d.f',
             type: 'keyword',
             is_option_enabled: true,
-            disabled: true,
           },
         ];
+
+        fieldList.value = data;
       }, 300);
     });
 
