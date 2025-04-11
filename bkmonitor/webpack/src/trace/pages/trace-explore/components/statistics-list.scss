@@ -1,4 +1,4 @@
-.event-retrieval-dimension-filter-content {
+.dimension-statistics-popover {
   .popover-header {
     display: flex;
     align-items: center;
@@ -138,8 +138,8 @@
 
   .field-name {
     overflow: hidden;
-    color: #313238;
     text-overflow: ellipsis;
+    color: #313238;
     white-space: nowrap;
   }
 
@@ -189,9 +189,9 @@
         .field-name {
           flex: 1;
           overflow: hidden;
+          text-overflow: ellipsis;
           font-size: 12px;
           color: #313238;
-          text-overflow: ellipsis;
           white-space: nowrap;
         }
 
