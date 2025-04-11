@@ -16,7 +16,10 @@
       </div>
     </slot>
     <template #content>
-      <div class="bklog-common-field-filter fields-container">
+      <div
+        class="bklog-common-field-filter fields-container"
+        :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
+      >
         <div class="fields-list-container">
           <div class="total-fields-list">
             <div class="title">
@@ -39,14 +42,13 @@
             </div>
             <template>
               <ul
-                class="select-list"
                 v-if="shadowTotal.length"
+                class="select-list"
               >
                 <li
                   v-for="item in shadowTotal"
                   style="cursor: pointer"
                   class="select-item"
-                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                   :key="item.field_name"
                   @click="addField(item)"
                 >
@@ -58,8 +60,13 @@
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                   >
                   </span>
-                  <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-                  <span class="field-name">({{ item.field_name }})</span>
+                  <div
+                    class="display-container rtl-text"
+                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                  >
+                    <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
+                    <span class="field-name">({{ item.field_name }})</span>
+                  </div>
                   <span class="icon bklog-icon bklog-filled-right-arrow"></span>
                 </li>
               </ul>
@@ -98,7 +105,6 @@
                 <li
                   v-for="(item, index) in shadowVisible"
                   class="select-item"
-                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                   :key="item.field_name"
                 >
                   <span class="icon bklog-icon bklog-ketuodong"></span>
@@ -110,8 +116,13 @@
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                   >
                   </span>
-                  <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
-                  <span class="field-name">({{ item.field_name }})</span>
+                  <div
+                    class="display-container rtl-text"
+                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                  >
+                    <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
+                    <span class="field-name">({{ item.field_name }})</span>
+                  </div>
                   <span
                     class="bk-icon icon-close-circle-shape delete"
                     @click="deleteField(item, index)"
@@ -160,6 +171,7 @@
   const tippyOptions = {
     offset: '0, 4',
   };
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -280,8 +292,7 @@
       padding: 0;
 
       .total-fields-list,
-      .visible-fields-list,
-      .sort-fields-list {
+      .visible-fields-list {
         width: 320px;
         height: 344px;
         border: 1px solid #dcdee5;
@@ -342,22 +353,16 @@
           @include scroller;
 
           .select-item {
-            display: inline-block;
+            display: flex;
             align-items: center;
             width: 100%;
             height: 32px;
             padding: 0 16px;
-            overflow: hidden;
             line-height: 32px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             cursor: pointer;
 
-            span {
-              display: inline-flex;
-            }
-
             .bklog-ketuodong {
+              margin-right: 4px;
               width: 18px;
               font-size: 14px;
               color: #4d4f56;
@@ -401,21 +406,27 @@
               }
             }
 
-            .field-alias {
-              display: inline;
-              padding: 0 4px;
-              font-size: 12px;
-              line-height: 20px;
-              color: #63656e;
-              letter-spacing: 0;
-            }
+            .display-container {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
 
-            .field-name {
-              font-size: 12px;
-              font-weight: 400;
-              line-height: 20px;
-              color: #9b9da1;
-              letter-spacing: 0;
+              .field-alias {
+                display: inline;
+                padding: 0 4px;
+                font-size: 12px;
+                line-height: 20px;
+                color: #63656e;
+                letter-spacing: 0;
+              }
+
+              .field-name {
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 20px;
+                color: #9b9da1;
+                letter-spacing: 0;
+              }
             }
           }
         }
@@ -439,8 +450,8 @@
       .total-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 16px);
         }
 
         .bklog-filled-right-arrow {
@@ -465,62 +476,12 @@
         }
       }
 
-      .sort-fields-list {
-        flex-shrink: 0;
-
-        .sort-list-header {
-          display: flex;
-          align-items: center;
-          height: 31px;
-          font-size: 12px;
-          line-height: 30px;
-          background: rgba(250, 251, 253, 1);
-          border-bottom: 1px solid rgba(221, 228, 235, 1);
-        }
-
-        /* stylelint-disable-next-line no-descending-specificity */
-        .select-list .select-item {
-          .field-name {
-            // 16 42 50 38
-            width: calc(100% - 146px);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .status {
-            font-weight: 700;
-
-            &.icon-arrows-down-line {
-              color: #ea3636;
-            }
-
-            &.icon-arrows-up-line {
-              color: #2dcb56;
-            }
-          }
-
-          .option {
-            width: 50px;
-            margin: 0 8px;
-            color: #3a84ff;
-          }
-
-          .delete {
-            font-size: 16px;
-            color: #c4c6cc;
-            text-align: right;
-            cursor: pointer;
-          }
-        }
-      }
-
       /* stylelint-disable-next-line no-descending-specificity */
       .visible-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 38px);
         }
 
         .delete {

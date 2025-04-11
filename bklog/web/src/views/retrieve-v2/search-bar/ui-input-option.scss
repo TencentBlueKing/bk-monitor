@@ -55,7 +55,7 @@
         }
 
         .ui-search-result-row {
-          display: inline-flex;
+          display: flex;
           align-items: center;
           width: 100%;
           min-width: 300px;
@@ -63,8 +63,6 @@
           height: 32px;
           padding: 0 8px;
           font-family: Roboto-Regular;
-          text-overflow: ellipsis;
-          white-space: nowrap;
           cursor: pointer;
 
           &:hover,
@@ -133,20 +131,26 @@
             }
           }
 
-          .field-alias {
-            padding: 0 4px;
-            font-size: 12px;
-            line-height: 20px;
-            color: #313238;
-            letter-spacing: 0;
-          }
+          .display-container {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
 
-          .field-name {
-            font-size: 12px;
-            font-weight: 400;
-            line-height: 20px;
-            color: #757880;
-            letter-spacing: 0;
+            .field-alias {
+              padding: 0 4px;
+              font-size: 12px;
+              line-height: 20px;
+              color: #313238;
+              letter-spacing: 0;
+            }
+
+            .field-name {
+              font-size: 12px;
+              font-weight: 400;
+              line-height: 20px;
+              color: #757880;
+              letter-spacing: 0;
+            }
           }
         }
       }

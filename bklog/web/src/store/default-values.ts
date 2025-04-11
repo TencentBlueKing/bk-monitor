@@ -182,10 +182,13 @@ export const getStorageOptions = () => {
       // 是否展示空字段
       tableAllowEmptyField: false,
 
-      //是否展开长字段
+      // 是否展开长字段
       isLimitExpandView: false,
 
-      // start | end | center
+      // 是否展示字段别名
+      showFieldAlias: true,
+
+      // 文本溢出（省略设置）start | end | center
       textEllipsisDir: 'end',
 
       // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式

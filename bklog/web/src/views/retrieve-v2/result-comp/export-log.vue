@@ -282,17 +282,6 @@
         // queueStatus: true
       };
     },
-    watch: {
-      totalCount(val) {
-        if (val < 10000) {
-          this.downloadType = 'sampling';
-        } else if (val < 2000000) {
-          this.downloadType = 'all';
-        } else {
-          this.downloadType = 'quick';
-        }
-      },
-    },
     computed: {
       ...mapState({
         totalCount: state => {
@@ -305,7 +294,7 @@
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.showFieldAlias ?? false,
+        showFieldAlias: state => state.storage.showFieldAlias,
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -326,6 +315,17 @@
       },
       routerIndexSet() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+      },
+    },
+    watch: {
+      totalCount(val) {
+        if (val < 10000) {
+          this.downloadType = 'sampling';
+        } else if (val < 2000000) {
+          this.downloadType = 'all';
+        } else {
+          this.downloadType = 'quick';
+        }
       },
     },
     beforeUnmount() {

@@ -255,7 +255,7 @@
         });
       },
       showFieldAlias() {
-        return this.$store.state.showFieldAlias;
+        return this.$store.state.storage.showFieldAlias;
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -385,7 +385,6 @@
           }
 
           this.cancelModifyFields();
-          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -582,7 +581,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
             this.$store.dispatch('requestIndexSetQuery');

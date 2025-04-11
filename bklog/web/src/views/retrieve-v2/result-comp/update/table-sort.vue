@@ -13,39 +13,45 @@
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
 
-          
           <bk-select
             style="width: 174px"
+            class="rtl-text"
             v-model="sorts[0]"
             auto-focus
             filterable
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
-            <bk-option
-              v-for="option in selectList"
-              class="custom-option bklog-v3-popover-tag"
-              :disabled="option.disabled"
-              :id="option.field_name"
-              :key="option.field_name"
-              :name="option.field_name"
+            <div
+              class="table-sort-option-container"
+              :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
             >
-              <div
-                style="width: 130px"
-                class="title-overflow"
-                v-bk-overflow-tips="{ placement: 'right' }"
+              <bk-option
+                v-for="option in selectList"
+                class="custom-option bklog-v3-popover-tag"
+                :disabled="option.disabled"
+                :id="option.field_name"
+                :key="option.field_name"
+                :name="option.field_name"
               >
-                <span
-                  :style="{
-                    backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),
-                    color: option.is_full_text ? false : getFieldIconTextColor(option.field_type),
-                  }"
-                  :class="[option.is_full_text ? 'full-text' : getFieldIcon(option.field_type), 'field-type-icon']"
-                >
-                </span>
-                <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
-                <span class="field-name">({{ option.field_name }})</span>
-              </div>
-            </bk-option>
+                <div class="custom-option-item">
+                  <span
+                    :style="{
+                      backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),
+                      color: option.is_full_text ? false : getFieldIconTextColor(option.field_type),
+                    }"
+                    :class="[option.is_full_text ? 'full-text' : getFieldIcon(option.field_type), 'field-type-icon']"
+                  >
+                  </span>
+                  <div
+                    class="display-container rtl-text"
+                    v-bk-overflow-tips="{ placement: 'right' }"
+                  >
+                    <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
+                    <span class="field-name">({{ option.field_name }})</span>
+                  </div>
+                </div>
+              </bk-option>
+            </div>
           </bk-select>
           <bk-select
             style="width: 75px"
@@ -94,6 +100,7 @@
       default: false,
     },
   });
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
     animation: 150,
@@ -147,7 +154,7 @@
   );
   defineExpose({ shadowSort });
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
   .custom-select-list {
     .custom-select-item {
       display: flex;
@@ -164,11 +171,20 @@
         cursor: move;
       }
     }
+  }
 
-    .title-overflow {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+  .table-sort-option-container {
+    .custom-option-item {
+      display: flex;
+      align-items: center;
+
+      .display-container {
+        padding: 0 4px;
+        width: calc(100% - 12px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
 </style>

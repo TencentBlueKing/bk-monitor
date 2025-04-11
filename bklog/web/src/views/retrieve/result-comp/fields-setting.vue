@@ -281,7 +281,7 @@
     data() {
       return {
         isLoading: false,
-        showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+        showFieldAlias: this.$store.state.storage.showFieldAlias,
         shadowTotal: [],
         shadowVisible: [],
         shadowSort: [],

@@ -1,5 +1,6 @@
 <script setup>
-  import { computed, nextTick, ref, onMounted } from 'vue';
+  import { computed, nextTick } from 'vue';
+
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -9,8 +10,9 @@
   const props = defineProps({
     value: { type: Boolean, default: true },
   });
-  const fieldShowName = ref('field_name');
   const emit = defineEmits(['input', 'field-status-change']);
+
+  const showFieldAlias = computed(() => store.state.storage.showFieldAlias);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
     const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
@@ -36,10 +38,9 @@
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
       // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] =
-        fieldShowName.value === 'field_name'
-          ? item.field_name || item.field_alias
-          : item.query_alias || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = showFieldAlias.value
+        ? item.field_name || item.field_alias
+        : item.query_alias || item.field_alias || item.field_name;
     });
 
     return fieldAliasMap;
@@ -54,7 +55,6 @@
     };
   });
 
-  // const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   /**
@@ -74,21 +74,14 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
-  const handlerChange = value => {
-    localStorage.setItem('showFieldAlias', value);
-    store.commit('updateShowFieldAlias', value);
-  };
-  onMounted(() => {
-    fieldShowName.value = localStorage.getItem('showFieldAlias') === 'true';
-  });
 </script>
 
 <template>
   <div :class="['search-field-filter-new', { 'is-close': !value }]">
     <!-- 字段过滤 -->
     <div
-      class="tab-item-title field-filter-title"
       style="position: absolute; top: 64px; transform: translate(-50%, -50%)"
+      class="tab-item-title field-filter-title"
     >
       <!-- <div
         class="left-title"
@@ -125,9 +118,9 @@
       >
         <span
           :style="{ transform: value ? '' : 'rotate(180deg)' }"
-          class="bklog-icon bklog-collapse"
           style="font-size: 14px"
-          v-bk-tooltips="{ content: value ? '收起' : '打开' }"
+          class="bklog-icon bklog-collapse"
+          v-bk-tooltips="{ content: value ? $t('收起') : $t('打开') }"
         ></span>
       </div>
     </div>
@@ -138,7 +131,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="!fieldShowName"
+      :show-field-alias="showFieldAlias"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

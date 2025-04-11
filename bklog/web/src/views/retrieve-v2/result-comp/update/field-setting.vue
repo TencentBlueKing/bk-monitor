@@ -25,7 +25,6 @@
               v-for="item in shadowTotal"
               style="cursor: pointer"
               class="select-item bklog-v3-popover-tag"
-              v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
               :key="item.field_name"
               @click="addField(item)"
             >
@@ -37,8 +36,13 @@
                 :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
               >
               </span>
-              <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-              <span class="field-name">({{ item.field_name }})</span>
+              <div
+                class="display-container rtl-text"
+                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+              >
+                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
+                <span class="field-name">({{ item.field_name }})</span>
+              </div>
               <span class="icon bklog-icon bklog-filled-right-arrow"></span>
             </li>
             <bk-exception
@@ -74,13 +78,12 @@
               <li
                 v-for="(item, index) in shadowVisible"
                 class="select-item"
-                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 :key="item.field_name"
                 @click="e => deleteField(e, item, index)"
               >
                 <span
-                  data-del-disabled
                   class="icon bklog-icon bklog-ketuodong"
+                  data-del-disabled
                 ></span>
                 <span
                   :style="{
@@ -90,8 +93,13 @@
                   :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                 >
                 </span>
-                <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
-                <span class="field-name">({{ item.field_name }})</span>
+                <div
+                  class="display-container rtl-text"
+                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                >
+                  <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
+                  <span class="field-name">({{ item.field_name }})</span>
+                </div>
                 <span class="bk-icon icon-close-circle-shape delete"></span>
               </li>
             </transition-group>
@@ -288,23 +296,17 @@
           @include scroller;
 
           .select-item {
-            display: inline-block;
+            display: flex;
             align-items: center;
             width: 100%;
             height: 32px;
             padding: 0 8px;
-            overflow: hidden;
             font-family: Roboto-Regular;
             line-height: 32px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             cursor: pointer;
 
-            span {
-              display: inline-flex;
-            }
-
             .bklog-ketuodong {
+              margin-right: 4px;
               width: 18px;
               font-size: 18px;
               color: hsl(223, 7%, 62%);
@@ -349,21 +351,27 @@
               }
             }
 
-            .field-alias {
-              display: inline;
-              padding: 0 4px;
-              font-size: 12px;
-              line-height: 20px;
-              color: #313238;
-              letter-spacing: 0;
-            }
+            .display-container {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
 
-            .field-name {
-              font-size: 12px;
-              font-weight: 400;
-              line-height: 20px;
-              color: #757880;
-              letter-spacing: 0;
+              .field-alias {
+                display: inline;
+                padding: 0 4px;
+                font-size: 12px;
+                line-height: 20px;
+                color: #313238;
+                letter-spacing: 0;
+              }
+
+              .field-name {
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 20px;
+                color: #757880;
+                letter-spacing: 0;
+              }
             }
           }
 
@@ -389,8 +397,8 @@
       .total-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 16px);
         }
 
         .bklog-filled-right-arrow {
@@ -469,8 +477,8 @@
       .visible-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 38px);
         }
 
         .delete {

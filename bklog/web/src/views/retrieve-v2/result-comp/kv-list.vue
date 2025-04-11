@@ -180,7 +180,7 @@
       }),
       ...mapState({
         formatJson: state => state.storage.tableJsonFormat,
-        showFieldAlias: state => state.showFieldAlias ?? false,
+        showFieldAlias: state => state.storage.showFieldAlias,
         isAllowEmptyField: state => state.storage.tableAllowEmptyField,
       }),
       apmRelation() {
