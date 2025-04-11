@@ -502,7 +502,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
-        can_click: false,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
