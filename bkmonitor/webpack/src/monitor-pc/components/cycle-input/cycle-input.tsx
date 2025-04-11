@@ -221,6 +221,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
         </bk-popover>
         <bk-popover
           ref='unitPopover'
+          class='cycle-unit-popover'
           animation='slide-toggle'
           arrow={false}
           disabled={this.localValue === 'auto'}
