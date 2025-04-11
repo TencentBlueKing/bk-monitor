@@ -844,7 +844,7 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
 
             # 全>单判断是否有关联项
             if not self.current_version.plugin.bk_biz_id:
-                collect_config = CollectConfigMeta.objects.filter(plugin__plugin_id=self.plugin_id)
+                collect_config = CollectConfigMeta.objects.filter(plugin_id=self.plugin_id)
                 if collect_config and [x for x in collect_config if x.bk_biz_id != self.create_params["bk_biz_id"]]:
                     raise RelatedItemsExist({"msg": "存在其余业务的关联项"})
 
