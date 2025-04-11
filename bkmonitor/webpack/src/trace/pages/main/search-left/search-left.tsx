@@ -117,42 +117,43 @@ export default defineComponent({
                     <span>{t('新建应用')}</span>
                   </div>
                 ),
+                default: () => {
+                  return props.appList.map((item, index) => (
+                    <Select.Option
+                      id={item.app_name}
+                      key={index}
+                      name={`${item.app_alias}（${item.app_name}）`}
+                    >
+                      <div
+                        class={['app-option-wrap', { 'is-disabled': !item.permission?.[authorityMap.VIEW_AUTH] }]}
+                        onClick={e => {
+                          if (!item.permission?.[authorityMap.VIEW_AUTH]) {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <span class='app-name'>{`${item.app_alias}（${item.app_name}）`}</span>
+                        {!item.permission?.[authorityMap.VIEW_AUTH] && (
+                          <span
+                            class='apply-btn'
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleApplyApp(item.application_id);
+                            }}
+                          >
+                            {t('申请权限')}
+                          </span>
+                        )}
+                      </div>
+                    </Select.Option>
+                  ));
+                },
               }}
               clearable={false}
               filterable={true}
               popoverOptions={{ theme: 'light bk-select-popover trace-search-select-popover' }}
               onChange={v => emit('appChange', v)}
-            >
-              {props.appList.map((item, index) => (
-                <Select.Option
-                  id={item.app_name}
-                  key={index}
-                  name={`${item.app_alias}（${item.app_name}）`}
-                >
-                  <div
-                    class={['app-option-wrap', { 'is-disabled': !item.permission?.[authorityMap.VIEW_AUTH] }]}
-                    onClick={e => {
-                      if (!item.permission?.[authorityMap.VIEW_AUTH]) {
-                        e.stopPropagation();
-                      }
-                    }}
-                  >
-                    <span class='app-name'>{`${item.app_alias}（${item.app_name}）`}</span>
-                    {!item.permission?.[authorityMap.VIEW_AUTH] && (
-                      <span
-                        class='apply-btn'
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleApplyApp(item.application_id);
-                        }}
-                      >
-                        {t('申请权限')}
-                      </span>
-                    )}
-                  </div>
-                </Select.Option>
-              ))}
-            </Select>
+            />
           ),
           formItem(
             t('查询方式'),

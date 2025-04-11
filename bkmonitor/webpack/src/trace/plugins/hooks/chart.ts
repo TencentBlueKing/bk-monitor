@@ -34,9 +34,9 @@ import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
 export const TIMEZONE_KEY = 'timezone';
-export const REFLESH_INTERVAL_KEY = 'refreshInterval';
-export const VIEWOPTIONS_KEY = 'viewOptions';
-export const REFLESH_IMMEDIATE_KEY = 'refreshImmediate';
+export const REFRESH_INTERVAL_KEY = 'refreshInterval';
+export const VIEW_OPTIONS_KEY = 'viewOptions';
+export const REFRESH_IMMEDIATE_KEY = 'refreshImmediate';
 export const TIME_OFFSET_KEY = 'timeOffset';
 export const CHART_PROVIDER_KEY = 'CHART_PROVIDER_KEY';
 export const QUERY_DATA_KEY = 'queryData';
@@ -69,7 +69,7 @@ export const useChartInject = () => inject<IChartProvider>(CHART_PROVIDER_KEY);
 export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   // 用于配置后台图表数据的特殊设置
   const viewOptions = useViewOptionsInject();
-  let unWatchViewOptions: WatchStopHandle | null = null;
+  let unWatchViewOptions: null | WatchStopHandle = null;
   if (viewOptions) {
     unWatchViewOptions = watch(viewOptions, (v, o) => {
       // 用于配置后台图表数据的特殊设置
@@ -80,33 +80,33 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   }
   // 数据时间间隔
   const timeRange = useTimeRanceInject();
-  let unWatchTimeRange: WatchStopHandle | null = null;
+  let unWatchTimeRange: null | WatchStopHandle = null;
 
   /** 用于 profiling 趋势图注入的查询类型 */
   /** 当前如果是上传 profiling 则不需要监听时间选择器变化 */
-  const uploadProfilingSearch = inject<Ref<SearchType>>('profilingSearchType')?.value === SearchType.Upload;
+  const uploadProfilingSearch = inject<Ref<SearchType>>('profilingSearchType', undefined)?.value === SearchType.Upload;
 
   if (timeRange && !uploadProfilingSearch) {
     unWatchTimeRange = watch(timeRange, () => getPanelData());
   }
   // 时区
   const timezone = useTimezoneInject();
-  let unWatchTimezone: WatchStopHandle | null = null;
+  let unWatchTimezone: null | WatchStopHandle = null;
   if (timezone) {
     unWatchTimezone = watch(timezone, () => getPanelData());
   }
 
   // 数据时间间隔
   const refreshInterval = useRefreshIntervalInject();
-  let refleshIntervalTimer = 0;
-  let unWatchRefleshInterval: WatchStopHandle | null = null;
+  let refreshIntervalTimer = 0;
+  let unWatchRefreshInterval: null | WatchStopHandle = null;
   if (refreshInterval) {
-    unWatchRefleshInterval = watch(
+    unWatchRefreshInterval = watch(
       refreshInterval,
       v => {
-        window.clearInterval(refleshIntervalTimer);
+        window.clearInterval(refreshIntervalTimer);
         if (v <= 0) return;
-        refleshIntervalTimer = window.setInterval(() => {
+        refreshIntervalTimer = window.setInterval(() => {
           getPanelData();
         }, refreshInterval.value);
       },
@@ -115,14 +115,14 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   }
   // 图表是否立即刷新
   const refreshImmediate = useRefreshImmediateInject();
-  let unWatchRefleshImmediate: WatchStopHandle | null = null;
+  let unWatchRefreshImmediate: null | WatchStopHandle = null;
   if (refreshImmediate) {
-    unWatchRefleshImmediate = watch(refreshImmediate, v => v && getPanelData());
+    unWatchRefreshImmediate = watch(refreshImmediate, v => v && getPanelData());
   }
 
   // 图表对比数据
   const timeOffset = useTimeOffsetInject();
-  let unWatchTimeOffset: WatchStopHandle | null = null;
+  let unWatchTimeOffset: null | WatchStopHandle = null;
   if (timeOffset) {
     unWatchTimeOffset = watch(timeOffset, (v, o) => {
       if (JSON.stringify(v) === JSON.stringify(o)) return;
@@ -132,29 +132,29 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   function beforeUnmount() {
     unWatchViewOptions?.();
     unWatchTimeRange?.();
-    unWatchRefleshInterval?.();
-    unWatchRefleshImmediate?.();
+    unWatchRefreshInterval?.();
+    unWatchRefreshImmediate?.();
     unWatchTimeOffset?.();
     unWatchTimezone?.();
-    window.clearInterval(refleshIntervalTimer);
+    window.clearInterval(refreshIntervalTimer);
   }
   onBeforeUnmount(() => {
     unWatchViewOptions?.();
     unWatchTimeRange?.();
-    unWatchRefleshInterval?.();
-    unWatchRefleshImmediate?.();
+    unWatchRefreshInterval?.();
+    unWatchRefreshImmediate?.();
     unWatchTimeOffset?.();
     unWatchTimezone?.();
-    window.clearInterval(refleshIntervalTimer);
+    window.clearInterval(refreshIntervalTimer);
   });
   return {
     unWatchViewOptions,
     unWatchTimeRange,
-    unWatchRefleshInterval,
-    unWatchRefleshImmediate,
+    unWatchRefreshInterval,
+    unWatchRefreshImmediate,
     unWatchTimeOffset,
     unWatchTimezone,
-    refleshIntervalTimer,
+    refreshIntervalTimer,
     beforeUnmount,
   };
 };
@@ -169,20 +169,20 @@ export const useTimezoneProvider = (timezone: Ref<string>) => {
 };
 export const useTimezoneInject = () => inject<Ref<string>>(TIMEZONE_KEY);
 
-export const useRefleshIntervalProvider = (refreshInterval: Ref<number>) => {
-  provide(REFLESH_INTERVAL_KEY, refreshInterval);
+export const useRefreshIntervalProvider = (refreshInterval: Ref<number>) => {
+  provide(REFRESH_INTERVAL_KEY, refreshInterval);
 };
-export const useRefreshIntervalInject = () => inject<Ref<number>>(REFLESH_INTERVAL_KEY);
+export const useRefreshIntervalInject = () => inject<Ref<number>>(REFRESH_INTERVAL_KEY);
 
 export const useViewOptionsProvider = (viewOptions: IViewOptions) => {
-  provide(VIEWOPTIONS_KEY, viewOptions);
+  provide(VIEW_OPTIONS_KEY, viewOptions);
 };
-export const useViewOptionsInject = () => inject<Ref<IViewOptions>>(VIEWOPTIONS_KEY);
+export const useViewOptionsInject = () => inject<Ref<IViewOptions>>(VIEW_OPTIONS_KEY);
 
-export const useRefleshImmediateProvider = (refreshImmediate: boolean) => {
-  provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
+export const useRefreshImmediateProvider = (refreshImmediate: boolean) => {
+  provide(REFRESH_IMMEDIATE_KEY, refreshImmediate);
 };
-export const useRefreshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
+export const useRefreshImmediateInject = () => inject<Ref<boolean>>(REFRESH_IMMEDIATE_KEY);
 
 export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);

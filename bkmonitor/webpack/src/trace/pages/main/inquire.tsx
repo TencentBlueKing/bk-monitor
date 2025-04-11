@@ -67,12 +67,12 @@ import transformTraceTree from '../../components/trace-view/model/transform-trac
 import VerifyInput from '../../components/verify-input/verify-input';
 import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
-  REFLESH_IMMEDIATE_KEY,
-  REFLESH_INTERVAL_KEY,
+  REFRESH_IMMEDIATE_KEY,
+  REFRESH_INTERVAL_KEY,
   TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  VIEWOPTIONS_KEY,
+  VIEW_OPTIONS_KEY,
   useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
@@ -189,7 +189,7 @@ export default defineComponent({
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
     const refreshInterval = ref<number>(-1);
-    const refleshIntervalInstace = ref<any>(null);
+    const refreshIntervalInstance = ref<any>(null);
     const defaultViewOptions = ref<IViewOptions>({});
     /** 查询语句提示文本 */
     const tipsContentList: IEventRetrieval.ITipsContentListItem[] = [
@@ -220,9 +220,9 @@ export default defineComponent({
     provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
-    provide(REFLESH_INTERVAL_KEY, refreshInterval);
-    provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
-    provide(VIEWOPTIONS_KEY, defaultViewOptions);
+    provide(REFRESH_INTERVAL_KEY, refreshInterval);
+    provide(REFRESH_IMMEDIATE_KEY, refreshImmediate);
+    provide(VIEW_OPTIONS_KEY, defaultViewOptions);
     provide(TIME_OFFSET_KEY, ref([]));
     const autoQueryPopover = ref(null);
     const searchIdType = ref('traceID');
@@ -239,7 +239,7 @@ export default defineComponent({
       limit: 30,
     });
     /* trace_list 下拉加载loading */
-    const traceListTabelLoading = ref(false);
+    const traceListTableLoading = ref(false);
     /* trace kind(tracelist 筛选) */
     const traceKind = ref('all');
     /** 排序字段 */
@@ -257,7 +257,7 @@ export default defineComponent({
     const isEmptyApp = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
-    const durantionRange = ref<null | number[]>(null);
+    const durationRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
     const cacheTraceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
@@ -365,7 +365,7 @@ export default defineComponent({
           trace_id: traceIDSearchValue.value,
         },
       });
-      store.setPageLoaidng(true);
+      store.setPageLoading(true);
       /** 记录当前搜索的应用 */
       localStorage.setItem('trace_query_app', state.app);
 
@@ -392,7 +392,7 @@ export default defineComponent({
           spanDetails.value = null;
         }
       }
-      store.setPageLoaidng(false);
+      store.setPageLoading(false);
       if (!state.isAlreadyAccurateQuery) {
         state.isAlreadyAccurateQuery = true;
       }
@@ -424,10 +424,10 @@ export default defineComponent({
       });
       let cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
       // 收集 耗时 区间信息
-      if (durantionRange?.value) {
+      if (durationRange?.value) {
         filters.push({
           key: 'duration',
-          value: durantionRange?.value,
+          value: durationRange?.value,
           operator: 'between',
         });
       } else {
@@ -575,7 +575,7 @@ export default defineComponent({
         // sort: traceSortKey.value,
         sort: sortList,
         // 去掉，统一合并到 filter 上。
-        duration: durantionRange?.value ?? undefined,
+        duration: durationRange?.value ?? undefined,
         // 合并到 filters
         // trace_filter: traceColumnFilters?.value
       };
@@ -596,7 +596,7 @@ export default defineComponent({
         return;
       }
       if (needLoading) {
-        store.setPageLoaidng(true);
+        store.setPageLoading(true);
         store.setTraceDetail(false);
         store.setFilterTraceList([]);
       }
@@ -708,7 +708,7 @@ export default defineComponent({
       }
 
       if (needLoading) {
-        store.setPageLoaidng(false);
+        store.setPageLoading(false);
       }
       if (!state.isAlreadyScopeQuery) {
         state.isAlreadyScopeQuery = true;
@@ -808,7 +808,7 @@ export default defineComponent({
     }
     /** 更新耗时过滤条件 */
     function handleDurationChange(range: number[]) {
-      durantionRange.value = range;
+      durationRange.value = range;
       handleScopeQueryChange();
     }
     /* 切换查询方式 */
@@ -955,7 +955,7 @@ export default defineComponent({
         scopeSelects.value[key] = { ...scopeSelects.value[key], value: [], key: random(8) };
       });
       searchSelectValue.value = [];
-      durantionRange.value = null;
+      durationRange.value = null;
       // 清空条件列表
       conditionList.forEach(item => {
         item.selectedConditionValue.length = 0;
@@ -995,10 +995,10 @@ export default defineComponent({
       // 接口统计、服务统计 列表比较特殊，是否到最后一页需要自己去判断。
       if (store.listType === 'interfaceStatistics' && !interfaceListCanLoadMore.value) return;
       if (store.listType === 'serviceStatistics' && !serviceListCanLoadMore.value) return;
-      traceListTabelLoading.value = true;
+      traceListTableLoading.value = true;
       traceListPagination.offset = len;
       await handleQueryScope(true, false);
-      traceListTabelLoading.value = false;
+      traceListTableLoading.value = false;
     }
     function handleAddCondition(val: IFilterCondition.localValue) {
       let temp = '';
@@ -1065,7 +1065,7 @@ export default defineComponent({
       handleScopeQueryChange();
     }
     /** 表头过滤 */
-    function handleTraceListColumuFilter(val: Record<string, string[]>) {
+    function handleTraceListColumnFilter(val: Record<string, string[]>) {
       traceColumnFilters.value = val;
       handleScopeQueryChange();
     }
@@ -1079,12 +1079,12 @@ export default defineComponent({
         }
       };
       refreshInterval.value = val;
-      clearInterval(refleshIntervalInstace.value);
+      clearInterval(refreshIntervalInstance.value);
       if (refreshInterval.value === -1) {
         fn();
         return;
       }
-      refleshIntervalInstace.value = setInterval(() => {
+      refreshIntervalInstance.value = setInterval(() => {
         fn();
       }, refreshInterval.value);
       setRouterQueryParams();
@@ -1141,7 +1141,7 @@ export default defineComponent({
         }
         if (duration) {
           const [start, end] = duration;
-          durantionRange.value = [Number(start), Number(end)];
+          durationRange.value = [Number(start), Number(end)];
         }
         if (listType) {
           store.setListType(listType as string);
@@ -1163,7 +1163,7 @@ export default defineComponent({
 
         setTimeout(() => {
           state.searchType = searchType;
-          store.setPageLoaidng(true);
+          store.setPageLoading(true);
           handleAppSelectChange(appName as string);
         }, 100);
       }
@@ -1205,10 +1205,10 @@ export default defineComponent({
       destroyTimezone();
     });
     onUnmounted(() => {
-      clearInterval(refleshIntervalInstace.value);
+      clearInterval(refreshIntervalInstance.value);
     });
     onDeactivated(() => {
-      clearInterval(refleshIntervalInstace.value);
+      clearInterval(refreshIntervalInstance.value);
     });
     // 查询语句的提示内容
     const tipsContentTpl = () => (
@@ -1352,7 +1352,7 @@ export default defineComponent({
     };
 
     const handleDurationRangeChange = (index: number, v: number) => {
-      conditionList[index].durantionRange = v;
+      conditionList[index].durationRange = v;
     };
 
     const selectedConditions = ref([]);
@@ -1565,7 +1565,7 @@ export default defineComponent({
                 placeholder={t('输入')}
                 type='textarea'
                 autosize
-                onBlur={handleScopeQueryChange}
+                onBlur={() => handleScopeQueryChange(false)}
               />
             </VerifyInput>
           ) as any
@@ -1579,7 +1579,7 @@ export default defineComponent({
           ) as any,
           (
             <DurationFilter
-              range={durantionRange.value ?? undefined}
+              range={durationRange.value ?? undefined}
               onChange={handleDurationChange}
             />
           ) as any
@@ -1592,7 +1592,7 @@ export default defineComponent({
             conditionList={item.conditionList}
             conditionType={item.conditionType}
             conditionValueList={item.conditionValueList}
-            durantionRange={item.durantionRange}
+            durationRange={item.durationRange}
             isInclude={item.isInclude}
             labelList={item.labelList}
             labelValue={item.labelValue}
@@ -1728,14 +1728,14 @@ export default defineComponent({
               searchIdType={searchResultIdType.value}
               spanDetails={spanDetails.value}
               traceColumnFilters={cacheTraceColumnFilters.value}
-              traceListTabelLoading={traceListTabelLoading.value}
+              traceListTableLoading={traceListTableLoading.value}
               onChangeQuery={val => handleChangeQuery(val)}
               onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
               onListTypeChange={handleListTypeChange}
               onServiceStatisticsChange={handleServiceStatisticsChange}
               onSpanTypeChange={handleSpanTypeChange}
+              onTraceListColumnFilter={handleTraceListColumnFilter}
               onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
-              onTraceListColumuFilter={handleTraceListColumuFilter}
               onTraceListScrollBottom={handleTraceListScrollBottom}
               onTraceListSortChange={handleTraceListSortChange}
               onTraceListStatusChange={handleTraceListStatusChange}
@@ -1745,7 +1745,6 @@ export default defineComponent({
           {/* </Loading> */}
         </div>
         <Dialog
-          height={300}
           v-slots={{
             default: () => (
               <DeleteDialogContent

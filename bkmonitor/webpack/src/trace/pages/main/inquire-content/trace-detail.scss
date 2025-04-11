@@ -45,6 +45,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     margin-top: 8px;
 
     .message-item {
+      display: flex;
+      align-items: center;
       margin-right: 8px;
       font-size: 12px;
       line-height: 1;

@@ -354,7 +354,7 @@ export default defineComponent({
                       }}
                     >
                       <i
-                        style='margin-right: 4px;'
+                        style='margin-right: 4px;font-size: 12px;'
                         class={['icon-monitor', item.icon]}
                       />
                       {item.name}

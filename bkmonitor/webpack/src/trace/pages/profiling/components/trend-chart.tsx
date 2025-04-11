@@ -33,12 +33,12 @@ import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-grap
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
-  REFLESH_IMMEDIATE_KEY,
-  REFLESH_INTERVAL_KEY,
+  REFRESH_IMMEDIATE_KEY,
+  REFRESH_INTERVAL_KEY,
   TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  VIEWOPTIONS_KEY,
+  VIEW_OPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
 import { SearchType, type ToolsFormData } from '../typings';
@@ -80,7 +80,7 @@ export default defineComponent({
   emits: ['chartData', 'loading'],
   setup(props, { emit }) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
-    const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType', undefined);
     const timeSeriesChartRef = ref();
 
     const timezone = ref<string>(getDefaultTimezone());
@@ -104,9 +104,9 @@ export default defineComponent({
 
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
-    provide(REFLESH_INTERVAL_KEY, refreshInterval);
-    provide(REFLESH_IMMEDIATE_KEY, refreshImmediate);
-    provide(VIEWOPTIONS_KEY, defaultViewOptions);
+    provide(REFRESH_INTERVAL_KEY, refreshInterval);
+    provide(REFRESH_IMMEDIATE_KEY, refreshImmediate);
+    provide(VIEW_OPTIONS_KEY, defaultViewOptions);
     provide(TIME_OFFSET_KEY, ref([]));
 
     watch(

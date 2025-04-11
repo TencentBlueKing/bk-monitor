@@ -555,6 +555,7 @@ export default defineComponent({
             require
           >
             <DatePicker
+              appendToBody={true}
               clearable={false}
               disabledDate={this.disabledDateFn}
               modelValue={this.formData.effective.startTime}
@@ -566,6 +567,7 @@ export default defineComponent({
             <DatePicker
               ref='effectiveEndRef'
               class='effective-end'
+              appendToBody={true}
               disabledDate={this.disabledDateFn}
               modelValue={this.formData.effective.endTime}
               placeholder={this.t('永久')}

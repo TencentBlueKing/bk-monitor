@@ -268,13 +268,15 @@ export default defineComponent({
                   ))}
                 </div>
 
-                <FilterSearchInput
-                  inputStatus={this.inputStatus}
-                  searchType='incident'
-                  value={this.alertIdsObject?.ids}
-                  onChange={this.handleQueryStringChange}
-                  onClear={this.handleQueryStringChange}
-                />
+                <div style={{ flex: 1 }}>
+                  <FilterSearchInput
+                    inputStatus={this.inputStatus}
+                    searchType='incident'
+                    value={this.alertIdsObject?.ids}
+                    onChange={this.handleQueryStringChange}
+                    onClear={this.handleQueryStringChange}
+                  />
+                </div>
               </div>
               <div class='content-main'>
                 {this.activeTab === 'FailureView' ? (

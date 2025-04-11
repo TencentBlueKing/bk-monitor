@@ -60,7 +60,7 @@ export default defineComponent({
       type: Array as PropType<IPanelModel[]>,
       default: () => [],
     },
-    traceListTabelLoading: {
+    traceListTableLoading: {
       type: Boolean,
       default: false,
     },
@@ -94,7 +94,7 @@ export default defineComponent({
     'traceListScrollBottom',
     'traceListStatusChange',
     'traceListSortChange',
-    'traceListColumuFilter',
+    'traceListColumnFilter',
     'listTypeChange',
     'traceListColumnSortChange',
     'traceTypeChange',
@@ -134,7 +134,7 @@ export default defineComponent({
     }
 
     function handleColumnFilterChange(val: Record<string, string[]>) {
-      emit('traceListColumuFilter', val);
+      emit('traceListColumnFilter', val);
     }
 
     function handleSortChange(sortKey: string) {
@@ -192,7 +192,7 @@ export default defineComponent({
     const {
       queryType,
       emptyApp,
-      traceListTabelLoading,
+      traceListTableLoading,
       isAlreadyAccurateQuery,
       isAlreadyScopeQuery,
       appList,
@@ -224,7 +224,7 @@ export default defineComponent({
           <TraceList
             appList={appList}
             appName={this.appName}
-            tableLoading={traceListTabelLoading}
+            tableLoading={traceListTableLoading}
             traceColumnFilters={traceColumnFilters}
             onColumnFilterChange={val => this.handleColumnFilterChange(val)}
             onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}

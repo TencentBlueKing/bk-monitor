@@ -1389,6 +1389,7 @@ export default defineComponent({
                 <div>
                   <DatePicker
                     style='width: 168px;'
+                    appendToBody={true}
                     clearable={false}
                     modelValue={this.frequency.only_once_run_time}
                     type='datetime'
@@ -1409,6 +1410,7 @@ export default defineComponent({
               >
                 <DatePicker
                   style='width: 220px;'
+                  appendToBody={true}
                   clearable={false}
                   modelValue={this.timerange.start}
                   placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
@@ -1423,6 +1425,7 @@ export default defineComponent({
                   ref='effectiveEndRef'
                   style='width: 220px;'
                   class='effective-end'
+                  appendToBody={true}
                   modelValue={this.timerange.end}
                   placeholder={this.t('永久')}
                   type='datetime'
