@@ -12,10 +12,12 @@ import logging
 import threading
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Tuple
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -222,7 +224,7 @@ class EventViewConfigResource(Resource):
 
     @classmethod
     def is_option_enabled(cls, field_type) -> bool:
-        return field_type in {EventDimensionTypeEnum.KEYWORD.value}
+        return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
     def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
@@ -326,7 +328,7 @@ class EventTopKResource(Resource):
                         "value": "" if not field_value or field_value == " " else field_value,
                         "alias": "--" if not field_value or field_value == " " else field_value,
                         "count": field_count,
-                        "proportions": round(100 * (field_count / total), 2),
+                        "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
                     for field_value, field_count in sorted_fields
                 ],
@@ -479,3 +481,217 @@ class EventTotalResource(Resource):
         except Exception as exc:
             logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
             return {"total": 0}
+
+
+class EventStatisticsGraphResource(Resource):
+    RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        param:field[values]:list
+                1）当字段类型为 integer 时，包含字段的最小值、最大值、枚举数量和区间数量。具体结构如下：
+                    1. 第0个元素: 最小值
+                    2. 第1个元素: 最大值
+                    3. 第2个元素: 枚举数量
+                    4. 第3个元素: 区间数量
+                2）当字段类型为 keyword 时，值为占比前5的值
+        """
+        field = validated_request_data["field"]
+        # keyword 类型，返回时序图
+        field_name = field["name"]
+        values = field["values"]
+        if field["type"] == EventDimensionTypeEnum.KEYWORD.value:
+            for query_config in validated_request_data["query_configs"]:
+                query_config["filter_dict"] = q_to_dict(
+                    (dict_to_q(query_config["filter_dict"]) or Q()) & Q(**{f"{field_name}__eq": values})
+                )
+            return EventTimeSeriesResource().perform_request(validated_request_data)
+
+        # integer 类型，返回直方图
+        queryset = get_qs_from_req_data(validated_request_data).time_agg(False).instant()
+        queries = []
+        for query_config in validated_request_data["query_configs"]:
+            for metric in query_config["metrics"]:
+                q = get_q_from_query_config(query_config).metric(
+                    field=metric["field"], method=metric["method"], alias=metric["alias"]
+                )
+                queries.append(q)
+
+        # 字段枚举数量少于区间数量或者区间的最大数量小于区间数，直接查询枚举值返回
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if distinct_count < interval_num or (max_value - min_value + 1) < interval_num:
+            for q in queries:
+                queryset = queryset.add_query(q.group_by(field_name))
+            return self.process_graph_info(
+                [
+                    [datapoint["_result_"], datapoint[field_name]]
+                    for datapoint in sorted(queryset.limit(values[2]), key=lambda x: int(x[field_name]))
+                ]
+            )
+        # 划分区间计算
+        return self.process_graph_info(
+            self.calculate_interval_buckets(
+                queryset, queries, field_name, self.calculate_intervals(values[0], values[1], values[3])
+            )
+        )
+
+    @classmethod
+    def calculate_intervals(cls, min_value, max_value, interval_num):
+        """
+        计算区间
+        :param min_value: int
+            区间的最小值。
+        :param max_value: int
+            区间的最大值。
+        :param interval_num: int
+            区间数量。
+        :return: List[Tuple[int, int]]
+            返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
+        """
+        intervals = []
+        current_min = min_value
+        for i in range(interval_num):
+            # 闭区间，加上区间数后要 -1
+            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
+            # 确保最后一个区间覆盖到 max_value
+            if i == interval_num - 1:
+                current_max = max_value
+            intervals.append((current_min, current_max))
+            current_min = current_max + 1
+        return intervals
+
+    @classmethod
+    def calculate_interval_buckets(cls, queryset, queries, field, intervals) -> List:
+        """
+        统计各区间计数
+        """
+        buckets = []
+        run_threads(
+            [
+                InheritParentThread(
+                    target=cls.collect_interval_buckets,
+                    args=(
+                        queryset,
+                        [cls._get_q_by_interval(query, field, interval) for query in queries],
+                        buckets,
+                        interval,
+                    ),
+                )
+                for interval in intervals
+            ]
+        )
+        return sorted(buckets, key=lambda x: int(x[1].split("-")[0]))
+
+    @classmethod
+    def _get_q_by_interval(cls, query, field, interval):
+        """
+        处理区间条件
+        :param interval:tuple
+            - interval[0]: 最小值
+            - interval[1]: 最大值
+        """
+        return query.filter(**{f"{field}__gte": interval[0], f"{field}__lte": interval[1]})
+
+    @classmethod
+    def process_graph_info(cls, buckets):
+        """
+        处理数值趋势图格式，和时序趋势图保持一致
+        """
+        return {"series": [{"datapoints": buckets}]}
+
+    @classmethod
+    def collect_interval_buckets(cls, queryset, queries, bucket, interval: Tuple[int, int]):
+        for query in queries:
+            queryset = queryset.add_query(query)
+        try:
+            bucket.append([queryset.original_data[0]["_result_"], f"{interval[0]}-{interval[1]}"])
+        except (IndexError, KeyError) as exc:
+            logger.warning("[EventStatisticsGraphResource] failed to get field interval_buckets, err -> %s", exc)
+            raise ValueError(_("获取数值类型区间统计数量失败"))
+
+
+class EventStatisticsInfoResource(Resource):
+    RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        queries = [
+            get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
+        ]
+        field = validated_request_data["field"]
+        statistics_property_method_map = {
+            "total_count": "count",
+            "field_count": "count",
+            "distinct_count": "cardinality",
+        }
+        if field["type"] == EventDimensionTypeEnum.INTEGER.value:
+            # 数值类型，支持更多统计方法
+            statistics_property_method_map.update({"max": "max", "min": "min", "median": "cp50", "avg": "avg"})
+
+        statistics_info = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.get_statistics_info,
+                    args=(
+                        get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
+                        queries,
+                        field["name"],
+                        statistics_property,
+                        method,
+                        statistics_info,
+                    ),
+                )
+                for statistics_property, method in statistics_property_method_map.items()
+            ]
+        )
+        # 格式化统计信息
+        return self.process_statistics_info(statistics_info)
+
+    @classmethod
+    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+        processed_statistics_info = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            # 平均值取两位小数
+            if statistics_property == "avg":
+                value = round(value, 2)
+            if statistics_property in ["max", "min", "median", "avg"]:
+                processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            processed_statistics_info[statistics_property] = value
+        # 计算百分比
+        processed_statistics_info["field_percent"] = (
+            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
+            if statistics_info["total_count"] > 0
+            else 0
+        )
+        return processed_statistics_info
+
+    @classmethod
+    def get_statistics_info(cls, queryset, queries, field, statistics_property, method, statistics_info) -> None:
+        for query in queries:
+            queryset = queryset.add_query(
+                cls.get_q_by_statistics_property(query, field, statistics_property).metric(
+                    field=field, method=method, alias="a"
+                )
+            )
+        queryset = cls.set_qs_expression_by_method(queryset, method)
+        try:
+            statistics_info[statistics_property] = queryset.original_data[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("[EventStatisticsInfoResource] failed to get statistics info, err -> %s", exc)
+            raise ValueError(_(f"获取字段统计信息失败，查询函数：{method}"))
+
+    @classmethod
+    def get_q_by_statistics_property(cls, query, field, statistics_property):
+        """
+        根据统计属性设置过滤条件
+        """
+        return query.filter(**{f"{field}__ne": ""}) if statistics_property == "field_count" else query
+
+    @classmethod
+    def set_qs_expression_by_method(cls, queryset, method):
+        """
+        根据查询函数适配表达式
+        """
+        return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")

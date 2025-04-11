@@ -39,6 +39,7 @@ const directives: Record<string, any> = {
   overflowTitle,
   watermark,
   overflowTips: bkEllipsis,
+  bkOverflowTips: bkEllipsis,
 };
 
 export default {

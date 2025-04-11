@@ -398,6 +398,8 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", event_resources.EventTotalResource, endpoint="event/total"),
         ResourceRoute("POST", event_resources.EventViewConfigResource, endpoint="event/view_config"),
         ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
+        ResourceRoute("POST", event_resources.EventStatisticsInfoResource, endpoint="event/statistics_info"),
+        ResourceRoute("POST", event_resources.EventStatisticsGraphResource, endpoint="event/statistics_graph"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="event/download_topk")

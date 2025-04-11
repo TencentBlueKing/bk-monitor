@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -31,6 +32,7 @@ import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
+import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
@@ -57,6 +59,7 @@ import { downFile, getSpanKindIcon } from '../../utils';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
+import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -119,6 +122,8 @@ export default defineComponent({
     const bizId = computed(() => useAppStore().bizId || 0);
 
     const spans = computed(() => store.spanGroupTree);
+
+    const profilingFlameGraph = shallowRef<IFlameGraphDataItem>(null);
 
     /** 主机容器接口 */
     let hostAndContainerCancelToken = null;
@@ -700,6 +705,27 @@ export default defineComponent({
       });
     }
 
+    async function getFlameGraphData() {
+      const halfHour = 18 * 10 ** 8;
+      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
+      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
+      const data: IFlameGraphDataItem = await apmProfileQuery(
+        {
+          bk_biz_id: bizId.value,
+          app_name: appName.value,
+          service_name: serviceNameProvider.value,
+          start: profilingRerieveStartTime,
+          end: profilingRerieveEndTime,
+          profile_id: originalData.value.span_id,
+          diagram_types: ['flamegraph'],
+        },
+        {
+          needCancel: true,
+        }
+      ).catch(() => null);
+      profilingFlameGraph.value = data?.flame_data || [];
+    }
+
     /* 折叠 */
     const expanItem = (
       isExpan: boolean,
@@ -1057,6 +1083,12 @@ export default defineComponent({
           { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
+      }
+      if (activeTab.value === 'Profiling') {
+        if (enableProfiling.value) {
+          await getFlameGraphData();
+        }
         isTabPanelLoading.value = false;
       }
     };
@@ -1417,27 +1449,31 @@ export default defineComponent({
                           style='height: 100%;'
                           loading={enableProfiling.value && isTabPanelLoading.value}
                         >
-                          {enableProfiling.value ? (
-                            <ProfilingFlameGraph
-                              appName={appName.value}
-                              bizId={bizId.value}
-                              end={profilingRerieveEndTime}
-                              profileId={originalData.value.span_id}
-                              serviceName={serviceNameProvider.value}
-                              start={profilingRerieveStartTime}
-                              textDirection={ellipsisDirection.value}
-                              onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                            />
-                          ) : (
-                            <div class='exception-guide-wrap'>
-                              <Exception type='building'>
-                                <span>{t('暂未开启 Profiling 功能')}</span>
-                                <div class='text-wrap'>
-                                  <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
-                                </div>
-                              </Exception>
-                            </div>
-                          )}
+                          {!isTabPanelLoading.value &&
+                            (enableProfiling.value ? (
+                              <ProfilingFlameGraph
+                                appName={appName.value}
+                                bizId={bizId.value}
+                                data={profilingFlameGraph.value}
+                                end={profilingRerieveEndTime}
+                                profileId={originalData.value.span_id}
+                                serviceName={serviceNameProvider.value}
+                                start={profilingRerieveStartTime}
+                                textDirection={ellipsisDirection.value}
+                                onUpdate:loading={val => {
+                                  isTabPanelLoading.value = val;
+                                }}
+                              />
+                            ) : (
+                              <div class='exception-guide-wrap'>
+                                <Exception type='building'>
+                                  <span>{t('暂未开启 Profiling 功能')}</span>
+                                  <div class='text-wrap'>
+                                    <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+                                  </div>
+                                </Exception>
+                              </div>
+                            ))}
                         </Loading>
                       )
                     }

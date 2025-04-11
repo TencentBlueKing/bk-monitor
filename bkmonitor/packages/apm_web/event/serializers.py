@@ -316,3 +316,29 @@ class EventDownloadTopKRequestSerializer(
 ):
     def validate(self, attrs):
         return super().validate(attrs)
+
+
+class EventStatisticsGraphRequestSerializer(
+    event_serializers.EventStatisticsGraphRequestSerializer, BaseEventRequestSerializer
+):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
+        return attrs
+
+
+class EventStatisticsInfoRequestSerializer(
+    event_serializers.EventStatisticsInfoRequestSerializer, BaseEventRequestSerializer
+):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
+        return attrs

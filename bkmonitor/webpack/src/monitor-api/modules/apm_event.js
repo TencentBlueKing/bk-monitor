@@ -11,6 +11,8 @@ export const eventTagDetail = request('POST', 'apm/event/event/tag_detail/');
 export const eventGetTagConfig = request('POST', 'apm/event/event/get_tag_config/');
 export const eventTagStatistics = request('POST', 'apm/event/event/tag_statistics/');
 export const eventUpdateTagConfig = request('POST', 'apm/event/event/update_tag_config/');
+export const eventStatisticsInfo = request('POST', 'apm/event/event/statistics_info/');
+export const eventStatisticsGraph = request('POST', 'apm/event/event/statistics_graph/');
 
 export default {
   eventLogs,
@@ -24,4 +26,6 @@ export default {
   eventGetTagConfig,
   eventTagStatistics,
   eventUpdateTagConfig,
+  eventStatisticsInfo,
+  eventStatisticsGraph,
 };

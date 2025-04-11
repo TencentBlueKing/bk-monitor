@@ -1,10 +1,10 @@
 const staticUrl = '${STATIC_URL}monitor/';
 const cacheNames = {
-  js: `monitor-cache-js-__cache_version___`,
-  css: `monitor-cache-css-__cache_version___`,
-  font: `monitor-cache-font-__cache_version___`,
-  img: `monitor-cache-img-__cache_version___`,
-  api: `monitor-cache-api-__cache_version___`,
+  js: 'monitor-cache-js-__cache_version___',
+  css: 'monitor-cache-css-__cache_version___',
+  font: 'monitor-cache-font-__cache_version___',
+  img: 'monitor-cache-img-__cache_version___',
+  api: 'monitor-cache-api-__cache_version___',
 };
 const cacheList = Object.keys(cacheNames).map(key => cacheNames[key]);
 
@@ -16,8 +16,8 @@ const setCache = (cacheName, request) =>
         fetch(request).then(res => {
           cache.put(request.url, res.clone());
           return res;
-        }),
-    ),
+        })
+    )
   );
 
 if (self.importScripts) {
@@ -64,8 +64,8 @@ self.addEventListener('activate', e => {
           if (!cacheList.includes(key) && key !== cacheNames.api) {
             return caches.delete(key);
           }
-        }),
-      ).then(() => self.clients.claim()),
-    ),
+        })
+      ).then(() => self.clients.claim())
+    )
   );
 });
