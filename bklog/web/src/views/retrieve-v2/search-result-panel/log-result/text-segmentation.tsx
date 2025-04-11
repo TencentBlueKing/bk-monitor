@@ -33,9 +33,9 @@ import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { debounce } from 'lodash';
 
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
-import useKonva from './use-konva';
 
 import './text-segmentation.scss';
+import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
@@ -53,31 +53,23 @@ export default defineComponent({
   emits: ['menu-click'],
   setup(props, { emit }) {
     const refContent: Ref<HTMLDivElement> = ref();
-    const refCanvas: Ref<HTMLDivElement> = ref();
-    const refFrontCanvas: Ref<HTMLDivElement> = ref();
 
-    const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
     const { $t } = useLocale();
-
-    const wheelTrigger: Ref<{ isWheeling: boolean; id: string }> = inject(
-      'wheelTrigger',
-      ref({ isWheeling: false, id: '' }),
-    );
-
-    let containerWidth = 0;
 
     const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const textLineCount = ref(0);
-
-    const formatText = ref('');
-
     const isWrap = computed(() => store.state.tableLineIsWrap);
     const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
-    const hasEllipsis = computed(() => !isLimitExpandView.value && textLineCount.value > 3);
-    // const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
+    const rootStyle = computed(() => {
+      return {
+        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '60px'}`,
+      };
+    });
+
+    // 是否有纵向滚动条
+    const hasOverflowY = ref(false);
 
     const btnText = computed(() => {
       if (showAll.value) {
@@ -91,7 +83,7 @@ export default defineComponent({
       emit('menu-click', event);
     };
 
-    const textSegmentInstance = new UseTextSegmentation({
+    let textSegmentInstance = new UseTextSegmentation({
       onSegmentClick: handleMenuClick,
       options: {
         content: props.content,
@@ -100,123 +92,8 @@ export default defineComponent({
       },
     });
 
-    const {
-      initKonvaInstance,
-      setHighlightWords,
-      // validateWordPosition,
-      computeWordListPosition,
-      fireEvent,
-      resetWordList,
-    } = useKonva({
-      onSegmentClick: (e, value, { offsetX = 0, offsetY = 0 }: { offsetX: number; offsetY: number }) => {
-        textSegmentInstance?.getCellClickHandler(e, value, { offsetX, offsetY });
-      },
-    });
-
     let wordList: WordListItem[];
-    let isDispose = false;
-    let isMounted = false;
-
-    const getWidth = wordList => {
-      if (props.autoWidth && wordList.length === 1) {
-        const context = document.createElement('canvas').getContext('2d');
-        context.font = `12px ${fontFamily}`;
-        const textWidth = context.measureText(wordList[0].text).width;
-        return textWidth;
-      }
-
-      return refContent.value.offsetWidth;
-    };
-
-    const initKonvaTextBox = () => {
-      const width = getWidth(wordList);
-      refCanvas.value.setAttribute('width', `${width}`);
-      initKonvaInstance(refCanvas.value, refFrontCanvas.value, width, refContent.value.scrollHeight, fontFamily);
-      computeWordListPosition(wordList).then(list => {
-        setHighlightWords(list);
-        isMounted = true;
-      });
-    };
-
-    const appendLastTag = () => {
-      const child = document.createElement('span');
-      child.classList.add('last-placeholder');
-      refSegmentContent.value?.append?.(child);
-    };
-
-    let textSegmentIndex = 0;
-    const textSegmentPageSize = 50;
-    const maxWordLength = 500;
-    const setTextSegmentChildNodes = (maxLength = 4) => {
-      const fragment = new DocumentFragment();
-
-      const stepRun = (size?) => {
-        if (textSegmentIndex >= maxWordLength) {
-          const text = wordList
-            .slice(textSegmentIndex)
-            .map(item => item.text)
-            .join('');
-
-          const child = document.createElement('span');
-          child.classList.add('others-text');
-          child.innerText = text;
-          fragment.appendChild(child);
-          refSegmentContent.value.append(fragment);
-          appendLastTag();
-          return;
-        }
-
-        const endIndex = textSegmentIndex + (size ?? textSegmentPageSize);
-        if (textSegmentIndex < wordList.length) {
-          wordList.slice(textSegmentIndex, endIndex).forEach(item => {
-            const child = document.createElement(getTagName(item));
-            child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-            child.innerText = item.text;
-            fragment.appendChild(child);
-          });
-          textSegmentIndex = endIndex;
-          refSegmentContent.value.append(fragment);
-
-          requestAnimationFrame(() => {
-            if (refContent.value) {
-              textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
-              if (textLineCount.value < maxLength && !isDispose) {
-                stepRun(textLineCount.value > 3 ? 500 : undefined);
-                return;
-              }
-            }
-
-            appendLastTag();
-          });
-        }
-      };
-
-      stepRun();
-    };
-
-    const setMoreLines = () => {
-      if (getSegmentRenderType() === 'text') {
-        let max = Number.MAX_SAFE_INTEGER;
-        setTextSegmentChildNodes(max);
-      }
-    };
-
-    const handleClickMore = e => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      showAll.value = !showAll.value;
-
-      setMoreLines();
-    };
-
-    const getSegmentRenderType = () => {
-      if (wordList?.length < 10) {
-        return 'text';
-      }
-
-      return 'canvas';
-    };
+    let renderMoreItems: () => void = null;
 
     const getTagName = item => {
       if (item.isMark) {
@@ -230,25 +107,17 @@ export default defineComponent({
       return 'span';
     };
 
-    const handleTextSegmentClick = (e: MouseEvent) => {
-      return textSegmentInstance.getTextCellClickHandler(e);
+    const handleClickMore = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      showAll.value = !showAll.value;
+
+      renderMoreItems?.();
     };
 
-    const setMounted = () => {
-      const maxLength = isLimitExpandView.value || showAll.value ? Number.MAX_SAFE_INTEGER : 4;
-      if (getSegmentRenderType() === 'canvas') {
-        initKonvaTextBox();
-      }
-
-      if (getSegmentRenderType() === 'text') {
-        refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
-        setTextSegmentChildNodes(maxLength);
-        requestAnimationFrame(() => {
-          isMounted = true;
-        });
-      }
-
-      textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
+    const handleTextSegmentClick = (e: MouseEvent) => {
+      return textSegmentInstance.getTextCellClickHandler(e);
     };
 
     let isNestedValue = false; // data-depth
@@ -256,99 +125,83 @@ export default defineComponent({
       const fieldName = props.field.field_name;
       const fieldKeys = fieldName.split('.');
       isNestedValue = isNestedField(fieldKeys, props.data);
-
       wordList = textSegmentInstance.getChildNodes(isNestedValue);
     };
 
-    onBeforeMount(() => {
-      isDispose = false;
-      wordList = textSegmentInstance.getChildNodes();
-      formatText.value = textSegmentInstance.formatValue();
+    const debounceUpdateWidth = debounce(() => {
+      hasOverflowY.value = false;
+      if (refContent.value) {
+        const { offsetHeight, scrollHeight } = refContent.value;
+        hasOverflowY.value = offsetHeight < scrollHeight;
+      }
     });
 
+    onBeforeMount(() => {
+      setWordList();
+    });
+
+    let removeScrollEventFn = null;
+    let cellScrollInstance: {
+      setListItem: (size?: number) => void;
+      removeScrollEvent: () => void;
+      reset: (list: WordListItem[]) => void;
+    };
+
+    const setWordSegmentRender = () => {
+      const { setListItem, removeScrollEvent } = cellScrollInstance;
+      renderMoreItems = setListItem;
+      removeScrollEventFn = removeScrollEvent;
+
+      // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
+      // 这里默认渲染前500跟分词 + 10 - 20行溢出
+      setListItem(isLimitExpandView.value ? 550 : 300);
+      debounceUpdateWidth();
+    };
+
+    const formatItemText = (item: WordListItem) => {
+      if (item.isMark) {
+        return item.text.replace(/\s/g, '\u00A0');
+      }
+
+      return item.text;
+    };
+
     onMounted(() => {
-      containerWidth = refContent.value.offsetWidth;
-      setMounted();
+      hasOverflowY.value = false;
+      refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
+      cellScrollInstance = setScrollLoadCell(
+        wordList,
+        refContent.value,
+        refSegmentContent.value,
+        (item: WordListItem) => {
+          const child = document.createElement(getTagName(item));
+          child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
+
+          if (item.isBlobWord) {
+            child.innerHTML = item.text;
+            return child;
+          }
+
+          child.textContent = item.text;
+          return child;
+        },
+      );
+
+      setWordSegmentRender();
     });
 
     onBeforeUnmount(() => {
-      isDispose = true;
-    });
-
-    const resetMounted = () => {
-      textSegmentIndex = 0;
-      refSegmentContent.value.innerHTML = '';
-    };
-
-    watch(
-      () => props.content,
-      () => {
-        textSegmentInstance.update({
-          options: {
-            content: props.content,
-          },
-        });
-
-        setWordList();
-        resetMounted();
-        setMounted();
-      },
-    );
-
-    const debounceUpdateWidth = debounce(() => {
-      if (!refContent.value || !isMounted) {
-        return;
-      }
-
-      if (containerWidth !== refContent.value.offsetWidth) {
-        containerWidth = refContent.value.offsetWidth;
-
-        if (getSegmentRenderType() === 'canvas') {
-          const textWrapper = refContent.value.querySelector('.static-text') as HTMLElement;
-          const { offsetWidth, scrollHeight } = textWrapper;
-          resetWordList();
-          initKonvaInstance(refCanvas.value, refFrontCanvas.value, offsetWidth, scrollHeight, fontFamily);
-          computeWordListPosition(wordList).then(list => {
-            setHighlightWords(list);
-          });
-        }
-
-        if (getSegmentRenderType() === 'text') {
-          setWordList();
-          resetMounted();
-          setMounted();
-        }
-      }
+      removeScrollEventFn?.();
     });
 
     useResizeObserve(refContent, debounceUpdateWidth);
 
     const renderSegmentList = () => {
-      if (getSegmentRenderType() === 'canvas') {
-        return [
-          <div
-            ref={refCanvas}
-            class='canvas-konva-background'
-          ></div>,
-          <div
-            class='static-text'
-            onClick={e => fireEvent('click', e)}
-            onMouseenter={e => fireEvent('mouseenter', e)}
-            onMouseleave={e => fireEvent('mouseleave', e)}
-            onMousemove={e => fireEvent('mousemove', e)}
-          >
-            {formatText.value}
-          </div>,
-          <div
-            ref={refFrontCanvas}
-            class='canvas-konva-front'
-          ></div>,
-        ];
-      }
-
       return (
-        <span
-          class='field-value'
+        <div
+          ref={refContent}
+          class='field-value bklog-word-segment'
+          style={rootStyle.value}
           data-field-name={props.field.field_name}
           onClick={handleTextSegmentClick}
         >
@@ -356,44 +209,65 @@ export default defineComponent({
             ref={refSegmentContent}
             class='segment-content'
           ></span>
-        </span>
-      );
-    };
-
-    const renderBody = () => {
-      return (
-        <div
-          ref={refContent}
-          class={[
-            'bklog-text-segment',
-            'bklog-root-field',
-            {
-              'is-wrap-line': isWrap.value,
-              'is-inline': !isWrap.value,
-              'is-show-long': isLimitExpandView.value,
-              'is-expand-all': showAll.value,
-              'is-wheeling': wheelTrigger.value.isWheeling,
-            },
-          ]}
-        >
-          {renderSegmentList()}
-          <span
-            class={[
-              'btn-more-action',
-              `word-${getSegmentRenderType()}`,
-              { 'is-show': hasEllipsis.value || (showAll.value && !isLimitExpandView.value) },
-            ]}
-            onClick={handleClickMore}
-          >
-            {btnText.value}
-          </span>
         </div>
       );
     };
 
-    return { renderBody };
-  },
-  render() {
-    return this.renderBody();
+    watch(
+      () => isLimitExpandView.value,
+      () => {
+        renderMoreItems();
+      },
+    );
+
+    watch(
+      () => props.content,
+      () => {
+        textSegmentInstance = new UseTextSegmentation({
+          onSegmentClick: handleMenuClick,
+          options: {
+            content: props.content,
+            field: props.field,
+            data: props.data,
+          },
+        });
+        setWordList();
+        const { reset } = cellScrollInstance;
+        reset(wordList);
+        setWordSegmentRender();
+      },
+    );
+
+    const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
+    const getMoreAction = () => {
+      if (showMoreAction.value && !isLimitExpandView.value) {
+        return (
+          <span
+            class={['btn-more-action', `word-text`, 'is-show']}
+            onClick={handleClickMore}
+          >
+            {btnText.value}
+          </span>
+        );
+      }
+    };
+
+    return () => (
+      <div
+        class={[
+          'bklog-text-segment',
+          'bklog-root-field',
+          {
+            'is-wrap-line': isWrap.value,
+            'is-inline': !isWrap.value,
+            'is-show-long': isLimitExpandView.value,
+            'is-expand-all': showAll.value,
+          },
+        ]}
+      >
+        {renderSegmentList()}
+        {getMoreAction()}
+      </div>
+    );
   },
 });

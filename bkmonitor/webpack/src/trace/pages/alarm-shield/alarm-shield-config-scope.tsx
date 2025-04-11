@@ -66,7 +66,7 @@ export const scopeData = () => {
     showIpv6Dialog: false,
     ipv6Value: {},
     originIpv6Value: {},
-    inited: true,
+    initialized: true,
   };
 };
 
@@ -408,7 +408,7 @@ export default defineComponent({
                 content={this.tipsMap[this.scopeState.bkGroup.value] || ''}
               />
             )}
-            {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.inited && (
+            {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.initialized && (
               <AlarmShieldIpv6
                 checkedValue={this.scopeState.ipv6Value}
                 originCheckedValue={this.scopeState.originIpv6Value}

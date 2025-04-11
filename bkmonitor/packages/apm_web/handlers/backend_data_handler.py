@@ -517,7 +517,11 @@ class MetricBackendHandler(TelemetryBackendHandler):
             }
 
             try:
-                datapoints = resource.grafana.graph_unify_query(request_params)["series"][0]["datapoints"]
+                result = resource.grafana.graph_unify_query(request_params)
+                if result["series"]:
+                    datapoints = result["series"][0]["datapoints"]
+                else:
+                    datapoints = []
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(f"get data view error: {e}")
                 datapoints = []

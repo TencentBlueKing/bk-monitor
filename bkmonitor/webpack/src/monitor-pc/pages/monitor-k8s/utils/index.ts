@@ -28,7 +28,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 import type { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
 
 /** 视图的设置页面的弹层层级 */
-export const SETTINGS_POP_ZINDEX = 4100;
+export const SETTINGS_POP_Z_INDEX = 4100;
 
 export type VarWhereMap = Record<string, IWhere[]>;
 export type VarReferenceMap = Record<string, string[]>;

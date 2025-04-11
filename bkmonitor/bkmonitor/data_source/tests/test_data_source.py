@@ -1564,7 +1564,8 @@ class TestCustomEventDataSource:
 class TestBkApmTraceDataSource:
     def test_query_data(self, mock_get_es_data):
         query_config = {
-            "table": "2_bkapm_trace_app",
+            "table": "2_bkapm.trace_app",
+            "reference_name": "a",
             "time_field": "end_time",
             "metrics": [{"field": "span_name", "alias": "total_count", "method": "count"}],
             "group_by": ["span_name"],
@@ -1616,16 +1617,34 @@ class TestBkApmTraceDataSource:
                 "size": 0,
                 "sort": [{"end_time": "desc"}],
             },
-            "table_id": "2_bkapm_trace_app",
+            "table_id": "2_bkapm.trace_app",
             "use_full_index_names": True,
         }
 
         assert len(data) == 2
         assert data == [{'span_name': 'Sub', 'total_count': 2109}, {'span_name': 'Add', 'total_count': 2086}]
 
+        assert data_source.to_unify_query_config() == [
+            {
+                "driver": "influxdb",
+                "data_source": "bkapm",
+                "table_id": "2_bkapm_trace_app",
+                "reference_name": "a",
+                "field_name": "span_name",
+                "time_field": "end_time",
+                "order_by": [],
+                "dimensions": ["span_name"],
+                'query_string': '*',
+                "conditions": {"field_list": [], "condition_list": []},
+                "function": [{"method": "count", "dimensions": ["span_name"]}],
+                "time_aggregation": {"function": "count_over_time", 'window': "0s"},
+                "keep_columns": [],
+            }
+        ]
+
     def test_query_data__search_after(self, mock_get_es_data):
         query_config = {
-            "table": "2_bkapm_trace_app",
+            "table": "2_bkapm.trace_app",
             "time_field": "end_time",
             "where": [],
             "metrics": [
@@ -1710,7 +1729,7 @@ class TestBkApmTraceDataSource:
                 "size": 0,
                 "sort": [{"end_time": "desc"}],
             },
-            "table_id": "2_bkapm_trace_app",
+            "table_id": "2_bkapm.trace_app",
             "use_full_index_names": True,
         }
 
@@ -1748,7 +1767,7 @@ class TestBkApmTraceDataSource:
             "elapsed_time",
         ]
         query_config = {
-            "table": "2_bkapm_trace_app",
+            "table": "2_bkapm.trace_app",
             "time_field": "end_time",
             "where": [{"condition": "and", "key": "parent_span_id", "method": "eq", "value": [""]}],
             "query_string": "*",
@@ -1816,7 +1835,7 @@ class TestBkApmTraceDataSource:
                 "size": 1,
                 "sort": [{"end_time": "desc"}],
             },
-            "table_id": "2_bkapm_trace_app",
+            "table_id": "2_bkapm.trace_app",
             "use_full_index_names": True,
         }
 
@@ -1839,5 +1858,26 @@ class TestBkApmTraceDataSource:
                 "time": "1724350531000",
                 "trace_id": "7253273218cd0ae249eed00351918fef",
                 "trace_state": "g=w:1;s:5;r:4",
+            }
+        ]
+
+        assert data_source.to_unify_query_config() == [
+            {
+                "driver": "influxdb",
+                "data_source": "bkapm",
+                "table_id": "2_bkapm_trace_app",
+                "reference_name": "a",
+                "field_name": "",
+                "time_field": "end_time",
+                "dimensions": [],
+                "order_by": [],
+                'query_string': '*',
+                "conditions": {
+                    "field_list": [{'field_name': 'parent_span_id', 'op': 'eq', 'value': ['']}],
+                    "condition_list": [],
+                },
+                "function": [],
+                "time_aggregation": {},
+                "keep_columns": select,
             }
         ]

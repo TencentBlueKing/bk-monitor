@@ -1165,17 +1165,23 @@ class CollectorPluginCreateSerializer(MultiAttrCheckSerializer, serializers.Mode
         if not attrs.get("bk_biz_id"):
             attrs["bk_biz_id"] = 0
 
+        is_create_storage = attrs.get("is_create_storage", True)
+        if is_create_storage:
+            self._check_multi_attrs(
+                attrs,
+                "retention",
+                "allocation_min_days",
+                "storage_replies",
+                "storage_shards_nums",
+                "storage_shards_size",
+            )
+
         # 不允许独立存储或有dataid时
         is_allow_alone_storage = attrs.get("is_allow_alone_storage", True)
         if not is_allow_alone_storage or self._is_create_data_id(attrs):
             self._check_multi_attrs(
                 attrs,
                 "storage_cluster_id",
-                "retention",
-                "allocation_min_days",
-                "storage_replies",
-                "storage_shards_nums",
-                "storage_shards_size",
             )
 
         # 不允许独立清洗规则或有dataid时
@@ -1474,6 +1480,8 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
+    sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
+    target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
@@ -1716,3 +1724,11 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
     collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
     operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
     operation_params = serializers.DictField(label=_("额外的元数据"), required=False)
+
+
+class ProxyHostSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+
+
+class UpdateAliasSettingsSerializers(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)

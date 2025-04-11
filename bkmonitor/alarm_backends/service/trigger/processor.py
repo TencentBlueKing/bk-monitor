@@ -109,7 +109,7 @@ class TriggerProcessor(object):
             )
             metrics.PROCESS_BIG_LATENCY.labels(
                 strategy_id=self.strategy_id,
-                module="access_detect",
+                module="detect_trigger",
                 bk_biz_id=self.strategy.bk_biz_id,
                 strategy_name=self.strategy.name,
             ).observe(max_latency)

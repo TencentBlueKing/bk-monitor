@@ -31,7 +31,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, AlgorithmModel, MetricListCache
 from bkmonitor.strategy.new_strategy import parse_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
-from constants.alert import CLUSTER_PATTERN
+from constants.alert import CLUSTER_PATTERN, EventSeverity
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS
 from core.drf_resource import api
@@ -566,6 +566,7 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["type"] = "aiops-dimension-lint"
             base_graph_panel["subTitle"] = " "
             base_graph_panel["anomaly_score"] = round(float(dimension["score"]), 2)
+            base_graph_panel["anomaly_level"] = generate_anomaly_level(base_graph_panel["anomaly_score"])
             base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
             base_graph_panel["targets"][0]["alias"] = ""
             base_graph_panel["targets"][0]["data"]["id"] = alert.id
@@ -580,6 +581,9 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["title"] = "_".join(
                 map(lambda x: f"{dim_mappings.get(x, x)}: {dimension['root'][x]}", dimension_keys)
             )
+            base_graph_panel["dimensions"] = {
+                dim_mappings.get(key, key): value for key, value in dimension["root"].items()
+            }
             base_graph_panel["anomaly_dimension_class"] = "&".join(dimension_keys)
             for condition_key in dimension_keys:
                 condition_value = dimension["root"][condition_key]
@@ -749,6 +753,7 @@ class DimensionDrillManager(AIOPSManager):
                 [
                     {
                         "anomaly_score": round(anomaly_score, 2),
+                        "anomaly_level": generate_anomaly_level(round(anomaly_score, 2)),
                         "is_anomaly": distribution_item["is_anomaly"],
                         "dimension_details": distribution_item["details"],
                     }
@@ -775,11 +780,14 @@ class DimensionDrillManager(AIOPSManager):
         :param dimension_keys: 维度列表
         :param dimension_data: 异常维度数据
         """
+        dimensions = dict(zip(dimension_keys, dimension_data[0]))
         return {
-            "id": cls.generate_id_by_dimension_dict(dict(zip(dimension_keys, dimension_data[0]))),
+            "id": cls.generate_id_by_dimension_dict(dimensions),
+            "dimensions": dimensions,
             "dimension_value": "|".join(dimension_data[0]),
             "metric_value": float(dimension_data[1]) if not math.isnan(float(dimension_data[1])) else "NaN",
             "anomaly_score": max(round(float(dimension_data[2]), 2), 0),  # 如果异常分值小于0，说明维度是正常的，则取0来作展示
+            "anomaly_level": generate_anomaly_level(max(round(float(dimension_data[2]), 2), 0)),
         }
 
     def is_enable(self):
@@ -1065,6 +1073,7 @@ class RecommendMetricManager(AIOPSManager):
                 base_graph_panel["title"] = "_".join(
                     map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
                 )
+                base_graph_panel["dimensions"] = dimensions
                 base_graph_panel["subTitle"] = metric_name
                 base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
                 base_graph_panel["recommend_info"] = recommend_info
@@ -1201,3 +1210,18 @@ def parse_anomaly(anomaly_str, config):
         """
         result.append(item)
     return result
+
+
+def generate_anomaly_level(anomaly_score) -> str:
+    """根据异常分值生成异常级别
+
+    :param anomaly_score: 异常分值
+    :return: 异常级别
+    """
+    if anomaly_score >= 0.8:
+        return EventSeverity.FATAL
+
+    if anomaly_score >= 0.2:
+        return EventSeverity.WARNING
+
+    return EventSeverity.REMIND

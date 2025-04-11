@@ -324,24 +324,24 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.getPanelData();
   }
 
-  @Watch('refleshInterval')
+  @Watch('refreshInterval')
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
-      if (this.inited) {
+    this.refreshIntervalInstance = window.setInterval(() => {
+      if (this.initialized) {
         this.refreshTopoLayout = false;
         this.needCache = false;
         this.selectedServiceName = '';
         this.expanded = [];
         this.getPanelData();
       }
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
   handleRefreshImmediateChange(v: string) {
     if (v) {
@@ -361,7 +361,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.beforeGetPanelData(start_time, end_time);
     this.handleLoadingChange(true);
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,

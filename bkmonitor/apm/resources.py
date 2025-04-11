@@ -12,6 +12,7 @@ import copy
 import datetime
 import json
 import logging
+import time
 
 import pytz
 from django.conf import settings
@@ -1394,6 +1395,13 @@ class QueryLogRelationByIndexSetIdResource(Resource):
     class RequestSerializer(serializers.Serializer):
         index_set_id = serializers.IntegerField()
 
+        # bk_data_id，bk_biz_id，start_time，end_time 等参数用来限定自动关联范围
+        # 索引集对应采集ID, 不一定有，这里只做尽可能的关联
+        bk_data_id = serializers.IntegerField(required=False, label=_("索引集对应采集ID"), default=None)
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        start_time = serializers.IntegerField(required=False, label="关联开始时间", default=None, allow_null=True)
+        end_time = serializers.IntegerField(required=False, label="关联结束时间", default=None, allow_null=True)
+
     def perform_request(self, data):
         from apm_web.models import LogServiceRelation
 
@@ -1427,6 +1435,38 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 "bk_biz_id": relate_ds.bk_biz_id,
                 "app_name": relate_ds.app_name,
             }
+
+        # Step: 通过 Pod / Host 的自动关联
+        bk_data_id = data.get("bk_data_id")
+        if bk_data_id:
+            start_time = data.get("start_time")
+            end_time = data.get("end_time")
+            one_hour_seconds = 3600
+            if not start_time or not end_time:
+                # 取最近一小时的关联关系
+                end_time = int(time.time())
+                start_time = end_time - one_hour_seconds
+            if end_time - start_time > one_hour_seconds:
+                # 防止时间范围太大，导致接口查询过慢
+                start_time = end_time - one_hour_seconds
+            response = api.unify_query.query_multi_resource_range(
+                query_list=[
+                    {
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "target_type": "apm_service_instance",
+                        "source_info": {"bk_data_id": str(bk_data_id)},
+                        "source_type": "datasource",
+                        "step": f"{end_time - start_time}s",
+                        "path_resource": ["datasource", "pod", "apm_service_instance"],
+                    }
+                ]
+            )
+            if response:
+                for each_data in response.get("data", []):
+                    for target in each_data.get("target_list", []):
+                        for item in target.get("items", []):
+                            return {"bk_biz_id": data.get("bk_biz_id"), "app_name": item["apm_application_name"]}
 
         return {}
 

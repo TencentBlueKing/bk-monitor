@@ -573,7 +573,7 @@ class EtlStorage(object):
                 field["option"]["es_norms"] = False
 
         # 别名配置
-        if alias_settings:
+        if alias_settings is not None:
             query_alias_settings = []
             for item in alias_settings:
                 field_alias = {

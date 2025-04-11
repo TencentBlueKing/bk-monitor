@@ -146,6 +146,22 @@ class _MonitorApi(object):
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
+        self.search_alert = DataAPI(
+            method="POST",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "search_alert/",
+            module=self.MODULE,
+            description="查询告警",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+        )
+        self.get_alert_detail = DataAPI(
+            method="GET",
+            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_alert_detail/",
+            module=self.MODULE,
+            description="获取告警详情",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+        )
 
 
 MonitorApi = _MonitorApi()

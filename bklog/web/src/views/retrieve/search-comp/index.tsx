@@ -337,7 +337,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 改变条件时 更新路由参数
-  setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
+  setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null, isPromise = false) {
     const { params, query } = this.$route;
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
@@ -368,7 +368,18 @@ export default class SearchComp extends tsc<IProps> {
       query: filterQuery,
     };
     if (linkAdditionList) return this.$router.resolve(routeData).href;
-    this.$router.replace(routeData);
+    if (!isPromise) return this.$router.replace(routeData);
+    // 如果相同，直接返回一个 resolved 的 Promise
+    if (
+      this.$route.name === routeData.name &&
+      JSON.stringify(this.$route.params) === JSON.stringify(routeData.params) &&
+      JSON.stringify(this.$route.query) === JSON.stringify(routeData.query)
+    ) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      this.$router.replace(routeData, resolve, reject);
+    });
   }
 
   // 获取有效的字段条件字符串
@@ -415,7 +426,7 @@ export default class SearchComp extends tsc<IProps> {
     }
     const operatorItem = findOperatorItem ?? {}; // 找不到则是ip选择器
     // 空字符串切割会时会生成一个带有空字符串的数组 空字符串应该使用空数组
-    const inputValueList = value !== '' ? value.toString().split(',') : [];
+    const inputValueList = value !== '' ? [value.toString()] : [];
     // 检查条件列表中是否存在具有相同操作符和字段ID的条件
     const isExistCondition = this.conditionList.some(item => item.operator === operator && item.id === field);
     // 获取条件列表中的最后一个条件

@@ -123,6 +123,21 @@ export default defineComponent({
     const isEmpty = ref(true);
     const dataType = ref('');
     const dataTypeList = ref<DataTypeItem[]>([]);
+    const aggMethod = ref('');
+    const aggMethodList = ref<DataTypeItem[]>([
+      {
+        key: 'AVG',
+        name: 'AVG',
+      },
+      {
+        key: 'SUM',
+        name: 'SUM',
+      },
+      {
+        key: 'LAST',
+        name: 'LAST',
+      }
+    ]);
     /* 当前选择的文件 */
     const curFileInfo = ref(null);
     /** 查询参数 */
@@ -154,8 +169,16 @@ export default defineComponent({
       }
     }
 
-    function handleDataTypeChange(v: string) {
-      dataType.value = v;
+    function handleDataTypeChange(v: string, type?: string) {
+      (type === 'agg' ? aggMethod : dataType).value = v;
+      if (type === 'agg') {
+        aggMethod.value = v
+      } else {
+        dataType.value = v;
+        // 切换数据类型时，汇聚方法需要切换成后端给的值
+        aggMethod.value = dataTypeList.value.find(item => item.key === v).default_agg_method || 'AVG';
+      }
+      // dataType.value = v;
       handleQuery();
     }
 
@@ -264,6 +287,7 @@ export default defineComponent({
           service_name = '',
           start = 'now-15m',
           end = 'now',
+          agg_method,
           data_type,
           filter_labels = {},
           diff_filter_labels = {},
@@ -293,6 +317,7 @@ export default defineComponent({
           timeRange: [start, end],
         };
         dataType.value = data_type;
+        aggMethod.value = agg_method;
         handleAppServiceChange(app_name, service_name);
       }
     }
@@ -320,6 +345,7 @@ export default defineComponent({
           return pre;
         }, {}),
         data_type: dataType.value,
+        agg_method: aggMethod.value,
         ...(type === SearchType.Upload ? uploadParams : profilingParams),
       };
     }
@@ -366,6 +392,8 @@ export default defineComponent({
       const target = dataTypeList.value.some(item => item.key === dataType.value);
       if (!target) {
         dataType.value = dataTypeList.value[0]?.key || '';
+        // url参数没带aggMethod时取后端给的default_agg_method,
+        aggMethod.value = dataTypeList.value[0]?.default_agg_method || 'AVG';
       }
     }
 
@@ -387,6 +415,7 @@ export default defineComponent({
       t,
       isEmpty,
       dataType,
+      aggMethod,
       searchState,
       canQuery,
       toolsFormData,
@@ -396,6 +425,7 @@ export default defineComponent({
       queryParams,
       isFull,
       dataTypeList,
+      aggMethodList,
       selectServiceData,
       startAutoQueryTimer,
       handleToolFormDataChange,
@@ -422,6 +452,8 @@ export default defineComponent({
       if (this.searchState.formData.type === SearchType.Upload) {
         return (
           <UploadRetrievalView
+            aggMethod={this.aggMethod}
+            aggMethodList={this.aggMethodList}
             dataType={this.dataType}
             dataTypeList={this.dataTypeList}
             formData={this.searchState.formData}
@@ -473,10 +505,13 @@ export default defineComponent({
 
       return (
         <ProfilingRetrievalView
+          aggMethod={this.aggMethod}
+          aggMethodList={this.aggMethodList}
           dataType={this.dataType}
           dataTypeList={this.dataTypeList}
           formData={this.searchState.formData}
           queryParams={this.queryParams}
+          onUpdate:aggMethod={event => this.handleDataTypeChange(event, 'agg')}
           onUpdate:dataType={this.handleDataTypeChange}
         />
       );

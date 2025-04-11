@@ -66,6 +66,10 @@ export default defineComponent({
       type: String,
       default: '0#0.0.0.0',
     },
+    entityName: {
+      type: String,
+      default: '',
+    },
     content: {
       type: String,
       default: '',
@@ -75,7 +79,7 @@ export default defineComponent({
       default: () => {},
     },
   },
-  emits: ['toDetail', 'hideToolTips'],
+  emits: ['toDetail', 'hideToolTips', 'collapseResource'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -338,6 +342,7 @@ export default defineComponent({
               cursor: 'pointer', // 手势类型
               r: 20, // 圆半径
               ...nodeAttrs.groupAttrs,
+              fill: isRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
             },
             name: 'resource-node-shape',
           });
@@ -362,6 +367,15 @@ export default defineComponent({
               stroke: 'rgba(5, 122, 234, 1)',
             },
             name: 'resource-node-running',
+          });
+          group.addShape('circle', {
+            attrs: {
+              lineWidth: 0,
+              cursor: 'pointer',
+              r: 27,
+              stroke: '#3a84ff4d',
+            },
+            name: 'topo-node-running-shadow',
           });
           if (aggregated_nodes?.length) {
             group.addShape('rect', {
@@ -403,7 +417,7 @@ export default defineComponent({
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'pointer',
-              text: accumulatedWidth(entity.entity_type),
+              text: accumulatedWidth(entity?.properties?.entity_show_type || entity.entity_type),
               fontSize: 10,
               ...nodeAttrs.textNameAttrs,
             },
@@ -440,6 +454,7 @@ export default defineComponent({
             });
           } else if (name === 'running') {
             const runningShape = group.find(e => e.get('name') === 'resource-node-running');
+            const runningShadowShape = group.find(e => e.get('name') === 'topo-node-running-shadow');
             const rootBorderShape = group.find(e => e.get('name') === 'resource-node-root-border');
             if (value) {
               rootBorderShape?.attr({
@@ -448,6 +463,11 @@ export default defineComponent({
               runningShape.attr({
                 lineWidth: 3,
                 r: 24,
+                strokeOpacity: 1,
+              });
+              runningShadowShape.attr({
+                lineWidth: 3,
+                r: 27,
                 strokeOpacity: 1,
               });
             } else {
@@ -459,6 +479,12 @@ export default defineComponent({
                 cursor: 'pointer', // 手势类型
                 r: 22, // 圆半径
                 stroke: 'rgba(5, 122, 234, 1)',
+              });
+              runningShadowShape.attr({
+                lineWidth: 0,
+                cursor: 'pointer',
+                r: 27,
+                stroke: '#3a84ff4d',
               });
             }
           } else if (name === 'dark') {
@@ -754,7 +780,7 @@ export default defineComponent({
                   text: cfg.groupName,
                   fontSize: 12,
                   fontWeight: 400,
-                  fill: '#63656E',
+                  fill: '#979BA5',
                 },
                 name: 'resource-combo-title',
               });
@@ -767,8 +793,7 @@ export default defineComponent({
                 textAlign: 'left',
                 text: cfg.title,
                 fontSize: 12,
-                fontWeight: 700,
-                fill: '#fff',
+                fill: '#EAEBF0',
               },
               name: 'resource-combo-text',
             });
@@ -782,7 +807,7 @@ export default defineComponent({
                   text: cfg.anomaly_count,
                   fontSize: 12,
                   fontWeight: 700,
-                  fill: '#F55555',
+                  fill: '#FF6666',
                 },
                 name: 'resource-combo-text',
               });
@@ -796,7 +821,7 @@ export default defineComponent({
                 text: cfg.subTitle,
                 fontSize: 12,
                 fontWeight: 700,
-                fill: '#979BA5',
+                fill: '#EAEBF0',
               },
               name: 'resource-combo-count-text',
             });
@@ -805,11 +830,22 @@ export default defineComponent({
               attrs: {
                 x: -w / 2 + 80,
                 y: -comboxHeight / 2 - 26,
-                width: 2,
+                width: 1,
                 height: comboxHeight + 40,
-                fill: 'rgba(0, 0, 0, 0.3)',
+                fill: '#14161A',
               },
               name: 'resource-combo-bg',
+            });
+            group.addShape('rect', {
+              zIndex: 100,
+              attrs: {
+                x: -w / 2 - 60,
+                y: comboxHeight / 2 + 14, // 定位在combo底部
+                width: w + 120,
+                height: 1,
+                fill: '#14161A',
+              },
+              name: 'resource-combo-bottom-border',
             });
             return keyShape;
           },
@@ -1186,15 +1222,16 @@ export default defineComponent({
           style: {
             cursor: 'pointer',
             lineAppendWidth: 15,
-            endArrow: isInvoke
-              ? {
-                  path: Arrow.triangle(12, 12, 0),
-                  d: 0,
-                  fill: color,
-                  stroke: color,
-                  lineDash: [0, 0],
-                }
-              : false,
+            endArrow:
+              isInvoke && is_anomaly
+                ? {
+                    path: Arrow.triangle(12, 12, 0),
+                    d: 0,
+                    fill: color,
+                    stroke: color,
+                    lineDash: [0, 0],
+                  }
+                : false,
             // fill: isInvoke ? '#F55555' : '#63656E',
             stroke: color,
             lineWidth: is_anomaly ? 2 : 1,
@@ -1285,6 +1322,8 @@ export default defineComponent({
                   e.attr({ x: -maxWidth / 2 - 8 + (model.anomaly_count ? 10 : 0) });
                 } else if (e.get('name') === 'resource-combo-bg') {
                   e.attr({ x: -maxWidth / 2 + 80 });
+                } else if (e.get('name') === 'resource-combo-bottom-border') {
+                  e.attr({ x: -maxWidth / 2 - 60 });
                 } else if (e.get('name') !== 'resource-combo-shape') {
                   e.attr({ x: -maxWidth / 2 - 8 });
                 } else {
@@ -1479,6 +1518,9 @@ export default defineComponent({
         </Exception>
       );
     };
+    const handleCollapseResource = () => {
+      emit('collapseResource');
+    };
     return {
       graphRef,
       tooltipsRef,
@@ -1491,6 +1533,7 @@ export default defineComponent({
       graph,
       exceptionData,
       handleException,
+      handleCollapseResource,
     };
   },
   render() {
@@ -1501,6 +1544,23 @@ export default defineComponent({
           color='#292A2B'
           loading={this.loading}
         >
+          <div class='graph-title'>
+            <span class='graph-title_label'>{this.$t('从属关系')}</span>
+            {this.entityName && <span class='graph-title_line' />}
+            <span
+              key={this.entityName}
+              class='graph-title_value'
+              v-overflowText={{
+                text: this.entityName,
+              }}
+            >
+              {this.entityName}
+            </span>
+
+            <span onClick={this.handleCollapseResource}>
+              <i class='icon-monitor icon-gongneng-shouqi graph-title_icon' />
+            </span>
+          </div>
           {this.exceptionData.showException ? (
             this.handleException()
           ) : (

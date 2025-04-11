@@ -26,7 +26,7 @@
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { ChartLoadingMixin, ErrorMsgMixins, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../mixins';
+import { ChartLoadingMixin, ErrorMsgMixins, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMixin } from '../mixins';
 
 import type { ICommonCharts, IViewOptions, PanelModel } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -34,10 +34,10 @@ import type { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
 @Component
 export class CommonSimpleChart
-  extends Mixins<IntersectionMixin & ChartLoadingMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
+  extends Mixins<IntersectionMixin & ChartLoadingMixin & ToolsMixin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
     IntersectionMixin,
     ChartLoadingMixin,
-    ToolsMxin,
+    ToolsMixin,
     ResizeMixin,
     LegendMixin,
     ErrorMsgMixins
@@ -51,14 +51,14 @@ export class CommonSimpleChart
   // 宽度度
   width = 300;
   // 自动刷新定时任务
-  refleshIntervalInstance = null;
+  refreshIntervalInstance = null;
   // 是否配置初始化
-  inited = false;
+  initialized = false;
   // 顶层注入数据
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
   @InjectReactive('timezone') readonly timezone: string;
   @InjectReactive('queryData') readonly queryData!: IQueryData;
   /** 更新queryData */
@@ -90,18 +90,18 @@ export class CommonSimpleChart
   handleTimeRangeChange() {
     this.getPanelData();
   }
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
     if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
-      this.inited && this.getPanelData();
-    }, this.refleshInterval);
+    this.refreshIntervalInstance = window.setInterval(() => {
+      this.initialized && this.getPanelData();
+    }, this.refreshInterval);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
   handleRefreshImmediateChange(v: string) {
     if (v) this.getPanelData();
@@ -115,7 +115,7 @@ export class CommonSimpleChart
     return new Promise(resolve => {
       if (!this.isInViewPort()) {
         if (this.intersectionObserver) {
-          this.unregisterOberver();
+          this.unregisterObserver();
         }
         this.registerObserver(...p);
         resolve(false);
@@ -138,6 +138,9 @@ export class CommonSimpleChart
       } else {
         width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
       }
+      if (width <= 0) {
+        return undefined;
+      }
       const size = (timeRange[1] - timeRange[0]) / width;
       return size > 0 ? `${Math.ceil(size)}s` : undefined;
     }
@@ -154,11 +157,11 @@ export class CommonSimpleChart
       left: 0,
       top: 0,
     };
-    const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-    if (canSetBootom > 0) {
-      position.top = +pos[1] - Math.min(20, canSetBootom);
+    const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+    if (canSetBottom > 0) {
+      position.top = +pos[1] - Math.min(20, canSetBottom);
     } else {
-      position.top = +pos[1] + canSetBootom - 20;
+      position.top = +pos[1] + canSetBottom - 20;
     }
     const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
     if (canSetLeft > 0) {

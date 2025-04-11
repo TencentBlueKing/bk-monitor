@@ -100,6 +100,9 @@ class CheckErrorType:
     # 任务应该停止
     NEED_TO_STOP = "need_to_stop"
 
+    # 任务没有准备好
+    NOT_READY = "not_ready"
+
 
 class RTAccessBkDataStatus:
     # 等待中

@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@blueking/bkmonitor-cli": "5.0.0-beta.21",
+    "@blueking/bkmonitor-cli": "7.0.0-beta.4",
     "@blueking/stylelint-config": "0.0.3",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.13.0",
@@ -85,7 +85,7 @@
   "pnpm": {
     "overrides": {
       "@blueking/user-selector>vue": "v2-latest",
-      "bk-magic-vue": "2.5.9-beta.45",
+      "bk-magic-vue": "2.5.10-beta.3",
       "eslint": "$eslint",
       "monaco-editor": "0.44.0",
       "monaco-editor-webpack-plugin>monaco-editor": "0.44.0",

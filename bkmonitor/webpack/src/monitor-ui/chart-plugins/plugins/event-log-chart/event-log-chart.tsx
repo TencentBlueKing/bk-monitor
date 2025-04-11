@@ -103,7 +103,7 @@ class EventLogChart extends CommonSimpleChart {
       this.handleLoadingChange(true);
       this.emptyText = window.i18n.tc('加载中...');
       try {
-        this.unregisterOberver();
+        this.unregisterObserver();
         // const { startTime, endTime } = handleTimeRange(this.timeRange);
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
         const params = {
@@ -145,7 +145,7 @@ class EventLogChart extends CommonSimpleChart {
         );
         const res = await Promise.all(promiseList).catch(() => false);
         if (!!res) {
-          this.inited = true;
+          this.initialized = true;
           this.empty = false;
           this.columns = res[0].columns;
           this.tableData = res[0].data;
@@ -223,11 +223,11 @@ class EventLogChart extends CommonSimpleChart {
       <div class='event-log-chart'>
         <ChartTitle
           class='draggable-handle text-header'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         <div
           style={{ height: `${this.height}px` }}

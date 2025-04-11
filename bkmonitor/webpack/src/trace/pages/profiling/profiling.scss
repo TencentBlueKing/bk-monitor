@@ -76,4 +76,11 @@
       color: #63656e;
     }
   }
+
+  .bk-dialog-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: calc(100vh - 52px); // 52顶部标题高度
+  }
 }

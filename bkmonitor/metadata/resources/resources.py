@@ -23,6 +23,7 @@ from confluent_kafka import Consumer as ConfluentConsumer
 from confluent_kafka import KafkaError, KafkaException
 from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.utils.translation import gettext as _
@@ -50,7 +51,12 @@ from metadata.models.bcs import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
-from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.constants import (
+    DT_TIME_STAMP_NANO,
+    NANO_FORMAT,
+    NON_STRICT_NANO_ES_FORMAT,
+    DataIdCreatedFromSystem,
+)
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -320,13 +326,14 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
     def perform_request(self, request_data):
         table_id = request_data.pop("table_id")
-        query_alias_settings = request_data.pop("query_alias_settings", [])
+        query_alias_settings = request_data.pop("query_alias_settings", None)
         operator = request_data.get("operator", None)
 
-        if query_alias_settings:
+        if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
             try:
                 logger.info(
                     "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],"
@@ -884,6 +891,9 @@ class QueryEventGroupResource(Resource):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", default=[], child=serializers.IntegerField(label="数据源ID")
+        )
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -892,6 +902,7 @@ class QueryEventGroupResource(Resource):
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         event_group_name = validated_request_data["event_group_name"]
+        bk_data_ids = validated_request_data.get("bk_data_ids")
 
         if label is not None:
             query_set = query_set.filter(label=label)
@@ -901,6 +912,9 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        if bk_data_ids:
+            query_set = query_set.filter(bk_data_id__in=bk_data_ids)
 
         # 分页返回
         page_size = validated_request_data["page_size"]
@@ -1570,7 +1584,7 @@ class ListBCSClusterInfoResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        cluster_ids = serializers.ListField(label="集群ID", child=serializers.IntegerField(), required=False)
+        cluster_ids = serializers.ListField(label="集群ID", child=serializers.CharField(), required=False)
 
     def perform_request(self, validated_request_data):
         clusters = BCSClusterInfo.objects.all()
@@ -2284,3 +2298,146 @@ class QueryResultTableStorageDetailResource(Resource):
             bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
         )
         return source.get_detail()
+
+
+class NotifyEsDataLinkAdaptNano(Resource):
+    """
+    通知监控平台，V4日志链路变更为纳秒，需要进行特殊适配操作
+    新增dtEventTimeStampNanos，且其为 strict_date_optional_time_nanos||epoch_millis
+    调整原有的dtEventTimeStamp,其es_format变为 strict_date_optional_time_nanos||epoch_millis
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        force_rotate = serializers.BooleanField(required=False, default=False, label="是否强制轮转索引")
+
+    def perform_request(self, validated_request_data):
+        table_id = validated_request_data.get("table_id", None)
+        bk_data_id = validated_request_data.get("bk_data_id", None)
+        force_rotate = validated_request_data.get("force_rotate", False)
+
+        if not table_id and not bk_data_id:
+            raise ValidationError(_("table_id和bk_data_id不能同时为空"))
+
+        if table_id:
+            pass
+        elif bk_data_id:
+            table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+
+        logger.info("NotifyEsDataLinkAdaptNano: table_id->[%s] changes to date_nanos,will adapt metadata", table_id)
+
+        result_table = models.ResultTable.objects.filter(table_id=table_id).first()
+        if not result_table:
+            raise ValidationError(_("结果表不存在"))
+
+        # 更改元数据
+        try:
+            with transaction.atomic():
+                # ResultTableField新增 dtEventTimestampNanos
+                models.ResultTableField.objects.create(
+                    table_id=table_id,
+                    field_name=DT_TIME_STAMP_NANO,
+                    field_type='timestamp',
+                    description='数据时间',
+                    tag='dimension',
+                    is_config_by_user=True,
+                )
+
+                # 通过复制的方式,生成dtEventTimestampNanos的option
+                original_objects = models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp'
+                )
+
+                # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
+                for obj in original_objects:
+                    # 使用 get_or_create 以确保不会重复创建相同的记录
+                    new_obj, created = models.ResultTableFieldOption.objects.update_or_create(
+                        table_id=obj.table_id,
+                        field_name='dtEventTimeStampNanos',  # 更新 field_name
+                        name=obj.name,
+                        defaults={  # 如果记录不存在，才会使用 defaults 来创建新的记录
+                            'value_type': obj.value_type,
+                            'value': obj.value,
+                            'creator': obj.creator,
+                        },
+                    )
+                    logger.info(
+                        "NotifyEsDataLinkAdaptNano: create_field->[%s] for table_id->[%s] created->[%s]",
+                        new_obj.field_name,
+                        new_obj.table_id,
+                        created,
+                    )
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_type'
+                ).update(value=NANO_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStampNanos', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='time', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name='dtEventTimeStamp', name='es_type'
+                ).update(value='date')
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
+                table_id,
+                e,
+            )
+            raise e
+
+        # 索引轮转
+        logger.info(
+            "NotifyEsDataLinkAdaptNano: table_id->[%s] now try to rotate index,force_rotate->[%s]",
+            table_id,
+            force_rotate,
+        )
+
+        try:
+            es_storage = models.ESStorage.objects.get(table_id=table_id)
+            es_storage.update_index_v2(force_rotate=force_rotate)
+            es_storage.create_or_update_aliases(force_rotate=force_rotate)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]', table_id, e
+            )
+            raise e
+
+        return result_table.to_json().get('field_list')
+
+
+class GetDataLabelsMapResource(Resource):
+    """
+    获取结果表 ID 与其 DataLabel 的映射关系
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+        table_or_labels = serializers.ListField(
+            child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        data_labels_map = {}
+        table_or_labels: List[str] = validated_request_data["table_or_labels"]
+        data_labels_queryset = models.ResultTable.objects.filter(
+            Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]], data_label__in=table_or_labels)
+            | Q(table_id__in=table_or_labels)
+        ).values("table_id", "data_label")
+        for item in data_labels_queryset:
+            data_labels_map[item["table_id"]] = item["data_label"]
+            if item["data_label"]:
+                # 不为空才建立映射关系，避免写入 empty=empty，
+                data_labels_map[item["data_label"]] = item["data_label"]
+        return data_labels_map

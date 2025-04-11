@@ -5,6 +5,18 @@ from apps.log_search.handlers.search.chart_handlers import ChartHandler
 
 SEARCH_PARAMS = [
     {
+        "keyword": "title:\"Pyth?n\"",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
+        ],
+    },
+    {
+        "sql": "SELECT thedate, log, time ",
+        "keyword": "title:\"Pyth?n\" OR title:/[Pp]ython.*/ AND __ext.bcs_id: \"test\"",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
             {"field": "service", "operator": "!=", "value": ["php"]},
@@ -34,6 +46,9 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "keyword": "log : * and year:[2020 TO 2023] AND \"abc\" AND def",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
@@ -41,6 +56,9 @@ SEARCH_PARAMS = [
         ],
     },
     {
+        "keyword": "title:\"Python Programming\" AND (author:John AND author: 6 OR author: \"7\")",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
         "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
         "addition": [
             {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
@@ -49,9 +67,11 @@ SEARCH_PARAMS = [
     },
 ]
 
+
 SQL_RESULT = [
+    (f"{SQL_PREFIX} {SQL_SUFFIX}"),
     (
-        f"{SQL_PREFIX} "
+        "SELECT thedate, log, time "
         "WHERE (bk_host_id = '1' OR bk_host_id = '2')"
         " AND "
         "service != 'php'"
@@ -90,14 +110,15 @@ SQL_RESULT = [
         " AND "
         "(name = 'he''ll''o' OR name = 'world''')"
         " AND "
-        "(__ext['bcs_id'] = 'BCS-1' OR __ext['bcs_id'] = 'BCS-2')"
+        "(CAST(__ext['bcs_id'] AS TEXT) = 'BCS-1' OR CAST(__ext['bcs_id'] AS TEXT) = 'BCS-2')"
         " AND "
-        "(__ext['bcs_id'] != 'BCS-3' OR __ext['bcs_id'] != 'BCS-4')"
+        "(CAST(__ext['bcs_id'] AS TEXT) != 'BCS-3' OR CAST(__ext['bcs_id'] AS TEXT) != 'BCS-4')"
         " AND "
-        "(__ext['label']['component'] LIKE '%ds%' OR __ext['label']['component'] LIKE '%py%')"
+        "(CAST(__ext['label']['component'] AS TEXT) LIKE '%ds%'"
+        " OR "
+        "CAST(__ext['label']['component'] AS TEXT) LIKE '%py%')"
         " AND "
-        "__ext['label']['component'] NOT LIKE '%a%'"
-        f" {SQL_SUFFIX}"
+        "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
     ),
     (
         "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
@@ -110,8 +131,79 @@ SQL_RESULT = [
 ]
 
 
+WHERE_CLAUSE_CASE = [
+    "*",
+    "success",
+    "\"\"",
+    "\"002\" OR error",
+    "year:[2020 TO 2023]",
+    "title:/[Pp]ython.*/",
+    "title:Pyth?n",
+    "(name:John AND name: 6 OR name: \"7\") AND (python OR \"django\")",
+    "__ext.bcs_id: 1 OR __ext.bcs_id: \"ts\"",
+    "NOT log: \"ts\" AND -a : \"b\"",
+    "span_id:(6cee80d18 OR \"c866d58ac1\") AND (-log:\"a\" OR NOT a:b)",
+    "(index: >=200 OR index: <100) AND id: <10 AND age: >18",
+    "log: (1 OR \"abc\" OR \"xxx\" AND 111)",
+    "ID: (\"abc\" OR (\"cde\" AND \"ddd\"))",
+    "ID: ((\"a\" AND b) OR \"d\" AND 2 AND 3 AND (4 OR 5))",
+    "log: ((\"a\" OR (\"b\" OR \"c\")) AND \"d\") AND -name: test",
+    "log: ((\"a\" OR (\"b\" OR \"c\")) OR \"d\") AND -name: test",
+    "log: ((\"a\" AND b) OR \"c\" AND \"d\")",
+    "log: (\"a\" OR (\"b\" OR \"c\")) AND (1 OR 2 AND 3) OR \"f\" AND \"g\"",
+    "ID: (\"abc\" AND 5 OR 6 AND (\"cde\" AND \"ddd\") AND (1 AND 2))",
+    "ID: (\"abc\" OR 5 AND 6 AND (\"cde\" AND \"ddd\") AND (1 OR 2))",
+]
+WHERE_CLAUSE_RESULT = [
+    "log LIKE '%'",
+    "log LIKE '%success%'",
+    "log MATCH_PHRASE \"\"",
+    "log MATCH_PHRASE \"002\" OR log LIKE '%error%'",
+    "year BETWEEN 2020 AND 2023",
+    "title REGEXP '[Pp]ython.*'",
+    "title LIKE '%Pyth_n%'",
+    "(name LIKE '%John%' AND name LIKE '%6%' OR name = \"7\") AND (log LIKE '%python%' OR log MATCH_PHRASE \"django\")",
+    "CAST(__ext['bcs_id'] AS TEXT) LIKE '%1%' OR CAST(__ext['bcs_id'] AS TEXT) = \"ts\"",
+    "NOT log MATCH_PHRASE \"ts\" AND NOT a = \"b\"",
+    "(span_id LIKE '%6cee80d18%' OR span_id = \"c866d58ac1\") AND (NOT log MATCH_PHRASE \"a\" OR NOT a LIKE '%b%')",
+    "(index >=200 OR index <100) AND id <10 AND age >18",
+    "(log MATCH_PHRASE \"xxx\" AND log LIKE '%111%' OR (log LIKE '%1%' OR log MATCH_PHRASE \"abc\"))",
+    "((ID = \"cde\" AND ID = \"ddd\") OR ID = \"abc\")",
+    "((ID = \"a\" AND ID LIKE '%b%') OR ID = \"d\" AND ID LIKE '%2%' AND ID LIKE '%3%' AND "
+    "(ID LIKE '%4%' OR ID LIKE '%5%'))",
+    "((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") AND "
+    "log MATCH_PHRASE \"d\" AND NOT name LIKE '%test%'",
+    "(((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") OR "
+    "log MATCH_PHRASE \"d\") AND NOT name LIKE '%test%'",
+    "((log MATCH_PHRASE \"a\" AND log LIKE '%b%') OR log MATCH_PHRASE \"c\" AND log MATCH_PHRASE \"d\")",
+    "((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") AND "
+    "(log LIKE '%1%' OR log LIKE '%2%' AND log LIKE '%3%') OR log MATCH_PHRASE \"f\" AND log MATCH_PHRASE \"g\"",
+    "(ID = \"abc\" AND ID LIKE '%5%' OR ID LIKE '%6%' AND (ID = \"cde\" AND ID = \"ddd\") AND "
+    "(ID LIKE '%1%' AND ID LIKE '%2%'))",
+    "(ID LIKE '%5%' AND ID LIKE '%6%' AND (ID = \"cde\" AND ID = \"ddd\") AND "
+    "(ID LIKE '%1%' OR ID LIKE '%2%') OR ID = \"abc\")",
+]
+
+
 class TestChart(TestCase):
     def test_generate_sql(self):
         for search_param, sql_result in zip(SEARCH_PARAMS, SQL_RESULT):
-            sql = ChartHandler.generate_sql(search_param)
-            self.assertEqual(sql, sql_result)
+            start_time = search_param["start_time"]
+            end_time = search_param["end_time"]
+            addition = search_param["addition"]
+            sql_param = search_param.get("sql")
+            keyword = search_param.get("keyword")
+            data = ChartHandler.generate_sql(
+                addition=addition,
+                start_time=start_time,
+                end_time=end_time,
+                sql_param=sql_param,
+                keyword=keyword,
+            )
+            self.maxDiff = None
+            self.assertEqual(data["sql"], sql_result)
+
+    def test_lucene_to_where_clause(self):
+        for where_clause_case, where_clause_result in zip(WHERE_CLAUSE_CASE, WHERE_CLAUSE_RESULT):
+            result = ChartHandler.lucene_to_where_clause(where_clause_case)
+            self.assertEqual(result, where_clause_result)

@@ -182,6 +182,24 @@ ADVANCED_OPTIONS = OrderedDict(
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
+        (
+            "APM_PROFILING_AGG_METHOD_MAPPING",
+            slz.DictField(
+                label="profiling汇聚方法映射配置",
+                default={
+                    "HEAP-SPACE": "AVG",
+                    "WALL-TIME": "SUM",
+                    "ALLOC-SPACE": "AVG",
+                    "ALLOC_SPACE": "AVG",
+                    "CPU-TIME": "SUM",
+                    "EXCEPTION-SAMPLES": "SUM",
+                    "CPU": "SUM",
+                    "INUSE_SPACE": "AVG",
+                    "DELAY": "AVG",
+                    "GOROUTINE": "AVG",
+                },
+            ),
+        ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
@@ -237,6 +255,8 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
+        ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
+        ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
         ("KAFKA_AUTO_COMMIT", slz.BooleanField(label="kafka是否自动提交", default=True)),
         ("MAX_BUILD_EVENT_NUMBER", slz.IntegerField(label="单次告警生成任务处理的event数量", default=0)),
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
@@ -343,6 +363,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
+        ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
     ]
 )
 
@@ -504,10 +525,16 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
+        # 事件检索新版灰度配置
+        ("EVENT_V2_BIZ_LIST", slz.ListField(label=_("事件检索新版灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
+        # 新版自定义时序灰度业务列表
+        ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
+        # 事件中心AIOps功能灰度业务列表
+        ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]
 )
 

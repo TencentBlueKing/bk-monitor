@@ -51,7 +51,7 @@ export default class TextUnit extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
-    this.unregisterOberver();
+    this.unregisterObserver();
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
@@ -96,7 +96,7 @@ export default class TextUnit extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.emptyText = window.i18n.tc('查无数据');
       } else {
@@ -116,11 +116,11 @@ export default class TextUnit extends CommonSimpleChart {
       <div class='text-unit'>
         <ChartTitle
           class='draggable-handle text-header'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         <div class='text-wrapper'>
           {!this.empty && this.series?.value ? (

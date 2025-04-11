@@ -21,6 +21,7 @@ from apm_web.models import Application, CMDBServiceRelation
 from apm_web.topo.handle.relation.define import (
     SourceK8sPod,
     SourceService,
+    SourceServiceInstance,
     SourceSystem,
 )
 from apm_web.topo.handle.relation.query import RelationQ
@@ -101,20 +102,29 @@ class HostHandler:
                         }
                     )
             extra_ip_info = defaultdict(dict)
-            relation_qs = []
-            for path_item in [SourceSystem, SourceK8sPod]:
-                relation_qs += RelationQ.generate_q(
-                    bk_biz_id=bk_biz_id,
-                    source_info=SourceService(
-                        apm_application_name=app_name,
-                        apm_service_name=service_name,
-                    ),
-                    target_type=SourceSystem,
-                    start_time=start_time,
-                    end_time=end_time,
-                    path_resource=[path_item],
-                )
+            relation_qs = RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceSystem,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[SourceService, SourceServiceInstance, SourceSystem],
+            )
 
+            relation_qs += RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceSystem,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[SourceService, SourceServiceInstance, SourceK8sPod],
+            )
             system_relations = RelationQ.query(relation_qs)
             for r in system_relations:
                 for n in r.nodes:
@@ -164,6 +174,7 @@ class HostHandler:
                                 }
                             )
                 return cmdb_host_instances
+
 
         query_apm_host_instances = cls.list_ignore_exception(
             get_hosts_from_cmdb_and_topo, (bk_biz_id, app_name, service_name)
