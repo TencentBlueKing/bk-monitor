@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, provide } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
@@ -44,7 +44,6 @@ export default defineComponent({
 
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle } = useAppInit();
     const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
-    provide('isStartTextEllipsis', isStartTextEllipsis);
 
     return () => (
       <div

@@ -59,12 +59,12 @@ import {
   BkLogGlobalStorageKey,
 } from './default-values.ts';
 import globals from './globals';
+import { isAiAssistantActive } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-import { isAiAssistantActive } from './helper';
 
 Vue.use(Vuex);
 const stateTpl = {
@@ -161,7 +161,6 @@ const stateTpl = {
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
-  showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
   clearSearchValueNum: 0,
   // 存放接口报错信息的对象
   apiErrorInfo: {},
@@ -725,10 +724,6 @@ const store = new Vuex.Store({
     },
     updateTableLineIsWrap(state, payload) {
       state.storage.tableLineIsWrap = payload;
-    },
-    updateShowFieldAlias(state, payload) {
-      window.localStorage.setItem('showFieldAlias', payload);
-      state.showFieldAlias = payload;
     },
     /** 初始化表格宽度 为false的时候会按照初始化的情况来更新宽度 */
     updateIsSetDefaultTableColumn(state, payload) {

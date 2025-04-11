@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import Vue, { computed, ref, nextTick, inject } from 'vue';
+  import Vue, { computed, ref, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -63,7 +63,7 @@
 
   const unionIndexList = computed(() => store.state.unionIndexList);
   const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const isStartTextEllipsis = inject('isStartTextEllipsis');
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
   /** 字段配置管理组件所需参数 */
   const retrieveParams = computed(() => store.getters.retrieveParams);

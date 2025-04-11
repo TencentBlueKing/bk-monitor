@@ -55,8 +55,8 @@
     <div class="result-main">
       <result-chart
         :date-picker-value="datePickerValue"
-        :retrieve-params="retrieveParams"
         :index-set-item="indexSetItem"
+        :retrieve-params="retrieveParams"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
       />
@@ -66,6 +66,7 @@
         v-bind="$attrs"
         v-on="$listeners"
         :date-picker-value="datePickerValue"
+        :index-set-item="indexSetItem"
         :index-set-list="indexSetList"
         :is-page-over="isPageOver"
         :kv-show-fields-list="kvShowFieldsList"
@@ -74,7 +75,6 @@
         :retrieve-params="retrieveParams"
         :table-list="tableList"
         :total-count="totalCount"
-        :index-set-item="indexSetItem"
       />
     </div>
     <!-- 滚动到顶部 -->

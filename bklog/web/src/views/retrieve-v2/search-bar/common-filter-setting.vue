@@ -155,7 +155,7 @@
   </bk-popover>
 </template>
 <script setup>
-  import { ref, computed, nextTick, inject } from 'vue';
+  import { ref, computed, nextTick } from 'vue';
 
   import { getRegExp } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -164,7 +164,6 @@
 
   import { excludesFields } from './const.common';
 
-  const isStartTextEllipsis = inject('isStartTextEllipsis');
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
@@ -172,6 +171,7 @@
   const tippyOptions = {
     offset: '0, 4',
   };
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);

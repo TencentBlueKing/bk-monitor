@@ -13,7 +13,6 @@
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
 
-          
           <bk-select
             style="width: 174px"
             class="rtl-text"
@@ -85,7 +84,7 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, defineExpose, watch, inject } from 'vue';
+  import { computed, ref, defineExpose, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
@@ -101,7 +100,7 @@
       default: false,
     },
   });
-  const isStartTextEllipsis = inject('isStartTextEllipsis');
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
     animation: 150,

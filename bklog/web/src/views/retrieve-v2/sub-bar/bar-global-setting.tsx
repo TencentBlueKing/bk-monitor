@@ -79,8 +79,8 @@ export default defineComponent({
     const textEllipsisDir = ref('end');
 
     const initDefaultSettings = () => {
-      showFieldAlias.value = store.state.showFieldAlias ?? Boolean(localStorage.getItem('showFieldAlias')) ?? true;
-      textEllipsisDir.value = store.state.storage.textEllipsisDir ?? localStorage.getItem('textEllipsisDir') ?? 'end';
+      showFieldAlias.value = store.state.storage.showFieldAlias;
+      textEllipsisDir.value = store.state.storage.textEllipsisDir;
     };
 
     onMounted(() => {
@@ -157,10 +157,11 @@ export default defineComponent({
      *
      */
     function handleConfirm() {
-      localStorage.setItem('showFieldAlias', showFieldAlias.value + '');
-      store.commit('updateShowFieldAlias', showFieldAlias.value);
       // 存入localstorage
-      store.commit('updateStorage', { textEllipsisDir: textEllipsisDir.value });
+      store.commit('updateStorage', {
+        showFieldAlias: showFieldAlias.value,
+        textEllipsisDir: textEllipsisDir.value,
+      });
       handlePopoverHide();
     }
 

@@ -396,7 +396,7 @@
         sortList: [], // 排序字段
         notTextTypeFields: [], // 字段类型不为 text 的字段
         fieldAliasMap: {},
-        showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+        showFieldAlias: this.$store.state.storage.showFieldAlias,
         tookTime: 0, // 耗时
         tableData: {}, // 表格结果
         bkmonitorUrl: false, // 监控主机详情地址
@@ -1689,8 +1689,9 @@
        */
       async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
         if (showFieldAlias !== undefined) {
+          // bklog\web\src\views\retrieve\result-comp\fields-setting.vue 中修改别名配置
           this.showFieldAlias = showFieldAlias;
-          window.localStorage.setItem('showFieldAlias', showFieldAlias);
+          this.$store.commit('updateStorage', { showFieldAlias });
         }
         await this.$nextTick();
         if (!isRequestFields) {

@@ -152,7 +152,7 @@ export const routeQueryKeys = [
   'unionList',
 ];
 
-export const BkLogGlobalStorageKey = 'bk_log_global_storage';
+export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export const getStorageOptions = () => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
@@ -185,7 +185,10 @@ export const getStorageOptions = () => {
       // 是否展开长字段
       isLimitExpandView: false,
 
-      // start | end | center
+      // 是否展示字段别名
+      showFieldAlias: true,
+
+      // 文本溢出（省略设置）start | end | center
       textEllipsisDir: 'end',
 
       // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
