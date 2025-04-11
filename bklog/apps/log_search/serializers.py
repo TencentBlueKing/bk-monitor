@@ -1051,3 +1051,18 @@ class AlertRecordSerializer(StrategyRecordSerializer):
 
 class LogRelatedInfoSerializer(serializers.Serializer):
     alert_id = serializers.IntegerField(label=_("告警ID"))
+
+
+class LogQuerySerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    grep_query = serializers.CharField(label=_("查询条件"), required=False)
+    grep_field = serializers.CharField(label=_("查询字段"), required=False)
+    begin = serializers.IntegerField(required=False, default=0)
+    size = serializers.IntegerField(required=False, default=10)
