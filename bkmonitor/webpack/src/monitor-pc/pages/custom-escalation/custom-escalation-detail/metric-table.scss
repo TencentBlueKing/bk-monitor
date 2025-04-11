@@ -109,7 +109,7 @@ $border-color: #d9d9d9;
       flex: 1;
       min-width: 0;
       // height: 508px;
-      height: calc(100% - 32px);
+      height: calc(100% - 40px);
       overflow: -moz-scrollbars-none; /* Firefox */
       overflow-y: scroll;
       scrollbar-width: none; /* Firefox 64+ */
@@ -130,8 +130,43 @@ $border-color: #d9d9d9;
         .bk-table {
           overflow: visible;
 
-          .bk-table-body-wrapper {
+          .bk-table-body-wrapper, .bk-table-header-wrapper {
             overflow: visible;
+            .bk-table-header {
+              border-top: 1px solid #dfe0e5;
+            }
+            .bk-table-empty-block {
+              border-right: 1px solid #dfe0e5;
+              border-left: 1px solid #dfe0e5;
+            }
+            .bk-table-header,.bk-table-body {
+              position: relative;
+              &:after {
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+              }
+              &:before {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+                z-index: 2;
+              }
+            }
+          }
+          &.bk-table-outer-border {
+            border: none;
+            &:after {
+              background-color: transparent;
+            }
           }
         }
 
@@ -234,7 +269,7 @@ $border-color: #d9d9d9;
         padding: 14px 16px;
         margin-top: -1px;
         border: 1px solid #dfe0e5;
-
+        min-width: 673px;
         .page-button {
           color: #4d4f56;
           background-color: #fff;
