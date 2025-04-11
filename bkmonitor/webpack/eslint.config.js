@@ -11,7 +11,7 @@ const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
 // const tailwind = require('eslint-plugin-tailwindcss');
 
 const OFF = 0;
-const WARNING = 1;
+// const WARNING = 1;
 const ERROR = 2;
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
@@ -382,6 +382,13 @@ module.exports = [
       'vue/html-self-closing': OFF,
       'vue/require-default-prop': OFF,
       'vue/attributes-order': OFF,
+    },
+  },
+  {
+    files: ['./*.js', 'public/**/*.js', 'webpack/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': OFF,
+      'codecc/license': OFF,
     },
   },
   // ...tailwind.configs['flat/recommended'],

@@ -63,19 +63,25 @@ class GetCustomTsMetricGroups(Resource):
         metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
 
         # 维度描述
+        hidden_dimensions = set()
         dimension_descriptions = {}
         # 公共维度
         common_dimensions = []
         for field in fields:
-            if field.type == CustomTSField.MetricType.DIMENSION:
-                dimension_descriptions[field.name] = field.description
-                if field.config.get("common", False):
-                    common_dimensions.append(
-                        {
-                            "name": field.name,
-                            "alias": field.description,
-                        }
-                    )
+            # 如果不是维度，则跳过
+            if field.type != CustomTSField.MetricType.DIMENSION:
+                continue
+
+            dimension_descriptions[field.name] = field.description
+
+            # 如果维度隐藏，则不展示
+            if field.config.get("hidden", False):
+                hidden_dimensions.add(field.name)
+                continue
+
+            # 如果维度公共，则添加到公共维度
+            if field.config.get("common", False):
+                common_dimensions.append({"name": field.name, "alias": field.description})
 
         # 指标分组
         metric_groups = defaultdict(list)
@@ -99,6 +105,7 @@ class GetCustomTsMetricGroups(Resource):
                         "dimensions": [
                             {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
                             for dimension in metric.config.get("dimensions", [])
+                            if dimension not in hidden_dimensions
                         ],
                     }
                 )

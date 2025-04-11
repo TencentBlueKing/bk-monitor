@@ -173,7 +173,10 @@ class UnifyQuery:
 
     def process_data_by_datasource(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         first_ds: DataSource = self.data_sources[0]
-        if (first_ds.data_source_label, first_ds.data_type_label) == (DataSourceLabel.BK_APM, DataTypeLabel.EVENT):
+        if (first_ds.data_source_label, first_ds.data_type_label) in [
+            (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
+        ]:
             records = first_ds.process_unify_query_data(records)
         return records
 

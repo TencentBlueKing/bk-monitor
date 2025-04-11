@@ -35,7 +35,7 @@ from bkmonitor.data_source import (
     load_data_source,
 )
 from bkmonitor.data_source.unify_query.query import UnifyQuery
-from bkmonitor.models import MetricListCache
+from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -1028,13 +1028,15 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             hosts = []
         host_id_to_name = {str(host.bk_host_id): host.display_name for host in hosts}
 
-        # 服务实例
-        service_instance_id_list = set()
+        service_instance_id_list = set()  # 服务实例
+        bcs_cluster_id_list = set()  # BCS集群
         for row in data:
             if row["dimensions"].get("bk_service_instance_id"):
                 service_instance_id_list.add(row["dimensions"]["bk_service_instance_id"])
             if row["dimensions"].get("bk_target_service_instance_id"):
                 service_instance_id_list.add(row["dimensions"]["bk_target_service_instance_id"])
+            if row["dimensions"].get("bcs_cluster_id"):
+                bcs_cluster_id_list.add(row["dimensions"]["bcs_cluster_id"])
         if service_instance_id_list:
             try:
                 service_instances = api.cmdb.get_service_instance_by_id(
@@ -1066,6 +1068,15 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     bk_obj_id_to_name[bk_obj_id] = node.bk_obj_name
                     bk_inst_id_to_name[bk_inst_id] = node.bk_inst_name
 
+        # BCS集群
+        if bcs_cluster_id_list:
+            bcs_clusters = BCSCluster.objects.filter(
+                bk_biz_id=params["bk_biz_id"], bcs_cluster_id__in=bcs_cluster_id_list
+            ).only("bcs_cluster_id", "name")
+            bcs_cluster_to_name = {cluster.bcs_cluster_id: cluster.name for cluster in bcs_clusters}
+        else:
+            bcs_cluster_to_name = {}
+
         # 字段映射
         field_mapper = {
             "bk_host_id": host_id_to_name,
@@ -1073,6 +1084,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             "bk_target_service_instance_id": service_instance_id_to_name,
             "bk_obj_id": bk_obj_id_to_name,
             "bk_inst_id": bk_inst_id_to_name,
+            "bcs_cluster_id": bcs_cluster_to_name,
         }
         for row in data:
             dimensions_translation = {}
