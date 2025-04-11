@@ -92,7 +92,7 @@ export const fieldTypeMap = {
 
 export interface IValue {
   id: string;
-  name: string; // 暂不显示 预留
+  name: string;
 }
 
 export interface IFilterField {
@@ -130,6 +130,8 @@ export interface IGetValueFnParams {
   where?: IWhereItem[];
   fields?: string[];
   queryString?: string;
+  search?: string;
+  field?: string;
 }
 export interface IOptionsInfo {
   count: 0;
@@ -183,6 +185,18 @@ export interface IFavoriteListItem {
   }[];
 }
 
+export interface IFieldItem {
+  /* 字段名 */
+  field: string;
+  /* 字段别名 */
+  alias: string;
+  /* 是否含有可选项选项 */
+  isEnableOptions: boolean;
+  /* 包含的method */
+  methods: IValue[];
+  type?: EFieldType;
+}
+
 export const RETRIEVAL_FILTER_PROPS = {
   fields: {
     type: Array as PropType<IFilterField[]>,
@@ -205,7 +219,7 @@ export const RETRIEVAL_FILTER_PROPS = {
     default: () => [],
   },
   queryString: {
-    type: String as PropType<string>,
+    type: String,
     default: '',
   },
   selectFavorite: {
@@ -217,11 +231,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     default: () => [],
   },
   residentSettingOnlyId: {
-    type: String as PropType<string>,
+    type: String,
     default: '',
   },
   dataId: {
-    type: String as PropType<string>,
+    type: String,
     default: '',
   },
   source: {
@@ -233,11 +247,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     default: EMode.ui,
   },
   isShowFavorite: {
-    type: Boolean as PropType<boolean>,
+    type: Boolean,
     default: false,
   },
   defaultShowResidentBtn: {
-    type: Boolean as PropType<boolean>,
+    type: Boolean,
     default: false,
   },
 };
@@ -269,7 +283,7 @@ export const UI_SELECTOR_PROPS = {
     default: () => [],
   },
   clearKey: {
-    type: String as PropType<string>,
+    type: String,
     default: '',
   },
 };
@@ -294,11 +308,11 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
     default: () => null,
   },
   show: {
-    type: Boolean as PropType<boolean>,
+    type: Boolean,
     default: false,
   },
   keyword: {
-    type: String as PropType<string>,
+    type: String,
     default: '',
   },
 };
@@ -306,3 +320,126 @@ export const UI_SELECTOR_OPTIONS_EMITS = {
   confirm: (_v: IFilterItem) => {},
   cancel: () => {},
 } as const;
+export const VALUE_TAG_SELECTOR_PROPS = {
+  value: {
+    type: Array as PropType<IValue[]>,
+    default: () => [],
+  },
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  autoFocus: {
+    type: Boolean,
+    default: false,
+  },
+  getValueFn: {
+    type: Function as PropType<TGetValueFn>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
+};
+export const VALUE_TAG_SELECTOR_EMITS = {
+  change: (_v: IValue[]) => {},
+  dropDownChange: (_v: boolean) => {},
+  selectorBlur: () => {},
+  selectorFocus: () => {},
+} as const;
+export const AUTO_WIDTH_INPUT_PROPS = {
+  value: {
+    type: String,
+    default: '',
+  },
+  fontSize: {
+    type: Number,
+    default: 12,
+  },
+  isFocus: {
+    type: Boolean,
+    default: false,
+  },
+  height: {
+    type: Number,
+    default: 22,
+  },
+  initWidth: {
+    type: Number,
+    default: 12,
+  },
+  placeholder: {
+    type: String,
+    default: '',
+  },
+};
+export const AUTO_WIDTH_INPUT_EMITS = {
+  focus: () => {},
+  blur: () => {},
+  input: (_v: string) => {},
+  enter: () => {},
+  backspace: () => {},
+  backspaceNull: () => {},
+} as const;
+export const VALUE_TAG_INPUT_PROPS = {
+  value: {
+    type: String,
+    default: '',
+  },
+  isOneRow: {
+    type: Boolean,
+    default: false,
+  },
+};
+export const VALUE_TAG_INPUT_EMITS = {
+  input: (_v: string) => {},
+  change: (_v: string) => {},
+  delete: (_e?: MouseEvent) => {},
+};
+export const VALUE_OPTIONS_PROPS = {
+  selected: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
+  search: {
+    type: String,
+    default: '',
+  },
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  isPopover: {
+    type: Boolean,
+    default: false,
+  },
+  show: {
+    type: Boolean,
+    default: false,
+  },
+  getValueFn: {
+    type: Function as PropType<TGetValueFn>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
+  width: {
+    type: Number,
+    default: 0,
+  },
+  needUpDownCheck: {
+    type: Boolean,
+    default: true,
+  },
+  noDataSimple: {
+    type: Boolean,
+    default: false,
+  },
+};
+export const VALUE_OPTIONS_EMITS = {
+  isChecked: (_v: boolean) => {},
+  select: (_v: IValue) => {},
+};
