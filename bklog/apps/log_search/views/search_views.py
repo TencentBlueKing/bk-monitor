@@ -81,6 +81,7 @@ from apps.log_search.serializers import (
     GetExportHistorySerializer,
     IndexSetCustomConfigSerializer,
     IndexSetFieldsConfigListSerializer,
+    LogQuerySerializer,
     OriginalSearchAttrSerializer,
     QueryStringSerializer,
     SearchAttrSerializer,
@@ -1849,3 +1850,15 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(QueryStringSerializer)
         querystring = QueryStringBuilder.to_querystring(params)
         return Response({"querystring": querystring})
+
+    @detail_route(methods=["POST"], url_path="grep_query")
+    def grep_query(self, request, index_set_id):
+        # TODO grep语法查询接口,待完善
+        params = self.params_valid(LogQuerySerializer)
+        data = ChartHandler(index_set_id).generate_where_clause(
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            addition=params["addition"],
+            grep_query=params.get("grep_query"),
+        )
+        return Response(data)
