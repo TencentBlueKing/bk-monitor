@@ -133,6 +133,25 @@
     padding-top: 40px;
     margin-top: -40px;
   }
+  .aiops-dimension-lint {
+    .title-name {
+      .title-txt {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+  .metrics-view-aiops {
+    .aiops-dimension-lint {
+      .title-name {
+        .title-txt {
+          direction: rtl;
+        }
+      }
+    }
+  }
 
   .select {
     animation: select 1s;

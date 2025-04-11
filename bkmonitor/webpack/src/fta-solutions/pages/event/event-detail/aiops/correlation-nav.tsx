@@ -48,7 +48,9 @@ interface IProps {
 export default class CorrelationNav extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) list: any[];
   @Prop({ type: Boolean, default: false }) isCorrelationMetrics: boolean;
+  @Prop({ type: String, default: '' }) type: string;
   @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
+  @Inject('currentModeConfig') currentModeConfig: {};
 
   /** 当前选中指标 */
   active: null | string = null;
@@ -70,6 +72,10 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
   handleActive(item) {
     this.setActive(item.metric_name);
     return item;
+  }
+  /** 是否为后位省略 */
+  get isBackEllipsis() {
+    return this.currentModeConfig[this.type] === 'back';
   }
   /** 切换展开收起 */
   handleToggleCollapse(activeAuto = false) {
@@ -121,7 +127,12 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                 onClick={() => this.handleActive(metric)}
               >
                 <span class={{ 'level-icon': !!metric.anomaly_level, [`level-${metric.anomaly_level}`]: true }} />
-                <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
+                <span
+                  class='classification-list-item-text'
+                  style={this.isBackEllipsis ? { direction: 'rtl' } : {}}
+                >
+                  {metric.metric_name_alias}
+                </span>
                 {(metric.totalPanels || []).length > 0 && (
                   <span class='classification-list-item-num'>{metric.totalPanels.length}</span>
                 )}
