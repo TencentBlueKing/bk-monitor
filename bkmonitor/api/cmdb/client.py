@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 
 import abc
 
-import six
 from django.conf import settings
 
 from bkm_space.errors import NoRelatedResourceError
@@ -37,7 +36,7 @@ __all__ = [
 ]
 
 
-class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
+class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     module_name = "cmdb"
     return_type = list
 
@@ -45,7 +44,7 @@ class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         """
         是否使用apigw
         """
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.ENABLE_MULTI_TENANT_MODE or settings.CMDB_USE_APIGW
 
     @property
     def base_url(self):
@@ -115,7 +114,7 @@ class SearchModule(CMDBBaseResource):
     def get_request_url(self, params: dict):
         if "bk_set_id" not in params:
             params = params.copy()
-            params["bk_set_id"] = ""
+            params["bk_set_id"] = 0
         return super().get_request_url(params)
 
 
@@ -170,7 +169,7 @@ class GetMainlineObjectTopo(CMDBBaseResource):
     def action(self):
         return "/api/v3/find/topomodelmainline" if self.use_apigw() else "/get_mainline_object_topo/"
 
-    method = "GET"
+    method = "POST"
 
 
 class ListServiceInstanceDetail(CMDBBaseResource):

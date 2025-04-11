@@ -1752,12 +1752,10 @@ class BkMonitorAlertCacheManager(BaseMetricCacheManager):
         for strategy in strategies:
             strategy_config = strategy_configs.get(strategy.id) or []
             strategy.alert_target_type = self.get_target_type(strategy, strategy_config)
-            strategy.public_dimensions = list(
-                reduce(
-                    lambda x, y: x & y,
-                    [set(getattr(item, "agg_dimension", [])) for item in strategy_config],
-                )
+            public_dimensions = reduce(
+                lambda x, y: x & y, [set(item.config.get("agg_dimension", [])) for item in strategy_config]
             )
+            strategy.public_dimensions = list(public_dimensions)
             if not self.is_composite(strategy_config):
                 yield strategy
 

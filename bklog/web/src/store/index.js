@@ -1157,18 +1157,22 @@ const store = new Vuex.Store({
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
 
-      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
-      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
-      const { datePickerValue } = state.indexItem;
-      const letterRegex = /[a-zA-Z]/;
-      const needTransform = datePickerValue.every(d => letterRegex.test(d));
+      // 如果是第一次请求
+      // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
+      if (!payload?.isPagination) {
+        // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+        // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+        const { datePickerValue } = state.indexItem;
+        const letterRegex = /[a-zA-Z]/;
+        const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
-      const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue, format)
-        : [state.indexItem.start_time, state.indexItem.end_time];
+        const [start_time, end_time] = needTransform
+          ? handleTransformToTimestamp(datePickerValue, format)
+          : [state.indexItem.start_time, state.indexItem.end_time];
 
-      if (needTransform) {
-        commit('updateIndexItem', { start_time, end_time });
+        if (needTransform) {
+          commit('updateIndexItem', { start_time, end_time });
+        }
       }
 
       if (!payload?.isPagination && payload.formChartChange) {
@@ -1189,6 +1193,8 @@ const store = new Vuex.Store({
       const searchUrl = !state.indexItem.isUnionIndex
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
+
+      const { start_time, end_time } = state.indexItem;
 
       const baseData = {
         bk_biz_id: state.bkBizId,

@@ -45,7 +45,6 @@ import { debounce } from 'throttle-debounce';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import type { BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
 
 import './flame-graph.scss';
 
@@ -54,7 +53,7 @@ export default defineComponent({
   name: 'FlameGraph',
   props: {
     data: {
-      type: Object as () => BaseDataType,
+      type: Object as () => IFlameGraphDataItem,
       default: () => {},
     },
     appName: {
@@ -144,10 +143,17 @@ export default defineComponent({
         isCompared: localIsCompared.value,
       });
     }
+    function hiddenLoading() {
+      nextTick(() => {
+        emit('update:loading', false);
+      });
+    }
     watch(
       [() => props.data, () => props.appName],
       debounce(16, async () => {
-        emit('update:loading', true);
+        if (!props.data) {
+          emit('update:loading', true);
+        }
         showException.value = false;
         chartInstance?.clear();
         chartInstance?.dispose();
@@ -177,7 +183,10 @@ export default defineComponent({
             }
             showException.value = false;
             await nextTick();
-            if (!chartRef.value?.clientWidth) return;
+            if (!chartRef.value?.clientWidth) {
+              hiddenLoading();
+              return;
+            }
             localIsCompared.value = props.isCompared;
             showException.value = false;
             profilingData.value = recursionData(data);
@@ -233,18 +242,18 @@ export default defineComponent({
                 contextMenuRect.value = { left: params.event.offsetX, top: params.event.offsetY };
                 showContextMenu.value = true;
               });
-              emit('update:loading', false);
+              hiddenLoading();
             }, 16);
             nextTick(() => {
-              emit('update:loading', false);
+              hiddenLoading();
             });
             return;
           }
           showException.value = true;
-          emit('update:loading', false);
+          hiddenLoading();
         } catch (e) {
-          console.error(e);
-          emit('update:loading', false);
+          console.warn(e);
+          hiddenLoading();
           showException.value = true;
         }
       }),
@@ -307,7 +316,9 @@ export default defineComponent({
       }
     );
     onBeforeUnmount(() => {
-      removeListener(wrapperRef.value, handleResizeGraph);
+      if (wrapperRef.value) {
+        removeListener(wrapperRef.value, handleResizeGraph);
+      }
     });
     return {
       chartRef,

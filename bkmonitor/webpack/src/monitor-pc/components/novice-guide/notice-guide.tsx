@@ -35,22 +35,22 @@ export interface IStepItem {
   title: string;
   content: string;
 }
-export interface INoticeCuideProps {
+export interface INoticeGuideProps {
   stepList: IStepItem[];
   defaultStep?: number;
 }
-interface INoticeCuideEvent {
-  onDone: void;
+interface INoticeGuideEvent {
+  onDone: undefined;
 }
 @Component
-export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEvent> {
+export default class NoticeGuide extends tsc<INoticeGuideProps, INoticeGuideEvent> {
   @Prop({ default: () => [] }) stepList: IStepItem[];
   @Prop({ default: 0 }) defaultStep: number;
 
   step = 0;
   tipStyles = {};
   placement = '';
-  handleReize: any = null;
+  handleResize: any = null;
   showWrap = false;
 
   get currentStep() {
@@ -58,25 +58,25 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
   }
   created() {
     this.step = this.defaultStep;
-    this.handleReize = debounce(100, () => {
+    this.handleResize = debounce(100, () => {
       this.step < this.stepList.length && this.activeStep();
     });
   }
   mounted() {
     this.init();
-    window.addEventListener('resize', this.handleReize);
+    window.addEventListener('resize', this.handleResize);
   }
   beforeDestroy() {
     this.clearActive();
-    (this.$refs.wraper as Element)?.parentNode.removeChild(this.$refs.wraper as Element);
-    window.removeEventListener('resize', this.handleReize);
+    (this.$refs.wrapper as Element)?.parentNode.removeChild(this.$refs.wrapper as Element);
+    window.removeEventListener('resize', this.handleResize);
   }
   /**
    * 指引初始化
    */
   init() {
     if (this.step < this.stepList.length) {
-      document.body.appendChild(this.$refs.wraper as Element);
+      document.body.appendChild(this.$refs.wrapper as Element);
       window.requestIdleCallback(this.activeStep);
     }
   }
@@ -86,7 +86,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
   activeStep() {
     this.$nextTick(() => {
       // const windowWidth = window.innerWidth;
-      // const windowHieght = window.innerHeight;
+      // const windowHeight = window.innerHeight;
       const currentStep = this.stepList[this.step];
       const $stepTarget = document.querySelector(currentStep.target);
       const moreDropdown = document.querySelector('.header-more-dropdown');
@@ -127,8 +127,8 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
         } = $stepTarget.getBoundingClientRect();
         // let placement = 'left';
 
-        // if (width > height && targeBottom < 0.3 * windowHieght) {
-        //   placement = targeBottom > 0.5 * windowHieght ? 'top' : 'bottom';
+        // if (width > height && targeBottom < 0.3 * windowHeight) {
+        //   placement = targeBottom > 0.5 * windowHeight ? 'top' : 'bottom';
         // } else {
         //   placement = targetLeft > 0.5 * windowWidth ? 'left' : 'right';
         // }
@@ -143,7 +143,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
         // }
         // else if (placement === 'top') {
         //   styles = {
-        //     top: `${windowHieght - targetTop - height - 10}px`,
+        //     top: `${windowHeight - targetTop - height - 10}px`,
         //     left: `${targetLeft + (targetWidth - width) / 2}px`
         //   };
         // } else if (placement === 'left') {
@@ -169,7 +169,9 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
    * 清空所有步骤的激活状态
    */
   clearActive() {
-    document.body.querySelectorAll('.guide-highlight').forEach(el => {
+    const list = document.body.querySelectorAll('.guide-highlight');
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    list.forEach(el => {
       el.classList.remove('guide-highlight');
     });
   }
@@ -177,10 +179,10 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
    * 完成指引
    */
   @Emit('done')
-  doneGudie() {
+  doneGuide() {
     this.step = this.stepList.length;
     setTimeout(() => {
-      (this.$refs.wraper as Element)?.parentNode.removeChild(this.$refs.wraper as Element);
+      (this.$refs.wrapper as Element)?.parentNode.removeChild(this.$refs.wrapper as Element);
     });
   }
   /**
@@ -196,7 +198,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
    */
   handleFinish() {
     this.clearActive();
-    this.doneGudie();
+    this.doneGuide();
   }
   /**
    * 完成指引
@@ -209,7 +211,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
       <transition name='guide-fade'>
         {this.step < this.stepList.length && (
           <div
-            ref='wraper'
+            ref='wrapper'
             style={{ display: this.showWrap ? 'flex' : 'none' }}
             class='novice-guide'
           >
@@ -229,7 +231,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
               <div class='step-action'>
                 {
                   <div class='step-nums'>
-                    {this.$t('第{step}步，共{total}步', { step: this.step, total: this.stepList.length })}
+                    {this.$t('第{step}步，共{total}步', { step: this.step + 1, total: this.stepList.length })}
                   </div>
                 }
                 {
@@ -241,7 +243,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                   </div>
                 }
                 <bk-button
-                  ext-cls='ukown-btn'
+                  ext-cls='known-btn'
                   v-show={this.step !== 3}
                   text={true}
                   title='primary'

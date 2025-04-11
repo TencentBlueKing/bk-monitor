@@ -86,7 +86,7 @@ class CustomTSField(models.Model):
         DIMENSION = "dimension"
 
     MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
-    DimensionConfigFields = ["common"]
+    DimensionConfigFields = ["common", "hidden"]
 
     time_series_group_id = models.IntegerField("时序分组ID")
     type = models.CharField("字段类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)
@@ -109,6 +109,7 @@ class CustomTSTable(OperateRecordModelBase):
         ("prometheus", "Prometheus"),
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     time_series_group_id = models.IntegerField("时序分组ID", primary_key=True)
     bk_data_id = models.IntegerField("数据ID")
     bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
@@ -302,7 +303,7 @@ class CustomTSTable(OperateRecordModelBase):
             if clean:
                 labels = []
             else:
-                labels = field.config.get("label", [])
+                labels = field.config.get("label", []).copy()
 
             for group_rule in group_rules:
                 if not delete and group_rule.match_metric(field.name):
@@ -396,7 +397,7 @@ class CustomTSTable(OperateRecordModelBase):
 
 class CustomTSItem(models.Model):
     """
-    自定义时序指标
+    自定义时序指标(legacy)
     """
 
     table = models.ForeignKey(

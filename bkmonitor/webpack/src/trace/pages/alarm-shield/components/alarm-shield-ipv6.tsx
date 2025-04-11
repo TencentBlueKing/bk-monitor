@@ -47,12 +47,12 @@ export default defineComponent({
   setup(props) {
     const panelList = ref<string[]>([]);
     const ipCheckValue = ref<IIpV6Value>({});
-    const inited = ref(false);
+    const initialized = ref(false);
     watch(
       () => props.shieldDimension,
       (v: string) => {
         panelList.value = [];
-        inited.value = false;
+        initialized.value = false;
         nextTick(() => {
           ipCheckValue.value = Ipv6FieldMap[props.shieldDimension]
             ? {
@@ -61,7 +61,7 @@ export default defineComponent({
             : undefined;
           panelList.value = getPanelListByDimension(v);
           // magic code  bk-dialog animate time
-          setTimeout(() => (inited.value = true), 400);
+          setTimeout(() => (initialized.value = true), 400);
         });
       },
       { immediate: true }
@@ -108,7 +108,7 @@ export default defineComponent({
             mode={'dialog'}
             originalValue={props.originCheckedValue}
             panelList={panelList.value}
-            showDialog={inited.value && props.showDialog}
+            showDialog={initialized.value && props.showDialog}
             showView={true}
             showViewDiff={props.showViewDiff}
             value={ipCheckValue.value}

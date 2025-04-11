@@ -7,7 +7,8 @@ from typing import Dict, Optional
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import models, transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -50,7 +51,7 @@ def get_label_display_dict():
 
 def get_custom_event_group_queryset(bk_biz_id: int) -> QuerySet[CustomEventGroup]:
     """
-    获取自定义事件组查询集
+    获取当前业务及全平台自定义事件组查询集
     """
     return CustomEventGroup.objects.filter(
         type=EVENT_TYPE.CUSTOM_EVENT,
@@ -75,13 +76,14 @@ class ValidateCustomEventGroupName(Resource):
             event_groups = api.metadata.query_event_group(
                 event_group_name=params["name"], bk_biz_id=params["bk_biz_id"]
             )
-            # 如果指定了 bk_event_group_id，则排除该自定义事件组
+
+            # 编辑场景，排除当前自定义事件组
             if params.get("bk_event_group_id"):
                 event_groups = [g for g in event_groups if g["event_group_id"] != params["bk_event_group_id"]]
             is_exist = bool(event_groups)
         except BKAPIError:
             # 如果接口调用失败，则使用 SaaS 配置，作为补偿机制
-            queryset = get_custom_event_group_queryset(bk_biz_id=params["bk_biz_id"]).filter(name=params["name"])
+            queryset = get_custom_event_group_queryset(params["bk_biz_id"]).filter(name=params["name"])
             if params.get("bk_event_group_id"):
                 queryset = queryset.exclude(bk_event_group_id=params["bk_event_group_id"])
             is_exist = queryset.exists()
@@ -99,7 +101,7 @@ class ValidateCustomEventGroupLabel(Resource):
     2. 编辑场景：除了bk_event_group_id参数对应CustomEventGroup的data_label外，是否与存量ResultTable的data_label重复
     """
 
-    DATA_LABEL_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
+    label_pattern = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
@@ -107,19 +109,15 @@ class ValidateCustomEventGroupLabel(Resource):
         data_label = serializers.CharField(required=True, allow_blank=False)
 
     def perform_request(self, params: dict):
-        data_label = params["data_label"]
-
         # 校验数据标签是否合法
-        if not self.DATA_LABEL_PATTERN.match(data_label):
+        if not self.label_pattern.match(params["data_label"]):
             raise CustomValidationLabelError(msg=_("自定义事件英文名允许包含字母、数字、下划线，且必须以字母开头"))
 
-        queryset = get_custom_event_group_queryset(bk_biz_id=params["bk_biz_id"]).filter(data_label=data_label)
-
+        # 校验当前业务下或公共自定义事件组是否同名
+        queryset = get_custom_event_group_queryset(params["bk_biz_id"]).filter(data_label=params["data_label"])
         if params.get("bk_event_group_id"):
             queryset = queryset.exclude(bk_event_group_id=params["bk_event_group_id"])
-
-        is_exist = queryset.exists()
-        if is_exist:
+        if queryset.exists():
             raise CustomValidationLabelError(msg=_("自定义事件英文名已存在"))
         return True
 
@@ -170,9 +168,9 @@ class QueryCustomEventGroup(Resource):
         return {key: len(value) for key, value in table_id_strategy_mapping.items()}
 
     def perform_request(self, params: dict):
-        # 获取租户ID
         queryset = CustomEventGroup.objects.filter(
-            type=EVENT_TYPE.CUSTOM_EVENT, bk_tenant_id=get_request_tenant_id()
+            type=EVENT_TYPE.CUSTOM_EVENT,
+            bk_tenant_id=get_request_tenant_id(),
         ).order_by("-update_time")
         context = {"request_bk_biz_id": params["bk_biz_id"]}
 
@@ -184,12 +182,10 @@ class QueryCustomEventGroup(Resource):
         elif params.get("is_platform"):
             # 2）只查全平台, 不关注业务
             queryset = queryset.filter(is_platform=True)
-
         elif params.get("bk_biz_id"):
             # 3）非全平台，查当前业务(0表示全部业务)
             queryset = queryset.filter(bk_biz_id=params["bk_biz_id"])
 
-        # 搜索
         if params.get("search_key"):
             search_key = params["search_key"]
             conditions = models.Q(name__contains=search_key)
@@ -200,11 +196,7 @@ class QueryCustomEventGroup(Resource):
             else:
                 conditions = conditions | models.Q(pk=search_key) | models.Q(bk_data_id=search_key)
             queryset = queryset.filter(conditions)
-
-        # 分页
         paginator = Paginator(queryset, params["page_size"])
-
-        # 序列化
         serializer = CustomEventGroupSerializer(paginator.page(params["page"]), many=True, context=context)
         groups = serializer.data
 
@@ -234,17 +226,14 @@ class GetCustomEventGroup(Resource):
 
     def perform_request(self, params: dict):
         event_group_id = params["bk_event_group_id"]
-        config = (
-            get_custom_event_group_queryset(bk_biz_id=params["bk_biz_id"])
-            .prefetch_related("event_info_list")
-            .filter(
-                bk_event_group_id=event_group_id,
-            )
-            .first()
-        )
-        if not config:
-            raise CustomEventValidationError(msg=_("自定义事件不存在"))
+        need_refresh = params["need_refresh"]
+        event_infos_limit = params["event_infos_limit"]
 
+        config = (
+            get_custom_event_group_queryset(params["bk_biz_id"])
+            .prefetch_related("event_info_list")
+            .get(pk=event_group_id)
+        )
         serializer = CustomEventGroupDetailSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         event_info_list = api.metadata.get_event_group.request.refresh(
@@ -348,20 +337,12 @@ class QueryCustomEventTarget(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_event_group_id = serializers.IntegerField(required=True, label="事件分组ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, params):
-        group = (
-            get_custom_event_group_queryset(bk_biz_id=params["bk_biz_id"])
-            .filter(
-                bk_event_group_id=params["bk_event_group_id"],
-            )
-            .first()
-        )
-        if not group:
-            raise CustomEventValidationError(msg=_("自定义事件不存在"))
-
+        group = get_custom_event_group_queryset(params["bk_biz_id"]).get(bk_event_group_id=params["bk_event_group_id"])
         return list(set(group.query_target()))
 
 
@@ -382,7 +363,7 @@ class CreateCustomEventGroup(Resource):
 
         def validate(self, attrs):
             ValidateCustomEventGroupName().request(name=attrs["name"], bk_biz_id=attrs["bk_biz_id"])
-            ValidateCustomEventGroupLabel().request(data_label=attrs["data_label"])
+            ValidateCustomEventGroupLabel().request(data_label=attrs["data_label"], bk_biz_id=attrs["bk_biz_id"])
             return attrs
 
     def get_custom_event_data_id(self, bk_biz_id, operator, event_group_name):
@@ -410,28 +391,31 @@ class CreateCustomEventGroup(Resource):
 
     def perform_request(self, params: dict):
         operator = get_request_username() or settings.COMMON_USERNAME
-
+        input_bk_biz_id = params["bk_biz_id"]
+        if params["is_platform"]:
+            input_bk_biz_id = 0
         # 1. 查询或创建业务的 data_id
         bk_data_id = self.get_custom_event_data_id(params["bk_biz_id"], operator, params["name"])
 
         # 2. 创建或查询数据记录
         group, _ = CustomEventGroup.objects.get_or_create(bk_data_id=bk_data_id, bk_event_group_id=-bk_data_id)
-
         # 3. 调用接口创建 event_group
-        params = {
-            "operator": operator,
-            "bk_data_id": bk_data_id,
-            "bk_biz_id": 0 if params["is_platform"] else params["bk_biz_id"],
-            "event_group_name": params["name"],
-            "label": params["scenario"],
-            "event_info_list": [],
-        }
-        group_info = api.metadata.create_event_group(params)
+        group_info = api.metadata.create_event_group(
+            {
+                "operator": operator,
+                "bk_data_id": bk_data_id,
+                "bk_biz_id": input_bk_biz_id,
+                "event_group_name": params["name"],
+                "label": params["scenario"],
+                "event_info_list": [],
+            }
+        )
 
         # 4. 结果回写数据库
         with transaction.atomic():
             group.delete()
             group = CustomEventGroup.objects.create(
+                type=EVENT_TYPE.CUSTOM_EVENT,
                 bk_tenant_id=get_request_tenant_id(),
                 bk_biz_id=params["bk_biz_id"],
                 bk_event_group_id=group_info["event_group_id"],
@@ -468,21 +452,26 @@ class ModifyCustomEventGroup(Resource):
                 )
             if attrs.get("data_label"):
                 ValidateCustomEventGroupLabel().request(
-                    data_label=attrs["data_label"], bk_event_group_id=attrs["bk_event_group_id"]
+                    bk_biz_id=attrs["bk_biz_id"],
+                    data_label=attrs["data_label"],
+                    bk_event_group_id=attrs["bk_event_group_id"],
                 )
             return attrs
 
     @atomic()
     def perform_request(self, params: dict):
+        # 仅允许修改本业务下的自定义事件组
         group = CustomEventGroup.objects.filter(
+            bk_tenant_id=get_request_tenant_id(),
             bk_biz_id=params["bk_biz_id"],
+            type=EVENT_TYPE.CUSTOM_EVENT,
             bk_event_group_id=params["bk_event_group_id"],
         ).first()
         if not group:
-            raise CustomEventValidationError(msg=_("自定义事件不存在"))
+            raise CustomEventValidationError(msg=_("自定义事件组不存在"))
 
         # 1. 调用接口修改 event_group
-        params = {
+        modify_params = {
             "operator": get_request_username(),
             "event_group_id": params["bk_event_group_id"],
             "event_group_name": params.get("name"),
@@ -490,8 +479,8 @@ class ModifyCustomEventGroup(Resource):
             "is_enable": params.get("is_enable"),
             "event_info_list": [],
         }
-        params = {key: value for key, value in list(params.items()) if value is not None}
-        group_info = api.metadata.modify_event_group(params)
+        modify_params = {key: value for key, value in list(modify_params.items()) if value is not None}
+        group_info = api.metadata.modify_event_group(modify_params)
 
         # 2. 结果回写数据库
         group.scenario = group_info["label"]
@@ -516,16 +505,21 @@ class DeleteCustomEventGroup(Resource):
 
     @atomic()
     def perform_request(self, params: dict):
+        # 仅允许删除本业务下的自定义事件组
         group = CustomEventGroup.objects.filter(
-            bk_biz_id=params["bk_biz_id"], bk_event_group_id=params["bk_event_group_id"]
+            bk_tenant_id=get_request_tenant_id(),
+            bk_biz_id=params["bk_biz_id"],
+            type=EVENT_TYPE.CUSTOM_EVENT,
+            bk_event_group_id=params["bk_event_group_id"],
         ).first()
         if not group:
-            raise CustomEventValidationError(msg=_("自定义事件不存在"))
+            raise CustomEventValidationError(msg=_("自定义事件组不存在"))
 
-        # 1. 调用接口删除 event_group
+        # 1. 调用接口删除 metadata event_group
         api.metadata.delete_event_group(event_group_id=group.bk_event_group_id, operator=get_request_username())
 
-        # 2. 结果回写数据库
+        # 2. 删除数据库记录
         group.delete()
         CustomEventItem.objects.filter(bk_event_group_id=group.bk_event_group_id).delete()
-        return {"bk_event_group_id": params["bk_event_group_id"]}
+
+        return {"bk_event_group_id": group.bk_event_group_id}

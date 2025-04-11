@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
@@ -34,7 +35,9 @@ class GetCustomMetricTargetListResource(Resource):
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
         return [{"id": target, "name": target} for target in targets]
@@ -51,26 +54,34 @@ class GetCustomTsMetricGroups(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         fields = table.get_and_sync_fields()
         metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
 
         # 维度描述
+        hidden_dimensions = set()
         dimension_descriptions = {}
         # 公共维度
         common_dimensions = []
         for field in fields:
-            if field.type == CustomTSField.MetricType.DIMENSION:
-                dimension_descriptions[field.name] = field.description
-                if field.config.get("common", False):
-                    common_dimensions.append(
-                        {
-                            "name": field.name,
-                            "alias": field.description,
-                        }
-                    )
+            # 如果不是维度，则跳过
+            if field.type != CustomTSField.MetricType.DIMENSION:
+                continue
+
+            dimension_descriptions[field.name] = field.description
+
+            # 如果维度隐藏，则不展示
+            if field.config.get("hidden", False):
+                hidden_dimensions.add(field.name)
+                continue
+
+            # 如果维度公共，则添加到公共维度
+            if field.config.get("common", False):
+                common_dimensions.append({"name": field.name, "alias": field.description})
 
         # 指标分组
         metric_groups = defaultdict(list)
@@ -94,6 +105,7 @@ class GetCustomTsMetricGroups(Resource):
                         "dimensions": [
                             {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
                             for dimension in metric.config.get("dimensions", [])
+                            if dimension not in hidden_dimensions
                         ],
                     }
                 )
@@ -119,7 +131,9 @@ class GetCustomTsDimensionValues(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         # 如果指标只有一个，则使用精确匹配
@@ -450,7 +464,9 @@ class GetCustomTsGraphConfig(Resource):
 
     def perform_request(self, params: dict) -> dict:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],

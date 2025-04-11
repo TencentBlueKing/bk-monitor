@@ -60,7 +60,7 @@ export default class PerformanceChart extends TimeSeries {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -71,7 +71,7 @@ export default class PerformanceChart extends TimeSeries {
       this.showRestore = !!start_time;
     }
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -97,7 +97,7 @@ export default class PerformanceChart extends TimeSeries {
       });
       timeShiftList.forEach(time_shift => {
         const list = this.panel.targets.map(item => {
-          const newPrarams = {
+          const newParams = {
             ...variablesService.transformVariables(item.data, {
               ...this.viewOptions.filters,
               ...(this.viewOptions.filters?.current_target || {}),
@@ -114,7 +114,7 @@ export default class PerformanceChart extends TimeSeries {
             ),
           };
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](newParams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -242,7 +242,7 @@ export default class PerformanceChart extends TimeSeries {
           });
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+        const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -270,7 +270,7 @@ export default class PerformanceChart extends TimeSeries {
                       return padTextToWidth(value, this.YAxisLabelWidth);
                     }
                   : (v: number) =>
-                      padTextToWidth(this.handleYxisLabelFormatter(v - this.minBase), this.YAxisLabelWidth),
+                      padTextToWidth(this.handleYAxisLabelFormatter(v - this.minBase), this.YAxisLabelWidth),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -295,7 +295,7 @@ export default class PerformanceChart extends TimeSeries {
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent && this.needSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -383,9 +383,9 @@ export default class PerformanceChart extends TimeSeries {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            draging={this.panel.draging}
+            dragging={this.panel.dragging}
             drillDownOption={this.drillDownOptions}
-            inited={this.inited}
+            initialized={this.initialized}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -407,7 +407,7 @@ export default class PerformanceChart extends TimeSeries {
               ref='chart'
               class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

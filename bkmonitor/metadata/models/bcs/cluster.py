@@ -500,6 +500,7 @@ class BCSClusterInfo(models.Model):
             "api_key_prefix": self.api_key_prefix,
             "is_skip_ssl_verify": self.is_skip_ssl_verify,
             "cert_content": self.cert_content,
+            "k8s_event_data_id": self.K8sEventDataID,
         }
 
 

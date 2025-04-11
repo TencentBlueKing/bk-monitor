@@ -434,8 +434,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {name.checked && (
             <bk-table-column
               key='name'
-              width='150'
               label={this.$t('名称')}
+              minWidth='150'
               prop='name'
               scopedSlots={nameSlot}
             />
@@ -443,8 +443,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {description.checked && (
             <bk-table-column
               key='description'
-              width='200'
               label={this.$t('别名')}
+              minWidth='200'
               prop='description'
               scopedSlots={descriptionSlot}
             />
@@ -452,8 +452,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {group.checked && (
             <bk-table-column
               key='group'
-              width='200'
               label={this.$t('分组')}
+              minWidth='200'
               prop='group'
               scopedSlots={groupSlot}
             />
@@ -461,8 +461,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {status.checked && (
             <bk-table-column
               key='status'
-              width='125'
               label={this.$t('状态')}
+              minWidth='125'
               prop='status'
               scopedSlots={statusSlot}
             />
@@ -470,7 +470,6 @@ export default class IndicatorTable extends tsc<any, any> {
           {hidden.checked && (
             <bk-table-column
               key='hidden'
-              width='75'
               renderHeader={() => (
                 <div>
                   <span>{this.$t('显示')}</span>
@@ -481,6 +480,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 </div>
               )}
               label={this.$t('显示')}
+              minWidth='75'
               prop='hidden'
               scopedSlots={hiddenSlot}
             />
@@ -666,8 +666,6 @@ export default class IndicatorTable extends tsc<any, any> {
   getGroupCpm(row, index, showFoot = true) {
     return (
       <bk-select
-        ref={`table-select-${index}`}
-        autoHeight={false}
         clearable={false}
         value={row.labels?.map(item => item.name)}
         displayTag
@@ -755,7 +753,9 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
             <div class='info-item'>
               <span class='info-label'>{this.$t('分组')}：</span>
-              <div class='info-content group-list'>{this.getGroupCpm(metricData, this.detailActiveIndex, false)}</div>
+              <div class='info-content'>
+                <div class='group-list'>{this.getGroupCpm(metricData, this.detailActiveIndex, false)}</div>
+              </div>
             </div>
 
             {/* TODO: 暂不支持配置 */}
@@ -942,7 +942,6 @@ export default class IndicatorTable extends tsc<any, any> {
           <div class='indicator-btn'>
             <bk-button
               class='header-btn'
-              disabled={!this.metricTableVal.length}
               theme='primary'
               onClick={this.handleClickSlider}
             >

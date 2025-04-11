@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
+import { Component, Watch, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
 import HeaderBox from './components/header-box/index';
@@ -45,11 +46,13 @@ export default class NewMetricView extends tsc<object> {
   currentView = 'default';
   dimenstionParams: Record<string, any> = {};
   showStatisticalValue = false;
+  isCustomTsMetricGroupsLoading = true;
   viewColumn = 3;
   state = {
     showStatisticalValue: false,
     viewColumn: 3,
   };
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -71,8 +74,8 @@ export default class NewMetricView extends tsc<object> {
       },
       view_column: 1,
       ...this.dimenstionParams,
-      start_time: this.startTime,
-      end_time: this.endTime,
+      // start_time: this.startTime,
+      // end_time: this.endTime,
       metrics: customEscalationViewStore.currentSelectedMetricNameList,
     };
   }
@@ -88,11 +91,39 @@ export default class NewMetricView extends tsc<object> {
     });
   }
 
+  @Watch('timeSeriesGroupId', { immediate: true })
+  timeSeriesGroupIdChange() {
+    this.getCustomTsMetricGroups();
+  }
+
+  async getCustomTsMetricGroups() {
+    const needParseUrl = Boolean(this.$route.query.viewPayload);
+    this.isCustomTsMetricGroupsLoading = true;
+    try {
+      const result = await getCustomTsMetricGroups({
+        time_series_group_id: this.timeSeriesGroupId,
+      });
+
+      customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
+      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
+
+      if (!needParseUrl) {
+        const metricGroup = result.metric_groups;
+        customEscalationViewStore.updateCurrentSelectedMetricNameList(
+          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [metricGroup[0].metrics[0].metric_name] : []
+        );
+      }
+    } finally {
+      this.isCustomTsMetricGroupsLoading = false;
+    }
+  }
+
   handleTimeRangeChange(timeRange: TimeRangeType) {
     customEscalationViewStore.updateTimeRange(timeRange);
+    this.timeRange = timeRange;
   }
   // 刷新视图
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
   }
 
@@ -121,50 +152,55 @@ export default class NewMetricView extends tsc<object> {
             isSplitPanel={false}
             showListMenu={false}
             timeRange={[this.startTime, this.endTime]}
-            onImmediateReflesh={this.handleImmediateReflesh}
+            onImmediateRefresh={this.handleImmediateRefresh}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>
-        <div key={this.timeSeriesGroupId}>
-          <ViewTab
-            v-model={this.currentView}
-            graphConfigPayload={this.graphConfigParams}
-            onPayloadChange={this.handleDimensionParamsChange}
-          >
-            <bk-resize-layout
-              style='height: calc(100vh - 140px - var(--notice-alert-height))'
-              collapsible={true}
-              initial-divide={220}
-              max={550}
-              min={200}
+        <div
+          key={this.timeSeriesGroupId}
+          v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
+        >
+          {!this.isCustomTsMetricGroupsLoading && (
+            <ViewTab
+              v-model={this.currentView}
+              graphConfigPayload={this.graphConfigParams}
+              onPayloadChange={this.handleDimensionParamsChange}
             >
-              <template slot='aside'>
-                <MetricsSelect onReset={this.handleMetricsSelectReset} />
-              </template>
-              <template slot='main'>
-                <HeaderBox
-                  key={this.currentView}
-                  dimenstionParams={this.dimenstionParams}
-                  onChange={this.handleDimensionParamsChange}
-                >
-                  <template slot='actionExtend'>
-                    <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
-                    <ViewColumn
-                      style='margin-left: 32px;'
-                      v-model={this.state.viewColumn}
+              <bk-resize-layout
+                style='height: calc(100vh - 140px - var(--notice-alert-height))'
+                collapsible={true}
+                initial-divide={220}
+                max={550}
+                min={200}
+              >
+                <template slot='aside'>
+                  <MetricsSelect onReset={this.handleMetricsSelectReset} />
+                </template>
+                <template slot='main'>
+                  <HeaderBox
+                    key={this.currentView}
+                    dimenstionParams={this.dimenstionParams}
+                    onChange={this.handleDimensionParamsChange}
+                  >
+                    <template slot='actionExtend'>
+                      <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+                      <ViewColumn
+                        style='margin-left: 32px;'
+                        v-model={this.state.viewColumn}
+                      />
+                    </template>
+                  </HeaderBox>
+                  <div class='metric-view-dashboard-container'>
+                    <PanelChartView
+                      config={this.graphConfigParams as any}
+                      showStatisticalValue={this.state.showStatisticalValue}
+                      viewColumn={this.state.viewColumn}
                     />
-                  </template>
-                </HeaderBox>
-                <div class='metric-view-dashboard-container'>
-                  <PanelChartView
-                    config={this.graphConfigParams as any}
-                    showStatisticalValue={this.state.showStatisticalValue}
-                    viewColumn={this.state.viewColumn}
-                  />
-                </div>
-              </template>
-            </bk-resize-layout>
-          </ViewTab>
+                  </div>
+                </template>
+              </bk-resize-layout>
+            </ViewTab>
+          )}
         </div>
       </div>
     );

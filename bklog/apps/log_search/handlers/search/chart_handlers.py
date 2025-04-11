@@ -151,19 +151,59 @@ class ChartHandler(object):
                         return f"{field_name} {value}"
                     value = cls.to_like_syntax(expr.value)
                     return f"{field_name} LIKE '{value}'"
-                elif isinstance(expr, FieldGroup):
-                    # 处理 FieldGroup 节点，例如 ("a" AND b)
+                elif isinstance(expr, AndOperation):
+                    # 处理 AND 操作
                     conditions = []
+                    for child in expr.children:
+                        search_field = SearchField(name=f"{field_name}", expr=child)
+                        conditions.append(build_condition(search_field))
+                    return " AND ".join(cond for cond in conditions if cond is not None)
+                elif isinstance(expr, FieldGroup):
+                    # 处理 FieldGroup 节点，例如 ("a" AND b OR c)
                     op = cls.AND
                     if isinstance(expr.children[0], OrOperation):
                         op = cls.OR
+                    result_list = []
+                    conditions = []
                     for child in expr.children[0].children:
-                        search_field = SearchField(name=f"{field_name}", expr=child)
-                        condition = build_condition(search_field)
-                        if condition:
+                        if isinstance(child, Phrase) or isinstance(child, Word):
+                            # child 是短语的情况
+                            search_field = SearchField(name=f"{field_name}", expr=child)
+                            condition = build_condition(search_field)
                             conditions.append(condition)
-                    result = f" {op} ".join(conditions)
-                    return f"({result})" if op == cls.OR else result
+                        elif hasattr(child, "children"):
+                            # child 带括号和AND操作符的情况
+                            search_field = SearchField(name=f"{field_name}", expr=child)
+                            child_condition = build_condition(search_field)
+                            result_list.append(child_condition)
+                    phrase_condition = f" {op} ".join(conditions)
+                    if phrase_condition:
+                        result_list.append(phrase_condition if len(conditions) == 1 else f"({phrase_condition})")
+                    result = f" {op} ".join(result_list)
+                    return result if len(result_list) == 1 or op == cls.AND else f"({result})"
+                elif isinstance(expr, Group):
+                    # 处理 Group 节点
+                    result_list = []
+                    op = cls.AND
+                    if isinstance(expr.children[0], OrOperation):
+                        op = cls.OR
+                    conditions = []
+                    for child in expr.children[0].children:
+                        if isinstance(child, Phrase) or isinstance(child, Word):
+                            # child 是短语的情况
+                            search_field = SearchField(name=f"{field_name}", expr=child)
+                            condition = build_condition(search_field)
+                            conditions.append(condition)
+                        elif isinstance(child, Group):
+                            # child 带括号的情况
+                            search_field = SearchField(name=f"{field_name}", expr=child)
+                            result = build_condition(search_field)
+                            result_list.append(result)
+                    phrase_condition = f" {op} ".join(conditions)
+                    if phrase_condition:
+                        result_list.append(phrase_condition if len(conditions) == 1 else f"({phrase_condition})")
+                    result = f" {op} ".join(result_list)
+                    return result if len(result_list) == 1 or op == cls.AND else f"({result})"
 
             elif isinstance(node, OrOperation):
                 # 处理 OR 操作
@@ -215,7 +255,7 @@ class ChartHandler(object):
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
 
-        if keyword:
+        if keyword and keyword != "*":
             # 加上keyword的查询条件
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
             keyword = enhance_lucene_adapter.enhance()

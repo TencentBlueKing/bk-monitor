@@ -60,6 +60,14 @@ export default defineComponent({
       type: String,
       default: 'cpu',
     },
+    aggMethodList: {
+      type: Array as PropType<DataTypeItem[]>,
+      default: () => [],
+    },
+    aggMethod: {
+      type: String,
+      default: 'AVG',
+    },
   },
   emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
@@ -137,8 +145,8 @@ export default defineComponent({
       }
     }
 
-    function handleDataTypeChange(v: string) {
-      emit('dataTypeChange', v);
+    function handleDataTypeChange(v: string, type?: string) {
+      emit('dataTypeChange', v, type);
     }
 
     /**
@@ -317,9 +325,12 @@ export default defineComponent({
             </div>
           ) : (
             <ProfilingRetrievalView
+              aggMethod={this.aggMethod}
+              aggMethodList={this.aggMethodList}
               dataType={this.dataType}
               dataTypeList={this.dataTypeList}
               queryParams={this.queryParams}
+              onUpdate:aggMethod={event => this.handleDataTypeChange(event, 'agg')}
               onUpdate:dataType={this.handleDataTypeChange}
             />
           )}

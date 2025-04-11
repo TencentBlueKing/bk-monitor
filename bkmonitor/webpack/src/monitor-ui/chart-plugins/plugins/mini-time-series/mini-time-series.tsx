@@ -153,13 +153,13 @@ export default class MiniTimeSeries extends tsc<IProps> {
     (this as any).instance = null;
     this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
 
   // 注册Intersection监听
   registerObserver() {
     if (this.intersectionObserver) {
-      this.unregisterOberver();
+      this.unregisterObserver();
     }
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
@@ -170,7 +170,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
     });
     this.intersectionObserver.observe(this.$el);
   }
-  unregisterOberver() {
+  unregisterObserver() {
     if (this.intersectionObserver) {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();
