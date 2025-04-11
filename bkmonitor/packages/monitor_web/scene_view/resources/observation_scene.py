@@ -608,7 +608,7 @@ class GetPluginInfoByResultTable(Resource):
         """
         data_label = validated_request_data.get("data_label", "")
         result_table_id = validated_request_data["result_table_id"]
-        filter_params = {}
+        filter_params = {"bk_biz_id": validated_request_data["bk_biz_id"]}
         if data_label:
             filter_params["data_label"] = data_label
         else:

@@ -942,7 +942,6 @@ export default class IndicatorTable extends tsc<any, any> {
           <div class='indicator-btn'>
             <bk-button
               class='header-btn'
-              disabled={!this.metricTableVal.length}
               theme='primary'
               onClick={this.handleClickSlider}
             >

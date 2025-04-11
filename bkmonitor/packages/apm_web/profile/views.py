@@ -252,9 +252,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 extra_params["order"] = {"expr": order.replace("-", ""), "sort": sort}
             else:
                 if api_type == APIType.QUERY_SAMPLE_BY_JSON:
-                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 t1.stacktrace_id 保持接口返回数据一致
+                    # 如果没有排序并且为 query_sample_by_json 类型 那么增加排序字段 dtEventTimeStamp,t1.stacktrace_id 保持接口返回数据一致
                     extra_params.setdefault("order", {})
-                    extra_params["order"] = {"expr": "t1.stacktrace_id", "sort": "asc"}
+                    extra_params["order"] = {"expr": "dtEventTimeStamp,t1.stacktrace_id", "sort": "desc"}
 
         if "profile_id" in extra_params.get("label_filter", {}):
             retry_handler = functools.partial(
@@ -622,10 +622,24 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return tendency_data, compare_tendency_result
 
     @staticmethod
-    def enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
+    def enlarge_duration(start: int, end: int, offset: int, min_range: int = 0) -> Tuple[int, int]:
+        """
+        params:
+            - start, end: unit microseconds
+            - offset, min_range: unit seconds
+
+        return: unit milliseconds
+        """
         # start & end all in microsecond, so we need to convert it to millisecond
         start = int(start / 1000 + offset * 1000)
         end = int(end / 1000 + offset * 1000)
+
+        min_range_milli_seconds = min_range * 1000
+        if min_range_milli_seconds > 0 and end - start < min_range_milli_seconds:
+            # 如果起止时间小于最小范围 min_range，则将整个起止时间各往外延展一半，整体时长增长一个 min_range
+            half_min_range_milli_seconds = int(min_range_milli_seconds / 2)
+            start = start - half_min_range_milli_seconds
+            end = end + half_min_range_milli_seconds
 
         return start, end
 
@@ -667,7 +681,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=0, min_range=3600)
 
         # 因为 bkbase label 接口已经改为返回原始格式的所以这里改成取前 5000条 label 进行提取 key 列表
         results = self.query(
@@ -701,7 +715,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=0, min_range=3600)
         results = self.query(
             api_type=APIType.LABEL_VALUES,
             app_name=app_name,

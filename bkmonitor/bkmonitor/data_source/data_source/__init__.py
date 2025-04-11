@@ -2227,6 +2227,12 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
         "exclude": "ncontains",
     }
 
+    PERCENTILES_AGG_TRANSLATE = {
+        CpAggMethods["cp50"].vargs_list[0]: "50.0",
+        CpAggMethods["cp90"].vargs_list[0]: "90.0",
+        CpAggMethods["cp95"].vargs_list[0]: "95.0",
+        CpAggMethods["cp99"].vargs_list[0]: "99.0",
+    }
     ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
 
     def __init__(self, *args, **kwargs):
@@ -2282,7 +2288,8 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
             function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
             if method in CpAggMethods:
                 cp_agg_method = CpAggMethods[method]
-                function["vargs_list"] = cp_agg_method.vargs_list
+                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
+                function["method"] = "percentiles"
                 query["time_aggregation"]["position"] = cp_agg_method.position
                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
 

@@ -108,6 +108,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
     def to_meta_dict(self):
         return {
             "node": self.name,
+            "ip": self.ip,
         }
 
     @staticmethod

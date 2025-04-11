@@ -1080,7 +1080,7 @@
         let queryResult = '';
         row.btnShow = false;
         if (!alias_name) {
-          row.alias_name_show = false;
+          this.$set(row, 'alias_name_show', false);
           row.btnShow = true;
           return false;
         }
@@ -1089,7 +1089,9 @@
             queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
           } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
-          } else if (this.selectEtlConfig === 'bk_log_json') {
+          } else if (alias_name === row.field_name) {
+            queryResult = this.$t('重命名与字段名重复');
+          }  else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
             queryResult = this.filedNameIsConflict(field_index, alias_name)
@@ -1155,7 +1157,7 @@
         });
       },
       checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -1164,6 +1166,12 @@
           if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
             // 别名只支持【英文、数字、下划线】，并且不能以数字开头
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }else if (queryAlias === fieldName) {
+            row.aliasErr = this.$t('别名与字段名重复');
+            return false;
+          }else if (queryAlias === aliasName) {
+            row.aliasErr = this.$t('别名与重命名重复');
             return false;
           }
           if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {

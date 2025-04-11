@@ -15,6 +15,7 @@ from typing import Dict, List, Tuple
 from django.db import models
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models import CustomTSField, CustomTSGroupingRule, CustomTSTable
 from monitor_web.models.scene_view import SceneViewModel
@@ -31,7 +32,9 @@ def get_order_config(view: SceneViewModel) -> List:
 
     custom_metric_id = int(view.scene_id.lstrip("custom_metric_"))
     table = CustomTSTable.objects.get(
-        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True), pk=custom_metric_id
+        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True),
+        pk=custom_metric_id,
+        bk_tenant_id=get_request_tenant_id(),
     )
     fields = CustomTSField.objects.filter(
         time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
@@ -88,7 +91,9 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
     """
     custom_metric_id = int(view.scene_id.lstrip("custom_metric_"))
     config = CustomTSTable.objects.get(
-        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True), pk=custom_metric_id
+        models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True),
+        pk=custom_metric_id,
+        bk_tenant_id=get_request_tenant_id(),
     )
     metrics = config.get_metrics()
 

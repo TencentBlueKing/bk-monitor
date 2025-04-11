@@ -1091,6 +1091,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
@@ -1581,3 +1582,6 @@ INITIALIZED_TENANT_LIST = ["system"]
 
 # 新版自定义时序灰度业务列表
 ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
+
+# 事件中心AIOps功能灰度业务列表
+ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
