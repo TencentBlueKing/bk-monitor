@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import time
 from collections import defaultdict
 from ipaddress import IPv6Address, ip_address
 
@@ -17,7 +18,7 @@ from opentelemetry.semconv.trace import SpanAttributes
 
 from api.cmdb.client import list_biz_hosts
 from apm_web.constants import HostAddressType
-from apm_web.models import Application, CMDBServiceRelation
+from apm_web.models import CMDBServiceRelation
 from apm_web.topo.handle.relation.define import (
     SourceK8sPod,
     SourceService,
@@ -27,6 +28,7 @@ from apm_web.topo.handle.relation.define import (
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
@@ -52,21 +54,11 @@ class HostHandler:
             }.get(key, key)
 
     PAGE_LIMIT = 100
+    ONE_HOUR_SECONDS = 3600
 
     @classmethod
-    def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
-        """
-        获取应用的主机列表
-        主机来源:
-        1. 通过CMDB服务模版关联
-        2. 通过topo发现
-        3. 通过关联查询
-        """
-        if not start_time or not end_time:
-            app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-            start_time, end_time = app.list_retention_time_range()
-
-        # step1: 从主机发现取出主机
+    def get_hosts_from_trace_relation(cls, bk_biz_id, app_name, service_name):
+        """获取从 Trace 数据中上报的字段中发现的主机信息"""
         discover_host_instances = api.apm_api.query_host_instance(
             bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
         )
@@ -87,8 +79,12 @@ class HostHandler:
                         "source_type": cls.SourceType.TOPO,
                     }
                 )
+        query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips)
+        return apm_host_instances + query_host_instances
 
-        # step2: 从关联cmdb取出主机
+    @classmethod
+    def get_hosts_from_service_relation(cls, bk_biz_id, app_name, service_name):
+        """获取从 用户配置的服务关联 CMDB 服务模板"""
         relation = CMDBServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         cmdb_host_instances = []
         if relation:
@@ -122,8 +118,12 @@ class HostHandler:
                                 "source_type": cls.SourceType.CMDB_RELATION,
                             }
                         )
+            return cmdb_host_instances
 
-        # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
+    @classmethod
+    def get_hosts_from_auto_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
+        """获取通过服务自动关联POD与主机的自动关联"""
+        query_ips = []
         extra_ip_info = defaultdict(dict)
         relation_qs = RelationQ.generate_q(
             bk_biz_id=bk_biz_id,
@@ -156,15 +156,54 @@ class HostHandler:
                     query_ips.append(source_info["bk_target_ip"])
                     extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
 
-        query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
+        return cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
+
+    @classmethod
+    def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
+        """
+        获取应用的主机列表
+        主机来源:
+        1. 通过CMDB服务模版关联
+        2. 通过topo发现
+        3. 通过关联查询
+        """
+
+        if not start_time or not end_time:
+            end_time = int(time.time())
+            start_time = end_time - cls.ONE_HOUR_SECONDS
+
+        dt_start = (start_time // 300) * 300
+        dt_end = (end_time // 300) * 300
+        cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-list_hosts"
+        hosts_cache = using_cache(CacheType.APM(60 * 5))
+        res = hosts_cache.get_value(cache_key)
+        if res:
+            return res
+
+        futures = []
+        pool = ThreadPool()
+        futures.append(pool.apply_async(cls.get_hosts_from_trace_relation, args=(bk_biz_id, app_name, service_name)))
+        futures.append(pool.apply_async(cls.get_hosts_from_service_relation, args=(bk_biz_id, app_name, service_name)))
+        futures.append(
+            pool.apply_async(
+                cls.get_hosts_from_auto_relation, args=(bk_biz_id, app_name, service_name, start_time, end_time)
+            )
+        )
 
         res = []
         host_ids = []
-        for i in apm_host_instances + cmdb_host_instances + query_host_instances:  # noqa
-            if i["bk_host_id"] in host_ids:
-                continue
-            res.append(i)
-            host_ids.append(i["bk_host_id"])
+        for future in futures:
+            try:
+                result = future.get() or []
+                for i in result:
+                    if i["bk_host_id"] in host_ids:
+                        continue
+                    res.append(i)
+                    host_ids.append(i["bk_host_id"])
+            except Exception as e:  # pylint: disable=broad-except
+                logger.info("batch_list_application_hosts, {}".format(e))
+
+        hosts_cache.set_value(cache_key, res)
         return res
 
     @classmethod
@@ -227,7 +266,6 @@ class HostHandler:
         return infos
 
     @classmethod
-    @using_cache(CacheType.APM(60 * 10))
     def list_host_by_ips(cls, bk_biz_id, ips, ip_info_mapping=None):
         """根据 IP 列表请求 CMDB 获取主机信息列表"""
         if not ip_info_mapping:

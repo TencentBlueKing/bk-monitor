@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
+import { Component, Watch, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -52,6 +52,7 @@ export default class NewMetricView extends tsc<object> {
     showStatisticalValue: false,
     viewColumn: 3,
   };
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -73,8 +74,8 @@ export default class NewMetricView extends tsc<object> {
       },
       view_column: 1,
       ...this.dimenstionParams,
-      start_time: this.startTime,
-      end_time: this.endTime,
+      // start_time: this.startTime,
+      // end_time: this.endTime,
       metrics: customEscalationViewStore.currentSelectedMetricNameList,
     };
   }
@@ -119,6 +120,7 @@ export default class NewMetricView extends tsc<object> {
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     customEscalationViewStore.updateTimeRange(timeRange);
+    this.timeRange = timeRange;
   }
   // 刷新视图
   handleImmediateRefresh() {

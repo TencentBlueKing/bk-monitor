@@ -490,6 +490,13 @@ class EventUpdateTagConfigResource(Resource):
         return {}
 
 
+class EventStatisticsGraphResource(Resource):
+    RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+        return event_resources.EventStatisticsGraphResource().perform_request(validated_request_data)
+
+
 class EventStatisticsInfoResource(Resource):
     RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
 
