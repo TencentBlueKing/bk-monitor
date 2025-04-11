@@ -41,7 +41,7 @@
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import SearchBar from '../search-bar/index.vue';
-  import QueryHistory from '../search-bar/query-history.vue';
+  import QueryHistory from '../sub-bar/query-history.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
   import RetrieveHelper from '../../retrieve-helper.tsx';
 

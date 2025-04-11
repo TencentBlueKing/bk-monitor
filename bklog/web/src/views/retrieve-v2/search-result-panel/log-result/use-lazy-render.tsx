@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
@@ -86,23 +86,6 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
     }
   };
 
-  let lastPosition = 0;
-
-  const handleScrollEvent = (event: MouseEvent) => {
-    const target = event.target as HTMLDivElement;
-    requestAnimationFrame(() => {
-      if (target) {
-        const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-        if (target.scrollTop > lastPosition && scrollDiff < 80) {
-          loadMoreFn?.();
-        }
-
-        scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
-        lastPosition = target.scrollTop;
-      }
-    });
-  };
-
   const scrollToTop = (top = 0, smooth = true) => {
     getScrollElement()?.scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
   };
@@ -115,9 +98,8 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
 
   const computeRect = () => {
     const current = getCurrentElement();
-    const scrollElement = getParentContainer() as HTMLElement;
     scrollWidth.value = (current?.scrollWidth ?? 6) - 6;
-    offsetWidth.value = scrollElement?.offsetWidth ?? 0;
+    offsetWidth.value = current?.offsetWidth ?? 0;
   };
 
   const debounceComputeRect = debounce(computeRect, 120);
@@ -137,12 +119,7 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
   });
 
   onMounted(() => {
-    // getScrollElement()?.addEventListener('scroll', handleScrollEvent);
     calculateOffsetTop();
-  });
-
-  onBeforeUnmount(() => {
-    // getScrollElement()?.removeEventListener('scroll', handleScrollEvent);
   });
 
   return {

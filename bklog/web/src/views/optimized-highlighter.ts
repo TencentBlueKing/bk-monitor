@@ -316,6 +316,8 @@ export default class OptimizedHighlighter {
     this.pendingQueue = [];
     this.unmarkChunks();
     this.sections = [];
+    this.currentKeywords = [];
+    this.markKeywords = [];
   }
 
   private unmarkChunks(): void {

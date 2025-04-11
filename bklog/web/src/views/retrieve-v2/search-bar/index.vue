@@ -24,6 +24,7 @@
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import { getCommonFilterAddition } from '../../../store/helper';
   const props = defineProps({
     // activeFavorite: {
     //   default: null,
@@ -425,7 +426,7 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const { common_filter_addition } = store.getters;
+        const common_filter_addition = getCommonFilterAddition(store.state);
         if (common_filter_addition.length) {
           window.mainComponent.messageSuccess($t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(

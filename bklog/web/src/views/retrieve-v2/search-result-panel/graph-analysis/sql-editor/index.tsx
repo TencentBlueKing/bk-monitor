@@ -39,6 +39,7 @@ import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import './index.scss';
+import { getCommonFilterAddition } from '../../../../../store/helper';
 
 export default defineComponent({
   props: {
@@ -73,7 +74,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const filter_addition = computed(() => store.getters.common_filter_addition);
+    const filter_addition = computed(() => getCommonFilterAddition(store.state));
 
     const requestId = 'graphAnalysis_searchSQL';
 

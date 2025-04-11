@@ -3,7 +3,7 @@
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: 100%;
   min-width: 100%;
   min-height: 400px;
@@ -19,7 +19,7 @@
       height: 40px;
       font-size: 12px;
       line-height: 40px;
-      color: #979BA5;
+      color: #979ba5;
       color: #979ba5;
       font-size: 12px;
     }
@@ -336,6 +336,7 @@
       .bklog-list-row {
         z-index: 1;
         padding: 0;
+        width: 100%;
       }
 
       &::before {

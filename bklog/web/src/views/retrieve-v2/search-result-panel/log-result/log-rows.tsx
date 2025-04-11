@@ -142,9 +142,6 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
-    const showAiAssistant = computed(() => {
-      return store.getters.isAiAssistantActive;
-    });
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -308,13 +305,32 @@ export default defineComponent({
       };
     };
 
+    const setColWidth = col => {
+      col.minWidth = col.width - 4;
+      col.width = '100%';
+    };
+
     const getFieldColumns = () => {
       if (showCtxType.value === 'table') {
-        if (visibleFields.value.length) {
-          return visibleFields.value.map(formatColumn);
+        const columnList = [];
+        const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
+        let hasAutoColumn = false;
+
+        columns.forEach(col => {
+          const formatValue = formatColumn(col);
+          if (col.field_name === 'log') {
+            setColWidth(formatValue);
+            hasAutoColumn = true;
+          }
+
+          columnList.push(formatValue);
+        });
+
+        if (!hasAutoColumn && columnList.length > 0) {
+          setColWidth(columnList[columnList.length - 1]);
         }
 
-        return fullColumns.value.map(formatColumn);
+        return columnList;
       }
 
       return originalColumns.value;
@@ -784,7 +800,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, computeRect, scrollToTop } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect, scrollToTop } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -806,25 +822,8 @@ export default defineComponent({
       }
     };
 
-    const scrollWidth = computed(() => {
-      const callback = (acc, item) => {
-        acc = acc + (item?.width ?? 0);
-        return acc;
-      };
-
-      const leftWidth = leftColumns.value.reduce(callback, 0);
-      const rightWidth = rightColumns.value.reduce(callback, 0);
-      const visibleWidth = getFieldColumns().reduce(callback, 0);
-
-      if (isNaN(visibleWidth)) {
-        return offsetWidth.value;
-      }
-
-      return leftWidth + rightWidth + visibleWidth - 2;
-    });
-
     const hasScrollX = computed(() => {
-      return scrollWidth.value - offsetWidth.value > 1;
+      return scrollWidth.value > offsetWidth.value;
     });
 
     let isAnimating = false;
@@ -883,7 +882,7 @@ export default defineComponent({
                 key={column.key}
                 width={column.width}
                 class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
-                minWidth={column.minWidth ?? 'auto'}
+                minWidth={column.minWidth > 0 ? column.minWidth : column.width}
                 resize={column.resize}
                 onResize-width={w => handleColumnWidthChange(w, column)}
               >

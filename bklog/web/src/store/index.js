@@ -59,7 +59,7 @@ import {
   BkLogGlobalStorageKey,
 } from './default-values.ts';
 import globals from './globals';
-import { isAiAssistantActive } from './helper';
+import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
@@ -224,12 +224,7 @@ const store = new Vuex.Store({
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.storage.isLimitExpandView,
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
-    common_filter_addition: state =>
-      (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(({ field, operator, value }) => ({
-        field,
-        operator,
-        value,
-      })),
+
     // @ts-ignore
     retrieveParams: state => {
       const {
@@ -730,7 +725,7 @@ const store = new Vuex.Store({
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
-        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 104 : 84;
         setDefaultTableWidth(
           state.visibleFields,
           payload?.list ?? state.indexSetQueryResult.list,
@@ -1207,10 +1202,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [
-          ...otherPrams.addition,
-          ...(getters.common_filter_addition ?? []).filter(item => item.value?.length),
-        ],
+        addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
         sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
       };
 
@@ -1676,7 +1668,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...(getters.common_filter_addition ?? [])],
+              addition: [...getters.retrieveParams.addition, ...getCommonFilterAdditionWithValues(state)],
             },
           },
           {

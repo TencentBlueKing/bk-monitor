@@ -122,7 +122,7 @@ class RetrieveHelper {
 
   // 正则表达式提取日志级别
   logLevelRegex =
-    /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/i;
+    /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/gi;
 
   logRowsContainerId: string;
 
@@ -197,13 +197,24 @@ class RetrieveHelper {
    * @returns
    */
   getLogLevel(str: string) {
-    if (!str || typeof str !== 'string') {
-      return null;
+    if (!str?.trim()) return null;
+
+    // 截取前1000字符避免性能问题
+    const logSegment = str.slice(0, 1000);
+    const matches = logSegment.matchAll(this.logLevelRegex);
+    const levelSet = new Set<string>();
+
+    // 收集所有匹配的日志级别
+    for (const match of matches) {
+      const groups = match.groups || {};
+      Object.keys(groups).forEach(level => {
+        if (groups[level]) levelSet.add(level.toUpperCase());
+      });
     }
 
-    const match = str.slice(0, 1000).match(this.logLevelRegex);
-    if (!match) return null;
-    return Object.keys(match.groups).find(level => match.groups[level]);
+    // 按优先级顺序查找最高级别
+    const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
+    return PRIORITY_ORDER.find(level => levelSet.has(level)) || null;
   }
 
   /**

@@ -11,8 +11,8 @@
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
-  import QueryHistory from '../search-bar/query-history';
-  import TimeSetting from '../search-bar/time-setting';
+  import QueryHistory from './query-history';
+  import TimeSetting from './time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';

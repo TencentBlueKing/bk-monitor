@@ -12,17 +12,12 @@
   import useFieldEgges from './use-field-egges';
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
+  import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
 
   const { $t } = useLocale();
   const store = useStore();
   const route = useRoute();
-  const filterFieldsList = computed(() => {
-    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
-      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
-    }
-
-    return [];
-  });
+  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
@@ -31,30 +26,10 @@
   const setCommonFilterAddition = () => {
     commonFilterAddition.value.length = 0;
     commonFilterAddition.value = [];
-    const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
-
-    const isSameIndex = additionValue?.indexId === store.state.indexId;
-    const storedValue = isSameIndex ? additionValue?.value ?? [] : [];
-
     // 合并策略优化
-    commonFilterAddition.value = filterFieldsList.value.map(item => {
-      const storedItem = storedValue.find(v => v.field === item.field_name);
-      const storeItem = (store.getters.common_filter_addition || []).find(
-        addition => addition.field === item.field_name,
-      );
-
-      // 优先级：本地存储 > store > 默认值
-      return (
-        storedItem ||
-        storeItem || {
-          field: item.field_name || '',
-          operator: item.field_operator[0]?.operator ?? '=',
-          value: [],
-          list: [],
-        }
-      );
-    });
+    commonFilterAddition.value = getCommonFilterAddition(store.state);
   };
+
   watch(
     () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
     () => {
