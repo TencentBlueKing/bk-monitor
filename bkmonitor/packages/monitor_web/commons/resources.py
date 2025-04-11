@@ -16,7 +16,6 @@ from monitor_web.commons.cc.resources import *  # noqa
 from monitor_web.commons.context.resources import *  # noqa
 from monitor_web.commons.data.resources import *  # noqa
 from monitor_web.commons.html.resources import *  # noqa
-from monitor_web.commons.job.resources import *  # noqa
 from monitor_web.commons.report.resources import *  # noqa
 from monitor_web.commons.robot.resources import *  # noqa
 from monitor_web.commons.task.resources import *  # noqa
