@@ -27,6 +27,7 @@ from apm_web.topo.handle.relation.define import (
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
@@ -62,110 +63,143 @@ class HostHandler:
         2. 通过topo发现
         3. 通过关联查询
         """
+
         if not start_time or not end_time:
-            app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+            app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if app is None:
+                logger.exception(f"[HostHandler] 业务({bk_biz_id})下的app({app_name}) 不存在.")
+                return []
             start_time, end_time = app.list_retention_time_range()
 
-        # step1: 从主机发现取出主机
-        discover_host_instances = api.apm_api.query_host_instance(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        )
+        dt_start = (start_time // 60) * 60
+        dt_end = (end_time // 60) * 60
+        cache_key = f"apm:{bk_biz_id}-{app_name}-{service_name}-{dt_start}-{dt_end}-list_hosts"
+        hosts_cache = using_cache(CacheType.APM(60 * 1))
+        res = hosts_cache.get_value(cache_key)
+        if res:
+            return res
 
-        apm_host_instances = []
-        # 需要查询 CMDB 获取信息的 ip 列表
-        query_ips = []
-        for i in discover_host_instances:
-            if not i["bk_host_id"]:
-                # 兼容旧拓扑数据没有host_id情况
-                query_ips.append(i["ip"])
-            else:
-                apm_host_instances.append(
-                    {
-                        "bk_host_innerip": i["ip"],
-                        "bk_cloud_id": str(i["bk_cloud_id"]),
-                        "bk_host_id": str(i["bk_host_id"]),
-                        "source_type": cls.SourceType.TOPO,
-                    }
-                )
+        # step1: 从主机发现取出 和 拓扑关联中取出主机
+        def get_hosts_from_cmdb_and_topo(bk_biz_id, app_name, service_name):
+            discover_host_instances = api.apm_api.query_host_instance(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            )
+
+            apm_host_instances = []
+            # 需要查询 CMDB 获取信息的 ip 列表
+            query_ips = []
+            for i in discover_host_instances:
+                if not i["bk_host_id"]:
+                    # 兼容旧拓扑数据没有host_id情况
+                    query_ips.append(i["ip"])
+                else:
+                    apm_host_instances.append(
+                        {
+                            "bk_host_innerip": i["ip"],
+                            "bk_cloud_id": str(i["bk_cloud_id"]),
+                            "bk_host_id": str(i["bk_host_id"]),
+                            "source_type": cls.SourceType.TOPO,
+                        }
+                    )
+            extra_ip_info = defaultdict(dict)
+            relation_qs = RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceSystem,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[SourceService, SourceServiceInstance, SourceSystem],
+            )
+
+            relation_qs += RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceSystem,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[SourceService, SourceServiceInstance, SourceK8sPod],
+            )
+            system_relations = RelationQ.query(relation_qs)
+            for r in system_relations:
+                for n in r.nodes:
+                    source_info = n.source_info.to_source_info()
+                    if source_info.get("bk_target_ip"):
+                        query_ips.append(source_info["bk_target_ip"])
+                        extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
+
+            query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
+            return apm_host_instances + query_host_instances
 
         # step2: 从关联cmdb取出主机
-        relation = CMDBServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        cmdb_host_instances = []
-        if relation:
-            response = batch_request(
-                api.cmdb.find_host_by_service_template,
-                {
-                    "bk_biz_id": bk_biz_id,
-                    "bk_service_template_ids": [relation.first().template_id],
-                    "fields": ["bk_host_innerip", "bk_cloud_id", "bk_host_id", "bk_host_innerip_v6"],
-                },
+        def get_from_cmdb_hosts(bk_biz_id, app_name, service_name):
+            relation = CMDBServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
             )
-            if response:
-                for item in response:
-                    if item["bk_host_innerip"]:
-                        ip = item["bk_host_innerip"].split(",")[0]
-                        cmdb_host_instances.append(
-                            {
-                                "bk_host_innerip": ip,
-                                "bk_cloud_id": str(item["bk_cloud_id"]),
-                                "bk_host_id": str(item["bk_host_id"]),
-                                "source_type": cls.SourceType.CMDB_RELATION,
-                            }
-                        )
-                    elif item.get("bk_host_innerip_v6"):
-                        ip = item["bk_host_innerip_v6"].split(",")[0]
-                        cmdb_host_instances.append(
-                            {
-                                "bk_host_innerip": ip,
-                                "bk_cloud_id": str(item["bk_cloud_id"]),
-                                "bk_host_id": str(item["bk_host_id"]),
-                                "source_type": cls.SourceType.CMDB_RELATION,
-                            }
-                        )
+            cmdb_host_instances = []
+            if relation:
+                response = batch_request(
+                    api.cmdb.find_host_by_service_template,
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "bk_service_template_ids": [relation.first().template_id],
+                        "fields": ["bk_host_innerip", "bk_cloud_id", "bk_host_id", "bk_host_innerip_v6"],
+                    },
+                )
+                if response:
+                    for item in response:
+                        if item["bk_host_innerip"]:
+                            ip = item["bk_host_innerip"].split(",")[0]
+                            cmdb_host_instances.append(
+                                {
+                                    "bk_host_innerip": ip,
+                                    "bk_cloud_id": str(item["bk_cloud_id"]),
+                                    "bk_host_id": str(item["bk_host_id"]),
+                                    "source_type": cls.SourceType.CMDB_RELATION,
+                                }
+                            )
+                        elif item.get("bk_host_innerip_v6"):
+                            ip = item["bk_host_innerip_v6"].split(",")[0]
+                            cmdb_host_instances.append(
+                                {
+                                    "bk_host_innerip": ip,
+                                    "bk_cloud_id": str(item["bk_cloud_id"]),
+                                    "bk_host_id": str(item["bk_host_id"]),
+                                    "source_type": cls.SourceType.CMDB_RELATION,
+                                }
+                            )
+                return cmdb_host_instances
 
-        # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
-        extra_ip_info = defaultdict(dict)
-        relation_qs = RelationQ.generate_q(
-            bk_biz_id=bk_biz_id,
-            source_info=SourceService(
-                apm_application_name=app_name,
-                apm_service_name=service_name,
-            ),
-            target_type=SourceSystem,
-            start_time=start_time,
-            end_time=end_time,
-            path_resource=[SourceService, SourceServiceInstance, SourceSystem],
+
+        query_apm_host_instances = cls.list_ignore_exception(
+            get_hosts_from_cmdb_and_topo, (bk_biz_id, app_name, service_name)
         )
-
-        relation_qs += RelationQ.generate_q(
-            bk_biz_id=bk_biz_id,
-            source_info=SourceService(
-                apm_application_name=app_name,
-                apm_service_name=service_name,
-            ),
-            target_type=SourceSystem,
-            start_time=start_time,
-            end_time=end_time,
-            path_resource=[SourceService, SourceServiceInstance, SourceK8sPod],
-        )
-        system_relations = RelationQ.query(relation_qs)
-        for r in system_relations:
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
-                if source_info.get("bk_target_ip"):
-                    query_ips.append(source_info["bk_target_ip"])
-                    extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
-
-        query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
+        cmdb_host_instances = cls.list_ignore_exception(get_from_cmdb_hosts, (bk_biz_id, app_name, service_name))
 
         res = []
         host_ids = []
-        for i in apm_host_instances + cmdb_host_instances + query_host_instances:  # noqa
+        for i in query_apm_host_instances + cmdb_host_instances:  # noqa
             if i["bk_host_id"] in host_ids:
                 continue
             res.append(i)
             host_ids.append(i["bk_host_id"])
+        hosts_cache.set_value(cache_key, res)
         return res
+
+    @classmethod
+    def list_ignore_exception(cls, func, params):
+        pool = ThreadPool()
+        result = pool.apply_async(func, params)
+        try:
+            query_list = result.get()
+        except Exception:
+            return []
+        return query_list if query_list else []
 
     @classmethod
     def find_host_in_span(cls, bk_biz_id, app_name, span_id, span=None):
