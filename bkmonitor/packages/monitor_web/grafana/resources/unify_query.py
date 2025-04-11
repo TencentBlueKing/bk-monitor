@@ -1069,10 +1069,13 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     bk_inst_id_to_name[bk_inst_id] = node.bk_inst_name
 
         # BCS集群
-        bcs_clusters = BCSCluster.objects.filter(
-            bk_biz_id=params["bk_biz_id"], bcs_cluster_id__in=bcs_cluster_id_list
-        ).only("bcs_cluster_id", "name")
-        bcs_cluster_to_name = {cluster.bcs_cluster_id: cluster.name for cluster in bcs_clusters}
+        if bcs_cluster_id_list:
+            bcs_clusters = BCSCluster.objects.filter(
+                bk_biz_id=params["bk_biz_id"], bcs_cluster_id__in=bcs_cluster_id_list
+            ).only("bcs_cluster_id", "name")
+            bcs_cluster_to_name = {cluster.bcs_cluster_id: cluster.name for cluster in bcs_clusters}
+        else:
+            bcs_cluster_to_name = {}
 
         # 字段映射
         field_mapper = {
