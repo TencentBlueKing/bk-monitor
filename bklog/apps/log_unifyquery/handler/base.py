@@ -515,9 +515,9 @@ class UnifyQueryHandler(object):
                 origin_log = new_origin_log
             else:
                 origin_log = log
-            _index = log.pop("__index")
+            _index = log.pop("__index", None)
             log.update({"index": _index})
-            doc_id = log.pop("__doc_id")
+            doc_id = log.pop("__doc_id", None)
             log.update({"__id__": doc_id})
 
             if "__highlight" not in log:

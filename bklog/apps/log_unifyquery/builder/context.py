@@ -14,69 +14,82 @@ from apps.log_search.models import Scenario
 from apps.log_unifyquery.constants import BODY_DATA_FOR_CONTEXT
 
 
-def create_context_should_query(order, body_should_data, sort_fields, sort_fields_value):
+def create_context_conditions(order, sort_fields, sort_fields_value, and_conditions=None):
     """
     上下文or查询参数构造
     请求参数
     :param order: 排序方式 -或+
-    :param body_should_data: 父级查询参数
     :param sort_fields: 排序字段
     :param sort_fields_value: 排序字段对应的值
+    :param and_conditions: 需要与每个主条件分支用 AND 连接的额外条件
     """
     if order not in ["-", "+"]:
-        return
+        return {"conditions": {}}
 
-    sort_fields_num = len(sort_fields)
+    result = {
+        "conditions": {
+            "field_list": [],
+            "condition_list": []
+        }
+    }
 
-    if order == "+":
-        range_op = "gt" if sort_fields_num > 1 else "gte"
-    else:
-        range_op = "lt"
+    op_map = {
+        "+": {"range_op": "gt", "term_op": "eq"},
+        "-": {"range_op": "lt", "term_op": "eq"}
+    }
 
-    # 需要进行term查询的字段
-    term_fields = []
-    # 构造查询语句
-    for index, (range_field, range_field_value) in enumerate(zip(sort_fields, sort_fields_value)):
-        if index == 0:
-            body_should_data.append(
-                {
-                    "range": {
-                        range_field: {
-                            range_op: range_field_value,
-                        }
-                    }
-                }
-            )
-        else:
-            body_should_data.append(
-                {
-                    "bool": {
-                        "filter": [
-                            {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
-                            for _term_range_field in term_fields
-                        ]
-                    }
-                }
-            )
-            # 升序时最后一个字段操作符设置为大于等于
-            if order == "+" and index + 1 == sort_fields_num:
-                range_op = "gte"
+    # 生成主条件模板
+    main_conditions = []
+    for idx, (field, value) in enumerate(zip(sort_fields, sort_fields_value)):
+        condition_group = []
+        # 添加前序字段的精确匹配
+        for prev_field, prev_value in zip(sort_fields[:idx], sort_fields_value[:idx]):
+            condition_group.append({
+                "field_name": prev_field,
+                "op": op_map[order]["term_op"],
+                "value": [str(prev_value)]
+            })
+        # 添加当前字段的范围条件
+        current_op = "gte" if (order == "+" and idx == len(sort_fields) - 1) else op_map[order]["range_op"]
+        condition_group.append({
+            "field_name": field,
+            "op": current_op,
+            "value": [str(value)]
+        })
+        main_conditions.append(condition_group)
 
-            body_should_data[index]["bool"]["filter"].append(
-                {
-                    "range": {
-                        range_field: {
-                            range_op: range_field_value,
-                        }
-                    }
-                }
-            )
-        term_fields.append({"range_field": range_field, "range_field_value": range_field_value})
+    # 将 AND 条件嵌套到每个主条件分支
+    for group_idx, group in enumerate(main_conditions):
+        # 添加主条件字段
+        result["conditions"]["field_list"].extend(group)
+
+        # 添加主条件内部连接符（前序字段间用 AND）
+        if len(group) > 1:
+            result["conditions"]["condition_list"].extend(["and"] * (len(group) - 1))
+
+        # 添加 AND 条件到当前主条件分支
+        if and_conditions:
+            # 主条件与 AND 条件之间用 AND 连接
+            if group:
+                result["conditions"]["condition_list"].append("and")
+
+            # 添加 AND 条件字段
+            result["conditions"]["field_list"].extend(and_conditions)
+
+            # 添加 AND 条件内部连接符
+            if len(and_conditions) > 1:
+                result["conditions"]["condition_list"].extend(["and"] * (len(and_conditions) - 1))
+
+        # 添加主条件之间的 OR 连接（非第一个分支）
+        if group_idx > 0:
+            result["conditions"]["condition_list"].append("or")
+
+    return result
 
 
 def _get_context_body(self, order):
-    target_fields = self.index_set.target_fields
-    sort_fields = self.index_set.sort_fields
+    target_fields = self.index_set["target_fields"]
+    sort_fields = self.index_set["sort_fields"]
 
     if sort_fields:
         return CreateSearchContextBodyCustomField(
@@ -147,95 +160,74 @@ class CreateSearchContextBodyScenarioBkData(object):
         ext_container_id = kwargs.get("__ext", {}).get("container_id", "")
 
         self._body = None
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
-        body_should_data = body_data["query"]["bool"]["should"]
+        body_data = {}
+        and_conditions = []
         sort_fields = ["gseindex", "_iteration_idx", "dtEventTimeStamp"]
         sort_fields_value = [gse_index, iteration_idx, dt_event_time_stamp]
-        order_use: str = "asc"
+        order_use: str = "asc" if order == "+" else "desc"
 
-        # 根据排序方式构造查询语句
-        if order == "-":
-            order_use = "desc"
-            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
-        if order == "+":
-            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
-
+        # 排序
         sort = []
         for item in sort_fields:
             if item in sort_list:
-                sort.append({item: {"order": order_use}})
-        body_data["sort"] = sort
+                if order_use == "asc":
+                    sort.append(f"{item}")
+                elif order_use == "desc":
+                    sort.append(f"-{item}")
+        body_data["order_by"] = sort
+
         if bk_host_id:
-            body_data["query"]["bool"]["must"].append(
+            and_conditions.append(
                 {
-                    "match": {
-                        "bk_host_id": {
-                            "query": bk_host_id,
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "bk_host_id",
+                    "op": "eq",
+                    "value": [str(bk_host_id)]
                 }
             )
 
         if ip != "":
-            body_data["query"]["bool"]["must"].append(
+            and_conditions.append(
                 {
-                    "match": {
-                        "ip": {
-                            "query": ip,
-                            # "type": "phrase"
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "ip",
+                    "op": "eq",
+                    "value": [str(ip)]
                 }
             )
 
         if path != "":
-            body_data["query"]["bool"]["must"].append(
+            and_conditions.append(
                 {
-                    "match": {
-                        "path": {
-                            "query": path,
-                            # "type": "phrase"
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "path",
+                    "op": "eq",
+                    "value": [str(path)]
                 }
             )
 
         if container_id and logfile:  # 这个是容器
-            body_data["query"]["bool"]["must"] = [
+            and_conditions.extend([
                 {
-                    "match": {
-                        "container_id": {
-                            "query": container_id,
-                            # "type": "phrase"
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "container_id",
+                    "op": "eq",
+                    "value": [str(container_id)]
                 },
                 {
-                    "match": {
-                        "logfile": {
-                            "query": logfile,
-                            # "type": "phrase"
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "logfile",
+                    "op": "eq",
+                    "value": [str(logfile)]
                 },
-            ]
+            ])
 
         if ext_container_id:
-            body_data["query"]["bool"]["must"].append(
+            and_conditions.append(
                 {
-                    "match": {
-                        "__ext.container_id": {
-                            "query": ext_container_id,
-                            "operator": "and",
-                        }
-                    }
+                    "field_name": "__ext.container_id",
+                    "op": "eq",
+                    "value": [str(ext_container_id)]
                 }
             )
+
+        # 根据排序方式构造查询条件
+        body_data["conditions"] = create_context_conditions(order, sort_fields, sort_fields_value, and_conditions)
 
         body_data["size"] = size
 

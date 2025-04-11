@@ -30,7 +30,6 @@ def build_tail_params(params):
     time_now = arrow.utcnow()
     params["start_time"] = int(time_now.timestamp())
     params["end_time"] = int(time_now.shift(days=-1).timestamp())
-    params["bk_biz_id"] = LogIndexSetData.objects.filter(index_set_id=params["index_set_id"]).first().bk_biz_id
     params["index_set_ids"] = [params["index_set_id"]]
     return params
 

@@ -20,17 +20,16 @@ from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 
 class UnifyQueryContextHandler(UnifyQueryTailHandler):
     def search(self, *args):
-        if self.scenario_id == Scenario.ES and not (self.index_set.target_fields or self.index_set.sort_fields):
+        # 仅支持单索引集
+        if self.scenario_id == Scenario.ES and not (self.index_set["target_fields"] or self.index_set["sort_fields"]):
             return {"total": 0, "took": 0, "list": []}
-
-        base_params = {}
 
         if self.zero:
             # up
             body: dict = self._get_context_body("-")
-            params_up = copy.deepcopy(base_params)
-            params_up.update({"body": body})
-            result_up: dict = self.query_ts_reference(params_up)
+            params_up = copy.deepcopy(self.base_dict)
+            params_up.update(body)
+            result_up: dict = self.query_ts_raw(params_up)
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
                 {
@@ -42,9 +41,9 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
             # down
             body: dict = self._get_context_body("+")
 
-            params_down = copy.deepcopy(base_params)
-            params_down.update({"body": body})
-            result_down: Dict = self.query_ts_reference(params_down)
+            params_down = copy.deepcopy(self.base_dict)
+            params_down.update(body)
+            result_down: Dict = self.query_ts_raw(params_down)
 
             result_down: dict = self._deal_query_result(result_down)
             result_down.update(
@@ -53,8 +52,8 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
-            target_fields = self.index_set.target_fields if self.index_set else []
-            sort_fields = self.index_set.sort_fields if self.index_set else []
+            target_fields = self.index_set["target_fields"] if self.index_set else []
+            sort_fields = self.index_set["sort_fields"] if self.index_set else []
             if sort_fields:
                 analyze_result_dict: dict = self._analyze_context_result(
                     new_list, target_fields=target_fields, sort_fields=sort_fields
@@ -80,9 +79,9 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
         if self.start < 0:
             body: Dict = self._get_context_body("-")
 
-            params_up = copy.deepcopy(base_params)
-            params_up.update({"body": body})
-            result_up = self.query_ts_reference(params_up)
+            params_up = copy.deepcopy(self.base_dict)
+            params_up.update(body)
+            result_up = self.query_ts_raw(params_up)
 
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
@@ -101,9 +100,9 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
         if self.start > 0:
             body: Dict = self._get_context_body("+")
 
-            params_down = copy.deepcopy(base_params)
-            params_down.update({"body": body})
-            result_down = self.query_ts_reference(params_down)
+            params_down = copy.deepcopy(self.base_dict)
+            params_down.update(body)
+            result_down = self.query_ts_raw(params_down)
 
             result_down = self._deal_query_result(result_down)
             result_down.update(
@@ -119,8 +118,8 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
         return {"list": []}
 
     def _get_context_body(self, order):
-        target_fields = self.index_set.target_fields
-        sort_fields = self.index_set.sort_fields
+        target_fields = self.index_set["target_fields"]
+        sort_fields = self.index_set["sort_fields"]
 
         if sort_fields:
             return CreateSearchContextBodyCustomField(

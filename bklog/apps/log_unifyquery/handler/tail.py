@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 from typing import Dict, List, Any
 
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import Scenario
 from apps.log_unifyquery.builder.tail import CreateSearchTailBodyCustomField, CreateSearchTailBodyScenarioBkData, \
     CreateSearchTailBodyScenarioLog
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -43,17 +43,18 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
         # 透传size
         self.size: int = params.get("size", 30)
 
+        # 仅支持单索引集
+        self.index_set = self.index_info_list[0]
+        self.scenario_id = self.index_set["scenario_id"]
+
     def search(self, *args):
         base_params = copy.deepcopy(self.base_dict)
         body: Dict = {}
-        # 仅支持单索引集
-        index_info = self.index_info_list[0]
-        scenario_id = index_info["scenario_id"]
-        target_fields = index_info.get("target_fields", [])
-        sort_fields = index_info.get("sort_fields", [])
+        target_fields = self.index_set.get("target_fields", [])
+        sort_fields = self.index_set.get("sort_fields", [])
 
         if sort_fields:
-            time_field, _, _ = UnifyQueryHandler.init_time_field(index_info["index_set_id"], scenario_id)
+            time_field, _, _ = UnifyQueryHandler.init_time_field(self.index_set["index_set_id"], self.scenario_id)
             body: Dict = CreateSearchTailBodyCustomField(
                 start=self.search_params.get("start", 0),
                 size=self.search_params.get("size", 30),
@@ -65,7 +66,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
                 base_params=base_params,
             ).body
 
-        elif scenario_id == Scenario.BKDATA:
+        elif self.scenario_id == Scenario.BKDATA:
             body: Dict = CreateSearchTailBodyScenarioBkData(
                 sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
                 size=self.search_params.get("size", 30),
@@ -78,7 +79,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
                 logfile=self.logfile,
                 zero=self.zero,
             ).body
-        elif scenario_id == Scenario.LOG:
+        elif self.scenario_id == Scenario.LOG:
             body: Dict = CreateSearchTailBodyScenarioLog(
                 sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
                 size=self.search_params.get("size", 30),

@@ -451,8 +451,8 @@ class SearchViewSet(APIViewSet):
         data = request.data
         data.update({"search_type_tag": "context"})
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            params = build_tail_params(data)
-            query_handler = UnifyQueryContextHandler(params)
+            data.update({"index_set_ids": [index_set_id]})
+            query_handler = UnifyQueryContextHandler(data)
             return Response(query_handler.search())
         else:
             data.update({"search_type_tag": "context"})
