@@ -540,6 +540,32 @@ $border-color: #d9d9d9;
                   border-radius: 2px;
                 }
               }
+              &:has(.init-add) {
+                padding: 5px 0;
+              }
+              .init-add {
+                margin-top: -2px;
+                margin-left: 1px;
+                .func-label {
+                  display: none;
+                }
+                .function-menu-anchor,
+                .func-item {
+                  margin-top: -1px;
+                  height: 30px;
+                }
+                .init-add-input {
+                  width: 331px;
+                  border-color: transparent;
+                  background: none;
+                  padding: 0;
+                  padding-left: 6px;
+                  &.tippy-active {
+                    border-color: #3a84ff;
+                    box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+                  }
+                }
+              }
             }
 
             .info-text {

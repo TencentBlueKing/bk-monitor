@@ -411,6 +411,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
       this.detailData = detailData || this.detailData;
       this.autoDiscover = this.detailData.auto_discover;
+      for (const item of metricData?.metrics) {
+        if (!item?.function?.[0]) {
+          item.function = [];
+        }
+      }
       this.metricList = metricData?.metrics || [];
       this.dimensions = metricData?.dimensions || [];
 
@@ -1051,8 +1056,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     await this.submitGroupInfo(config);
     await this.getGroupList();
     this.changeGroupFilterList(config.name);
-    this.nonGroupNum = this.getNonGroupNum();
     this.getDetailData();
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
   /** 删除自定义分组 */
@@ -1065,6 +1070,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.changeGroupFilterList(ALL_LABEL);
     }
     this.getDetailData();
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
   /* 分组管理指标 */

@@ -36,7 +36,7 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
-import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { matchRuleFn } from '../group-manage-dialog';
 
 import './metric-table.scss';
@@ -50,6 +50,10 @@ export const statusMap = new Map([
 interface ILabel {
   name: string;
 }
+interface IFunc {
+  id: string;
+  name: string;
+}
 interface IMetricDetail {
   name: string;
   alias: string;
@@ -58,10 +62,7 @@ interface IMetricDetail {
   unit: string;
   aggregate_method: string;
   disabled?: boolean;
-  function: {
-    id: string;
-    name: string;
-  };
+  function: IFunc[];
   hidden: boolean;
   dimensions?: string[];
   reportInterval: string;
@@ -654,9 +655,6 @@ export default class IndicatorTable extends tsc<any, any> {
 
   /** 编辑函数 */
   async editFunction(func, metricInfo) {
-    if (!func?.name || func?.name === metricInfo?.function?.name) {
-      return;
-    }
     metricInfo.function = func;
     await this.updateCustomFields('function', func, metricInfo.name);
   }
@@ -768,6 +766,11 @@ export default class IndicatorTable extends tsc<any, any> {
       this.showDetail = false;
       return;
     }
+
+    const getKey = obj => {
+      return `${obj?.name || ''}_${obj?.description}`;
+    };
+
     return (
       <div class='metric-card'>
         <div class='card-header'>
@@ -891,13 +894,13 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('函数')}：</span>
               <div class='info-content'>
                 {
-                  <FunctionMenu
+                  <FunctionSelect
+                    key={getKey(metricData)}
                     class='init-add'
-                    list={this.metricFunctions}
-                    onFuncSelect={v => this.editFunction(v, metricData)}
-                  >
-                    {metricData.function?.name ?? '-'}
-                  </FunctionMenu>
+                    v-model={metricData.function}
+                    isMultiple={false}
+                    onValueChange={params => this.editFunction(params, metricData)}
+                  />
                 }
               </div>
             </div>
