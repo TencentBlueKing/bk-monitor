@@ -1,0 +1,23 @@
+#!/bin/bash
+echo "logging.level: error
+max_procs: 1
+output.console:
+path.data: /var/lib/gse
+path.logs: /var/log/gse
+path.pid: /var/run/gse
+uptimecheckbeat:
+  bk_biz_id: {bk_biz_id}
+  bk_cloud_id: {bk_cloud_id}
+  clean_up_timeout: 1s
+  event_buffer_size: 10
+  heart_beat:
+    dataid: 1008
+    period: 60s
+  ip:
+  mode: daemon
+  node_id: {node_id}" > {empty_conf}
+cd {conf_path}
+mv {old_conf} {backup_conf}.{timestamp}
+cp {empty_conf} {old_conf}
+cd {bin_path}
+./stop.sh uptimecheckbeat
