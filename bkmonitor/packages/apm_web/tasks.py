@@ -20,6 +20,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from apm_web.constants import ApmCacheKey
+from apm_web.event.handler import EventHandler
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
@@ -234,3 +235,29 @@ def cache_application_scope_name():
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
+
+
+@shared_task(ignore_result=True)
+def discover_apps_k8s_event_relations():
+    """自动发现应用 k8s 事件关联关系"""
+    logger.info("[discover_apps_k8s_event_relations] task start")
+
+    for application in Application.objects.filter(is_enabled=True).values("bk_biz_id", "app_name"):
+        logger.info(
+            f"[discover_apps_k8s_event_relations] start to discover k8s event relations: "
+            f"bk_biz_id -> {application['bk_biz_id']}, app_name -> {application['app_name']}"
+        )
+        try:
+            EventHandler(application["bk_biz_id"], application["app_name"]).discover_app_k8s_event_relations()
+        except Exception as e:  # noqa
+            logger.warning(
+                f"[discover_apps_k8s_event_relations] discover k8s event relations failed: "
+                f"bk_biz_id -> {application['bk_biz_id']}, app_name -> {application['app_name']}, err -> {e}",
+            )
+        else:
+            logger.info(
+                f"[discover_apps_k8s_event_relations] discover k8s event relations success: "
+                f"bk_biz_id -> {application['bk_biz_id']}, app_name -> {application['app_name']}",
+            )
+
+    logger.info("[discover_apps_k8s_event_relations] task finished")

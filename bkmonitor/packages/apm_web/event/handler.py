@@ -8,87 +8,103 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 import datetime
+import logging
 from typing import Any, Dict, List, Optional
 
-from bkmonitor.data_source.unify_query.builder import UnifyQuerySet
-from bkmonitor.utils.time_tools import time_interval_align
-from monitor_web.data_explorer.event.constants import EventDomain, EventSource
+from apm_web.container.helpers import ContainerHelper
+from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.models import EventServiceRelation
+from apm_web.service.resources import ServiceConfigResource
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
+from monitor_web.data_explorer.event.constants import EventCategory
 
-
-class EventQueryHelper:
-    TIME_FIELD_ACCURACY = 1
-
-    # 默认查询近 1h 的数据
-    DEFAULT_TIME_DURATION: datetime.timedelta = datetime.timedelta(hours=1)
-
-    # 最多查询近 30d 的数据
-    MAX_TIME_DURATION: datetime.timedelta = datetime.timedelta(days=180)
-
-    @classmethod
-    def time_range_qs(cls, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        start_time, end_time = cls._get_time_range(start_time, end_time)
-        return UnifyQuerySet().start_time(start_time).end_time(end_time)
-
-    @classmethod
-    def _get_time_range(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
-        now: int = int(datetime.datetime.now().timestamp())
-        # 最早查询起始时间
-        earliest_start_time: int = now - int(cls.MAX_TIME_DURATION.total_seconds())
-        # 默认查询起始时间
-        default_start_time: int = now - int(cls.DEFAULT_TIME_DURATION.total_seconds())
-
-        # 开始时间不能小于 earliest_start_time
-        start_time = max(earliest_start_time, start_time or default_start_time)
-        # 结束时间不能大于 now
-        end_time = min(now, end_time or now)
-
-        # 省略未完成的一分钟，避免数据不准确引起误解
-        interval: int = 60
-        start_time = time_interval_align(start_time, interval) * cls.TIME_FIELD_ACCURACY
-        end_time = time_interval_align(end_time, interval) * cls.TIME_FIELD_ACCURACY
-
-        return start_time, end_time
+logger = logging.getLogger(__name__)
 
 
 class EventHandler:
-    def __init__(self, bk_biz_id: int, app_name: str, service_name: str):
+    def __init__(self, bk_biz_id: int, app_name: str):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
-        self.service_name: str = service_name
 
-    def get_config(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "table": "k8s_event",
-                "domain": EventDomain.K8S.value,
-                "source": EventSource.BCS.value,
-                "relations": [
-                    # 集群 / 命名空间 / Workload 类型 / Workload 名称
-                    # case 1：勾选整个集群
-                    # {"bcs_cluster_id": "BCS-K8S-00000"},
-                    # case 2：勾选整个 Namespace
-                    {"bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking"},
-                    # case 3：勾选整个 WorkloadType
-                    {"bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking", "kind": "Deployment"},
-                    # case 4：勾选 Workload
-                    # Deployment 包括 Pod、HorizontalPodAutoscaler、ReplicaSet 事件
-                    # DaemonSet / StatefulSet 包括 Pod
-                    {
-                        "bcs_cluster_id": "BCS-K8S-00000",
-                        "namespace": "blueking",
-                        "kind": "Deployment",
-                        "name": "bk-monitor-api",
-                    },
-                ],
-            },
-            {
-                "table": "system_event",
-                "domain": EventDomain.SYSTEM.value,
-                "source": EventSource.HOST.value,
-                "relations": [
-                    {"bk_biz_id": self.bk_biz_id},
-                ],
-            },
+    def _discover_service_k8s_event_relations(self, service_name: str):
+        """自动发现服务 k8s 事件关联关系"""
+        table_relation_map: Dict[str, Dict[str, Any]] = {
+            relation["table"]: relation
+            for relation in EventServiceRelation.fetch_relations(self.bk_biz_id, self.app_name, service_name)
+        }
+        k8s_event_relation: Optional[Dict[str, Any]] = table_relation_map.get(EventCategory.K8S_EVENT.value)
+        if k8s_event_relation and not k8s_event_relation["options"].get("is_auto"):
+            # 调用接口相比于查询 DB 是一个更重的操作，这里应该先判断是否开启自动关联，再查询关联关系，减少无效调用。
+            logger.info(
+                "[_discover_service_k8s_event_relations] auto discover disabled:"
+                "bk_biz_id -> %s, app_name -> %s, service_name -> %s",
+                self.bk_biz_id,
+                self.app_name,
+                service_name,
+            )
+            return
+
+        end_time: int = int(datetime.datetime.now().timestamp())
+        start_time: int = end_time - int(datetime.timedelta(hours=1).total_seconds())
+        workloads: List[Dict[str, str]] = ContainerHelper.list_apm_service_workloads(
+            self.bk_biz_id, self.app_name, service_name, start_time, end_time
+        )
+        if not workloads:
+            logger.info(
+                "[_discover_service_k8s_event_relations] no workloads found: "
+                "bk_biz_id -> %s, app_name -> %s, service_name -> %s",
+                self.bk_biz_id,
+                self.app_name,
+                service_name,
+            )
+            return
+
+        ServiceConfigResource.update_event_relations(
+            self.bk_biz_id,
+            self.app_name,
+            service_name,
+            [{"table": EventCategory.K8S_EVENT.value, "options": {"is_auto": True}, "relations": workloads}],
+        )
+        logger.info(
+            "[_discover_service_k8s_event_relations] update k8s event relations success:"
+            "bk_biz_id -> %s, app_name -> %s, service_name -> %s, workloads -> %s",
+            self.bk_biz_id,
+            self.app_name,
+            service_name,
+            workloads,
+        )
+
+    def discover_app_k8s_event_relations(self):
+        """自动发现应用 k8s 事件关联关系"""
+        service_names: List[str] = [
+            node["topo_key"] for node in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name)
         ]
+
+        # 分批，避免一次性处理过多服务
+        batch: int = 20
+        for idx in range(0, len(service_names), batch):
+            partial_service_names = service_names[idx : idx + batch]
+            logger.info(
+                "[discover_app_k8s_event_relations] start to discover service k8s event relations: "
+                "bk_biz_id -> %s, app_name -> %s, total -> %s, idx -> %s, service_names -> %s",
+                self.bk_biz_id,
+                self.app_name,
+                len(service_names),
+                idx,
+                partial_service_names,
+            )
+            run_threads(
+                [
+                    InheritParentThread(target=self._discover_service_k8s_event_relations, args=(service_name,))
+                    for service_name in partial_service_names
+                ]
+            )
+            logger.info(
+                "[discover_app_k8s_event_relations] end to discover service k8s event relations: "
+                "bk_biz_id -> %s, app_name -> %s, service_num -> %s, idx -> %s",
+                self.bk_biz_id,
+                self.app_name,
+                len(service_names),
+                idx,
+            )
