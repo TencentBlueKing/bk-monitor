@@ -551,14 +551,14 @@ class GraphDrillDownResource(Resource):
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
-        dimensions = serializers.DictField(label="维度值")
-        value = serializers.FloatField(label="当前值")
-        percentage = serializers.FloatField(label="占比")
+        dimensions = serializers.DictField(label="维度值", allow_null=True)
+        value = serializers.FloatField(label="当前值", allow_null=True)
+        percentage = serializers.FloatField(label="占比", allow_null=True)
 
         class CompareValueSerializer(serializers.Serializer):
-            value = serializers.FloatField(label="对比值")
+            value = serializers.FloatField(label="对比值", allow_null=True)
             offset = serializers.CharField(label="偏移量")
-            fluctuation = serializers.FloatField(label="波动值")
+            fluctuation = serializers.FloatField(label="波动值", allow_null=True)
 
         compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
 
