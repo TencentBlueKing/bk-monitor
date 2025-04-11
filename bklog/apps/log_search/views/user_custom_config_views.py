@@ -56,9 +56,8 @@ class UserCustomConfigViewSet(ModelViewSet):
             "result": true
         }
         """
-        user_id = request.user.id
         data = self.params_valid(UserCustomConfigSerializer)
-        return Response(UserCustomConfigHandler().create_config(user_id, data["custom_config"]))
+        return Response(UserCustomConfigHandler().create_config(data["custom_config"]))
 
     def partial_update(self, request, *args, id=None, **kwargs):
         """
