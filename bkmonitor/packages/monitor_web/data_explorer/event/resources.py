@@ -518,7 +518,8 @@ class EventStatisticsGraphResource(Resource):
                 queries.append(q)
 
         # 字段枚举数量少于区间数量或者区间的最大数量小于区间数，直接查询枚举值返回
-        if values[2] < values[3] or (values[1] - values[0] + 1) < values[3]:
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if distinct_count < interval_num or (max_value - min_value + 1) < interval_num:
             for q in queries:
                 queryset = queryset.add_query(q.group_by(field_name))
             return self.process_graph_info(
@@ -571,7 +572,7 @@ class EventStatisticsGraphResource(Resource):
                     target=cls.collect_interval_buckets,
                     args=(
                         queryset,
-                        [cls.get_q_by_interval(query, field, interval) for query in queries],
+                        [cls._get_q_by_interval(query, field, interval) for query in queries],
                         buckets,
                         interval,
                     ),
@@ -582,7 +583,7 @@ class EventStatisticsGraphResource(Resource):
         return sorted(buckets, key=lambda x: int(x[1].split("-")[0]))
 
     @classmethod
-    def get_q_by_interval(cls, query, field, interval):
+    def _get_q_by_interval(cls, query, field, interval):
         """
         处理区间条件
         :param interval:tuple
