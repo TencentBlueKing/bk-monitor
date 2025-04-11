@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, nextTick, onMounted } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
   import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
@@ -7,12 +7,13 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
   import { bkIcon } from 'bk-magic-vue';
   import { Props } from 'tippy.js';
+
+  import PopInstanceUtil from '../../../global/pop-instance-util';
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
-  import PopInstanceUtil from '../../../global/pop-instance-util';
+  import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   const INPUT_MIN_WIDTH = 12;
 
@@ -991,11 +992,11 @@
       fieldOptionListInstance.show(e.target);
     }
   };
-  const handleOptionListMouseLeave = e => {
+  const handleOptionListMouseLeave = () => {
     fieldOptionListInstance.uninstallInstance();
   };
 
-  const handleCustomTagItemClick = e => {
+  const handleCustomTagItemClick = () => {
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     handleValueInputEnter({ target: refValueTagInput.value });
   };
@@ -1044,7 +1045,7 @@
         </div>
         <div
           ref="refSearchResultList"
-          class="ui-search-result"
+          class="ui-search-result bklog-v3-popover-tag"
         >
           <div
             v-for="(item, index) in filterFieldList"
@@ -1063,7 +1064,7 @@
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
+            <div class="display-container rtl-text">
               <span class="field-alias">
                 {{ item.query_alias || item.field_alias || item.field_name }}
               </span>
@@ -1207,8 +1208,8 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
-                      @input="handleInputValueChange"
                       @blur.stop="handleTagInputBlur"
+                      @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
@@ -1261,8 +1262,8 @@
                     </li>
                     <li
                       v-if="isRequesting"
-                      v-bkloading="{ isLoading: isRequesting, size: 'small' }"
                       style="display: 32px"
+                      v-bkloading="{ isLoading: isRequesting, size: 'small' }"
                     ></li>
                     <template v-if="!isRequesting">
                       <li
@@ -1331,9 +1332,9 @@
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          style="padding: 0 4px; margin-right: 8px"
           class="save-btn"
           :disabled="!isSaveBtnActive"
-          style="padding: 0 4px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
         >
@@ -1353,4 +1354,5 @@
 </style>
 <style lang="scss">
   @import './theme-light.scss';
+  @import './theme-dark.scss';
 </style>
