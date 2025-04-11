@@ -23,19 +23,126 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
+
+import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
+import { useTraceExploreStore } from '../../store/modules/explore';
+import DimensionFilterPanel from './components/dimension-filter-panel';
+import TraceExploreLayout from './components/trace-explore-layout';
 
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
-    const a = shallowRef('hello world');
+    const traceExploreLayoutRef = ref<InstanceType<typeof traceExploreLayoutRef>>();
+    const store = useTraceExploreStore();
+
+    console.log(store);
+
+    const where = ref([]);
+    const fieldList = ref([]);
+    const loading = ref(false);
+    const queryString = ref('');
+
+    function handleCloseDimensionPanel() {}
+
+    function handleConditionChange() {}
+
+    function handleShowEventSourcePopover() {}
+
+    onMounted(() => {
+      setTimeout(() => {
+        fieldList.value = [
+          {
+            name: 'time',
+            alias: '数据上报时间（time）',
+            type: 'date',
+            is_option_enabled: true,
+          },
+          {
+            name: 'event_name',
+            alias: '事件名（event_name）',
+            type: 'keyword',
+            is_option_enabled: true,
+          },
+          {
+            name: 'type',
+            alias: '事件类型（type）',
+            type: 'keyword',
+            is_option_enabled: true,
+          },
+          {
+            name: 'a.c',
+            alias: 'a.c',
+            type: 'keyword',
+            is_option_enabled: true,
+          },
+          {
+            name: 'a.b',
+            alias: 'a.b',
+            type: 'keyword',
+            is_option_enabled: true,
+          },
+          {
+            name: 'a.d.e',
+            type: 'keyword',
+            is_option_enabled: true,
+            disabled: true,
+          },
+          {
+            name: 'a.d.f',
+            type: 'keyword',
+            is_option_enabled: true,
+            disabled: true,
+          },
+        ];
+      }, 300);
+    });
+
     return {
-      a,
+      traceExploreLayoutRef,
+      where,
+      fieldList,
+      loading,
+      queryString,
+      handleCloseDimensionPanel,
+      handleConditionChange,
+      handleShowEventSourcePopover,
     };
   },
   render() {
-    return <div class='trace-explore'>{this.a}</div>;
+    return (
+      <div class='trace-explore'>
+        <div class='favorite-panel' />
+        <div class='main-panel'>
+          <div class='header-panel' />
+          <div class='trace-explore-content'>
+            {this.loading ? <div class='skeleton-element filter-skeleton' /> : <RetrievalFilter />}
+            <TraceExploreLayout
+              ref='traceExploreLayoutRef'
+              class='content-container'
+            >
+              {{
+                aside: () => (
+                  <div class='dimension-filter-panel'>
+                    <DimensionFilterPanel
+                      condition={this.where}
+                      list={this.fieldList}
+                      listLoading={this.loading}
+                      queryString={this.queryString}
+                      onClose={this.handleCloseDimensionPanel}
+                      onConditionChange={this.handleConditionChange}
+                      onShowEventSourcePopover={this.handleShowEventSourcePopover}
+                    />
+                  </div>
+                ),
+                default: () => <div class='result-content-panel' />,
+              }}
+            </TraceExploreLayout>
+          </div>
+        </div>
+      </div>
+    );
   },
 });

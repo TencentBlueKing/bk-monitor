@@ -32,8 +32,8 @@ import type { TranslateResult } from 'vue-i18n';
 import './empty-status.scss';
 
 export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
-type EmptyStatusScene = 'page' | 'part';
-type EmptyStatusOperationType = 'clear-filter' | 'refresh';
+export type EmptyStatusScene = 'page' | 'part';
+export type EmptyStatusOperationType = 'clear-filter' | 'refresh';
 export type IEmptyStatusTextMap = {
   [key in EmptyStatusType]?: TranslateResult;
 };
