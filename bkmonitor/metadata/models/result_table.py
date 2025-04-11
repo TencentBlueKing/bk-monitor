@@ -1067,9 +1067,7 @@ class ResultTable(models.Model):
 
         data_source = DataSource.objects.get(bk_data_id=bk_data_id)
         data_source.refresh_consul_config()
-        logger.info(
-            "table_id->[%s] of bk_tenant_id->[%s] refresh etl config success." % self.table_id, self.bk_tenant_id
-        )
+        logger.info("table_id->[%s] of bk_tenant_id->[%s] refresh etl config success", self.table_id, self.bk_tenant_id)
 
         return True
 
