@@ -233,7 +233,7 @@ class CustomReportSubscription(models.Model):
                             "name": "proxy_validator/common",
                             "type": datatype,
                             "version": "v2",
-                            "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
+                            "max_future_time_offset": max_future_time_offset,
                         },
                     }
                 else:
@@ -267,7 +267,6 @@ class CustomReportSubscription(models.Model):
                             "type": "token_bucket",
                             "qps": max_rate,
                         },
-                        "max_future_time_offset": max_future_time_offset,
                     }
                 data_id_config = (item, sub_config_name)
 
