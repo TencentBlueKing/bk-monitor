@@ -54,3 +54,36 @@ export function getTitleAndSubtitle(str) {
     subtitle: match?.[2],
   };
 }
+export function onClickOutside(element, callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => el.contains(event.target));
+    } else {
+      isInside = element.contains(event.target);
+    }
+    if (!isInside) {
+      callback(event);
+      if (once) document.removeEventListener('click', handler);
+    }
+  };
+  document.addEventListener('click', handler);
+  return () => document.removeEventListener('click', handler);
+}
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export function getCharLength(str) {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+  return bitLen;
+}

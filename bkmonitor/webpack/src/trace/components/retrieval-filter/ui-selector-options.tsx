@@ -45,6 +45,7 @@ import {
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
 import { getTitleAndSubtitle, isNumeric } from './utils';
+import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
 
@@ -426,7 +427,7 @@ export default defineComponent({
                 )}
               </div>
               <div class='form-item-content mt-6'>
-                {/* <ValueTagSelector
+                <ValueTagSelector
                   key={this.rightRefreshKey}
                   ref='valueSelector'
                   fieldInfo={this.valueSelectorFieldInfo}
@@ -436,7 +437,7 @@ export default defineComponent({
                   onChange={this.handleValueChange}
                   onSelectorBlur={this.handleValueSelectorBlur}
                   onSelectorFocus={this.handleSelectorFocus}
-                /> */}
+                />
               </div>
               {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
             </div>,
