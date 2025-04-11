@@ -134,7 +134,7 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
-    const handleSyncAdditionToSQL = () => {
+    const handleSyncAdditionToSQL = (callback?) => {
       const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
@@ -157,11 +157,17 @@ export default defineComponent({
           setTimeout(() => {
             formatMonacoSqlCode();
           });
+
+          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
+          isPreviewSqlShow.value = true;
+          callback?.();
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
         });
     };
+
+    const debounceSyncAdditionToSQL = debounce(handleSyncAdditionToSQL, 500);
 
     const handleFullscreenClick = () => {
       if (!screenfull.isEnabled) return;
@@ -302,8 +308,7 @@ export default defineComponent({
       }
 
       // 这里表示来自原始日志收藏或者查询参数相关改变时触发
-      await handleSyncAdditionToSQL();
-      debounceQuery();
+      debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
     RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, onRefereceChange).on(
@@ -318,8 +323,7 @@ export default defineComponent({
     });
 
     onMounted(async () => {
-      await handleSyncAdditionToSQL();
-      debounceQuery();
+      handleSyncAdditionToSQL(debounceQuery);
     });
 
     const sqlRootStyle = computed(() => {

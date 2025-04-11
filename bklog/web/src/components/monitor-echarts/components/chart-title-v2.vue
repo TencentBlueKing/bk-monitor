@@ -74,15 +74,14 @@
             </bk-option>
           </bk-select>
 
-          <span
-            class="bklog-icon bklog-shezhi"
-            @click="handleSettingClick"
-          ></span>
-          <div style="display: none">
-            <div
-              ref="refSettingContext"
-              class="bklog-v3-grade-setting"
-            >
+          <BklogPopover
+            content-class="bklog-v3-grade-setting"
+            ref="refGradePopover"
+            :options="tippyOptions"
+            :beforeHide="beforePopoverHide"
+          >
+            <span class="bklog-icon bklog-shezhi"></span>
+            <template #content>
               <div class="grade-title">{{ $t('分级设置') }}</div>
               <div class="grade-row">
                 <div class="grade-label required">{{ $t('字段设置') }}</div>
@@ -90,7 +89,7 @@
                   <bk-select
                     style="width: 240px"
                     v-model="gradeValue"
-                    :readonly="true"
+                    ext-popover-cls="bklog-popover-stop"
                     searchable
                   >
                     <bk-option
@@ -104,6 +103,7 @@
                   <template v-if="gradeValue === 'custom'">
                     <bk-select
                       style="width: 320px; margin-left: 10px"
+                      ext-popover-cls="bklog-popover-stop"
                       v-model="gradeFieldValue"
                       searchable
                     >
@@ -166,7 +166,7 @@
                               v-model="item.color"
                               :clearable="false"
                               behavior="simplicity"
-                              ext-popover-cls="bklog-v3-grade-color-list"
+                              ext-popover-cls="bklog-v3-grade-color-list bklog-popover-stop"
                               size="small"
                             >
                               <bk-option
@@ -219,8 +219,8 @@
                   {{ $t('取消') }}
                 </bk-button>
               </div>
-            </div>
-          </div>
+            </template>
+          </BklogPopover>
         </div>
       </div>
       <div
@@ -242,13 +242,14 @@
 
   import { formatNumberWithRegex } from '@/common/util';
 
-  import PopInstanceUtil from '../../../global/pop-instance-util';
   import ChartMenu from './chart-menu.vue';
+  import BklogPopover from '../../bklog-popover';
 
   @Component({
     name: 'chart-title-v2',
     components: {
       ChartMenu,
+      BklogPopover,
     },
   })
   export default class ChartTitle extends Vue {
@@ -300,13 +301,10 @@
      */
     gradeFieldValue = null;
 
-    settingInstance = new PopInstanceUtil({
-      refContent: () => this.$refs.refSettingContext as HTMLElement,
-      tippyOptions: {
-        appendTo: document.body,
-        hideOnClick: true,
-      },
-    });
+    tippyOptions = {
+      appendTo: document.body,
+      hideOnClick: false,
+    };
 
     gradeSettingList = [
       {
@@ -372,10 +370,6 @@
 
     handleShowMenu(e: MouseEvent) {
       this.$emit('toggle-expand', !this.isFold);
-
-      // this.showMenu = !this.showMenu
-      // const rect = this.chartTitleRef.getBoundingClientRect()
-      // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
     }
     getShowTotalNum(num) {
       return formatNumberWithRegex(num);
@@ -388,16 +382,24 @@
       this.$emit('interval-change', this.chartInterval);
     }
 
-    handleSettingClick(e) {
-      this.settingInstance?.show(e.target);
-    }
-
     handleSaveGradeSettingClick() {
-      this.settingInstance?.hide();
+      (this.$refs.refGradePopover as any)?.hide();
     }
 
-    handleGradeColorChange(item, args) {
-      console.log(item, args);
+    /**
+     * 通过判定当前点击元素是否为指定弹出下拉菜单的子元素判定是否允许关闭弹出
+     * @param e
+     */
+    beforePopoverHide(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+
+      if (
+        (target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+        target.closest('.bk-select-dropdown-content.bklog-popover-stop')
+      ) {
+        return false;
+      }
+      return true;
     }
   }
 </script>

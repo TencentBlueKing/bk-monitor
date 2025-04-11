@@ -1212,7 +1212,10 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
+        addition: [
+          ...otherPrams.addition,
+          ...(getters.common_filter_addition ?? []).filter(item => item.value?.length),
+        ],
         sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
       };
 
