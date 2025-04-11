@@ -210,7 +210,7 @@ export default class IndicatorTableSlide extends tsc<any> {
    * @return {*}
    */
   @Debounce(300)
-  handleSearchChange(list) {
+  handleSearchChange(list = []) {
     this.tableConfig.search = list;
     const search = {
       name: [],
@@ -229,7 +229,6 @@ export default class IndicatorTableSlide extends tsc<any> {
     }
     this.metricSearchObj = search;
     this.handleFilterTable();
-    console.log('search', search);
   }
 
   handleFilterTable() {
@@ -248,7 +247,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         (aggregateLength
           ? this.metricSearchObj.aggregate.some(a => fuzzyMatch(item.aggregate_method || 'none', a))
           : true) &&
-        (isShowLength ? this.metricSearchObj.show.some(s => s == !item.hidden) : true)
+        (isShowLength ? this.metricSearchObj.show.some(s => s == String(!item.hidden)) : true)
       );
     });
     this.initTableData();

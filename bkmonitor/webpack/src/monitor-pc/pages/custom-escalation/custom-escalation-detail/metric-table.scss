@@ -396,6 +396,7 @@ $border-color: #d9d9d9;
                 display: flex;
                 width: 100%;
                 padding: 0;
+                left: 0;
 
                 &:has(.is-focus) {
                   z-index: 999;
@@ -648,6 +649,10 @@ $border-color: #d9d9d9;
 
 .header-select-btn-popover,
 .header-select-popover {
+  .mh-300 {
+    max-height: 300px;
+    overflow: scroll;
+  }
   .header-select-list {
     display: flex;
     flex-direction: column;
