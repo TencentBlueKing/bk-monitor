@@ -194,7 +194,9 @@ export default class PopInstanceUtil {
           return oldFn(...args);
         };
       } else {
-        options[key] = this.tippyOptions[key];
+        if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
+          options[key] = this.tippyOptions[key];
+        }
       }
     });
 

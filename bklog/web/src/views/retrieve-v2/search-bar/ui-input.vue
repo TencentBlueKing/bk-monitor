@@ -159,8 +159,13 @@
     formatModelValueItem,
     onShowFn: instance => {
       setIsDocumentMousedown(true);
+      const isTagItemClick =
+        instance.reference.classList.contains('search-item') && instance.reference.classList.contains('tag-item');
+      if (!isTagItemClick) {
+        refSearchInput.value?.focus?.();
+      }
+
       refPopInstance.value?.beforeShowndFn?.();
-      refSearchInput.value?.focus?.();
       isInputFocus.value =
         instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
       emit('popup-change', { isShow: true });

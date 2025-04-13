@@ -48,7 +48,7 @@ const DEFAULT_CONFIG: Required<HighlightConfig> = {
   },
   observer: {
     root: null,
-    rootMargin: '200px 0px',
+    rootMargin: '0px 0px',
     thresholds: [0, 0.5, 1],
     priority: 'visible-first',
   },
@@ -62,7 +62,7 @@ export default class OptimizedHighlighter {
   // private markInstance: Mark;
   private observer: IntersectionObserver;
   private config: Required<HighlightConfig>;
-  private chunkMap = new WeakMap<HTMLElement, { instance: Mark; highlighted: boolean }>();
+  private chunkMap = new WeakMap<HTMLElement, { instance: Mark; highlighted: boolean; isIntersecting: boolean }>();
   private sections: HTMLElement[] = []; // 修正为二维数组
   private pendingQueue: HTMLElement[] = [];
   private isProcessing = false;
@@ -76,6 +76,10 @@ export default class OptimizedHighlighter {
     this.observer = this.createObserver();
   }
 
+  public setObserverConfig(observerConfig: ObserverConfig): void {
+    Object.assign(this.config.observer, observerConfig);
+  }
+
   public highlightElement(target: HTMLElement) {
     if (this.sections.includes(target)) {
       const instance = this.chunkMap.get(target)?.instance;
@@ -86,8 +90,16 @@ export default class OptimizedHighlighter {
 
     this.sections.push(target);
     const instance = this.initMarkInsntance(target);
-    this.chunkMap.set(target, { instance, highlighted: false });
+    this.chunkMap.set(target, { instance, highlighted: false, isIntersecting: true });
     this.instanceExecMark(instance);
+  }
+
+  public unMarkElement(target: HTMLElement) {
+    const chunk = this.chunkMap.get(target);
+    if (chunk) {
+      chunk.instance?.unmark();
+      chunk.isIntersecting = false;
+    }
   }
 
   public async highlight(keywords: KeywordItem[], reset = true): Promise<void> {
@@ -106,6 +118,12 @@ export default class OptimizedHighlighter {
     this.markKeywords = this.currentKeywords.map(item => item.text);
     this.prepareSections();
     this.observeSections();
+    this.sections.forEach(element => {
+      const chunk = this.chunkMap.get(element);
+      if (chunk && !chunk.highlighted && chunk.isIntersecting) {
+        this.instanceExecMark(chunk.instance);
+      }
+    });
   }
 
   /**
@@ -121,24 +139,9 @@ export default class OptimizedHighlighter {
     this.unmarkChunks();
   }
 
-  public unmark(
-    options: {
-      keepObservers?: boolean;
-      fastMode?: boolean;
-    } = {},
-  ): void {
-    // 快速模式（仅移除高亮，不恢复DOM）
-    if (options.fastMode) {
-      this.unmarkChunks();
-      this.resetState();
-      return;
-    }
-
+  public unmark(): void {
     // 完整清理
     this.unmarkChunks();
-    if (!options.keepObservers) {
-      this.observer.disconnect();
-    }
     this.resetState();
   }
 
@@ -169,70 +172,19 @@ export default class OptimizedHighlighter {
   }
 
   private createObserver(): IntersectionObserver {
-    return new IntersectionObserver(this.onIntersect.bind(this), {
-      root: this.config.observer.root,
-      rootMargin: '10% 0px 10% 0px', // 上下扩展 50% 视口
-      threshold: Array.from({ length: 101 }, (_, i) => i * 0.01), // 0%-100% 精度1%
-    });
+    return new IntersectionObserver(this.onIntersect.bind(this), { ...this.config.observer });
   }
 
   private prepareSections(): void {
     const children = Array.from(this.rootElement.children) as HTMLElement[];
-
-    switch (this.config.chunkStrategy) {
-      case 'auto':
-        this.sections = this.autoChunk(children);
-        break;
-      case 'fixed':
-        this.sections = this.fixedChunk(children);
-        break;
-      case 'custom':
-        const customChunks = this.config.chunkSize.custom?.(children) || [];
-        this.sections = customChunks as HTMLElement[]; // 类型断言
-        break;
-      default:
-        this.sections = [];
-    }
-  }
-
-  private autoChunk(elements: HTMLElement[]): HTMLElement[] {
-    const chunks: HTMLElement[] = [];
-    let currentChunk: HTMLElement[] = [];
-    let currentLength = 0;
-
-    elements.forEach(el => {
+    children.forEach(el => {
       if (!this.sections.includes(el)) {
-        const textLength = el.textContent?.length || 0;
-        if (currentLength + textLength > this.config.chunkSize.auto.maxTextLength) {
-          currentChunk.forEach(el => chunks.push(el));
-          currentChunk = [];
-          currentLength = 0;
-        }
-        currentChunk.push(el);
-        currentLength += textLength;
+        this.sections.push(el);
       }
     });
-
-    return chunks;
-  }
-
-  private fixedChunk(elements: HTMLElement[]): HTMLElement[] {
-    const chunkSize = this.config.chunkSize.fixed.nodesPerChunk;
-    const chunks: HTMLElement[] = [];
-
-    for (let i = 0; i < elements.length; i += chunkSize) {
-      elements.slice(i, i + chunkSize).forEach(el => {
-        if (!this.sections.includes(el)) {
-          chunks.push(el);
-        }
-      });
-    }
-
-    return chunks;
   }
 
   private observeSections(): void {
-    this.observer.disconnect();
     this.sections.forEach((section, index) => {
       if (!section.hasAttribute('data-chunk-id')) {
         section.setAttribute('data-chunk-id', index.toString());
@@ -251,6 +203,11 @@ export default class OptimizedHighlighter {
       if (entry.isIntersecting) {
         this.addToQueue(wrapper);
         if (!this.isProcessing) this.processQueue();
+      }
+
+      const chunk = this.chunkMap.get(wrapper);
+      if (chunk) {
+        chunk.isIntersecting = entry.isIntersecting;
       }
     });
   }
@@ -272,8 +229,7 @@ export default class OptimizedHighlighter {
 
       if (!this.chunkMap.get(element)?.instance) {
         const instance = this.initMarkInsntance(element);
-
-        this.chunkMap.set(element, { instance, highlighted: true });
+        this.chunkMap.set(element, { instance, highlighted: true, isIntersecting: true });
       }
 
       await this.highlightChunk(element, this.chunkMap.get(element).instance);
@@ -286,7 +242,6 @@ export default class OptimizedHighlighter {
     instance.mark(this.markKeywords, {
       element: 'mark',
       exclude: ['mark'],
-
       done: resolve ?? (() => {}),
       each: (element: HTMLElement) => {
         if (element.parentElement?.classList.contains('valid-text')) {
@@ -315,7 +270,6 @@ export default class OptimizedHighlighter {
   private resetState(): void {
     this.pendingQueue = [];
     this.unmarkChunks();
-    this.sections = [];
     this.currentKeywords = [];
     this.markKeywords = [];
   }
@@ -323,12 +277,9 @@ export default class OptimizedHighlighter {
   private unmarkChunks(): void {
     this.sections.forEach(chunk => {
       if (this.chunkMap.has(chunk)) {
-        chunk.removeAttribute('data-chunk-id');
         const { instance } = this.chunkMap.get(chunk)!;
         instance.unmark();
-
         this.chunkMap.get(chunk).highlighted = false;
-        this.chunkMap.delete(chunk);
       }
     });
   }

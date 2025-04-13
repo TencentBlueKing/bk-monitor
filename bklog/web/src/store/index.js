@@ -1296,7 +1296,9 @@ const store = new Vuex.Store({
         .catch(e => {
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
-          commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
+          if (e.code !== 'ERR_CANCELED') {
+            commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
+          }
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });

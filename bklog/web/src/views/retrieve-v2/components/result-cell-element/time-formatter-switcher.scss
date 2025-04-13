@@ -5,15 +5,18 @@
   .bk-switcher {
     background-color: #c4c6cc;
     border-radius: 2px;
+    padding-right: 16px;
+    position: relative;
 
     &:hover {
       background: #c4c6cc;
     }
 
     &:after {
-      width: 17px;
-      height: 17px;
+      width: 14px;
+      height: 14px;
       border-radius: 3px;
+      top: 3px;
     }
 
     .switcher-label {
@@ -23,13 +26,13 @@
 
   .show-label {
     width: 54px;
-    height: 21px;
+    height: 20px;
     font-size: 12px;
-    line-height: 21px;
+    line-height: 20px;
   }
 
   .is-unchecked .switcher-label {
-    margin: 0 0 0 21px;
+    margin: 0 0 0 20px;
   }
 
   .is-checked {
@@ -37,10 +40,6 @@
 
     &:hover {
       background: #3a84ff;
-    }
-
-    &:after {
-      margin-left: -19px;
     }
   }
 }

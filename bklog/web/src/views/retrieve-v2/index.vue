@@ -39,8 +39,6 @@
 
   import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
-  import useScroll from '../../hooks/use-scroll';
-  import $http from '@/api';
 
   import useResizeObserve from '../../hooks/use-resize-observe';
   import RetrieveHelper from '../retrieve-helper';
@@ -232,7 +230,7 @@
   // 滚动容器高度
   const scrollContainerHeight = ref(0);
 
-  useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = event.target.scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
   });

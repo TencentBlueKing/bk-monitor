@@ -87,6 +87,11 @@ export enum RetrieveEvent {
    * 搜索条件改变
    */
   SEARCH_VALUE_CHANGE = 'search-value-change',
+
+  /**
+   * 全局滚动
+   */
+  GLOBAL_SCROLL = 'global-scroll',
 }
 
 class RetrieveHelper {
@@ -151,7 +156,7 @@ class RetrieveHelper {
    * // 初始化 Mark.js 实例
    * @param target
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string, root?: HTMLElement) {
     this.markInstance = new OptimizedHighlighter({
       target: target ?? (() => document.getElementById(this.logRowsContainerId)),
       chunkStrategy: 'fixed',
@@ -174,7 +179,8 @@ class RetrieveHelper {
       'rgba(210, 93, 250, 0.3)',
       'rgba(216, 74, 87, 0.3)',
     ];
-    this.markInstance.unmark({});
+    this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
+    this.markInstance.unmark();
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
@@ -364,8 +370,17 @@ class RetrieveHelper {
     this.events.delete(eventName);
   }
 
+  private handleScroll = (e: MouseEvent) => {
+    this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
+  };
+
+  onMounted() {
+    document.querySelector(this.globalScrollSelector)?.addEventListener('scroll', this.handleScroll);
+  }
+
   destroy() {
     this.events.clear();
+    document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
   }
 
   private runEvent(event: RetrieveEvent, ...args) {

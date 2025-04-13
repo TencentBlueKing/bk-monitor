@@ -29,6 +29,7 @@ import { getCharLength } from '../../../common/util';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 import useLocale from '../../../hooks/use-locale';
 import useResizeObserve from '../../../hooks/use-resize-observe';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
 import './bklog-tag-choice.scss';
 
@@ -107,6 +108,9 @@ export default defineComponent({
     focusBorderColor: {
       type: String,
       default: '#3a84ff',
+    },
+    zIndex: {
+      type: Number,
     },
   },
   emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
@@ -521,7 +525,6 @@ export default defineComponent({
 
           updateFiexedInstanceContent().then(() => {
             setFixedOverflowY();
-            // popInstance.repositionTippyInstance();
           });
         }
 
@@ -623,6 +626,7 @@ export default defineComponent({
           placement: 'bottom-start',
           theme: 'log-pure-choice',
           offset: [0, -1],
+          zIndex: props.zIndex,
           onShow: () => {
             isInputFocused.value = true;
             emit('toggle', true);
@@ -650,6 +654,14 @@ export default defineComponent({
             });
           },
         },
+      });
+
+      RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, () => {
+        if (isInputFocused.value) {
+          if (fixedInstance.isShown()) {
+            fixedInstance.hide();
+          }
+        }
       });
     }
 
