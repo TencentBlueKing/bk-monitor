@@ -50,7 +50,6 @@
             <label>高亮</label>
             <bklogTagChoice
               :foucsFixed="true"
-              :zIndex="2"
               :onTagRender="handleTagRender"
               class="bklog-v3-tag-highlight"
               focusBorderColor="#c4c6cc"

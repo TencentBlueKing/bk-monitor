@@ -288,7 +288,7 @@
     .expand-view-wrapper {
       position: sticky;
       left: 0;
-      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 8px);
+      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 22px);
       border-top: 1px solid #dfe0e5;
 
       .view-content {

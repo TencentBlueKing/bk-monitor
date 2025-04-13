@@ -179,9 +179,9 @@ export default defineComponent({
     });
 
     const stopDefaultPrevented = e => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
+      e.stopPropagation?.();
+      e.stopImmediatePropagation?.();
+      e.preventDefault?.();
     };
 
     if (!props.foucsFixed && props.template === 'tag-choice') {
@@ -382,19 +382,53 @@ export default defineComponent({
     };
 
     /**
+     * 自动 focus 输入框
+     * @returns
+     */
+    const autoFocusInput = () => {
+      if (!focusFixedElement) {
+        refTagInputElement.value?.focus();
+        return;
+      }
+
+      const editInput = focusFixedElement.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
+      if (editInput) {
+        editInput.focus();
+        return;
+      }
+
+      const input = focusFixedElement.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
+      input?.focus();
+    };
+
+    const getDelTargetElement = (index: number) => {
+      const selector = `[data-bklog-choice-value-delete-${index}]`;
+      return refTagInputContainer.value?.querySelector(selector);
+    };
+
+    /**
      * Enter 当前键入值
      * @param e
      */
     const handleInputKeyup = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && inputTagValue.value.length) {
-        stopDefaultPrevented(e);
+      if (e.key === 'Enter') {
+        if (inputTagValue.value.length) {
+          stopDefaultPrevented(e);
 
-        emitValue(inputTagValue.value);
-        clearInputTag();
-        emit('custom-tag-enter');
+          emitValue(inputTagValue.value);
+          clearInputTag();
+          emit('custom-tag-enter');
+        }
+        emit('enter');
       }
 
-      emit('enter');
+      if (e.key === 'Backspace') {
+        if (inputTagValue.value.length === 0) {
+          const target = getDelTargetElement(valueList.value.length - 1);
+          handleDeleteItemClick({ target }, valueList.value.at(-1));
+          setTimeout(autoFocusInput);
+        }
+      }
     };
 
     const handleDeleteAllClick = e => {
@@ -461,25 +495,6 @@ export default defineComponent({
       clearInputTag();
       emit('custom-tag-enter');
       stopDefaultPrevented(e);
-    };
-
-    /**
-     * 自动 focus 输入框
-     * @returns
-     */
-    const autoFocusInput = () => {
-      if (!focusFixedElement) {
-        return;
-      }
-
-      const editInput = focusFixedElement.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
-      if (editInput) {
-        editInput.focus();
-        return;
-      }
-
-      const input = focusFixedElement.querySelector('[data-bklog-choice-text-input]') as HTMLInputElement;
-      input?.focus();
     };
 
     /**
