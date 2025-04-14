@@ -8,17 +8,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-
-from monitor_web.commons.biz.resources import *  # noqa
-from monitor_web.commons.bkdocs.resources import *  # noqa
-from monitor_web.commons.cc.resources import *  # noqa
-from monitor_web.commons.context.resources import *  # noqa
-from monitor_web.commons.data.resources import *  # noqa
-from monitor_web.commons.html.resources import *  # noqa
-from monitor_web.commons.job.resources import *  # noqa
-from monitor_web.commons.report.resources import *  # noqa
-from monitor_web.commons.robot.resources import *  # noqa
-from monitor_web.commons.task.resources import *  # noqa
-from monitor_web.commons.token.resources import *  # noqa
-from monitor_web.commons.user.resources import *  # noqa

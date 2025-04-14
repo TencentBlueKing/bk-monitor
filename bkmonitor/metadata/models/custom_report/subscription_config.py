@@ -183,7 +183,7 @@ class CustomReportSubscription(models.Model):
                 tables=[data_source_table_name],
                 where=["{}.bk_data_id={}.bk_data_id".format(group_table_name, data_source_table_name)],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate")
+            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "max_future_time_offset")
             .distinct()
         )
         biz_id_to_data_id_config = {}
@@ -236,7 +236,7 @@ class CustomReportSubscription(models.Model):
                             "name": "proxy_validator/common",
                             "type": datatype,
                             "version": "v2",
-                            "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
+                            "max_future_time_offset": max_future_time_offset,
                         },
                     }
                 else:
