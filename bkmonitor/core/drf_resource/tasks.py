@@ -18,14 +18,13 @@ from celery.result import AsyncResult
 from django.http import HttpRequest
 
 from bkmonitor.utils.request import set_request
-from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, queue="celery_resource")
-def run_perform_request(self, resource_obj: Resource, request: HttpRequest, request_data):
+def run_perform_request(self, resource_obj, request: HttpRequest, request_data):
     """
     将resource作为异步任务执行
     :param self: 任务对象
