@@ -52,6 +52,8 @@ import './drill-analysis-view.scss';
 interface IDrillAnalysisViewProps {
   dimensionsList?: IDimensionItem[];
   currentMethod?: string;
+  panel?: IPanelModel;
+  timeRangeData?: TimeRangeType;
 }
 interface IDrillAnalysisViewEvents {
   onClose?: () => void;
@@ -60,6 +62,7 @@ interface IDrillAnalysisViewEvents {
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
+  @Prop({ default: () => ({}) }) timeRangeData: TimeRangeType;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
@@ -118,6 +121,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   mounted() {
+    this.timeRange = this.timeRangeData;
     window.addEventListener('keydown', this.handleKeydown);
     this.refreshList = refreshList;
     this.$nextTick(() => {
