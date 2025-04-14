@@ -1,6 +1,11 @@
 .trace-explore-table {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
   .trace-explore-table-filter {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     height: 44px;
     padding: 0 6px;
@@ -20,17 +25,45 @@
   }
 
   .trace-explore-table-main {
+    flex-grow: 1;
+    flex-basis: auto;
     width: 100%;
 
     .bk-vxe-table {
       width: 100%;
+      height: 100%;
       --vxe-ui-table-column-padding-mini: 4px 0;
       --vxe-ui-table-header-background-color: #f5f7fa;
       --table-head-font-color: #000000;
       --table-body-font-color: #313238;
 
+      .vxe-table {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
       .vxe-table--render-wrapper {
+        flex: 1;
+
         .vxe-table--viewport-wrapper {
+          height: 100%;
+
+          .vxe-table--fixed-wrapper,
+          .vxe-table--main-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+
+            .vxe-table--header-inner-wrapper {
+              flex-shrink: 0;
+            }
+
+            .vxe-table--body-wrapper {
+              flex-grow: 1;
+            }
+          }
+
           .vxe-table--fixed-wrapper {
             .vxe-table--header {
               height: 100%;
