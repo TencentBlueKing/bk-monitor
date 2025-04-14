@@ -175,12 +175,12 @@ export default class IndicatorTableSlide extends tsc<any> {
         multiple: false,
         children: this.units,
       },
-      {
-        name: window.i18n.t('函数'),
-        id: 'func',
-        multiple: false,
-        children: this.metricFunctions,
-      },
+      // {
+      //   name: window.i18n.t('函数'),
+      //   id: 'func',
+      //   multiple: false,
+      //   children: this.metricFunctions,
+      // },
       {
         name: window.i18n.t('汇聚方法'),
         id: 'aggregate',
