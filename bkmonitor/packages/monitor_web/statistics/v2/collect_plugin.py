@@ -22,7 +22,7 @@ class CollectPluginCollector(BaseCollector):
 
     @cached_property
     def collect_plugin(self):
-        return CollectorPluginMeta.objects.filter(bk_biz_id__in=list(self.biz_info.keys())).prefetch_related("versions")
+        return CollectorPluginMeta.objects.filter(bk_biz_id__in=list(self.biz_info.keys()))
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "label", "plugin_type", "is_public", "is_support_remote"))
     def collect_plugin_count(self, metric: Metric):
