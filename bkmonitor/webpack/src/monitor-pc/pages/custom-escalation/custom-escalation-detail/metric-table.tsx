@@ -35,9 +35,10 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
-import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { matchRuleFn } from '../group-manage-dialog';
 import { fuzzyMatch } from './metric-table-slide';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import './metric-table.scss';
 
@@ -601,16 +602,13 @@ export default class IndicatorTable extends tsc<any, any> {
   handleShowEditUnit(unit) {
     this.canEditUnit = true;
     this.copyUnit = unit;
-    this.$nextTick(() => {
-      this.unitInput?.getPopoverInstance?.()?.show?.();
-    });
+    // this.$nextTick(() => {
+    //   this.unitInput?.getPopoverInstance?.()?.show?.();
+    // });
   }
 
   /** 编辑函数 */
   async editFunction(func, metricInfo) {
-    if (!func?.name || func?.name === metricInfo?.function?.name) {
-      return;
-    }
     metricInfo.function = func;
     await this.updateCustomFields('function', func, metricInfo.name);
   }
@@ -639,14 +637,14 @@ export default class IndicatorTable extends tsc<any, any> {
       this.intervalInput?.getPopoverInstance?.()?.show?.();
     });
   }
-  editInterval(metricInfo, isShow) {
-    if (isShow) return;
-    this.canEditInterval = false;
-    if (metricInfo.interval === this.copyInterval) {
-      return;
-    }
-    metricInfo.interval = this.copyInterval;
-    this.updateCustomFields('interval', this.copyInterval, metricInfo.name);
+  editInterval(v, metricInfo) {
+    // if (isShow) return;
+    // this.canEditInterval = false;
+    // if (metricInfo.interval === this.copyInterval) {
+    //   return;
+    // }
+    metricInfo.interval = v;
+    this.updateCustomFields('interval', v, metricInfo.name);
   }
   editDimension(metricInfo, v) {
     metricInfo.dimensions = v;
@@ -721,6 +719,9 @@ export default class IndicatorTable extends tsc<any, any> {
       this.showDetail = false;
       return;
     }
+    const getKey = obj => {
+      return `${obj?.id || ''}_${obj?.params[0]?.value || ''}`;
+    };
     return (
       <div class='metric-card'>
         <div class='card-header'>
@@ -791,6 +792,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   v-model={this.copyUnit}
                   clearable={false}
                   searchable
+                  allow-create
                   onToggle={v => this.handleEditUnit(v, metricData)}
                 >
                   {this.unitList.map((group, index) => (
@@ -842,15 +844,13 @@ export default class IndicatorTable extends tsc<any, any> {
             <div class='info-item'>
               <span class='info-label'>{this.$t('函数')}：</span>
               <div class='info-content'>
-                {
-                  <FunctionMenu
-                    class='init-add'
-                    list={this.metricFunctions}
-                    onFuncSelect={v => this.editFunction(v, metricData)}
-                  >
-                    {metricData.function?.name ?? '-'}
-                  </FunctionMenu>
-                }
+                <FunctionSelect
+                  key={getKey(metricData.function[0])}
+                  class='metric-func-selector-add'
+                  v-model={metricData.function}
+                  isMultiple={false}
+                  onValueChange={params => this.editFunction(params, metricData)}
+                />
               </div>
             </div>
             <div class='info-item'>
@@ -888,31 +888,24 @@ export default class IndicatorTable extends tsc<any, any> {
             {/* 上报周期 */}
             <div class='info-item'>
               <span class='info-label'>{this.$t('上报周期')}：</span>
-              {!this.canEditInterval ? (
+              <CycleInput
+                class='unit-content'
+                minSec={10}
+                needAuto={false}
+                isNeedDefaultVal={true}
+                value={metricData.interval}
+                onChange={(v: number) => this.editInterval(v, metricData)}
+              />
+              {/* {!this.canEditInterval ? (
                 <div
                   class='info-content'
                   onClick={() => this.handleShowEditInterval(metricData.interval)}
                 >
-                  {`${metricData.interval}s` || 0}
+                  {`${metricData.interval}` || 0}
                 </div>
               ) : (
-                <bk-select
-                  ref='intervalInput'
-                  ext-cls='unit-content'
-                  v-model={this.copyInterval}
-                  clearable={false}
-                  placeholder={this.$t('请选择')}
-                  onToggle={v => this.editInterval(metricData, v)}
-                >
-                  {this.cycleOption.map(option => (
-                    <bk-option
-                      id={option.id}
-                      key={option.id}
-                      name={`${option.name}s`}
-                    />
-                  ))}
-                </bk-select>
-              )}
+                
+              )} */}
             </div>
             {renderInfoItem({ label: '创建时间', value: this.getShowTime(metricData.create_time) }, true)}
             {renderInfoItem({ label: '更新时间', value: this.getShowTime(metricData.update_time) }, true)}

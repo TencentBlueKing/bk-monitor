@@ -63,19 +63,25 @@ class GetCustomTsMetricGroups(Resource):
         metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
 
         # 维度描述
+        hidden_dimensions = set()
         dimension_descriptions = {}
         # 公共维度
         common_dimensions = []
         for field in fields:
-            if field.type == CustomTSField.MetricType.DIMENSION:
-                dimension_descriptions[field.name] = field.description
-                if field.config.get("common", False):
-                    common_dimensions.append(
-                        {
-                            "name": field.name,
-                            "alias": field.description,
-                        }
-                    )
+            # 如果不是维度，则跳过
+            if field.type != CustomTSField.MetricType.DIMENSION:
+                continue
+
+            dimension_descriptions[field.name] = field.description
+
+            # 如果维度隐藏，则不展示
+            if field.config.get("hidden", False):
+                hidden_dimensions.add(field.name)
+                continue
+
+            # 如果维度公共，则添加到公共维度
+            if field.config.get("common", False):
+                common_dimensions.append({"name": field.name, "alias": field.description})
 
         # 指标分组
         metric_groups = defaultdict(list)
@@ -99,6 +105,7 @@ class GetCustomTsMetricGroups(Resource):
                         "dimensions": [
                             {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
                             for dimension in metric.config.get("dimensions", [])
+                            if dimension not in hidden_dimensions
                         ],
                     }
                 )
@@ -544,14 +551,14 @@ class GraphDrillDownResource(Resource):
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
-        dimensions = serializers.DictField(label="维度值")
-        value = serializers.FloatField(label="当前值")
-        percentage = serializers.FloatField(label="占比")
+        dimensions = serializers.DictField(label="维度值", allow_null=True)
+        value = serializers.FloatField(label="当前值", allow_null=True)
+        percentage = serializers.FloatField(label="占比", allow_null=True)
 
         class CompareValueSerializer(serializers.Serializer):
-            value = serializers.FloatField(label="对比值")
+            value = serializers.FloatField(label="对比值", allow_null=True)
             offset = serializers.CharField(label="偏移量")
-            fluctuation = serializers.FloatField(label="波动值")
+            fluctuation = serializers.FloatField(label="波动值", allow_null=True)
 
         compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
 

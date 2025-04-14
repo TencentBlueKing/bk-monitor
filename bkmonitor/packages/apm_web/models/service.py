@@ -79,8 +79,10 @@ class EventServiceRelation(ServiceBase):
         if service_name:
             filter_kwargs["service_name"] = service_name
 
+        table_options_map: Dict[str, Dict[str, Any]] = {}
         table_relations_map: Dict[str, List[Dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
-        for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations"):
+        for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations", "options"):
+            table_options_map[relation["table"]] = relation["options"]
             table_relations_map.setdefault(relation["table"], []).extend(relation["relations"])
 
         # 去重
@@ -88,7 +90,10 @@ class EventServiceRelation(ServiceBase):
             duplicate_relation_tuples: Set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
             table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
 
-        return [{"table": table, "relations": relations} for table, relations in table_relations_map.items()]
+        return [
+            {"table": table, "relations": relations, "options": table_options_map.get(table) or {}}
+            for table, relations in table_relations_map.items()
+        ]
 
 
 class LogServiceRelation(ServiceBase):
