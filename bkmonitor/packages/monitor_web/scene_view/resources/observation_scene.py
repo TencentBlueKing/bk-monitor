@@ -312,7 +312,7 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_collect_plugin_list(cls, bk_biz_id: int) -> List[Dict[str, Any]]:
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
         plugins: List[CollectorPluginMeta] = (
             CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=[0, bk_biz_id])
