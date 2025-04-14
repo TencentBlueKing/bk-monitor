@@ -173,6 +173,7 @@
               :max-height="200"
               :outer-border="false"
               :row-border="false"
+              :stripe="true"
             >
               <bk-table-column :label="$t('策略')">
                 <template #default="{ row }">
@@ -589,6 +590,7 @@
 
       .bk-tab-section {
         padding: 0px;
+        border: none;
       }
 
       .bk-tab-header {
