@@ -33,6 +33,7 @@ import {
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
 import { getFunctions } from 'monitor-api/modules/grafana';
+import { Debounce } from 'monitor-common/utils';
 
 import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -40,35 +41,16 @@ import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
 import DimensionTableSlide from './dimension-table-slide';
-import IndicatorTableSlide from './metric-table-slide';
+import IndicatorTableSlide, { fuzzyMatch } from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
-import type { IDetailData, IEditParams } from '../../../types/custom-escalation/custom-escalation-detail';
+import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
 export const ALL_LABEL = '__all_label__';
 export const NULL_LABEL = '__null_label__';
 
-interface ICustomTSFields {
-  dimensions: Item[];
-  metrics: Item[];
-}
-
-interface Item {
-  name: string;
-  type: 'dimension' | 'metric';
-  description: string;
-  disabled?: boolean;
-  unit?: string;
-  hidden?: boolean;
-  aggregate_method?: string;
-  function?: object;
-  interval?: number;
-  label?: string[];
-  dimensions?: string[];
-  common?: boolean;
-}
 export interface IGroupListItem {
   name: string;
   matchRules: string[];
@@ -114,16 +96,13 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     auto_discover: false,
   };
 
+  /** 指标表格搜索 */
+  metricSearch = [];
+
   //  指标维度数据 时序数据
   metricData = [];
   unitList = []; // 单位list
 
-  pagination = {
-    page: 1,
-    pageSize: 20,
-    total: 100,
-    pageList: [10, 20, 50, 100],
-  };
   groupSelectList: any = [
     {
       id: '',
@@ -136,11 +115,12 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   /* 筛选条件(简化) */
   metricSearchObj = {
-    type: [],
     name: [],
-    enName: [],
+    description: [],
     unit: [],
-    text: [],
+    func: [],
+    aggregate: [],
+    show: [],
   };
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
@@ -204,62 +184,59 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   }
 
   get metricTable() {
-    const labelsMatchTypes = labels => {
-      let temp = [];
-      for (const item of labels) {
-        temp = temp.concat(item.match_type);
-      }
-      temp = [...new Set(temp)];
-      return temp;
-    };
-    // 模糊匹配
-    const fuzzyMatch = (str: string, pattern: string) => {
-      const lowerStr = String(str).toLowerCase();
-      const lowerPattern = String(pattern).toLowerCase();
-      return lowerStr.includes(lowerPattern);
-    };
-    const leng1 = this.groupFilterList.length;
-    const typeLeng = this.metricSearchObj.type.length;
-    const nameLeng = this.metricSearchObj.name.length;
-    const enNameLeng = this.metricSearchObj.enName.length;
-    const unitLeng = this.metricSearchObj.unit.length;
-    const textleng = this.metricSearchObj.text.length;
+    const length = this.groupFilterList.length;
+    const nameLength = this.metricSearchObj.name.length;
+    const descriptionLength = this.metricSearchObj.description.length;
+    const unitLength = this.metricSearchObj.unit.length;
+    const aggregateLength = this.metricSearchObj.aggregate.length;
+    const isShowLength = this.metricSearchObj.show.length;
     const filterList = this.metricData.filter(item => {
-      const isMetric = item.monitor_type === 'metric';
       return (
-        (leng1
+        (length
           ? this.groupFilterList.some(
-            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-          ) && isMetric
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            )
           : true) &&
-        (typeLeng
-          ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+        (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (descriptionLength ? this.metricSearchObj.description.some(n => fuzzyMatch(item.description, n)) : true) &&
+        (unitLength ? this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || 'none', u)) : true) &&
+        (aggregateLength
+          ? this.metricSearchObj.aggregate.some(a => fuzzyMatch(item.aggregate_method || 'none', a))
           : true) &&
-        (nameLeng
-          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
-          : true) &&
-        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
-        (unitLeng
-          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
-          : true) &&
-        (textleng
-          ? this.metricSearchObj.text.some(t => {
-            const monitorType = {
-              指标: 'metric',
-              维度: 'dimension',
-            };
-            return (
-              item.monitor_type === t ||
-              monitorType?.[t] === item.monitor_type ||
-              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-              fuzzyMatch(item.name, t) ||
-              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-            );
-          })
-          : true)
+        (isShowLength ? this.metricSearchObj.show.some(s => s === String(!item.hidden)) : true)
       );
     });
     return filterList;
+  }
+
+  /**
+   * @description: 搜索
+   * @param {*}
+   * @return {*}
+   */
+  @Debounce(300)
+  handleSearchChange(list = []) {
+    this.metricSearch = list;
+    const search = {
+      name: [],
+      description: [],
+      unit: [],
+      func: [],
+      aggregate: [],
+      show: [],
+    };
+    for (const item of this.metricSearch) {
+      if (item.type === 'text') {
+        item.id = 'name';
+        item.values = [{ id: item.name, name: item.name }];
+      }
+      search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
+    }
+    this.metricSearchObj = search;
+  }
+
+  handleClearSearch() {
+    this.handleSearchChange();
   }
 
   // 获取未分组数量
@@ -272,73 +249,73 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     // 构建JSON内容
     const dimensions = this.dimensions.length
       ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
-        name,
-        type,
-        description,
-        disabled,
-        common,
-      }))
+          name,
+          type,
+          description,
+          disabled,
+          common,
+        }))
       : [
-        {
-          name: 'dimension1',
-          type: 'dimension',
-          description: '',
-          disabled: true,
-          common: true,
-        },
-      ];
+          {
+            name: 'dimension1',
+            type: 'dimension',
+            description: '',
+            disabled: true,
+            common: true,
+          },
+        ];
     const metrics = this.metricData.length
       ? this.metricData.map(
-        ({
-          name,
-          type,
-          description,
-          disabled,
-          unit,
-          hidden,
-          aggregate_method,
-          interval,
-          label,
-          dimensions,
-          function: func,
-        }) => ({
-          type,
-          name,
-          description,
-          disabled,
-          unit,
-          hidden,
-          aggregate_method,
-          interval,
-          label,
-          dimensions,
-          function: func,
-        })
-      )
+          ({
+            name,
+            type,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          }) => ({
+            type,
+            name,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          })
+        )
       : [
-        {
-          name: 'metric1',
-          type: 'metric',
-          description: '',
-          disabled: false,
-          unit: '',
-          hidden: false,
-          aggregate_method: '',
-          function: {},
-          interval: 0,
-          label: [],
-          dimensions: ['dimension1'],
-        },
-      ];
+          {
+            name: 'metric1',
+            type: 'metric',
+            description: '',
+            disabled: false,
+            unit: '',
+            hidden: false,
+            aggregate_method: '',
+            function: {},
+            interval: 0,
+            label: [],
+            dimensions: ['dimension1'],
+          },
+        ];
     const groupRules = this.groupList
       ? this.groupList
       : [
-        {
-          name: '测试分组',
-          manual_list: ['metric1'],
-          auto_rules: ['rule1'],
-        },
-      ];
+          {
+            name: '测试分组',
+            manual_list: ['metric1'],
+            auto_rules: ['rule1'],
+          },
+        ];
     const template = {
       dimensions,
       metrics,
@@ -373,16 +350,29 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     this.metricFunctions = await getFunctions().catch(() => []);
   }
 
-  changePageCount(count: number) {
-    this.pagination.total = count;
-  }
-
   changeGroupFilterList(v: string) {
+    this.handleClearSearch();
     this.groupFilterList = v === ALL_LABEL ? [] : [v];
     this.updateAllSelection();
   }
 
+  // 一次性加载静态数据（云区域和单位列表）
+  async loadStaticData() {
+    try {
+      const [proxyInfo, unitList] = await Promise.all([
+        this.$store.dispatch('custom-escalation/getProxyInfo'),
+        this.$store.dispatch('strategy-config/getUnitList'),
+      ]);
+
+      this.proxyInfo = proxyInfo;
+      this.unitList = unitList;
+    } catch (error) {
+      console.error('Failed to load static data:', error);
+    }
+  }
+
   async created() {
+    await this.loadStaticData();
     await this.getDetailData();
     this.handleGetMetricFunctions();
     this.nonGroupNum = this.getNonGroupNum();
@@ -408,34 +398,26 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   //  获取详情
   async getDetailData(needLoading = true) {
     this.loading = needLoading;
-    const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
-    let metricData: ICustomTSFields;
-    promiseItem.push(
-      this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
-        time_series_group_id: this.$route.params.id,
-      })
-    );
-    promiseItem.push(
-      this.$store.dispatch('custom-escalation/getCustomTSFields', {
-        time_series_group_id: this.$route.params.id,
-      })
-    );
-    promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     try {
-      const data = await Promise.all(promiseItem);
+      const [detailData, metricData] = await Promise.all([
+        this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
+          time_series_group_id: this.$route.params.id,
+        }),
+        this.$store.dispatch('custom-escalation/getCustomTSFields', {
+          time_series_group_id: this.$route.params.id,
+        }),
+      ]);
 
-      [this.proxyInfo] = data; // 云区域展示数据
-      [, this.detailData = this.detailData] = data;
+      this.detailData = detailData || this.detailData;
       this.autoDiscover = this.detailData.auto_discover;
-      [, , metricData] = data;
-      [, , , this.unitList] = data; // 单位list
       this.metricList = metricData?.metrics || [];
       this.dimensions = metricData?.dimensions || [];
+
       await this.getGroupList();
       this.handleDetailData(this.detailData);
-      this.loading = false;
     } catch (error) {
       console.error(error);
+    } finally {
       this.loading = false;
     }
   }
@@ -451,7 +433,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         monitor_type: 'metric',
       }));
       this.setMetricDataLabels();
-      this.pagination.total = this.metricData.length;
     }
     this.scenario = `${detailData.scenario_display[0]} - ${detailData.scenario_display[1]}`;
     this.copyName = this.detailData.name;
@@ -990,7 +971,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     // 计算新增和删除的分组
     const added = [...newGroups].filter(group => !oldSet.has(group));
     const removed = [...oldGroups].filter(group => !newSet.has(group));
-
     return { added, removed };
   }
 
@@ -1052,6 +1032,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
       ]);
+      this.getDetailData();
     } catch (error) {
       console.error('Group update failed:', error);
     }
@@ -1069,6 +1050,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     await this.submitGroupInfo(config);
     await this.getGroupList();
     this.changeGroupFilterList(config.name);
+    this.nonGroupNum = this.getNonGroupNum();
     this.getDetailData();
   }
 
@@ -1203,6 +1185,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   metricTable={this.metricTable}
                   nameList={this.groupNameList}
                   nonGroupNum={this.nonGroupNum}
+                  search={this.metricSearch}
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
                   onChangeGroup={this.changeGroupFilterList}
@@ -1221,6 +1204,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onHandleSelectToggle={this.saveSelectGroup}
                   onHandleUpload={this.handleUploadMetric}
                   onRowCheck={this.updateCheckValue}
+                  onSearchChange={this.handleSearchChange}
                   onShowDimensionSlider={v => {
                     this.isShowDimensionSlider = v;
                   }}

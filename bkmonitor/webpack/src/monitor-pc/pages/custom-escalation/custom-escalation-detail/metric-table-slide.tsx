@@ -30,10 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
 import { Debounce, deepClone } from 'monitor-common/utils';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import { METHOD_LIST } from '../../../constant/constant';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { statusMap } from './metric-table';
 
 import './metric-table-slide.scss';
@@ -211,7 +211,7 @@ export default class IndicatorTableSlide extends tsc<any> {
    * @return {*}
    */
   @Debounce(300)
-  handleSearchChange(list) {
+  handleSearchChange(list = []) {
     this.tableConfig.search = list;
     const search = {
       name: [],
@@ -230,7 +230,6 @@ export default class IndicatorTableSlide extends tsc<any> {
     }
     this.metricSearchObj = search;
     this.handleFilterTable();
-    console.log('search', search);
   }
 
   handleFilterTable() {
@@ -249,7 +248,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         (aggregateLength
           ? this.metricSearchObj.aggregate.some(a => fuzzyMatch(item.aggregate_method || 'none', a))
           : true) &&
-        (isShowLength ? this.metricSearchObj.show.some(s => s == !item.hidden) : true)
+        (isShowLength ? this.metricSearchObj.show.some(s => s === String(!item.hidden)) : true)
       );
     });
     this.initTableData();
@@ -559,8 +558,8 @@ export default class IndicatorTableSlide extends tsc<any> {
         class='slider-select'
         v-model={props.row.unit}
         clearable={false}
-        allow-create
         popover-width={180}
+        allow-create
         searchable
       >
         {this.units.map(group => (
@@ -663,9 +662,9 @@ export default class IndicatorTableSlide extends tsc<any> {
     return (
       <CycleInput
         class='slide-cycle-unit-input'
+        isNeedDefaultVal={true}
         minSec={10}
         needAuto={false}
-        isNeedDefaultVal={true}
         value={row.interval}
         onChange={(v: number) => this.handleIntervalChange(v, row)}
       />
