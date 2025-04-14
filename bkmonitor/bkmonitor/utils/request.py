@@ -23,14 +23,24 @@ def get_request_tenant_id(peaceful=False) -> Optional[str]:
     """
     获取当前请求的租户id
     """
-    request = get_request(peaceful=True)
-    if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
-        if peaceful:
-            return None
-        else:
-            raise Exception("get_request_tenant_id: cannot get tenant_id from request.")
+    from bkmonitor.utils.tenant import get_local_tenant_id
 
-    return request.user.tenant_id
+    request = get_request(peaceful=True)
+
+    # 从request获取
+    if request and hasattr(request, "user") and getattr(request.user, "tenant_id", None):
+        return request.user.tenant_id
+
+    # 从local获取
+    tenant_id = get_local_tenant_id()
+    if tenant_id:
+        return tenant_id
+
+    # 如果peaceful为True，则不需要抛出异常
+    if peaceful:
+        return None
+
+    raise Exception("get_request_tenant_id: cannot get tenant_id.")
 
 
 def get_request(peaceful=False) -> Optional[HttpRequest]:
@@ -126,7 +136,7 @@ def get_request_username(default=""):
     return username
 
 
-def set_request_username(username):
+def set_request_username(username: str):
     request = get_request(peaceful=True)
     if request:
         # 有请求对象，就设置请求对象

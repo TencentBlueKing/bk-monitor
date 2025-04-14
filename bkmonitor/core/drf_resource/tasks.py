@@ -15,16 +15,16 @@ from functools import wraps
 
 from celery import shared_task
 from celery.result import AsyncResult
-from django.http import HttpRequest
 
-from bkmonitor.utils.request import set_request
+from bkmonitor.utils.request import set_request_username
+from bkmonitor.utils.tenant import set_local_tenant_id
 from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, queue="celery_resource")
-def run_perform_request(self, resource_obj, request: HttpRequest, request_data):
+def run_perform_request(self, resource_obj, username: str, bk_tenant_id: str, request_data):
     """
     将resource作为异步任务执行
     :param self: 任务对象
@@ -33,7 +33,8 @@ def run_perform_request(self, resource_obj, request: HttpRequest, request_data):
     :param request_data: 请求数据
     :return: resource处理后的返回数据
     """
-    set_request(request)
+    set_request_username(username)
+    set_local_tenant_id(bk_tenant_id)
 
     resource_obj._task_manager = self
     validated_request_data = resource_obj.validate_request_data(request_data)

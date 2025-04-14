@@ -19,7 +19,7 @@ from django.utils.translation import gettext as _
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource.exceptions import CustomException, record_exception
 from core.drf_resource.tasks import run_perform_request
@@ -295,7 +295,10 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
         """
         执行celery异步任务（高级）
         """
-        async_task = run_perform_request.apply_async(args=(self, get_request(), request_data), **kwargs)
+        username = get_request_username()
+        bk_tenant_id = get_request_tenant_id()
+
+        async_task = run_perform_request.apply_async(args=(self, username, bk_tenant_id, request_data), **kwargs)
         return {"task_id": async_task.id}
 
     @classmethod
