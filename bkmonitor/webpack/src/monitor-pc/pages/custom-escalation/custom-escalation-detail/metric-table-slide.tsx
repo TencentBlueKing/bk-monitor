@@ -136,7 +136,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
     description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
     unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
-    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props) },
+    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props.row) },
     interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
     func: { label: '函数', width: 200, renderFn: props => this.renderFunction(props.row) },
     dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
@@ -174,12 +174,12 @@ export default class IndicatorTableSlide extends tsc<any> {
         multiple: false,
         children: this.units,
       },
-      {
-        name: window.i18n.t('函数'),
-        id: 'func',
-        multiple: false,
-        children: this.metricFunctions,
-      },
+      // {
+      //   name: window.i18n.t('函数'),
+      //   id: 'func',
+      //   multiple: false,
+      //   children: this.metricFunctions,
+      // },
       {
         name: window.i18n.t('汇聚方法'),
         id: 'aggregate',
