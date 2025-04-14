@@ -332,8 +332,6 @@ class ChartHandler(object):
             )
             matches = re.match(pattern, sql_param, re.DOTALL | re.IGNORECASE)
             final_sql = matches.group(1)
-            if sql:
-                final_sql += f"WHERE {sql}"
             if matches.group(2):
                 final_sql += f" {matches.group(2)}"
         else:
