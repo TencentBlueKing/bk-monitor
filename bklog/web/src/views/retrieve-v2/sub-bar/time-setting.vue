@@ -7,6 +7,9 @@
   import useStore from '@/hooks/use-store';
   import { updateTimezone } from '@/language/dayjs';
   import { useRoute, useRouter } from 'vue-router/composables';
+
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+
   const store = useStore();
   const route = useRoute();
   const router = useRouter();
@@ -59,6 +62,7 @@
     await store.dispatch('requestIndexSetFieldInfo');
     store.dispatch('requestIndexSetQuery');
     setRouteParams();
+    RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_CHANGE, val);
   };
 
   const handleFormatChange = value => {

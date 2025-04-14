@@ -312,11 +312,10 @@ export default defineComponent({
       debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
-    RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, onRefereceChange).on(
-      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+    RetrieveHelper.on(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.FAVORITE_ACTIVE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
       onRefereceChange,
     );
-
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
     expose({

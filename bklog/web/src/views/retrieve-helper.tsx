@@ -89,6 +89,11 @@ export enum RetrieveEvent {
   SEARCH_VALUE_CHANGE = 'search-value-change',
 
   /**
+   * 搜索时间变化
+   */
+  SEARCH_TIME_CHANGE = 'search-time-change',
+
+  /**
    * 全局滚动
    */
   GLOBAL_SCROLL = 'global-scroll',
@@ -140,15 +145,19 @@ class RetrieveHelper {
     this.logRowsContainerId = `result_container_key_${random(12)}`;
   }
 
-  on(fnName: RetrieveEvent, callbackFn: (...args) => void) {
-    if (this.events.has(fnName)) {
-      if (!this.events.get(fnName).includes(callbackFn)) {
-        this.events.get(fnName)?.push(callbackFn);
+  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
+    const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
+    targetEvents.forEach(event => {
+      if (this.events.has(event)) {
+        if (!this.events.get(event).includes(callbackFn)) {
+          this.events.get(event)?.push(callbackFn);
+        }
+        return this;
       }
-      return this;
-    }
 
-    this.events.set(fnName, [callbackFn]);
+      this.events.set(event, [callbackFn]);
+    });
+
     return this;
   }
 
