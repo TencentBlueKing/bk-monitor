@@ -154,12 +154,6 @@ export enum K8sTableColumnTypeEnum {
 
 /** 是否开启前端分页功能 */
 const enabledFrontendLimit = false;
-/** 指标数据分类name - table小类目指标名映射表（table渲染指标列使用） */
-const tableMetricCategoryForNameMap = {
-  CPU: 'CPU',
-  内存: '内存',
-  流量: '网络',
-};
 const SCROLL_CONTAINER_DOM = '.bk-table-body-wrapper';
 const DISABLE_TARGET_DOM = '.bk-table-body';
 const TABLE_ROW_MIN_HEIGHT = 42;
@@ -267,13 +261,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       if (item?.children?.length) {
         for (const child of item.children) {
           if (!hideMetricsSet.has(child.id)) {
-            const regex = new RegExp(`(${tableMetricCategoryForNameMap[item.name]}\\s*)(.*)`);
+            const regex = /(^[A-Za-z]*\b)(.*)/;
             const founds = child.name.match(regex);
-            let name = child.name;
-            let categoryName = item.name;
+            let name = '';
+            let categoryName = '';
             if (founds?.length && founds?.length === 3) {
-              name = founds[2];
+              name = founds[2]?.trim?.();
               categoryName = founds[1]?.trim?.();
+            } else {
+              categoryName = child.name?.slice?.(0, 2)?.trim?.();
+              name = child.name?.slice?.(2)?.trim?.();
             }
             ids.push(child.id as K8sTableColumnChartKey);
             columns.push({
