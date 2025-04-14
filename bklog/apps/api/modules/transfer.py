@@ -219,10 +219,10 @@ class _TransferApi(object):
             before_request=create_cluster_info_before,
         )
         self.list_result_table = DataAPI(
-            method="POST",
+            method="GET",
             url=MONITOR_APIGATEWAY_ROOT + "app/metadata/list_result_table/",
             module=self.MODULE,
-            description=_("创建存储集群"),
+            description=_("查询监控结果表"),
             before_request=add_esb_info_before_request,
         )
         self.list_transfer_cluster = DataAPI(
