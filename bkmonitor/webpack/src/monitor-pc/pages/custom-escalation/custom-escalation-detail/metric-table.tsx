@@ -51,6 +51,10 @@ export const statusMap = new Map([
 interface ILabel {
   name: string;
 }
+interface IFunc {
+  id: string;
+  name: string;
+}
 interface IMetricDetail {
   name: string;
   alias: string;
@@ -59,10 +63,7 @@ interface IMetricDetail {
   unit: string;
   aggregate_method: string;
   disabled?: boolean;
-  function: {
-    id: string;
-    name: string;
-  };
+  function: IFunc[];
   hidden: boolean;
   dimensions?: string[];
   reportInterval: string;

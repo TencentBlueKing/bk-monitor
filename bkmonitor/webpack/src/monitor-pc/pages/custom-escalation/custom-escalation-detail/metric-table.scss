@@ -576,6 +576,38 @@ $border-color: #d9d9d9;
                   border-radius: 2px;
                 }
               }
+
+              &:has(.init-add) {
+                padding: 5px 0;
+              }
+
+              .init-add {
+                margin-top: -2px;
+                margin-left: 1px;
+
+                .func-label {
+                  display: none;
+                }
+
+                .function-menu-anchor,
+                .func-item {
+                  height: 30px;
+                  margin-top: -1px;
+                }
+
+                .init-add-input {
+                  width: 331px;
+                  padding: 0;
+                  padding-left: 6px;
+                  background: none;
+                  border-color: transparent;
+
+                  &.tippy-active {
+                    border-color: #3a84ff;
+                    box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+                  }
+                }
+              }
             }
 
             .info-text {
