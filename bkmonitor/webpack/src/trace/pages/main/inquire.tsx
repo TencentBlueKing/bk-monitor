@@ -1766,6 +1766,7 @@ export default defineComponent({
       </div>
     );
     return {
+      state,
       timeRange,
       renderFn,
       selectedConditions,

@@ -27,22 +27,13 @@
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TranslateResult } from 'vue-i18n';
 
-export interface IFormData {
-  data_source_label: string;
-  data_type_label: string;
-  table: string;
-  query_string: string;
-  where: IWhereItem[];
-  group_by: any[];
-  filter_dict: Record<string, any>;
-}
-
-export interface IDataIdItem {
-  name: string;
-  id: string;
+export interface IApplicationItem {
+  app_alias: string;
+  app_name: string;
+  application_id: number;
+  metric_result_table_id: string;
   /** 是否置顶 */
   isTop?: boolean;
-  is_platform?: boolean;
   [key: string]: any;
 }
 
@@ -216,8 +207,8 @@ export interface KVSplitItem {
 export const EventExploreFeatures = [
   /** 收藏 */
   'favorite',
-  /** 数据ID */
-  'dataId',
+  /** 应用 */
+  'application',
   /** 时间范围 */
   'dateRange',
   /** 维度筛选 */

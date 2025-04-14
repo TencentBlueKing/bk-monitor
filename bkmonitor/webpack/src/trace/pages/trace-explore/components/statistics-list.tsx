@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, ref, watch } from 'vue';
+import { defineComponent, reactive, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
@@ -59,13 +59,13 @@ export default defineComponent({
   emits: ['conditionChange', 'showMore', 'sliderShowChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const popoverLoading = ref(true);
+    const popoverLoading = shallowRef(true);
     const statisticsList = reactive<ITopKField>({
       distinct_count: 0,
       field: '',
       list: [],
     });
-    const downloadLoading = ref(false);
+    const downloadLoading = shallowRef(false);
 
     watch(
       () => props.selectField,
@@ -92,15 +92,15 @@ export default defineComponent({
       popoverLoading.value = false;
     }
 
-    const sliderShow = ref(false);
-    const sliderLoading = ref(false);
-    const sliderLoadMoreLoading = ref(false);
+    const sliderShow = shallowRef(false);
+    const sliderLoading = shallowRef(false);
+    const sliderLoadMoreLoading = shallowRef(false);
     const sliderDimensionList = reactive<ITopKField>({
       distinct_count: 0,
       field: '',
       list: [],
     });
-    const slideOverflowPopoverInstance = ref(null);
+    const slideOverflowPopoverInstance = shallowRef(null);
 
     /** 展示侧栏 */
     async function showMore() {

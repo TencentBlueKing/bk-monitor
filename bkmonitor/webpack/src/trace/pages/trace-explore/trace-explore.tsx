@@ -23,34 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, onMounted, shallowRef } from 'vue';
+
+import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
+import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './trace-explore-view/trace-explore-view';
+
+import type { IApplicationItem } from './typing';
 
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
-    const traceExploreLayoutRef = ref<InstanceType<typeof traceExploreLayoutRef>>();
+    const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
+
+    const applicationList = shallowRef<IApplicationItem[]>([]);
+    const isShowFavorite = shallowRef(true);
+
+    function handleFavoriteShowChange(isShow: boolean) {
+      isShowFavorite.value = isShow;
+    }
 
     console.log(store);
 
-    const where = ref([]);
-    const fieldList = ref([]);
-    const loading = ref(false);
-    const queryString = ref('');
+    const where = shallowRef([]);
+    const fieldList = shallowRef([]);
+    const loading = shallowRef(false);
+    const queryString = shallowRef('');
 
-    function handleCloseDimensionPanel() {}
+    async function getApplicationList() {
+      const data = await listApplicationInfo().catch(() => []);
+      applicationList.value = data;
+    }
+
+    function handleCloseDimensionPanel() {
+      traceExploreLayoutRef.value.handleClickShrink(false);
+    }
 
     function handleConditionChange() {}
-
-    function handleShowEventSourcePopover() {}
 
     onMounted(() => {
       setTimeout(() => {
@@ -101,17 +118,21 @@ export default defineComponent({
 
         fieldList.value = data;
       }, 300);
+
+      getApplicationList();
     });
 
     return {
       traceExploreLayoutRef,
+      applicationList,
+      isShowFavorite,
       where,
       fieldList,
       loading,
       queryString,
+      handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
-      handleShowEventSourcePopover,
     };
   },
   render() {
@@ -119,7 +140,13 @@ export default defineComponent({
       <div class='trace-explore'>
         <div class='favorite-panel' />
         <div class='main-panel'>
-          <div class='header-panel' />
+          <div class='header-panel'>
+            <TraceExploreHeader
+              isShowFavorite={this.isShowFavorite}
+              list={this.applicationList}
+              onFavoriteShowChange={this.handleFavoriteShowChange}
+            />
+          </div>
           <div class='trace-explore-content'>
             {this.loading ? <div class='skeleton-element filter-skeleton' /> : <RetrievalFilter />}
             <TraceExploreLayout
@@ -136,7 +163,6 @@ export default defineComponent({
                       queryString={this.queryString}
                       onClose={this.handleCloseDimensionPanel}
                       onConditionChange={this.handleConditionChange}
-                      onShowEventSourcePopover={this.handleShowEventSourcePopover}
                     />
                   </div>
                 ),

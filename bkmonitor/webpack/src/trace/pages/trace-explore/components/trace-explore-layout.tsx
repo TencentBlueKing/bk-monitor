@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 
 import MonitorDrag from '../../../components/monitor-drag/monitor-drag';
 
@@ -33,10 +33,10 @@ export default defineComponent({
   name: 'TraceExploreLayout',
 
   setup() {
-    const isShow = ref(true);
-    const maxWidth = ref(400);
-    const minWidth = ref(120);
-    const width = ref(200);
+    const isShow = shallowRef(true);
+    const maxWidth = shallowRef(400);
+    const minWidth = shallowRef(120);
+    const width = shallowRef(200);
 
     const handleDragChange = (w: number) => {
       if (w < minWidth.value) {
