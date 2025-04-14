@@ -331,6 +331,27 @@ $border-color: #d9d9d9;
               color: $text-color;
               word-break: break-word;
 
+              .metric-func-selector-add {
+                width: 100%;
+                .func-label {
+                  display: none;
+                }
+                .function-menu-anchor,
+                .func-item {
+                  margin-top: -5px;
+                  border-color: #e9eaeb;
+                }
+                .function-menu-anchor,
+                .init-add {
+                  width: 100%;
+                }
+                .init-add-input {
+                  width: 100%;
+                  border: none;
+                  background: transparent;
+                }
+              }
+
               &:hover:not(.readonly) {
                 cursor: pointer;
                 background: #eaebf0;
@@ -499,7 +520,17 @@ $border-color: #d9d9d9;
             }
 
             .unit-content {
-              width: 100%;
+              width: 40%;
+              .input-popover .bk-form-input {
+                border: none;
+                background-color: #f0f1f5 !important;
+              }
+              .cycle-unit-popover {
+                margin-top: 1.5px;
+                .cycle-unit {
+                  border-color: #e9eaeb;
+                }
+              }
             }
 
             .dimension-content {

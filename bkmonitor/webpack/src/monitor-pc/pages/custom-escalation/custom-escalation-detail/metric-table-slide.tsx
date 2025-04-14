@@ -31,6 +31,7 @@ import { Debounce, deepClone } from 'monitor-common/utils';
 
 import { METHOD_LIST } from '../../../constant/constant';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { statusMap } from './metric-table';
 
 import './metric-table-slide.scss';
@@ -122,9 +123,9 @@ export default class IndicatorTableSlide extends tsc<any> {
     name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
     description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
     unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
-    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props) },
-    interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
-    func: { label: '函数', width: 200, renderFn: props => this.renderFunction(props.row) },
+    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props.row) },
+    interval: { label: '上报周期', width: 145, renderFn: props => this.renderInterval(props.row) },
+    func: { label: '函数', width: 215, renderFn: props => this.renderFunction(props.row) },
     dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
     disabled: { label: '启/停', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
     hidden: { label: '显示', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
@@ -452,6 +453,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         class='slider-select'
         v-model={props.row.unit}
         clearable={false}
+        allow-create
         popover-width={180}
         searchable
       >
@@ -546,22 +548,21 @@ export default class IndicatorTableSlide extends tsc<any> {
       </bk-select>
     );
   }
+  /** 修改上报周期 */
+  handleIntervalChange(v: number, row: IMetricItem) {
+    row.interval = v;
+  }
 
   renderInterval(row: IMetricItem) {
     return (
-      <bk-select
-        class='slider-select'
-        v-model={row.interval}
-        clearable={false}
-      >
-        {this.cycleOption.map(opt => (
-          <bk-option
-            id={opt.id}
-            key={opt.id}
-            name={`${opt.name}s`}
-          />
-        ))}
-      </bk-select>
+      <CycleInput
+        class='slide-cycle-unit-input'
+        minSec={10}
+        needAuto={false}
+        isNeedDefaultVal={true}
+        value={row.interval}
+        onChange={(v: number) => this.handleIntervalChange(v, row)}
+      />
     );
   }
 
