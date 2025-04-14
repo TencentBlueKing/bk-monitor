@@ -31,6 +31,7 @@ from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -311,7 +312,7 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_collect_plugin_list(cls, bk_biz_id: int) -> List[Dict[str, Any]]:
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id()
 
         plugins: List[CollectorPluginMeta] = (
             CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=[0, bk_biz_id])
