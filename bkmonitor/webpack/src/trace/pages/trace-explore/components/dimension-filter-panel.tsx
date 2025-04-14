@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, type PropType } from 'vue';
+import { defineComponent, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
@@ -56,15 +56,15 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
-    const emptyStatus = ref<EmptyStatusType>('empty');
+    const emptyStatus = shallowRef<EmptyStatusType>('empty');
     /** 字段列表的count统计 */
-    const fieldListCount = ref({});
+    const fieldListCount = shallowRef({});
     /* 搜索关键字 */
-    const searchVal = ref('');
+    const searchVal = shallowRef('');
     /** 搜索结果列表 */
-    const searchResultList = ref<IDimensionField[]>([]);
+    const searchResultList = shallowRef<IDimensionField[]>([]);
     /** 转化维度列表为树结构 */
-    const dimensionTreeList = ref<IDimensionFieldTreeItem[]>([]);
+    const dimensionTreeList = shallowRef<IDimensionFieldTreeItem[]>([]);
     const topKCancelFn = null;
 
     watch([() => store.refreshImmediate, () => props.condition, () => props.queryString], () => {
@@ -205,11 +205,11 @@ export default defineComponent({
     }
 
     /** 已选择的字段 */
-    const selectField = ref<IDimensionField>(null);
-    const activeFieldName = ref('');
+    const selectField = shallowRef<IDimensionField>(null);
+    const activeFieldName = shallowRef('');
     /** popover实例 */
-    const popoverInstance = ref(null);
-    const statisticsListRef = ref(null);
+    const popoverInstance = shallowRef(null);
+    const statisticsListRef = shallowRef(null);
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();

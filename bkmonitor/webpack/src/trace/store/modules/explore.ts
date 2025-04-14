@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 
+import type { IApplicationItem } from '../../pages/trace-explore/typing';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -25,20 +27,22 @@ import { defineStore } from 'pinia';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { TimeRangeType } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
 
 export interface ITraceExploreState {
   timeRange: TimeRangeType;
+  timezone: string;
   mode: 'span' | 'trace';
-  applicationId: string;
+  application: IApplicationItem;
   refreshInterval: number;
   refreshImmediate: string;
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
-    timeRange: [],
+    timeRange: DEFAULT_TIME_RANGE,
+    timezone: '',
     mode: 'trace',
-    applicationId: '',
+    application: null,
     refreshInterval: -1,
     refreshImmediate: '',
   }),
@@ -46,11 +50,14 @@ export const useTraceExploreStore = defineStore('explore', {
     updateTimeRange(timeRange: TimeRangeType) {
       this.timeRange = timeRange;
     },
+    updateTimezone(timezone: string) {
+      this.timezone = timezone;
+    },
     updateMode(mode: 'span' | 'trace') {
       this.mode = mode;
     },
-    updateApplicationId(applicationId: string) {
-      this.applicationId = applicationId;
+    updateApplicationId(application: IApplicationItem) {
+      this.application = application;
     },
     updateRefreshInterval(refreshInterval: number) {
       this.refreshInterval = refreshInterval;
@@ -61,7 +68,7 @@ export const useTraceExploreStore = defineStore('explore', {
     init(data: ITraceExploreState) {
       this.timeRange = data.timeRange;
       this.mode = data.mode;
-      this.applicationId = data.applicationId;
+      this.application = data.application;
       this.refreshInterval = data.refreshInterval;
       this.refreshImmediate = data.refreshImmediate;
     },
