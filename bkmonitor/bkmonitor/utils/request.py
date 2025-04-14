@@ -15,7 +15,6 @@ from typing import Optional
 from django.http import HttpRequest
 
 from bkmonitor.utils.local import local
-from bkmonitor.utils.user import set_local_username
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.common import SourceApp
 
@@ -51,6 +50,7 @@ def set_request(request: HttpRequest):
     设置当前请求
     """
     from bkmonitor.utils.tenant import set_local_tenant_id
+    from bkmonitor.utils.user import set_local_username
 
     local.current_request = request
     set_local_username(request.user.username)
