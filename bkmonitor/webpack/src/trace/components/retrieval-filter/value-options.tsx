@@ -272,6 +272,7 @@ export default defineComponent({
   render() {
     return (
       <div
+        ref='el'
         style={
           this.width
             ? {
@@ -279,7 +280,7 @@ export default defineComponent({
               }
             : {}
         }
-        class='retrieval-filter__value-options-select-component'
+        class='vue3_retrieval-filter__value-options-select-component'
       >
         {this.loading ? (
           <div
@@ -321,9 +322,9 @@ export default defineComponent({
                   this.handleCheck({ id: this.search, name: this.search });
                 }}
               >
-                <i18n path='生成 "{0}" Tag'>
+                <i18n-t keypath='生成 "{0}" Tag'>
                   <span class='highlight'>{this.search}</span>
-                </i18n>
+                </i18n-t>
               </div>
             )}
             {this.renderOptions.map((item, index) => (

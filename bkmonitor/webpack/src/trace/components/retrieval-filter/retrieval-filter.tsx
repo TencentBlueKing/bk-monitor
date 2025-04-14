@@ -34,6 +34,7 @@ import { Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
 
+import QsSelector from './qs-selector';
 import {
   ECondition,
   type EMethod,
@@ -59,7 +60,7 @@ export default defineComponent({
     const { t } = useI18n();
 
     const showResidentSetting = shallowRef(false);
-    const mode = shallowRef(EMode.ui);
+    const mode = shallowRef<EMode>(EMode.ui);
     const uiValue = shallowRef<IFilterItem[]>([]);
     const cacheWhereStr = shallowRef('');
     const qsValue = shallowRef('');
@@ -385,6 +386,7 @@ export default defineComponent({
       residentSettingValue,
       showResidentSetting,
       clearKey,
+      qsSelectorOptionsWidth,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -395,6 +397,7 @@ export default defineComponent({
       handleCopy,
       handleFavorite,
       handleClickSearchBtn,
+      handleQsValueChange,
     };
   },
   render() {
@@ -433,16 +436,20 @@ export default defineComponent({
                 onChange={this.handleUiValueChange}
               />
             ) : (
-              <div>query</div>
+              <QsSelector
+                clearKey={this.clearKey}
+                favoriteList={this.favoriteList}
+                fields={this.fields}
+                getValueFn={this.getValueFn}
+                qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
+                value={this.qsValue}
+                onChange={this.handleQsValueChange}
+                onQuery={() => this.handleQuery()}
+              />
             )}
           </div>
           <div class='component-right'>
-            <div
-              // style={{
-              //   width: `${this.rightBtnsWrapWidth}px`,
-              // }}
-              class='component-right-btns'
-            >
+            <div class='component-right-btns'>
               <div
                 class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{

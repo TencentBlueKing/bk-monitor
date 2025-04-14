@@ -269,7 +269,10 @@ export default defineComponent({
       />
     );
     return (
-      <div class='retrieval__value-tag-selector-component'>
+      <div
+        ref='el'
+        class='vue3_retrieval__value-tag-selector-component'
+      >
         <div
           class={['value-tag-selector-component-wrap', { active: this.isFocus }]}
           onClick={this.handleClick}

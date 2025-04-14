@@ -197,6 +197,58 @@ export interface IFieldItem {
   type?: EFieldType;
 }
 
+export enum EQueryStringTokenType {
+  bracket = 'bracket',
+  condition = 'condition',
+  key = 'key',
+  method = 'method',
+  split = 'split',
+  value = 'value',
+  valueCondition = 'value-condition',
+}
+
+export const qsSelectorOptionsDescMap = {
+  ':': [
+    { type: 'tag', text: window.i18n.tc('等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  ':*': [
+    { type: 'tag', text: window.i18n.tc('存在') },
+    { type: 'text', text: window.i18n.tc('任意形式') },
+  ],
+  '>': [
+    { type: 'tag', text: window.i18n.tc('大于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '<': [
+    { type: 'tag', text: window.i18n.tc('小于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '>=': [
+    { type: 'tag', text: window.i18n.tc('大于或等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  '<=': [
+    { type: 'tag', text: window.i18n.tc('小于或等于') },
+    { type: 'text', text: window.i18n.tc('某一值') },
+  ],
+  AND: [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('两个参数都') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+  OR: [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+  'AND NOT': [
+    { type: 'text', text: window.i18n.tc('需要') },
+    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
+    { type: 'text', text: window.i18n.tc('为真') },
+  ],
+};
+
 export const RETRIEVAL_FILTER_PROPS = {
   fields: {
     type: Array as PropType<IFilterField[]>,
@@ -256,14 +308,14 @@ export const RETRIEVAL_FILTER_PROPS = {
   },
 };
 export const RETRIEVAL_FILTER_EMITS = {
-  favorite: (_isEdit: boolean) => {},
-  whereChange: (_v: IWhereItem[]) => {},
-  queryStringChange: (_v: string) => {},
-  modeChange: (_v: EMode) => {},
-  queryStringInputChange: (_v: string) => {},
-  commonWhereChange: (_where: IWhereItem[]) => {},
-  showResidentBtnChange: (_v: boolean) => {},
-  search: () => {},
+  favorite: (_isEdit: boolean) => true,
+  whereChange: (_v: IWhereItem[]) => true,
+  queryStringChange: (_v: string) => true,
+  modeChange: (_v: EMode) => true,
+  queryStringInputChange: (_v: string) => true,
+  commonWhereChange: (_where: IWhereItem[]) => true,
+  showResidentBtnChange: (_v: boolean) => true,
+  search: () => true,
 } as const;
 export const UI_SELECTOR_PROPS = {
   fields: {
@@ -288,7 +340,7 @@ export const UI_SELECTOR_PROPS = {
   },
 };
 export const UI_SELECTOR_EMITS = {
-  change: (_v: IFilterItem[]) => {},
+  change: (_v: IFilterItem[]) => true,
 } as const;
 export const UI_SELECTOR_OPTIONS_PROPS = {
   fields: {
@@ -317,8 +369,8 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
-  confirm: (_v: IFilterItem) => {},
-  cancel: () => {},
+  confirm: (_v: IFilterItem) => true,
+  cancel: () => true,
 } as const;
 export const VALUE_TAG_SELECTOR_PROPS = {
   value: {
@@ -343,10 +395,10 @@ export const VALUE_TAG_SELECTOR_PROPS = {
   },
 };
 export const VALUE_TAG_SELECTOR_EMITS = {
-  change: (_v: IValue[]) => {},
-  dropDownChange: (_v: boolean) => {},
-  selectorBlur: () => {},
-  selectorFocus: () => {},
+  change: (_v: IValue[]) => true,
+  dropDownChange: (_v: boolean) => true,
+  selectorBlur: () => true,
+  selectorFocus: () => true,
 } as const;
 export const AUTO_WIDTH_INPUT_PROPS = {
   value: {
@@ -375,12 +427,12 @@ export const AUTO_WIDTH_INPUT_PROPS = {
   },
 };
 export const AUTO_WIDTH_INPUT_EMITS = {
-  focus: () => {},
-  blur: () => {},
-  input: (_v: string) => {},
-  enter: () => {},
-  backspace: () => {},
-  backspaceNull: () => {},
+  focus: () => true,
+  blur: () => true,
+  input: (_v: string) => true,
+  enter: () => true,
+  backspace: () => true,
+  backspaceNull: () => true,
 } as const;
 export const VALUE_TAG_INPUT_PROPS = {
   value: {
@@ -393,9 +445,9 @@ export const VALUE_TAG_INPUT_PROPS = {
   },
 };
 export const VALUE_TAG_INPUT_EMITS = {
-  input: (_v: string) => {},
-  change: (_v: string) => {},
-  delete: (_e?: MouseEvent) => {},
+  input: (_v: string) => true,
+  change: (_v: string) => true,
+  delete: (_e?: MouseEvent) => true,
 } as const;
 export const VALUE_OPTIONS_PROPS = {
   selected: {
@@ -440,6 +492,82 @@ export const VALUE_OPTIONS_PROPS = {
   },
 };
 export const VALUE_OPTIONS_EMITS = {
-  isChecked: (_v: boolean) => {},
-  select: (_v: IValue) => {},
+  isChecked: (_v: boolean) => true,
+  select: (_v: IValue) => true,
+} as const;
+export const QS_SELECTOR_PROPS = {
+  fields: {
+    type: Array as PropType<IFilterField[]>,
+    default: () => [],
+  },
+  value: {
+    type: String,
+    default: '',
+  },
+  qsSelectorOptionsWidth: {
+    type: Number,
+    default: 0,
+  },
+  getValueFn: {
+    type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
+  favoriteList: {
+    type: Array as PropType<IFavoriteListItem[]>,
+    default: () => [],
+  },
+  clearKey: {
+    type: String,
+    default: '',
+  },
+};
+export const QS_SELECTOR_EMITS = {
+  query: (_v?: string) => true,
+  change: (_v: string) => true,
+} as const;
+export const QS_SELECTOR_OPTIONS_PROPS = {
+  search: {
+    type: String,
+    default: '',
+  },
+  fields: {
+    type: Array as PropType<IFilterField[]>,
+    default: () => [],
+  },
+  type: {
+    type: String as PropType<EQueryStringTokenType>,
+    default: '',
+  },
+  show: {
+    type: Boolean,
+    default: false,
+  },
+  field: {
+    type: String,
+    default: '',
+  },
+  getValueFn: {
+    type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
+  favoriteList: {
+    type: Array as PropType<IFavoriteListItem[]>,
+    default: () => [],
+  },
+  queryString: {
+    type: String,
+    default: '',
+  },
+};
+export const QS_SELECTOR_OPTIONS_EMITS = {
+  selectFavorite: (_v: string) => true,
+  select: (_v: string) => true,
 } as const;

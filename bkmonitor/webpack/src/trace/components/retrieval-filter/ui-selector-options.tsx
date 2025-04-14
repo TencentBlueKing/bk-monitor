@@ -445,7 +445,10 @@ export default defineComponent({
         : undefined;
     };
     return (
-      <div class='vue3_retrieval-filter__ui-selector-options-component'>
+      <div
+        ref='el'
+        class='vue3_retrieval-filter__ui-selector-options-component'
+      >
         <div class='component-top'>
           <div class='component-top-left'>
             <div class='search-wrap'>
