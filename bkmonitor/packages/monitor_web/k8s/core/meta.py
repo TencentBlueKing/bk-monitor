@@ -555,6 +555,97 @@ class K8sNodeMeta(K8sResourceMeta):
         filter_string = ",".join([filter_string] + ['mode="idle"'])
         return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
+    @property
+    def meta_prom_with_node_memory_working_set_bytes(self):
+        """sum by (node)(node_memory_MemTotal_bytes) - sum by (node) (node_memory_MemAvailable_bytes)"""
+        filter_string = self.filter.filter_string()
+        return (
+            f'{self.tpl_prom_with_nothing("node_memory_MemTotal_bytes", filter_string=filter_string)}'
+            f'-'
+            f'{self.tpl_prom_with_nothing("node_memory_MemAvailable_bytes", filter_string=filter_string)}'
+        )
+
+    @property
+    def meta_prom_with_node_memory_capacity_ratio(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['resource="memory"'])
+        return (
+            f'{self.tpl_prom_with_nothing("kube_pod_container_resource_requests", filter_string=filter_string)}'
+            f'/'
+            f'{self.tpl_prom_with_nothing("kube_node_status_allocatable", filter_string=filter_string)}'
+        )
+
+    @property
+    def meta_prom_with_node_memory_usage_ratio(self):
+        """(1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))"""
+        filter_string = self.filter.filter_string()
+        return (
+            f"(1 - ({self.tpl_prom_with_nothing('node_memory_MemAvailable_bytes', filter_string=filter_string)}"
+            f"/"
+            f"{self.tpl_prom_with_nothing('node_memory_MemTotal_bytes', filter_string=filter_string)}))"
+        )
+
+    @property
+    def bcs_cluster_id_filter(self):
+        for f_uid, f_obj in self.filter.filters.items():
+            if f_uid.startswith("bcs_cluster_id"):
+                filter_string = f"bcs_cluster_id={f_obj.filter_string().split('=')[1]}"
+                return filter_string
+        return ""
+
+    @property
+    def meta_prom_with_master_node_count(self):
+        filter_string = self.bcs_cluster_id_filter
+        if filter_string:
+            filter_string += ","
+        filter_string += 'role=~"master|control-plane"'
+        return f"""count(sum by (node)(kube_node_role{{{filter_string}}}))"""
+
+    @property
+    def meta_prom_with_worker_node_count(self):
+        """count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))"""
+        filter_string = self.bcs_cluster_id_filter
+        if filter_string:
+            filter_string += ","
+        filter_string += 'role=~"master|control-plane"'
+        return f"""count(kube_node_labels{{{self.bcs_cluster_id_filter}}})
+         -
+         count(sum by (node)(kube_node_role{{{filter_string}}}))"""
+
+    @property
+    def meta_prom_with_node_pod_usage(self):
+        """sum by (node)(kubelet_running_pods) / sum by (node)(kube_node_status_capacity_pods)"""
+        return (
+            f"{self.tpl_prom_with_nothing('kubelet_running_pods')}"
+            f"/"
+            f"{self.tpl_prom_with_nothing('kube_node_status_capacity_pods')}"
+        )
+
+    @property
+    def meta_prom_with_node_network_receive_bytes_total(self):
+        """sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*"}[1m])) by (node)"""
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_receive_bytes_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_transmit_bytes_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_transmit_bytes_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_receive_packets_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_receive_packets_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_transmit_packets_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_transmit_packets_total", filter_string=filter_string)
+
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
             filter_string = self.filter.filter_string(exclude=exclude)
