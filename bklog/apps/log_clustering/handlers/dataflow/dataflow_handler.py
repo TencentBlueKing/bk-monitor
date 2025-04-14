@@ -1784,7 +1784,7 @@ class DataFlowHandler(BaseAiopsHandler):
                     }
                 )
             except Exception as e:
-                logger.exception(f"创建/更新索引({index_set.index_set_id})聚类es路由失败，原因：{e}")
+                logger.exception(f"create index set({index_set.index_set_id})es router failed：{e}")
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
