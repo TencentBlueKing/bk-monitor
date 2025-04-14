@@ -305,7 +305,7 @@ export default defineComponent({
       };
     };
 
-    const setColWidth = col => {
+    const setColWidth = (col, w = '100%') => {
       col.minWidth = col.width - 4;
       col.width = '100%';
     };
@@ -314,20 +314,25 @@ export default defineComponent({
       if (showCtxType.value === 'table') {
         const columnList = [];
         const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
-        let hasAutoColumn = false;
+        let maxColWidth = operatorToolsWidth.value + 40;
+        let logField = null;
 
         columns.forEach(col => {
           const formatValue = formatColumn(col);
           if (col.field_name === 'log') {
-            setColWidth(formatValue);
-            hasAutoColumn = true;
+            logField = formatValue;
           }
 
           columnList.push(formatValue);
+          maxColWidth += formatValue.width;
         });
 
-        if (!hasAutoColumn && columnList.length > 0) {
-          setColWidth(columnList[columnList.length - 1]);
+        if (!logField && columnList.length > 0) {
+          logField = columnList[columnList.length - 1];
+        }
+
+        if (logField && offsetWidth.value > maxColWidth) {
+          setColWidth(logField);
         }
 
         return columnList;
@@ -900,10 +905,6 @@ export default defineComponent({
 
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
-      const opStyle = {
-        width: `${operatorToolsWidth.value}px`,
-        minWidth: `${operatorToolsWidth.value}px`,
-      };
 
       return [
         <div
@@ -930,10 +931,6 @@ export default defineComponent({
               </div>
             );
           })}
-          {/* <div
-            style={opStyle}
-            class={['hidden-field bklog-row-cell']}
-          ></div> */}
         </div>,
         expand ? expandOption.render({ row }) : '',
       ];

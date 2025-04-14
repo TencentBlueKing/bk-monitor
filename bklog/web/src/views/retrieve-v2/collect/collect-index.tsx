@@ -40,6 +40,7 @@ import CollectContainer from './collect-container';
 import ManageGroupDialog from './manage-group-dialog';
 
 import './collect-index.scss';
+import { nextTick } from 'vue';
 
 interface IProps {
   collectWidth: number;
@@ -312,7 +313,6 @@ export default class CollectIndex extends tsc<IProps> {
   @Watch('activeFavorite', { deep: true })
   changeActiveFavorite(val) {
     this.updateActiveFavorite(val);
-    RetrieveHelper.setFavoriteActive(val);
   }
   @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
@@ -379,7 +379,7 @@ export default class CollectIndex extends tsc<IProps> {
     const { ids, isUnionIndex } = routeParams;
     const params = isUnionIndex
       ? { ...this.$route.params, indexId: undefined }
-      : { ...this.$route.params, indexId: ids?.[0] ?? this.$route.params?.indexId };
+      : { ...this.$route.params, indexId: ids?.[0] ? `${ids?.[0]}` : this.$route.params?.indexId };
 
     const query = { ...this.$route.query };
     const resolver = new RetrieveUrlResolver({
@@ -404,6 +404,9 @@ export default class CollectIndex extends tsc<IProps> {
       // 清空当前检索条件
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
       this.setRouteParams();
+      setTimeout(() => {
+        RetrieveHelper.setFavoriteActive(this.activeFavorite);
+      });
       return;
     }
     const cloneValue = deepClone(value);
@@ -441,15 +444,16 @@ export default class CollectIndex extends tsc<IProps> {
       search_mode: cloneValue.search_mode,
     });
 
+    this.setRouteParams();
     this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
     });
 
-    this.setRouteParams();
-
-    // RetrieveHelper.
+    setTimeout(() => {
+      RetrieveHelper.setFavoriteActive(this.activeFavorite);
+    });
   }
 
   /**

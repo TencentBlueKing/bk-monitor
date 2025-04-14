@@ -55,7 +55,7 @@
               focusBorderColor="#c4c6cc"
               minHeight="32px"
               maxWidth="400px"
-              minWidth="200px"
+              minWidth="400px"
               v-model="highlightValue"
               placeholder="输入后按 Enter..."
               template="tag-input"
