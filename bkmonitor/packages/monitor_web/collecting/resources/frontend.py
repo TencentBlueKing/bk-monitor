@@ -253,11 +253,14 @@ class DeploymentConfigDiffResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
 
     def perform_request(self, validated_request_data):
         try:
-            collect_config = CollectConfigMeta.objects.get(id=validated_request_data["id"])
+            collect_config = CollectConfigMeta.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], id=validated_request_data["id"]
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": validated_request_data["id"]})
 

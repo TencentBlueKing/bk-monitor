@@ -26,13 +26,14 @@ from uuid import uuid4
 import yaml
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
+from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
 
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
 from constants.result_table import (
     RT_RESERVED_WORD_EXACT,
@@ -182,7 +183,9 @@ class SaveMetricResource(Resource):
                 config, _ = GlobalConfig.objects.get_or_create(key="MAX_METRIC_NUM", defaults={"value": MAX_METRIC_NUM})
                 if metric_num > safe_int(config.value, dft=MAX_METRIC_NUM):
                     raise MetricNumberError(max_metric_num=safe_int(config.value, dft=MAX_METRIC_NUM))
-        plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
+        plugin_manager = PluginManagerFactory.get_manager(
+            bk_tenant_id=get_request_tenant_id(), plugin=plugin_id, plugin_type=plugin_type
+        )
         config_version, info_version, is_change, need_make = plugin_manager.update_metric(validated_request_data)
         if need_make:
             register_info = {"plugin_id": plugin_id, "config_version": config_version, "info_version": info_version}
@@ -223,8 +226,10 @@ class CreatePluginResource(Resource):
         plugin_id = params["plugin_id"]
         plugin_type = params["plugin_type"]
         import_plugin_metric_json = params.get("import_plugin_metric_json")
-        with transaction.atomic():
-            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
+        with atomic():
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=get_request_tenant_id(), plugin=plugin_id, plugin_type=plugin_type
+            )
             plugin_manager.validate_config_info(params["collector_json"], params["config_json"])
 
             try:
@@ -267,14 +272,18 @@ class PluginRegisterResource(Resource):
         return self.apply_async(request_data)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         self.plugin_id = validated_request_data["plugin_id"]
-        plugin = CollectorPluginMeta.objects.filter(plugin_id=self.plugin_id).first()
+        plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=self.plugin_id).first()
         if plugin is None:
             raise PluginIDNotExist
         config_version = validated_request_data["config_version"]
         info_version = validated_request_data["info_version"]
         version = PluginVersionHistory.objects.filter(
-            plugin_id=self.plugin_id, config_version=config_version, info_version=info_version
+            bk_tenant_id=bk_tenant_id,
+            plugin_id=self.plugin_id,
+            config_version=config_version,
+            info_version=info_version,
         ).first()
         if version is None:
             raise PluginVersionNotExist
@@ -562,7 +571,9 @@ class PluginImportResource(Resource):
         except PluginIDExist:
             try:
                 # 判断是否当前数据库存在重名
-                self.current_version = CollectorPluginMeta.objects.get(plugin_id=self.plugin_id).current_version
+                self.current_version = CollectorPluginMeta.objects.get(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=self.plugin_id
+                ).current_version
                 self.create_params["duplicate_type"] = "official" if self.current_version.is_official else "custom"
             except CollectorPluginMeta.DoesNotExist:
                 self.create_params["duplicate_type"] = "custom"
@@ -575,7 +586,10 @@ class PluginImportResource(Resource):
             self.get_plugin()
             # 创建插件记录
             import_manager = PluginManagerFactory.get_manager(
-                plugin=self.plugin_id, plugin_type=self.plugin_type, tmp_path=self.tmp_path
+                bk_tenant_id=get_request_tenant_id(),
+                plugin=self.plugin_id,
+                plugin_type=self.plugin_type,
+                tmp_path=self.tmp_path,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
@@ -616,7 +630,9 @@ class CheckPluginIDResource(Resource):
         if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", plugin_id):
             raise PluginIDFormatError({"msg": _("插件ID只允许包含字母、数字、下划线，且必须以字母开头")})
 
-        if CollectorPluginMeta.origin_objects.filter(plugin_id=plugin_id).exists():
+        if CollectorPluginMeta.origin_objects.filter(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
+        ).exists():
             raise PluginIDExist({"msg": plugin_id})
 
         try:
@@ -648,49 +664,51 @@ class SaveAndReleasePluginResource(Resource):
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
         return super(SaveAndReleasePluginResource, self).validate_request_data(request_data)
 
+    @atomic
     def perform_request(self, validated_request_data):
-        with transaction.atomic():
-            try:
-                # 导入创建官方插件
-                register_params = resource.plugin.create_plugin(**validated_request_data)
-            except PluginIDExist:
-                # 更新官方插件
-                plugin_id = validated_request_data["plugin_id"]
-                plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
-                serializer_class = plugin_manager.serializer_class
-                serializer = serializer_class(plugin, data=validated_request_data, partial=True)
-                serializer.is_valid(raise_exception=True)
-                data = serializer.validated_data
-                with transaction.atomic():
-                    instance_obj = serializer.save()
-                    plugin_manager.plugin = instance_obj
-                    version, need_debug = plugin_manager.update_version(
-                        data,
-                        data["config_version"],
-                        data["info_version"],
-                    )
-                register_params = validated_request_data
-                register_params.update(
-                    {
-                        "config_version": version.config_version,
-                        "info_version": version.info_version,
-                        "os_type_list": version.os_type_list,
-                        "stage": version.stage,
-                        "need_debug": check_skip_debug(need_debug),
-                    }
-                )
-
-            token_list = resource.plugin.plugin_register(**register_params)
-            plugin = CollectorPluginMeta.objects.get(plugin_id=register_params["plugin_id"])
+        try:
+            # 导入创建官方插件
+            register_params = resource.plugin.create_plugin(**validated_request_data)
+        except PluginIDExist:
+            # 更新官方插件
+            plugin_id = validated_request_data["plugin_id"]
+            plugin = CollectorPluginMeta.objects.get(bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id)
             plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
-            release_params = {
-                "config_version": register_params["config_version"],
-                "info_version": register_params["info_version"],
-                "token": token_list["token"],
-            }
-            plugin_manager.release(**release_params)
-            return True
+            serializer_class = plugin_manager.serializer_class
+            serializer = serializer_class(plugin, data=validated_request_data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            with atomic():
+                instance_obj = serializer.save()
+                plugin_manager.plugin = instance_obj
+                version, need_debug = plugin_manager.update_version(
+                    data,
+                    data["config_version"],
+                    data["info_version"],
+                )
+            register_params = validated_request_data
+            register_params.update(
+                {
+                    "config_version": version.config_version,
+                    "info_version": version.info_version,
+                    "os_type_list": version.os_type_list,
+                    "stage": version.stage,
+                    "need_debug": check_skip_debug(need_debug),
+                }
+            )
+
+        token_list = resource.plugin.plugin_register(**register_params)
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=register_params["plugin_id"]
+        )
+        plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
+        release_params = {
+            "config_version": register_params["config_version"],
+            "info_version": register_params["info_version"],
+            "token": token_list["token"],
+        }
+        plugin_manager.release(**release_params)
+        return True
 
 
 class GetReservedWordResource(Resource):
@@ -715,7 +733,9 @@ class PluginUpgradeInfoResource(Resource):
         info_version = serializers.IntegerField(required=True, label="插件信息版本")
 
     def perform_request(self, data):
-        plugin = CollectorPluginMeta.objects.filter(plugin_id=data["plugin_id"]).first()
+        plugin = CollectorPluginMeta.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=data["plugin_id"]
+        ).first()
         if plugin is None:
             raise PluginIDNotExist
         # 获取当前插件版本与最新版本之间的发行历史
@@ -804,7 +824,11 @@ class PluginTypeResource(Resource):
     """
 
     def perform_request(self, data):
-        plugin_type_list = CollectorPluginMeta.objects.values_list("plugin_type", flat=True).distinct()
+        plugin_type_list = (
+            CollectorPluginMeta.objects.filter(bk_tenant_id=get_request_tenant_id())
+            .values_list("plugin_type", flat=True)
+            .distinct()
+        )
         return list(plugin_type_list)
 
 
@@ -844,7 +868,9 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
 
             # 全>单判断是否有关联项
             if not self.current_version.plugin.bk_biz_id:
-                collect_config = CollectConfigMeta.objects.filter(plugin_id=self.plugin_id)
+                collect_config = CollectConfigMeta.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=self.plugin_id
+                )
                 if collect_config and [x for x in collect_config if x.bk_biz_id != self.create_params["bk_biz_id"]]:
                     raise RelatedItemsExist({"msg": "存在其余业务的关联项"})
 

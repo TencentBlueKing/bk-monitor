@@ -21,6 +21,7 @@ from django.db.models import Q
 
 from bkmonitor.action.serializers.strategy import UserGroupSlz
 from bkmonitor.models.strategy import UserGroup
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from common.log import logger
@@ -165,7 +166,7 @@ class QueryBizByBkBase(Resource):
         """
         try:
             real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]  # 根据插件规则，将RT转换为对应的plugin_id
-            plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
+            plugin_meta = CollectorPluginMeta.objects.get(bk_tenant_id=get_request_tenant_id(), plugin_id=real_key)
             return plugin_meta.bk_biz_id
         except Exception:  # pylint: disable=broad-except
             return 0

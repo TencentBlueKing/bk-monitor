@@ -256,7 +256,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         version = self.deployment_config.plugin_version
         plugin_type = version.plugin.plugin_type
         if plugin_type in version.plugin.VIRTUAL_PLUGIN_TYPE:
-            plugin_manager = PluginManagerFactory.get_manager(version.plugin, plugin_type)
+            plugin_manager = PluginManagerFactory.get_manager(plugin=version.plugin)
             plugin_manager.delete_result_table(version)
 
     def get_info(self):
@@ -367,7 +367,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         获取表结构
         """
         if self.plugin_version.plugin.plugin_id == "bkprocessbeat":
-            return PluginManagerFactory.get_manager(plugin="bkprocessbeat").gen_metric_info()
+            return PluginManagerFactory.get_manager(plugin=self.plugin_version.plugin).gen_metric_info()
         last_version = self.plugin_version.plugin.get_release_ver_by_config_ver(self.plugin_version.config_version)
         return last_version.info.metric_json
 

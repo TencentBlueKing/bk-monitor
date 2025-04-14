@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.functional import cached_property
-from monitor_web.models import CollectorPluginMeta
-from monitor_web.statistics.v2.base import BaseCollector
 
 from core.statistics.metric import Metric, register
+from monitor_web.models import CollectorPluginMeta
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class CollectPluginCollector(BaseCollector):
@@ -32,6 +32,7 @@ class CollectPluginCollector(BaseCollector):
         for collect_plugin in self.collect_plugin:
             is_public = 0 if collect_plugin.is_internal else 1
             metric.labels(
+                bk_tenant_id=collect_plugin.bk_tenant_id,
                 bk_biz_id=collect_plugin.bk_biz_id,
                 bk_biz_name=self.get_biz_name(collect_plugin.bk_biz_id),
                 label=collect_plugin.label,
@@ -48,6 +49,7 @@ class CollectPluginCollector(BaseCollector):
         for collect_plugin in self.collect_plugin:
             for env in collect_plugin.current_version.os_type_list:
                 metric.labels(
+                    bk_tenant_id=collect_plugin.bk_tenant_id,
                     bk_biz_id=collect_plugin.bk_biz_id,
                     bk_biz_name=self.get_biz_name(collect_plugin.bk_biz_id),
                     plugin_type=collect_plugin.plugin_type,

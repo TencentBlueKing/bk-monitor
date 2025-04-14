@@ -81,10 +81,12 @@ class BasePluginManager:
         self.operator = operator
         self.tmp_path = tmp_path
         self.version: Optional[PluginVersionHistory] = PluginVersionHistory.objects.filter(
-            plugin_id=self.plugin.plugin_id
+            bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
 
-    def _update_version_params(self, data, version, current_version, stag=None):
+    def _update_version_params(
+        self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
+    ):
         """
         更新插件版本参数
         """
@@ -97,7 +99,9 @@ class BasePluginManager:
         # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
         if version.is_official:
             if not current_version.is_official:
-                PluginVersionHistory.origin_objects.filter(plugin=version.plugin).delete()
+                PluginVersionHistory.origin_objects.filter(
+                    bk_tenant_id=version.bk_tenant_id, plugin_id=version.plugin_id
+                ).delete()
             version.config_version = data.get("config_version", 1)
             version.info_version = data.get("info_version", 1)
 
@@ -206,7 +210,7 @@ class BasePluginManager:
                 "{}_{}.{}".format(self.plugin.plugin_type.lower(), self.plugin.plugin_id, metric_msg["table_name"])
                 for metric_msg in current_version.info.metric_json
             ]
-            append_metric_list_cache.delay(result_table_id_list)
+            append_metric_list_cache.delay(self.plugin.bk_tenant_id, result_table_id_list)
         except Exception as err:
             logger.error("[update_plugin_metric_cache] error, msg is {}".format(err))
 
@@ -881,7 +885,9 @@ class PluginManager(BasePluginManager):
         """
         config = CollectorPluginConfig()
         info = CollectorPluginInfo()
-        self.version = PluginVersionHistory(plugin=self.plugin, config=config, info=info)
+        self.version = PluginVersionHistory(
+            bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id, config=config, info=info
+        )
         self._parse_info_path()
         self.version.update_diff_fields()
 

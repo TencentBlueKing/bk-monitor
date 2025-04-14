@@ -15,6 +15,7 @@ from typing import Optional
 from django.http import HttpRequest
 
 from bkmonitor.utils.local import local
+from bkmonitor.utils.user import set_local_username
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.common import SourceApp
 
@@ -34,12 +35,26 @@ def get_request_tenant_id(peaceful=False) -> Optional[str]:
 
 
 def get_request(peaceful=False) -> Optional[HttpRequest]:
+    """
+    获取当前请求
+    """
     if hasattr(local, "current_request"):
         return local.current_request
     elif peaceful:
         return None
 
     raise Exception("get_request: current thread hasn't request.")
+
+
+def set_request(request: HttpRequest):
+    """
+    设置当前请求
+    """
+    from bkmonitor.utils.tenant import set_local_tenant_id
+
+    local.current_request = request
+    set_local_username(request.user.username)
+    set_local_tenant_id(request.user.tenant_id)
 
 
 def get_source_app(request=None):

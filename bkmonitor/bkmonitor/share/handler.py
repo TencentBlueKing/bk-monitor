@@ -241,7 +241,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
     def query_configs_check(self, query_configs):
         if self.scene_params["scene_id"].startswith("collect_"):
             bk_collect_config_id = int(self.scene_params["scene_id"].lstrip("collect_"))
-            plugin = CollectConfigMeta.objects.get(id=bk_collect_config_id).plugin
+            plugin = CollectConfigMeta.objects.get(bk_tenant_id=self.bk_tenant_id, id=bk_collect_config_id).plugin
             # targets校验
             filter_dict = query_configs[0]["filter_dict"]
             if self.filter_params and filter_dict.get("targets", []):
@@ -251,7 +251,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
             self.params_check(filter_dict)
         else:
             plugin_id = self.scene_params["scene_id"].lstrip("scene_plugin_")
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+            plugin = CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=plugin_id)
 
         # 结果表范围校验，暂不校验内部
         plugin_type = plugin.plugin_type.lower()

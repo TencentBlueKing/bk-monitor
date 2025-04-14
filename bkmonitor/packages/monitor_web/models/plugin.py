@@ -159,10 +159,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return debug_version
 
     @classmethod
-    def fetch_id__current_version_id_map(cls, ids: List[str]) -> Dict[str, int]:
-        version_infos: List[Dict[str, Union[int, str]]] = PluginVersionHistory.objects.filter(plugin_id__in=ids).values(
-            "plugin_id", "id", "stage"
-        )
+    def fetch_id__current_version_id_map(cls, bk_tenant_id: str, plugin_ids: List[str]) -> Dict[str, int]:
+        version_infos: List[Dict[str, Union[int, str]]] = PluginVersionHistory.objects.filter(
+            bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids
+        ).values("plugin_id", "id", "stage")
 
         # 排序规则：Release > DEBUG/UNREGISTER
 

@@ -31,11 +31,6 @@ class Config:
     timezone = "Asia/Shanghai"
 
     schedule = {
-        "monitor_web.tasks.update_config_instance_count": {
-            "task": "monitor_web.tasks.update_config_instance_count",
-            "schedule": crontab(minute=0),
-            "enabled": False,
-        },
         "monitor_web.tasks.update_external_approval_status": {
             "task": "monitor_web.tasks.update_external_approval_status",
             "schedule": crontab(minute="*/10"),

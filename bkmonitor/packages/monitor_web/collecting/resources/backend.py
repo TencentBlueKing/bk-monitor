@@ -19,7 +19,7 @@ from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkmonitor.utils import shortuuid
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
@@ -172,7 +172,7 @@ class CollectConfigListResource(Resource):
 
         CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
-    def update_cache_data(self, config):
+    def update_cache_data(self, config: CollectConfigMeta):
         # 更新采集配置的缓存数据（总数、异常数）
         subscription_id = config.deployment_config.subscription_id
         realtime_data = self.realtime_data.get(subscription_id)
@@ -185,10 +185,8 @@ class CollectConfigListResource(Resource):
         }
         # 若缓存数据和实际数据不一致，则更新数据库
         if config.cache_data != cache_data:
-            CollectConfigMeta.objects.filter(id=config.id).update(cache_data=cache_data)
-
-        # 更新内存数据
-        config.cache_data = cache_data
+            config.cache_data = cache_data
+            config.save(not_update_user=True, update_fields=["cache_data"])
 
     @staticmethod
     def update_cache_data_item(conf, field, value):
@@ -243,22 +241,27 @@ class CollectConfigListResource(Resource):
         return is_need_upgrade
 
     def exists_by_biz(self, bk_biz_id):
+        bk_tenant_id = get_request_tenant_id()
         space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
         data_sources = api.metadata.query_data_source_by_space_uid(
             space_uid_list=[space.space_uid], is_platform_data_id=True
         )
         data_names = [ds["data_name"] for ds in data_sources]
         plugin_ids = []
-        global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
+        global_plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=0).values(
+            "plugin_type", "plugin_id"
+        )
         for plugin in global_plugins:
             data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
             if data_name in data_names:
                 plugin_ids.append(plugin['plugin_id'])
 
-        filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
-        return CollectConfigMeta.objects.filter(filter_condition).exists()
+        return CollectConfigMeta.objects.filter(
+            Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id), bk_tenant_id=bk_tenant_id
+        ).exists()
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data.get("bk_biz_id")
         refresh_status = validated_request_data.get("refresh_status")
         search_dict = validated_request_data.get("search", {})
@@ -282,7 +285,7 @@ class CollectConfigListResource(Resource):
 
         # 获取全量的采集配置数据（包含外键数据）filter(**search_dict)
         config_list = (
-            CollectConfigMeta.objects.filter(*new_search)
+            CollectConfigMeta.objects.filter(*new_search, bk_tenant_id=bk_tenant_id)
             .select_related("deployment_config__plugin_version")
             .order_by("-id")
         )
@@ -290,7 +293,9 @@ class CollectConfigListResource(Resource):
         all_space_list = SpaceApi.list_spaces()
         bk_biz_id_space_dict = {space.bk_biz_id: space for space in all_space_list}
 
-        global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
+        global_plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=0).values(
+            "plugin_type", "plugin_id"
+        )
 
         # bk_biz_id可以为空，为空则按用户拥有的业务查询
         plugin_ids = []
@@ -631,7 +636,7 @@ class CloneCollectConfigResource(Resource):
             #  判断重名
             new_name = name = data["name"] + "_copy"
             i = 1
-            while CollectConfigMeta.objects.filter(name=new_name):
+            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name):
                 new_name = f"{name}({i})"  # noqa
                 i += 1
             data["name"] = new_name
@@ -666,7 +671,7 @@ class CloneCollectConfigResource(Resource):
             #  判断重名
             new_name = name = collect_config.name + "_copy"
             i = 1
-            while CollectConfigMeta.objects.filter(name=new_name):
+            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name):
                 new_name = f"{name}({i})"
                 i += 1
             collect_config.name = new_name
@@ -981,7 +986,7 @@ class SaveCollectConfigResource(Resource):
         # 获取或新建采集配置
         if data.get("id"):
             try:
-                collect_config = CollectConfigMeta.objects.get(id=data["id"])
+                collect_config = CollectConfigMeta.objects.get(bk_biz_id=data["bk_biz_id"], id=data["id"])
             except CollectConfigMeta.DoesNotExist:
                 raise CollectConfigNotExist({"msg": data["id"]})
             # 密码字段处理
@@ -989,6 +994,7 @@ class SaveCollectConfigResource(Resource):
             collect_config.name = data["name"]
         else:
             collect_config = CollectConfigMeta(
+                bk_tenant_id=get_request_tenant_id(),
                 bk_biz_id=data["bk_biz_id"],
                 name=data["name"],
                 last_operation=OperationType.CREATE,
@@ -1047,6 +1053,7 @@ class SaveCollectConfigResource(Resource):
 
     @staticmethod
     def get_collector_plugin(data) -> CollectorPluginMeta:
+        bk_tenant_id = get_request_tenant_id()
         plugin_id = data["plugin_id"]
         # 虚拟日志采集器
         if data["collect_type"] == CollectConfigMeta.CollectType.LOG:
@@ -1055,16 +1062,22 @@ class SaveCollectConfigResource(Resource):
             rules = data["params"]["log"]["rules"]
             if "id" not in data:
                 plugin_id = "log_" + str(shortuuid.uuid())
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
+                plugin_manager = PluginManagerFactory.get_manager(
+                    bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=PluginType.LOG
+                )
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 resource.plugin.create_plugin(params)
             else:
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
+                plugin_manager = PluginManagerFactory.get_manager(
+                    bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=PluginType.LOG
+                )
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 plugin_manager.update_version(params)
         # 虚拟进程采集器
         elif data["collect_type"] == CollectConfigMeta.CollectType.PROCESS:
-            plugin_manager = PluginManagerFactory.get_manager("bkprocessbeat", plugin_type=PluginType.PROCESS)
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=bk_tenant_id, plugin="bkprocessbeat", plugin_type=PluginType.PROCESS
+            )
             # 全局唯一
             plugin_manager.touch()
             plugin_id = plugin_manager.plugin.plugin_id
@@ -1100,21 +1113,23 @@ class SaveCollectConfigResource(Resource):
             }
 
             # 检查是否已经创建了腾讯云指标采集插件
-            if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
+            if CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).exists():
                 # 更新插件
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
+                plugin_manager = PluginManagerFactory.get_manager(
+                    bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=PluginType.K8S
+                )
                 plugin_manager.update_version(plugin_params)
             else:
                 # 创建插件
                 resource.plugin.create_plugin(plugin_params)
 
-        return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+        return CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id)
 
     @staticmethod
-    def roll_back_result_table(collector_plugin):
+    def roll_back_result_table(collector_plugin: CollectorPluginMeta):
         plugin_type = collector_plugin.plugin_type
         if plugin_type in collector_plugin.VIRTUAL_PLUGIN_TYPE and plugin_type != PluginType.K8S:
-            plugin_manager = PluginManagerFactory.get_manager(collector_plugin, plugin_type)
+            plugin_manager = PluginManagerFactory.get_manager(plugin=collector_plugin, plugin_type=plugin_type)
             plugin_manager.delete_result_table(collector_plugin.release_version)
 
     @staticmethod
@@ -1129,7 +1144,7 @@ class SaveCollectConfigResource(Resource):
                 )
                 for metric_msg in metric_json
             ]
-            append_metric_list_cache.delay(result_table_id_list)
+            append_metric_list_cache.delay(collector_plugin.bk_tenant_id, result_table_id_list)
 
 
 class UpgradeCollectPluginResource(Resource):
@@ -1168,7 +1183,7 @@ class UpgradeCollectPluginResource(Resource):
             "{}_{}.{}".format(collect_config.collect_type.lower(), collect_config.plugin_id, metric_msg["table_name"])
             for metric_msg in collect_config.plugin.current_version.info.metric_json
         ]
-        append_metric_list_cache.delay(result_table_id_list)
+        append_metric_list_cache.delay(get_request_tenant_id(), result_table_id_list)
 
         return result
 
@@ -1179,11 +1194,14 @@ class RollbackDeploymentConfigResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
 
     def perform_request(self, data):
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(pk=data["id"])
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                bk_biz_id=data["bk_biz_id"], pk=data["id"]
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
@@ -1203,12 +1221,13 @@ class GetMetricsResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
 
     def perform_request(self, validated_request_data):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=validated_request_data["id"]
+                bk_biz_id=validated_request_data["bk_biz_id"], id=validated_request_data["id"]
             )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": validated_request_data["id"]})

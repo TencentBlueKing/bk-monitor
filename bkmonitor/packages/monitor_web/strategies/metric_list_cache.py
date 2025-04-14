@@ -42,6 +42,7 @@ from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
 from constants.apm import ApmMetrics
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -197,8 +198,9 @@ class BaseMetricCacheManager:
 
     data_sources = (("", ""),)
 
-    def __init__(self, bk_biz_id=None):
+    def __init__(self, bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
         self.bk_biz_id = bk_biz_id
+        self.bk_tenant_id = bk_tenant_id
         self.new_metric_ids = []
         self._label_names_map = None
         self.has_exception = False
@@ -444,9 +446,11 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         custom_ts_result = api.metadata.query_time_series_group(bk_biz_id=self.bk_biz_id)
         # 过滤插件数据，且已知插件的bk_biz_id都为 0，所以可以仅对 0 的数据做过滤，减少不必要的查询
         if self.bk_biz_id == 0:
-            plugin_data = CollectorPluginMeta.objects.exclude(
-                plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS]
-            ).values_list("plugin_type", "plugin_id")
+            plugin_data = (
+                CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
+                .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS])
+                .values_list("plugin_type", "plugin_id")
+            )
             db_name_list = ["{}_{}".format(plugin[0], plugin[1]).lower() for plugin in plugin_data]
 
             # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
@@ -1075,13 +1079,14 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
             self.event_group_id_to_event_info[event_group_id] = e
 
         yield from CollectConfigMeta.objects.filter(
-            Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP) | Q(collect_type=CollectConfigMeta.CollectType.LOG)
+            Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP) | Q(collect_type=CollectConfigMeta.CollectType.LOG),
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def get_metrics_by_table(self, table):
         version = table.deployment_config.plugin_version
         event_group_name = "{}_{}".format(version.plugin.plugin_type, version.plugin_id)
-        group_info = CustomEventGroup.objects.get(name=event_group_name)
+        group_info = CustomEventGroup.objects.get(name=event_group_name, bk_tenant_id=self.bk_tenant_id)
         event_info_list = CustomEventItem.objects.filter(bk_event_group=group_info)
 
         metric = {
@@ -1270,9 +1275,8 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             yield from api.metadata.list_monitor_result_table(bk_biz_id=self.bk_biz_id, with_option=False)
 
         plugin_data = (
-            CollectorPluginMeta.objects.exclude(
-                plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS]
-            )
+            CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
+            .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS])
             .filter(bk_biz_id=self.bk_biz_id)
             .values_list("plugin_type", "plugin_id")
         )
@@ -1295,7 +1299,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         按metadata格式生成插件类表数据
         """
         # 只需要生成监控采集时序型上报的插件指标
-        plugins = CollectorPluginMeta.objects.exclude(
+        plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id).exclude(
             plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS]
         )
         if self.bk_biz_id is not None:
@@ -1306,13 +1310,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         last_version_ids = [
             version["last_id"]
             for version in PluginVersionHistory.objects.filter(
-                plugin_id__in=plugin_ids, stage=PluginVersionHistory.Stage.RELEASE
+                bk_tenant_id=self.bk_tenant_id, plugin_id__in=plugin_ids, stage=PluginVersionHistory.Stage.RELEASE
             )
             .values("plugin_id")
             .order_by("plugin_id")
             .annotate(last_id=Max("id"))
         ]
-        plugin_versions = PluginVersionHistory.objects.filter(id__in=last_version_ids)
+        plugin_versions = PluginVersionHistory.objects.filter(bk_tenant_id=self.bk_tenant_id, id__in=last_version_ids)
 
         # 批量插件关联的采集配置，并按插件进行分组
         collect_configs = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids).select_related("deployment_config")

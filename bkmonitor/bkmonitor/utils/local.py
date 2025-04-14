@@ -35,16 +35,12 @@ from contextlib import contextmanager
 try:
     from greenlet import getcurrent as get_ident
 except ImportError:
-    try:
-        from six.moves._thread import get_ident
-    except ImportError:
-        from _thread import get_ident
+    from _thread import get_ident
 
 __all__ = ["local", "Local", "get_ident"]
 
 
 class Localbase(object):
-
     __slots__ = ("__storage__", "__ident_func__")
 
     def __new__(cls, *args, **kwargs):
