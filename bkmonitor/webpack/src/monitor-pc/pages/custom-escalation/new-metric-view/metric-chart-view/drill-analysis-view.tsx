@@ -48,7 +48,7 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
-/** 下钻分析 */
+/** 维度下钻 */
 interface IDrillAnalysisViewProps {
   dimensionsList?: IDimensionItem[];
   currentMethod?: string;
@@ -346,7 +346,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         class='drill-analysis-view'
       >
         <div class='drill-analysis-head'>
-          {this.$t('下钻分析')}
+          {this.$t('维度下钻')}
           <i
             class='icon-monitor icon-mc-close close-btn'
             onClick={this.handleClose}
