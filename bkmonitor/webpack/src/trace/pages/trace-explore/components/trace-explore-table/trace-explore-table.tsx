@@ -23,15 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref } from 'vue';
-import { computed } from 'vue';
+import { defineComponent, shallowRef, computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Table, TableColumn } from '@blueking/table';
 import { OverflowTitle } from 'bkui-vue';
 import Checkbox from 'bkui-vue/lib/checkbox';
 
-import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
+import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
@@ -62,10 +61,10 @@ export default defineComponent({
     const { t } = useI18n();
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
 
-    const visualMode = ref('span');
-    const checkboxFilters = ref([]);
+    const visualMode = shallowRef('span');
+    const checkboxFilters = reactive([]);
 
-    const tableData = ref(TABLE_MOCK_DATA);
+    const tableData = shallowRef(TABLE_MOCK_DATA);
 
     const tableColumns = computed(() => {
       const columnMap = getTableColumnMapByVisualMode();
@@ -82,8 +81,6 @@ export default defineComponent({
       return isSpanVisual.value ? 'span_id' : 'trace_id';
     });
 
-    function handleSpanTypeChange() {}
-
     /**
      * @description 根据当前激活的视角(trace/span)获取对应的table表格列配置
      *
@@ -95,42 +92,43 @@ export default defineComponent({
             type: ExploreTableColumnTypeEnum.CLICK,
             field: 'span_id',
             alias: t('Span ID'),
-            width: 160,
+            minWidth: 160,
             sortable: true,
+            clickCallback: handleOpenSlider,
           },
           span_name: {
             type: ExploreTableColumnTypeEnum.TEXT,
             field: 'span_name',
             alias: t('接口名称'),
-            width: 180,
+            minWidth: 180,
             filter: [],
           },
           start_time: {
             type: ExploreTableColumnTypeEnum.TIME,
             field: 'start_time',
             alias: t('开始时间'),
-            width: 160,
+            minWidth: 160,
             sortable: true,
           },
           end_time: {
             type: ExploreTableColumnTypeEnum.TIME,
             field: 'end_time',
             alias: t('结束时间'),
-            width: 160,
+            minWidth: 160,
             sortable: true,
           },
           elapsed_time: {
             type: ExploreTableColumnTypeEnum.DURATION,
             field: 'elapsed_time',
             alias: t('耗时'),
-            width: 140,
+            minWidth: 140,
             sortable: true,
           },
           'status.code': {
             type: ExploreTableColumnTypeEnum.PREFIX_ICON,
             field: 'status.code',
             alias: t('状态'),
-            width: 140,
+            minWidth: 140,
             filter: [],
             getRenderValue: row => {
               const alias = row?.status_code?.value;
@@ -145,14 +143,14 @@ export default defineComponent({
             type: ExploreTableColumnTypeEnum.PREFIX_ICON,
             field: 'kind',
             alias: t('类型'),
-            width: 140,
+            minWidth: 140,
             filter: [],
           },
           'resource.service.name': {
             type: ExploreTableColumnTypeEnum.LINK,
             field: 'resource.service.name',
             alias: t('所属服务'),
-            width: 160,
+            minWidth: 160,
             filter: [],
             getRenderValue: row => getJumpToApmLinkItem(row?.resource?.['service.name']),
           },
@@ -160,30 +158,31 @@ export default defineComponent({
             type: ExploreTableColumnTypeEnum.TEXT,
             field: 'resource.bk.instance.id',
             alias: t('实例 ID'),
-            width: 160,
+            minWidth: 160,
             filter: [],
-            getRenderValue: row => row?.resource?.['bk.instance.id'] ?? defaultTableConfig.emptyPlaceholder,
+            getRenderValue: row => row?.resource?.['bk.instance.id'],
           },
           'resource.telemetry.sdk.name': {
             type: ExploreTableColumnTypeEnum.TEXT,
             field: 'resource.telemetry.sdk.name',
             alias: t('SDK 名称'),
-            width: 160,
-            getRenderValue: row => row?.resource?.['telemetry.sdk.name'] ?? defaultTableConfig.emptyPlaceholder,
+            minWidth: 160,
+            getRenderValue: row => row?.resource?.['telemetry.sdk.name'],
           },
           'resource.telemetry.sdk.version': {
             type: ExploreTableColumnTypeEnum.TEXT,
             field: 'resource.telemetry.sdk.version',
             alias: t('SDK 版本'),
-            width: 160,
+            minWidth: 160,
             filter: [],
-            getRenderValue: row => row?.resource?.['telemetry.sdk.version'] ?? defaultTableConfig.emptyPlaceholder,
+            getRenderValue: row => row?.resource?.['telemetry.sdk.version'],
           },
           trace_id: {
             type: ExploreTableColumnTypeEnum.CLICK,
             field: 'trace_id',
             alias: t('所属Trace'),
-            width: 160,
+            minWidth: 160,
+            clickCallback: handleOpenSlider,
           },
         };
       }
@@ -192,20 +191,20 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.CLICK,
           field: 'trace_id',
           alias: t('Trace ID'),
-          width: 160,
-          fixed: 'left',
+          minWidth: 160,
+          clickCallback: handleOpenSlider,
         },
         min_start_time: {
           type: ExploreTableColumnTypeEnum.TIME,
           field: 'min_start_time',
           alias: t('开始时间'),
-          width: 160,
+          minWidth: 160,
         },
         root_span_name: {
           type: ExploreTableColumnTypeEnum.LINK,
           field: 'root_span_name',
           alias: t('根Span'),
-          width: 180,
+          minWidth: 180,
           filter: [],
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
@@ -213,7 +212,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.LINK,
           field: 'root_service',
           alias: t('入口服务'),
-          width: 180,
+          minWidth: 180,
           filter: [],
           getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
         },
@@ -221,7 +220,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.LINK,
           field: 'root_service_span_name',
           alias: t('入口接口'),
-          width: 180,
+          minWidth: 180,
           filter: [],
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
@@ -229,15 +228,15 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'root_service_category',
           alias: t('调用类型'),
-          width: 140,
+          minWidth: 140,
           filter: [],
-          getRenderValue: row => row?.root_service_category?.text || defaultTableConfig.emptyPlaceholder,
+          getRenderValue: row => row?.root_service_category?.text,
         },
         root_service_status_code: {
           type: ExploreTableColumnTypeEnum.TAGS,
           field: 'root_service_status_code',
           alias: t('状态码'),
-          width: 140,
+          minWidth: 140,
           filter: [],
           getRenderValue: row => {
             const alias = row?.root_service_status_code?.value as string;
@@ -255,14 +254,14 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.DURATION,
           field: 'trace_duration',
           alias: t('耗时'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
         },
         'kind_statistics.sync': {
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.sync',
           alias: t('同步Span数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.sync || 0,
         },
@@ -270,7 +269,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.async',
           alias: t('异步Span数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.async || 0,
         },
@@ -278,7 +277,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.interval',
           alias: t('内部Span数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.interval || 0,
         },
@@ -286,7 +285,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.unspecified',
           alias: t('未知Span数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.unspecified || 0,
         },
@@ -294,7 +293,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.db',
           alias: t('DB 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.db || 0,
         },
@@ -302,7 +301,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.messaging',
           alias: t('Messaging 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.messaging || 0,
         },
@@ -310,7 +309,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.http',
           alias: t('HTTP 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.http || 0,
         },
@@ -318,7 +317,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.rpc',
           alias: t('RPC 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.rpc || 0,
         },
@@ -326,7 +325,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.async_backend',
           alias: t('Async 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.async_backend || 0,
         },
@@ -334,7 +333,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.other',
           alias: t('Other 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.other || 0,
         },
@@ -342,21 +341,21 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'span_count',
           alias: t('Span 数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
         },
         hierarchy_count: {
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'hierarchy_count',
           alias: t('Span 层数'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
         },
         service_count: {
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'service_count',
           alias: t('服务数量'),
-          width: 140,
+          minWidth: 140,
           sortable: true,
         },
       };
@@ -396,6 +395,8 @@ export default defineComponent({
       };
     }
 
+    function handleSpanTypeChange() {}
+
     /**
      * @description 表格排序回调
      * @param {string} sortEvent.field 排序字段名
@@ -417,13 +418,22 @@ export default defineComponent({
     }
 
     /**
+     * @description TraceId/SpanId 点击打开抽屉页
+     * @param e
+     *
+     */
+    function handleOpenSlider(e) {
+      console.log('================ openSlider ================', e);
+    }
+
+    /**
      * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组） 渲染方法
      *
      */
     function filtersCheckBoxGroupRender() {
       return (
         <Checkbox.Group
-          v-model={checkboxFilters.value}
+          v-model={checkboxFilters}
           onChange={handleSpanTypeChange}
         >
           <Checkbox
@@ -461,8 +471,7 @@ export default defineComponent({
       row,
       column: ExploreTableColumn<T>
     ): GetTableCellRenderValue<T> {
-      const getRenderValue =
-        column?.getRenderValue || (row => row?.[column.field] ?? defaultTableConfig.emptyPlaceholder);
+      const getRenderValue = column?.getRenderValue || (row => row?.[column.field]);
       return getRenderValue(row, column);
     }
 
@@ -501,7 +510,7 @@ export default defineComponent({
         if (alias == null || alias === '') {
           const textColumn = {
             ...column,
-            getRenderValue: () => defaultTableConfig.emptyPlaceholder,
+            getRenderValue: () => alias,
           };
           return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>)(row);
         }
@@ -573,7 +582,7 @@ export default defineComponent({
         if (!item?.url) {
           const textColumn = {
             ...column,
-            getRenderValue: () => item?.alias || defaultTableConfig.emptyPlaceholder,
+            getRenderValue: () => item?.alias,
           };
           return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>)(row);
         }
@@ -649,7 +658,7 @@ export default defineComponent({
               placement='top'
               type='tips'
             >
-              <span>{alias}</span>
+              <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
             </OverflowTitle>
           </div>
         );
@@ -740,10 +749,10 @@ export default defineComponent({
             }}
             autoResize={true}
             border='inner'
-            // columnConfig={{ useKey: true }}
+            columnConfig={{ useKey: true }}
             data={this.tableData}
             filter-config={{ remote: true }}
-            row-height={this.defaultTableConfig.LINE_HEIGHT}
+            row-height={this.defaultTableConfig.lineHeight}
             size='mini'
             onFilterChange={this.handleFilterChange}
             onSortChange={this.handleSortChange}

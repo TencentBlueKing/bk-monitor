@@ -23,51 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const TABLE_DEFAULT_CONFIG = Object.freeze({
-  tableConfig: {
-    LINE_HEIGHT: 32,
-    align: 'left',
-    showOverflow: 'ellipsis',
-    emptyPlaceholder: '--',
-  },
-  traceConfig: {
-    displayFields: [
-      'trace_id',
-      'min_start_time',
-      'root_span_name',
-      'root_service',
-      'root_service_span_name',
-      'root_service_category',
-      'root_service_status_code',
-      'trace_duration',
-      'hierarchy_count',
-      'service_count',
-    ],
-  },
-  spanConfig: {
-    displayFields: [
-      'span_id',
-      'span_name',
-      'start_time',
-      'end_time',
-      'elapsed_time',
-      'status.code',
-      'kind',
-      'trace_id',
-    ],
-  },
-} as const);
+import { defineComponent } from 'vue';
 
-/** trace检索table 状态码 不同类型显示 tag color 配置 */
-export const SERVICE_STATUS_COLOR_MAP = {
-  error: {
-    tagColor: '#ea3536',
-    tagBgColor: '#feebea',
-  },
-  normal: {
-    tagColor: '#14a568',
-    tagBgColor: '#e4faf0',
-  },
-};
+import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
-export const TABLE_MOCK_DATA = [];
+import './trace-explore-view.scss';
+
+export default defineComponent({
+  name: 'TraceExploreView',
+  props: {},
+  setup() {},
+  render() {
+    return (
+      <div class='trace-explore-view'>
+        <div class='trace-explore-view-chart'>chart</div>
+        <div class='trace-explore-view-table'>
+          <TraceExploreTable appName='' />
+        </div>
+      </div>
+    );
+  },
+});

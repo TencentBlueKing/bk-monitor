@@ -32,7 +32,7 @@ import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
-import TraceExploreView from './trace-explore-view/trace-explore-view';
+import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 
 import type { IApplicationItem } from './typing';
 

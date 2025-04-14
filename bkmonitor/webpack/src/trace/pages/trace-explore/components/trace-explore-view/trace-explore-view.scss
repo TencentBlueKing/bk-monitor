@@ -1,0 +1,18 @@
+.trace-explore-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 600px;
+  height: 100%;
+  overflow-y: scroll;
+  overflow-y: overlay;
+
+  .trace-explore-view-chart {
+    flex-shrink: 0;
+  }
+
+  .trace-explore-view-table {
+    flex-grow: 1;
+    flex-basis: auto;
+  }
+}
