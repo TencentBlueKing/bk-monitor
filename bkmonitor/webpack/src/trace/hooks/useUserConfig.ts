@@ -1,5 +1,3 @@
-import { computed, shallowRef } from 'vue';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,8 @@ import { computed, shallowRef } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { computed, shallowRef } from 'vue';
+
 import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 
 export default function useUserConfig() {
