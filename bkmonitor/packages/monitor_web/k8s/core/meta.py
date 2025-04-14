@@ -625,7 +625,26 @@ class K8sNodeMeta(K8sResourceMeta):
     def meta_prom_with_node_network_receive_bytes_total(self):
         """sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*"}[1m])) by (node)"""
         filter_string = self.filter.filter_string()
-        filter_string = ",".join([filter_string] + ['resource="memory"'])
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_receive_bytes_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_transmit_bytes_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_transmit_bytes_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_receive_packets_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_receive_packets_total", filter_string=filter_string)
+
+    @property
+    def meta_prom_with_node_network_transmit_packets_total(self):
+        filter_string = self.filter.filter_string()
+        filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
+        return self.tpl_prom_with_rate("node_network_transmit_packets_total", filter_string=filter_string)
 
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
