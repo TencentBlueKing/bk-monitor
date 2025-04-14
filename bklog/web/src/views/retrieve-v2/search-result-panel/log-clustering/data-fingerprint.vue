@@ -258,8 +258,12 @@
       >
         <template #default="{ row }">
           <div>
-            <bk-switcher v-if="row.owners.length" theme="primary" v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
+            <div v-if="row.owners.length" theme="primary" >
+              <bk-switcher v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
+              <span class="button-view" @click="handleStrategyInfoClick(row)">{{$t('前往查看')}}</span>
+            </div>
             <bk-switcher v-else v-model="row.strategy_enabled" theme="primary" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
+            
           </div>
         </template>
       </bk-table-column>
@@ -876,9 +880,6 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
-
-        console.log(val, row);
-        
         // 当创建告警策略开启时，不允许删掉最后一个责任人
         if(row.strategy_enabled && !val.length){
           this.$bkMessage({
@@ -1228,8 +1229,14 @@
             }
           })
           .finally(() => (this.curEditUniqueVal = {}));
+      },
+      handleStrategyInfoClick (row) {
+        window.open(
+          `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+          '_blank',
+        );
       }
-    },
+      },
   };
 </script>
 
@@ -1370,6 +1377,11 @@
         &.is-limit {
           max-height: 114px;
         }
+      }
+
+      .button-view{
+        margin-left: 5px;
+        cursor: pointer;
       }
 
       .hover-row {
