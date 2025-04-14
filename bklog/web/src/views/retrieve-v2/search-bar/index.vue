@@ -46,9 +46,6 @@
   const queryParams = ['ui', 'sql'];
   const route = useRoute();
   const router = useRouter();
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
-    activeFavorite.value = val;
-  });
 
   const inspectResponse = ref({
     is_legal: true,
@@ -60,7 +57,6 @@
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
   const activeFavorite = ref({});
-
   const refPopTraget = ref(null);
 
   const inspectPopInstance = new PopInstanceUtil({
@@ -291,14 +287,14 @@
     }
   };
 
-  watch(
-    () => activeFavorite.value?.id,
-    () => {
-      if (!activeFavorite.value) return;
-      initSourceSQLStr(activeFavorite.value.params, activeFavorite.value.search_mode);
-    },
-    { immediate: true },
-  );
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+    activeFavorite.value = val;
+    const type = queryParams.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
+
+    initSourceSQLStr(activeFavorite.value.params, activeFavorite.value.search_mode);
+    store.commit('updateStorage', { searchType: type });
+    setRouteParams();
+  });
 
   const matchSQLStr = computed(() => {
     if (activeFavorite.value?.index_set_id !== store.state.indexId) {
@@ -408,7 +404,6 @@
     }
   };
 
-  let isPopupShow = false;
   const handlePopupChange = ({ isShow }) => {
     isPopupShow = isShow;
   };
