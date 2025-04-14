@@ -559,6 +559,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         class='slide-cycle-unit-input'
         minSec={10}
         needAuto={false}
+        isNeedDefaultVal={true}
         value={row.interval}
         onChange={(v: number) => this.handleIntervalChange(v, row)}
       />

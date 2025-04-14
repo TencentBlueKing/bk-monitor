@@ -49,7 +49,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   @Prop({ default: 'body', type: String }) appendTo: string; // 默认挂在到body
   @Prop({ default: true, type: Boolean }) needAuto: boolean; // 是否需要自动周期
   // @Prop({ default: 's', type: String }) defaultUnit: unitType; // 默认秒
-
+  @Prop({ default: false, type: Boolean }) isNeedDefaultVal: boolean; // 是否需要设置默认值
   @Ref('cyclePopover') cyclePopoverRef: any;
   @Ref('unitPopover') unitPopoverRef: any;
 
@@ -97,6 +97,11 @@ export default class CycleInput extends tsc<IProps, IEvent> {
       this.unit = 'm';
       this.localValue = +timeVal[1] / 60;
     } else {
+      if (this.isNeedDefaultVal && val === 0) {
+        this.localValue = 0;
+        this.unit = 's';
+        return;
+      }
       this.localValue = +timeVal[1] || Math.max(this.minSec, 60);
       this.unit = (timeVal[2] || 's') as unitType;
     }

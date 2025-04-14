@@ -892,6 +892,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 class='unit-content'
                 minSec={10}
                 needAuto={false}
+                isNeedDefaultVal={true}
                 value={metricData.interval}
                 onChange={(v: number) => this.editInterval(v, metricData)}
               />
