@@ -1784,7 +1784,7 @@ class DataFlowHandler(BaseAiopsHandler):
                     }
                 )
             except Exception as e:
-                logger.exception(f"create index set({index_set.index_set_id})es router failed：{e}")
+                logger.exception("create index set(%s) es clustered router failed：%s", index_set.index_set_id, e)
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(

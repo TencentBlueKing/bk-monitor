@@ -1522,7 +1522,7 @@ class BaseIndexSetHandler(object):
                 }
             )
         except Exception as e:
-            logger.exception(f"创建/更新索引({index_set.index_set_id})es路由失败，原因：{e}")
+            logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True
 
     def pre_update(self):
