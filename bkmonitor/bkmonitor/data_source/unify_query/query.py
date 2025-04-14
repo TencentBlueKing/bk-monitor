@@ -173,7 +173,10 @@ class UnifyQuery:
 
     def process_data_by_datasource(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         first_ds: DataSource = self.data_sources[0]
-        if (first_ds.data_source_label, first_ds.data_type_label) == (DataSourceLabel.BK_APM, DataTypeLabel.EVENT):
+        if (first_ds.data_source_label, first_ds.data_type_label) in [
+            (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
+        ]:
             records = first_ds.process_unify_query_data(records)
         return records
 
@@ -400,10 +403,9 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
+        params["limit"] = limit or 1
+        params["_from"] = offset or 0
         params["timezone"] = timezone.get_current_timezone_name()
-
-        for query in params["query_list"]:
-            query.update({"limit": limit or 1, "from": offset or 0})
 
         params_json: str = json.dumps(params)
         logger.info("UNIFY_QUERY: %s", params_json)

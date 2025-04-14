@@ -183,7 +183,7 @@ class CustomReportSubscription(models.Model):
                 tables=[data_source_table_name],
                 where=["{}.bk_data_id={}.bk_data_id".format(group_table_name, data_source_table_name)],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate")
+            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "max_future_time_offset")
             .distinct()
         )
         biz_id_to_data_id_config = {}
@@ -199,6 +199,9 @@ class CustomReportSubscription(models.Model):
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
             if max_rate < 0:
                 max_rate = MAX_DATA_ID_THROUGHPUT
+            max_future_time_offset = int(r.get("max_future_time_offset", MAX_FUTURE_TIME_OFFSET))
+            if max_future_time_offset < 0:
+                max_future_time_offset = MAX_FUTURE_TIME_OFFSET
             # 后续版本计划移除
             # bkmonitorproxy插件
             # bkmonitorproxy_report.conf
@@ -208,7 +211,7 @@ class CustomReportSubscription(models.Model):
                 "version": "v2",
                 "access_token": r["token"],
                 "max_rate": max_rate,
-                "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
+                "max_future_time_offset": max_future_time_offset,
             }
             if plugin_name == "bk-collector":
                 protocol = cls.get_protocol(r["bk_data_id"])
@@ -233,7 +236,7 @@ class CustomReportSubscription(models.Model):
                             "name": "proxy_validator/common",
                             "type": datatype,
                             "version": "v2",
-                            "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
+                            "max_future_time_offset": max_future_time_offset,
                         },
                     }
                 else:

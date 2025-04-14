@@ -57,7 +57,7 @@ import type {
 } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
-const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'COUNT'];
+const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 
 interface INewMetricChartProps {
   chartHeight?: number;

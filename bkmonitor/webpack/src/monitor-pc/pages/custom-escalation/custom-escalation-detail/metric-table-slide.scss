@@ -11,6 +11,34 @@
       margin-bottom: 32px;
       overflow: scroll;
 
+      .metric-func-selector {
+        margin-top: 2px;
+        .func-label {
+          display: none;
+        }
+        .function-menu-anchor,
+        .func-item {
+          margin-top: 1px;
+          border-color: #e9eaeb;
+        }
+        .init-add-input {
+          width: 176px;
+          border: none;
+        }
+      }
+      .slide-cycle-unit-input {
+        .input-popover .bk-form-input {
+          border-color: #e9eaeb;
+          height: 30px;
+        }
+        .cycle-unit-popover {
+          .cycle-unit {
+            border-color: #e9eaeb;
+            height: 30px;
+          }
+        }
+      }
+
       td {
         height: 40px;
       }
@@ -184,7 +212,7 @@
           margin-bottom: 4px;
           font-size: 12px;
           line-height: 22px;
-          color: #979BA5;
+          color: #979ba5;
           text-align: center;
         }
 
@@ -192,7 +220,7 @@
           margin-top: 30px;
           font-size: 12px;
           line-height: 20px;
-          color: #3A84FF;
+          color: #3a84ff;
           text-align: center;
 
           &:hover {

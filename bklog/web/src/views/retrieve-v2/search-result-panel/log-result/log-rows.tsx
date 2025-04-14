@@ -581,7 +581,7 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            row-index={config[ROW_INDEX]}
+            row-index={config.value[ROW_INDEX]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) =>
               handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }

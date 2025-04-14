@@ -104,6 +104,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     if (this.dataTypeLabel === 'log') return LOG_EXPLORE_DEFAULT_DATA_ID;
     return EVENT_EXPLORE_DEFAULT_DATA_ID;
   }
+
   created() {
     const { hideFeatures } = this.$route.query;
     try {
@@ -318,7 +319,11 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     }).catch(() => []);
     this.dataIdList = list;
     if (init) {
-      this.dataId = this.defaultDataId || list[0]?.id || '';
+      if (list.find(item => item.id === this.defaultDataId)) {
+        this.dataId = this.defaultDataId;
+      } else {
+        this.dataId = list[0]?.id || '';
+      }
     }
   }
 

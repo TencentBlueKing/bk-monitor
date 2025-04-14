@@ -26,12 +26,12 @@
 
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
 import { Debounce, deepClone } from 'monitor-common/utils';
 
 import { METHOD_LIST } from '../../../constant/constant';
-import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { statusMap } from './metric-table';
 
 import './metric-table-slide.scss';
@@ -123,18 +123,18 @@ export default class IndicatorTableSlide extends tsc<any> {
     name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
     description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
     unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
-    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props) },
-    interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
-    func: { label: '函数', width: 125, renderFn: props => this.renderFunction(props.row) },
+    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props.row) },
+    interval: { label: '上报周期', width: 145, renderFn: props => this.renderInterval(props.row) },
+    func: { label: '函数', width: 215, renderFn: props => this.renderFunction(props.row) },
     dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
-    disabled: { label: '启/停', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
-    hidden: { label: '显示', width: 115, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    disabled: { label: '启/停', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    hidden: { label: '显示', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
     set: { label: '操作', width: 50, renderFn: props => this.renderOperations(props) },
   };
 
   // 生命周期钩子
   created() {
-    this.initData();
+    // this.initData();
   }
 
   get dimensions() {
@@ -282,11 +282,6 @@ export default class IndicatorTableSlide extends tsc<any> {
               colBorder
               on-scroll-end={this.handleScrollToBottom}
             >
-              <bk-table-column
-                width='60'
-                label='序列'
-                type='index'
-              ></bk-table-column>
               <div slot='empty'>
                 <div class='empty-slider-table'>
                   <div class='empty-img'>
@@ -333,15 +328,15 @@ export default class IndicatorTableSlide extends tsc<any> {
                       header:
                         key === 'unit'
                           ? () => (
-                            <bk-popover
-                              ref='metricSliderPopover'
-                              placement='bottom-start'
-                              tippyOptions={{ appendTo: 'parent' }}
-                            >
-                              {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
-                              {this.renderUnitConfigPopover()}
-                            </bk-popover>
-                          )
+                              <bk-popover
+                                ref='metricSliderPopover'
+                                placement='bottom-start'
+                                tippyOptions={{ appendTo: 'parent' }}
+                              >
+                                {this.$t('单位')} <i class='icon-monitor icon-mc-wholesale-editor' />
+                                {this.renderUnitConfigPopover()}
+                              </bk-popover>
+                            )
                           : null,
                     }}
                     label={this.$t(config.label)}
@@ -458,6 +453,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         class='slider-select'
         v-model={props.row.unit}
         clearable={false}
+        allow-create
         popover-width={180}
         searchable
       >
@@ -552,22 +548,21 @@ export default class IndicatorTableSlide extends tsc<any> {
       </bk-select>
     );
   }
+  /** 修改上报周期 */
+  handleIntervalChange(v: number, row: IMetricItem) {
+    row.interval = v;
+  }
 
   renderInterval(row: IMetricItem) {
     return (
-      <bk-select
-        class='slider-select'
-        v-model={row.interval}
-        clearable={false}
-      >
-        {this.cycleOption.map(opt => (
-          <bk-option
-            id={opt.id}
-            key={opt.id}
-            name={`${opt.name}s`}
-          />
-        ))}
-      </bk-select>
+      <CycleInput
+        class='slide-cycle-unit-input'
+        minSec={10}
+        needAuto={false}
+        isNeedDefaultVal={true}
+        value={row.interval}
+        onChange={(v: number) => this.handleIntervalChange(v, row)}
+      />
     );
   }
 
@@ -600,15 +595,22 @@ export default class IndicatorTableSlide extends tsc<any> {
       </div>
     );
   }
+  handleFunctionsChange(params, row) {
+    row.function = params;
+  }
 
   renderFunction(row: IMetricItem) {
+    const getKey = obj => {
+      return `${obj?.id || ''}_${obj?.params[0]?.value || ''}`;
+    };
     return (
-      <FunctionMenu
-        list={this.metricFunctions}
-        onFuncSelect={v => (row.function = v)}
-      >
-        {row.function?.id || '--'}
-      </FunctionMenu>
+      <FunctionSelect
+        key={getKey(row.function[0])}
+        class='metric-func-selector'
+        v-model={row.function}
+        isMultiple={false}
+        onValueChange={params => this.handleFunctionsChange(params, row)}
+      />
     );
   }
 
