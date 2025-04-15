@@ -107,7 +107,7 @@ export default defineComponent({
     const isRending = ref(false);
 
     const tableRowConfig = new WeakMap();
-
+    const hasMoreList = ref(true);
     const wheelTrigger = ref({ isWheeling: false, id: '' });
     provide('wheelTrigger', wheelTrigger);
 
@@ -153,19 +153,6 @@ export default defineComponent({
 
     const router = useRouter();
     const route = useRoute();
-
-    const totalCount = computed(() => {
-      const count = store.state.indexSetQueryResult.total;
-      if (count._isBigNumber) {
-        return count.toNumber();
-      }
-
-      return count;
-    });
-
-    const hasMoreList = computed(
-      () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
-    );
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -653,6 +640,7 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
+        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
         setRenderList(null);
         debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
@@ -717,13 +705,19 @@ export default defineComponent({
         return;
       }
 
-      if (totalCount.value > tableList.value.length) {
+      if (hasMoreList.value) {
         isRequesting.value = true;
 
-        return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
-          pageIndex.value++;
-          debounceSetLoading(0);
-        });
+        return store
+          .dispatch('requestIndexSetQuery', { isPagination: true })
+          .then(resp => {
+            if (resp?.size === 50) {
+              pageIndex.value++;
+            }
+          })
+          .finally(() => {
+            debounceSetLoading(0);
+          });
       }
 
       return Promise.resolve(false);
