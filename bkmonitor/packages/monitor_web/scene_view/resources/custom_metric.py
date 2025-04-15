@@ -259,7 +259,7 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_metrics) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{dimension_names.get(key, key)}={value}" for key, value in series_tuple])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in series_tuple])
 
             panels = []
             for metric in metric_list:
@@ -344,7 +344,7 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_groups) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{dimension_names.get(key, key)}={value}" for key, value in group_series])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in group_series])
 
             # 根据非拆图维度分图
             panels = []
@@ -395,7 +395,9 @@ class GetCustomTsGraphConfig(Resource):
                 # 计算图表标题
                 panel_title = "-"
                 if panel_series:
-                    panel_title = "|".join([f"{dimension_names.get(key, key)}={value}" for key, value in panel_series])
+                    panel_title = "|".join(
+                        [f"{dimension_names.get(key) or key}={value}" for key, value in panel_series]
+                    )
 
                 panels.append({"title": panel_title, "sub_title": "", "targets": targets})
 
