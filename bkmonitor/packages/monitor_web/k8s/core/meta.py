@@ -722,7 +722,7 @@ class NameSpace(dict):
         return self
 
 
-class K8sNamespaceMeta(K8sResourceMeta):
+class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "namespace"
     resource_class = NameSpace.fromkeys(NameSpace.columns, None)
     column_mapping = {}
@@ -730,10 +730,24 @@ class K8sNamespaceMeta(K8sResourceMeta):
     def get_from_meta(self):
         return self.distinct(self.filter.filter_queryset)
 
+    def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
+        metric_name = self.clean_metric_name(metric_name)
+        if self.agg_interval:
+            return f"""sum by (namespace) ({self.label_join(exclude)}
+            sum by (namespace, pod)
+            ({self.agg_method}_over_time(
+            rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
+
+        return f"""{self.agg_method} by (namespace) ({self.label_join(exclude)}
+                    sum by (namespace, pod)
+                    (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
+
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         # 网络场景下的网络指标，默认代了前缀，需要去掉
         if metric_name.startswith("nw_"):
-            metric_name = metric_name[3:]
+            # 网络场景下的pod数据，需要关联service 和 ingress
+            # ingress_with_service_relation 指标忽略pod相关过滤， 因为该指标对应的pod为采集器所属pod，没意义。
+            return self.nw_tpl_prom_with_rate(metric_name, exclude="pod")
 
         if self.agg_interval:
             return (
