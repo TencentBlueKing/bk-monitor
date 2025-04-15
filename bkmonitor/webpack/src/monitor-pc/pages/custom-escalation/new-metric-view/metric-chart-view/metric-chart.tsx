@@ -860,8 +860,8 @@ class NewMetricChart extends CommonSimpleChart {
                   width={this.width}
                   height={this.chartHeight}
                   groupId={this.panel.dashboardId}
-                  showRestore={this.showRestore}
                   options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                 />

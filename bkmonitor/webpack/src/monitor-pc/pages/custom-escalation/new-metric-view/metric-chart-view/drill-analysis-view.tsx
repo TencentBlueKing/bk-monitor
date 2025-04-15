@@ -29,21 +29,16 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
-import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
-import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 
-import CompareType from '../components/header-box/components/compare-type';
-import GroupBy from '../components/header-box/components/group-by';
-import LimitFunction from '../components/header-box/components/limit-function';
-import WhereCondition from '../components/header-box/components/where-condition';
+import DrillAnalysisFilter from './drill-analysis-filter';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
@@ -352,56 +347,19 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             onClick={this.handleClose}
           />
         </div>
-        <div class='drill-analysis-filter'>
-          <div class='filter-left'>
-            <WhereCondition
-              customData={this.filterConfig.commonConditions}
-              value={this.filterConfig.where}
-              onChange={this.handleConditionChange}
-            />
-          </div>
-          <div class='filter-right'>
-            {/* 时间工具栏 */}
-            {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-              <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
-            ) : (
-              <TimeRange
-                class='filter-tools-timerange'
-                timezone={this.timezone}
-                value={this.timeRange}
-                onChange={this.handleTimeRangeChange}
-                onTimezoneChange={this.handleTimezoneChange}
-              />
-            )}
-            <span class='right-line' />
-            <MonitorDropdown
-              class='filter-tools-interval'
-              icon='icon-zidongshuaxin'
-              isRefreshInterval={true}
-              list={this.refreshList}
-              text-active={this.refreshInterval !== -1}
-              value={this.refreshInterval}
-              on-change={this.handleRefreshInterval}
-              on-on-icon-click={this.handleImmediateRefresh}
-            />
-          </div>
-        </div>
-        <div class='filter-compare-view'>
-          <GroupBy
-            value={this.filterConfig.group_by}
-            onChange={this.handleGroupByChange}
-          />
-          {this.filterConfig.group_by.length > 0 && (
-            <LimitFunction
-              value={this.filterConfig.limit}
-              onChange={this.handleLimitChange}
-            />
-          )}
-          <CompareType
-            value={this.filterConfig.compare}
-            onChange={this.handleComparTypeChange}
-          />
-        </div>
+        <DrillAnalysisFilter
+          filterConfig={this.filterConfig}
+          refreshInterval={this.refreshInterval}
+          timeRange={this.timeRange}
+          onComparTypeChange={this.handleComparTypeChange}
+          onConditionChange={this.handleConditionChange}
+          onGroupByChange={this.handleGroupByChange}
+          onImmediateRefresh={this.handleImmediateRefresh}
+          onLimitChange={this.handleLimitChange}
+          onRefreshInterval={this.handleRefreshInterval}
+          onTimeRangeChange={this.handleTimeRangeChange}
+          onTimezoneChange={this.handleTimezoneChange}
+        />
         <div
           ref='drillMain'
           class='drill-analysis-main'

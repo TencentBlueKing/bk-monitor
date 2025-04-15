@@ -150,8 +150,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
             checked={isChecked}
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
-            {dimensionData.name}
-            <span class='dimension-alias'>{dimensionData.alias}</span>
+            {dimensionData.alias || dimensionData.name}
           </bk-checkbox>
           {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>
