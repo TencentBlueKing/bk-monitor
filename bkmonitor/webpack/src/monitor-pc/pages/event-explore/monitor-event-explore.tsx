@@ -104,6 +104,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     if (this.dataTypeLabel === 'log') return LOG_EXPLORE_DEFAULT_DATA_ID;
     return EVENT_EXPLORE_DEFAULT_DATA_ID;
   }
+
   created() {
     const { hideFeatures } = this.$route.query;
     try {
@@ -204,16 +205,18 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       this.group_by = group_by;
       this.filter_dict = filter_dict;
       this.timeRange = compareValue.tools.timeRange;
-      this.refreshInterval = compareValue.tools.refreshInterval || compareValue.tools.refreshInterval;
+      this.refreshInterval = compareValue.tools.refreshInterval || -1;
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
       this.commonWhere = commonWhere || [];
       this.showResidentBtn = showResidentBtn || false;
     } else {
       // 选择检索
-      this.dataId = this.dataIdList[0].id;
-      this.dataSourceLabel = 'custom';
-      this.dataTypeLabel = 'event';
+      if (!this.dataId) {
+        this.dataId = this.dataIdList[0].id;
+        this.dataSourceLabel = 'custom';
+        this.dataTypeLabel = 'event';
+      }
       this.queryString = '*';
       this.where = [];
       this.group_by = [];
@@ -316,7 +319,11 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     }).catch(() => []);
     this.dataIdList = list;
     if (init) {
-      this.dataId = this.defaultDataId || list[0]?.id || '';
+      if (list.find(item => item.id === this.defaultDataId)) {
+        this.dataId = this.defaultDataId;
+      } else {
+        this.dataId = list[0]?.id || '';
+      }
     }
   }
 

@@ -1,4 +1,0 @@
-packages/monitor_web/plugin/plugin_templates
-conf/api/production
-conf/worker/production
-alarm_backends/management/commands/run_clean.py

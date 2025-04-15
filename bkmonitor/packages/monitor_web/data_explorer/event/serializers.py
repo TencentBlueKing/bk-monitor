@@ -16,6 +16,7 @@ from rest_framework import serializers
 
 from bkmonitor.data_source import get_auto_interval
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from monitor_web.data_explorer.event.constants import EventDimensionTypeEnum
 
 
 class EventMetricSerializer(serializers.Serializer):
@@ -133,4 +134,33 @@ class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
         attrs = super().validate(attrs)
         if len(attrs["fields"]) > 1:
             raise ValueError(_("限制单次只能下载一个字段的数据，当前选择了多个字段。"))
+        return attrs
+
+
+class EventStatisticsFieldSerializer(serializers.Serializer):
+    type = serializers.CharField(label="字段类型")
+    name = serializers.CharField(label="字段名称")
+    values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
+
+    def validate(self, attrs):
+        if attrs["type"] not in [EventDimensionTypeEnum.INTEGER.value, EventDimensionTypeEnum.KEYWORD.value]:
+            raise ValueError(_("不支持的字段类型"))
+        return attrs
+
+
+class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):
+    field = EventStatisticsFieldSerializer(label="字段")
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+
+
+class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
+    field = EventStatisticsFieldSerializer(label="字段")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        field = attrs["field"]
+        if field["type"] != EventDimensionTypeEnum.INTEGER.value:
+            return attrs
+        if len(field["values"]) < 4:
+            raise ValueError(_("数值类型查询条件不足"))
         return attrs

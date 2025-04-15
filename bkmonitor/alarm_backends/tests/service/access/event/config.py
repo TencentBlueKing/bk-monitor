@@ -774,7 +774,14 @@ GSE_PROCESS_EVENT_DATA_CLEAN = {
             "bk_topo_node": ["biz|2", "module|9", "set|5", "test|2"],
             "agent_version": "v1",
         },
-        "dimension_fields": ["bk_target_ip", "bk_target_cloud_id", "agent_version"],
+        "dimension_fields": [
+            'bk_target_ip',
+            'bk_target_cloud_id',
+            'agent_version',
+            'process_index',
+            'process_group_id',
+            'process_name',
+        ],
         "record_id": "53125324982b76cb0553900830ee940a.{}".format(1619171),
     },
     "anomaly": {

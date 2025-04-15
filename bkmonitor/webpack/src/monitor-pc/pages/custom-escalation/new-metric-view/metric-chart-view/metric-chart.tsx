@@ -57,7 +57,7 @@ import type {
 } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
-const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'COUNT'];
+const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 
 interface INewMetricChartProps {
   chartHeight?: number;
@@ -385,11 +385,12 @@ class NewMetricChart extends CommonSimpleChart {
   }
   handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
-    const { metric = {} } = item;
-    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}-` : '';
+    // const { metric = {} } = item;
+    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation });
-    const outputStr = output ? `(${output})` : '';
-    return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
+    const outputStr = output ? `-{${output}}` : '';
+    return `${timeOffset}${outputStr}`;
+    // return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
   }
 
   handleTime() {
@@ -437,7 +438,7 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const list = [this.panel.targets[0]].map(item => {
+      const list = this.panel.targets.map(item => {
         (item?.query_configs || []).map(config => {
           config.metrics.map(metric => {
             metric.method = this.method || metric.method;

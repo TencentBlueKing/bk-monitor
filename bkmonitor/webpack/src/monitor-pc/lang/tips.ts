@@ -41,6 +41,7 @@ export default {
     'Note: This intelligent anomaly detection needs to learn {0} before it will take effect, and it has been learned for {1} days!',
   可以从配置平台获取相应主机的字段追加到采集的数据里当成维度:
     'The field of the corresponding host can be obtained from the configuration platform and appended to the collected data as a dimension',
+  指定需要注入维度的值: 'Specify the value to be injected as a dimension',
   可以从配置平台获取相应服务实例的标签追加到采集的数据里当成维度:
     'The label of the corresponding service instance can be obtained from the configuration platform and added to the collected data as a dimension',
   可以基于不同的数据维度进行告警分派: 'Alarms can be dispatched based on different data dimensions',

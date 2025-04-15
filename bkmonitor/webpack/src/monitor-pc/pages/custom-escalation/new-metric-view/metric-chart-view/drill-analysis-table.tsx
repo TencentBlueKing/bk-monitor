@@ -38,7 +38,7 @@ import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../t
 
 import './drill-analysis-table.scss';
 
-/** 下钻分析 - 聚合维度表格 */
+/** 维度下钻 - 聚合维度表格 */
 
 interface IDrillAnalysisTableProps {
   dimensionsList?: IDimensionItem[];

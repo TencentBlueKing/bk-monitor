@@ -85,11 +85,15 @@ export const getDownloadTopK = (params, type = APIType.MONITOR) => {
  * @param {ExploreTotalRequestParams} params
  * @param {APIType} type
  */
-export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.MONITOR) => {
+export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.MONITOR, requestConfig = {}) => {
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
-  return apiFunc(params).catch(() => ({
-    total: 0,
-  }));
+  const config = { needMessage: false, ...requestConfig };
+  return apiFunc(params, config).catch(err => {
+    requestErrorMessage(err);
+    return {
+      total: 0,
+    };
+  });
 };
 
 /**
@@ -101,12 +105,7 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    const message = makeMessage(err.error_details || err.message);
-    if (message && err?.message !== 'canceled') {
-      if (message) {
-        bkMessage(message);
-      }
-    }
+    requestErrorMessage(err);
     return { list: [] };
   });
 };
@@ -120,3 +119,15 @@ export const getEventTimeSeries = (type = APIType.MONITOR) => {
   const api = type === APIType.APM ? EventTimeSeriesApiEnum.APM : EventTimeSeriesApiEnum.MONITOR;
   return api;
 };
+
+/**
+ * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
+ * @param err
+ *
+ */
+function requestErrorMessage(err) {
+  const message = makeMessage(err.error_details || err.message);
+  if (message && err?.message !== 'canceled') {
+    bkMessage(message);
+  }
+}

@@ -1249,6 +1249,7 @@ const store = new Vuex.Store({
                 const indexSetQueryResult = state.indexSetQueryResult;
                 const logList = parseBigNumberList(rsolvedData.list);
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                const size = logList.length;
 
                 rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
                 rsolvedData.origin_log_list = payload.isPagination
@@ -1275,6 +1276,7 @@ const store = new Vuex.Store({
                   code,
                   result,
                   length: logList.length,
+                  size,
                 };
               }
 
@@ -1286,6 +1288,7 @@ const store = new Vuex.Store({
                 code,
                 result,
                 length: 0,
+                size: 0,
               };
             });
           }

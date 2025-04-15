@@ -36,7 +36,6 @@ class MonitorAPIConfig(AppConfig):
             raise err
         except Exception as e:
             print("Migrate Error:{}".format(e))
-        # api migration end
 
     def check_external_db(self):
         """

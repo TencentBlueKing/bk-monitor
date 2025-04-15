@@ -148,6 +148,10 @@ declare global {
     AJAX_URL_PREFIX: string;
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+    /*
+     * 灰度业务是否开启故障事件中心
+     */
+    enable_aiops_event_center_biz_list?: number[];
   }
   interface HTMLElement {
     ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance

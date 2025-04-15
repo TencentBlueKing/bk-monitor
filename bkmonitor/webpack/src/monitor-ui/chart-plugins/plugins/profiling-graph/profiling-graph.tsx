@@ -102,7 +102,7 @@ class ProfilingChart extends CommonSimpleChart {
     {
       key: 'LAST',
       name: 'LAST',
-    }
+    },
   ];
   aggMethod = '';
   /** trend图表数据 */
@@ -198,8 +198,7 @@ class ProfilingChart extends CommonSimpleChart {
       }
       this.handleQuery(start_time, end_time);
     };
-
-    if (this.isFirstLoad) {
+    if (this.isFirstLoad || !this.enableProfiling || !this.isProfilingDataNormal) {
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const { app_name, service_name } = this.viewOptions.filters as any;
 
@@ -211,7 +210,9 @@ class ProfilingChart extends CommonSimpleChart {
       })
         .then(data => {
           this.enableProfiling = data?.is_enabled_profiling ?? false;
-          this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
+          if (this.isFirstLoad) {
+            this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
+          }
           this.applicationId = data?.application_id ?? -1;
 
           if (this.enableProfiling && this.isProfilingDataNormal) {
@@ -333,7 +334,6 @@ class ProfilingChart extends CommonSimpleChart {
       });
   }
   handleTimeRangeChange() {
-    this.isFirstLoad = true;
     this.getPanelData();
   }
   handleTextDirectionChange(val: TextDirectionType) {
@@ -377,11 +377,12 @@ class ProfilingChart extends CommonSimpleChart {
   handleDataTypeChange(val, type?: string) {
     if ([this.dataType, this.aggMethod].includes(val)) return;
     if (type === 'agg') {
-      this.aggMethod = val
+      this.aggMethod = val;
     } else {
       this.dataType = val;
       // 切换数据类型时，汇聚方法需要切换成后端给的值
       this.aggMethod = this.dataTypeList.find(item => item.key === val).default_agg_method || 'AVG';
+      this.queryParams.data_type = val;
     }
     this.getPanelData();
   }
@@ -425,6 +426,7 @@ class ProfilingChart extends CommonSimpleChart {
   handleDateDiffChange(enable) {
     this.enableDateDiff = enable;
     this.setDiffDefaultDate();
+    this.handleQuery();
   }
   handleTrendSeriesData(data) {
     this.trendSeriesData = data;
@@ -435,20 +437,28 @@ class ProfilingChart extends CommonSimpleChart {
   }
 
   setDiffDefaultDate() {
-    if (this.enableDateDiff && this.trendSeriesData.length) {
-      const { datapoints } = this.trendSeriesData[0];
-      const len = datapoints.length;
-      const start = datapoints[0][1];
-      const end = datapoints[len - 1][1];
-      const mid = start + (end - start) / 2;
-      this.diffDate = [
-        [start, mid],
-        [mid, end],
-      ];
+    if (this.enableDateDiff) {
+      if (this.trendSeriesData?.length) {
+        const { datapoints } = this.trendSeriesData[0];
+        const len = datapoints.length;
+        const start = datapoints[0][1];
+        const end = datapoints[len - 1][1];
+        const mid = start + (end - start) / 2;
+        this.diffDate = [
+          [start, mid],
+          [mid, end],
+        ];
+      } else {
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const mid = startTime + (endTime - startTime) / 2;
+        this.diffDate = [
+          [startTime * 1000, mid * 1000],
+          [mid * 1000, endTime * 1000],
+        ];
+      }
     } else {
       this.diffDate = [];
     }
-    this.handleQuery();
   }
 
   handleBrushEnd(data, type) {
@@ -649,7 +659,7 @@ class ProfilingChart extends CommonSimpleChart {
                 )}
               </div>
             </div>,
-            <keep-alive key={'keep-aliave'}>
+            <keep-alive key={'keep-alive'}>
               <CommonDetail
                 collapse={this.collapseInfo}
                 maxWidth={500}

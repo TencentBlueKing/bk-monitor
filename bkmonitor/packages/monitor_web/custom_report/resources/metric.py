@@ -563,6 +563,7 @@ class GetCustomTsFields(Resource):
                         "type": CustomTSField.MetricType.DIMENSION,
                         "description": item.description,
                         "disabled": item.disabled,
+                        "hidden": item.config.get("hidden", False),
                         "common": item.config.get("common", False),
                         "create_time": item.create_time.timestamp() if item.create_time else None,
                         "update_time": item.update_time.timestamp() if item.update_time else None,
@@ -655,7 +656,6 @@ class ModifyCustomTsFields(Resource):
             # 根据字段类型，生成 config
             if update_field["type"] == CustomTSField.MetricType.DIMENSION:
                 field_keys = CustomTSField.DimensionConfigFields
-
             else:
                 field_keys = CustomTSField.MetricConfigFields
             field_config = {field_key: update_field[field_key] for field_key in field_keys if field_key in update_field}
@@ -723,6 +723,10 @@ class ValidateCustomTsGroupLabel(Resource):
 
         if not self.metric_data_label_pattern.match(data_label):
             raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"))
+
+        # 内置指标，不做校验
+        if params["bk_biz_id"] == 0:
+            return True
 
         queryset = CustomTSTable.objects.filter(
             Q(bk_biz_id=params["bk_biz_id"]) | Q(is_platform=True),
