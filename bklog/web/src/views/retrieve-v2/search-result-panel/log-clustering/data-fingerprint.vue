@@ -260,7 +260,7 @@
           <div>
             <div v-if="row.owners.length" theme="primary" >
               <bk-switcher v-model="row.strategy_enabled" @change="val => changeStrategy(val, row)"></bk-switcher>
-              <span class="button-view" @click="handleStrategyInfoClick(row)">{{$t('前往查看')}}</span>
+              <span class="button-view" @click="handleStrategyInfoClick(row)">{{$t('前往查看')}} <span class="bklog-icon bklog-jump"></span></span>
             </div>
             <bk-switcher v-else v-model="row.strategy_enabled" theme="primary" :disabled="true" v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')" ></bk-switcher>
             
@@ -1381,7 +1381,13 @@
 
       .button-view{
         margin-left: 5px;
+        font-size: 12px;
+        color: #3a84ff;
         cursor: pointer;
+
+        .bklog-jump{
+          font-size: 14px;
+        }
       }
 
       .hover-row {
