@@ -119,9 +119,17 @@ class FavoriteHandler(object):
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
-        group_info = {i["id"]: i for i in groups}
+        public_group_ids = []
+        group_info = {}
+        for i in groups:
+            group_info[i["id"]] = i
+            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
+                # UNGROUPED在favorites表中也是public
+                public_group_ids.append(i["id"])
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, public_group_ids=public_group_ids
+        )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -139,8 +147,19 @@ class FavoriteHandler(object):
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
-        group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        public_group_ids = []
+        group_info = {}
+        for i in groups:
+            group_info[i["id"]] = i
+            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
+                # UNGROUPED在favorites表中也是public
+                public_group_ids.append(i["id"])
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid,
+            username=self.username,
+            order_type=order_type,
+            public_group_ids=public_group_ids,
+        )
 
         ret = list()
         for fi in favorites:

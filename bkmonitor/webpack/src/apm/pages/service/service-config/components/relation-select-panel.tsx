@@ -104,10 +104,12 @@ export default class RelationSelectPanel extends tsc<
   handleClear() {
     this.refreshTreeData([], this.localValue);
     this.localValue = [];
+    this.$emit('change', this.localValue);
   }
   handleDelete(id: string) {
     this.updateNodesState([id], false, false);
     this.localValue = this.localValue.filter(item => item !== id);
+    this.$emit('change', this.localValue);
   }
   /** 是否显示checkbox */
   isShowCheckbox(data: TreeNodeData) {

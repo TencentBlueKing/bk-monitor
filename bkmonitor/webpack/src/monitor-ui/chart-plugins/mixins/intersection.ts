@@ -29,7 +29,7 @@ import { Component, Vue } from 'vue-property-decorator';
 export default class IntersectionMixin extends Vue {
   intersectionObserver: IntersectionObserver;
   beforeDestroy() {
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getPanelData(...p) {}
@@ -43,7 +43,7 @@ export default class IntersectionMixin extends Vue {
   // 注册Intersection监听
   registerObserver(...params) {
     if (this.intersectionObserver) {
-      this.unregisterOberver();
+      this.unregisterObserver();
     }
     this.intersectionObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
@@ -54,7 +54,7 @@ export default class IntersectionMixin extends Vue {
     });
     this.intersectionObserver.observe(this.$el);
   }
-  unregisterOberver() {
+  unregisterObserver() {
     if (this.intersectionObserver) {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();

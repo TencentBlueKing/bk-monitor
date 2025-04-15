@@ -52,6 +52,7 @@ import {
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
@@ -1167,14 +1168,25 @@ export default defineComponent({
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
           isNoData.value = combos.length === 0;
           errorData.value.isError = false;
-
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
+          const processedEdges = [];
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
             processedNodes.push(...item.content.nodes);
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            item.content.edges.forEach(edge => {
+              const key = edge.target + edge.source;
+              const index = processedEdges.findIndex(item => item.target + item.source === key);
+              if (index !== -1) {
+                processedEdges[index] = edge;
+              } else {
+                processedEdges.push(edge);
+              }
+            });
+            item.showEdges = [...processedEdges];
           });
           topoRawDataCache.value.diff = diff;
           topoRawDataCache.value.latest = latest;
@@ -1887,7 +1899,8 @@ export default defineComponent({
         /** 切换帧时 */
         showResourceGraph.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
-        const { showNodes, content } = topoRawDataCache.value.diff[value];
+        const { showNodes, content, showEdges } = topoRawDataCache.value.diff[value];
+        const updateEdges = content.edges;
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
           const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
@@ -1906,14 +1919,22 @@ export default defineComponent({
           }
         });
         const edges = graph.getEdges();
+        const findEdges = (edges, target) => {
+          return edges.find(item => item.source === target.source && target.target === item.target);
+        };
         // biome-ignore lint/complexity/noForEach: <explanation>
         edges.forEach(edge => {
           const edgeModel = edge.getModel();
-          const targetEdge = content.edges.find(
-            item => item.source === edgeModel.source && edgeModel.target === item.target
-          );
+
+          const targetEdge = findEdges(updateEdges, edgeModel);
           if (targetEdge) {
             graph.updateItem(edge, { ...edge, ...targetEdge });
+          } else {
+            const currEdges =
+              findEdges(showEdges, edgeModel) || findEdges(topoRawDataCache.value.complete.edges, edgeModel);
+            if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
+              graph.updateItem(edge, { ...edge, ...currEdges });
+            }
           }
         });
         /** 子combo需要根据节点时候有展示来决定 */
@@ -2055,7 +2076,7 @@ export default defineComponent({
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
           search_type: 'scope',
           search_id: 'traceID',
-          refleshInterval: '-1',
+          refreshInterval: '-1',
           query: rca_trace_info.abnormal_traces_query.query,
           listType: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),

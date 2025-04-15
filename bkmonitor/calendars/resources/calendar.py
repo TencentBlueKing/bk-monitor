@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from bkmonitor.utils.request import get_request_tenant_id
 from calendars.models import CalendarItemModel, CalendarModel
 from core.drf_resource import Resource
 
@@ -25,14 +26,15 @@ class SaveCalendarResource(Resource):
         light_color = serializers.CharField(label="日历浅色底色", max_length=7, min_length=7)
         deep_color = serializers.CharField(label="日历深色底色", max_length=7, min_length=7)
 
-    def perform_request(self, validated_request_data):
-        name = validated_request_data["name"]
-        light_color = validated_request_data["light_color"]
-        deep_color = validated_request_data["deep_color"]
-        if CalendarModel.objects.filter(name=name).count() > 0:
-            raise ValueError(_("日历保存失败，日历名称({})已存在").format(name))
+    def perform_request(self, params: dict):
+        if CalendarModel.objects.filter(name=params["name"]).count() > 0:
+            raise ValueError(_("日历保存失败，日历名称({})已存在").format(params["name"]))
         calendar = CalendarModel.objects.create(
-            name=name, light_color=light_color, deep_color=deep_color, classify="custom"
+            name=params["name"],
+            light_color=params["light_color"],
+            deep_color=params["deep_color"],
+            classify="custom",
+            bk_tenant_id=get_request_tenant_id(),
         )
         return {"id": calendar.id}
 
@@ -48,20 +50,18 @@ class EditCalendarResource(Resource):
         light_color = serializers.CharField(required=False, label="日历浅色底色", max_length=7, min_length=7)
         deep_color = serializers.CharField(required=False, label="日历深色底色", max_length=7, min_length=7)
 
-    def perform_request(self, validated_request_data):
-        calendar = CalendarModel.objects.get(id=validated_request_data["id"])
-        name = validated_request_data.get("name")
-        light_color = validated_request_data.get("light_color")
-        deep_color = validated_request_data.get("deep_color")
+    def perform_request(self, params: dict):
+        calendar = CalendarModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=params["id"])
+        name = params.get("name")
         if name:
             if calendar.name != name and CalendarModel.objects.filter(name=name).count() > 0:
                 raise ValueError(_("日历编辑失败，日历名称({})已存在").format(name))
             else:
                 calendar.name = name
-        if light_color:
-            calendar.light_color = light_color
-        if deep_color:
-            calendar.deep_color = deep_color
+        if params.get("light_color"):
+            calendar.light_color = params["light_color"]
+        if params.get("deep_color"):
+            calendar.deep_color = params["deep_color"]
         calendar.save()
 
         return calendar.to_json()
@@ -76,11 +76,10 @@ class GetCalendarResource(Resource):
         id = serializers.IntegerField(required=False, label="日历ID")
         name = serializers.CharField(required=False, label="日历名称", max_length=15)
 
-    def perform_request(self, validated_request_data):
-        calendar_id = validated_request_data.get("id")
-        calendar_name = validated_request_data.get("name")
-        validated_data = {}
-
+    def perform_request(self, params: dict):
+        calendar_id = params.get("id")
+        calendar_name = params.get("name")
+        validated_data = {"bk_tenant_id": get_request_tenant_id()}
         if calendar_name:
             validated_data["name"] = calendar_name
         if calendar_id:
@@ -88,7 +87,6 @@ class GetCalendarResource(Resource):
         if not validated_data:
             raise ValueError(_("ID和name传入的参数为空，着两个参数必须传入一个"))
         calendar = CalendarModel.objects.get(**validated_data)
-
         return calendar.to_json()
 
 
@@ -107,12 +105,12 @@ class ListCalendarResource(Resource):
         )
         page_size = serializers.IntegerField(required=False, default=10, max_value=1000, label="每页大小", min_value=1)
 
-    def perform_request(self, validated_request_data):
-        page = validated_request_data["page"]
-        order = validated_request_data["order"]
-        page_size = validated_request_data["page_size"]
+    def perform_request(self, params: dict):
+        page = params["page"]
+        order = params["order"]
+        page_size = params["page_size"]
 
-        all_calendars = CalendarModel.objects.all().order_by(order)
+        all_calendars = CalendarModel.objects.filter(bk_tenant_id=get_request_tenant_id()).order_by(order)
         count = all_calendars.count()
         all_calendars = all_calendars[(page - 1) * page_size : page * page_size]
         calendar_list = []
@@ -129,10 +127,9 @@ class DeleteCalendarResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(label="日历ID")
 
-    def perform_request(self, validated_request_data):
-        calendar_id = validated_request_data["id"]
-        calendar = CalendarModel.objects.get(id=calendar_id)
+    def perform_request(self, params: dict):
+        calendar = CalendarModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=params["id"])
 
         # 删除日历之前需要先删除该日历下的所有日历事项
-        CalendarItemModel.objects.filter(calendar_id=calendar_id).delete()
+        CalendarItemModel.objects.filter(calendar_id=calendar.id, bk_tenant_id=get_request_tenant_id()).delete()
         calendar.delete()

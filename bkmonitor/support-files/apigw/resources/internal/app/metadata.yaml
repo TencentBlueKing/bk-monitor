@@ -1837,6 +1837,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update es route config
+  /app/metadata/create_or_update_es_router/:
+    post:
+      operationId: metadata_create_or_update_es_router
+      description: 创建或更新 es 路由配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_or_update_es_router/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create or update es route config
   /app/metadata/modify_data_id_source/:
     post:
       operationId: metadata_modify_data_id_source
@@ -1897,3 +1917,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata modify data id source
+  /app/metadata/get_data_labels_map/:
+    post:
+      operationId: metadata_get_data_labels_map
+      description: 获取结果表 ID 与其 DataLabel 的映射关系
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/get_data_labels_map/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get data_labels mapping

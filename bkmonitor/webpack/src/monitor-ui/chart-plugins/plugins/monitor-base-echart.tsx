@@ -110,11 +110,11 @@ class MonitorBaseEchart extends BaseEchart {
                 left: 0,
                 top: 0,
               };
-              const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-              if (canSetBootom > 0) {
-                position.top = +pos[1] - Math.min(20, canSetBootom);
+              const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+              if (canSetBottom > 0) {
+                position.top = +pos[1] - Math.min(20, canSetBottom);
               } else {
-                position.top = +pos[1] + canSetBootom - 20;
+                position.top = +pos[1] + canSetBottom - 20;
               }
               const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
               if (canSetLeft > 0) {
@@ -301,12 +301,12 @@ class MonitorBaseEchart extends BaseEchart {
     if (!this.isInViewPort()) {
       return;
     }
-    let liHtmls = [];
+    let liHtmlList = [];
     let ulStyle = '';
     let hasWrapText = true;
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
-      liHtmls.push(params[0].data.tooltips);
+      liHtmlList.push(params[0].data.tooltips);
     } else {
       if (typeof this.customTooltips === 'function') {
         return this.customTooltips(params);
@@ -315,7 +315,7 @@ class MonitorBaseEchart extends BaseEchart {
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
       const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-      liHtmls = (this.sortTooltipsValue ? list.sort((a, b) => b.value[1] - a.value[1]) : list).map(item => {
+      liHtmlList = (this.sortTooltipsValue ? list.sort((a, b) => b.value[1] - a.value[1]) : list).map(item => {
         let markColor = 'color: #fafbfd;';
         if (data[0].value === item.value[1]) {
           markColor = 'color: #fff;font-weight: bold;';
@@ -333,11 +333,11 @@ class MonitorBaseEchart extends BaseEchart {
         if (curSeries?.stack?.includes('boundary-')) {
           curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
         }
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision =
           !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li class="tooltips-content-item" style="--series-color: ${curSeries.lineStyle?.color || item.color}">
                   <span class="item-series is-${curSeries.lineStyle?.type}"
                    style="background-color:${curSeries.lineStyle?.color || item.color};">
@@ -347,7 +347,7 @@ class MonitorBaseEchart extends BaseEchart {
                   ${valueObj?.text} ${valueObj?.suffix || ''}</span>
                   </li>`;
       });
-      if (liHtmls?.length < 1) return undefined;
+      if (liHtmlList?.length < 1) return undefined;
       // 如果超出屏幕高度，则分列展示
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && this.tooltipSize) {
@@ -365,7 +365,7 @@ class MonitorBaseEchart extends BaseEchart {
                 ${pointTime}
             </p>
             <ul class="tooltips-content ${hasWrapText ? 'wrap-text' : ''}" style="${ulStyle}">
-                ${liHtmls?.join('')}
+                ${liHtmlList?.join('')}
                 ${lastItem || ''}
             </ul>
             </div>`;

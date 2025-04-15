@@ -164,7 +164,7 @@ def make_topo_node_from_span_node(
             #      -> C x2
             twins = []
             for m in parent_group.members:
-                if m.children[span_node.index].group:
+                if len(m.children) > span_node.index and m.children[span_node.index].group:
                     twins.extend(m.children[span_node.index].group.members)
 
         virtual_group = make_virtual_group_from_node(twins)

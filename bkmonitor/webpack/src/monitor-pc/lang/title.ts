@@ -168,4 +168,6 @@ export default {
   收藏管理: 'Favorite Management',
   全部收藏: 'All Favorites',
   '已选择以下{0}个收藏对象': 'You have selected {0} favorite objects',
+  维度数: 'Dimension number',
+  维度值: 'Dimension value',
 };

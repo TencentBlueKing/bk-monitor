@@ -48,10 +48,12 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
-/** 下钻分析 */
+/** 维度下钻 */
 interface IDrillAnalysisViewProps {
   dimensionsList?: IDimensionItem[];
   currentMethod?: string;
+  panel?: IPanelModel;
+  timeRangeData?: TimeRangeType;
 }
 interface IDrillAnalysisViewEvents {
   onClose?: () => void;
@@ -60,6 +62,7 @@ interface IDrillAnalysisViewEvents {
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
+  @Prop({ default: () => ({}) }) timeRangeData: TimeRangeType;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
@@ -118,6 +121,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   mounted() {
+    this.timeRange = this.timeRangeData;
     window.addEventListener('keydown', this.handleKeydown);
     this.refreshList = refreshList;
     this.$nextTick(() => {
@@ -174,7 +178,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       this.filterConfig.function = timeCompare?.time_compare ? timeCompare : { time_compare: [] };
 
       (item.query_configs || []).map(query => {
-        let commonConditions = [];
+        const commonConditions = [];
         Object.keys(query.filter_dict.concat_filter || {}).map(key =>
           commonConditions.push({
             key: key.split('__')[0],
@@ -342,7 +346,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         class='drill-analysis-view'
       >
         <div class='drill-analysis-head'>
-          {this.$t('下钻分析')}
+          {this.$t('维度下钻')}
           <i
             class='icon-monitor icon-mc-close close-btn'
             onClick={this.handleClose}
@@ -373,7 +377,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             <MonitorDropdown
               class='filter-tools-interval'
               icon='icon-zidongshuaxin'
-              isRefleshInterval={true}
+              isRefreshInterval={true}
               list={this.refreshList}
               text-active={this.refreshInterval !== -1}
               value={this.refreshInterval}

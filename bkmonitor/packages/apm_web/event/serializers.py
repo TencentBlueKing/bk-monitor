@@ -10,19 +10,23 @@ specific language governing permissions and limitations under the License.
 """
 import operator
 from functools import reduce
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from rest_framework import serializers
 
-from apm_web.models import Application, EventServiceRelation
+from apm_web.event.handler import EventHandler
+from apm_web.models import Application
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
     EVENT_ORIGIN_MAPPING,
     CicdEventName,
+    EventCategory,
     EventDomain,
     EventSource,
     Operation,
@@ -42,7 +46,43 @@ def default_cond_handler(cond: Dict[str, Any]) -> Q:
 
 
 def k8s_cond_handler(cond: Dict[str, Any]) -> Q:
-    return Q(**cond)
+    kind: Optional[str] = cond.get("kind")
+    name: Optional[str] = cond.get("name")
+    namespace: Optional[str] = cond.get("namespace")
+    bcs_cluster_id: Optional[str] = cond.get("bcs_cluster_id")
+    if not (bcs_cluster_id and namespace and kind and name):
+        return default_cond_handler(cond)
+
+    q: Q = Q(**cond)
+    kind_pod_reg_map: Dict[str, Any] = {
+        "Job": f"{name}-[a-z0-9]{{5,10}}",
+        "Deployment": f"{name}(-[a-z0-9]{{5,10}}){{1,2}}",
+        "DaemonSet": f"{name}-[a-z0-9]{{5}}",
+        "StatefulSet": f"{name}-[0-9]+",
+    }
+    base_cond: Dict[str, str] = {"bcs_cluster_id": bcs_cluster_id, "namespace": namespace}
+    for workload_kind, pod_name_reg in kind_pod_reg_map.items():
+        # 为什么采取模糊匹配？因为有类似 xxxDeployment 的 CRD 存在。
+        if kind not in workload_kind:
+            continue
+
+        # Workload 事件（例如 Deployment 滚服），实际会触发管控对象（ReplicaSet、Pod）的变更，产生对应级别的 k8s 事件，
+        # 即错误事件可能发生在 Workload 所管理的更基础的 k8s 对象，例如 Pod 重启失败、拉取镜像异常等，此处需要一并关联展示。
+        q |= Q(**base_cond, kind="Pod", name__req=pod_name_reg)
+        if kind in "Deployment":
+            q |= Q(**base_cond, kind="HorizontalPodAutoscaler", name=name) | Q(
+                **base_cond, kind="ReplicaSet", name__req=f"{name}-[a-z0-9]{{5,10}}"
+            )
+
+        # 至多匹配一次
+        break
+    return q
+
+
+DOMAIN_CONF_HANDLER_MAP: Dict[str, Callable[[Dict[str, Any]], Q]] = {
+    EventDomain.CICD.value: cicd_cond_handler,
+    EventDomain.K8S.value: k8s_cond_handler,
+}
 
 
 def filter_tables_by_source(
@@ -73,6 +113,40 @@ def filter_tables_by_source(
     return filtered_tables
 
 
+def filter_by_relation(
+    q: QueryConfigBuilder, relation: Dict[str, Any], data_labels_map: Dict[str, str], table: Optional[str] = None
+) -> QueryConfigBuilder:
+    q = q.table(table or relation["table"])
+    domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
+    cond_handler: Callable[[Dict[str, Any]], Q] = DOMAIN_CONF_HANDLER_MAP.get(domain, default_cond_handler)
+    if relation["relations"]:
+        q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
+    return q
+
+
+@lru_cache_with_ttl(ttl=60 * 20, decision_to_drop_func=lambda v: not v)
+def get_cluster_table_map(cluster_ids: Tuple[str, ...]) -> Dict[str, str]:
+    cluster_infos: List[Dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
+    cluster_to_data_id: Dict[str, int] = {
+        cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
+    }
+    # 业务场景不会超过一页，使用 single 接口避免多次请求
+    event_groups: List[Dict[str, Any]] = api.metadata.single_query_event_group(
+        bk_data_ids=list(cluster_to_data_id.values())
+    )
+    data_id_table_map: Dict[int, str] = {
+        event_group["bk_data_id"]: event_group["table_id"] for event_group in event_groups
+    }
+
+    cluster_table_map: Dict[str, str] = {}
+    for cluster_id in cluster_to_data_id:
+        table: Optional[str] = data_id_table_map.get(cluster_to_data_id.get(cluster_id))
+        if table:
+            cluster_table_map[cluster_id] = table
+
+    return cluster_table_map
+
+
 def process_query_config(
     bk_biz_id: int, origin_query_config: Dict[str, Any], event_relations: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -99,19 +173,34 @@ def process_query_config(
     if origin_query_config.get("interval"):
         base_q = base_q.interval(origin_query_config["interval"])
 
-    domain_cond_handler_map: Dict[str, Callable[[Dict[str, Any]], Q]] = {EventDomain.CICD.value: cicd_cond_handler}
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
     for relation in event_relations:
         if relation["table"] not in filtered_tables:
             continue
 
-        q: QueryConfigBuilder = base_q.table(relation["table"])
-        domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
-        cond_handler: Callable[[Dict[str, Any]], Q] = domain_cond_handler_map.get(domain, default_cond_handler)
-        if relation["relations"]:
-            q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
+        if relation["table"] == EventCategory.K8S_EVENT.value:
+            cluster_conditions_map: Dict[str, List[Dict[str, Any]]] = {}
+            for cond in relation["relations"]:
+                cluster_id: Optional[str] = cond.get("bcs_cluster_id")
+                if not cluster_id:
+                    continue
+                cluster_conditions_map.setdefault(cluster_id, []).append(cond)
 
-        queryset = queryset.add_query(q)
+            cluster_table_map: Dict[str, str] = get_cluster_table_map(tuple(sorted(cluster_conditions_map.keys())))
+            for cluster_id, conditions in cluster_conditions_map.items():
+                table: Optional[str] = cluster_table_map.get(cluster_id)
+                if not table:
+                    continue
+
+                # 集群条件已能确定查询 RT，直接指定加快检索速度
+                q = filter_by_relation(
+                    base_q, {"table": relation["table"], "relations": conditions}, data_labels_map, table
+                )
+                queryset = queryset.add_query(q)
+
+            continue
+
+        queryset = queryset.add_query(filter_by_relation(base_q, relation, data_labels_map))
 
     return queryset.config["query_configs"]
 
@@ -131,7 +220,7 @@ class EventTimeSeriesRequestSerializer(event_serializers.EventTimeSeriesRequestS
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
@@ -142,7 +231,7 @@ class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, B
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
@@ -168,7 +257,7 @@ class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestS
             source_cond = {"method": Operation.EQ["value"], "value": attrs["sources"]}
 
         bk_biz_id: int = attrs["bk_biz_id"]
-        relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+        relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
             bk_biz_id, attrs["app_name"], attrs["service_name"]
         )
         filtered_tables: Set[str] = {relation["table"] for relation in relations}
@@ -197,7 +286,7 @@ class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, B
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
@@ -208,7 +297,7 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
@@ -261,3 +350,29 @@ class EventDownloadTopKRequestSerializer(
 ):
     def validate(self, attrs):
         return super().validate(attrs)
+
+
+class EventStatisticsGraphRequestSerializer(
+    event_serializers.EventStatisticsGraphRequestSerializer, BaseEventRequestSerializer
+):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
+        return attrs
+
+
+class EventStatisticsInfoRequestSerializer(
+    event_serializers.EventStatisticsInfoRequestSerializer, BaseEventRequestSerializer
+):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventHandler.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
+        return attrs

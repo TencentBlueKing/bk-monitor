@@ -52,7 +52,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   get authorityResource() {
     return { application_name: this.$route.query?.app_name || '' };
   }
-  get positonText() {
+  get positionText() {
     return `${window.i18n.tc('服务')}：${this.serviceName}`;
   }
 
@@ -122,7 +122,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           navMode={'display'}
           needBack={true}
           needShadow={true}
-          positionText={this.positonText}
+          positionText={this.positionText}
           routeList={this.routeList}
           needCopyLink
         />

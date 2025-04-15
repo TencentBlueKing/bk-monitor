@@ -214,6 +214,7 @@
 
       &.segment-content {
         span {
+          white-space: pre-line;
           font:
             12px Menlo,
             Monaco,
