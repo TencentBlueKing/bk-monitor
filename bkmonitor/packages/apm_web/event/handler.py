@@ -33,7 +33,9 @@ class EventHandler:
 
         try:
             # 通过自动发现获取关联 Workload
-            workloads: List[Dict[str, Any]] = ServiceHandler.list_nodes(bk_biz_id, app_name)[0]["platform"]["workloads"]
+            workloads: List[Dict[str, Any]] = ServiceHandler.list_nodes(bk_biz_id, app_name, service_name)[0][
+                "platform"
+            ]["workloads"]
             assert workloads
         except (ValueError, IndexError, KeyError, AssertionError):
             return list(table_relation_map.values())
@@ -45,5 +47,5 @@ class EventHandler:
         }
         for workload in workloads:
             workload.pop("update_time", None)
-            k8s_event_relation["relations"].append(workload)
+            table_relation_map[EventCategory.K8S_EVENT.value]["relations"].append(workload)
         return list(table_relation_map.values())

@@ -60,7 +60,10 @@ class AlertStrategyViewSet(APIViewSet):
                     "first_anomaly_time": 1741685940,
                     "duration": "10m",
                     "status": "CLOSED",
-                    "severity": 2
+                    "severity": 2,
+                    "assignee": "xxx",
+                    "appointee": "xxx,
+                    "end_time": 17416865714,
                 }
             ],
             "code": 0,

@@ -10,13 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 import itertools
+import time
 from collections import defaultdict
 
 from django.utils import timezone
 
 from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
-from apm_web.models import Application, LogServiceRelation
+from apm_web.models import LogServiceRelation
 from apm_web.topo.handle.relation.define import (
     SourceDatasource,
     SourceK8sPod,
@@ -45,6 +46,8 @@ class ServiceLogHandler:
     LOG_RELATION_BY_UNIFY_QUERY = 10
     # log 默认查询语句最大 value 数量
     LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
+
+    ONE_HOUR_SECONDS = 3600
 
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
@@ -131,8 +134,7 @@ class ServiceLogHandler:
 
     @classmethod
     def get_log_datasource(cls, bk_biz_id, app_name):
-        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        application_info = api.apm_api.detail_application({"application_id": application.application_id})
+        application_info = api.apm_api.detail_application(bk_biz_id=bk_biz_id, app_name=app_name)
         if not application_info.get("log_config"):
             return None
         return application_info["log_config"]
@@ -187,10 +189,8 @@ class ServiceLogHandler:
         通过关联查询获取服务的 dataId 关联并拼接默认查询
         """
         if not start_time or not end_time:
-            start_time, end_time = Application.objects.get(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-            ).list_retention_time_range()
+            end_time = int(time.time())
+            start_time = end_time - cls.ONE_HOUR_SECONDS
 
         datasource_infos = defaultdict(list)
         data_ids = set()

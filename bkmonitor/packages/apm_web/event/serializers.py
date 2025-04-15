@@ -18,7 +18,7 @@ from rest_framework import serializers
 from apm_web.event.handler import EventHandler
 from apm_web.models import Application
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.cache import lru_cache_with_ttl
+from bkmonitor.utils.cache import CacheType, using_cache
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.data_explorer.event import serializers as event_serializers
@@ -124,7 +124,8 @@ def filter_by_relation(
     return q
 
 
-@lru_cache_with_ttl(ttl=60 * 20, decision_to_drop_func=lambda v: not v)
+# 稳定的元数据，设置一个较长时间的 Redis 缓存，便于共享
+@using_cache(CacheType.APM(60 * 60))
 def get_cluster_table_map(cluster_ids: Tuple[str, ...]) -> Dict[str, str]:
     cluster_infos: List[Dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
     cluster_to_data_id: Dict[str, int] = {

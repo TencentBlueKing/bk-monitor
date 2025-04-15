@@ -468,6 +468,7 @@ class ListK8SResources(Resource):
         filter_dict: dict = validated_request_data["filter_dict"]
         page: int = validated_request_data["page"]
         page_size: int = validated_request_data["page_size"]
+        scenario: str = validated_request_data["scenario"]
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
@@ -482,6 +483,7 @@ class ListK8SResources(Resource):
                     fuzzy=True,
                 )
             )
+        obj_list = None
         resource_list = []
         total_count = 0
         # scrolling 分页特性
@@ -495,7 +497,12 @@ class ListK8SResources(Resource):
                     page = 1
 
                 obj_list = resource_meta.distinct(resource_meta.get_from_meta())
+            except FieldError:
+                # namespace 层级下尝试根据filter 类型进行重新查询
+                if scenario == "network":
+                    obj_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
 
+            if obj_list is not None:
                 paginator = Paginator(obj_list, page_size)
                 total_count = paginator.count
                 for k8s_resource in paginator.get_page(page).object_list:
@@ -503,15 +510,13 @@ class ListK8SResources(Resource):
                         resource_list.append(k8s_resource)
                     else:
                         resource_list.append(k8s_resource.to_meta_dict())
-            except FieldError:
-                pass
+
             return {"count": total_count, "items": resource_list}
 
         # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
-        scenario = validated_request_data["scenario"]
         if scenario == "network":
             # 网络场景默认指标，用nw_container_network_receive_bytes_total
             if not column.startswith("nw_"):
@@ -548,6 +553,9 @@ class ListK8SResources(Resource):
                 [rs.pop("workload") for rs in meta_resource_list if rs.get("workload")]
         except FieldError:
             meta_resource_list = []
+            # namespace 层级下尝试根据filter 类型进行重新查询
+            if scenario == "network":
+                meta_resource_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
 
