@@ -33,7 +33,6 @@ import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
@@ -48,6 +47,7 @@ import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/
 import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
+import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import type {
   DataQuery,
   ILegendItem,
@@ -851,8 +851,8 @@ class NewMetricChart extends CommonSimpleChart {
                   width={this.width}
                   height={this.chartHeight}
                   groupId={this.panel.dashboardId}
-                  showRestore={this.showRestore}
                   options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                 />

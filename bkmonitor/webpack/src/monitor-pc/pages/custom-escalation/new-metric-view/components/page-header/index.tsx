@@ -34,7 +34,7 @@ import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
-  customTimeSeriesList: Readonly<{ time_series_group_id: number; name: string }[]> = [];
+  customTimeSeriesList: Readonly<{ time_series_group_id: number; name: string; data_label: string }[]> = [];
 
   currentCustomTimeSeriesId = 0;
   get currentCustomTimeSeriesName() {
@@ -103,6 +103,7 @@ export default class PageHeader extends tsc<object> {
               v-model={this.currentCustomTimeSeriesId}
               clearable={false}
               popover-min-width={240}
+              scroll-height={300}
               searchable
               onChange={this.handleSeriesChange}
             >
@@ -120,8 +121,21 @@ export default class PageHeader extends tsc<object> {
                 <bk-option
                   id={item.time_series_group_id}
                   key={item.time_series_group_id}
-                  name={item.name}
-                />
+                  name={`${item.name}${item.data_label}`}
+                >
+                  <div
+                    class='custom-time-series-name'
+                    v-bk-overflow-tips
+                  >
+                    {item.name}
+                  </div>
+                  <div
+                    class='custom-time-series-label'
+                    v-bk-overflow-tips
+                  >
+                    {item.data_label}
+                  </div>
+                </bk-option>
               ))}
             </bk-select>
           </div>
