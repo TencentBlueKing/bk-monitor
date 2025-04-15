@@ -1,3 +1,9 @@
+@mixin text-x-ellipsis {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .metric-slider-box {
   .metric-slider-content {
     padding: 22px 24px;
@@ -143,6 +149,7 @@
             border: 1px solid #3a84ff;
           }
           input {
+            @include text-x-ellipsis();
             width: 100%;
             height: 37px;
             border: none;
