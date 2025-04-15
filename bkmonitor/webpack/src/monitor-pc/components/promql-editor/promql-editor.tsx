@@ -361,8 +361,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     }
   }
   destroyMonaco() {
+    this.editor.getModel()?.dispose?.();
     this.editor?.dispose?.();
-    monaco.editor.getModels().forEach(model => model.dispose());
     this.roInstance?.disconnect?.();
   }
 
