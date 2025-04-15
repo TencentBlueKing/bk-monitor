@@ -9,16 +9,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import functools
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 
 from rest_framework import serializers
 
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import Vendor
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources import HostIndexQueryMixin
+
+logger = logging.getLogger("apm")
+
+FIVE_MIN_SECONDS = 5 * 60
 
 
 def overwrite_with_span_addition(info, overwrite_key=None):
@@ -32,28 +37,14 @@ def overwrite_with_span_addition(info, overwrite_key=None):
 
 
 # 缓存增强：对 search_index_set 添加缓存
-@using_cache(CacheType.APM(5 * 60))
-def _cached_search_index_set(_bk_biz_id):
+@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
+def _get_biz_index_sets(_bk_biz_id):
     return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
 
 
-@using_cache(CacheType.APM(5 * 60))
-def _cached_query_index_set(_bk_biz_id, _app_name, _span_id):
+@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
+def _get_span_detail(_bk_biz_id, _app_name, _span_id):
     return api.apm_api.query_span_detail(bk_biz_id=_bk_biz_id, app_name=_app_name, span_id=_span_id)
-
-
-# 并行获取基础信息
-def _retrieve_base_info(_bk_biz_id, _app_name, _span_id):
-    with ThreadPoolExecutor(max_workers=10) as _executor:
-        search_future = _executor.submit(_cached_search_index_set, _bk_biz_id)
-        query_future = _executor.submit(_cached_query_index_set, _bk_biz_id, _app_name, _span_id) if _span_id else None
-
-        try:
-            search_result = search_future.result()
-            query_result = query_future.result() if query_future else None
-            return search_result, query_result
-        except Exception:
-            return [], None
 
 
 # 从服务关联中找日志
@@ -62,7 +53,7 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
     relation = ServiceLogHandler.get_log_relation(bk_biz_id, app_name, service_name)
     if relation:
         if relation.related_bk_biz_id != bk_biz_id:
-            relation_full_indexes = _cached_search_index_set(_bk_biz_id=relation.related_bk_biz_id)
+            relation_full_indexes = _get_biz_index_sets(_bk_biz_id=relation.related_bk_biz_id)
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
                 (i for i in relation_full_indexes if str(i["index_set_id"]) == relation.value),
@@ -162,24 +153,26 @@ def process_metric_relations(
 
 def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_time=None, end_time=None):
     if start_time and end_time:
-        dt_start = (start_time // 300) * 300
-        dt_end = (end_time // 300) * 300
+        dt_start = (start_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS
+        dt_end = (end_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS
         cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-{dt_start}-{dt_end}-log_relation_list"
     else:
         cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-log_relation_list"
 
-    cache_call = using_cache(CacheType.APM(5 * 60))
+    cache_call = using_cache(CacheType.APM(FIVE_MIN_SECONDS))
     index_info_list = cache_call.get_value(cache_key)
     if index_info_list:
         for index_info in index_info_list:
             yield index_info
     else:
         # 使用缓存获取基础信息
-        biz_indices, span_detail = _retrieve_base_info(bk_biz_id, app_name, span_id)
+        biz_indices = _get_biz_index_sets(bk_biz_id)
         indexes_mapping = {bk_biz_id: biz_indices}
 
+        span_detail = None
         overwrite_method = None
         if span_id:
+            span_detail = _get_span_detail(bk_biz_id, app_name, span_id)
             info = {"span_id": span_id}
             if span_detail and span_detail.get("trace_id"):
                 info["trace_id"] = span_detail["trace_id"]
@@ -188,48 +181,44 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
         # 并行执行所有任务
         index_set_ids = set()
         index_info_list = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [
-                executor.submit(
-                    process_service_relation, bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method
-                )
-            ]
+        futures = []
+        pool = ThreadPool()
+        futures.append(
+            pool.apply_async(
+                process_service_relation, args=(bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method)
+            )
+        )
 
-            if span_id:
-                futures.append(
-                    executor.submit(
-                        process_span_host, bk_biz_id, app_name, span_id, span_detail, indexes_mapping, overwrite_method
-                    )
-                )
-
+        if span_id:
             futures.append(
-                executor.submit(
-                    process_datasource, bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method
+                pool.apply_async(
+                    process_span_host,
+                    args=(bk_biz_id, app_name, span_id, span_detail, indexes_mapping, overwrite_method),
                 )
             )
 
-            futures.append(
-                executor.submit(
-                    process_metric_relations,
-                    bk_biz_id,
-                    app_name,
-                    service_name,
-                    start_time,
-                    end_time,
-                    indexes_mapping,
-                    overwrite_method,
-                )
+        futures.append(
+            pool.apply_async(
+                process_datasource, args=(bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method)
             )
+        )
 
-            for future in as_completed(futures):
-                try:
-                    for item in future.result():
-                        index_id = str(item["index_set_id"])
-                        if index_id not in index_set_ids:
-                            index_set_ids.add(index_id)
-                            index_info_list.append(item)
-                except Exception:
-                    continue
+        futures.append(
+            pool.apply_async(
+                process_metric_relations,
+                args=(bk_biz_id, app_name, service_name, start_time, end_time, indexes_mapping, overwrite_method),
+            )
+        )
+
+        for future in futures:
+            try:
+                for item in future.get() or []:
+                    index_id = str(item["index_set_id"])
+                    if index_id not in index_set_ids:
+                        index_set_ids.add(index_id)
+                        index_info_list.append(item)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.info("log_relation_list, {}".format(e))
 
         cache_call.set_value(cache_key, index_info_list)
         for index_info in index_info_list:
