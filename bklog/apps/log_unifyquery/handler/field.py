@@ -154,6 +154,10 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         for query in search_dict["query_list"]:
             query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
+            # 增加字段不为空的条件
+            query["conditions"]["field_list"].append(
+                {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
+            )
             reference_list.append(query["reference_name"])
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
