@@ -115,7 +115,7 @@
   import ExportLog from '../../result-comp/export-log.vue';
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
-  import RetrieveHelper from '../../../retrieve-helper';
+  import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
   import ResultStorage from '../../components/result-storage/index';
   import BkLogPopover from '../../../../components/bklog-popover/index';
@@ -209,6 +209,12 @@
     mounted() {
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       RetrieveHelper.setMarkInstance();
+      RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
+        if (event === 'mark' && !this.highlightValue.includes(value)) {
+          this.highlightValue.push(value);
+          RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+        }
+      });
 
       if (document.body.offsetHeight < 900) {
         this.$refs.refFieldsSettingPopper?.setProps({

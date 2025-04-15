@@ -78,6 +78,11 @@ class UseSegmentProp {
         text: this.$t('复制'),
       },
       {
+        onClick: () => taskEventManager.executeFn('highlight'),
+        iconName: 'icon bklog-icon bklog-highlight',
+        text: this.$t('高亮'),
+      },
+      {
         onClick: () => {
           taskEventManager.executeFn('is');
         },

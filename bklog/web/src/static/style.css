@@ -668,3 +668,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-consola:before {
 	content: "\e208";
 }
+.bklog-highlight:before {
+	content: "\e209";
+}

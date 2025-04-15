@@ -32,11 +32,11 @@
             height: 32px;
             padding: 5px 13px 7px 12px;
             font-size: 12px;
-            color: #4D4F56;
+            color: #4d4f56;
             cursor: pointer;
 
             &:hover {
-              background: #F5F7FA;
+              background: #f5f7fa;
             }
           }
 
@@ -46,8 +46,6 @@
             justify-content: right;
             width: 24px;
             height: 24px;
-
-
           }
 
           .segment-event-btn {
@@ -55,8 +53,6 @@
             flex: 1;
             align-items: center;
             justify-content: space-between;
-
-
 
             .new-link {
               transform: translateY(1px);
@@ -76,9 +72,9 @@
           .bklog-copy-3,
           .icon-minus-circle,
           .bklog-trace-view,
+          .bklog-highlight,
           .icon-plus-circle {
             margin-right: 4px;
-
           }
 
           .bklog-copy {

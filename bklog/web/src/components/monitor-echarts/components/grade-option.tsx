@@ -1,6 +1,8 @@
 import { computed, defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '../../../hooks/use-store';
+import './grade-option.scss';
+
 export default defineComponent({
   setup() {
     const { $t } = useLocale();
@@ -86,10 +88,29 @@ export default defineComponent({
       // (this.$refs.refGradePopover as any)?.hide();
     };
 
+    const handleDeleteConfigItem = () => {};
+    const handleAddConfigItem = () => {
+      if (gradeSettingList.value.length < 6) {
+        gradeSettingList.value.push({
+          id: 'info',
+          color: '#6FC5BF',
+          name: '',
+          regExp: '',
+        });
+      }
+    };
+
     return () => (
       <div>
-        {' '}
-        <div class='grade-title'>{$t('分级设置')}</div>
+        <div class='grade-title'>{$t('日志分级展示')}</div>
+        <div class='grade-row grade-switcher'>
+          <div class='grade-label'>{$t('分级展示')}</div>
+          <div class='grade-field-des'>
+            <bk-switcher theme='primary'></bk-switcher>
+            <span class='bklog-icon bklog-info-fill'></span>
+            <span>指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段</span>
+          </div>
+        </div>
         <div class='grade-row'>
           <div class='grade-label required'>{$t('字段设置')}</div>
           <div class='grade-field-setting'>
@@ -204,10 +225,18 @@ export default defineComponent({
                   >
                     {item.regExp}
                   </div>
-                  <div class='grade-table-option'>
-                    <span>+</span>
-                    <span>-</span>
-                  </div>
+                  {item.id !== 'others' && (
+                    <div class='grade-table-option'>
+                      <span
+                        class='bklog-icon bklog-log-plus-circle-shape'
+                        onClick={handleAddConfigItem}
+                      ></span>
+                      <span
+                        class='bklog-icon bklog-circle-minus-filled'
+                        onClick={handleDeleteConfigItem}
+                      ></span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

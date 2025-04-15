@@ -84,6 +84,11 @@ export enum RetrieveEvent {
   INDEX_CONFIG_OPEN = 'index-config-open',
 
   /**
+   * 触发高亮设置
+   */
+  HILIGHT_TRIGGER = 'hilight-trigger',
+
+  /**
    * 搜索条件改变
    */
   SEARCH_VALUE_CHANGE = 'search-value-change',

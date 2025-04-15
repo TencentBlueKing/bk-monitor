@@ -65,7 +65,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import RetrieveHelper from '../../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 
 import './log-rows.scss';
 
@@ -523,6 +523,11 @@ export default defineComponent({
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
+
+      if (type === 'highlight') {
+        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value });
+        return;
+      }
 
       if (type === 'trace-view') {
         handleTraceIdClick(value);
