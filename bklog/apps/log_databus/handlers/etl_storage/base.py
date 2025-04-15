@@ -148,8 +148,9 @@ class EtlStorage(object):
         # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
         if not is_case_sensitive and not tokenize_on_chars:
             return ""
-        # 将unicode编码的字符串转换为正常字符串
-        tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
+        if tokenize_on_chars:
+            # 将unicode编码的字符串转换为正常字符串
+            tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
     @staticmethod
