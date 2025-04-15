@@ -30,26 +30,33 @@ import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
 import { AngleDownLine } from 'bkui-vue/lib/icon';
+import { CancelToken } from 'monitor-api/index';
 
 import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { convertToTree } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
-import type { IDimensionFieldTreeItem, ConditionChangeEvent, IDimensionField } from '../typing';
+import type {
+  IDimensionFieldTreeItem,
+  ConditionChangeEvent,
+  IDimensionField,
+  ITopKField,
+  ICommonParams,
+} from '../typing';
 
 import './dimension-filter-panel.scss';
 
 export default defineComponent({
   name: 'DimensionFilterPanel',
   props: {
+    params: { type: Object as PropType<ICommonParams>, default: () => ({}) },
     list: { type: Array as PropType<IDimensionField[]>, default: () => [] },
-    condition: { type: Array as PropType<any[]>, default: () => [] },
-    queryString: { type: String, default: '' },
     listLoading: { type: Boolean, default: false },
   },
   emits: ['conditionChange', 'close', 'showEventSourcePopover'],
@@ -65,11 +72,14 @@ export default defineComponent({
     const searchResultList = shallowRef<IDimensionField[]>([]);
     /** 转化维度列表为树结构 */
     const dimensionTreeList = shallowRef<IDimensionFieldTreeItem[]>([]);
-    const topKCancelFn = null;
+    let topKCancelFn = null;
 
-    watch([() => store.refreshImmediate, () => props.condition, () => props.queryString], () => {
-      getFieldCount();
-    });
+    watch(
+      () => props.params,
+      () => {
+        getFieldCount();
+      }
+    );
 
     watch(
       () => props.list,
@@ -87,42 +97,47 @@ export default defineComponent({
         return pre;
       }, []);
       if (!fields.length) return;
-      const list = await getFieldTopKList({
-        limit: 0,
-        fields,
-      });
+      topKCancelFn?.();
+      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
+      const list = await mock(
+        {
+          ...props.params,
+          start_time,
+          end_time,
+          limit: 0,
+          fields,
+        },
+        {
+          cancelToken: new CancelToken(c => (topKCancelFn = c)),
+        }
+      );
       fieldListCount.value = list.reduce((pre, cur) => {
         pre[cur.field] = cur.distinct_count;
         return pre;
       }, {});
     }
 
-    function getFieldTopKList(params) {
-      topKCancelFn?.();
-      // return getEventTopK(
-      //   {
-      //     ...props.commonParams,
-      //     ...params,
-      //   },
-      //   {
-      //     cancelToken: new CancelToken(c => (topKCancelFn = c)),
-      //   }
-      // ).catch(() => []);
-      console.log(params);
-
-      return Promise.resolve([
-        {
-          field: 'event_name',
-          distinct_count: 25,
-          list: [],
-        },
-        {
-          field: 'type',
-          distinct_count: 2,
-          list: [],
-        },
-      ]);
-    }
+    const mock = async (params, option) => {
+      console.log(params, option);
+      return new Promise<ITopKField[]>(resolve => {
+        setTimeout(() => {
+          resolve([
+            {
+              distinct_count: 0,
+              field: 'resource.service.name',
+              list: [
+                {
+                  value: 'test_project',
+                  alias: 'test_project',
+                  count: 121209,
+                  proportions: 100,
+                },
+              ],
+            },
+          ]);
+        }, 300);
+      });
+    };
 
     /** 关键字搜索 */
     const handleSearch = useDebounceFn((keyword: string) => {
@@ -303,12 +318,12 @@ export default defineComponent({
     return (
       <div class='dimension-filter-panel-comp'>
         <div class='header'>
-          <div class='title'>{this.t('维度过滤')}</div>
           <i
             class='icon-monitor icon-gongneng-shouqi'
             v-bk-tooltips={{ content: this.t('收起') }}
             onClick={this.handleClose}
           />
+          <div class='title'>{this.t('维度过滤')}</div>
         </div>
         <div class='search-input'>
           <Input

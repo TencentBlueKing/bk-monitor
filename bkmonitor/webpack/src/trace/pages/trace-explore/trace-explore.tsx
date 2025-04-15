@@ -23,104 +23,337 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
+import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
+import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
+import { ECondition, EMode } from '../../components/retrieval-filter/typing';
+import { mergeWhereList } from '../../components/retrieval-filter/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 
-import type { IApplicationItem } from './typing';
+import type { ConditionChangeEvent, IApplicationItem, ICommonParams } from './typing';
 
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
+    const route = useRoute();
+    const router = useRouter();
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
 
+    /** 应用列表 */
     const applicationList = shallowRef<IApplicationItem[]>([]);
+    /** 是否展示收藏夹 */
     const isShowFavorite = shallowRef(true);
 
     function handleFavoriteShowChange(isShow: boolean) {
       isShowFavorite.value = isShow;
     }
-
-    console.log(store);
+    const filterMode = shallowRef<EMode>(EMode.ui);
 
     const where = shallowRef([]);
-    const fieldList = shallowRef([]);
+    /** 常驻筛选 */
+    const commonWhere = shallowRef([]);
+    /** 是否展示常驻筛选 */
+    const showResidentBtn = shallowRef(false);
+    /** 不同视角下维度字段的列表 */
+    const fieldListMap = shallowRef({ trace: [], span: [] });
+    /** 维度字段列表 */
+    const fieldList = computed(() => {
+      return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
+    });
+
+    const commonParams = shallowRef<ICommonParams>({
+      app_name: '',
+      query_string: '',
+      filters: [],
+      mode: 'trace',
+    });
+
     const loading = shallowRef(false);
     const queryString = shallowRef('');
+
+    watch(
+      [
+        () => store.appName,
+        () => store.timeRange,
+        () => store.refreshImmediate,
+        () => store.mode,
+        () => store.refreshInterval,
+      ],
+      async (val, oldVal) => {
+        if (val[0] !== oldVal[0]) {
+          await getViewConfig();
+        }
+        handleQuery();
+      }
+    );
 
     async function getApplicationList() {
       const data = await listApplicationInfo().catch(() => []);
       applicationList.value = data;
+      store.updateAppList(data);
+      if (!store.appName || !data.find(item => item.app_name === store.appName)) {
+        store.updateAppName(data[0]?.app_name);
+      }
     }
 
     function handleCloseDimensionPanel() {
       traceExploreLayoutRef.value.handleClickShrink(false);
     }
 
-    function handleConditionChange() {}
+    function handleConditionChange(item: ConditionChangeEvent) {
+      const { key, method, value } = item;
+      if (filterMode.value === EMode.ui) {
+        where.value = mergeWhereList(where.value, [{ condition: ECondition.and, key, method, value: [value || ''] }]);
+      } else {
+      }
+      handleQuery();
+    }
 
-    onMounted(() => {
-      setTimeout(() => {
-        const data = [
-          {
-            name: 'time',
-            alias: '数据上报时间（time）',
-            type: 'date',
-            is_option_enabled: true,
-          },
-          {
-            name: 'event_name',
-            alias: '事件名（event_name）',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-          {
-            name: 'type',
-            alias: '事件类型（type）',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-          {
-            name: 'a.c',
-            alias: 'a.c',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-          {
-            name: 'a.b',
-            alias: 'a.b',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-          {
-            name: 'a.d.e',
-            alias: 'a.d.e',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-          {
-            name: 'a.d.f',
-            alias: 'a.d.f',
-            type: 'keyword',
-            is_option_enabled: true,
-          },
-        ];
+    const handleQuery = useDebounceFn(() => {
+      let query_string = '';
+      let filters = mergeWhereList(where.value || [], commonWhere.value || []);
+      if (filterMode.value === EMode.ui) {
+        // 全文检索补充到query_string里
+        const fullText = filters.find(item => item.key === '*');
+        query_string = fullText?.value[0] ? `"${fullText?.value[0]}"` : '';
+        filters = filters.filter(item => item.key !== '*');
+      } else {
+        query_string = queryString.value;
+        filters = [];
+      }
 
-        fieldList.value = data;
-      }, 300);
+      commonParams.value = {
+        app_name: store.appName,
+        mode: store.mode,
+        query_string,
+        filters,
+      };
+    }, 100);
 
-      getApplicationList();
+    async function getViewConfig() {
+      function mock(params) {
+        console.log(params);
+        return new Promise(resolve => {
+          setTimeout(() => {
+            resolve({
+              trace_config: {
+                fields: [
+                  {
+                    name: 'time',
+                    alias: '数据上报时间',
+                    type: 'date',
+                    is_searched: true,
+                    is_dimensions: true,
+                    is_option_enabled: true,
+                    can_displayed: true,
+                    is_default_filter: true,
+                    supported_operations: [
+                      {
+                        operator: '=',
+                        label: '=',
+                        placeholder: '请选择或直接输入，Enter分隔',
+                      },
+                    ],
+                  },
+                ],
+                default_config: {
+                  display_fields: [
+                    {
+                      name: 'trace_id',
+                    },
+                    {
+                      name: 'min_start_time',
+                    },
+                    {
+                      name: 'root_span_name',
+                    },
+                    {
+                      name: 'root_service',
+                    },
+                    {
+                      name: 'root_service_span_name',
+                    },
+                    {
+                      name: 'root_service_category',
+                    },
+                    {
+                      name: 'root_service_status_code',
+                    },
+                    {
+                      name: 'trace_duration',
+                    },
+                    {
+                      name: 'hierarchy_count',
+                    },
+                    {
+                      name: 'service_count',
+                    },
+                  ],
+                  filter_setting: [
+                    {
+                      name: 'trace_duration',
+                    },
+                    {
+                      name: 'resource.service.name',
+                    },
+                    {
+                      name: 'span_name',
+                    },
+                  ],
+                },
+              },
+              span_config: {
+                fields: [
+                  {
+                    name: 'time',
+                    alias: '数据上报时间',
+                    type: 'date',
+                    is_searched: true,
+                    is_dimensions: true,
+                    is_option_enabled: true,
+                    can_displayed: true,
+                    supported_operations: [
+                      {
+                        operator: '=',
+                        label: '=',
+                        placeholder: '请选择或直接输入，Enter分隔',
+                      },
+                    ],
+                  },
+                ],
+                default_config: {
+                  display_field: [
+                    {
+                      name: 'span_id',
+                    },
+                    {
+                      name: 'span_name',
+                    },
+                    {
+                      name: 'start__time',
+                    },
+                    {
+                      name: 'end_time',
+                    },
+                    {
+                      name: 'elapsed_time',
+                    },
+                    {
+                      name: 'status.code',
+                    },
+                    {
+                      name: 'kind',
+                    },
+                    {
+                      name: 'trace_id',
+                    },
+                  ],
+                  filter_setting: [
+                    {
+                      name: 'elapsed_time',
+                    },
+                    {
+                      name: 'resource.service.name',
+                    },
+                    {
+                      name: 'span_name',
+                    },
+                  ],
+                },
+              },
+            });
+          }, 300);
+        });
+      }
+      if (!store.appName) return;
+      const data = await mock({
+        app_name: store.appName,
+      });
+
+      fieldListMap.value = {
+        trace: data.trace_config.fields,
+        span: data.span_config.fields,
+      };
+    }
+
+    onMounted(async () => {
+      getUrlParams();
+      await getApplicationList();
+      setUrlParams();
     });
+
+    function getUrlParams() {
+      const {
+        start_time,
+        end_time,
+        timezone,
+        refreshInterval,
+        sceneMode,
+        app_name,
+        filterMode: queryFilterMode,
+        where: queryWhere,
+        commonWhere: queryCommonWhere,
+        showResidentBtn: queryShowResidentBtn,
+        queryString: queryQueryString,
+      } = route.query;
+      try {
+        store.init({
+          timeRange: start_time ? [start_time as string, end_time as string] : DEFAULT_TIME_RANGE,
+          timezone: timezone as string,
+          mode: (sceneMode as 'span' | 'trace') || 'trace',
+          appName: app_name as string,
+          refreshInterval: Number(refreshInterval) || -1,
+          refreshImmediate: random(3),
+        });
+        where.value = JSON.parse((queryWhere as string) || '[]');
+        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        showResidentBtn.value = Boolean(queryShowResidentBtn);
+        queryString.value = queryQueryString as string;
+        filterMode.value = (queryFilterMode as EMode) || EMode.ui;
+      } catch (error) {
+        console.log('route query:', error);
+      }
+    }
+
+    function setUrlParams() {
+      const query = {
+        ...route.query,
+        from: store.timeRange[0],
+        to: store.timeRange[1],
+        timezone: store.timezone,
+        refreshInterval: String(store.refreshInterval),
+        sceneMode: store.mode,
+        app_name: store.appName,
+        queryString: queryString.value,
+        where: JSON.stringify(where.value),
+        commonWhere: JSON.stringify(commonWhere.value),
+        showResidentBtn: String(showResidentBtn.value),
+        filterMode: filterMode.value,
+      };
+
+      const targetRoute = router.resolve({
+        query,
+      });
+      // /** 防止出现跳转当前地址导致报错 */
+      if (targetRoute.fullPath !== route.fullPath) {
+        router.replace({
+          query,
+        });
+      }
+    }
 
     return {
       traceExploreLayoutRef,
@@ -128,6 +361,7 @@ export default defineComponent({
       isShowFavorite,
       where,
       fieldList,
+      commonParams,
       loading,
       queryString,
       handleFavoriteShowChange,
@@ -157,10 +391,9 @@ export default defineComponent({
                 aside: () => (
                   <div class='dimension-filter-panel'>
                     <DimensionFilterPanel
-                      condition={this.where}
                       list={this.fieldList}
                       listLoading={this.loading}
-                      queryString={this.queryString}
+                      params={this.commonParams}
                       onClose={this.handleCloseDimensionPanel}
                       onConditionChange={this.handleConditionChange}
                     />

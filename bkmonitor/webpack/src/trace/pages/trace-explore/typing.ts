@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IWhereItem } from '../../components/retrieval-filter/utils';
+import type { IWhereItem } from '../../components/retrieval-filter/typing';
 import type { TranslateResult } from 'vue-i18n';
 
 export interface IApplicationItem {
@@ -61,14 +61,11 @@ export interface IDimensionFieldTreeItem extends IDimensionField {
   children?: IDimensionFieldTreeItem[];
 }
 
-export interface ITopKRequestParams {
-  limit: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-  app_name?: string;
-  service_name?: string;
+export interface ICommonParams {
+  app_name: string;
+  filters: any[];
+  query_string: string;
+  mode: 'span' | 'trace';
 }
 
 export interface ITopKField {

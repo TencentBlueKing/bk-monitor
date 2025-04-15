@@ -75,9 +75,8 @@ export default defineComponent({
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
     function handleMenuSelectChange() {
-      const appName = props.list?.find(app => app.app_name === store.application?.app_name)?.app_name || '';
-      if (appName) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
+      if (store.currentApp) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${store.currentApp.app_name}`);
         window.open(url, '_blank');
       }
     }
@@ -86,11 +85,11 @@ export default defineComponent({
     const thumbtackList = shallowRef<string[]>([]);
 
     /** 置顶排序后的列表 */
-    const sortList = computed(() => {
+    const sortList = computed<IApplicationItem[]>(() => {
       const thumbtack = [];
       const other = [];
       for (const item of props.list) {
-        if (thumbtackList.value.includes(item.metric_result_table_id)) {
+        if (thumbtackList.value.includes(item.app_name)) {
           thumbtack.push({
             ...item,
             isTop: true,
@@ -131,8 +130,7 @@ export default defineComponent({
 
     function handleApplicationChange(val: string) {
       const application = props.list.find(item => item.app_name === val);
-      console.log(val, application);
-      store.updateApplicationId(application);
+      store.updateAppName(application.app_name);
     }
 
     function handleDocumentClick(e: KeyboardEvent) {
@@ -149,11 +147,12 @@ export default defineComponent({
     async function handleThumbtack(e: Event, item: IApplicationItem) {
       e.stopPropagation();
       if (item.isTop) {
-        thumbtackList.value = thumbtackList.value.filter(id => id !== item.id);
+        thumbtackList.value = thumbtackList.value.filter(appName => appName !== item.app_name);
       } else {
-        thumbtackList.value = [item.id, ...thumbtackList.value];
+        thumbtackList.value = [item.app_name, ...thumbtackList.value];
       }
-      await handleSetUserConfig(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK, JSON.stringify(thumbtackList.value));
+      console.log(thumbtackList.value);
+      await handleSetUserConfig(JSON.stringify(thumbtackList.value));
     }
 
     function handleSceneModelChange(mode: 'span' | 'trace') {
@@ -233,7 +232,8 @@ export default defineComponent({
                 extCls: 'trace-explore-application-select-popover',
               }}
               clearable={false}
-              modelValue={this.store.application?.metric_result_table_id}
+              modelValue={this.store.appName}
+              filterable
               onSelect={this.handleApplicationChange}
               onToggle={this.handleApplicationToggle}
             >
@@ -241,12 +241,12 @@ export default defineComponent({
                 trigger: () => (
                   <div class='application-select-trigger'>
                     <span class='data-prefix'>{this.$t('应用')}：</span>
-                    {this.store.application && (
+                    {this.store.currentApp && (
                       <span
                         class='application-name'
                         // v-bk-overflow-tips
                       >
-                        {this.store.application.app_alias}({this.store.application.app_name})
+                        {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
                       </span>
                     )}
 
@@ -260,7 +260,7 @@ export default defineComponent({
                   this.sortList.map(item => (
                     <Select.Option
                       id={item.app_name}
-                      key={item.trace_result_table_id}
+                      key={item.app_name}
                       name={item.app_name}
                     >
                       <div class={['application-item-name', { is_top: item.isTop }]}>
