@@ -575,21 +575,30 @@ class GraphDrillDownResource(Resource):
 
     many_response_data = True
 
-    def get_average(self, datapoints: list[tuple[Optional[float], int]]) -> float:
+    def get_value(self, params: dict, datapoints: list[tuple[Optional[float], int]]) -> float:
         """
         计算平均值
         """
-        sum_value, index = 0, 0
-        for point in datapoints:
-            if point[0] is None:
-                continue
-            sum_value += point[0]
-            index += 1
+        method = params["query_config"][0]["metric"][0]["method"].lower()
+        values = [point[0] for point in datapoints if point[0] is not None]
 
-        if index == 0:
+        if not values:
             return 0
 
-        return round(sum_value / index, 3)
+        cal_funcs = {
+            "sum": lambda x: sum(x),
+            "avg": lambda x: sum(x) / len(x),
+            "max": lambda x: max(x),
+            "min": lambda x: min(x),
+            "count": lambda x: sum(x),
+        }
+
+        # 检查方法是否支持
+        if method not in cal_funcs:
+            raise ValueError(f"not support method: {method}")
+
+        cal_value = cal_funcs[method](values)
+        return round(cal_value, 3)
 
     def perform_request(self, params: dict) -> list:
         for item in params["query_configs"]:
@@ -597,17 +606,18 @@ class GraphDrillDownResource(Resource):
         result = resource.grafana.graph_unify_query(params)
 
         dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(
-            lambda: {"value": 0, "percentage": 0, "compare_values": {}}
+            lambda: {"value": 0, "percentage": 0, "compare_values": {}, "unit": ""}
         )
 
         # 计算平均值
         for item in result["series"]:
             dimension_tuple = tuple(sorted(item["dimensions"].items()))
-            avg_value = self.get_average(item["datapoints"])
+            value = self.get_value(params, item["datapoints"])
             if item.get("time_offset") and item["time_offset"] == "current":
-                dimensions_values[dimension_tuple]["value"] = avg_value
+                dimensions_values[dimension_tuple]["value"] = value
             else:
-                dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = avg_value
+                dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = value
+            dimensions_values[dimension_tuple]["unit"] = item.get("unit") or ""
 
         # 计算占比
         sum_value = sum([x["value"] for x in dimensions_values.values()])
@@ -620,6 +630,7 @@ class GraphDrillDownResource(Resource):
             data = {
                 "dimensions": dict(dimension_tuple),
                 "value": dimension_value["value"],
+                "unit": dimension_value["unit"],
                 "percentage": dimension_value["percentage"],
                 "compare_values": [
                     {
