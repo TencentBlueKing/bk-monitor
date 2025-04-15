@@ -119,20 +119,20 @@ paths:
     get:
       operationId: get_exist_reports
       description: 获取已存在报表
-    x-bk-apigateway-resource:
-      isPublic: false
-      allowApplyPermission: true
-      matchSubpath: false
-      backend:
-        type: HTTP
-        method: get
-        path: /api/v4/new_report/get_exist_reports/
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
         matchSubpath: false
-      authConfig:
-        appVerifiedRequired: true
-        userVerifiedRequired: false
-        resourcePermissionRequired: true
-      descriptionEn: get exist reports
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/new_report/get_exist_reports/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get exist reports
   /app/new_report/get_report_variables/:
     get:
       operationId: get_report_variables
