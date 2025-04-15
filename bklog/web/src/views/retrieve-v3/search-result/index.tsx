@@ -32,6 +32,7 @@ import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
 import './index.scss';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
 export default defineComponent({
   name: 'v3-container',
@@ -49,6 +50,10 @@ export default defineComponent({
         }
       },
     );
+
+    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, item => {
+      activeTab.value = item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin';
+    });
 
     const debounceUpdateTabValue = debounce(() => {
       const isClustering = activeTab.value === 'clustering';
