@@ -579,7 +579,7 @@ class GraphDrillDownResource(Resource):
         """
         计算平均值
         """
-        method = params["query_config"][0]["metric"][0]["method"].lower()
+        method = params["query_configs"][0]["metric"][0]["method"].lower()
         values = [point[0] for point in datapoints if point[0] is not None]
 
         if not values:
