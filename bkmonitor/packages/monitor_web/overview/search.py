@@ -20,7 +20,7 @@ from bkmonitor.iam.drf import filter_data_by_permission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from core.drf_resource import api
@@ -297,12 +297,14 @@ class ApmApplicationSearchItem(SearchItem):
         """
         Search the application by application name
         """
+        bk_tenant_id = get_request_tenant_id()
+
         query_filter = Q(app_alias__icontains=query)
         if cls.RE_APP_NAME.match(query):
             query_filter |= Q(app_name__icontains=query)
 
         # 业务过滤
-        applications = Application.objects.filter(query_filter)
+        applications = Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(query_filter)
         if not applications:
             return
 

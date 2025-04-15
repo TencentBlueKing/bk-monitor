@@ -22,6 +22,7 @@ from bk_dataview.models import Dashboard
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata.models import Space, SpaceType
@@ -73,8 +74,9 @@ class ApmApplicationProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         queryset = []
         with_path = False
+        bk_tenant_id = get_request_tenant_id()
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = Application.objects.all()
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -89,7 +91,7 @@ class ApmApplicationProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(app_alias__icontains=keyword) | Q(app_name__icontains=keyword)
 
-            queryset = Application.objects.filter(q_filter)
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
 
         if not with_path:
             results = [
@@ -128,8 +130,9 @@ class ApmApplicationProvider(BaseResourceProvider):
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
+        bk_tenant_id = get_request_tenant_id()
         if not filter.parent or "id" not in filter.parent:
-            queryset = Application.objects.all()
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
             queryset = Application.objects.filter(bk_biz_id=parent_id)
@@ -144,8 +147,9 @@ class ApmApplicationProvider(BaseResourceProvider):
         return ListResult(results=results, count=queryset.count())
 
     def search_instance(self, filter, page, **options):
+        bk_tenant_id = get_request_tenant_id()
         if not filter.parent or "id" not in filter.parent:
-            queryset = Application.objects.all()
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
             queryset = Application.objects.filter(bk_biz_id=parent_id)

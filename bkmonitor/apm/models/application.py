@@ -31,6 +31,7 @@ from bkmonitor.utils.cipher import (
 )
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from constants.apm import TelemetryDataType
+from constants.common import DEFAULT_TENANT_ID
 
 
 class ApmApplication(AbstractRecordModel):
@@ -48,6 +49,8 @@ class ApmApplication(AbstractRecordModel):
     is_enabled_trace = models.BooleanField("是否开启 Traces 功能", default=True)
     is_enabled_metric = models.BooleanField("是否开启 Metrics 功能", default=True)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
+    # 租户id
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
 
     class Meta:
         unique_together = ("app_name", "bk_biz_id")
