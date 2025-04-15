@@ -437,7 +437,11 @@ class CustomReportSubscription(models.Model):
                 old_subscription_params_md5 = count_md5(sub_config_obj.config)
                 new_subscription_params_md5 = count_md5(subscription_params)
                 if old_subscription_params_md5 != new_subscription_params_md5:
-                    logger.info("subscription task config has changed, update it.")
+                    logger.info(
+                        "subscription task config has changed, update it."
+                        f"\n【old】: {sub_config_obj.config}"
+                        f"\n【new】: {subscription_params}"
+                    )
                     result = api.node_man.update_subscription(subscription_params)
                     logger.info("update subscription successful, result:{}".format(result))
                     qs.update(config=subscription_params)
