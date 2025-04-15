@@ -237,6 +237,13 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
 
 
 class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
+    """
+    判断是否有服务关联日志
+    1. 是否开启了日志上报能力
+    2. 是否手动关联了日志平台的日志索引集
+    3. 自动关联（根据 pod 等信息，关联 pod 相关日志索引集）
+    """
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
@@ -246,7 +253,26 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, data):
-        return any(log_relation_list(**data))
+        bk_biz_id = data["bk_biz_id"]
+        app_name = data["app_name"]
+        service_name = data["service_name"]
+
+        # 1.是否开启了日志
+        if ServiceLogHandler.get_log_datasource(bk_biz_id=bk_biz_id, app_name=app_name):
+            return True
+
+        # 2. 是否手动关联了日志索引集
+        if ServiceLogHandler.get_log_relation(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
+            return True
+
+        # 3. 是否有关联的 pod 日志
+        start_time = data.get("start_time")
+        end_time = data.get("end_time")
+        if ServiceLogHandler.list_indexes_by_relation(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, start_time=start_time, end_time=end_time
+        ):
+            return True
+        return False
 
 
 class ServiceRelationListResource(Resource, HostIndexQueryMixin):
