@@ -565,6 +565,7 @@ class GraphDrillDownResource(Resource):
         dimensions = serializers.DictField(label="维度值", allow_null=True)
         value = serializers.FloatField(label="当前值", allow_null=True)
         percentage = serializers.FloatField(label="占比", allow_null=True)
+        unit = serializers.CharField(label="单位", allow_blank=True)
 
         class CompareValueSerializer(serializers.Serializer):
             value = serializers.FloatField(label="对比值", allow_null=True)
@@ -579,11 +580,11 @@ class GraphDrillDownResource(Resource):
         """
         计算平均值
         """
-        method = params["query_configs"][0]["metric"][0]["method"].lower()
+        method = params["query_configs"][0]["metrics"][0]["method"].lower()
         values = [point[0] for point in datapoints if point[0] is not None]
 
         if not values:
-            return 0
+            return None
 
         cal_funcs = {
             "sum": lambda x: sum(x),
@@ -606,13 +607,15 @@ class GraphDrillDownResource(Resource):
         result = resource.grafana.graph_unify_query(params)
 
         dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(
-            lambda: {"value": 0, "percentage": 0, "compare_values": {}, "unit": ""}
+            lambda: {"value": None, "percentage": None, "compare_values": {}, "unit": ""}
         )
 
         # 计算平均值
         for item in result["series"]:
             dimension_tuple = tuple(sorted(item["dimensions"].items()))
             value = self.get_value(params, item["datapoints"])
+
+            # 判断是当前值还是时间对比值
             if item.get("time_offset") and item["time_offset"] == "current":
                 dimensions_values[dimension_tuple]["value"] = value
             else:
@@ -620,9 +623,11 @@ class GraphDrillDownResource(Resource):
             dimensions_values[dimension_tuple]["unit"] = item.get("unit") or ""
 
         # 计算占比
-        sum_value = sum([x["value"] for x in dimensions_values.values()])
+        sum_value = sum([x["value"] for x in dimensions_values.values() if x["value"] is not None])
         for item in dimensions_values.values():
-            item["percentage"] = round(item["value"] / sum_value * 100, 3) if sum_value else None
+            item["percentage"] = (
+                round(item["value"] / sum_value * 100, 3) if sum_value and item["value"] is not None else None
+            )
 
         # 数据组装
         rsp_data = []
@@ -636,8 +641,9 @@ class GraphDrillDownResource(Resource):
                     {
                         "value": value,
                         "offset": offset,
+                        # 波动值
                         "fluctuation": round((value - dimension_value["value"]) / dimension_value["value"] * 100, 3)
-                        if dimension_value["value"]
+                        if dimension_value["value"] and value is not None
                         else None,
                     }
                     for offset, value in dimension_value["compare_values"].items()
