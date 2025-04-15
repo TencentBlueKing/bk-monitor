@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { h, computed, ref } from 'vue';
+import { h, computed } from 'vue';
 
 import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
@@ -41,11 +41,13 @@ export default () => {
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.state.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
-
-  // 用于记录当前活动排序的字段
-  const activeSortField = ref(null);
+  const activeSortField = computed(() => store.state.indexItem.sort_list);
 
   const renderHead = (field, onClickFn) => {
+    const currentSort = activeSortField.value?.[0] || null;
+    const currentSortField = currentSort ? currentSort[0] : null;
+    const isDesc = currentSort ? currentSort[1] === 'desc' : false;
+    const isAsc = currentSort ? currentSort[1] === 'asc' : false;
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
       const fieldName = getFieldNameByField(field);
@@ -93,7 +95,7 @@ export default () => {
               if (nextOrder !== null) {
                 targets.forEach(el => {
                   if (el.classList.contains(nextOrder)) {
-                    el.classList.add('active');
+                    // el.classList.add('active');
                   }
                 });
               }
@@ -102,7 +104,6 @@ export default () => {
                 ascending: 'asc',
                 descending: 'desc',
               };
-              activeSortField.value = nextOrder ? field.field_name : null;
               onClickFn(sortMap[nextOrder]);
             },
           },
@@ -146,10 +147,10 @@ export default () => {
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
                 h('i', {
-                  class: `bk-table-sort-caret ascending ${activeSortField.value === field.field_name ? 'active' : ''}`,
+                  class: `bk-table-sort-caret ascending ${currentSortField === field.field_name && isAsc ? 'active' : ''}`,
                 }),
                 h('i', {
-                  class: `bk-table-sort-caret descending ${activeSortField.value === field.field_name ? 'active' : ''}`,
+                  class: `bk-table-sort-caret descending ${currentSortField === field.field_name && isDesc ? 'active' : ''}`,
                 }),
               ])
             : '',
