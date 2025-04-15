@@ -36,6 +36,7 @@ export interface KeywordItem {
   text: string;
   className: string;
   backgroundColor: string;
+  textReg: RegExp;
 }
 
 const DEFAULT_CONFIG: Required<HighlightConfig> = {
@@ -263,8 +264,8 @@ export default class OptimizedHighlighter {
     });
   }
 
-  private getBackgroundColor(keyword: string | RegExp): string {
-    return this.currentKeywords.find(k => k.text === keyword)?.backgroundColor || '';
+  private getBackgroundColor(keyword: string): string {
+    return this.currentKeywords.find(k => k.textReg.test(keyword))?.backgroundColor || '';
   }
 
   private resetState(): void {

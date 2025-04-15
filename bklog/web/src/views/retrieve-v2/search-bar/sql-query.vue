@@ -223,7 +223,7 @@
       toValue = to;
     }
     if (modelValue.value !== value) {
-      if (!to && buffer && type === 'field') {
+      if (buffer && type === 'field') {
         toValue = from + buffer;
       }
       setEditorContext(value, from, toValue);

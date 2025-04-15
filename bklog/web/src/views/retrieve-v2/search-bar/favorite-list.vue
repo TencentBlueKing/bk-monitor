@@ -19,12 +19,13 @@
   const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
 
   const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+  const regFormat = str => `${str}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
   const regExpStringList = computed(() =>
     (props.searchValue ?? '')
       .split(separator)
       .filter(item => item.length)
-      .map(k => getRegExp(`^${k}`, 'i')),
+      .map(k => new RegExp(regFormat(k).replace(':', '\\s*:\\s*'), 'ig')),
   );
 
   const isSqlMode = item => {
@@ -32,8 +33,8 @@
   };
 
   // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
-  const favoriteList = computed(() =>
-    favoriteGroupList.value
+  const favoriteList = computed(() => {
+    const filter = favoriteGroupList.value
       .filter(item => {
         return (
           (isSqlMode(item) && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
@@ -41,12 +42,21 @@
         );
       })
       .filter(child => {
+        if (child.favorite_type === 'chart') {
+          return (
+            regExpStringList.value.length &&
+            regExpStringList.value.every(reg => reg.test(child.params?.chart_params?.sql))
+          );
+        }
+
         return (
           child.params?.keyword === '*' ||
           (regExpStringList.value.length && regExpStringList.value.every(reg => reg.test(child.params?.keyword)))
         );
-      }),
-  );
+      });
+
+    return filter;
+  });
 
   const handleClickFavorite = item => {
     emit('change', item);

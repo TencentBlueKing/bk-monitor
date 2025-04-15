@@ -56,7 +56,7 @@
               minHeight="32px"
               maxWidth="400px"
               minWidth="400px"
-              v-model="highlightValue"
+              :value="highlightValue"
               placeholder="输入后按 Enter..."
               template="tag-input"
               @change="handleHighlightEnter"
@@ -245,7 +245,8 @@
           },
         };
       },
-      handleHighlightEnter() {
+      handleHighlightEnter(valList) {
+        this.highlightValue = valList.map(v => v.split(/\s+/)).flat();
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       },
 

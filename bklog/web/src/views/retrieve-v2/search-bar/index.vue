@@ -404,10 +404,6 @@
     }
   };
 
-  const handlePopupChange = ({ isShow }) => {
-    isPopupShow = isShow;
-  };
-
   useResizeObserve(refRootElement, () => {
     if (refRootElement.value) {
       handleHeightChange(refRootElement.value.offsetHeight);
@@ -513,13 +509,11 @@
           v-if="activeIndex === 0"
           v-model="uiQueryValue"
           @change="handleQueryChange"
-          @popup-change="handlePopupChange"
         ></UiInput>
         <SqlQuery
           v-if="activeIndex === 1"
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
-          @popup-change="handlePopupChange"
           @change="handleSqlQueryChange"
         ></SqlQuery>
         <div

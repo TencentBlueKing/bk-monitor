@@ -201,6 +201,7 @@ class RetrieveHelper {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: colors[index % colors.length],
+          textReg: new RegExp(`^${keyword}$`),
         };
       }),
       reset,

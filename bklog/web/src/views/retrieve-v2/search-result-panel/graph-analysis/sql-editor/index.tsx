@@ -163,6 +163,9 @@ export default defineComponent({
           isPreviewSqlShow.value = true;
           callback?.();
         })
+        .catch(err => {
+          console.error(err);
+        })
         .finally(() => {
           isSyncSqlRequesting.value = false;
         });

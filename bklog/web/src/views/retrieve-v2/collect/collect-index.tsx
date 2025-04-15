@@ -349,7 +349,7 @@ export default class CollectIndex extends tsc<IProps> {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(favoriteItem) {
     const getRouteQueryParams = () => {
       const { ids, isUnionIndex, search_mode } = this.$store.state.indexItem;
       const unionList = this.$store.state.unionIndexList;
@@ -387,7 +387,9 @@ export default class CollectIndex extends tsc<IProps> {
       datePickerValue: this.$store.state.indexItem.datePickerValue,
     });
 
-    Object.assign(query, resolver.resolveParamsToUrl());
+    Object.assign(query, resolver.resolveParamsToUrl(), {
+      tab: favoriteItem.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
+    });
     if (!isEqual(params, this.$route.params) || !isEqual(query, this.$route.query)) {
       this.$router.replace({
         params,
@@ -403,7 +405,7 @@ export default class CollectIndex extends tsc<IProps> {
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
       // 清空当前检索条件
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
-      this.setRouteParams();
+      this.setRouteParams(value);
       setTimeout(() => {
         RetrieveHelper.setFavoriteActive(this.activeFavorite);
       });
@@ -444,7 +446,7 @@ export default class CollectIndex extends tsc<IProps> {
       search_mode: cloneValue.search_mode,
     });
 
-    this.setRouteParams();
+    this.setRouteParams(value);
     this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
