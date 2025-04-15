@@ -354,15 +354,14 @@ export default defineComponent({
           fixedInstance.setProps({
             content: focusFixedElement,
           });
+          fixedInstance.repositionTippyInstance();
 
           resolve(true);
         });
       });
     };
 
-    const handleDeleteItemClick = (e, val) => {
-      stopDefaultPrevented(e);
-
+    const emitDeleteItem = val => {
       const targetValue = [];
       valueList.value.forEach(v => {
         if (v !== val) {
@@ -371,6 +370,11 @@ export default defineComponent({
       });
 
       emit('change', targetValue);
+    };
+
+    const handleDeleteItemClick = (e, val) => {
+      stopDefaultPrevented(e);
+      emitDeleteItem(val);
       refTagInputElement.value?.focus();
     };
 
@@ -406,6 +410,13 @@ export default defineComponent({
       return refTagInputContainer.value?.querySelector(selector);
     };
 
+    let isEmptyInput = false;
+
+    const handleInputKeydown = (e: KeyboardEvent) => {
+      const input = e.target as HTMLInputElement;
+      isEmptyInput = input.value.length === 0;
+    };
+
     /**
      * Enter 当前键入值
      * @param e
@@ -422,11 +433,13 @@ export default defineComponent({
         emit('enter');
       }
 
-      if (e.key === 'Backspace') {
-        if (inputTagValue.value.length === 0) {
-          const target = getDelTargetElement(valueList.value.length - 1);
-          handleDeleteItemClick({ target }, valueList.value.at(-1));
-          setTimeout(autoFocusInput);
+      if (e.key === 'Backspace' && !props.foucsFixed) {
+        const input = e.target as HTMLInputElement;
+        if (input.value.length === 0) {
+          if (isEmptyInput) {
+            const target = getDelTargetElement(valueList.value.length - 1);
+            handleDeleteItemClick({ target }, valueList.value.at(-1));
+          }
         }
       }
     };
@@ -471,6 +484,7 @@ export default defineComponent({
       if (focusFixedElement) {
         focusFixedElement.addEventListener('click', handleFixedValueListClick);
         focusFixedElement.addEventListener('keyup', handleFixedValueInputKeyup);
+        focusFixedElement.addEventListener('keydown', handleFixedValueInputKeydown);
         focusFixedElement.addEventListener('input', handleCloneFixedInputChange);
       }
     };
@@ -559,14 +573,38 @@ export default defineComponent({
       });
     };
 
+    /**
+     *
+     * @param e
+     */
+    const handleFixedValueInputKeydown = (e: KeyboardEvent) => {
+      const input = e.target as HTMLInputElement;
+      isEmptyInput = input.value === '';
+    };
+
+    /**
+     *
+     * @param e
+     * @returns
+     */
     const handleFixedValueInputKeyup = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).hasAttribute('data-bklog-choice-text-input')) {
+      const target = e.target as HTMLInputElement;
+      if (target.hasAttribute('data-bklog-choice-text-input')) {
         handleInputKeyup(e);
         if (e.key === 'Enter') {
           updateFiexedInstanceContent().then(() => {
-            nextTick(autoFocusInput);
             setFixedOverflowY();
+            setTimeout(autoFocusInput);
           });
+        }
+
+        if (e.key === 'Backspace' && target.value === '') {
+          if (isEmptyInput) {
+            emitDeleteItem(valueList.value.at(-1));
+            target.closest('.bklog-choice-value-item')?.remove();
+            setFixedOverflowY();
+            setTimeout(autoFocusInput);
+          }
         }
       }
     };
@@ -882,6 +920,7 @@ export default defineComponent({
                 data-bklog-choice-text-input
                 onInput={handleInputValueChange}
                 onKeyup={handleInputKeyup}
+                onKeydown={handleInputKeydown}
               ></input>
             </li>
           );

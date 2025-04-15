@@ -155,6 +155,10 @@ export default defineComponent({
       instance.hide(delay);
     };
 
+    const setProps = (prop: TippyProps) => {
+      instance.setProps(prop);
+    };
+
     onMounted(() => {
       resolveOptions();
     });
@@ -178,7 +182,7 @@ export default defineComponent({
       }
     });
 
-    expose({ show, hide });
+    expose({ show, hide, setProps });
 
     return () => (
       <div ref={refTargetElement}>

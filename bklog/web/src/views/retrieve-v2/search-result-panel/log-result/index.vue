@@ -74,39 +74,30 @@
             :total-count="totalCount"
           >
           </export-log>
-          <bk-popover
-            ref="fieldsSettingPopper"
-            :distance="15"
-            :offset="0"
-            :on-hide="handleDropdownHide"
-            :on-show="handleDropdownShow"
-            :tippy-options="tippyOptions"
-            animation="slide-toggle"
-            placement="bottom-end"
-            theme="light bk-select-dropdown"
-            trigger="click"
+          <BkLogPopover
+            ref="refFieldsSettingPopper"
+            content-class="bklog-v3-select-dropdown"
+            :options="tippyOptions"
+            :beforeHide="handleBeforeHide"
           >
-            <slot name="trigger">
-              <div class="operation-icon">
-                <span
-                  style="font-size: 16px"
-                  class="icon bklog-icon bklog-shezhi"
-                ></span>
-              </div>
-            </slot>
+            <div class="operation-icon">
+              <span
+                style="font-size: 16px"
+                class="icon bklog-icon bklog-shezhi"
+              ></span>
+            </div>
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
                   :field-alias-map="fieldAliasMap"
-                  :is-show="showFieldsSetting"
+                  :is-show="true"
                   :retrieve-params="retrieveParams"
                   config-type="list"
                   @cancel="cancelModifyFields"
-                  @set-popper-instance="setPopperInstance"
                 />
               </div>
             </template>
-          </bk-popover>
+          </BkLogPopover>
         </div>
       </div>
     </div>
@@ -127,6 +118,7 @@
   import RetrieveHelper from '../../../retrieve-helper';
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
   import ResultStorage from '../../components/result-storage/index';
+  import BkLogPopover from '../../../../components/bklog-popover/index';
 
   export default {
     components: {
@@ -135,6 +127,7 @@
       ExportLog,
       bklogTagChoice,
       ResultStorage,
+      BkLogPopover,
     },
     inheritAttrs: false,
     props: {
@@ -161,9 +154,8 @@
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
         tippyOptions: {
-          appendTo: () => document.body,
-          boundary: 'body',
-          hideOnClick: false,
+          maxWidth: 1200,
+          arrow: false,
         },
       };
     },
@@ -217,8 +209,22 @@
     mounted() {
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       RetrieveHelper.setMarkInstance();
+
+      if (document.body.offsetHeight < 900) {
+        this.$refs.refFieldsSettingPopper?.setProps({
+          placement: 'auto',
+          arrow: true,
+        });
+      }
     },
     methods: {
+      handleBeforeHide(e) {
+        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+          return false;
+        }
+
+        return true;
+      },
       handleTagRender(item, index) {
         const colors = [
           'rgba(245, 149, 0, 0.3)',
@@ -236,30 +242,16 @@
       handleHighlightEnter() {
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       },
-      // 字段设置
-      handleDropdownShow() {
-        this.showFieldsSetting = true;
-      },
-      handleDropdownHide() {
-        this.showFieldsSetting = false;
-        localStorage.setItem('fieldSettingsIsShowLeft', false);
-      },
+
       cancelModifyFields() {
         this.closeDropdown();
       },
       closeDropdown() {
-        this.showFieldsSetting = false;
-        this.$refs.fieldsSettingPopper?.instance.hide();
-        this.$refs.fieldsSettingPopper?.instance.hide();
+        this.$refs.refFieldsSettingPopper?.hide();
       },
-      setPopperInstance(status = true) {
-        this.$refs.fieldsSettingPopper?.instance.set({
-          hideOnClick: status,
-        });
-      },
+
       handleAddNewConfig() {
-        this.$refs.configSelectRef?.close();
-        this.$refs.fieldsSettingPopper?.instance.show();
+        this.$refs.refFieldsSettingPopper.show();
       },
       handleClickTableBtn(active = 'table') {
         this.contentType = active;

@@ -82,143 +82,7 @@
           >
             <span class="bklog-icon bklog-shezhi"></span>
             <template #content>
-              <div class="grade-title">{{ $t('分级设置') }}</div>
-              <div class="grade-row">
-                <div class="grade-label required">{{ $t('字段设置') }}</div>
-                <div class="grade-field-setting">
-                  <bk-select
-                    style="width: 240px"
-                    v-model="gradeValue"
-                    ext-popover-cls="bklog-popover-stop"
-                    searchable
-                  >
-                    <bk-option
-                      v-for="option in gradeCategory"
-                      :id="option.id"
-                      :key="option.id"
-                      :name="option.name"
-                    >
-                    </bk-option>
-                  </bk-select>
-                  <template v-if="gradeValue === 'custom'">
-                    <bk-select
-                      style="width: 320px; margin-left: 10px"
-                      ext-popover-cls="bklog-popover-stop"
-                      v-model="gradeFieldValue"
-                      searchable
-                    >
-                      <bk-option
-                        v-for="option in fieldList"
-                        :id="option.field_name"
-                        :key="option.field_name"
-                        :name="`${option.field_name}(${option.field_alias || option.field_name})`"
-                      >
-                      </bk-option>
-                    </bk-select>
-                  </template>
-                </div>
-              </div>
-              <div class="grade-row">
-                <div class="grade-label">{{ $t('字段列表') }}</div>
-                <div class="grade-table">
-                  <div class="grade-table-header">
-                    <div
-                      style="width: 64px"
-                      class="grade-table-col"
-                    >
-                      颜色
-                    </div>
-                    <div
-                      style="width: 177px"
-                      class="grade-table-col"
-                    >
-                      字段定义
-                    </div>
-                    <div
-                      style="width: 330px"
-                      class="grade-table-col"
-                    >
-                      正则表达式
-                    </div>
-                  </div>
-                  <div class="grade-table-body">
-                    <template v-for="item in gradeSettingList">
-                      <div
-                        :class="['grade-table-row', { readonly: item.id === 'others' }]"
-                        :key="item.id"
-                      >
-                        <div
-                          style="width: 64px"
-                          class="grade-table-col"
-                        >
-                          <span
-                            :style="{
-                              width: '16px',
-                              height: '16px',
-                              background: item.color,
-                              borderRadius: '1px',
-                            }"
-                          ></span>
-                          <template v-if="item.id !== 'others' && false">
-                            <bk-select
-                              style="width: 32px"
-                              class="bklog-v3-grade-color-select"
-                              v-model="item.color"
-                              :clearable="false"
-                              behavior="simplicity"
-                              ext-popover-cls="bklog-v3-grade-color-list bklog-popover-stop"
-                              size="small"
-                            >
-                              <bk-option
-                                v-for="option in colorList"
-                                :id="option.name"
-                                :key="option.id"
-                                :name="option.name"
-                              >
-                                <div
-                                  :style="{
-                                    width: '100%',
-                                    height: '16px',
-                                    background: option.name,
-                                  }"
-                                ></div>
-                              </bk-option>
-                            </bk-select>
-                          </template>
-                        </div>
-                        <div
-                          style="width: 177px"
-                          class="grade-table-col"
-                        >
-                          {{ item.name }}
-                        </div>
-                        <div
-                          style="width: 330px"
-                          class="grade-table-col"
-                        >
-                          {{ item.regExp }}
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </div>
-              <div class="grade-row grade-footer">
-                <bk-button
-                  style="width: 64px; height: 32px; margin-right: 8px"
-                  theme="primary"
-                  @click="handleSaveGradeSettingClick"
-                >
-                  {{ $t('确定') }}
-                </bk-button>
-                <bk-button
-                  style="width: 64px; height: 32px"
-                  theme="default"
-                  @click="handleSaveGradeSettingClick"
-                >
-                  {{ $t('取消') }}
-                </bk-button>
-              </div>
+              <GradeOption></GradeOption>
             </template>
           </BklogPopover>
         </div>
@@ -244,12 +108,14 @@
 
   import ChartMenu from './chart-menu.vue';
   import BklogPopover from '../../bklog-popover';
+  import GradeOption from './grade-option';
 
   @Component({
     name: 'chart-title-v2',
     components: {
       ChartMenu,
       BklogPopover,
+      GradeOption,
     },
   })
   export default class ChartTitle extends Vue {
@@ -271,85 +137,10 @@
       { id: '1d', name: '1 d' },
     ];
 
-    /**
-     * 分级类别
-     */
-    gradeCategory = [
-      {
-        id: 'normal',
-        name: '默认配置',
-      },
-      {
-        id: 'custom',
-        name: '自定义',
-      },
-    ];
-
-    colorList = [
-      { id: 'fatal', name: '#D46D5D' },
-      { id: 'error', name: '#F59789' },
-      { id: 'warn', name: '#F5C78E' },
-      { id: 'info', name: '#6FC5BF' },
-      { id: 'debug', name: '#92D4F1' },
-      { id: 'trace', name: '#A3B1CC' },
-    ];
-
-    gradeValue = 'normal';
-
-    /**
-     * 分级字段
-     */
-    gradeFieldValue = null;
-
     tippyOptions = {
       appendTo: document.body,
       hideOnClick: false,
     };
-
-    gradeSettingList = [
-      {
-        id: 'fatal',
-        color: '#D46D5D',
-        name: 'fatal',
-        regExp: '/\\b(?:FATAL|CRITICAL|EMERGENCY)\\b/i',
-      },
-      {
-        id: 'error',
-        color: '#F59789',
-        name: 'error',
-        regExp: '/\\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\\b/i',
-      },
-      {
-        id: 'warn',
-        color: '#F5C78E',
-        name: 'warn',
-        regExp: '/\\b(?:WARNING|WARN|ALERT|NOTICE)\\b/i',
-      },
-      {
-        id: 'info',
-        color: '#6FC5BF',
-        name: 'info',
-        regExp: '/\\b(?:INFO|INFORMATION)\\b/i',
-      },
-      {
-        id: 'debug',
-        color: '#92D4F1',
-        name: 'debug',
-        regExp: '/\\b(?:DEBUG|DIAGNOSTIC)\\b/i',
-      },
-      {
-        id: 'trace',
-        color: '#A3B1CC',
-        name: 'trace',
-        regExp: '/\\b(?:TRACE|TRACING)\\b/i',
-      },
-      {
-        id: 'others',
-        color: '#DCDEE5',
-        name: 'others',
-        regExp: '--',
-      },
-    ];
 
     get retrieveParams() {
       return this.$store.getters.retrieveParams;
@@ -394,8 +185,9 @@
       const target = e.target as HTMLElement;
 
       if (
-        (target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
-        target.closest('.bk-select-dropdown-content.bklog-popover-stop')
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
+        target.classList.contains('bklog-popover-stop')
       ) {
         return false;
       }
@@ -488,20 +280,6 @@
             transform: rotate(-90deg);
           }
         }
-
-        // &::after {
-        //   /* stylelint-disable-next-line declaration-no-important */
-        //   font-family: 'icon-monitor' !important;
-        //   content: '\e61c';
-        //   font-size: 20px;
-        //   width: 24px;
-        //   height: 16px;
-        //   align-items: center;
-        //   justify-content: center;
-        //   color: #979ba5;
-        //   margin-right: auto;
-        //   display: none;
-        // }
       }
 
       .sub-title {
@@ -585,12 +363,15 @@
       }
 
       .grade-table {
-        border-top: 1px solid #dcdee5;
         border-left: 1px solid #dcdee5;
 
         .grade-table-header {
           display: flex;
-          background: #f0f1f5;
+
+          .grade-table-col {
+            border-top: 1px solid #dcdee5;
+            background: #f0f1f5;
+          }
         }
 
         .grade-table-col {

@@ -326,27 +326,8 @@
       this.currentClickConfigID = this.filedSettingConfigID;
       this.initRequestConfigListShow();
     },
-    mounted() {
-      window.addEventListener('click', this.handleDocumentClick);
-    },
-    unmounted() {
-      window.removeEventListener('click', this.handleDocumentClick);
-    },
-    methods: {
-      /**
-       * @description 自定义监听父级 popover 点击关闭触发事件
-       * @param {Event} e 事件对象
-       *
-       */
-      handleDocumentClick(e) {
-        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
-          return;
-        }
 
-        if (!this.$el.contains(e.target)) {
-          this.$emit('cancel');
-        }
-      },
+    methods: {
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {
         // 如果是从字段模板打开则需要请求接口获取字段列表及配置
