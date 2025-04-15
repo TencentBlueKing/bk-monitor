@@ -37,6 +37,7 @@ import {
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
+import { useIncidentInject } from '../utils';
 
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
@@ -78,6 +79,7 @@ export default defineComponent({
     const isShowDiagnosis = inject<Ref<boolean>>('isShowDiagnosis');
     const alertAggregateParams = deepRef({});
     const refNav = deepRef(null);
+    const incidentId = useIncidentInject();
     const tabList = [
       {
         name: 'FailureHandle',
@@ -165,7 +167,15 @@ export default defineComponent({
       if (active.value === 'FailureHandle') {
         refNav.value?.refreshTree();
       } else {
-        incidentAlertAggregate(alertAggregateParams.value)
+        // 默认请求参数
+        const defaultParams = {
+          id: incidentId.value,
+          aggregate_bys: [],
+          bk_biz_ids: [-1],
+        };
+        incidentAlertAggregate(
+          Object.keys(alertAggregateParams.value).length > 0 ? alertAggregateParams.value : defaultParams
+        )
           .then(res => {
             const list: IAggregationRoot[] = Object.values(res);
             const data = list.filter(item => item.count !== 0);
@@ -233,7 +243,6 @@ export default defineComponent({
           width={'500px'}
           active={this.active}
           tabList={this.showTabList}
-          top={-16}
           onChange={this.handleChange}
         />
         <div class='failure-nav-main'>

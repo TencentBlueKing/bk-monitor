@@ -127,6 +127,7 @@ export default defineComponent({
     const timer = deepRef();
     const isShowDiagnosis = shallowRef(false);
     const currentAlertList = deepRef({});
+    const isCollapsed = deepRef(false);
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -393,6 +394,9 @@ export default defineComponent({
     };
     const goAlertList = data => {
       refContent.value?.goAlertDetail(data);
+    }
+    const handleCollapseChange = val => {
+      isCollapsed.value = val;
     };
     return {
       incidentDetailData,
@@ -420,6 +424,8 @@ export default defineComponent({
       changeTab,
       goAlertList,
       currentAlertList,
+      isCollapsed,
+      handleCollapseChange,
     };
   },
   render() {
@@ -461,8 +467,10 @@ export default defineComponent({
                 currentNode={this.currentNode}
                 filterSearch={this.filterSearch}
                 incidentDetail={this.incidentDetailData}
+                isCollapsed={this.isCollapsed}
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
+                onCloseCollapse={this.handleCollapseChange}
                 onRefresh={this.refresh}
               />
             ),
@@ -470,8 +478,10 @@ export default defineComponent({
           auto-minimize={400}
           border={false}
           initial-divide={500}
+          isCollapsed={this.isCollapsed}
           max={850}
           collapsible
+          onCollapse-change={this.handleCollapseChange}
         />
       </div>
     );
