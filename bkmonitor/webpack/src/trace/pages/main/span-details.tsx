@@ -170,6 +170,13 @@ export default defineComponent({
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
 
+    // 获取日志搜索的参数，日志检索跳转时需要用到
+    const logFilterParams = ref();
+    const logFilterParamsFn = params => {
+      logFilterParams.value = params;
+    }
+    provide('logFilterParamsFn', logFilterParamsFn);
+
     // 用于关联日志跳转信息
     const traceId = ref('');
     provide('traceId', traceId);
@@ -948,6 +955,13 @@ export default defineComponent({
     );
 
     const activeTab = ref<TabName>('BasicInfo');
+    const mapTabText = {
+      'Container': t('容器监控'),
+      'Event': t('事件检索'),
+      'Host': t('主机监控'),
+      'Log': t('日志检索'),
+      'Profiling': t('Profiling检索'),
+    };
 
     watch(
       () => props.activeTab,
@@ -991,6 +1005,16 @@ export default defineComponent({
       //   name: 'Index'
       // }
     ];
+
+    // 快捷跳转按钮展示条件
+    const showQuickBtn = computed(() => {
+      return Object.keys(mapTabText).includes(activeTab.value)
+    })
+    // 快捷跳转文案
+    const quickText = computed(() => {
+      return mapTabText[activeTab.value] || '';
+    });
+    
 
     const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
@@ -1086,6 +1110,42 @@ export default defineComponent({
         isTabPanelLoading.value = false;
       }
     };
+
+    // 快捷跳转
+    const handleQuickJump = () => {
+      let hash = '';
+      const { app_name: appName, spanID, traceID, process: { serviceName } } = props.spanDetails;
+      switch (activeTab.value) {
+        case 'Event': {
+          hash = `#/event-explore?targets=[{"data": {"query_configs": [{"data_type_label":"event", "data_source_label":"custom", "where":[{"key":"app_name","condition":"and","value":["${appName}"],"method":"eq"},{"key":"span_id","condition":"and","value":["${spanID}"],"method":"eq"}]}]}}]`
+          break;
+        }
+        case 'Log': {
+          const { query: { addition, indexId } } = logFilterParams.value;
+          hash = `#/retrieve/${indexId}?addition=${addition}`
+          break;
+        }
+        case 'Host': {
+          // hash = `#/performance?queryString=11111111`
+          hash = '#/performance'
+          break;
+        }
+        case 'Container': {
+          // hash = `#/k8s-new?filterBy={"namespace":["aiops-default","apm-demo","bcs-system"],"workload":[],"pod":[],"container":[]}&groupBy=["namespace","pod"]&activeTab=list`
+          hash = '#/k8s-new'
+          break;
+        }
+        case 'Profiling': {
+          hash = `#/trace/profiling?target={"app_name":"${appName}","service_name":"${serviceName}"}`
+          break;
+        }
+        default:
+          break;
+      }
+      // 跳转日志不需要?bizId=XXX
+      const url = activeTab.value === 'Log' ? `${location.origin}/${hash}` : location.href.replace(location.hash, hash);;
+      window.open(url, '_blank');
+    }
 
     /** 是否显示空数据提示 */
     const showEmptyGuide = () => {
@@ -1235,6 +1295,14 @@ export default defineComponent({
                     onTabChange={v => {
                       activeTab.value = v;
                       handleActiveTabChange();
+                    }}
+                    v-slots={{
+                      setting: () => {
+                        return showQuickBtn.value && <div class='quick-jump' onClick={handleQuickJump}>
+                          {quickText.value}
+                          <i class='icon-monitor icon-fenxiang' />
+                        </div>
+                      }
                     }}
                   >
                     {tabList.map((item, index) => (

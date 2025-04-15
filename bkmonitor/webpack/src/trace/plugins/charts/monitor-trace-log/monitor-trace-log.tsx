@@ -55,6 +55,7 @@ import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
+type LogFilterParamsFunction = (param: { query: Record<string, any>; params: Record<string, any> }) => void;
 export default defineComponent({
   name: 'MonitorTraceLog',
   setup() {
@@ -67,6 +68,7 @@ export default defineComponent({
     const refreshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
+    const logFilterParamsFn = inject<LogFilterParamsFunction>('logFilterParamsFn');
     const customTimeProvider = inject<ComputedRef<string[]>>(
       'customTimeProvider',
       computed(() => [])
@@ -78,6 +80,11 @@ export default defineComponent({
     });
 
     let unPropsWatch = null;
+
+    const fakeRoute = {
+      query: {},
+      params: {},
+    };
 
     async function init() {
       empty.value = true;
@@ -94,10 +101,6 @@ export default defineComponent({
           spaceUid,
         });
         initGlobalComponents();
-        const fakeRoute = {
-          query: {},
-          params: {},
-        };
         const fakeRouter = {
           get currentRoute() {
             return fakeRoute;
@@ -106,6 +109,7 @@ export default defineComponent({
             const { query = {}, params = {} } = c;
             fakeRoute.query = query;
             fakeRoute.params = params;
+            logFilterParamsFn(fakeRoute);
           },
           push: () => {
             return {};
@@ -211,6 +215,7 @@ export default defineComponent({
       empty,
       loading,
       handleRelated,
+      fakeRoute
     };
   },
   render() {
