@@ -52,7 +52,7 @@ from apps.log_search.constants import (
     FieldDateFormatEnum,
 )
 from apps.utils import is_match_variate
-from apps.utils.codecs import unicode_str_decode, unicode_str_encode
+from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
 
@@ -148,6 +148,8 @@ class EtlStorage(object):
         # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
         if not is_case_sensitive and not tokenize_on_chars:
             return ""
+        # 将unicode编码的字符串转换为正常字符串
+        tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
     @staticmethod
@@ -163,22 +165,6 @@ class EtlStorage(object):
         """
         构建各个字段的分词器
         """
-        # 将unicode编码的字符串转换为正常字符串
-        if etl_params.get("original_text_tokenize_on_chars"):
-            try:
-                etl_params["original_text_tokenize_on_chars"] = unicode_str_decode(
-                    etl_params["original_text_tokenize_on_chars"]
-                )
-            except Exception as e:
-                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (etl_params["original_text_tokenize_on_chars"], e))
-
-        for field in fields:
-            try:
-                if field.get("tokenize_on_chars"):
-                    field["tokenize_on_chars"] = unicode_str_encode(field["tokenize_on_chars"])
-            except Exception as e:
-                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (field["tokenize_on_chars"], e))
-
         result = {
             "analyzer": {},
             "tokenizer": {},
