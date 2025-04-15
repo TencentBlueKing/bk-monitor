@@ -749,7 +749,7 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
             "service": BCSService,
             "pod": BCSPod,
         }.get(filter_field)
-        self.filter.query_set = model.objects.only(*NameSpace.columns)
+        self.filter.query_set = model.objects.values(*NameSpace.columns)
         self.column_mapping = {"pod_name": "name", "service": "name", "ingress": "name"}
         return self.get_from_meta()
 
