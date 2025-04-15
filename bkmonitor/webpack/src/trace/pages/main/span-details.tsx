@@ -955,7 +955,7 @@ export default defineComponent({
     );
 
     const activeTab = ref<TabName>('BasicInfo');
-    const mapTabText = {
+    const mapQuickJumpText = {
       'Container': t('容器监控'),
       'Event': t('事件检索'),
       'Host': t('主机监控'),
@@ -1008,11 +1008,11 @@ export default defineComponent({
 
     // 快捷跳转按钮展示条件
     const showQuickBtn = computed(() => {
-      return Object.keys(mapTabText).includes(activeTab.value)
+      return Object.keys(mapQuickJumpText).includes(activeTab.value)
     })
     // 快捷跳转文案
     const quickText = computed(() => {
-      return mapTabText[activeTab.value] || '';
+      return mapQuickJumpText[activeTab.value] || '';
     });
     
 
