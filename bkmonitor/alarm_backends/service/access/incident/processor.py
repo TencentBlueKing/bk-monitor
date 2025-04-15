@@ -17,14 +17,19 @@ from typing import Dict
 from pika.adapters.blocking_connection import BlockingChannel
 from pika.spec import Basic
 
+from alarm_backends.core.alert import Alert
+from alarm_backends.core.cache.key import ALERT_FIRST_HANDLE_RECORD
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
+from alarm_backends.service.fta_action.tasks import create_actions
 from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
+from bkmonitor.documents import AlertLog
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocument
+from constants.action import ActionSignal
 from constants.alert import EventStatus
 from constants.incident import (
     IncidentGraphComponentType,
@@ -33,6 +38,7 @@ from constants.incident import (
 )
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
+from core.prometheus import metrics
 
 logger = logging.getLogger("access.incident")
 
@@ -49,6 +55,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         self.queue_name = queue_name
         self.client = RabbitMQClient(broker_url=broker_url)
         self.client.ping()
+        self.actions = []
 
     def process(self) -> None:
         def callback(ch: BlockingChannel, method: Basic.Deliver, properties: Dict, body: str):
@@ -57,6 +64,89 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             ch.basic_ack(method.delivery_tag)
 
         self.client.start_consuming(self.queue_name, callback=callback)
+
+    def check_incident_actions(self, sync_info):
+        if sync_info.get("incident_stage") == "stage_exp" and sync_info.get("incident_actions"):
+            self.actions = sync_info["incident_actions"]
+            return True
+        return False
+
+    def push_action(self):
+        if not self.actions:
+            return
+
+        # 对于满足条件的策略，推送信号到Action模块执行动作
+        for action in self.actions:
+            success_actions = 0
+            qos_actions = 0
+            related_alerts = action.get("related_alerts")
+            if not related_alerts or str(action.get("signal")).lower() != ActionSignal.INCIDENT.lower():
+                continue
+            top_alert = Alert(data=related_alerts[0])
+            operate_attrs = {
+                "strategy_id": action["strategy_id"],
+                "signal": action["signal"],
+                "alert_ids": [top_alert.id],
+                "alerts": [top_alert.to_document()],
+                "severity": action["severity"],
+            }
+            # 限流计数器，监控的告警以策略ID，信号，告警级别作为维度
+            try:
+                is_qos, current_count = top_alert.qos_calc(action["signal"])
+                logger.info(
+                    "[composite send action] alert(%s) strategy(%s) signal(%s) severity(%s) ",
+                    top_alert.id,
+                    action["strategy_id"],
+                    action["signal"],
+                    action["severity"],
+                )
+                if not is_qos:
+                    create_actions.delay(**operate_attrs)
+                    success_actions += 1
+                else:
+                    # 达到阈值之后，触发流控
+                    logger.info(
+                        "[action qos triggered] alert(%s) strategy(%s) signal(%s) severity(%s) qos_count: %s",
+                        top_alert.id,
+                        action["strategy_id"],
+                        action["signal"],
+                        action["severity"],
+                        current_count,
+                    )
+                    qos_actions += 1
+
+                    # 被QOS的，按照策略维度发送一份
+                    # 被QOS的情况下，需要删除首次处理记录
+                    first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(
+                        strategy_id=top_alert.strategy_id or 0, alert_id=top_alert.id, signal=action["signal"]
+                    )
+                    ALERT_FIRST_HANDLE_RECORD.client.delete(first_handle_key)
+
+                    metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
+                        strategy_id=action["strategy_id"], signal=action["signal"], is_qos="1", status="success"
+                    ).inc()
+
+                metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
+                    strategy_id=metrics.TOTAL_TAG,
+                    signal=action["signal"],
+                    is_qos="1" if is_qos else "0",
+                    status="success",
+                ).inc()
+            except Exception as e:
+                logger.exception(
+                    "[composite push action ERROR] alert(%s) strategy(%s) detail: %s",
+                    top_alert.id,
+                    action["strategy_id"],
+                    e,
+                )
+                metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
+                    strategy_id=metrics.TOTAL_TAG, is_qos="0", signal=action["signal"], status="failed"
+                ).inc()
+                continue
+            if qos_actions:
+                # 如果有被qos的事件， 进行日志记录
+                qos_log = Alert.create_qos_log([top_alert.id], current_count, qos_actions)
+                AlertLog.bulk_create([qos_log])
 
     def handle_sync_info(self, sync_info: Dict) -> None:
         """处理rabbitmq中的内容.
@@ -76,6 +166,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         # 生成故障归档记录
         logger.info(f"[CREATE]Access incident[{sync_info['incident_id']}], sync_info: {json.dumps(sync_info)}")
         try:
+            if self.check_incident_actions(sync_info):
+                self.push_action()
+                # Todo: alert级别故障页面展示开发未完成，暂不进行快照和前端展示
+                return
+
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
             incident_document = IncidentDocument(**incident_info)

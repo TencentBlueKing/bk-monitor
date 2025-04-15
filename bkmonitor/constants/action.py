@@ -732,9 +732,10 @@ class ActionSignal:
     DEMO = "demo"
     UNSHIELDED = "unshielded"
     UPGRADE = "upgrade"
+    INCIDENT = "incident"
 
     NORMAL_SIGNAL = [ABNORMAL, RECOVERED, CLOSED, NO_DATA, MANUAL, ACK]
-    ABNORMAL_SIGNAL = [ABNORMAL, NO_DATA]
+    ABNORMAL_SIGNAL = [ABNORMAL, NO_DATA, INCIDENT]
 
     ACTION_SIGNAL_DICT = {
         MANUAL: _lazy("手动处理时"),
@@ -750,6 +751,7 @@ class ActionSignal:
         DEMO: _lazy("调试时"),
         UNSHIELDED: _lazy("解除屏蔽时"),
         UPGRADE: _lazy("告警升级"),
+        INCIDENT: _lazy("故障生成时")
     }
 
     ACTION_SIGNAL_MAPPING = {
