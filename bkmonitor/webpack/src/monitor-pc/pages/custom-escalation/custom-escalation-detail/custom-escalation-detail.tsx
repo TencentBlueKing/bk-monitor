@@ -147,10 +147,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
   nonGroupNum = 0;
 
-  get computedWidth() {
-    return window.innerWidth < 2560 ? 960 : 1200;
-  }
-
   get type() {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
   }
@@ -894,7 +890,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               >
                 <bk-input
                   ref='dataLabelInput'
-                  style='width: 240px'
+                  // style='width: 240px'
                   v-model={this.copyDataLabel}
                   onBlur={this.handleEditDataLabel}
                   onInput={() => {
@@ -925,7 +921,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             ) : (
               <bk-input
                 ref='nameInput'
-                style='width: 240px'
+                // style='width: 240px'
                 v-model={this.copyName}
                 onBlur={this.handleEditName}
               />
@@ -951,7 +947,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             ) : (
               <bk-input
                 ref='describeInput'
-                style='width: 440px'
+                // style='width: 440px'
                 class='form-content-textarea'
                 v-model={this.copyDescribe}
                 rows={3}
@@ -1164,10 +1160,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           </i18n>
         </bk-alert>
         <div class='custom-detail-page'>
-          <div
-            style={{ minWidth: `${this.computedWidth}px` }}
-            class='custom-detail'
-          >
+          <div class='custom-detail'>
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}

@@ -12,12 +12,16 @@ $border-color: #d9d9d9;
 
   .indicator-table-header {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
 
     .indicator-btn {
       display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       align-items: center;
 
       .header-btn {

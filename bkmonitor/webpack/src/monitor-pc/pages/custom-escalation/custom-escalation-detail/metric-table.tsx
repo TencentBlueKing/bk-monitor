@@ -30,7 +30,7 @@ const { i18n: I18N } = window;
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import { deepClone } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -47,6 +47,8 @@ export const statusMap = new Map([
   [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
   [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
 ]);
+/** 默认高度偏移量 */
+const DEFAULT_HEIGHT_OFFSET = 8;
 
 interface ILabel {
   name: string;
@@ -105,6 +107,7 @@ export default class IndicatorTable extends tsc<any, any> {
   @Ref() readonly aggConditionInput!: HTMLInputElement;
   @Ref() readonly intervalInput!: HTMLInputElement;
   @Ref() readonly batchAddGroupPopover!: HTMLInputElement;
+  @Ref() readonly metricTableHeader!: HTMLInputElement;
 
   table = {
     data: [],
@@ -152,9 +155,15 @@ export default class IndicatorTable extends tsc<any, any> {
 
   emptyType = 'empty'; // 空状态
   groupWidth = 200;
+  resizeObserver = null;
+  rectHeight = 32;
 
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
+  }
+
+  get computedHeight() {
+    return this.rectHeight + DEFAULT_HEIGHT_OFFSET;
   }
 
   get selectionLength() {
@@ -977,10 +986,46 @@ export default class IndicatorTable extends tsc<any, any> {
       </div>
     );
   }
+  mounted() {
+    this.handleSetDefault(); // 初始化高度
+    this.resizeObserver = new ResizeObserver(this.handleResize);
+    if (this.metricTableHeader) {
+      this.resizeObserver.observe(this.metricTableHeader);
+    }
+  }
+  destroyed() {
+    window.removeEventListener('resize', this.handleClientResize);
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect(); // 清除监听
+    }
+  }
+  /** 处理元素尺寸变化（带防抖） */
+  @Debounce(100)
+  handleResize(entries) {
+    const entry = entries[0];
+    if (entry) {
+      this.rectHeight = entry.contentRect.height;
+    }
+  }
+  /** 初始化或窗口调整时设置默认值 */
+  handleSetDefault() {
+    if (this.metricTableHeader) {
+      const rect = this.metricTableHeader.getBoundingClientRect();
+      this.rectHeight = rect.height;
+    }
+  }
+  /** 窗口调整防抖处理 */
+  @Debounce(100)
+  handleClientResize() {
+    this.handleSetDefault();
+  }
   render() {
     return (
       <div class='indicator-table-content'>
-        <div class='indicator-table-header'>
+        <div
+          ref='metricTableHeader'
+          class='indicator-table-header'
+        >
           <div class='indicator-btn'>
             <bk-button
               class='header-btn'
@@ -1072,7 +1117,10 @@ export default class IndicatorTable extends tsc<any, any> {
           {this.loading ? (
             <TableSkeleton type={2} />
           ) : (
-            <div class='table-box'>
+            <div
+              style={{ height: `calc(100% - ${this.computedHeight}px)` }}
+              class='table-box'
+            >
               {[
                 this.getTableComponent(),
                 this.metricTableVal?.length ? (
@@ -1096,7 +1144,7 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
           )}
           <div
-            style={{ width: `${this.computedWidth}px` }}
+            style={{ width: `${this.computedWidth}px`, height: `calc(100% - ${this.computedHeight}px)` }}
             class='detail'
             v-show={this.showDetail}
           >
