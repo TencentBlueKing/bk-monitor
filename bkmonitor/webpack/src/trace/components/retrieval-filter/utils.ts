@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IFilterItem } from './typing';
+import type { IFilterItem, IWhereItem } from './typing';
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
 /**
@@ -86,4 +86,35 @@ export function getCharLength(str) {
     bitLen += 1;
   }
   return bitLen;
+}
+
+/**
+ * @description 合并where条件 （不相同的条件往后添加）
+ * @param source
+ * @param target
+ * @returns
+ */
+export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
+  let result: IWhereItem[] = [];
+  const sourceMap: Map<string, IWhereItem> = new Map();
+  for (const item of source) {
+    sourceMap.set(item.key, item);
+  }
+  const localTarget = [];
+  for (const item of target) {
+    const sourceItem = sourceMap.get(item.key);
+    if (
+      !(
+        sourceItem &&
+        sourceItem.key === item.key &&
+        sourceItem.method === item.method &&
+        JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+        sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+      )
+    ) {
+      localTarget.push(item);
+    }
+  }
+  result = [...source, ...localTarget];
+  return result;
 }

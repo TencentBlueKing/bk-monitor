@@ -32,8 +32,10 @@ import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { useTraceExploreStore } from '../../../store/modules/explore';
 
-import type { DimensionType, ITopKField } from '../typing';
+import type { DimensionType, ICommonParams, ITopKField } from '../typing';
 import type { PropType } from 'vue';
 
 import './statistics-list.scss';
@@ -43,6 +45,10 @@ const colorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
 export default defineComponent({
   name: 'StatisticsList',
   props: {
+    commonParams: {
+      type: Object as PropType<ICommonParams>,
+      default: () => ({}),
+    },
     selectField: {
       type: String,
       default: '',
@@ -59,6 +65,7 @@ export default defineComponent({
   emits: ['conditionChange', 'showMore', 'sliderShowChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const store = useTraceExploreStore();
     const popoverLoading = shallowRef(true);
     const statisticsList = reactive<ITopKField>({
       distinct_count: 0,
@@ -82,7 +89,11 @@ export default defineComponent({
 
     async function getStatisticsList() {
       popoverLoading.value = true;
+      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       const data = await getFieldTopK({
+        ...props.commonParams,
+        start_time,
+        end_time,
         limit: 5,
         fields: [props.selectField],
       });
@@ -115,7 +126,11 @@ export default defineComponent({
     /** 加载更多 */
     async function loadMore() {
       sliderLoadMoreLoading.value = true;
+      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       const data = await getFieldTopK({
+        ...props.commonParams,
+        start_time,
+        end_time,
         limit: (Math.floor(sliderDimensionList.list.length / 100) + 1) * 100,
         fields: [props.selectField],
       });
@@ -137,7 +152,11 @@ export default defineComponent({
 
     async function handleDownload() {
       downloadLoading.value = true;
+      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       const data = await getDownloadTopK({
+        ...props.commonParams,
+        start_time,
+        end_time,
         limit: statisticsList?.distinct_count,
         fields: [props.selectField],
       }).finally(() => {

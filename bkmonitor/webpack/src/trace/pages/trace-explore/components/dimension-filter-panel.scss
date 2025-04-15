@@ -7,11 +7,11 @@
   .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 8px 12px;
     line-height: 20px;
 
     .title {
+      margin-left: 5px;
       font-size: 12px;
       font-weight: 700;
       color: #313238;

@@ -31,7 +31,6 @@ import './trace-explore-layout.scss';
 
 export default defineComponent({
   name: 'TraceExploreLayout',
-
   setup() {
     const isShow = shallowRef(true);
     const maxWidth = shallowRef(400);
@@ -50,6 +49,7 @@ export default defineComponent({
       isShow.value = val ?? !isShow.value;
       width.value = isShow.value ? 200 : 0;
     };
+
     return {
       isShow,
       maxWidth,

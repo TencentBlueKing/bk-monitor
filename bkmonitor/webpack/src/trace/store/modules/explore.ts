@@ -1,7 +1,3 @@
-import { defineStore } from 'pinia';
-
-import type { IApplicationItem } from '../../pages/trace-explore/typing';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -27,25 +23,35 @@ import type { IApplicationItem } from '../../pages/trace-explore/typing';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineStore } from 'pinia';
+
 import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
+import { getDefaultTimezone } from '../../i18n/dayjs';
+
+import type { IApplicationItem } from '../../pages/trace-explore/typing';
 
 export interface ITraceExploreState {
   timeRange: TimeRangeType;
   timezone: string;
   mode: 'span' | 'trace';
-  application: IApplicationItem;
+  appName: string;
   refreshInterval: number;
   refreshImmediate: string;
+  appList: IApplicationItem[];
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
     timeRange: DEFAULT_TIME_RANGE,
-    timezone: '',
+    timezone: getDefaultTimezone(),
     mode: 'trace',
-    application: null,
+    appName: null,
     refreshInterval: -1,
     refreshImmediate: '',
+    appList: [],
   }),
+  getters: {
+    currentApp: state => state.appList.find(app => app.app_name === state.appName),
+  },
   actions: {
     updateTimeRange(timeRange: TimeRangeType) {
       this.timeRange = timeRange;
@@ -56,8 +62,8 @@ export const useTraceExploreStore = defineStore('explore', {
     updateMode(mode: 'span' | 'trace') {
       this.mode = mode;
     },
-    updateApplicationId(application: IApplicationItem) {
-      this.application = application;
+    updateAppName(appName: string) {
+      this.appName = appName;
     },
     updateRefreshInterval(refreshInterval: number) {
       this.refreshInterval = refreshInterval;
@@ -65,11 +71,15 @@ export const useTraceExploreStore = defineStore('explore', {
     updateRefreshImmediate(refreshImmediate: string) {
       this.refreshImmediate = refreshImmediate;
     },
-    init(data: ITraceExploreState) {
-      this.timeRange = data.timeRange;
-      this.mode = data.mode;
-      this.application = data.application;
-      this.refreshInterval = data.refreshInterval;
+    updateAppList(appList: IApplicationItem[]) {
+      this.appList = appList;
+    },
+    init(data: Partial<ITraceExploreState>) {
+      this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;
+      this.timezone = data.timezone || getDefaultTimezone();
+      this.mode = data.mode || 'trace';
+      this.appName = data.appName || '';
+      this.refreshInterval = data.refreshInterval || -1;
       this.refreshImmediate = data.refreshImmediate;
     },
   },
