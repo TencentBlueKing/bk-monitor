@@ -124,6 +124,9 @@
             }
 
             &.explore-prefix-icon-col {
+              display: flex;
+              align-items: center;
+
               .status-code-icon {
                 &-normal {
                   position: relative;
