@@ -221,7 +221,9 @@ class GetCustomTsGraphConfig(Resource):
     }
 
     @classmethod
-    def time_or_no_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict) -> list[dict]:
+    def time_or_no_compare(
+        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+    ) -> list[dict]:
         """
         时间对比或无对比
         """
@@ -257,7 +259,7 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_metrics) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{key}={value}" for key, value in series_tuple])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in series_tuple])
 
             panels = []
             for metric in metric_list:
@@ -308,7 +310,9 @@ class GetCustomTsGraphConfig(Resource):
         return groups
 
     @classmethod
-    def metric_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict) -> List[Dict]:
+    def metric_compare(
+        cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict, dimension_names: dict[str, str]
+    ) -> List[Dict]:
         """
         指标对比
         """
@@ -340,7 +344,7 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_groups) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{key}={value}" for key, value in group_series])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in group_series])
 
             # 根据非拆图维度分图
             panels = []
@@ -390,8 +394,10 @@ class GetCustomTsGraphConfig(Resource):
                     )
                 # 计算图表标题
                 panel_title = "-"
-                if series_tuple:
-                    panel_title = "|".join([f"{key}={value}" for key, value in series_tuple])
+                if panel_series:
+                    panel_title = "|".join(
+                        [f"{dimension_names.get(key) or key}={value}" for key, value in panel_series]
+                    )
 
                 panels.append({"title": panel_title, "sub_title": "", "targets": targets})
 
@@ -474,11 +480,16 @@ class GetCustomTsGraphConfig(Resource):
             name__in=params["metrics"],
         )
 
+        dimension_names: dict[str, str] = {}
+        for dimension in CustomTSField.objects.filter(
+            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
+        ):
+            dimension_names[dimension.name] = dimension.description
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            groups = self.time_or_no_compare(table, metrics, params)
+            groups = self.time_or_no_compare(table, metrics, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics, params)
+            groups = self.metric_compare(table, metrics, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
