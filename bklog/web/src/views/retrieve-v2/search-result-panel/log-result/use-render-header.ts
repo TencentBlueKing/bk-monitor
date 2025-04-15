@@ -92,14 +92,6 @@ export default () => {
                 }
               });
 
-              if (nextOrder !== null) {
-                targets.forEach(el => {
-                  if (el.classList.contains(nextOrder)) {
-                    // el.classList.add('active');
-                  }
-                });
-              }
-
               const sortMap = {
                 ascending: 'asc',
                 descending: 'desc',
