@@ -728,7 +728,7 @@ class NameSpace(dict):
 class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "namespace"
     resource_class = NameSpace.fromkeys(NameSpace.columns, None)
-    column_mapping = {"pod_name": "name", "service": "name", "ingress": "name"}
+    column_mapping = {}
 
     def get_from_meta(self):
         return self.distinct(self.filter.filter_queryset)
@@ -750,6 +750,7 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
             "pod": BCSPod,
         }.get(filter_field)
         self.filter.query_set = model.objects.only(*NameSpace.columns)
+        self.column_mapping = {"pod_name": "name", "service": "name", "ingress": "name"}
         return self.get_from_meta()
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
