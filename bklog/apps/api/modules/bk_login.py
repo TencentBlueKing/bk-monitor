@@ -64,12 +64,11 @@ class _BKLoginApi:
         if self.use_apigw:
             self.get_user = DataAPI(
                 method="GET",
-                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/users/{username}/",
+                url=settings.PAAS_API_HOST + "/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/",
                 module=self.MODULE,
                 description="获取单个用户",
                 before_request=get_user_before,
                 after_request=get_user_after,
-                url_keys=["username"],
             )
         else:
             self.get_user = DataAPI(
