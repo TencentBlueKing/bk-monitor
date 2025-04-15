@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { h, computed } from 'vue';
+import { h, computed, ref } from 'vue';
 
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import useFieldNameHook from '@/hooks/use-field-name';
+
 import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
 
 export default () => {
@@ -35,18 +36,23 @@ export default () => {
   const { $t } = useLocale();
   const { getFieldNameByField } = useFieldNameHook({ store });
 
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+  // const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.state.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
-  const sortList = computed(() => indexFieldInfo.value.sort_list);
+  // const sortList = computed(() => indexFieldInfo.value.sort_list);
+
+  // 用于记录当前活动排序的字段
+  const activeSortField = ref(null);
 
   const renderHead = (field, onClickFn) => {
-    const currentSort = sortList.value.find(s => s[0] === field.field_name)?.[1];
-    const isDesc = currentSort === 'desc';
-    const isAsc = currentSort === 'asc';
+    // const currentSort = sortList.value.find(s => s[0] === field.field_name)?.[1];
+    // const isDesc = currentSort === 'desc';
+    // const isAsc = currentSort === 'asc';
+    const isDesc = false;
+    const isAsc = false;
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
       const fieldName = getFieldNameByField(field);
@@ -103,6 +109,7 @@ export default () => {
                 ascending: 'asc',
                 descending: 'desc',
               };
+              activeSortField.value = nextOrder ? field.field_name : null;
               onClickFn(sortMap[nextOrder]);
             },
           },
@@ -145,8 +152,12 @@ export default () => {
           }),
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
-                h('i', { class: `bk-table-sort-caret ascending ${isAsc ? 'active' : ''}` }),
-                h('i', { class: `bk-table-sort-caret descending ${isDesc ? 'active' : ''}` }),
+                h('i', {
+                  class: `bk-table-sort-caret ascending ${isAsc && activeSortField.value === field.field_name ? 'active' : ''}`,
+                }),
+                h('i', {
+                  class: `bk-table-sort-caret descending ${isDesc && activeSortField.value === field.field_name ? 'active' : ''}`,
+                }),
               ])
             : '',
           h('i', {
