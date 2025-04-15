@@ -628,7 +628,7 @@ export default defineComponent({
 
             renderList.value.length = 0;
             renderList.value = [];
-
+            pageIndex.value = 1;
             return;
           }
 
@@ -1015,6 +1015,7 @@ export default defineComponent({
     onBeforeMount(() => {
       renderList.value.length = 0;
       renderList.value = [];
+      pageIndex.value = 1;
     });
 
     onBeforeUnmount(() => {
