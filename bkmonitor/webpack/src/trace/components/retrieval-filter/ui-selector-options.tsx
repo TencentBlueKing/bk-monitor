@@ -56,7 +56,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const $el = useTemplateRef<HTMLDivElement>('el');
-    const searchInputRef = useTemplateRef<HTMLDivElement>('searchInput');
+    const searchInputRef = useTemplateRef('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
 
@@ -456,10 +456,13 @@ export default defineComponent({
                 ref='searchInput'
                 v-model={this.searchValue}
                 behavior='simplicity'
-                left-icon='bk-icon icon-search'
                 placeholder={this.$t('请输入关键字')}
                 onChange={this.handleSearchChangeDebounce}
-              />
+              >
+                {{
+                  prefix: () => <span class='icon-monitor icon-mc-search' />,
+                }}
+              </Input>
             </div>
             <div class='options-wrap'>
               {this.searchLocalFields.map((item, index) => {

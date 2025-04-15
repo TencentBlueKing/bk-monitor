@@ -26,11 +26,15 @@
 
 import { defineComponent, useTemplateRef, watch } from 'vue';
 import { shallowRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useEventListener } from '@vueuse/core';
 import { $bkPopover } from 'bkui-vue';
 
-import { EFieldType, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { isEn } from '../../i18n/i18n';
+import AutoWidthInput from './auto-width-input';
+import KvTag from './kv-tag';
+import { ECondition, EFieldType, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
 
 import './ui-selector.scss';
@@ -47,6 +51,8 @@ export default defineComponent({
   props: UI_SELECTOR_PROPS,
   emits: UI_SELECTOR_EMITS,
   setup(props, { emit }) {
+    const { t } = useI18n();
+
     const $el = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
 
@@ -93,31 +99,33 @@ export default defineComponent({
      */
     async function handleShowSelect(event: MouseEvent) {
       if (popoverInstance.value) {
-        popoverInstance.value.update(event.target, {
-          target: event.target as any,
-          content: selectorRef.value,
-        });
-      } else {
-        popoverInstance.value = $bkPopover({
-          target: event.target as any,
-          content: selectorRef.value,
-          trigger: 'click',
-          placement: 'bottom-start',
-          theme: 'light common-monitor padding-0',
-          arrow: true,
-          boundary: 'window',
-          zIndex: 998,
-          padding: 0,
-          onHide: () => {
-            destroyPopoverInstance();
-            cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
-          },
-        });
-        popoverInstance.value.install();
-        setTimeout(() => {
-          popoverInstance.value?.vm?.show();
-        }, 100);
+        // popoverInstance.value.update(event.target, {
+        //   target: event.target as any,
+        //   content: selectorRef.value,
+        // });
+        destroyPopoverInstance();
+        return;
       }
+      popoverInstance.value = $bkPopover({
+        target: event.target as any,
+        content: selectorRef.value,
+        trigger: 'click',
+        placement: 'bottom-start',
+        theme: 'light common-monitor padding-0',
+        arrow: true,
+        boundary: 'window',
+        zIndex: 998,
+        padding: 0,
+        offset: 10,
+        onHide: () => {
+          destroyPopoverInstance();
+          cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
+        },
+      });
+      popoverInstance.value.install();
+      setTimeout(() => {
+        popoverInstance.value?.vm?.show();
+      }, 100);
       showSelector.value = true;
     }
 
@@ -244,14 +252,79 @@ export default defineComponent({
       handleChange();
     }
 
+    function handleBlur() {
+      inputFocus.value = false;
+      if (!inputValue.value) {
+        hideInput();
+      }
+    }
+    function handleEnter() {
+      if (inputValue.value) {
+        localValue.value.push({
+          key: {
+            id: '*',
+            name: t('全文'),
+          },
+          value: [{ id: inputValue.value, name: inputValue.value }],
+          method: { id: EMethod.include, name: t('包含') },
+          condition: { id: ECondition.and, name: 'AND' },
+        });
+        inputValue.value = '';
+        destroyPopoverInstance();
+        setTimeout(() => {
+          handleClickComponent();
+        }, 50);
+        handleChange();
+      }
+    }
+    function handleInput(v: string) {
+      inputValue.value = v;
+    }
+    function handleDeleteTag(index: number) {
+      localValue.value.splice(index, 1);
+      handleChange();
+      handleCancel();
+    }
+    function handleHideTag(index: number) {
+      let hide = false;
+      if (typeof localValue.value[index]?.hide === 'boolean') {
+        hide = !localValue.value[index].hide;
+      } else {
+        hide = true;
+      }
+      localValue.value.splice(index, 1, {
+        ...localValue.value[index],
+        hide,
+      });
+      handleChange();
+    }
+    function handleUpdateTag(event: MouseEvent, index: number) {
+      event.stopPropagation();
+      updateActive.value = index;
+      const customEvent = {
+        ...event,
+        target: event.currentTarget,
+      };
+      handleShowSelect(customEvent);
+      hideInput();
+    }
+
     return {
       inputValue,
       showSelector,
       localValue,
       updateActive,
+      inputFocus,
+      handleBlur,
+      handleEnter,
+      handleInput,
       handleAdd,
       handleCancel,
       handleConfirm,
+      handleDeleteTag,
+      handleHideTag,
+      handleUpdateTag,
+      handleClickComponent,
     };
   },
   render() {
@@ -259,6 +332,7 @@ export default defineComponent({
       <div
         ref='el'
         class='vue3_retrieval-filter__ui-selector-component'
+        onClick={this.handleClickComponent}
       >
         <div
           class='add-btn'
@@ -266,6 +340,26 @@ export default defineComponent({
         >
           <span class='icon-monitor icon-mc-add' />
           <span class='add-text'>{this.$t('添加条件')}</span>
+        </div>
+        {this.localValue.map((item, index) => (
+          <KvTag
+            key={`${index}_kv`}
+            value={item}
+            onDelete={() => this.handleDeleteTag(index)}
+            onHide={() => this.handleHideTag(index)}
+            onUpdate={event => this.handleUpdateTag(event, index)}
+          />
+        ))}
+        <div class={['kv-placeholder', { 'is-en': isEn }]}>
+          <AutoWidthInput
+            height={40}
+            isFocus={this.inputFocus}
+            placeholder={`${this.$t('快捷键 / ，请输入...')}`}
+            value={this.inputValue}
+            onBlur={this.handleBlur}
+            onEnter={this.handleEnter}
+            onInput={this.handleInput}
+          />
         </div>
         <div style='display: none;'>
           <div ref='selector'>
