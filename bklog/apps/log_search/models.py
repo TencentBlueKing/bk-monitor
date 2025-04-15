@@ -1453,7 +1453,6 @@ class UserIndexSetCustomConfig(models.Model):
 
 
 class UserCustomConfig(SoftDeleteModel):
-    user_id = models.IntegerField(_("用户ID"), db_index=True)
     custom_config = models.JSONField(_("自定义配置"))
 
     class Meta:
