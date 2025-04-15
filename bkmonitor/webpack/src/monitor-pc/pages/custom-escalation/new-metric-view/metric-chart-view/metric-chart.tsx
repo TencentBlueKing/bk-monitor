@@ -26,6 +26,7 @@
 import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -33,7 +34,6 @@ import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
@@ -48,6 +48,7 @@ import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/
 import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
+import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import type {
   DataQuery,
   ILegendItem,
@@ -141,6 +142,11 @@ class NewMetricChart extends CommonSimpleChart {
   minBase = 0;
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
+  }
+
+  /** 指标列表 */
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
   }
 
   /** 操作的icon列表 */
@@ -361,11 +367,13 @@ class NewMetricChart extends CommonSimpleChart {
     return transformSeries;
   }
 
-  convertJsonObject(obj) {
+  convertJsonObject(obj, name: string) {
+    const dimensions = this.currentSelectedMetricList.find(ele => ele.metric_name === name)?.dimensions;
     const keys = Object.keys(obj);
     const parts = [];
     for (const key of keys) {
-      parts.push(`${key}=${obj[key]}`);
+      const info = dimensions.find(item => item.name === key);
+      parts.push(`${info.alias || info.name}=${obj[key]}`);
     }
     const separator = '|';
     return parts.join(separator);
@@ -379,17 +387,18 @@ class NewMetricChart extends CommonSimpleChart {
     const unit = matches[2];
     if (unit === 'd') {
       return `${number}天前`;
-    } else if (unit === 'h') {
+    }
+    if (unit === 'h') {
       return `${number}小时前`;
     }
   }
   handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
-    // const { metric = {} } = item;
+    const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
-    const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation });
-    const outputStr = output ? `-{${output}}` : '';
-    return `${timeOffset}${outputStr}`;
+    const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
+    const outputStr = output ? `{${output}}` : '';
+    return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
     // return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
   }
 
@@ -651,7 +660,7 @@ class NewMetricChart extends CommonSimpleChart {
       .catch(() => {});
   }
   dataZoom(startTime: string, endTime: string) {
-    this.showRestore = startTime ? true : false;
+    this.showRestore = !!startTime;
     if (this.enableSelectionRestoreAll) {
       this.handleChartDataZoom([startTime, endTime]);
     } else {
@@ -779,11 +788,11 @@ class NewMetricChart extends CommonSimpleChart {
               {this.panel.targets.map((target, ind) => {
                 return (
                   <li
-                    key={target.metric?.name}
+                    key={target?.metric?.name}
                     class='metric-dropdown-item-tool'
                     onClick={() => this.handleIconClick(item, ind)}
                   >
-                    <span>{target.metric?.name}</span>
+                    <span>{target?.metric?.name}</span>
                   </li>
                 );
               })}

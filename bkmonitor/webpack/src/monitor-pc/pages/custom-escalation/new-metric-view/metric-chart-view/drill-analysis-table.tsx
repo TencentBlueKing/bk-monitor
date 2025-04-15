@@ -29,12 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
-import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
 import { generateTimeStrings } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './drill-analysis-table.scss';
 

@@ -37,12 +37,11 @@ export default {
   '确定 Ctrl + Enter': 'Confirm Ctrl + Enter',
   '1 列': '1 Column',
   其它维度: 'Other Dimensions',
-  拆图: 'Split Charts',
+  维度拆解: 'Dimensions Split',
   '关闭时，默认是根据聚合维度，画出多条线；':
     'When closed, it will draw multiple lines based on aggregated dimensions by default.',
   '开启后，根据聚合维度，生成多张图。':
     'When enabled, it will generate multiple charts based on aggregated dimensions.',
-  '拆图：': 'Split Charts:',
   限制: 'Limit',
   '1小时前': '1 Hour Ago',
   '1 月前': '1 Month Ago',
@@ -60,7 +59,6 @@ export default {
   多选: 'Multi-Select',
   波动: 'Fluctuation',
   '搜索 维度': 'Search Dimensions',
-  维度下钻: 'Dimensional Drilling',
   '指标：': 'Metrics:',
   '已选 {0} 个指标': 'Selected {0} Metrics',
   '2 列': '2 Columns',
