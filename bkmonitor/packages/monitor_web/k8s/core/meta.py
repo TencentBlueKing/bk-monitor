@@ -202,6 +202,9 @@ class K8sResourceMeta(object):
         """
         return self.filter.filter_queryset
 
+    def retry_get_from_meta(self):
+        return []
+
     @classmethod
     def distinct(cls, queryset):
         # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
@@ -729,6 +732,26 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
 
     def get_from_meta(self):
         return self.distinct(self.filter.filter_queryset)
+
+    def retry_get_from_meta(self):
+        # 根据filter 类型进行重新查询
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type not in ["service", "ingress", "pod"]:
+                continue
+            else:
+                filter_field = r_filter.resource_type
+                break
+        else:
+            return []
+
+        model = {
+            "ingress": BCSIngress,
+            "service": BCSService,
+            "pod": BCSPod,
+        }.get(filter_field)
+        self.filter.query_set = model.objects.values(*NameSpace.columns)
+        self.column_mapping = {"pod_name": "name", "service": "name", "ingress": "name"}
+        return self.get_from_meta()
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
