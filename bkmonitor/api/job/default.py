@@ -143,3 +143,48 @@ class GetJobInstanceStatusResource(JobBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         job_instance_id = serializers.IntegerField(label="任务ID")
         return_ip_result = serializers.BooleanField(label="是否返回每个主机上的任务详情", required=False, default=False)
+
+
+class FastExecuteScriptResource(JobBaseResource):
+    """
+    快速执行脚本
+    """
+
+    action = "fast_execute_script"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_scope_type = serializers.CharField(label="资源范围类型")
+        bk_scope_id = serializers.CharField(label="资源范围ID")
+        script_content = serializers.CharField(label="脚本内容")
+        script_param = serializers.CharField(label="脚本参数", default="", allow_blank=True)
+        target_server = serializers.DictField(label="目标服务")
+        script_language = serializers.IntegerField(label="脚本语言", default=1)
+        account_alias = serializers.CharField(label="执行账户")
+
+
+class GetJobInstanceIpLogResource(JobBaseResource):
+    """
+    获取主机的任务日志V3
+    """
+
+    action = "batch_get_job_instance_ip_log"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        job_instance_id = serializers.IntegerField(label="作业实例ID")
+        step_instance_id = serializers.IntegerField(label="步骤实例ID")
+        host_id_list = serializers.ListField(
+            required=False, label="主机ID列表", allow_empty=True, child=serializers.IntegerField()
+        )
+
+        class IPSerializer(serializers.Serializer):
+            """
+            IP参数
+            """
+
+            ip = serializers.IPAddressField(required=True, label="IP地址")
+            bk_cloud_id = serializers.IntegerField(required=True, label="云区域ID")
+
+        ip_list = IPSerializer(required=False, label="IP列表", many=True, allow_empty=True)
