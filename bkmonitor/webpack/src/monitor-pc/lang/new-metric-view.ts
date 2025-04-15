@@ -60,7 +60,7 @@ export default {
   多选: 'Multi-Select',
   波动: 'Fluctuation',
   '搜索 维度': 'Search Dimensions',
-  下钻分析: 'Drill Down Analysis',
+  维度下钻: 'Dimensional Drilling',
   '指标：': 'Metrics:',
   '已选 {0} 个指标': 'Selected {0} Metrics',
   '2 列': '2 Columns',
