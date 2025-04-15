@@ -79,7 +79,7 @@
       }
     }
 
-    .auto-width-input-component {
+    .vue3_auto-width-input-component {
       min-width: 100px;
 
       input {
@@ -94,7 +94,7 @@
     }
 
     &.is-en {
-      .auto-width-input-component {
+      .vue3_auto-width-input-component {
         min-width: 145px;
       }
     }

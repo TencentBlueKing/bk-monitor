@@ -571,3 +571,36 @@ export const QS_SELECTOR_OPTIONS_EMITS = {
   selectFavorite: (_v: string) => true,
   select: (_v: string) => true,
 } as const;
+export const KV_TAG_PROPS = {
+  value: {
+    type: Object as PropType<IFilterItem>,
+    default: () => null,
+  },
+  active: {
+    type: Boolean,
+    default: false,
+  },
+};
+export const KV_TAG_EMITS = {
+  delete: () => true,
+  update: (_event: MouseEvent) => true,
+  hide: () => true,
+} as const;
+export const RESIDENT_SETTING_TRANSFER_PROPS = {
+  fields: {
+    type: Array as PropType<IFilterField[]>,
+    default: () => [],
+  },
+  value: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
+  show: {
+    type: Boolean,
+    default: false,
+  },
+};
+export const RESIDENT_SETTING_TRANSFER_EMITS = {
+  confirm: (_v: IFilterField[]) => true,
+  cancel: () => true,
+};

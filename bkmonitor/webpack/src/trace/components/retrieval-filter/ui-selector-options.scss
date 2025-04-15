@@ -82,16 +82,16 @@
           .option-name-title {
             margin-left: 4px;
             overflow: hidden;
-            color: #313238;
             text-overflow: ellipsis;
+            color: #313238;
             white-space: nowrap;
           }
 
           .option-name-subtitle {
             margin-left: 4px;
             overflow: hidden;
-            color: #757880;
             text-overflow: ellipsis;
+            color: #757880;
             white-space: nowrap;
           }
 
@@ -129,6 +129,12 @@
       .search-wrap {
         padding: 8px 6px 4px 10px;
         background: #fff;
+
+        .icon-mc-search {
+          display: flex;
+          align-items: center;
+          color: #979BA5;
+        }
       }
     }
 
