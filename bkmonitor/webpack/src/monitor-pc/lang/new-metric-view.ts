@@ -115,4 +115,6 @@ export default {
   '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',
   清空关键词: 'Clear keywords',
   '显/隐': 'Show/Hide',
+  '仅允许包含字母、数字、下划线，且必须以字母开头':
+    'Only letters, numbers, and underscores are allowed, and the name must start with a letter',
 };
