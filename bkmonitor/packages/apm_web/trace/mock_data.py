@@ -7,11 +7,33 @@ API_VIEW_CONFIG_DATA = {
                 "type": "date",
                 "is_searched": True,
                 "is_dimensions": True,
+                "is_option_enabled": False,
+                "supported_operations": [
+                    {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+                ],
+            },
+            {
+                "name": "trace_id",
+                "alias": "Trace ID",
+                "type": "keyword",
+                "is_searched": True,
+                "is_dimensions": True,
+                "is_option_enabled": False,
+                "supported_operations": [
+                    {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+                ],
+            },
+            {
+                "name": "root_service_category",
+                "alias": "调用类型",
+                "type": "keyword",
+                "is_searched": True,
+                "is_dimensions": True,
                 "is_option_enabled": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
-            }
+            },
         ],
         "default_config": {
             "display_fields": [
@@ -45,7 +67,29 @@ API_VIEW_CONFIG_DATA = {
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
-            }
+            },
+            {
+                "name": "span_name",
+                "alias": "接口名称",
+                "type": "keyword",
+                "is_searched": True,
+                "is_dimensions": True,
+                "is_option_enabled": True,
+                "supported_operations": [
+                    {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+                ],
+            },
+            {
+                "name": "kind",
+                "alias": "类型",
+                "type": "integer",
+                "is_searched": True,
+                "is_dimensions": True,
+                "is_option_enabled": True,
+                "supported_operations": [
+                    {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+                ],
+            },
         ],
         "default_config": {
             "display_field": [
@@ -67,10 +111,29 @@ API_VIEW_CONFIG_DATA = {
     },
 }
 
-
 API_FIELDS_OPTION_VALUE_DATA = {
-    "resource.service.name": [{"value": "example.greeter", "text": "example.greeter"}],
-    "span_name": [{"value": "/200", "text": "/200"}],
+    "resource.service.name": [
+        {"value": "example.greeter", "alias": "example.greeter"},
+        {"value": "test_service_name", "alias": "test_service_name"},
+    ],
+    "span_name": [{"value": "/200", "alias": "/200"}],
+    "kind": [
+        {"value": 0, "alias": "未指定"},
+        {"value": 1, "alias": "内部(internal)"},
+        {"value": 2, "alias": "同步被调"},
+        {"value": 3, "alias": "同步主调"},
+        {"value": 4, "alias": "异步主调"},
+        {"value": 5, "alias": "异步被调"},
+    ],
+    "root_service_category": [
+        {"value": "http", "alias": "网页"},
+        {"value": "rpc", "alias": "远程调用"},
+        {"value": "db", "alias": "数据库"},
+        {"value": "messaging", "alias": "消息队列"},
+        {"value": "async_backend", "alias": "后台任务"},
+        {"value": "all", "alias": "全部"},
+        {"value": "other", "alias": "其他"},
+    ],
 }
 
 API_TOPK_DATA = [
