@@ -76,7 +76,6 @@ export default defineComponent({
      */
     async function getSpanDetails() {
       const params = {
-        bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         span_id: props.spanId,
       };

@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted } from 'vue';
+import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Table, TableColumn } from '@blueking/table';
 import { OverflowTitle } from 'bkui-vue';
-import Checkbox from 'bkui-vue/lib/checkbox';
 
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
@@ -45,17 +44,15 @@ import { getListMock, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_CO
 
 import './trace-explore-table.scss';
 
-/** 快速过滤项(包含) */
-enum TableCheckBoxFiltersEnum {
-  EntrySpan = 'entry',
-  Error = 'error',
-  RootSpan = 'root_span',
-}
-
 export default defineComponent({
   name: 'TraceExploreTable',
   props: {
-    /** 当前选中的应用 ID */
+    /** 当前激活的视角（trace/span） */
+    mode: {
+      type: String as PropType<'span' | 'trace'>,
+      required: true,
+    },
+    /** 当前选中的应用 Name */
     appName: {
       type: String,
       required: true,
@@ -78,8 +75,7 @@ export default defineComponent({
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
-    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
-    const checkboxFilters = deepRef([]);
+
     /** table loading 配置 */
     const tableLoading = reactive({
       /** table 骨架屏 loading */
@@ -93,10 +89,8 @@ export default defineComponent({
       order: null,
     });
 
-    const mode = shallowRef('span');
-
     /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => mode.value === 'span');
+    const isSpanVisual = computed(() => props.mode === 'span');
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** 判断当前数据是否需要触底加载更多 */
@@ -437,7 +431,7 @@ export default defineComponent({
         offset: tableData?.value?.length || 0,
       };
       abortController = new AbortController();
-      const res = await getListMock(requestParam, {
+      const res = await getListMock(requestParam, props.mode, {
         signal: abortController.signal,
       });
 
@@ -481,16 +475,6 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后触发的回调
-     * @param checkedGroup
-     */
-    function handleCheckboxGroupChange(checkedGroup: string[]) {
-      checkboxFilters.value = checkedGroup;
-
-      console.log('================ handleCheckboxGroupChange逻辑待补充 ================');
-    }
-
-    /**
      * @description 表格排序回调
      * @param {string} sortEvent.field 排序字段名
      * @param {'asc' | 'desc' | null} sortEvent.order 排序方式
@@ -525,41 +509,6 @@ export default defineComponent({
     function handleSliderShowChange(openMode: '' | 'span' | 'trace', activeId: string) {
       activeSliderId.value = activeId;
       sliderMode.value = openMode;
-    }
-
-    /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组） 渲染方法
-     *
-     */
-    function filtersCheckBoxGroupRender() {
-      return (
-        <Checkbox.Group
-          modelValue={checkboxFilters.value}
-          onChange={handleCheckboxGroupChange}
-        >
-          <Checkbox
-            v-bk-tooltips={{
-              content: t('整个Trace的第一个Span'),
-              placement: 'top',
-              theme: 'light',
-            }}
-            label={TableCheckBoxFiltersEnum.RootSpan}
-          >
-            {t('根Span')}
-          </Checkbox>
-          <Checkbox
-            v-bk-tooltips={{
-              content: t('每个Service的第一个Span'),
-              placement: 'top',
-              theme: 'light',
-            }}
-            label={TableCheckBoxFiltersEnum.EntrySpan}
-          >
-            {t('入口Span')}
-          </Checkbox>
-          <Checkbox label={TableCheckBoxFiltersEnum.Error}>{t('错误')}</Checkbox>
-        </Checkbox.Group>
-      );
     }
 
     /**
@@ -829,7 +778,7 @@ export default defineComponent({
       if (!column?.field) {
         return null;
       }
-      const { showOverflow, align } = defaultTableConfig;
+      const { align } = defaultTableConfig;
       return (
         <TableColumn
           key={`explore_table_${column.field}`}
@@ -841,7 +790,7 @@ export default defineComponent({
           filters={column.filter}
           fixed={column.fixed}
           minWidth={column.minWidth}
-          showOverflow={column.showOverflow || showOverflow}
+          showOverflow={false}
           sortable={column.sortable}
           title={column.alias}
         />
@@ -855,7 +804,6 @@ export default defineComponent({
       traceSliderRender,
       spanSliderRender,
       transformColumn,
-      filtersCheckBoxGroupRender,
       handleSortChange,
       handleFilterChange,
     };
@@ -864,35 +812,30 @@ export default defineComponent({
   render() {
     return (
       <div class='trace-explore-table'>
-        <div class='trace-explore-table-filter'>
-          <span class='filter-label'>{this.$t('包含')}：</span>
-          {this.filtersCheckBoxGroupRender()}
-        </div>
-        <div class='trace-explore-table-main'>
-          {/* @ts-ignore */}
-          <Table
-            rowConfig={{
-              useKey: true,
-              isCurrent: true,
-              keyField: this.tableRowKeyField,
-            }}
-            sortConfig={{
-              remote: true,
-              orders: ['asc', 'desc', 'null'],
-            }}
-            autoResize={true}
-            border='inner'
-            columnConfig={{ useKey: true }}
-            data={this.tableData}
-            filter-config={{ remote: true }}
-            row-height={this.defaultTableConfig.lineHeight}
-            size='mini'
-            onFilterChange={this.handleFilterChange}
-            onSortChange={this.handleSortChange}
-          >
-            {this.tableColumns.map(column => this.transformColumn(column))}
-          </Table>
-        </div>
+        {/* @ts-ignore */}
+        <Table
+          rowConfig={{
+            useKey: true,
+            isCurrent: true,
+            keyField: this.tableRowKeyField,
+          }}
+          sortConfig={{
+            remote: true,
+            orders: ['asc', 'desc', 'null'],
+          }}
+          autoResize={true}
+          border='inner'
+          columnConfig={{ useKey: true }}
+          data={this.tableData}
+          filter-config={{ remote: true }}
+          row-height={this.defaultTableConfig.lineHeight}
+          showOverflow={false}
+          size='mini'
+          onFilterChange={this.handleFilterChange}
+          onSortChange={this.handleSortChange}
+        >
+          {this.tableColumns.map(column => this.transformColumn(column))}
+        </Table>
         {this.traceSliderRender()}
         {this.spanSliderRender()}
       </div>

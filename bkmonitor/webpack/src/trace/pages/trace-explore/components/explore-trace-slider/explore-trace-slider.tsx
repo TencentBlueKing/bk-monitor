@@ -82,7 +82,6 @@ export default defineComponent({
       store.setTraceLoaidng(true);
 
       const params: any = {
-        bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         trace_id: props.traceId,
       };

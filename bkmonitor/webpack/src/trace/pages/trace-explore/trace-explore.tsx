@@ -401,7 +401,7 @@ export default defineComponent({
                 ),
                 default: () => (
                   <div class='result-content-panel'>
-                    <TraceExploreView />
+                    <TraceExploreView commonParams={this.commonParams} />
                   </div>
                 ),
               }}

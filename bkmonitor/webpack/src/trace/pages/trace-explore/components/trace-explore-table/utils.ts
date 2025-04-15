@@ -29,7 +29,6 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
     lineHeight: 32,
     align: 'left',
-    showOverflow: 'ellipsis',
     emptyPlaceholder: '--',
   },
   traceConfig: {
@@ -82,5 +81,16 @@ export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTable
   5: { alias: window.i18n.t('异步被调'), prefixIcon: 'icon-monitor icon-yibubeitiao' },
   6: { alias: window.i18n.t('推断'), prefixIcon: 'icon-monitor icon-tuiduan' },
 };
+
+export function getListMock(requestParam, mode: 'span' | 'trace', requestConfig): Promise<{ data: any[] }> {
+  console.log('================ requestParam ================', requestParam);
+  console.log('================ mode ================', mode);
+  console.log('================ requestConfig ================', requestConfig);
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({ data: TABLE_MOCK_DATA });
+    }, 2000);
+  });
+}
 
 export const TABLE_MOCK_DATA = [];
