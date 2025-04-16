@@ -148,6 +148,14 @@
 
     focusIndex.value = null;
   };
+
+  const handleDeleAllOptions = () => {
+    commonFilterAddition.value.forEach(item => {
+      item.value = [];
+    });
+
+    handleChange();
+  };
 </script>
 
 <template>
@@ -213,6 +221,10 @@
           ></bklogTagChoice>
         </template>
       </div>
+      <span
+        @click="handleDeleAllOptions"
+        class="btn-del-action bklog-icon bklog-qingkong"
+      ></span>
     </div>
     <div
       v-else
@@ -253,6 +265,15 @@
     max-height: 114px;
     margin-top: 4px;
     overflow: auto;
+    position: relative;
+    padding-right: 30px;
+
+    .btn-del-action {
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      cursor: pointer;
+    }
   }
 
   .filter-select-wrap {

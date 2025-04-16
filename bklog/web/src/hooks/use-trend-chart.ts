@@ -32,7 +32,7 @@ import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
-import chartOption from './trend-chart-options';
+import chartOption, { getSeriesData } from './trend-chart-options';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -53,10 +53,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
 
-  let chartData = [];
   let runningInterval = '1m';
-  const optionData = new Map<number, number[]>();
-
   let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
@@ -102,14 +99,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return timeunit[unit] * Number(num);
   };
 
-  const updateChartData = () => {
-    const keys = [...optionData.keys()];
-
-    keys.sort((a, b) => a[0] - b[0]);
-    const data = keys.map(key => [key, optionData.get(key)[0], optionData.get(key)[1]]);
-    chartData = data;
-  };
-
   // 默认需要展示的柱子数量
   const barCount = 60;
   const intervals: [string, number][] = [
@@ -143,58 +132,70 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return runningInterval;
   };
 
-  // 时间向下取整
-  const getIntegerTime = time => {
-    if (runningInterval === '1d') {
-      // 如果周期是 天 则特殊处理
-      const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
-      return Date.parse(`${step} 00:00:00`) / 1000;
-    }
-
-    const intervalTimestamp = getIntervalValue(runningInterval);
-    return Math.floor(time / intervalTimestamp) * intervalTimestamp;
-  };
-
-  const initChartData = (start_time, end_time) => {
+  const initChartData = () => {
     setRunnningInterval();
-    const intervalTimestamp = getIntervalValue(runningInterval);
-
-    const startValue = getIntegerTime(start_time / 1000);
-    let endValue = getIntegerTime(end_time / 1000);
-
-    while (endValue > startValue) {
-      optionData.set(endValue * 1000, [0, null]);
-      endValue = endValue - intervalTimestamp;
-    }
-
-    if (endValue < startValue) {
-      endValue = startValue;
-      optionData.set(endValue * 1000, [0, null]);
-    }
-
-    updateChartData();
-
     return { interval: runningInterval };
   };
-  const setChartData = (data: number[][]) => {
-    data.forEach(item => {
-      const [timestamp, value, timestring] = item;
-      optionData.set(timestamp, [value + (optionData.get(timestamp)?.[0] ?? 0), timestring]);
+
+  const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
+
+  const setGroupData = group => {
+    const buckets = group?.buckets || [];
+    const series = [];
+    let count = 0;
+
+    buckets.forEach((item, index) => {
+      let opt_data = new Map<Number, Number[]>();
+      (item.group_by_histogram?.buckets || []).forEach(({ key, doc_count, key_as_string }) => {
+        opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
+        count += doc_count;
+      });
+
+      const keys = [...opt_data.keys()];
+      keys.sort((a, b) => a[0] - b[0]);
+      const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+      series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
+
+      opt_data.clear();
+      opt_data = null;
     });
 
-    updateChartData();
+    options.series = series;
     updateChart();
+    return count;
+  };
 
-    const totalCount = optionData.values().reduce((count, item) => {
-      count = count + (item[0] ?? 0);
-      return count;
-    }, 0);
-    return totalCount;
+  const setDefaultData = aggs => {
+    let opt_data = new Map<Number, Number[]>();
+    const buckets = aggs?.group_by_histogram?.buckets || [];
+    const series = [];
+    let count = 0;
+
+    buckets.forEach(({ key, doc_count, key_as_string }) => {
+      opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
+      count += doc_count;
+    });
+
+    const keys = [...opt_data.keys()];
+    keys.sort((a, b) => a[0] - b[0]);
+    const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+    series.push(getSeriesData({ name: '', data, color: '#A4B3CD' }));
+    options.series = series;
+    updateChart();
+    opt_data.clear();
+    opt_data = null;
+    return count;
+  };
+
+  const setChartData = (eggs, fieldName?) => {
+    if (fieldName && eggs[fieldName]) {
+      return setGroupData(eggs[fieldName]);
+    }
+
+    return setDefaultData(eggs);
   };
 
   const clearChartData = () => {
-    optionData.clear();
-    updateChartData();
     updateChart();
   };
 
@@ -228,7 +229,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return;
     }
 
-    options.series[0].data = chartData;
     options.series.forEach(s => {
       s.barMinHeight = 2;
       s.itemStyle.color = params => {
@@ -236,14 +236,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       };
     });
 
-    options.series[0].stack = 'total';
-    // 此处为展示用假数据
-    // options.series[0].name = 'error';
-    // options.series[1] = deepClone(options.series[0]);
-    // options.series[2] = deepClone(options.series[0]);
-    // options.series[1].name = 'wran';
-    // options.series[2].name = 'info';
-
+    // options.series[0].stack = 'total';
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);

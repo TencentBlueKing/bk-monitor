@@ -395,6 +395,12 @@ const store = new Vuex.Store({
       Object.assign(state.indexSetFieldConfig, result ?? {});
     },
 
+    updateIndexSetCustomConfig(state, payload) {
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexFieldInfo.custom_config, key, payload[key]);
+      });
+    },
+
     resetIndexSetQueryResult(state, payload) {
       Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
     },

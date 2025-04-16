@@ -18,6 +18,7 @@
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
 
   const chartKey = computed(() => store.state.retrieve.chartKey);
 
@@ -113,6 +114,18 @@
           index_set_ids: unionIndexList.value,
         });
       }
+
+      if (
+        gradeOptions.value &&
+        !gradeOptions.value.disabled &&
+        gradeOptions.value.type === 'custom' &&
+        gradeOptions.value.field
+      ) {
+        Object.assign(queryData, {
+          group_field: gradeOptions.value.field,
+        });
+      }
+
       http
         .request(
           urlStr,
@@ -128,9 +141,9 @@
         )
         .then(res => {
           if (res?.data) {
-            const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-            const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-            const sumCount = setChartData(data);
+            debugger;
+
+            const sumCount = setChartData(res?.data?.aggs, gradeOptions.value?.field);
             store.commit('retrieve/updateTrendDataCount', sumCount);
           }
 

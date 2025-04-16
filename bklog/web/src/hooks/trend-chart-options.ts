@@ -235,44 +235,48 @@ export default {
       z: 3,
     },
   ],
-  series: [
-    {
-      data: [],
-      name: '',
-      type: 'bar',
-      barMinHeight: 0,
-      z: 4,
-      markLine: {},
-      markArea: {},
-      zlevel: 0,
-      coordinateSystem: 'cartesian2d',
-      legendHoverLink: true,
-      large: false,
-      largeThreshold: 400,
-      progressive: 3000,
-      progressiveChunkMode: 'mod',
-      itemStyle: {},
-      emphasis: {
-        label: {},
-      },
-      clip: true,
-      roundCap: false,
-      showBackground: false,
-      backgroundStyle: {
-        color: 'rgba(180, 180, 180, 0.2)',
-        borderColor: null,
-        borderWidth: 0,
-        borderType: 'solid',
-        borderRadius: 0,
-        shadowBlur: 0,
-        shadowColor: null,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        opacity: 1,
-      },
-      label: {},
-      animationDuration: 1000, // 动画持续时间
-      animationEasing: 'cubicOut', // 动画缓动效果
-    },
-  ],
+  series: [],
 };
+
+export const getSeriesData = ({ data, name, color }) => ({
+  data,
+  name,
+  type: 'bar',
+  stack: 'total',
+  barMinHeight: 0,
+  z: 4,
+  markLine: {},
+  markArea: {},
+  zlevel: 0,
+  coordinateSystem: 'cartesian2d',
+  legendHoverLink: true,
+  large: false,
+  largeThreshold: 400,
+  progressive: 3000,
+  progressiveChunkMode: 'mod',
+  itemStyle: {
+    color,
+  },
+  emphasis: {
+    label: {},
+  },
+  clip: true,
+  roundCap: false,
+  showBackground: false,
+
+  backgroundStyle: {
+    color: 'rgba(180, 180, 180, 0.2)',
+    borderColor: null,
+    borderWidth: 0,
+    borderType: 'solid',
+    borderRadius: 0,
+    shadowBlur: 0,
+    shadowColor: null,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    opacity: 1,
+  },
+  label: {},
+  animationDuration: 1000, // 动画持续时间
+  animationEasing: 'cubicOut', // 动画缓动效果
+});

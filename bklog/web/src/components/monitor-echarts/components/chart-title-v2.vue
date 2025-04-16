@@ -82,7 +82,10 @@
           >
             <span class="bklog-icon bklog-shezhi"></span>
             <template #content>
-              <GradeOption></GradeOption>
+              <GradeOption
+                ref="refGradeOption"
+                @change="handleGradeOptionChange"
+              ></GradeOption>
             </template>
           </BklogPopover>
         </div>
@@ -140,6 +143,10 @@
     tippyOptions = {
       appendTo: document.body,
       hideOnClick: false,
+      onShown: () => {
+        const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options;
+        this.$refs.refGradeOption?.updateOptions?.(cfg);
+      },
     };
 
     get retrieveParams() {
@@ -173,7 +180,7 @@
       this.$emit('interval-change', this.chartInterval);
     }
 
-    handleSaveGradeSettingClick() {
+    handleGradeOptionChange() {
       (this.$refs.refGradePopover as any)?.hide();
     }
 

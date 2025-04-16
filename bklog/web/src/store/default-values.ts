@@ -80,6 +80,14 @@ export const IndexFieldInfo = {
   config_id: 0,
   aggs_items: {},
   last_eggs_request_token: null,
+  custom_config: {
+    grade_options: {
+      disabled: false,
+      type: 'normal',
+      field: null,
+      settings: [],
+    },
+  },
   user_custom_config: {
     filterSetting: [],
     displayFields: [],

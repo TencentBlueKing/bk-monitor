@@ -469,7 +469,7 @@
 <style lang="scss">
   .monitor-echarts-container {
     position: relative;
-    height: 160px;
+    // height: 160px;
     overflow: hidden;
     background-color: #fff;
 
@@ -526,7 +526,7 @@
     }
 
     .monitor-echart-wrap {
-      height: 116px;
+      // height: 116px;
       padding-top: 0;
       padding-bottom: 0;
 
