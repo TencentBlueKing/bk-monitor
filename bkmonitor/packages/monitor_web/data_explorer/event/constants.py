@@ -151,7 +151,6 @@ CATEGORY_WEIGHTS = {
     EventCategory.CICD_EVENT.value: CategoryWeight.CICD_EVENT.value,
 }
 
-
 DEFAULT_EVENT_ORIGIN: Tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
 
 EVENT_ORIGIN_MAPPING: Dict[str, Tuple[str, str]] = {
@@ -375,7 +374,7 @@ K8S_EVENT_TRANSLATIONS = {
     "CronJob": {
         "BackoffLimitExceeded": _("退避超限"),
         "SuccessfulCreate": _("Pod 创建"),
-        "SuccessfulDelete": _("Pod 删除 "),
+        "SuccessfulDelete": _("Pod 删除"),
         "SawCompletedJob": _("已完成"),
     },
     "Deployment": {
@@ -446,6 +445,56 @@ K8S_EVENT_TRANSLATIONS = {
         "NodeHasSufficientMemory": _("节点内存充足"),
         "NodeHasSufficientDisk": _("节点磁盘充足"),
         "NodeHasSufficientPID": _("节点 PID 充足"),
+    },
+    "Service": {
+        "EnsuringLoadBalancer": _("正在确保负载均衡器"),
+        "EnsuredLoadBalancer": _("负载均衡器已就绪"),
+        "DeletingLoadBalancer": _("正在删除负载均衡器"),
+        "DeletedLoadBalancer": _("负载均衡器已删除"),
+        "FailedToCreateLoadBalancer": _("负载均衡器创建失败"),
+        "FailedToDeleteLoadBalancer": _("负载均衡器删除失败"),
+        "PortConflict": _("端口冲突"),
+        "ProtocolNotSupported": _("协议类型不支持"),
+        "FailedToAllocateExternalIP": _("外部 IP 分配失败"),
+        "ExternalIPConflict": _("外部 IP 冲突"),
+        "NoEndpoints": _("无可用 Endpoints"),
+        "FailedToUpdateEndpointSlices": _("EndpointSlices 更新失败"),
+        "CloudProviderRateLimited": _("云提供商 API 调用频率受限"),
+        "QuotaExceeded": _("云资源配额不足"),
+        "SessionAffinityConflict": _("会话亲和性配置冲突"),
+        "AllocationFailed": _("资源分配失败"),
+        "InvalidExternalName": _("ExternalName 格式错误"),
+        "ClusterIPNotAllocated": _("ClusterIP 未分配"),
+    },
+    "Endpoints": {
+        "FailedToUpdateEndpoint": _("更新 Endpoints 失败"),
+        "FailedToCreateEndpoint": _("创建 Endpoints 失败"),
+        "FailedToDeleteEndpoint": _("删除 Endpoints 失败"),
+        "NoMatchingPods": _("无匹配的 Pod"),
+        "PortConflict": _("端口冲突"),
+        "AddressNotReady": _("Pod IP 未就绪"),
+        "ResourceExhausted": _("资源不足"),
+        "InvalidTopology": _("拓扑约束不满足"),
+    },
+    "Ingress": {
+        "SyncLoadBalancerFailed": _("负载均衡器同步失败"),
+        "CreateLoadBalancerFailed": _("负载均衡器创建失败"),
+        "UpdateLoadBalancerFailed": _("负载均衡器更新失败"),
+        "DeleteLoadBalancerFailed": _("负载均衡器删除失败"),
+        "NoServersAvailable": _("无可用后端服务"),
+        "BackendNotFound": _("后端服务未找到"),
+        "InvalidTLSSecret": _("TLS 证书 Secret 无效"),
+        "CertificateExpired": _("证书已过期"),
+        "MissingTLSSecret": _("TLS 证书 Secret 缺失"),
+        "PathConflict": _("路径规则冲突"),
+        "AddressNotAssigned": _("负载均衡器 IP/域名未分配"),
+        "InvalidIngressClass": _("IngressClass 配置无效"),
+        "InvalidHost": _("Host 域名格式错误"),
+        "InvalidPath": _("路径规则格式错误"),
+        "UnsupportedProtocol": _("协议类型不支持"),
+        "FailedToUpdateStatus": _("Ingress 状态更新失败"),
+        "QuotaExceeded": _("云资源配额不足"),
+        "NetworkPolicyConflict": _("网络策略冲突"),
     },
 }
 
@@ -592,3 +641,22 @@ class CicdStatus(CachedEnum):
         default = super().get_default(value)
         default.label = value
         return default
+
+
+class ContainerMonitorMetricsType(Enum):
+    """
+    容器监控指标类型枚举
+    """
+
+    PERFORMANCE: str = "performance"
+    NETWORK: str = "network"
+
+
+class ContainerMonitorTabType(Enum):
+    """
+    容器监控界面类型枚举
+    """
+
+    LIST: str = "list"
+    CHART: str = "chart"
+    DETAIL: str = "detail"
