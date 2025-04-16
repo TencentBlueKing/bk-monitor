@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typing';
+
 export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
     lineHeight: 32,
     align: 'left',
-    showOverflow: 'ellipsis',
     emptyPlaceholder: '--',
   },
   traceConfig: {
@@ -58,7 +59,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
   },
 } as const);
 
-/** trace检索table 状态码 不同类型显示 tag color 配置 */
+/** trace检索table 状态码(status.code)列 不同类型显示 tag color 配置 */
 export const SERVICE_STATUS_COLOR_MAP = {
   error: {
     tagColor: '#ea3536',
@@ -69,5 +70,27 @@ export const SERVICE_STATUS_COLOR_MAP = {
     tagBgColor: '#e4faf0',
   },
 };
+
+/** trace检索table span类型(kind)列 不同类型显示 prefix-icon 渲染配置 */
+export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTableColumnTypeEnum.PREFIX_ICON>> = {
+  0: { alias: window.i18n.t('未定义'), prefixIcon: 'icon-monitor icon-weizhi' },
+  1: { alias: window.i18n.t('内部调用'), prefixIcon: 'icon-monitor icon-neibutiaoyong1' },
+  2: { alias: window.i18n.t('同步被调'), prefixIcon: 'icon-monitor icon-tongbubeitiao' },
+  3: { alias: window.i18n.t('同步主调'), prefixIcon: 'icon-monitor icon-tongbuzhutiao' },
+  4: { alias: window.i18n.t('异步主调'), prefixIcon: 'icon-monitor icon-yibuzhutiao' },
+  5: { alias: window.i18n.t('异步被调'), prefixIcon: 'icon-monitor icon-yibubeitiao' },
+  6: { alias: window.i18n.t('推断'), prefixIcon: 'icon-monitor icon-tuiduan' },
+};
+
+export function getListMock(requestParam, mode: 'span' | 'trace', requestConfig): Promise<{ data: any[] }> {
+  console.log('================ requestParam ================', requestParam);
+  console.log('================ mode ================', mode);
+  console.log('================ requestConfig ================', requestConfig);
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({ data: TABLE_MOCK_DATA });
+    }, 2000);
+  });
+}
 
 export const TABLE_MOCK_DATA = [];

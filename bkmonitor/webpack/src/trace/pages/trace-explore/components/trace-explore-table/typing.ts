@@ -81,7 +81,7 @@ export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum> {
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>) => void;
+  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
 }
 
 /**
@@ -129,4 +129,12 @@ export enum ExploreTableColumnTypeEnum {
   TEXT = 'text',
   /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss) */
   TIME = 'time',
+}
+
+/** 检索表格loading类型枚举 */
+export enum ExploreTableLoadingEnum {
+  /** 刷新 -- 显示 骨架屏 效果loading */
+  REFRESH = 'refreshLoading',
+  /** 滚动 -- 显示 表格底部 loading */
+  SCROLL = 'scrollLoading',
 }
