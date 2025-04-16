@@ -236,6 +236,10 @@
   };
 
   const handleClearBtnClick = () => {
+    if (!isCopyBtnActive.value || isInputLoading.value) {
+      return;
+    }
+
     sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
     store.commit('updateIndexItemParams', {

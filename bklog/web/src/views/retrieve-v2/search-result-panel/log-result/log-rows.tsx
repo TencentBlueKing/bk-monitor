@@ -688,9 +688,7 @@ export default defineComponent({
         if (!isRequesting.value) {
           if (isLoading.value) {
             scrollToTop(0);
-
             renderList = [];
-
             return;
           }
 
@@ -706,6 +704,10 @@ export default defineComponent({
         setRenderList(null);
         debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
+
+        if (tableDataSize.value <= 50) {
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        }
       },
       {
         immediate: true,

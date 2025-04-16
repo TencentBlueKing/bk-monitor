@@ -160,7 +160,6 @@ export default class PopInstanceUtil {
       placement: 'bottom-start' as Placement,
       interactive: true,
       maxWidth: 800,
-      flipOnUpdate: true,
       zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
       onShow: () => {
         this.onMounted();
