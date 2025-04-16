@@ -1263,6 +1263,7 @@ class Space(SoftDeleteModel):
                        space_uid,
                        space_code,
                        bk_biz_id,
+                       bk_tenant_id,
                        JSON_EXTRACT(properties, '$.time_zone') AS time_zone
                 FROM log_search_space
                 WHERE bk_tenant_id = %s

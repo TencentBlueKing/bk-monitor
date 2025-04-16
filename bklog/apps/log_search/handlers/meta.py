@@ -97,6 +97,7 @@ class MetaHandler(APIModel):
                     "time_zone": (space["time_zone"] or "Asia/Shanghai").strip("\""),
                     "is_sticky": space["space_uid"] in sticky_spaces,
                     "permission": {ActionEnum.VIEW_BUSINESS.id: space["bk_biz_id"] in allowed_space_mapping},
+                    "bk_tenant_id": space["bk_tenant_id"],
                 }
             )
         return result

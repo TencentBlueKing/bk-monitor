@@ -67,9 +67,12 @@ def sync_spaces():
     for tenant in BKLoginApi.list_tenant():
         tenant_id = tenant["tenant_id"]
         total: int = TransferApi.list_spaces({"page": 1, "page_size": 1}, bk_tenant_id=tenant_id)["count"]
+        logger.info("[sync_spaces] fetch for tenant (%s), total (%s)", tenant_id, total)
+
         for i in get_page_numbers(total=total, page_size=BATCH_SYNC_SPACE_COUNT):
             spaces = TransferApi.list_spaces(
-                {"is_detail": True, "page": i, "page_size": BATCH_SYNC_SPACE_COUNT, "include_resource_id": True}
+                {"is_detail": True, "page": i, "page_size": BATCH_SYNC_SPACE_COUNT, "include_resource_id": True},
+                bk_tenant_id=tenant_id,
             )["list"]
             for space in spaces:
                 space_pk = space.pop("id")
@@ -92,6 +95,7 @@ def sync_spaces():
                     space_code=space_code,
                     properties=space,
                     is_deleted=False,
+                    bk_tenant_id=tenant_id,
                 )
 
                 space_mappings[space_pk] = space_obj
@@ -144,10 +148,11 @@ def sync_spaces():
                 "space_name",
                 "space_code",
                 "properties",
+                "bk_tenant_id",
                 "is_deleted",
             ],
             batch_size=500,
         )
         # 删除不存在的空间
         deleted_rows = Space.origin_objects.exclude(id__in=space_id_list).delete()
-    logger.info("[sync_spaces] sync ({}), delete ({})".format(len(space_id_list), deleted_rows))
+    logger.info("[sync_spaces] sync (%s), delete (%s)", len(space_id_list), deleted_rows)
