@@ -31,6 +31,7 @@ import { Debounce } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
 import LayoutChartTable from './layout-chart-table';
 import { chunkArray } from './utils';
 

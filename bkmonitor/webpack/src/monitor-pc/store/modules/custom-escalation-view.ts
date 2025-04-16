@@ -61,6 +61,19 @@ class CustomEscalationViewStore extends VuexModule {
     return result;
   }
 
+  get dimensionAliasNameMap() {
+    return this.metricGroupList.reduce<Record<string, string>>((result, groupItem) => {
+      for (const metricsItem of groupItem.metrics) {
+        for (const dimensionItem of metricsItem.dimensions) {
+          Object.assign(result, {
+            [dimensionItem.name]: dimensionItem.alias,
+          });
+        }
+      }
+      return result;
+    }, {});
+  }
+
   get timeRangTimestamp() {
     return handleTransformToTimestamp([this.startTime, this.endTime]);
   }
