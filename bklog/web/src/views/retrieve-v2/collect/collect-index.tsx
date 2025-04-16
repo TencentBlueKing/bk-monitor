@@ -449,6 +449,10 @@ export default class CollectIndex extends tsc<IProps> {
     this.setRouteParams(value);
     this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
 
+    this.$store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+    });
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
     });

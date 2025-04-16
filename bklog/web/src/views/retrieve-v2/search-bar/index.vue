@@ -67,7 +67,7 @@
     },
   });
 
-  const activeIndex = computed(() => store.state.storage.searchType);
+  const activeIndex = computed(() => store.state.storage.searchType ?? 0);
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
