@@ -494,7 +494,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
             show={this.dimensionSelectShow}
             value={this.transferTargetList}
             onCancel={this.handleTransferCancel}
-            on-confirm={this.handleTransferConfirm}
+            onConfirm={this.handleTransferConfirm}
           />
         </bk-dialog>
       </MonitorDialog>

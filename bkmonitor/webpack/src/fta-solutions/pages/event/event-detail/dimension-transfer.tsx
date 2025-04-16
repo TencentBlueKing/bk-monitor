@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
@@ -36,12 +36,16 @@ interface IProps {
   fields: IDimensionItem[]; // 全部数据集合
   value?: string[]; // 已选列表/默认选中的数据唯一标识集合
   show?: boolean; // 展示穿梭框
-  onConfirm?: (value: IDimensionItem[]) => void; // 穿梭框确认按钮
-  onCancel?: () => void; // 穿梭框取消按钮
 }
 
 @Component
-export default class ResidentSettingTransfer extends tsc<IProps> {
+export default class ResidentSettingTransfer extends tsc<
+  IProps,
+  {
+    onConfirm: IDimensionItem[];
+    onCancel: () => void;
+  }
+> {
   @Prop({ type: Array, default: () => [] }) fields: IDimensionItem[];
   @Prop({ type: Array, default: () => [] }) value: string[];
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -96,29 +100,30 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   }
 
   // 通用搜索方法
-  filterFields(searchValue, fields) {
+  filterFields(searchValue: string, fields) {
     if (!searchValue) return fields;
     const normalizedSearchValue = String(searchValue).toLocaleLowerCase();
     return fields.filter(item => {
       const { display_key: displayKey, key, display_value: displayValue, value } = item;
-      const compareValues = [
-        `${displayKey}(${displayValue})`.toLocaleLowerCase(),
-        `${displayKey}(${value})`.toLocaleLowerCase(),
-        `${key}(${displayValue})`.toLocaleLowerCase(),
-        `${key}(${value})`.toLocaleLowerCase(),
-      ];
-      return compareValues.some(val => val.includes(normalizedSearchValue));
+      return (
+        displayKey?.toLocaleLowerCase().includes(normalizedSearchValue) ||
+        displayValue?.toLocaleLowerCase().includes(normalizedSearchValue) ||
+        key?.toLocaleLowerCase().includes(normalizedSearchValue) ||
+        value?.toLocaleLowerCase().includes(normalizedSearchValue)
+      );
     });
   }
 
   // 穿梭框确认事件
+  @Emit('confirm')
   handleConfirm() {
-    this.$emit('confirm', this.selectedFields);
+    return this.selectedFields;
   }
 
   // 穿梭框取消事件
+  @Emit('cancel')
   handleCancel() {
-    this.$emit('cancel');
+    return undefined;
   }
 
   // 处理待选列表
@@ -170,6 +175,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
         <span
           key={'02'}
           class='option-name-title'
+          v-bk-overflow-tips
         >
           {`${item.display_key || item.key}(${item.display_value || item.value})`}
         </span>,
@@ -235,16 +241,18 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
                   onChange={v => this.handleSearchValueChange(v, 'selected')}
                 />
               </div>
-              {this.searchSelectedFields.map(item => (
-                <div
-                  key={item.key}
-                  class='option'
-                  onClick={() => this.handleDelete(item)}
-                >
-                  {optionRender(item)}
-                  <span class='icon-monitor icon-mc-close' />
-                </div>
-              ))}
+              <div class='options-wrap'>
+                {this.searchSelectedFields.map(item => (
+                  <div
+                    key={item.key}
+                    class='option'
+                    onClick={() => this.handleDelete(item)}
+                  >
+                    {optionRender(item)}
+                    <span class='icon-monitor icon-mc-close' />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
