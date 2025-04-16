@@ -655,7 +655,7 @@ class AlertDetailResource(Resource):
     @classmethod
     def add_project_name(cls, data):
         """
-        如果维度中存在display_key=bcs_cluster_id，则在维度中增加project_name字段
+        如果维度中存在key=tags.bcs_cluster_id，则在维度中增加project_name字段
         用于前端进行集群跳转
 
         data["dimensions"]:[
