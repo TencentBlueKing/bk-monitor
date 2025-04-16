@@ -89,6 +89,8 @@ class VisibleEnum(ChoicesEnum):
     CURRENT_BIZ = "current_biz"
     # 多业务可见
     MULTI_BIZ = "multi_biz"
+    # 当前租户可见
+    CURRENT_TENANT = "current_tenant"
     # 全业务
     ALL_BIZ = "all_biz"
     # 业务属性可见
@@ -97,6 +99,7 @@ class VisibleEnum(ChoicesEnum):
     _choices_labels = (
         (CURRENT_BIZ, _("当前业务")),
         (MULTI_BIZ, _("多业务")),
+        (CURRENT_TENANT, _("当前租户")),
         (ALL_BIZ, _("全业务")),
         (BIZ_ATTR, _("业务属性")),
     )

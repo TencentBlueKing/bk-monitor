@@ -165,3 +165,14 @@ def get_external_app_code():
             return settings.APP_CODE
     else:
         return settings.APP_CODE
+
+
+def get_request_tenant_id():
+    """
+    获取请求中的租户ID
+    """
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        request = get_request(peaceful=True)
+        if request and request.user.tenant_id:
+            return request.user.tenant_id
+    return settings.DEFAULT_TENANT_ID

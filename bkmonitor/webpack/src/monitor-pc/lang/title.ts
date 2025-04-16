@@ -170,4 +170,7 @@ export default {
   '已选择以下{0}个收藏对象': 'You have selected {0} favorite objects',
   维度数: 'Dimension number',
   维度值: 'Dimension value',
+  选择维度信息: 'Select dimension information',
+  已选列表: 'Selected list',
+  全部移除: 'Remove all',
 };

@@ -9,9 +9,9 @@
     ></span
     >{{ $t('告警') }}
     <bk-badge
-      v-if="badgeCount !== 0"
+      v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
-      :val="badgeCount"
+      :val="ownPendingCount"
       theme="danger"
     />
 
@@ -29,6 +29,10 @@
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
+              <div class="selector-owner" v-if="active === 'mission'">
+                我的
+                <bk-switcher class="selector-owner-switch" size="small" v-model="filterOwner"></bk-switcher>
+              </div>
               <div
                 v-if="active === 'mission'"
                 class="selector-container"
@@ -80,7 +84,7 @@
             <bk-table
               v-if="active === 'mission'"
               v-bkloading="{ isLoading: loading }"
-              :data="recordList"
+              :data="recordListshow"
               :empty-text="$t('暂无内容')"
               :key="tableKey"
               :max-height="200"
@@ -227,12 +231,12 @@
       appendTo: document.body,
     },
   });
-
   const panels = ref([
     { name: 'mission', label: '最近告警记录', count: 0 },
     { name: 'config', label: '策略', count: 0 },
   ]);
   const indexId = computed(() => store.state.indexId);
+  const userMeta = computed(() => store.state.userMeta);
   // const alertText = computed(() => {
   //   if (active.value === 'mission') {
   //     return t('最多展示近10条告警，点击查看更多');
@@ -241,12 +245,18 @@
   //   return t('最多展示近10条策略，点击查看更多');
   // });
 
+  // 告警数量
   const badgeCount = ref(0);
+  // 本人待处理数量
+  const ownPendingCount = ref(0);
+
+
   const activeBar = {
     position: 'top',
     height: '6px',
   };
   const loading = ref(false);
+  const filterOwner = ref(true)
   const active = ref('mission');
   const typeMap = {
     all: 'ALL',
@@ -264,6 +274,14 @@
   const recordList = ref([]);
   const originRecordList = ref([]);
   const strategyList = ref([]);
+  const recordListshow = computed(() => {
+    if(filterOwner.value){
+      return recordList.value.filter((item: any) =>item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username))
+    }else{
+      return recordList.value
+    }
+  });
+
 
   const pageSize = 10;
 
@@ -318,7 +336,7 @@
   const handleTabChange = () => {
     tableKey.value += 1;
   };
-
+  
   const handleSortChange = ({ column }: { column }) => {
     if (!column.order) {
       recordList.value = originRecordList.value;
@@ -429,11 +447,14 @@
 
       if (val === 'NOT_SHIELDED_ABNORMAL') {
         badgeCount.value = res?.data.length;
+        ownPendingCount.value = res?.data.filter(item =>{
+          return item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username)
+        }).length
       }
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
-      panels.value[0].count = res?.data.length || 0;
+      // panels.value[0].count = res?.data.length || 0;
       tableKey.value += 1;
     } catch (e) {
       console.warn(e);
@@ -483,6 +504,9 @@
   };
 
   const handleViewLogInfo = row => {
+    const startTime = row.first_anomaly_time * 1000
+    const endTime = row.end_time * 1000 || Date.now();
+
     loading.value = true;
     $http
       .request('alertStrategy/getLogRelatedInfo', {
@@ -513,8 +537,12 @@
           resolveCommonParams(params);
           resolveQueryParams(params, true).then(res => {
             if (res) {
-              store.dispatch('requestIndexSetQuery', { isPagination: false });
-              PopInstanceUtilInstance.hide();
+              store.commit('updateIndexItemParams', { start_time: startTime, end_time: endTime, datePickerValue: [startTime, endTime] });
+              setTimeout(() => {
+                store.dispatch('requestIndexSetQuery', { isPagination: false });
+                PopInstanceUtilInstance.hide();
+              });
+             
             }
           });
           return;
@@ -561,6 +589,9 @@
       }
     },
   );
+  watch(() => recordListshow.value.length, (newLength) => {
+    panels.value[0].count = newLength;
+  });
 </script>
 <style lang="scss">
   .warn-table-wrap {
@@ -656,6 +687,16 @@
         margin-right: 2px;
         background-color: var(--severity-color);
       }
+    }
+  }
+
+  .selector-owner{
+    display: flex;
+    align-items: center;
+    margin-right: 10px;
+
+    .selector-owner-switch{
+      margin-left: 5px;
     }
   }
 
