@@ -65,7 +65,7 @@ def sync_spaces():
     relate_space_uid_mappings = defaultdict(set)
 
     for tenant in BKLoginApi.list_tenant():
-        tenant_id = tenant["tenant_id"]
+        tenant_id = tenant["id"]
         total: int = TransferApi.list_spaces({"page": 1, "page_size": 1}, bk_tenant_id=tenant_id)["count"]
         logger.info("[sync_spaces] fetch for tenant (%s), total (%s)", tenant_id, total)
 
