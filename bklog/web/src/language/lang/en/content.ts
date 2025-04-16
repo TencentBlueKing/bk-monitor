@@ -1054,4 +1054,6 @@ export default {
     'The share link was copied successfully, and through the link, you can directly access the corresponding bookmarked logs.',
   联想到以下: 'Associated with the following:',
   个收藏: 'favorite items',
+  '暂无配置责任人，无法自动创建告警策略':
+    'No configured responsible person, unable to automatically create alarm strategy',
 };

@@ -779,4 +779,5 @@ export default {
   展示: 'Show',
   创建告警策略: 'Create Alert Policy',
   字段名称设置: 'Field name settings',
+  前往查看: 'Go to view',
 };

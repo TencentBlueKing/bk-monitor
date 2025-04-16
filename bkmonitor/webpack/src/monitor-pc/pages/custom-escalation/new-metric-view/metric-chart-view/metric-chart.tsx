@@ -385,11 +385,12 @@ class NewMetricChart extends CommonSimpleChart {
   }
   handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
-    const { metric = {} } = item;
-    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}-` : '';
+    // const { metric = {} } = item;
+    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation });
-    const outputStr = output ? `(${output})` : '';
-    return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
+    const outputStr = output ? `-{${output}}` : '';
+    return `${timeOffset}${outputStr}`;
+    // return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
   }
 
   handleTime() {

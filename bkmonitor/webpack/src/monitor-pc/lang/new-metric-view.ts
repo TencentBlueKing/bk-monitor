@@ -60,7 +60,7 @@ export default {
   多选: 'Multi-Select',
   波动: 'Fluctuation',
   '搜索 维度': 'Search Dimensions',
-  下钻分析: 'Drill Down Analysis',
+  维度下钻: 'Dimensional Drilling',
   '指标：': 'Metrics:',
   '已选 {0} 个指标': 'Selected {0} Metrics',
   '2 列': '2 Columns',
@@ -114,4 +114,7 @@ export default {
   '暂只支持开启，不支持关闭': 'Currently only supports opening, not closing',
   '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',
   清空关键词: 'Clear keywords',
+  '显/隐': 'Show/Hide',
+  '仅允许包含字母、数字、下划线，且必须以字母开头':
+    'Only letters, numbers, and underscores are allowed, and the name must start with a letter',
 };

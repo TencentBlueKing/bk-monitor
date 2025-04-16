@@ -500,7 +500,13 @@ class DimensionDrillManager(AIOPSManager):
         }
 
         # 维度中文名映射
-        dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
+        dim_mappings = {}
+        if metric:
+            dim_mappings = {
+                item["id"]: item["name"]
+                for item in metric.dimensions
+                if item.get("is_dimension", True)
+            }
 
         anomaly_dimensions = []
         for root_dimension in root_dimensions:
@@ -558,7 +564,13 @@ class DimensionDrillManager(AIOPSManager):
         graph_panels = []
 
         # 维度中文名映射
-        dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
+        dim_mappings = {}
+        if metric:
+            dim_mappings = {
+                item["id"]: item["name"]
+                for item in metric.dimensions
+                if item.get("is_dimension", True)
+            }
 
         for dimension in graph_dimensions:
             base_graph_panel = copy.deepcopy(graph_panel)
@@ -1062,9 +1074,13 @@ class RecommendMetricManager(AIOPSManager):
                 }
 
                 # 维度中文名映射
-                dim_mappings = {
-                    item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)
-                }
+                dim_mappings = {}
+                if metric:
+                    dim_mappings = {
+                        item["id"]: item["name"]
+                        for item in metric.dimensions
+                        if item.get("is_dimension", True)
+                    }
                 dimension_keys = sorted(dimensions.keys())
 
                 base_graph_panel["id"] = recommend_metric[0]

@@ -26,14 +26,18 @@
 
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
 import { Debounce, deepClone } from 'monitor-common/utils';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import { METHOD_LIST } from '../../../constant/constant';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { statusMap } from './metric-table';
 
 import './metric-table-slide.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 // 常量定义
 const RADIO_OPTIONS = [
@@ -112,7 +116,18 @@ export default class IndicatorTableSlide extends tsc<any> {
       hidden: { checked: true, disable: false },
       set: { checked: true, disable: false },
     },
-    search: '',
+    search: [],
+    // search: '',
+  };
+
+  /* 筛选条件(简化) */
+  metricSearchObj = {
+    name: [],
+    description: [],
+    unit: [],
+    func: [],
+    aggregate: [],
+    show: [],
   };
 
   // 删除列表
@@ -122,9 +137,9 @@ export default class IndicatorTableSlide extends tsc<any> {
     name: { label: '名称', width: 175, renderFn: props => this.renderNameColumn(props) },
     description: { label: '别名', width: 175, renderFn: props => this.renderDescriptionColumn(props) },
     unit: { label: '单位', width: 125, renderFn: props => this.renderUnitColumn(props) },
-    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props) },
-    interval: { label: '上报周期', width: 125, renderFn: props => this.renderInterval(props.row) },
-    func: { label: '函数', width: 200, renderFn: props => this.renderFunction(props.row) },
+    aggregateMethod: { label: '汇聚方法', width: 125, renderFn: props => this.renderAggregateMethod(props.row) },
+    interval: { label: '上报周期', width: 145, renderFn: props => this.renderInterval(props.row) },
+    func: { label: '函数', width: 215, renderFn: props => this.renderFunction(props.row) },
     dimension: { label: '关联维度', width: 215, renderFn: props => this.renderDimension(props.row, props.$index) },
     disabled: { label: '启/停', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
     hidden: { label: '显示', width: 60, renderFn: (props, key) => this.renderSwitch(props.row, key) },
@@ -140,6 +155,50 @@ export default class IndicatorTableSlide extends tsc<any> {
     return this.dimensionTable.map(({ name }) => ({ id: name, name }));
   }
 
+  get metricSearchData() {
+    return [
+      {
+        name: window.i18n.t('名称'),
+        id: 'name',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('别名'),
+        id: 'description',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('单位'),
+        id: 'unit',
+        multiple: false,
+        children: this.units,
+      },
+      // {
+      //   name: window.i18n.t('函数'),
+      //   id: 'func',
+      //   multiple: false,
+      //   children: this.metricFunctions,
+      // },
+      {
+        name: window.i18n.t('汇聚方法'),
+        id: 'aggregate',
+        multiple: false,
+        children: METHOD_LIST,
+      },
+      {
+        name: window.i18n.t('显/隐'),
+        id: 'show',
+        multiple: false,
+        children: [
+          { id: 'true', name: window.i18n.t('显示') },
+          { id: 'false', name: window.i18n.t('隐藏') },
+        ],
+      },
+    ];
+  }
+
   // 数据初始化
   initData() {
     this.localTable = deepClone(this.metricTable);
@@ -152,9 +211,45 @@ export default class IndicatorTableSlide extends tsc<any> {
    * @return {*}
    */
   @Debounce(300)
-  handleSearchChange() {
+  handleSearchChange(list = []) {
+    this.tableConfig.search = list;
+    const search = {
+      name: [],
+      description: [],
+      unit: [],
+      func: [],
+      aggregate: [],
+      show: [],
+    };
+    for (const item of this.tableConfig.search) {
+      if (item.type === 'text') {
+        item.id = 'name';
+        item.values = [{ id: item.name, name: item.name }];
+      }
+      search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
+    }
+    this.metricSearchObj = search;
+    this.handleFilterTable();
+  }
+
+  handleFilterTable() {
+    const nameLength = this.metricSearchObj.name.length;
+    const descriptionLength = this.metricSearchObj.description.length;
+    const unitLength = this.metricSearchObj.unit.length;
+    // const funcLength = this.metricSearchObj.func.length;
+    const aggregateLength = this.metricSearchObj.aggregate.length;
+    const isShowLength = this.metricSearchObj.show.length;
     this.localTable = this.metricTable.filter(item => {
-      return fuzzyMatch(item.name, this.tableConfig.search) || fuzzyMatch(item.description, this.tableConfig.search);
+      // return fuzzyMatch(item.name, this.tableConfig.search) || fuzzyMatch(item.description, this.tableConfig.search);
+      return (
+        (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (descriptionLength ? this.metricSearchObj.description.some(n => fuzzyMatch(item.description, n)) : true) &&
+        (unitLength ? this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || 'none', u)) : true) &&
+        (aggregateLength
+          ? this.metricSearchObj.aggregate.some(a => fuzzyMatch(item.aggregate_method || 'none', a))
+          : true) &&
+        (isShowLength ? this.metricSearchObj.show.some(s => s === String(!item.hidden)) : true)
+      );
     });
     this.initTableData();
   }
@@ -189,7 +284,8 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.delArray = [];
     this.localTable = deepClone(this.metricTable);
     this.initTableData();
-    this.tableConfig.search = '';
+    // this.tableConfig.search = '';
+    this.tableConfig.search = [];
     return false;
   }
 
@@ -260,12 +356,20 @@ export default class IndicatorTableSlide extends tsc<any> {
           slot='content'
         >
           <div class='slider-search'>
-            <bk-input
+            <SearchSelect
+              data={this.metricSearchData}
+              modelValue={this.tableConfig.search}
+              placeholder={this.$t('搜索指标')}
+              // right-icon='bk-icon icon-search'
+              show-popover-tag-change
+              on-change={this.handleSearchChange}
+            />
+            {/* <bk-input
               v-model={this.tableConfig.search}
               placeholder={this.$t('搜索指标')}
               right-icon='bk-icon icon-search'
               on-change={this.handleSearchChange}
-            />
+            /> */}
           </div>
           <div
             ref='tableContainerRef'
@@ -376,7 +480,9 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   handleClearSearch() {
-    this.tableConfig.search = '';
+    this.tableConfig.search = [];
+    // this.tableConfig.search = '';
+    this.handleSearchChange();
   }
 
   // 渲染辅助方法
@@ -453,6 +559,7 @@ export default class IndicatorTableSlide extends tsc<any> {
         v-model={props.row.unit}
         clearable={false}
         popover-width={180}
+        allow-create
         searchable
       >
         {this.units.map(group => (
@@ -546,22 +653,21 @@ export default class IndicatorTableSlide extends tsc<any> {
       </bk-select>
     );
   }
+  /** 修改上报周期 */
+  handleIntervalChange(v: number, row: IMetricItem) {
+    row.interval = v;
+  }
 
   renderInterval(row: IMetricItem) {
     return (
-      <bk-select
-        class='slider-select'
-        v-model={row.interval}
-        clearable={false}
-      >
-        {this.cycleOption.map(opt => (
-          <bk-option
-            id={opt.id}
-            key={opt.id}
-            name={`${opt.name}s`}
-          />
-        ))}
-      </bk-select>
+      <CycleInput
+        class='slide-cycle-unit-input'
+        isNeedDefaultVal={true}
+        minSec={10}
+        needAuto={false}
+        value={row.interval}
+        onChange={(v: number) => this.handleIntervalChange(v, row)}
+      />
     );
   }
 
@@ -682,6 +788,7 @@ export default class IndicatorTableSlide extends tsc<any> {
       error: '',
       type: 'metric',
       dimensions: [],
+      function: [],
     };
     this.showTableData.splice(index + 1, 0, newRow);
   }

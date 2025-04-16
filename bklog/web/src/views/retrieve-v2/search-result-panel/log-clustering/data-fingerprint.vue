@@ -258,12 +258,20 @@
       >
         <template #default="{ row }">
           <div>
-            <bk-switcher
+            <div
               v-if="row.owners.length"
               theme="primary"
-              v-model="row.strategy_enabled"
-              @change="val => changeStrategy(val, row)"
-            ></bk-switcher>
+            >
+              <bk-switcher
+                v-model="row.strategy_enabled"
+                @change="val => changeStrategy(val, row)"
+              ></bk-switcher>
+              <span
+                class="button-view"
+                @click="handleStrategyInfoClick(row)"
+                >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
+              ></span>
+            </div>
             <bk-switcher
               v-else
               v-model="row.strategy_enabled"
@@ -887,8 +895,6 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
-        console.log(val, row);
-
         // 当创建告警策略开启时，不允许删掉最后一个责任人
         if (row.strategy_enabled && !val.length) {
           this.$bkMessage({
@@ -1247,6 +1253,12 @@
           })
           .finally(() => (this.curEditUniqueVal = {}));
       },
+      handleStrategyInfoClick(row) {
+        window.open(
+          `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+          '_blank',
+        );
+      },
     },
   };
 </script>
@@ -1387,6 +1399,17 @@
 
         &.is-limit {
           max-height: 114px;
+        }
+      }
+
+      .button-view {
+        margin-left: 5px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .bklog-jump {
+          font-size: 14px;
         }
       }
 
