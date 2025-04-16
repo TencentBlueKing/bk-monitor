@@ -751,5 +751,6 @@ export default {
   未恢复: 'Unrecovered',
   已恢复: 'Recovered',
   创建告警策略: 'Create Alert Policy',
+  监控项: 'Monitor item',
   前往查看: 'Go to view',
 };
