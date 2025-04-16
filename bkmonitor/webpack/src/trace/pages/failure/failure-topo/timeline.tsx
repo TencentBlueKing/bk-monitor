@@ -33,7 +33,7 @@ import type { IncidentDetailData, TopoRawData } from './types';
 import './timeline.scss';
 import 'bkui-vue/lib/time-picker/time-picker.css';
 
-const refleshList = [
+const refreshList = [
   // 刷新间隔列表
   {
     name: 'off',
@@ -248,7 +248,7 @@ export default defineComponent({
             content: () => {
               return (
                 <Dropdown.DropdownMenu>
-                  {refleshList.map(item => (
+                  {refreshList.map(item => (
                     <Dropdown.DropdownItem
                       key={item.name}
                       extCls={item.name === this.refleshTime ? 'text-active' : ''}

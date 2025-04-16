@@ -8,12 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import time
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Any, Dict, List, Literal
 
 from django.core.exceptions import FieldError
 from django.core.paginator import Paginator
-from django.db.models import Count
+from django.db.models import Count, Q, QuerySet
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
@@ -22,7 +24,7 @@ from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
-from monitor_web.k8s.scenario import get_metrics
+from monitor_web.k8s.scenario import get_all_metrics, get_metrics
 
 
 class SpaceRelatedSerializer(serializers.Serializer):
@@ -70,7 +72,7 @@ class WorkloadOverview(Resource):
             {"type": "xxx", "count": 0}
         ]
         """
-        result = queryset.values('type').annotate(count=Count('name', distinct=True))
+        result = queryset.values("type").annotate(count=Count("name", distinct=True))
         kind_map = OrderedDict.fromkeys(["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"], 0)
         for item in result:
             if item["type"] not in kind_map:
@@ -79,6 +81,90 @@ class WorkloadOverview(Resource):
                 kind_map[item["type"]] += item["count"]
 
         return [[key, value] for key, value in kind_map.items()]
+
+
+class NamespaceWorkloadOverview(Resource):
+    class RequestSerializer(SpaceRelatedSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id = serializers.CharField(required=True, label="集群id")
+        query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
+        page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
+        page = serializers.IntegerField(required=False, default=1, label="页数")
+
+    @classmethod
+    def _get_workload_count(cls, workload_overview: List[List[int]]) -> int:
+        return sum([item[1] for item in workload_overview])
+
+    @classmethod
+    def _get_workload_count_by_queryset(cls, queryset: QuerySet[BCSWorkload]) -> int:
+        queryset = queryset.values("type").annotate(count=Count("name", distinct=True))
+        return sum([item["count"] for item in queryset])
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
+        query_string: str = validated_request_data["query_string"]
+
+        workload_count: int = 0
+        filter_dict: Dict[str, List[str]] = {}
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
+        queryset: QuerySet[BCSWorkload] = BCSWorkload.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        if query_string:
+            namespaces: List[str] = []
+            queryset = queryset.filter(Q(namespace__icontains=query_string) | Q(name__icontains=query_string))
+            for item in queryset.values("type", "namespace").order_by().annotate(count=Count("name", distinct=True)):
+                namespaces.append(item["namespace"])
+                workload_count += item["count"]
+
+            filter_dict["namespace"] = list(set(namespaces))
+        else:
+            workload_count: int = self._get_workload_count_by_queryset(queryset)
+
+        namespace_page: Dict[str, Any] = ListK8SResources().perform_request(
+            {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "resource_type": "namespace",
+                "scenario": "performance",
+                "query_string": "",
+                "filter_dict": filter_dict,
+                "page": page,
+                "page_size": page_size,
+                "page_type": "scrolling",
+                "with_history": False,
+                "start_time": 0,
+                "end_time": 0,
+            }
+        )
+        namespace_page["workload_count"] = workload_count
+
+        for namespace_info in namespace_page.get("items", []):
+            query_kwargs: Dict[str, Any] = {
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                "namespace": namespace_info["namespace"],
+            }
+            workload_overview: List[List[int]] = WorkloadOverview().perform_request(
+                {
+                    **query_kwargs,
+                    "query_string": query_string,
+                }
+            )
+            namespace_workload_count: int = self._get_workload_count(workload_overview)
+
+            query_from: str = "workload"
+            if not namespace_workload_count and query_string:
+                query_from: str = "namespace"
+                # 获取不到说明关键字仅命中 Namespace，去掉关键字再请求一遍 Workload
+                workload_overview = WorkloadOverview().perform_request(query_kwargs)
+                namespace_workload_count = self._get_workload_count(workload_overview)
+
+            namespace_info["query_from"] = query_from
+            namespace_info["workload_overview"] = workload_overview
+            namespace_info["workload_count"] = namespace_workload_count
+
+        return namespace_page
 
 
 class ScenarioMetricList(Resource):
@@ -98,7 +184,7 @@ class ScenarioMetricList(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
 
     def perform_request(self, validated_request_data):
         # 使用量、limit使用率、request使用率
@@ -111,7 +197,7 @@ class GetScenarioMetric(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network", "capacity"])
         metric_id = serializers.CharField(required=True, label="指标id")
 
     def perform_request(self, validated_request_data):
@@ -140,13 +226,18 @@ class GetResourceDetail(Resource):
         bcs_cluster_id: str = serializers.CharField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container", "cluster"], label="资源类型"
+            required=True,
+            choices=["pod", "workload", "container", "cluster", "service", "ingress", "node"],
+            label="资源类型",
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
         container_name: str = serializers.CharField(required=False, allow_null=True)
         workload_name: str = serializers.CharField(required=False, allow_null=True)
         workload_type: str = serializers.CharField(required=False, allow_null=True)
+        service_name: str = serializers.CharField(required=False, allow_null=True)
+        ingress_name: str = serializers.CharField(required=False, allow_null=True)
+        node_name: str = serializers.CharField(required=False, allow_null=True)
 
     def validate_request_data(self, request_data: Dict):
         resource_type = request_data["resource_type"]
@@ -159,6 +250,15 @@ class GetResourceDetail(Resource):
             self.validate_field_exist(resource_type, fields, request_data)
         elif resource_type == "container":
             fields = ["pod_name", "container_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "service":
+            fields = ["service_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "ingress":
+            fields = ["ingress_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "node":
+            fields = ["node_name"]
             self.validate_field_exist(resource_type, fields, request_data)
 
         return super().validate_request_data(request_data)
@@ -183,6 +283,79 @@ class GetResourceDetail(Resource):
             item["type"] = "string"
             item["value"] = item["value"]["value"]
 
+    def get_pod_resource_relation(
+        self, bk_biz_id: int, fields: dict, resource_type: Literal["service", "ingress"]
+    ) -> List[str]:
+        """
+        通过 promql 查询 pod 与 service 以及 service 与 ingress 的关联关系
+        """
+        labels = ','.join([f'{key}="{value}"' for key, value in fields.items()])
+        if resource_type == "service":
+            promql = f"""count by (namespace, service, pod)
+            (pod_with_service_relation{{{labels}}})
+            """
+        elif resource_type == "ingress":
+            promql = f"""count by (bk_biz_id, bcs_cluster_id, pod,namespace, service,ingress, pod)
+            (ingress_with_service_relation{{{labels}}})
+            """
+
+        query_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": "prometheus",
+                    "data_type_label": "time_series",
+                    "promql": promql,
+                    "interval": 60,
+                    "alias": "result",
+                }
+            ],
+            "expression": "",
+            "alias": "result",
+            "start_time": int(time.time()) - 3600,
+            "end_time": int(time.time()),
+            "slimit": 10001,
+            "down_sample_range": "",
+        }
+        series = resource.grafana.graph_unify_query(query_params)["series"]
+
+        # 获取 dimensions 中 resource_type 对应的 value
+        resource_list: List[str] = []
+        for line in series:
+            resource_list.append(line["dimensions"][resource_type])
+
+        return resource_list
+
+    def add_pod_service_ingress_relation(self, items: List[dict], validated_request_data: dict):
+        """
+        为 items 添加 ingress/service 关联信息
+        """
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        pod = validated_request_data["pod_name"]
+        namespace = validated_request_data["namespace"]
+
+        value: List[str] = []
+        service_list: List[str] = self.get_pod_resource_relation(
+            bk_biz_id, {"namespace": namespace, "pod": pod}, "service"
+        )
+        for service in service_list:
+            ingress_list: List[str] = self.get_pod_resource_relation(
+                bk_biz_id, {"namespace": namespace, "service": service}, "ingress"
+            )
+            if not ingress_list:
+                value.append(f"-/{service}")
+            else:
+                [value.append(f"{ingress}/{service}") for ingress in ingress_list]
+
+        items.append(
+            {
+                "key": "ingress_service_relation",
+                "name": "ingress/service关联",
+                "type": "list",
+                "value": value,
+            }
+        )
+
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
@@ -193,16 +366,39 @@ class GetResourceDetail(Resource):
         resource_router: Dict[str, List[Dict]] = {
             "cluster": [resource.scene_view.get_kubernetes_cluster, []],
             "pod": [resource.scene_view.get_kubernetes_pod, ["namespace", "pod_name"]],
-            "workload": [resource.scene_view.get_kubernetes_workload, ["namespace", "workload_name", "workload_type"]],
-            "container": [resource.scene_view.get_kubernetes_container, ["namespace", "pod_name", "container_name"]],
+            "workload": [
+                resource.scene_view.get_kubernetes_workload,
+                ["namespace", "workload_name", "workload_type"],
+            ],
+            "container": [
+                resource.scene_view.get_kubernetes_container,
+                ["namespace", "pod_name", "container_name"],
+            ],
+            "service": [
+                resource.scene_view.get_kubernetes_service,
+                ["namespace", "service_name"],
+            ],
+            "ingress": [
+                resource.scene_view.get_kubernetes_ingress,
+                ["namespace", "ingress_name"],
+            ],
+            "node": [resource.scene_view.get_kubernetes_node, ["node_name"]],
         }
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
 
         # 调用对应的资源类型的接口，返回对应的接口数据
         items = resource_router[resource_type][0](
-            **{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id, **extra_request_arg}
+            **{
+                "bk_biz_id": bk_biz_id,
+                "bcs_cluster_id": bcs_cluster_id,
+                **extra_request_arg,
+            }
         )
+
+        # 获取 pod 关于 service 和 ingress 的联系
+        if resource_type == "pod":
+            self.add_pod_service_ingress_relation(items, validated_request_data)
 
         for item in items:
             self.link_to_string(item)
@@ -233,7 +429,7 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         # 用于模糊查询
@@ -241,7 +437,7 @@ class ListK8SResources(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
-        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network"])
+        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network", "capacity"])
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
         # 分页
@@ -260,66 +456,53 @@ class ListK8SResources(Resource):
         )
         method = serializers.ChoiceField(required=False, choices=["max", "avg", "min", "sum", "count"], default="sum")
         column = serializers.ChoiceField(
-            required=False,
-            choices=[
-                'container_cpu_usage_seconds_total',
-                'kube_pod_cpu_requests_ratio',
-                'kube_pod_cpu_limits_ratio',
-                'container_memory_working_set_bytes',
-                'kube_pod_memory_requests_ratio',
-                'kube_pod_memory_limits_ratio',
-                'container_cpu_cfs_throttled_ratio',
-                'container_network_transmit_bytes_total',
-                'container_network_receive_bytes_total',
-                'nw_container_network_transmit_bytes_total',
-                'nw_container_network_receive_bytes_total',
-                'nw_container_network_receive_errors_ratio',
-                'nw_container_network_transmit_errors_ratio',
-                'nw_container_network_transmit_errors_total',
-                'nw_container_network_receive_errors_total',
-                'nw_container_network_receive_packets_total',
-                'nw_container_network_transmit_packets_total',
-            ],
-            default="container_cpu_usage_seconds_total",
+            required=False, choices=get_all_metrics(), default="container_cpu_usage_seconds_total"
         )
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         with_history: bool = validated_request_data["with_history"]
+        resource_type: str = validated_request_data["resource_type"]
+        query_string: str = validated_request_data["query_string"]
+        filter_dict: dict = validated_request_data["filter_dict"]
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
+        scenario: str = validated_request_data["scenario"]
 
         # 1. 基于resource_type 加载对应资源元信息
-        resource_meta: K8sResourceMeta = load_resource_meta(
-            validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id
-        )
+        resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
         # 2.0 基于filter_dict 加载 filter
-        self.add_filter(resource_meta, validated_request_data["filter_dict"])
-        if validated_request_data["query_string"]:
+        self.add_filter(resource_meta, filter_dict)
+        if query_string:
             # 2.1 基于query_string 加载 filter
             resource_meta.filter.add(
                 load_resource_filter(
-                    validated_request_data["resource_type"],
-                    validated_request_data["query_string"],
+                    resource_type,
+                    query_string,
                     fuzzy=True,
                 )
             )
+        obj_list = None
         resource_list = []
         total_count = 0
         # scrolling 分页特性
-        page_count = validated_request_data["page"] * validated_request_data["page_size"]
+        page_count = page * page_size
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                page_size: int = validated_request_data["page_size"]
-                page: int = validated_request_data["page"]
-
                 # 将传统分页转化为滚动分页
                 if validated_request_data["page_type"] == "scrolling":
                     page_size = page_count
                     page = 1
 
                 obj_list = resource_meta.distinct(resource_meta.get_from_meta())
+            except FieldError:
+                # namespace 层级下尝试根据filter 类型进行重新查询
+                if scenario == "network":
+                    obj_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
 
+            if obj_list is not None:
                 paginator = Paginator(obj_list, page_size)
                 total_count = paginator.count
                 for k8s_resource in paginator.get_page(page).object_list:
@@ -327,19 +510,25 @@ class ListK8SResources(Resource):
                         resource_list.append(k8s_resource)
                     else:
                         resource_list.append(k8s_resource.to_meta_dict())
-            except FieldError:
-                pass
+
             return {"count": total_count, "items": resource_list}
 
         # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
-        scenario = validated_request_data["scenario"]
         if scenario == "network":
             # 网络场景默认指标，用nw_container_network_receive_bytes_total
             if not column.startswith("nw_"):
                 column = "nw_container_network_receive_bytes_total"
+            # 网络场景，pod不需要workload相关信息
+            if resource_meta.resource_field == "pod_name":
+                resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
+
+        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+        if scenario == "capacity":
+            column = "node_boot_time_seconds"
+
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -356,9 +545,17 @@ class ListK8SResources(Resource):
             resource_id_set.add(tuple(sorted(record.items())))
         # promql 查询数据量不足，从db中补充
         try:
-            meta_resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            meta_resource_list: List[dict] = [
+                k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()
+            ]
+            if resource_meta.resource_field == "pod_name" and scenario == "network":
+                # 网络场景，pod不需要workload相关信息
+                [rs.pop("workload") for rs in meta_resource_list if rs.get("workload")]
         except FieldError:
             meta_resource_list = []
+            # namespace 层级下尝试根据filter 类型进行重新查询
+            if scenario == "network":
+                meta_resource_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
 
@@ -373,6 +570,19 @@ class ListK8SResources(Resource):
         else:
             resource_list = resource_list[:page_count]
         return {"count": total_count, "items": resource_list}
+
+    def set_default_column(self, scenario: str, column: str):
+        """
+        根据场景设置默认列
+        """
+        if scenario == "network":
+            # 网络场景默认指标，用nw_container_network_receive_bytes_total
+            if not column.startswith("nw_"):
+                column = "nw_container_network_receive_bytes_total"
+
+        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+        if scenario == "capacity":
+            column = "node_boot_time_seconds"
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
@@ -392,31 +602,10 @@ class ResourceTrendResource(Resource):
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
-        column = serializers.ChoiceField(
-            required=True,
-            choices=[
-                'container_cpu_usage_seconds_total',
-                'kube_pod_cpu_requests_ratio',
-                'kube_pod_cpu_limits_ratio',
-                'container_memory_working_set_bytes',
-                'kube_pod_memory_requests_ratio',
-                'kube_pod_memory_limits_ratio',
-                'container_cpu_cfs_throttled_ratio',
-                'container_network_transmit_bytes_total',
-                'container_network_receive_bytes_total',
-                'nw_container_network_transmit_bytes_total',
-                'nw_container_network_receive_bytes_total',
-                'nw_container_network_receive_errors_ratio',
-                'nw_container_network_transmit_errors_ratio',
-                'nw_container_network_transmit_errors_total',
-                'nw_container_network_receive_errors_total',
-                'nw_container_network_receive_packets_total',
-                'nw_container_network_transmit_packets_total',
-            ],
-        )
+        column = serializers.ChoiceField(required=True, choices=get_all_metrics())
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service", "node"],
             label="资源类型",
         )
         method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
@@ -424,7 +613,7 @@ class ResourceTrendResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         scenario = serializers.ChoiceField(
-            required=False, label="场景", choices=["performance", "network"], default="performance"
+            required=False, label="场景", choices=["performance", "network", "capacity"], default="performance"
         )
 
     def perform_request(self, validated_request_data):
@@ -506,6 +695,10 @@ class ResourceTrendResource(Resource):
                 datapoints = line["datapoints"][-1:]
             else:
                 datapoints = []
-            series_map[resource_name] = {"datapoints": datapoints, "unit": unit, "value_title": metric["name"]}
+            series_map[resource_name] = {
+                "datapoints": datapoints,
+                "unit": unit,
+                "value_title": metric["name"],
+            }
 
         return [{"resource_name": name, column: info} for name, info in series_map.items()]

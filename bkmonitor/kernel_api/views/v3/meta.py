@@ -403,6 +403,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class SpaceDataLinkMetaReportViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
+
+
 class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.IntelligentDiagnosisMetadataResource)]
 
@@ -419,6 +423,10 @@ class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
 
 
+class NotifyEsDataLinkAdaptNanoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.NotifyEsDataLinkAdaptNano)]
+
+
 class CreateVmClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateVmCluster)]
 
@@ -433,6 +441,10 @@ class QueryBcsClusterVmTableIdsViewSet(MetaViewSet):
 
 class SwitchKafkaClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.SwitchKafkaCluster)]
+
+
+class NotifyDataLinkVmChangeViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.NotifyDataLinkVmChange)]
 
 
 class QueryVmRtBySpaceViewSet(MetaViewSet):
@@ -457,3 +469,7 @@ class CreateOrUpdateEsRouterViewSet(MetaViewSet):
 
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
+
+
+class GetDataLabelsMapViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetDataLabelsMapResource)]

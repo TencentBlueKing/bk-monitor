@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
@@ -58,7 +60,6 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
-// import axios from 'axios';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 
@@ -236,7 +237,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
-        format
+        format,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -1019,7 +1020,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-        
+
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1156,18 +1157,22 @@ const store = new Vuex.Store({
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
 
-      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
-      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
-      const { datePickerValue } = state.indexItem;
-      const letterRegex = /[a-zA-Z]/;
-      const needTransform = datePickerValue.every(d => letterRegex.test(d));
+      // 如果是第一次请求
+      // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
+      if (!payload?.isPagination) {
+        // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+        // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+        const { datePickerValue } = state.indexItem;
+        const letterRegex = /[a-zA-Z]/;
+        const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
-      const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue, format)
-        : [state.indexItem.start_time, state.indexItem.end_time];
+        const [start_time, end_time] = needTransform
+          ? handleTransformToTimestamp(datePickerValue, format)
+          : [state.indexItem.start_time, state.indexItem.end_time];
 
-      if (needTransform) {
-        commit('updateIndexItem', { start_time, end_time });
+        if (needTransform) {
+          commit('updateIndexItem', { start_time, end_time });
+        }
       }
 
       if (!payload?.isPagination && payload.formChartChange) {
@@ -1188,6 +1193,8 @@ const store = new Vuex.Store({
       const searchUrl = !state.indexItem.isUnionIndex
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
+
+      const { start_time, end_time } = state.indexItem;
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1242,6 +1249,7 @@ const store = new Vuex.Store({
                 const indexSetQueryResult = state.indexSetQueryResult;
                 const logList = parseBigNumberList(rsolvedData.list);
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                const size = logList.length;
 
                 rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
                 rsolvedData.origin_log_list = payload.isPagination
@@ -1268,6 +1276,7 @@ const store = new Vuex.Store({
                   code,
                   result,
                   length: logList.length,
+                  size,
                 };
               }
 
@@ -1279,6 +1288,7 @@ const store = new Vuex.Store({
                 code,
                 result,
                 length: 0,
+                size: 0,
               };
             });
           }
@@ -1463,7 +1473,7 @@ const store = new Vuex.Store({
         return state.visibleFields?.find(item => item.field_name === field);
       };
 
-      const getFieldType = field => {        
+      const getFieldType = field => {
         return getTargetField(field)?.field_type ?? '';
       };
 
@@ -1495,7 +1505,6 @@ const store = new Vuex.Store({
 
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
-
 
         if (textType === 'text') {
           mappingKey = textMappingKey;
@@ -1571,7 +1580,6 @@ const store = new Vuex.Store({
           const { field, operator, value } = item;
           const targetField = getTargetField(field);
 
-
           let newSearchValue = null;
           if (searchMode === 'ui') {
             if (targetField?.is_virtual_obj_node) {
@@ -1582,9 +1590,9 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) { 
-              newSearchValue = [value];
-            } else{
+            if (targetField?.is_virtual_obj_node) {
+              newSearchValue = `\"${value[0]}\"`;
+            } else {
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }
@@ -1693,12 +1701,20 @@ const store = new Vuex.Store({
       // 用于后续逻辑判定使用
       commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
     },
+    /**
+     * 更新 Vuex 状态中的用户字段配置。
+     *
+     * @param {Object} userConfig 要更新的用户配置对象。
+     * @param {boolean} userConfig.isUpdate 标志是否仅为更新操作。如果为 `true`，表示仅为更新操作，在成功响应后不会提交新的配置到 Vuex。
+     * @return {Promise} 一个 Promise，解析为 HTTP 请求的响应。
+     */
     userFieldConfigChange({ state, getters, commit }, userConfig) {
       return new Promise(async (resolve, reject) => {
         const indexSetConfig = {
           ...state.retrieve.catchFieldCustomConfig,
           ...userConfig,
         };
+        delete indexSetConfig.isUpdate;
         const queryParams = {
           index_set_id: state.indexId,
           index_set_type: getters.isUnionSearch ? 'union' : 'single',
@@ -1712,7 +1728,7 @@ const store = new Vuex.Store({
           const res = await http.request('retrieve/updateUserFiledTableConfig', {
             data: queryParams,
           });
-          if (res.code === 0) {
+          if (res.code === 0 && !userConfig.isUpdate) {
             const userConfig = res.data.index_set_config;
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }

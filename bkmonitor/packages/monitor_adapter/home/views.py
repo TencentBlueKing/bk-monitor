@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 from urllib import parse
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlsplit
 
 from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
@@ -35,11 +35,13 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
-from core.drf_resource import resource
+from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
-from fta_web.alert.handlers.alert import ActionInstance
-from fta_web.alert.serializers import ActionInstanceDocument
 from monitor.models import GlobalConfig
+from monitor_adapter.home.alert_redirect import (
+    generate_data_retrieval_url,
+    generate_log_search_url,
+)
 from monitor_web.iam.resources import CallbackResource
 from packages.monitor_web.new_report.resources import ReportCallbackResource
 
@@ -78,21 +80,14 @@ def event_center_proxy(request):
         return HttpResponseNotFound(_("无效的告警事件链接"))
 
     if proxy_type == "query" and not request.is_mobile():
-        # 提取告警ID
-        action = ActionInstanceDocument.get(collect_id)
-        if action:
-            alert_ids = action.alert_id
-        else:
-            alert_ids = ActionInstance.objects.get(id=str(collect_id)[10:]).alerts
+        data_retrieval_url = generate_data_retrieval_url(bk_biz_id, collect_id)
+        if data_retrieval_url:
+            return redirect(data_retrieval_url)
 
-        # 如果没有告警ID，直接跳转到数据检索页
-        if alert_ids:
-            params = resource.alert.get_alert_data_retrieval(alert_id=alert_ids[0])
-            if params:
-                if params["type"] == "metric":
-                    params_str = urlencode({"targets": json.dumps(params["params"], ensure_ascii=False)})
-                    query_url = f"/?bizId={bk_biz_id}#/data-retrieval?{params_str}"
-                    return redirect(query_url)
+    if proxy_type == "log_search" and not request.is_mobile():
+        log_search_url = generate_log_search_url(bk_biz_id, collect_id)
+        if log_search_url:
+            return redirect(log_search_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:
@@ -158,7 +153,7 @@ def external(request):
         if not authorizer_map.value.get(str(request.biz_id)):
             logger.error(f"业务{request.biz_id}无对应授权人")
             return HttpResponseForbidden(f"业务{request.biz_id}无对应授权人")
-        user = auth.authenticate(username=authorizer_map.value[str(request.biz_id)])
+        user = auth.authenticate(username=authorizer_map.value[str(request.biz_id)], tenant_id=DEFAULT_TENANT_ID)
         auth.login(request, user)
         setattr(request, "COOKIES", {k: v for k, v in request.COOKIES.items() if k != "bk_token"})
     else:
@@ -230,7 +225,7 @@ def dispatch_external_proxy(request):
             authorizer_map, _ = GlobalConfig.objects.get_or_create(
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
-            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)])
+            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)], tenant_id=DEFAULT_TENANT_ID)
             auth.login(request, user)
             setattr(fake_request, "user", request.user)
         logger.info(

@@ -59,7 +59,6 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FieldBuiltInEnum,
 )
-from apps.utils.codecs import unicode_str_decode
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -737,15 +736,6 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
         label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
 
-    def validate(self, attrs):
-        ret = super().validate(attrs)
-        if ret.get("tokenize_on_chars"):
-            try:
-                ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
-            except Exception as e:
-                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (ret["tokenize_on_chars"], e))
-        return ret
-
 
 class CollectorMetadataSerializer(serializers.Serializer):
     field_name = serializers.CharField(label=_("字段名"), required=True)
@@ -776,15 +766,6 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("元数据字段配置"),
         required=False,
     )
-
-    def validate(self, attrs):
-        ret = super().validate(attrs)
-        if ret.get("original_text_tokenize_on_chars"):
-            try:
-                ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
-            except Exception as e:
-                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (ret["original_text_tokenize_on_chars"], e))
-        return ret
 
 
 class CollectorEtlSerializer(serializers.Serializer):
@@ -1165,17 +1146,23 @@ class CollectorPluginCreateSerializer(MultiAttrCheckSerializer, serializers.Mode
         if not attrs.get("bk_biz_id"):
             attrs["bk_biz_id"] = 0
 
+        is_create_storage = attrs.get("is_create_storage", True)
+        if is_create_storage:
+            self._check_multi_attrs(
+                attrs,
+                "retention",
+                "allocation_min_days",
+                "storage_replies",
+                "storage_shards_nums",
+                "storage_shards_size",
+            )
+
         # 不允许独立存储或有dataid时
         is_allow_alone_storage = attrs.get("is_allow_alone_storage", True)
         if not is_allow_alone_storage or self._is_create_data_id(attrs):
             self._check_multi_attrs(
                 attrs,
                 "storage_cluster_id",
-                "retention",
-                "allocation_min_days",
-                "storage_replies",
-                "storage_shards_nums",
-                "storage_shards_size",
             )
 
         # 不允许独立清洗规则或有dataid时
@@ -1474,6 +1461,8 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
+    sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
+    target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
@@ -1716,3 +1705,11 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
     collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
     operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
     operation_params = serializers.DictField(label=_("额外的元数据"), required=False)
+
+
+class ProxyHostSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+
+
+class UpdateAliasSettingsSerializers(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)

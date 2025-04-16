@@ -20,7 +20,7 @@ const setCache = (cacheName, request) =>
           fetch(request).then(res => {
             cache.put(request.url, res.clone());
             return res;
-          }),
+          })
       )
       .catch(err => {
         console.error(err);
@@ -32,7 +32,7 @@ const setCache = (cacheName, request) =>
           .catch(err => {
             throw err;
           });
-      }),
+      })
   );
 if (self.importScripts) {
   self.importScripts(staticUrl + 'asset-manifest.js');
@@ -72,7 +72,7 @@ self.addEventListener('install', e => {
   e.waitUntil(
     Promise.all(promiseList).then(() => {
       self.skipWaiting();
-    }),
+    })
   );
 });
 
@@ -117,7 +117,7 @@ self.addEventListener('activate', e => {
   e.waitUntil(
     cacheUtil.then(() => {
       self.clients.claim();
-    }),
+    })
   );
 });
 

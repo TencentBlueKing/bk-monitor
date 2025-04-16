@@ -15,6 +15,7 @@ from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 import arrow
 import pytz
 from django.conf import settings
+from django.db import close_old_connections
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -84,8 +85,21 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 
 logger = logging.getLogger(__name__)
+
+
+def db_safe_wrapper(func):
+    """数据库连接安全装饰器"""
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            close_old_connections()
+
+    return wrapper
 
 
 class GetStrategyListV2Resource(Resource):
@@ -1180,14 +1194,20 @@ class GetStrategyListV2Resource(Resource):
         strategy_ids = list(strategies.values_list("id", flat=True).distinct())
 
         executor = ThreadPoolExecutor()
-        user_group_list_future = executor.submit(self.get_user_group_list, strategy_ids, bk_biz_id)
-        action_config_list_future = executor.submit(self.get_action_config_list, strategy_ids, bk_biz_id)
-        data_source_list_future = executor.submit(self.get_data_source_list, strategy_ids)
-        strategy_label_list_future = executor.submit(self.get_strategy_label_list, strategy_ids, bk_biz_id)
-        strategy_status_list_future = executor.submit(self.get_strategy_status_list, strategy_ids, bk_biz_id)
-        alert_level_list_future = executor.submit(self.get_alert_level_list, strategy_ids)
-        invalid_type_list_future = executor.submit(self.get_invalid_type_list, strategy_ids)
-        algorithm_type_list_future = executor.submit(self.get_algorithm_type_list, strategy_ids)
+        user_group_list_future = executor.submit(db_safe_wrapper(self.get_user_group_list), strategy_ids, bk_biz_id)
+        action_config_list_future = executor.submit(
+            db_safe_wrapper(self.get_action_config_list), strategy_ids, bk_biz_id
+        )
+        data_source_list_future = executor.submit(db_safe_wrapper(self.get_data_source_list), strategy_ids)
+        strategy_label_list_future = executor.submit(
+            db_safe_wrapper(self.get_strategy_label_list), strategy_ids, bk_biz_id
+        )
+        strategy_status_list_future = executor.submit(
+            db_safe_wrapper(self.get_strategy_status_list), strategy_ids, bk_biz_id
+        )
+        alert_level_list_future = executor.submit(db_safe_wrapper(self.get_alert_level_list), strategy_ids)
+        invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), strategy_ids)
+        algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), strategy_ids)
 
         # 统计总数
         total = strategies.count()
@@ -1219,10 +1239,12 @@ class GetStrategyListV2Resource(Resource):
         strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
 
         # 查询ES，统计策略告警数量
-        search_result_future = executor.submit(self.get_alert_search_result, bk_biz_id, strategy_ids)
-        metric_info_future = executor.submit(self.get_metric_info, bk_biz_id, strategy_configs)
-        target_strategy_mapping_future = executor.submit(self.get_target_strategy_mapping, strategy_configs)
-        strategy_shield_info_future = executor.submit(self.get_shield_info, strategy_ids, bk_biz_id)
+        search_result_future = executor.submit(db_safe_wrapper(self.get_alert_search_result), bk_biz_id, strategy_ids)
+        metric_info_future = executor.submit(db_safe_wrapper(self.get_metric_info), bk_biz_id, strategy_configs)
+        target_strategy_mapping_future = executor.submit(
+            db_safe_wrapper(self.get_target_strategy_mapping), strategy_configs
+        )
+        strategy_shield_info_future = executor.submit(db_safe_wrapper(self.get_shield_info), strategy_ids, bk_biz_id)
 
         # 获取到ES查询结果
         search_result = search_result_future.result()
@@ -3194,9 +3216,7 @@ class ListIntelligentModelsResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         algorithm = validated_request_data["algorithm"]
-        plans = api.bkdata.list_scene_service_plans(
-            scene_id=get_scene_id_by_algorithm(validated_request_data["algorithm"])
-        )
+        plans = AlgorithmChoiceConfig.objects.filter(algorithm=algorithm)
 
         # 判断该算法是否在ai设置中，如果在ai设置中则需要挑选出开启默认配置的plan_id进行赋值
         default_plan_id = None
@@ -3218,31 +3238,23 @@ class ListIntelligentModelsResource(Resource):
                 default_plan_id = config.to_dict().get("default_plan_id")
 
         model_list = []
-
         for plan in plans:
-            if algorithm == AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting and "hour" not in plan["plan_name"]:
+            if algorithm == AlgorithmModel.AlgorithmChoices.TimeSeriesForecasting and "hour" not in plan.name:
                 # TODO: 时序预测目前只支持小时级别的模型
                 continue
-            plan_document = plan.get("plan_document", {})
             model_list.append(
                 {
-                    "name": plan["plan_alias"],
-                    "id": plan["plan_id"],
-                    # 判断是否有默认的plan_id，如果有的话则比较plan_id是否相同，如果没有的话则取原本的is_default
-                    "is_default": default_plan_id == plan["plan_id"] if default_plan_id else plan["is_default"],
-                    "document": plan.get("plan_description", ""),
-                    "description": plan_document.get("instroduction", ""),
-                    "instruction": plan_document.get("content", ""),
-                    "visual_type": plan["visual_type"],
-                    "latest_release_id": plan["latest_plan_version_id"],
-                    "ts_freq": plan["ts_freq"],
-                    "ts_depend": plan["ts_depend"],
+                    "name": plan.alias,
+                    "id": plan.id,
+                    "document": plan.document,
+                    "is_default": default_plan_id == plan.id if default_plan_id else plan.is_default,
+                    "description": plan.description,
+                    "ts_freq":plan.ts_freq,
+                    "instruction": plan.instruction,
                 }
             )
-
         # 默认is_default在最前面，除此外，按照ID降序排序
         model_list = sorted(model_list, key=lambda x: (not x["is_default"], -int(x["id"])))
-
         return model_list
 
 
@@ -3256,58 +3268,17 @@ class GetIntelligentModelResource(Resource):
         id = serializers.CharField(required=True, label="模型ID")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
         plan_id = validated_request_data["id"]
-        plan = api.bkdata.get_scene_service_plan(plan_id=plan_id)
-
-        ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-
-        plan_args_mapping = {}
-
-        multivariate_anomaly_detection = ai_setting.multivariate_anomaly_detection
-        for scene in multivariate_anomaly_detection.get_scene_list():
-            scene_config = getattr(multivariate_anomaly_detection, scene)
-            if scene_config and not scene_config.is_enabled:
-                continue
-            plan_args_mapping[scene_config.default_plan_id] = scene_config.plan_args
-
-        # 离群检测特殊处理
-        # 由于plan返回的plan_name是蛇形命名，此处需要转为驼峰比较
-        plan_name = plan["plan_name"]
-        plan_name = ''.join(word.title() for word in plan_name.split("_"))
-
-        if plan_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
-            for index, arg in enumerate(plan["variable_info"]["parameter"]):
-                if arg["variable_name"] == "$cluster":
-                    plan["variable_info"]["parameter"].pop(index)
-
-        plan_document = plan.get("plan_document", {})
-
+        plan = AlgorithmChoiceConfig.objects.filter(id=plan_id).first()
         result = {
-            "name": plan["plan_alias"],
-            "id": plan["plan_id"],
-            "is_default": plan["is_default"],
-            "document": plan.get("plan_description", ""),
-            "description": plan_document.get("instroduction", ""),
-            "instruction": plan_document.get("content", ""),
-            "latest_release_id": plan["latest_plan_version_id"],
-            "visual_type": plan["visual_type"],
-            "ts_freq": plan["ts_freq"],
-            "ts_depend": plan["ts_depend"],
+            "name": plan.alias,
+            "id": plan.id,
+            "document": plan.document,
+            "description": plan.description,
+            "ts_freq": plan.ts_freq,
+            "instruction": plan.instruction,
+            "args":plan.variable_info.get("parameter",[])
         }
-
-        plan_id = int(plan_id)
-        if plan_args_mapping and plan_id in plan_args_mapping.keys():
-            args = []
-            for arg in plan["variable_info"]["parameter"]:
-                if arg["sensitivity"] == "public":
-                    if arg.get("properties", {}).get("input_type") == "range":
-                        arg["default_value"] = plan_args_mapping[plan_id].get("sensitivity", arg["default_value"])
-                    args.append(arg)
-            result["args"] = args
-        else:
-            result["args"] = [arg for arg in plan["variable_info"]["parameter"] if arg["sensitivity"] == "public"]
-
         return result
 
 

@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
+from django.conf import settings
+
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.dataflow.constant import AccessStatus
+from bkmonitor.documents import AlertDocument
 from bkmonitor.views import serializers
 from constants.aiops import SCENE_METRIC_MAP
 from core.drf_resource import Resource
@@ -34,11 +37,25 @@ class FetchAiSettingResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
+        alert_id = serializers.IntegerField(required=False)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
+        alert_id = validated_request_data.get("alert_id")
+
+        query_configs = []
+        if alert_id:
+            alert_doc = AlertDocument.get(alert_id)
+            query_configs = alert_doc.strategy["items"][0]["query_configs"]
+
         ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-        return ai_setting.to_dict()
+        results = ai_setting.to_dict(query_configs)
+
+        results["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                results["wx_cs_link"] = item["link"]
+        return results
 
 
 class SaveAiSettingResource(Resource):

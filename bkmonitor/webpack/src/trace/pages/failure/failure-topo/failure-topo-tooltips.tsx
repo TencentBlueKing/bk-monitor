@@ -259,24 +259,21 @@ export default defineComponent({
     const typeToLinkHandle = {
       BcsPod: {
         title: 'pod详情页',
-        path: () => '/k8s',
+        path: () => '/k8s-new',
         beforeJumpVerify: () => true,
-        query: node => ({
-          dashboardId: 'pod',
-          sceneId: 'kubernetes',
-          sceneType: 'detail',
-          queryData: JSON.stringify({
-            page: 1,
-            selectorSearch: [
-              {
-                keyword: node.entity?.dimensions?.pod_name ?? '',
-              },
-            ],
-          }),
-          'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
-          'filter-namespace': node.entity?.dimensions?.namespace ?? '',
-          'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
-        }),
+        query: node => {
+          const { namespace, pod_name, cluster_id } = node.entity?.dimensions || {};
+          const filterBy = {
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            sceneId: 'kubernetes',
+            activeTab: 'detail',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
       },
       BkNodeHost: {
         title: '主机详情页',
@@ -725,17 +722,13 @@ export default defineComponent({
     const createNodeToolTip = (node: ITopoNode) => {
       const isShowRootText = node.is_feedback_root || node?.entity?.is_root;
       const bgColor = node?.entity?.is_root ? '#EA3636' : '#FF9C01';
-      const { groupAttrs } = getNodeAttrs(this.model);
       return (
         <div class='node-tooltip'>
           <div class='node-tooltip-header'>
-            <span
-              style={{ backgroundColor: groupAttrs.fill }}
-              class='item-source'
-            >
+            <span class='item-source'>
               <i
                 style={{
-                  color: '#fff',
+                  color: '#F55555',
                 }}
                 class={[
                   'icon-monitor',
@@ -856,6 +849,7 @@ export default defineComponent({
                               {
                                 marginRight: '4px',
                                 marginLeft: '4px',
+                                color: '#699DF4',
                               },
                               false
                             ),
@@ -880,14 +874,14 @@ export default defineComponent({
                   >
                     <span>{node.entity.rca_trace_info.abnormal_message}</span>
                   </OverflowTitle>
-                  <i class={['icon-monitor', 'except-icon', 'icon-fenxiang']} />
+                  <i class='icon-monitor except-icon icon-fenxiang' />
                 </div>
               ))}
             {createCommonForm(`${this.$t('分类')}：`, () => (
               <>{node.entity.rank.rank_category.category_alias}</>
             ))}
             {createCommonForm(`${this.$t('节点类型')}：`, () => (
-              <>{node.entity.rank_name}</>
+              <>{node?.entity?.properties?.entity_category || node.entity.rank_name}</>
             ))}
             {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>

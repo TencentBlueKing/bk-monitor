@@ -59,12 +59,12 @@
             :show-name="showText"
             :icon="'icon-zidongshuaxin'"
             class="time-interval"
-            v-model="refleshInterval"
-            :text-active="refleshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-reflesh')"
+            v-model="refreshInterval"
+            :text-active="refreshInterval !== -1"
+            @on-icon-click="$emit('on-immediate-refresh')"
             @change="handleValueChange('interval')"
-            :is-reflesh-interval="true"
-            :list="refleshList"
+            :is-refresh-interval="true"
+            :list="refreshList"
           />
         </slot>
       </div>
@@ -125,22 +125,22 @@ export default class ToolPanel extends Vue {
       return DEFAULT_REFLESH_LIST;
     },
   })
-  readonly refleshList: IOption[];
+  readonly refreshList: IOption[];
 
   showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   timezone: string = getDefaultTimezone();
-  refleshInterval = 5 * 60 * 1000;
+  refreshInterval = 5 * 60 * 1000;
   resizeHandler: Function = null;
 
   @Watch('timeRange')
   handleTimeRangeChange(range) {
     // 自定义时间默认不开启刷新，语义时间默认刷新时间为 1 分钟
     if (Array.isArray(range)) {
-      this.refleshInterval = -1;
+      this.refreshInterval = -1;
       this.handleValueChange('interval');
-    } else if (this.refleshInterval === -1) {
-      this.refleshInterval = 5 * 60 * 1000;
+    } else if (this.refreshInterval === -1) {
+      this.refreshInterval = 5 * 60 * 1000;
       this.handleValueChange('interval');
     }
   }
@@ -151,7 +151,7 @@ export default class ToolPanel extends Vue {
       type,
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
       },
     };
   }

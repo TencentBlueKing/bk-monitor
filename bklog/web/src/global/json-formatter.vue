@@ -19,8 +19,7 @@
           class="field-value"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-          >{{ item.formatter.isJson ? '' : item.formatter.value }}</span
-        >
+        ></span>
       </span>
     </template>
   </div>
@@ -72,10 +71,10 @@
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
-      const originValue = val.replace(/<\/?mark>/gim, '');
-      if (/^(\{|\[)/.test(originValue)) {
+      // const originValue = val.replace(/<\/?mark>/gim, '');
+      if (/^(\{|\[)/.test(val)) {
         try {
-          return JSON.parse(originValue);
+          return JSON.parse(val);
         } catch (e) {
           return val;
         }
@@ -104,12 +103,15 @@
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: objValue,
+      field,
     };
   };
+
   const getFieldName = field => {
     const { getFieldName } = useFieldNameHook({ store });
     return getFieldName(field);
   };
+
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({
@@ -154,10 +156,24 @@
     color: var(--table-fount-color);
     text-align: left;
 
+    .bklog-scroll-box {
+      max-height: 50vh;
+      overflow: auto;
+      will-change: transform;
+      transform: translateZ(0); /* 强制开启GPU加速 */
+    }
+
+    .bklog-scroll-cell {
+      word-break: break-all;
+      span {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+      }
+    }
+
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
-      // display: inline-flex;
 
       .bklog-json-view-row {
         word-break: break-all;
@@ -182,6 +198,12 @@
         }
       }
 
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
+
       .valid-text {
         :hover {
           color: #3a84ff;
@@ -189,7 +211,16 @@
         }
       }
     }
-
+    &:not(.is-json) {
+      .bklog-root-field {
+        .field-value {
+          max-height: 50vh;
+          overflow: auto;
+          will-change: transform;
+          transform: translateZ(0); /* 强制开启GPU加速 */
+        }
+      }
+    }
     .segment-content {
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
@@ -201,6 +232,7 @@
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
+        white-space: pre-wrap;
       }
 
       .menu-list {
@@ -264,6 +296,12 @@
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 20px;
+
+      mark {
+        &.valid-text {
+          white-space: pre-wrap;
+        }
+      }
 
       .valid-text {
         cursor: pointer;

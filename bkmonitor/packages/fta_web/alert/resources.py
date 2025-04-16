@@ -55,6 +55,7 @@ from bkmonitor.models import (
     MetricListCache,
     StrategyModel,
 )
+from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import count_md5
@@ -626,11 +627,11 @@ class AlertDetailResource(Resource):
         id = AlertIDField(required=True, label="告警ID")
 
     @classmethod
-    def get_relation_info(cls, alert: AlertDocument):
+    def get_relation_info(cls, alert: AlertDocument, length_limit=True):
         """
         获取告警最近的日志
         """
-        return get_alert_relation_info(alert)
+        return get_alert_relation_info(alert, length_limit)
 
     def perform_request(self, validated_request_data):
         alert_id = validated_request_data["id"]
@@ -638,7 +639,7 @@ class AlertDetailResource(Resource):
         alert = AlertDocument.get(alert_id)
 
         graph_panel = AIOPSManager.get_graph_panel(alert)
-        relation_info = self.get_relation_info(alert)
+        relation_info = self.get_relation_info(alert, False)
 
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
@@ -647,8 +648,34 @@ class AlertDetailResource(Resource):
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
+        self.add_project_name(result)
 
         return result
+
+    @classmethod
+    def add_project_name(cls, data):
+        """
+        如果维度中存在key=tags.bcs_cluster_id，则在维度中增加project_name字段
+        用于前端进行集群跳转
+
+        data["dimensions"]:[
+            {
+              "display_value": "BCS-K8S-00000(蓝鲸7.0)",
+              "display_key": "bcs_cluster_id",
+              "value": "BCS-K8S-00000",
+              "key": "tags.bcs_cluster_id"
+            }
+        ]
+        """
+        for d in data["dimensions"]:
+            if d["key"].replace("tags.", "") != "bcs_cluster_id":
+                continue
+
+            cluster = BCSCluster.objects.filter(bcs_cluster_id=d["value"]).first()
+            if cluster:
+                d["project_name"] = cluster.space_uid.split("__")[1]
+            else:
+                d["project_name"] = ""
 
 
 class GetExperienceResource(ApiAuthResource):

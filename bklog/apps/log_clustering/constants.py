@@ -95,6 +95,29 @@ TRIGGER_CONFIG = {
     "uptime": {"calendars": [], "time_ranges": [{"start": "00:00", "end": "23:59"}]},
 }
 
+DEFAULT_ALERT_NOTICE = [
+    {
+        "time_range": "00:00:00--23:59:00",
+        "notify_config": [
+            {"notice_ways": [{"name": "rtx"}], "level": 3},
+            {"notice_ways": [{"name": "rtx"}], "level": 2},
+            {"notice_ways": [{"name": "rtx"}], "level": 1},
+        ],
+    }
+]
+
+DEFAULT_ACTION_NOTICE = [
+    {
+        "time_range": "00:00:00--23:59:00",
+        "notify_config": [
+            {"notice_ways": [{"name": "rtx"}], "phase": 3},
+            {"notice_ways": [{"name": "rtx"}], "phase": 2},
+            {"notice_ways": [{"name": "rtx"}], "phase": 1},
+        ],
+    }
+]
+
+DEFAULT_MENTION_LIST = [{"id": "all", "display_name": "all", "type": "group"}]
 
 DEFAULT_DETECTS = [
     {
@@ -135,6 +158,23 @@ DEFAULT_PATTERN_MONITOR_MSG = """
  无 {% endif %}
 **日志示例:** {{ json.loads(alarm.related_info)["log"] }}
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
+"""
+
+PATTERN_MONITOR_MSG_BY_SWITCH = """
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}
 """
 
 

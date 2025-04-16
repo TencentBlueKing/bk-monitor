@@ -1178,19 +1178,14 @@ export default defineComponent({
                       suffix: () => (
                         <span
                           class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
-                          v-bk-tooltips={{
-                            content: this.t('收藏'),
-                            disabled: getCookie('blueking_language') !== 'en',
-                          }}
                           onMousedown={!this.favoriteDisable && this.handleSetFavorite}
                         >
                           <i class='icon-monitor icon-mc-uncollect favorite-icon' />
-                          {this.t('收藏')}
                         </span>
                       ),
                     }}
                     clearable={true}
-                    placeholder={String(this.t('输入搜索条件'))}
+                    placeholder={String(this.t('请输入搜索条件'))}
                     onBlur={this.handleBlur}
                     onClear={this.handleClear}
                     onEnter={this.handleBlur}

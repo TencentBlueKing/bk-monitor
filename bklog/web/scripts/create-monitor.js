@@ -107,6 +107,7 @@ const createMonitorConfig = config => {
           // /@blueking\/ip-selector/,
           // /@blueking\/user-selector/,
           /@blueking\/bkui-library/,
+          // /@blueking\/ai-blueking/,
           // /bk-magic-vue/,
           // /vue-i18n/,
           // 'vue',
@@ -134,6 +135,7 @@ const createMonitorConfig = config => {
         ]
       : [
           /@blueking\/date-picker/,
+          // /@blueking\/ai-blueking/,
           /@blueking\/ip-selector/,
           /@blueking\/user-selector/,
           /@blueking\/bkui-library/,

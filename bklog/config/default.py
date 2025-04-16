@@ -401,7 +401,6 @@ BK_ASSESSMEN_HOST_COUNT = int(os.getenv("BKAPP_ASSESSMEN_HOST_COUNT", 30))
 # 日志清洗文档
 BK_ETL_DOC_URL = os.getenv("BKAPP_ETL_DOC_URL", "")
 
-BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 # 计算平台文档地址
 BK_DOC_DATA_URL = ""
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
@@ -890,6 +889,9 @@ BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 # 是否关闭权限中心校验
 IGNORE_IAM_PERMISSION = os.environ.get("BKAPP_IGNORE_IAM_PERMISSION", False)
 
+# 是否开启过期时间处理
+DEAL_RETENTION_TIME = os.getenv("BKAPP_DEAL_RETENTION_TIME", "on") == "on"
+
 # 日志采集器配置
 # 日志文件多久没更新则不再读取
 COLLECTOR_CLOSE_INACTIVE = 86400
@@ -1237,6 +1239,15 @@ UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 # AIDEV
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+
+# 是否启用多租户模式
+ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# 是否启用全局租户（blueapps依赖）
+IS_GLOBAL_TENANT = True
+# 为了统一多租户和非多租户场景的逻辑，默认使用system租户
+DEFAULT_TENANT_ID = "system"
+# 已经初始化的租户列表
+INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
 
 """
 以下为框架代码 请勿修改

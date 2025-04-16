@@ -929,7 +929,7 @@ export default {
 
 ${this.$t('如')}：
 * ${this.$t('版本支持')}: Apache 2.x
-* ${this.$t('环境依赖')}: Python 2.7
+* ${this.$t('环境依赖')}: Python
 
 #### ${this.$t('配置说明')}
 

@@ -10,12 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import re
+from typing import Optional
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import empty
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.request import get_request_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from constants.result_table import RT_TABLE_NAME_WORD_EXACT
 from core.unit import UNITS
 
@@ -160,4 +167,65 @@ class BkBizIdSerializer(serializers.Serializer):
 
         if not attrs["bk_biz_id"]:
             raise serializers.ValidationError(_("space_uid is invalid"))
+        return attrs
+
+
+class TenantIdField(serializers.CharField):
+    """
+    租户ID字段
+    如果传入的值为空，则使用当前请求的租户ID
+    """
+
+    def __init__(self, *args, must_system_tenant=False, **kwargs):
+        kwargs["required"] = False
+
+        super().__init__(*args, **kwargs)
+        self._allow_blank = kwargs.get("allow_blank", False)
+        self.allow_blank = True
+        self.must_system_tenant = must_system_tenant
+
+    def run_validation(self, data=...):
+        # 如果传入的值为空，则使用当前请求的租户ID
+        if not data or data is empty:
+            data = get_request_tenant_id(peaceful=True)
+
+        # 如果租户ID为空，则抛出异常
+        if not data and not self._allow_blank:
+            raise ValidationError(_("tenant_id is required"))
+
+        # 如果必须为系统租户，则对租户ID进行校验
+        if self.must_system_tenant and data != DEFAULT_TENANT_ID:
+            raise ValidationError(_("bk_tenant_id must be system tenant"))
+
+        return super().run_validation(data)
+
+
+class TenantSerializer(serializers.Serializer):
+    """
+    租户序列化器
+    当需要使用租户ID时，可以通过该序列化器获取租户ID
+    1. 如果传入bk_tenant_id，则直接返回
+    2. 如果存在 request，则通过 request 获取租户ID
+    3. 如果传入bk_biz_id/space_uid，则通过业务ID/空间UID获取租户ID
+    """
+
+    bk_tenant_id = TenantIdField(label="租户ID", allow_blank=True)
+
+    def validate(self, attrs):
+        # 如果租户ID不为空，则直接返回
+        if attrs.get("bk_tenant_id"):
+            return attrs
+
+        # 如果没有租户ID，则通过业务/空间获取租户ID
+        if not attrs.get("bk_biz_id") and not attrs.get("space_uid"):
+            raise ValidationError(_("bk_tenant_id or bk_biz_id must be provided"))
+
+        # 通过业务ID获取租户ID
+        space: Optional[Space] = SpaceApi.get_space_detail(
+            bk_biz_id=attrs.get("bk_biz_id") or 0, space_uid=attrs.get("space_uid") or ""
+        )
+        if not space:
+            raise ValidationError("cannot find space by bk_biz_id: {}".format(attrs["bk_biz_id"]))
+        attrs["bk_tenant_id"] = space.bk_tenant_id
+
         return attrs

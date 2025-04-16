@@ -27,6 +27,7 @@ import { Ref } from 'vue';
 
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
+import { optimizedSplit } from './hooks-helper';
 
 export type FormatterConfig = {
   onSegmentClick: (args: any) => void;
@@ -41,6 +42,7 @@ export type WordListItem = {
   text: string;
   isMark: boolean;
   isCursorText: boolean;
+  isBlobWord?: boolean;
   startIndex?: number;
   endIndex?: number;
   left?: number;
@@ -91,7 +93,7 @@ export default class UseTextSegmentation {
 
   getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      this.handleSegmentClick(e.target, (e.target as HTMLElement).innerHTML);
+      this.handleSegmentClick(e.target, (e.target as HTMLElement).textContent);
     }
   }
 
@@ -121,6 +123,13 @@ export default class UseTextSegmentation {
     return this.options?.field;
   }
 
+  private getCellValue(target) {
+    if (typeof target === 'string') {
+      return target.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+    }
+    return target;
+  }
+
   private onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = this.clickValue;
@@ -135,7 +144,7 @@ export default class UseTextSegmentation {
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      value: this.getCellValue(target ?? currentValue),
       depth,
       isNestedField,
     };
@@ -229,7 +238,15 @@ export default class UseTextSegmentation {
             isMark: false,
           });
 
-          result.push(...convertObjToArray(value, true));
+          if (result.length < 1000) {
+            result.push(...convertObjToArray(value, true));
+          } else {
+            result.push({
+              text: value,
+              isCursorText: false,
+              isMark: false,
+            });
+          }
         });
 
         const lastRow = result.at(-1);
@@ -292,48 +309,6 @@ export default class UseTextSegmentation {
     return output;
   }
 
-  // Object.assign(item, { startIndex: start, endIndex: start + (text?.length ?? 0) });
-  private splitParticipleWithStr(str: string, delimiterPattern: string) {
-    if (!str) return [];
-    // 转义特殊字符，并构建用于分割的正则表达式
-    const regexPattern = delimiterPattern
-      .split('')
-      .map(delimiter => `\\${delimiter}`)
-      .join('|');
-
-    // 构建正则表达式以找到分隔符或分隔符周围的文本
-    const regex = new RegExp(`(${regexPattern})`);
-
-    // 先根据高亮标签分割
-    const markSplitRes = str.match(/(<mark>.*?<\/mark>|.+?(?=<mark|$))/gs);
-
-    // 在高亮分割数组基础上再以分隔符分割数组
-    const parts = markSplitRes.reduce((list, item) => {
-      if (/^<mark>.*?<\/mark>$/.test(item)) {
-        const formatValue = item.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-        list.push({
-          text: formatValue,
-          isMark: true,
-          isCursorText: true,
-        });
-      } else {
-        const arr = item.split(regex);
-        arr.forEach(text => {
-          if (text) {
-            list.push({
-              text,
-              isMark: false,
-              isCursorText: !regex.test(text),
-            });
-          }
-        });
-      }
-      return list;
-    }, []);
-
-    return parts;
-  }
-
   private escapeString(val: string) {
     const map = {
       '&amp;': '&',
@@ -360,7 +335,7 @@ export default class UseTextSegmentation {
 
     if (this.isAnalyzed(field) || forceSplit) {
       // 这里进来的都是开了分词的情况
-      return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
+      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
     }
 
     const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');

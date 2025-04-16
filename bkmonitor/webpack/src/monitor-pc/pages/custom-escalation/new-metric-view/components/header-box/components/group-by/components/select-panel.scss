@@ -1,0 +1,60 @@
+.group-by-select-panel {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 6px;
+  color: #3a84ff;
+  cursor: pointer;
+  background: #e1ecff;
+  border-radius: 2px;
+
+  &.is-disabled {
+    color: #dcdee5;
+    background: #f5f7fa;
+  }
+}
+
+.tippy-tooltip.group-by-select-panel-theme {
+  padding: 0;
+  background-color: #fff !important;
+
+  .wrapper {
+    min-width: 320px;
+  }
+
+  .dimension-list {
+    max-height: 300px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    overflow-y: auto;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+
+    .bk-form-checkbox {
+      flex: 1;
+      line-height: 32px;
+
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .dimension-alias {
+    padding-left: 4px;
+    color: #9da4b3;
+  }
+}

@@ -1,3 +1,4 @@
+/* eslint-disable codecc/license */
 /** @type {import('stylelint').Config} */
 module.exports = {
   extends: ['stylelint-config-recommended-vue', 'stylelint-config-recess-order'],
@@ -22,8 +23,6 @@ module.exports = {
     ],
     'at-rule-no-vendor-prefix': true,
     'comment-empty-line-before': ['always', { except: ['first-nested'] }],
-    // 不能用important
-    'declaration-no-important': true,
     // Sass rules
     'max-nesting-depth': 10,
     // 不要使用已被 autoprefixer 支持的浏览器前缀

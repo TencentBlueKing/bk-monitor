@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, onBeforeMount } from 'vue';
 
 import {
   parseTableRowData,
@@ -91,6 +91,7 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
+    const refLoadMoreElement: Ref<HTMLElement> = ref();
     const popInstanceUtil = new PopInstanceUtil({
       refContent: ref('智能分析'),
       tippyOptions: {
@@ -106,7 +107,7 @@ export default defineComponent({
     const isRending = ref(false);
 
     const tableRowConfig = new WeakMap();
-
+    const hasMoreList = ref(true);
     const wheelTrigger = ref({ isWheeling: false, id: '' });
     provide('wheelTrigger', wheelTrigger);
 
@@ -152,19 +153,6 @@ export default defineComponent({
 
     const router = useRouter();
     const route = useRoute();
-
-    const totalCount = computed(() => {
-      const count = store.state.indexSetQueryResult.total;
-      if (count._isBigNumber) {
-        return count.toNumber();
-      }
-
-      return count;
-    });
-
-    const hasMoreList = computed(
-      () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
-    );
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -290,7 +278,15 @@ export default defineComponent({
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
-              store.commit('updateIndexFieldInfo', { sort_list: sortList });
+              const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
+                if (sortList.length > 0 && item[0] === field.field_name) {
+                  return sortList[0];
+                } else if (sortList.length === 0 && item[0] === field.field_name) {
+                  return [field.field_name, 'desc'];
+                }
+                return item;
+              });
+              store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
               store.dispatch('requestIndexSetQuery');
             }
@@ -566,11 +562,13 @@ export default defineComponent({
 
     const expandOption = {
       render: ({ row }) => {
+        const config = tableRowConfig.get(row);
         return (
           <ExpandView
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
+            row-index={config.value[ROW_INDEX]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) =>
               handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
@@ -630,7 +628,7 @@ export default defineComponent({
 
             renderList.value.length = 0;
             renderList.value = [];
-
+            pageIndex.value = 1;
             return;
           }
 
@@ -642,6 +640,7 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
+        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
         setRenderList(null);
         debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
@@ -692,7 +691,8 @@ export default defineComponent({
     };
 
     const loadMoreTableData = () => {
-      if (isRequesting.value) {
+      // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
+      if (isRequesting.value && tableDataSize.value === 0) {
         return;
       }
 
@@ -705,13 +705,19 @@ export default defineComponent({
         return;
       }
 
-      if (totalCount.value > tableList.value.length) {
+      if (hasMoreList.value) {
         isRequesting.value = true;
 
-        return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
-          pageIndex.value++;
-          debounceSetLoading(0);
-        });
+        return store
+          .dispatch('requestIndexSetQuery', { isPagination: true })
+          .then(resp => {
+            if (resp?.size === 50) {
+              pageIndex.value++;
+            }
+          })
+          .finally(() => {
+            debounceSetLoading(0);
+          });
       }
 
       return Promise.resolve(false);
@@ -737,6 +743,7 @@ export default defineComponent({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
+      refLoadMoreElement,
     });
 
     const scrollWidth = computed(() => {
@@ -949,7 +956,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft.value = (event.target as HTMLElement).scrollLeft;
+      scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
     };
 
     const renderScrollXBar = () => {
@@ -981,7 +988,10 @@ export default defineComponent({
 
     const renderLoader = () => {
       return (
-        <div class={['bklog-requsting-loading']}>
+        <div
+          ref={refLoadMoreElement}
+          class={['bklog-requsting-loading']}
+        >
           <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>
       );
@@ -1000,6 +1010,12 @@ export default defineComponent({
 
     const isTableLoading = computed(() => {
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
+    });
+
+    onBeforeMount(() => {
+      renderList.value.length = 0;
+      renderList.value = [];
+      pageIndex.value = 1;
     });
 
     onBeforeUnmount(() => {

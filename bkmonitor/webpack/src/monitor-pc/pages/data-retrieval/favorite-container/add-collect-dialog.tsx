@@ -30,6 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
 
+import { mergeWhereList } from '../../../components/retrieval-filter/utils';
+
 import './add-collect-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';
 
@@ -59,9 +61,9 @@ interface IEvent {
 @Component
 export default class CollectDialog extends tsc<IProps, IEvent> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ type: Object, default: () => ({}) }) keyword: object; // 当前弹窗展示的查询语句参数
+  @Prop({ type: Object, default: () => ({}) }) keyword: any; // 当前弹窗展示的查询语句参数
   @Prop({ type: String, required: true }) favoriteSearchType: string; // 收藏类型
-  @Prop({ type: Object, default: () => ({}) }) editFavoriteData: object; // 编辑收藏的数据
+  @Prop({ type: Object, default: () => ({}) }) editFavoriteData: any; // 编辑收藏的数据
   @Prop({ type: Array, default: () => [] }) favStrList: string[]; // 收藏类型
   @Ref('validateForm') validateFormRef: any;
   @Ref('checkInputForm') checkInputFormRef: any;
@@ -71,13 +73,13 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   baseFavoriteData: ISubmitData = {
     // 用户可编辑的基础数据
     name: '',
-    group_id: '',
+    group_id: '0',
     create_user: '',
   };
   favoriteData: ISubmitData = {
     // 收藏数据
     name: '',
-    group_id: '',
+    group_id: '0',
     create_user: '',
   };
   verifyData = {
@@ -85,10 +87,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   };
   positionTop = 0;
   allGroupList = [];
-  publicGroupList = []; // 可见状态为公共的时候显示的收藏组
-  privateGroupList = []; // 个人组
   formLoading = false;
-  radioValue = 'null'; // 可见范围
   isShowJsonKeywords = false; // 是否展示json格式的查询语句
   public rules = {
     name: [
@@ -150,20 +149,10 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     return Boolean(Object.keys(this.editFavoriteData).length);
   }
 
-  get isDisableSelect() {
-    // 是否禁用分组下拉框
-    return this.favoriteData.group_id === 0;
-  }
-
   get isCannotChangeVisible() {
     // 编辑时候判断是否是本人创建 如果非本人则禁用
     if (!this.isEditFavorite) return false;
     return this.favoriteData.create_user !== (window.user_name || window.username);
-  }
-
-  get showGroupList() {
-    // 展示的组列表
-    return this.favoriteData.group_id === 0 ? this.privateGroupList : this.publicGroupList;
   }
 
   get bizId(): string {
@@ -184,6 +173,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         label: `${window.i18n.t('查询项')}${item.alias}:`,
         value: item.code,
       }));
+  }
+
+  get dataIdFormItem() {
+    if (this.favoriteSearchType === 'event')
+      return {
+        label: this.$t('数据ID'),
+        value: this.keyword?.queryConfig?.result_table_id,
+      };
+
+    return null;
   }
 
   mounted() {
@@ -226,9 +225,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         // 是否是编辑收藏
         const { config, ...reset } = this.editFavoriteData;
         Object.assign(this.favoriteData, reset); // 如果是编辑则合并编辑详情
-        this.radioValue = this.favoriteData.group_id === 0 ? '0' : 'null'; // 赋值可见范围
-      } else {
-        this.radioValue = 'null';
       }
     } else {
       Object.assign(this.favoriteData, this.baseFavoriteData); // 关闭弹窗 恢复基础数据
@@ -260,10 +256,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     this.isShowAddGroup = true;
     this.verifyData.groupName = '';
   }
-
-  handleClickRadio(value: string) {
-    this.favoriteData.group_id = value === 'null' ? null : 0;
-  }
   /** 新增或更新收藏 */
   handleSubmitFormData() {
     this.validateFormRef
@@ -287,8 +279,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       const res = await listFavoriteGroup(param);
       const filterGroupList = res.map(item => ({ id: `${item.id}`, name: item.name }));
       this.allGroupList = filterGroupList;
-      this.publicGroupList = filterGroupList.slice(1, filterGroupList.length);
-      this.privateGroupList = [filterGroupList[0]];
     } catch (error) {
       console.warn(error);
     } finally {
@@ -323,11 +313,13 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         >
           {this.isPromQlKeywords ? (
             <div class='view-content'>
-              {this.promqlShowData.map((item, index) => (
-                <div class='promql-box'>
+              {this.promqlShowData.map(item => (
+                <div
+                  key={`${item.label}_${item.value}`}
+                  class='promql-box'
+                >
                   <div class='promql-label'>{item.label}</div>
                   <div class='promql-val'>{item.value}</div>
-                  {this.promqlShowData.length - 1 !== index && <br />}
                 </div>
               ))}
             </div>
@@ -342,7 +334,28 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         </div>
       </div>
     );
-    const eventKeywordsSlot = () => <span>{this.keyword?.queryConfig.query_string}</span>;
+
+    const eventKeywordsSlot = () => {
+      if (this.keyword?.queryConfig?.query_string) return <span>{this.keyword.queryConfig.query_string}</span>;
+      if (this.keyword?.queryConfig?.where?.length) {
+        return (
+          <div class='view-box is-expand'>
+            <span class='string-json view-content'>
+              <VueJsonPretty
+                data={{
+                  data_source_label: this.keyword.queryConfig?.data_source_label || '',
+                  data_type_label: this.keyword.queryConfig?.data_type_label || '',
+                  table: this.keyword.queryConfig?.result_table_id || '',
+                  where: mergeWhereList(this.keyword.queryConfig.where, this.keyword.queryConfig?.commonWhere || []),
+                }}
+                deep={5}
+              />
+            </span>
+          </div>
+        );
+      }
+      return '*';
+    };
     return (
       <bk-dialog
         width={480}
@@ -369,10 +382,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             },
           }}
         >
-          <div class='edit-information'>
-            <span>{this.$t('查询语句')}</span>
-            {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
-          </div>
           <bk-form-item
             class='group-name'
             label={this.$t('收藏名')}
@@ -387,42 +396,26 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
           </bk-form-item>
 
           <bk-form-item
-            class='collect-radio'
-            label={this.$t('可见范围')}
-            required
-          >
-            <bk-radio-group
-              vModel={this.radioValue}
-              on-change={this.handleClickRadio}
-            >
-              <bk-radio value={'null'}>
-                {this.$t('公开')}({this.$t('本业务可见')})
-              </bk-radio>
-              <bk-radio
-                disabled={this.isCannotChangeVisible}
-                value={'0'}
-              >
-                {this.$t('私有')}
-                {this.$t('(仅个人可见)')}
-              </bk-radio>
-            </bk-radio-group>
-          </bk-form-item>
-          <bk-form-item
             class='affiliation-group'
-            label={this.$t('所属组')}
+            label={this.$t('所属分组')}
+            required
           >
             <bk-select
               vModel={this.favoriteData.group_id}
-              disabled={this.isDisableSelect}
+              clearable={false}
               ext-popover-cls='add-new-page-container'
               searchable
             >
-              {this.showGroupList.map(item => (
+              {this.allGroupList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
-                  name={item.name}
-                />
+                  disabled={item.id === '0' && this.isCannotChangeVisible}
+                  name={item.id === '0' ? `${item.name}${this.$t('（仅个人可见）')}` : item.name}
+                >
+                  <span>{item.name}</span>
+                  <span style='color: #979BA5'>{item.id === '0' && this.$t('（仅个人可见）')}</span>
+                </bk-option>
               ))}
               <div slot='extension'>
                 {this.isShowAddGroup ? (
@@ -475,6 +468,18 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                 )}
               </div>
             </bk-select>
+          </bk-form-item>
+
+          {this.dataIdFormItem && (
+            <bk-form-item label={this.dataIdFormItem.label}>
+              <div class='edit-information'>{this.dataIdFormItem.value}</div>
+            </bk-form-item>
+          )}
+
+          <bk-form-item label={this.$t('查询语句')}>
+            <div class='edit-information'>
+              {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
+            </div>
           </bk-form-item>
         </bk-form>
       </bk-dialog>

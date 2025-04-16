@@ -28,8 +28,11 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
+from apps.api import MonitorApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
+    DEFAULT_ACTION_NOTICE,
+    DEFAULT_ALERT_NOTICE,
     DEFAULT_LABEL,
     DOUBLE_PERCENTAGE,
     HOUR_MINUTES,
@@ -54,7 +57,11 @@ from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_external_app_code,
+    get_local_param,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
@@ -118,13 +125,17 @@ class PatternHandler:
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
-        clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
+        clustering_remarks = ClusteringRemark.objects.filter(
+            bk_biz_id=self._clustering_config.bk_biz_id, source_app_code=get_external_app_code()
+        ).values(
             "signature",
             "origin_pattern",
             "group_hash",
             "remark",
             "owners",
             "groups",
+            "strategy_id",
+            "strategy_enabled",
         )
 
         signature_map_remark = {}
@@ -169,20 +180,30 @@ class PatternHandler:
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
+                strategy_id = signature_map_remark[(signature, group_hash)]["strategy_id"]
+                strategy_enabled = signature_map_remark[(signature, group_hash)]["strategy_enabled"]
             elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
                 remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
                 owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
+                strategy_id = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_id"]
+                strategy_enabled = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_enabled"]
             # 如果带分组的记录中没有找到备注，则退化为使用无分组的备注内容展示
             elif signature in signature_map_remark_without_group:
                 remark = signature_map_remark_without_group[signature]["remark"]
                 owners = signature_map_remark_without_group[signature]["owners"]
+                strategy_id = signature_map_remark_without_group[signature]["strategy_id"]
+                strategy_enabled = signature_map_remark_without_group[signature]["strategy_enabled"]
             elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
                 remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
                 owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
+                strategy_id = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_id"]
+                strategy_enabled = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_enabled"]
             # 任意一种情况都不匹配
             else:
                 remark = []
                 owners = []
+                strategy_id = 0
+                strategy_enabled = False
 
             result.append(
                 {
@@ -197,6 +218,8 @@ class PatternHandler:
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
+                    "strategy_id": strategy_id,
+                    "strategy_enabled": strategy_enabled,
                 }
             )
         if self._show_new_pattern:
@@ -396,6 +419,7 @@ class PatternHandler:
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
             )
+            .filter(source_app_code=get_external_app_code())
             .first()
         )
 
@@ -413,6 +437,24 @@ class PatternHandler:
         else:
             remark_obj.owners = owners
         remark_obj.save()
+
+        if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
+            return model_to_dict(remark_obj)
+        # 更新告警组
+        user_group = MonitorApi.search_user_groups(
+            {"bk_biz_ids": [self._clustering_config.bk_biz_id], "ids": [remark_obj.notice_group_id]}
+        )[0]
+        MonitorApi.save_notice_group(
+            params={
+                "id": remark_obj.notice_group_id,
+                "name": user_group["name"],
+                "bk_biz_id": user_group["bk_biz_id"],
+                "duty_arranges": [{"users": [{"type": "user", "id": name} for name in remark_obj.owners]}],
+                "alert_notice": DEFAULT_ALERT_NOTICE,
+                "action_notice": DEFAULT_ACTION_NOTICE,
+            }
+        )
+
         return model_to_dict(remark_obj)
 
     def update_group_fields(self, group_fields: list):
@@ -440,6 +482,7 @@ class PatternHandler:
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
             )
+            .filter(source_app_code=get_external_app_code())
             .first()
         )
         now = int(arrow.now().timestamp() * 1000)
@@ -502,9 +545,10 @@ class PatternHandler:
 
     def get_signature_owners(self) -> list:
         # 获取 AiopsSignatureAndPattern 表中的 signature 和 origin_pattern 字段的值
-        owners = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values_list(
-            'owners', flat=True
-        )
+        owners = ClusteringRemark.objects.filter(
+            bk_biz_id=self._clustering_config.bk_biz_id,
+            source_app_code=get_external_app_code(),
+        ).values_list('owners', flat=True)
         result = set()
         for owner in owners:
             result.update(owner)

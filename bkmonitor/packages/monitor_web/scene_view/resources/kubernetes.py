@@ -25,8 +25,6 @@ from django.db.models.aggregates import Avg, Sum
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
@@ -36,6 +34,7 @@ from bkmonitor.models import (
     BCSClusterLabels,
     BCSContainer,
     BCSContainerLabels,
+    BCSIngress,
     BCSLabel,
     BCSNode,
     BCSNodeLabels,
@@ -1087,6 +1086,22 @@ class GetKubernetesContainerList(KubernetesResource):
         ]
 
 
+class GetKubernetesIngress(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id: int = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id: str = serializers.CharField(required=True)
+        namespace: str = serializers.CharField(required=True)
+        ingress_name: str = serializers.CharField(required=True)
+
+    def perform_request(self, params: Dict):
+        bk_biz_id = params["bk_biz_id"]
+        params["name"] = params.pop("ingress_name")
+        item = BCSIngress.load_item(params)
+        if item:
+            return item.render(bk_biz_id, "detail")
+        return []
+
+
 class GetKubernetesService(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -1228,6 +1243,7 @@ class GetKubernetesNode(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
         node_ip = serializers.CharField(required=False, allow_null=True)
+        node_name = serializers.CharField(required=False, allow_null=True)
 
     @staticmethod
     def get_performance_data(bk_biz_id, bcs_cluster_id):
@@ -1294,8 +1310,11 @@ class GetKubernetesNode(ApiAuthResource):
         item.update_monitor_status(params)
 
     def perform_request(self, params: Dict) -> List[Dict]:
-        ip = params.pop("node_ip")
-        params["ip"] = ip
+        if params.get("node_ip"):
+            params["ip"] = params.pop("node_ip")
+        if params.get("node_name"):
+            params["name"] = params.pop("node_name")
+
         item = BCSNode.load_item(params)
         if item:
             self.refresh_monitor_status(item)
@@ -1679,15 +1698,12 @@ class GetKubernetesClusterChoices(KubernetesResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        data = []
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-            if not space:
-                return data
-            bk_biz_id = space.bk_biz_id
+            cluster_list = BCSCluster.objects.filter(space_uid=space_uid).values("bcs_cluster_id", "name")
+        else:
+            cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
 
-        cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
         data = []
         for item in cluster_list:
             bcs_cluster_id = item["bcs_cluster_id"]

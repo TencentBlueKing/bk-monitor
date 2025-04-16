@@ -25,6 +25,7 @@ from rest_framework import routers
 
 from apps.log_search.views import (
     aggs_views,
+    alert_strategy_view,
     bizs_views,
     favorite_search_views,
     field_views,
@@ -58,5 +59,6 @@ router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSea
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
 
 router.register(r"field/index_set", field_views.FieldViewSet, basename="field")
+router.register(r"alert_strategy", alert_strategy_view.AlertStrategyViewSet, basename="alert_strategy")
 
 urlpatterns = [re_path(r"^", include(router.urls))]

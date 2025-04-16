@@ -1,0 +1,23 @@
+{
+  "id": "event",
+  "type": "overview",
+  "mode": "custom",
+  "name": "事件",
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "event-explore",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": [
+      ]
+    }
+  ],
+  "panels": [],
+  "order": []
+}

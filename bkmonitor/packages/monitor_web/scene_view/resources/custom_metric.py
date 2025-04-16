@@ -9,14 +9,16 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from django.db import models
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
 
 logger = logging.getLogger("monitor_web")
@@ -33,7 +35,9 @@ class GetCustomMetricTargetListResource(Resource):
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
         return [{"id": target, "name": target} for target in targets]
@@ -50,31 +54,50 @@ class GetCustomTsMetricGroups(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         fields = table.get_and_sync_fields()
         metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
 
         # 维度描述
+        hidden_dimensions = set()
         dimension_descriptions = {}
         # 公共维度
         common_dimensions = []
         for field in fields:
-            if field.type == CustomTSField.MetricType.DIMENSION:
-                dimension_descriptions[field.name] = field.description
-                if field.config.get("common", False):
-                    common_dimensions.append(
-                        {
-                            "name": field.name,
-                            "alias": field.description,
-                        }
-                    )
+            # 如果不是维度，则跳过
+            if field.type != CustomTSField.MetricType.DIMENSION:
+                continue
+
+            dimension_descriptions[field.name] = field.description
+
+            # 如果维度隐藏，则不展示
+            if field.config.get("hidden", False):
+                hidden_dimensions.add(field.name)
+                continue
+
+            # 如果维度公共，则添加到公共维度
+            if field.config.get("common", False):
+                common_dimensions.append({"name": field.name, "alias": field.description})
 
         # 指标分组
         metric_groups = defaultdict(list)
         for metric in metrics:
-            for group in metric.config.get("label", []):
+            # 如果指标隐藏，则不展示
+            if metric.disabled or metric.config.get("hidden", False):
+                continue
+
+            labels = metric.config.get("label", [])
+
+            # 如果 label 为空，则使用未分组
+            if not labels:
+                labels = [_("未分组")]
+
+            # 分组
+            for group in labels:
                 metric_groups[group].append(
                     {
                         "metric_name": metric.name,
@@ -82,6 +105,7 @@ class GetCustomTsMetricGroups(Resource):
                         "dimensions": [
                             {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
                             for dimension in metric.config.get("dimensions", [])
+                            if dimension not in hidden_dimensions
                         ],
                     }
                 )
@@ -107,7 +131,9 @@ class GetCustomTsDimensionValues(Resource):
 
     def perform_request(self, params: Dict) -> List[Dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
 
         # 如果指标只有一个，则使用精确匹配
@@ -158,7 +184,7 @@ class GetCustomTsGraphConfig(Resource):
         where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
         common_conditions = serializers.ListField(label="常用维度过滤", default=list)
-        limit = LimitSerializer(label="限制返回的series数量", allow_null=True, default=None)
+        limit = LimitSerializer(label="限制返回的series数量", default={})
         compare = CompareSerializer(label="对比配置", default={})
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
@@ -175,7 +201,9 @@ class GetCustomTsGraphConfig(Resource):
                     expression = serializers.CharField(label="表达式")
                     alias = serializers.CharField(label="别名", allow_blank=True)
                     query_configs = serializers.ListField(label="查询配置")
-                    function = serializers.DictField(label="图表函数", allow_null=True, default=None)
+                    function = serializers.DictField(label="图表函数", allow_null=True, default={})
+                    metric = serializers.DictField(label="指标", allow_null=True, default={})
+                    unit = serializers.CharField(label="单位", allow_blank=True, default="")
 
                 targets = TargetSerializer(label="目标", many=True)
 
@@ -193,7 +221,9 @@ class GetCustomTsGraphConfig(Resource):
     }
 
     @classmethod
-    def time_or_no_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict) -> list[dict]:
+    def time_or_no_compare(
+        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+    ) -> list[dict]:
         """
         时间对比或无对比
         """
@@ -202,7 +232,6 @@ class GetCustomTsGraphConfig(Resource):
         series_metrics = cls.query_metric_series(
             table=table, metrics=metrics, dimensions=split_dimensions, params=params
         )
-        print(f"series_metrics: {series_metrics}")
 
         # 计算限制函数
         functions = []
@@ -230,14 +259,14 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_metrics) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{key}={value}" for key, value in series_tuple])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in series_tuple])
 
             panels = []
             for metric in metric_list:
                 all_metric_dimensions = set(metric.config.get("dimensions", []))
                 query_config = {
                     "metrics": [
-                        {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
+                        {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
                     "interval": "auto",
                     "table": table.table_id,
@@ -266,7 +295,13 @@ class GetCustomTsGraphConfig(Resource):
                         "title": metric.description or metric.name,
                         "sub_title": f"custom:{table.data_label}:{metric.name}",
                         "targets": [
-                            {"expression": "a", "alias": "", "query_configs": [query_config], "function": function}
+                            {
+                                "expression": "a",
+                                "alias": "",
+                                "query_configs": [query_config],
+                                "function": function,
+                                "metric": {"name": metric.name, "alias": metric.description},
+                            }
                         ],
                     }
                 )
@@ -275,7 +310,9 @@ class GetCustomTsGraphConfig(Resource):
         return groups
 
     @classmethod
-    def metric_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict) -> List[Dict]:
+    def metric_compare(
+        cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict, dimension_names: dict[str, str]
+    ) -> List[Dict]:
         """
         指标对比
         """
@@ -285,7 +322,7 @@ class GetCustomTsGraphConfig(Resource):
 
         # 按照拆图维度分组
         split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
-        series_groups = defaultdict(dict)
+        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[CustomTSField]]] = defaultdict(dict)
         for series_tuple, metric_list in series_metrics.items():
             # 计算拆图维度
             group_series = tuple((k, v) for k, v in series_tuple if k in split_dimensions)
@@ -307,7 +344,7 @@ class GetCustomTsGraphConfig(Resource):
                 if len(series_groups) > 1:
                     group_name = "-"
             else:
-                group_name = "|".join([f"{key}={value}" for key, value in group_series])
+                group_name = "|".join([f"{dimension_names.get(key) or key}={value}" for key, value in group_series])
 
             # 根据非拆图维度分图
             panels = []
@@ -318,7 +355,11 @@ class GetCustomTsGraphConfig(Resource):
                 for metric in metric_list:
                     query_config = {
                         "metrics": [
-                            {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
+                            {
+                                "field": metric.name,
+                                "method": metric.config.get("aggregate_method") or "AVG",
+                                "alias": "a",
+                            }
                         ],
                         "interval": "auto",
                         "table": table.table_id,
@@ -343,12 +384,20 @@ class GetCustomTsGraphConfig(Resource):
                             },
                         },
                     }
-                    targets.append({"expression": "a", "alias": "", "query_configs": [query_config]})
-
+                    targets.append(
+                        {
+                            "expression": "a",
+                            "alias": "",
+                            "query_configs": [query_config],
+                            "metric": {"name": metric.name, "alias": metric.description},
+                        }
+                    )
                 # 计算图表标题
                 panel_title = "-"
-                if series_tuple:
-                    panel_title = "|".join([f"{key}={value}" for key, value in series_tuple])
+                if panel_series:
+                    panel_title = "|".join(
+                        [f"{dimension_names.get(key) or key}={value}" for key, value in panel_series]
+                    )
 
                 panels.append({"title": panel_title, "sub_title": "", "targets": targets})
 
@@ -421,7 +470,9 @@ class GetCustomTsGraphConfig(Resource):
 
     def perform_request(self, params: dict) -> dict:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+            pk=params["time_series_group_id"],
+            bk_tenant_id=get_request_tenant_id(),
         )
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],
@@ -429,12 +480,16 @@ class GetCustomTsGraphConfig(Resource):
             name__in=params["metrics"],
         )
 
+        dimension_names: dict[str, str] = {}
+        for dimension in CustomTSField.objects.filter(
+            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
+        ):
+            dimension_names[dimension.name] = dimension.description
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            print(f"time_or_no_compare: {params}")
-            groups = self.time_or_no_compare(table, metrics, params)
+            groups = self.time_or_no_compare(table, metrics, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics, params)
+            groups = self.metric_compare(table, metrics, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
@@ -504,28 +559,96 @@ class GraphDrillDownResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         function = serializers.DictField(label="图表函数", required=False, default=dict)
 
-        # 下钻维度
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
-        # 维度组合
-        dimensions = serializers.DictField(label="维度值")
-
-        # 值
-        value = serializers.IntegerField(label="当前值")
+        dimensions = serializers.DictField(label="维度值", allow_null=True)
+        value = serializers.FloatField(label="当前值", allow_null=True)
+        percentage = serializers.FloatField(label="占比", allow_null=True)
+        unit = serializers.CharField(label="单位", allow_blank=True)
 
         class CompareValueSerializer(serializers.Serializer):
-            # 对比值
-            value = serializers.IntegerField(label="对比值")
-            # 对比值的维度
+            value = serializers.FloatField(label="对比值", allow_null=True)
             offset = serializers.CharField(label="偏移量")
-            # 波动值
-            fluctuation = serializers.IntegerField(label="波动值")
+            fluctuation = serializers.FloatField(label="波动值", allow_null=True)
 
-        # 对比
         compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
 
     many_response_data = True
 
-    def perform_request(self, params: dict) -> dict:
-        pass
+    def get_value(self, params: dict, datapoints: list[tuple[Optional[float], int]]) -> float:
+        """
+        计算平均值
+        """
+        method = params["query_configs"][0]["metrics"][0]["method"].lower()
+        values = [point[0] for point in datapoints if point[0] is not None]
+
+        if not values:
+            return None
+
+        cal_funcs = {
+            "sum": lambda x: sum(x),
+            "avg": lambda x: sum(x) / len(x),
+            "max": lambda x: max(x),
+            "min": lambda x: min(x),
+            "count": lambda x: sum(x),
+        }
+
+        # 检查方法是否支持
+        if method not in cal_funcs:
+            raise ValueError(f"not support method: {method}")
+
+        cal_value = cal_funcs[method](values)
+        return round(cal_value, 3)
+
+    def perform_request(self, params: dict) -> list:
+        for item in params["query_configs"]:
+            item["group_by"] = params["group_by"]
+        result = resource.grafana.graph_unify_query(params)
+
+        dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(
+            lambda: {"value": None, "percentage": None, "compare_values": {}, "unit": ""}
+        )
+
+        # 计算平均值
+        for item in result["series"]:
+            dimension_tuple = tuple(sorted(item["dimensions"].items()))
+            value = self.get_value(params, item["datapoints"])
+
+            # 判断是当前值还是时间对比值
+            if item.get("time_offset") and item["time_offset"] == "current":
+                dimensions_values[dimension_tuple]["value"] = value
+            else:
+                dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = value
+            dimensions_values[dimension_tuple]["unit"] = item.get("unit") or ""
+
+        # 计算占比
+        sum_value = sum([x["value"] for x in dimensions_values.values() if x["value"] is not None])
+        for item in dimensions_values.values():
+            item["percentage"] = (
+                round(item["value"] / sum_value * 100, 3) if sum_value and item["value"] is not None else None
+            )
+
+        # 数据组装
+        rsp_data = []
+        for dimension_tuple, dimension_value in dimensions_values.items():
+            data = {
+                "dimensions": dict(dimension_tuple),
+                "value": dimension_value["value"],
+                "unit": dimension_value["unit"],
+                "percentage": dimension_value["percentage"],
+                "compare_values": [
+                    {
+                        "value": value,
+                        "offset": offset,
+                        # 波动值
+                        "fluctuation": round((value - dimension_value["value"]) / dimension_value["value"] * 100, 3)
+                        if dimension_value["value"] and value is not None
+                        else None,
+                    }
+                    for offset, value in dimension_value["compare_values"].items()
+                ],
+            }
+            rsp_data.append(data)
+
+        return rsp_data
