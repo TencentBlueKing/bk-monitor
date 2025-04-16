@@ -1,0 +1,46 @@
+.explore-table-empty {
+  .bk-exception-img {
+    width: 100%;
+
+    .exception-image {
+      width: 100%;
+    }
+  }
+
+  .search-empty-content {
+    .title {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .tips {
+      margin-bottom: 8px;
+      line-height: 20px;
+      color: #979ba5;
+      text-align: left;
+    }
+
+    .description {
+      line-height: 20px;
+      color: #63656e;
+      text-align: left;
+
+      .sub-description {
+        // margin-left: 10px;
+        margin-left: 15px;
+      }
+    }
+
+    .link {
+      margin: 0 4px;
+      color: #3a84ff;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .icon-fenxiang {
+      margin-left: 6px;
+      font-size: 12px;
+    }
+  }
+}

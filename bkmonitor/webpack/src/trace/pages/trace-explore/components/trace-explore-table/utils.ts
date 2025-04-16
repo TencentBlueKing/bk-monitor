@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { listSpan, listTrace } from 'monitor-api/modules/apm_trace';
+import { bkMessage, makeMessage } from 'monitor-api/utils';
+
 import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typing';
 
 export const TABLE_DEFAULT_CONFIG = Object.freeze({
@@ -82,15 +85,14 @@ export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTable
   6: { alias: window.i18n.t('推断'), prefixIcon: 'icon-monitor icon-tuiduan' },
 };
 
-export function getListMock(requestParam, mode: 'span' | 'trace', requestConfig): Promise<{ data: any[] }> {
-  console.log('================ requestParam ================', requestParam);
-  console.log('================ mode ================', mode);
-  console.log('================ requestConfig ================', requestConfig);
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve({ data: TABLE_MOCK_DATA });
-    }, 2000);
+export function getTableList(params, mode: 'span' | 'trace', requestConfig): Promise<{ data: any[] }> {
+  const apiFunc = mode === 'span' ? listSpan : listTrace;
+  const config = { needMessage: false, ...requestConfig };
+  return apiFunc(params, config).catch(err => {
+    const message = makeMessage(err.error_details || err.message);
+    if (message && err?.message !== 'canceled') {
+      bkMessage(message);
+    }
+    return { data: [], total: 0 };
   });
 }
-
-export const TABLE_MOCK_DATA = [];

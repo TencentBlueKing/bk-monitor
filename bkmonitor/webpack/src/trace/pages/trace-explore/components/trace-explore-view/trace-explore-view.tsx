@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, type PropType, computed } from 'vue';
+import { defineComponent, ref as deepRef, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
@@ -56,15 +57,12 @@ export default defineComponent({
 
     /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
-
-    /** 当前激活的视角(trace/span) */
-    const mode = computed<'span' | 'trace'>(() => store.mode);
-    /** 当前选中的应用 Name */
-    const appName = computed<string>(() => store.appName);
+    const { mode, appName, timeRange } = storeToRefs(store);
 
     /**
      * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后触发的回调
      * @param checkedGroup
+     *
      */
     function handleCheckboxGroupChange(checkedGroup: string[]) {
       checkboxFilters.value = checkedGroup;
@@ -109,11 +107,14 @@ export default defineComponent({
     return {
       mode,
       appName,
+      timeRange,
       filtersCheckBoxGroupRender,
     };
   },
   render() {
-    const { mode, appName, filtersCheckBoxGroupRender } = this;
+    const { commonParams } = this.$props;
+    const { mode, appName, timeRange, filtersCheckBoxGroupRender } = this;
+
     return (
       <div class='trace-explore-view'>
         <div class='trace-explore-view-chart'>chart</div>
@@ -124,7 +125,9 @@ export default defineComponent({
         <div class='trace-explore-view-table'>
           <TraceExploreTable
             appName={appName}
+            commonParams={commonParams}
             mode={mode}
+            timeRange={timeRange}
           />
         </div>
       </div>
