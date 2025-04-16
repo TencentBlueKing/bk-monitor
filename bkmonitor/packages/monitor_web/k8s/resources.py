@@ -552,6 +552,7 @@ class ListK8SResources(Resource):
                 # 网络场景，pod不需要workload相关信息
                 [rs.pop("workload") for rs in meta_resource_list if rs.get("workload")]
         except FieldError:
+            meta_resource_list = []
             # namespace 层级下尝试根据filter 类型进行重新查询
             if scenario == "network":
                 meta_resource_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
