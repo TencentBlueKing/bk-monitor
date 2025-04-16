@@ -369,6 +369,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           <DrillAnalysisView
             currentMethod={this.currentMethod}
             panel={this.currentChart}
+            timeRangeData={this.timeRange}
             onClose={() => (this.showDrillDown = false)}
           />
         )}

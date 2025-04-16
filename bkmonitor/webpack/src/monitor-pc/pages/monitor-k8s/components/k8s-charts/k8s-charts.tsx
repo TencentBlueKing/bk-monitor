@@ -138,6 +138,13 @@ export default class K8SCharts extends tsc<
       this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
       return;
     }
+    if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
+      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
+      const list = field.split(':');
+      const id = isIngress ? list[0] : list[1];
+      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: id }, true);
+      return;
+    }
     this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
   }
 
@@ -153,6 +160,11 @@ export default class K8SCharts extends tsc<
       item = Array.from(this.resourceList).find(
         item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container
       );
+    } else if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
+      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
+      const list = dimension.split(':');
+      const field = isIngress ? list[0] : list[1];
+      item = Array.from(this.resourceList).find(item => item[this.groupByField] === field);
     } else {
       item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
     }
@@ -245,6 +257,7 @@ export default class K8SCharts extends tsc<
     this.onActiveMetricIdChange(this.activeMetricId);
   }
   createPanelPromql(metric: string) {
+    if (!this.resourceMap.get(this.groupByField)?.length) return '';
     switch (this.scene) {
       case SceneEnum.Network:
         return this.createNetworkPanelPromql(metric);
@@ -255,8 +268,8 @@ export default class K8SCharts extends tsc<
   createCommonPromqlMethod() {
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) return '$method by(bcs_cluster_id)';
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) return '$method by(pod_name,container_name)';
-    if (this.groupByField === K8sTableColumnKeysEnum.INGRESS) return '$method by(ingress, namespace)';
-    if (this.groupByField === K8sTableColumnKeysEnum.SERVICE) return '$method by(service, namespace)';
+    if (this.groupByField === K8sTableColumnKeysEnum.INGRESS) return '$method by(ingress,namespace)';
+    if (this.groupByField === K8sTableColumnKeysEnum.SERVICE) return '$method by(service,namespace)';
     return `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`;
     // return this.resourceLength > 1
     //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`

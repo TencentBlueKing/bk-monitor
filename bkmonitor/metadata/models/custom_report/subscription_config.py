@@ -199,6 +199,9 @@ class CustomReportSubscription(models.Model):
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
             if max_rate < 0:
                 max_rate = MAX_DATA_ID_THROUGHPUT
+            max_future_time_offset = int(r.get("max_future_time_offset", MAX_FUTURE_TIME_OFFSET))
+            if max_future_time_offset < 0:
+                max_future_time_offset = MAX_FUTURE_TIME_OFFSET
             # 后续版本计划移除
             # bkmonitorproxy插件
             # bkmonitorproxy_report.conf
@@ -208,7 +211,7 @@ class CustomReportSubscription(models.Model):
                 "version": "v2",
                 "access_token": r["token"],
                 "max_rate": max_rate,
-                "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
+                "max_future_time_offset": max_future_time_offset,
             }
             if plugin_name == "bk-collector":
                 protocol = cls.get_protocol(r["bk_data_id"])
@@ -434,7 +437,11 @@ class CustomReportSubscription(models.Model):
                 old_subscription_params_md5 = count_md5(sub_config_obj.config)
                 new_subscription_params_md5 = count_md5(subscription_params)
                 if old_subscription_params_md5 != new_subscription_params_md5:
-                    logger.info("subscription task config has changed, update it.")
+                    logger.info(
+                        "subscription task config has changed, update it."
+                        f"\n【old】: {sub_config_obj.config}"
+                        f"\n【new】: {subscription_params}"
+                    )
                     result = api.node_man.update_subscription(subscription_params)
                     logger.info("update subscription successful, result:{}".format(result))
                     qs.update(config=subscription_params)

@@ -14,10 +14,6 @@ skip_empty = true
 
 
 [tool.pytest.ini_options]
-addopts = [
-    "-n", "auto",
-    "--dist", "loadscope",
-]
 console_output_style = "count"
 testpaths = [
     "alarm_backends/tests",
@@ -36,7 +32,7 @@ DJANGO_SETTINGS_MODULE = "settings"
 env = [
     "D:DJANGO_CONF_MODULE=conf.worker.development.community",
     "D:BKAPP_DEPLOY_PLATFORM=community",
-    "D:USE_DYNAMIC_SETTINGS=0",
+    "USE_DYNAMIC_SETTINGS=0",
     "D:django_find_project=false",
     "D:BK_MONITOR_APP_CODE=bk_monitorv3",
     "D:BK_MONITOR_APP_SECRET=secret"
