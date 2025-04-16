@@ -444,7 +444,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             "pod_name", "$1", "pod", "(.*)")"""
 
         return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod)
-        ({self.label_join_pod(exclude)}
+                    ({self.label_join_pod(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m]))),
             "pod_name", "$1", "pod", "(.*)")"""
