@@ -778,6 +778,7 @@ export default {
   '请选择 或 输入': 'Please select or enter',
   展示: 'Show',
   创建告警策略: 'Create Alert Policy',
+  监控项: 'Monitor item',
   字段名称设置: 'Field name settings',
   前往查看: 'Go to view',
 };

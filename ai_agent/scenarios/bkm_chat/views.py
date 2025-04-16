@@ -115,38 +115,3 @@ class QAViewSet(viewsets.GenericViewSet):
         return StreamingHttpResponse(
             event_stream(), content_type='text/event-stream', headers={'X-Accel-Buffering': 'no'}  # 禁用Nginx缓冲
         )
-
-        # def generate_stream():
-        #     try:
-        #         # 第一阶段：立即返回知识库检索结果
-        #         documents = retrieve.run({"query": params['query'], "k": 5})
-        #         yield json.dumps({"event": "reference_doc", "documents": documents}) + "\n"
-        #
-        #         # 第二阶段：并发处理问答生成
-        #         with ThreadPoolExecutor() as executor:
-        #             future = executor.submit(answer_with_documents, params['query'], documents)
-        #
-        #             # 轮询获取处理进度
-        #             while not future.done():
-        #                 time.sleep(0.1)  # 避免CPU空转
-        #                 if future._result:  # 如果有中间结果
-        #                     yield json.dumps({"event": "text", "content": future._result}) + "\n"
-        #
-        #             final_result = future.result()
-        #             yield json.dumps({"event": "done", "content": final_result}) + "\n"
-        #
-        #     except Exception as e:
-        #         yield json.dumps({"type": "error", "message": str(e)}) + "\n"
-        #
-        # # 创建流式响应
-        # response = StreamingHttpResponse(
-        #     generate_stream(),
-        #     content_type='text/event-stream'
-        # )
-        # response['Cache-Control'] = 'no-cache'
-        # return response
-        #
-        #
-        # # documents = retrieve.run({"query": params['query'], "k": 5})
-        #
-        # # result= answer_with_documents(params['query'], documents)
