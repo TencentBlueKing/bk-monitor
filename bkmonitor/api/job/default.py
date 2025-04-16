@@ -24,7 +24,19 @@ from core.errors.iam import APIPermissionDeniedError
 
 
 class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/c/compapi/v2/jobv3/" % settings.BK_COMPONENT_API_URL
+    def use_apigw(self):
+        """
+        是否使用apigw
+        """
+        return settings.ENABLE_MULTI_TENANT_MODE or settings.JOB_USE_APIGW
+
+    @property
+    def base_url(self):
+        if self.use_apigw():
+            base_url = settings.JOB_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-job/prod/"
+            return f"{base_url}api/v3/"
+        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/jobv3/"
+
     module_name = "bk-job"
 
     def perform_request(self, params):
