@@ -788,6 +788,7 @@ export default class IndicatorTableSlide extends tsc<any> {
       error: '',
       type: 'metric',
       dimensions: [],
+      function: [],
     };
     this.showTableData.splice(index + 1, 0, newRow);
   }

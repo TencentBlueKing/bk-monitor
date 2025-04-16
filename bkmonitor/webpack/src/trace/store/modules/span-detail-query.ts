@@ -1,3 +1,5 @@
+import { shallowRef } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,38 +25,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface ILegendItem {
-  name: string;
-  alias?: string;
-  min?: number | string;
-  max?: number | string;
-  avg?: number | string;
-  total?: number | string;
-  color: string;
-  show: boolean;
-  value?: number | string;
-  borderColor?: string;
-  hidden?: boolean;
-  minSource?: number;
-  maxSource?: number;
-  avgSource?: number;
-  totalSource?: number;
-  metricField?: string;
-  dimensions?: Record<string, string>;
-  lineStyleType?: 'dashed' | 'solid';
-  silent?: boolean;
-  latest?: number;
-  timeOffset?: number | string;
-  maxTime?: number;
-  minTime?: number;
-  latestTime?: number;
-  tipsName?: string;
-}
-export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
-export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
-
-export interface IRelationStatusItem {
-  show: boolean;
-  name: string;
-  color: string;
-}
+import { defineStore } from 'pinia';
+/**
+ * span log store 用于 span 日志检索内数据查询数据 保存
+ */
+export const useSpanDetailQueryStore = defineStore('span-detail-query', () => {
+  const queryData = shallowRef<Record<string, any>>({});
+  return {
+    queryData,
+  };
+});

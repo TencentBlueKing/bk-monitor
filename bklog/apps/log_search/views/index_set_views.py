@@ -39,7 +39,7 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
@@ -298,9 +298,6 @@ class IndexSetViewSet(ModelViewSet):
 
         if params.get("space_uid", ""):
             qs = qs.filter(space_uid=params["space_uid"])
-        else:
-            space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
-            qs = qs.filter(space_uid__in=space_uids)
 
         clustering_config_list = list(
             clustered_qs.values("index_set_id", "clustered_rt")

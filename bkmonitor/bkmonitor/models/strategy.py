@@ -51,6 +51,8 @@ __all__ = [
     "DutyPlanSendRecord",
     "DutyArrangeSnap",
     "DefaultStrategyBizAccessModel",
+    "AlgorithmChoiceConfig",
+    "AlgorithmChoiceConfigAdmin",
 ]
 
 
@@ -926,3 +928,34 @@ class DefaultStrategyBizAccessModel(Model):
         verbose_name_plural = "默认策略业务接入"
         db_table = "alarm_strategy_biz_access"
         unique_together = ("bk_biz_id", "access_type", "version")
+
+
+class AlgorithmChoiceConfigAdmin(admin.ModelAdmin):
+    """
+    算法类型配置表展示
+    """
+    list_display = ("id", "alias", "name", "algorithm", "ts_freq", "is_default", "document", "instruction")
+    search_fields = ("alias", 'name', 'algorithm')
+    list_filter = ("alias", 'algorithm')
+
+
+class AlgorithmChoiceConfig(Model):
+    """
+    算法类型配置表
+    algorithm：AlgorithmChoices和算法类型配置表是一对多关系
+    """
+    id = models.BigAutoField("id", primary_key=True)
+    alias = models.CharField("中文名称", max_length=64)
+    name = models.CharField("名称", max_length=64)
+    document = models.TextField("使用说明", null=True, blank=True)
+    description = models.TextField("描述", null=True, blank=True)
+    is_default = models.BooleanField("是否默认", default=False)
+    instruction = models.TextField("方案描述", null=True, blank=True)
+    variable_info = models.JSONField("参数变量", blank=True, null=True, default=dict)
+    ts_freq = models.IntegerField("数据频率",default=0)
+    algorithm = models.CharField("算法类型", max_length=64, choices=AlgorithmModel.ALGORITHM_CHOICES, db_index=True)
+    config = models.JSONField("其他配置信息", blank=False, null=False, default=dict)
+    class Meta:
+        verbose_name = "算法类型配置"
+        verbose_name_plural = "算法类型配置"
+        db_table = "algorithm_choice_config"
