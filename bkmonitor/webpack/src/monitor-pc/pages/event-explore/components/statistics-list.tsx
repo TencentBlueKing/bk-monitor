@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CancelToken } from 'monitor-api/index';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
@@ -72,6 +73,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   popoverLoading = true;
   downloadLoading = false;
+
+  topKCancel = null;
 
   /** 渲染TopK字段行 */
   renderTopKField(list: ITopKField['list'] = []) {
@@ -207,12 +210,16 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   async getFieldTopK(params) {
+    this.topKCancel?.();
     const data = await getEventTopK(
       {
         ...this.commonParams,
         ...params,
       },
-      this.source
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKCancel = c)),
+      }
     ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
     return data[0];
   }
