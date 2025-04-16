@@ -46,12 +46,10 @@ export default defineComponent({
     /** 当前选中的应用 ID */
     appName: {
       type: String,
-      required: true,
     },
     /** 当前选中的 traceID */
     traceId: {
       type: String,
-      required: true,
     },
   },
   emits: {

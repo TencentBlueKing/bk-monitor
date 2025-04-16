@@ -44,12 +44,10 @@ export default defineComponent({
     /** 当前选中的应用 ID */
     appName: {
       type: String,
-      required: true,
     },
     /** 当前选中的 spanID */
     spanId: {
       type: String,
-      required: true,
     },
   },
   emits: {

@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType } from 'vue';
+import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Table, TableColumn } from '@blueking/table';
 import { OverflowTitle } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
 
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
+import ExploreTableEmpty from './explore-table-empty';
 import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
@@ -40,7 +43,9 @@ import {
   type TableFilterChangeEvent,
   type TableSort,
 } from './typing';
-import { getListMock, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_CONFIG } from './utils';
+import { getTableList, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_CONFIG } from './utils';
+
+import type { ICommonParams } from '../../typing';
 
 import './trace-explore-table.scss';
 
@@ -55,7 +60,15 @@ export default defineComponent({
     /** 当前选中的应用 Name */
     appName: {
       type: String,
-      required: true,
+    },
+    /** 当前选中的应用 Name */
+    timeRange: {
+      type: Array as PropType<string[]>,
+    },
+    /** 接口请求配置参数 */
+    commonParams: {
+      type: Object as PropType<ICommonParams>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -67,15 +80,20 @@ export default defineComponent({
     /** 表格logs数据请求中止控制器 */
     let abortController: AbortController = null;
 
+    /** 强制刷新 table（由于 Table 组件在 动态列场景 下会出现列顺序混乱不可控的情况 issue: https://github.com/x-extends/vxe-table/issues/2401） */
+    const refreshTable = shallowRef(random(8));
     /** table 数据总条数 */
     const tableTotal = shallowRef(0);
     /** table 数据 */
     const tableData = deepRef([]);
+    /** table 显示列配置 */
+    const tableColumns = deepRef([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
-
+    /** 表格行可用作 唯一主键值 的字段名 */
+    const tableRowKeyField = shallowRef('trace_id');
     /** table loading 配置 */
     const tableLoading = reactive({
       /** table 骨架屏 loading */
@@ -91,30 +109,49 @@ export default defineComponent({
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
-    /** 表格行可用作 唯一主键值 的字段名 */
-    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** 判断当前数据是否需要触底加载更多 */
     const tableHasScrollLoading = computed(() => tableData.value?.length < tableTotal.value);
     /** 请求参数 */
     const queryParams = computed(() => {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
+      if (!props.commonParams?.app_name || !start_time || !end_time) {
+        return null;
+      }
       let sort = [];
       if (sortContainer.field && sortContainer.order) {
         sort = [`${sortContainer.order === 'desc' ? '-' : ''}${sortContainer.field}`];
       }
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { mode, query_string, ...params } = props.commonParams;
       return {
+        ...params,
+        query: query_string,
         sort,
+        start_time,
+        end_time,
       };
     });
-    /** table 显示列配置 */
-    const tableColumns = computed(() => {
-      const columnMap = getTableColumnMapByVisualMode();
-      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
-      // 需要展示的字段列名数组
-      const displayColumns = defaultColumnsConfig?.displayFields || [];
-      return displayColumns.map(field => columnMap[field]).filter(Boolean);
-    });
+
+    watch(
+      () => isSpanVisual.value,
+      () => {
+        tableData.value = [];
+        tableRowKeyField.value = isSpanVisual.value ? 'span_id' : 'trace_id';
+        initTableColumn();
+        refreshTable.value = random(8);
+      }
+    );
+
+    watch(
+      () => queryParams.value,
+      () => {
+        getExploreList();
+      }
+    );
 
     onMounted(() => {
+      initTableColumn();
       getExploreList();
     });
 
@@ -299,7 +336,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.sync',
           alias: t('同步Span数量'),
-          minWidth: 100,
+          minWidth: 130,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.sync || 0,
         },
@@ -307,7 +344,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.async',
           alias: t('异步Span数量'),
-          minWidth: 100,
+          minWidth: 130,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.async || 0,
         },
@@ -315,7 +352,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.interval',
           alias: t('内部Span数量'),
-          minWidth: 100,
+          minWidth: 130,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.interval || 0,
         },
@@ -323,7 +360,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'kind_statistics.unspecified',
           alias: t('未知Span数量'),
-          minWidth: 100,
+          minWidth: 130,
           sortable: true,
           getRenderValue: row => row?.kind_statistics?.unspecified || 0,
         },
@@ -339,7 +376,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.messaging',
           alias: t('Messaging 数量'),
-          minWidth: 100,
+          minWidth: 136,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.messaging || 0,
         },
@@ -347,7 +384,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.http',
           alias: t('HTTP 数量'),
-          minWidth: 100,
+          minWidth: 110,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.http || 0,
         },
@@ -363,7 +400,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.async_backend',
           alias: t('Async 数量'),
-          minWidth: 100,
+          minWidth: 110,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.async_backend || 0,
         },
@@ -371,7 +408,7 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'category_statistics.other',
           alias: t('Other 数量'),
-          minWidth: 100,
+          minWidth: 110,
           sortable: true,
           getRenderValue: row => row?.category_statistics?.other || 0,
         },
@@ -379,14 +416,14 @@ export default defineComponent({
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'span_count',
           alias: t('Span 数量'),
-          minWidth: 100,
+          minWidth: 110,
           sortable: true,
         },
         hierarchy_count: {
           type: ExploreTableColumnTypeEnum.TEXT,
           field: 'hierarchy_count',
           alias: t('Span 层数'),
-          minWidth: 100,
+          minWidth: 110,
           sortable: true,
         },
         service_count: {
@@ -397,6 +434,18 @@ export default defineComponent({
           sortable: true,
         },
       };
+    }
+
+    /**
+     * @description: 获取 table 表格列配置
+     *
+     */
+    function initTableColumn() {
+      const columnMap = getTableColumnMapByVisualMode();
+      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
+      // 需要展示的字段列名数组
+      const displayColumns = defaultColumnsConfig?.displayFields || [];
+      tableColumns.value = displayColumns.map(field => columnMap[field]).filter(Boolean);
     }
 
     /**
@@ -417,6 +466,7 @@ export default defineComponent({
       };
 
       if (loadingType === ExploreTableLoadingEnum.REFRESH) {
+        tableData.value = [];
         updateTableDataFn = list => {
           tableData.value = list;
         };
@@ -431,7 +481,7 @@ export default defineComponent({
         offset: tableData?.value?.length || 0,
       };
       abortController = new AbortController();
-      const res = await getListMock(requestParam, props.mode, {
+      const res = await getTableList(requestParam, props.mode, {
         signal: abortController.signal,
       });
 
@@ -499,6 +549,19 @@ export default defineComponent({
      */
     function handleFilterChange(filterChangeEvent: TableFilterChangeEvent) {
       console.log('================ filterChangeEvent ================', filterChangeEvent);
+    }
+    /**
+     * @description 表格空数据显示中的 数据源配置 点击回调
+     *
+     */
+    function handleDataSourceConfigClick() {
+      const { appName } = props;
+      if (!appName) {
+        return;
+      }
+      const hash = `#/apm/application/config/${appName}?active=dataStatus`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
     }
 
     /**
@@ -585,7 +648,7 @@ export default defineComponent({
      */
     function iconColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) {
       return ({ row }) => {
-        const item = getTableCellRenderValue(row, column);
+        const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
         const { alias, prefixIcon } = item;
         if (alias == null || alias === '') {
           const textColumn = {
@@ -797,6 +860,7 @@ export default defineComponent({
       );
     }
     return {
+      refreshTable,
       defaultTableConfig,
       tableRowKeyField,
       tableColumns,
@@ -806,6 +870,7 @@ export default defineComponent({
       transformColumn,
       handleSortChange,
       handleFilterChange,
+      handleDataSourceConfigClick,
     };
   },
 
@@ -814,6 +879,10 @@ export default defineComponent({
       <div class='trace-explore-table'>
         {/* @ts-ignore */}
         <Table
+          key={this.refreshTable}
+          v-slots={{
+            empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
+          }}
           rowConfig={{
             useKey: true,
             isCurrent: true,
