@@ -195,10 +195,10 @@
         beforeQueryBtnClick().then(resp => {
           if (resp.is_legal && resp.is_resolved) {
             getBtnQueryResult();
+            RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
           }
         });
 
-        RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         return;
       }
 

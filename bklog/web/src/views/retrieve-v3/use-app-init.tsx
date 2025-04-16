@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -174,6 +174,7 @@ export default () => {
         setDefaultIndexsetId();
         store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         });
       });
     });

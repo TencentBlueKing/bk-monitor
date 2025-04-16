@@ -1,10 +1,10 @@
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, inject } from 'vue';
+  import { ref, computed, watch, onBeforeUnmount, onMounted, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAddition } from '../../store/helper';
-
+  import RetrieveHelper, { RetrieveEvent } from '../../views/retrieve-helper';
   import axios from 'axios';
 
   import http from '@/api';
@@ -19,8 +19,6 @@
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
   const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
-
-  const chartKey = computed(() => store.state.retrieve.chartKey);
 
   const refDataTrendCanvas = ref(null);
   const dynamicHeight = ref(130);
@@ -54,6 +52,8 @@
   };
 
   let runningInterval = 'auto';
+  let isInit = true;
+  let sumCount = 0;
 
   // 需要更新图表数据
   const getSeriesData = (startTimeStamp, endTimeStamp) => {
@@ -64,6 +64,8 @@
     requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
 
     if (!isStart.value) {
+      isInit = true;
+      sumCount = 0;
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
 
@@ -141,9 +143,9 @@
         )
         .then(res => {
           if (res?.data) {
-            debugger;
+            sumCount += setChartData(res?.data?.aggs, gradeOptions.value?.field, isInit);
+            isInit = false;
 
-            const sumCount = setChartData(res?.data?.aggs, gradeOptions.value?.field);
             store.commit('retrieve/updateTrendDataCount', sumCount);
           }
 
@@ -172,24 +174,27 @@
   };
 
   let runningTimer = null;
+  const loadTrendData = () => {
+    logChartCancel?.();
 
-  watch(
-    () => chartKey.value,
-    () => {
-      logChartCancel?.();
+    runningTimer && clearTimeout(runningTimer);
+    runningTimer = setTimeout(() => {
+      clearChartData();
 
-      runningTimer && clearTimeout(runningTimer);
-      runningTimer = setTimeout(() => {
-        clearChartData();
+      finishPolling.value = false;
+      isStart.value = false;
+      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+    });
+  };
 
-        finishPolling.value = false;
-        isStart.value = false;
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
-      });
-    },
-    {
-      immediate: true,
-    },
+  RetrieveHelper.on(
+    [
+      RetrieveEvent.SEARCH_VALUE_CHANGE,
+      RetrieveEvent.SEARCH_TIME_CHANGE,
+      RetrieveEvent.TREND_GRAPH_SEARCH,
+      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+    ],
+    loadTrendData,
   );
 
   const isRenderLoading = ref(false);
@@ -209,6 +214,10 @@
 
   onBeforeUnmount(() => {
     logChartCancel?.();
+  });
+
+  onMounted(() => {
+    loadTrendData();
   });
 </script>
 <script>

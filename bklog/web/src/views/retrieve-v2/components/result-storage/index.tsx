@@ -70,8 +70,8 @@ export default defineComponent({
           <bk-input
             style='margin: 0 12px 0 0'
             class='json-depth-num'
-            max='15'
-            min='1'
+            max={15}
+            min={1}
             value={jsonFormatDeep.value}
             type='number'
             on-change={handleJsonFormatDeepChange}

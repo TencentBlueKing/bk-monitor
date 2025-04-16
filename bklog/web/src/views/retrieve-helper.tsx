@@ -32,6 +32,21 @@ import OptimizedHighlighter from './optimized-highlighter';
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
+export interface GradeSetting {
+  id: string;
+  color: string;
+  name: string;
+  regExp: string;
+  enable: boolean;
+}
+
+interface GradeConfiguration {
+  disabled: boolean;
+  type: 'custom' | 'normal';
+  field: string; // 'field' is null, but we can define it as any unless more specific information is available
+  settings: GradeSetting[];
+}
+
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
@@ -54,6 +69,11 @@ export enum RetrieveEvent {
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
   /**
+   * 左侧字段信息初始化
+   */
+  LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',
+
+  /**
    * 左侧字段设置宽度变化
    */
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
@@ -72,6 +92,11 @@ export enum RetrieveEvent {
    * 趋势图高度变化
    */
   TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
+
+  /**
+   * 趋势图搜索
+   */
+  TREND_GRAPH_SEARCH = 'trend-graph-search',
 
   /**
    * localStorage 变化
@@ -217,25 +242,49 @@ class RetrieveHelper {
    * @param str
    * @returns
    */
-  getLogLevel(str: string) {
-    if (!str?.trim()) return null;
-
-    // 截取前1000字符避免性能问题
-    const logSegment = str.slice(0, 1000);
-    const matches = logSegment.matchAll(this.logLevelRegex);
-    const levelSet = new Set<string>();
-
-    // 收集所有匹配的日志级别
-    for (const match of matches) {
-      const groups = match.groups || {};
-      Object.keys(groups).forEach(level => {
-        if (groups[level]) levelSet.add(level.toUpperCase());
-      });
+  getLogLevel(field: any, options: GradeConfiguration) {
+    if (options?.disabled) {
+      return null;
     }
 
-    // 按优先级顺序查找最高级别
-    const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
-    return PRIORITY_ORDER.find(level => levelSet.has(level)) || null;
+    if ((options?.type ?? 'normal') === 'normal') {
+      const str = field?.log ?? '';
+
+      if (!str?.trim()) return null;
+
+      // 截取前1000字符避免性能问题
+      const logSegment = str.slice(0, 1000);
+      const matches = logSegment.matchAll(this.logLevelRegex);
+      const levelSet = new Set<string>();
+
+      // 收集所有匹配的日志级别
+      for (const match of matches) {
+        const groups = match.groups || {};
+        Object.keys(groups).forEach(level => {
+          if (groups[level]) levelSet.add(level.toUpperCase());
+        });
+      }
+
+      // 按优先级顺序查找最高级别
+      const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
+      return PRIORITY_ORDER.find(level => levelSet.has(level)) || null;
+    }
+
+    if (options.type === 'custom' && field[options.field]) {
+      const target = `${field[options.field]}`;
+      const levels = [];
+      // 截取前1000字符避免性能问题
+      const logSegment = target.slice(0, 1000);
+      options.settings.forEach((item: GradeSetting) => {
+        if (item.enable && item.id !== 'others') {
+          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+        }
+      });
+
+      return levels[0] ?? 'others';
+    }
+
+    return null;
   }
 
   /**

@@ -454,11 +454,8 @@ export default class CollectIndex extends tsc<IProps> {
       list: [],
     });
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
-      this.$store.dispatch('requestIndexSetQuery');
-    });
-
-    setTimeout(() => {
       RetrieveHelper.setFavoriteActive(this.activeFavorite);
+      this.$store.dispatch('requestIndexSetQuery');
     });
   }
 

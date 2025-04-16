@@ -139,7 +139,39 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
 
-  const setGroupData = group => {
+  // 时间向下取整
+  const getIntegerTime = time => {
+    if (runningInterval === '1d') {
+      // 如果周期是 天 则特殊处理
+      const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
+      return Date.parse(`${step} 00:00:00`) / 1000;
+    }
+
+    const intervalTimestamp = getIntervalValue(runningInterval);
+    return Math.floor(time / intervalTimestamp) * intervalTimestamp;
+  };
+
+  const getDefData = () => {
+    const data = [];
+    const { start_time, end_time } = retrieveParams.value;
+    const startValue = getIntegerTime(start_time / 1000);
+    let endValue = getIntegerTime(end_time / 1000);
+    const intervalTimestamp = getIntervalValue(runningInterval);
+
+    while (endValue > startValue) {
+      data.push([endValue * 1000, 0, null]);
+      endValue = endValue - intervalTimestamp;
+    }
+
+    if (endValue < startValue) {
+      endValue = startValue;
+      data.push([endValue * 1000, 0, null]);
+    }
+
+    return data;
+  };
+
+  const setGroupData = (group, isInit?) => {
     const buckets = group?.buckets || [];
     const series = [];
     let count = 0;
@@ -154,18 +186,28 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       const keys = [...opt_data.keys()];
       keys.sort((a, b) => a[0] - b[0]);
       const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
-      series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
+      if (isInit) {
+        series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
+      } else {
+        options.series[index].data.push(...data);
+      }
 
       opt_data.clear();
       opt_data = null;
     });
 
-    options.series = series;
-    updateChart();
+    if (isInit) {
+      if (!series.length) {
+        series.push(getSeriesData({ name: '', data: getDefData(), color: '#A4B3CD' }));
+      }
+      options.series = series;
+    }
+
+    updateChart(isInit);
     return count;
   };
 
-  const setDefaultData = aggs => {
+  const setDefaultData = (aggs, isInit?) => {
     let opt_data = new Map<Number, Number[]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
     const series = [];
@@ -179,20 +221,26 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const keys = [...opt_data.keys()];
     keys.sort((a, b) => a[0] - b[0]);
     const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
-    series.push(getSeriesData({ name: '', data, color: '#A4B3CD' }));
-    options.series = series;
-    updateChart();
+
+    if (isInit) {
+      series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
+      options.series = series;
+    } else {
+      options.series[0].data.push(...data);
+    }
+
+    updateChart(isInit);
     opt_data.clear();
     opt_data = null;
     return count;
   };
 
-  const setChartData = (eggs, fieldName?) => {
+  const setChartData = (eggs, fieldName?, isInit?) => {
     if (fieldName && eggs[fieldName]) {
-      return setGroupData(eggs[fieldName]);
+      return setGroupData(eggs[fieldName], isInit);
     }
 
-    return setDefaultData(eggs);
+    return setDefaultData(eggs, isInit);
   };
 
   const clearChartData = () => {
@@ -224,7 +272,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return `${formatter.format(newValue)}${suffix}`;
   };
 
-  const updateChart = () => {
+  const updateChart = (notMerge = true) => {
     if (!chartInstance) {
       return;
     }
@@ -236,13 +284,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       };
     });
 
-    // options.series[0].stack = 'total';
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
 
-    chartInstance.setOption(options);
+    chartInstance.setOption(options, { notMerge });
     nextTick(() => {
       dispatchAction({
         type: 'takeGlobalCursor',

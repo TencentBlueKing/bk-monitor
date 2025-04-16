@@ -109,6 +109,8 @@ export default {
     itemHeight: 10,
     itemGap: 20,
     padding: [10, 10, 5, 10],
+    animation: false,
+    type: 'scroll',
     textStyle: {
       fontSize: 12,
       color: '#313238',

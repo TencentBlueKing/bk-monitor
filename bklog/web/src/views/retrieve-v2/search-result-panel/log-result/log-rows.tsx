@@ -130,8 +130,7 @@ export default defineComponent({
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
-    // 标识当前日志级别的字段。暂时使用level字段，等确定实现方案后这里进行Computed计算
-    const logLevelFieldName = ref('level');
+    const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
 
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
@@ -484,6 +483,7 @@ export default defineComponent({
         .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           setRouteParams();
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
@@ -552,6 +552,9 @@ export default defineComponent({
           break;
         case 'copy':
           copyMessage(option.value);
+          break;
+        case 'highlight':
+          RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value: option.value });
           break;
         case 'display':
           emit('fields-updated', option.displayFieldNames, undefined, false);
@@ -939,7 +942,7 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
-        const logLevel = RetrieveHelper.getLogLevel(row.item?.log);
+        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
         return [
           <RowRender

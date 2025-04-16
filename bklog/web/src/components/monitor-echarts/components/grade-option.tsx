@@ -7,6 +7,65 @@ import $http from '@/api';
 
 import './grade-option.scss';
 
+const getDefaultGradeOption = () => {
+  return {
+    disabled: false,
+    type: 'normal',
+    field: null,
+    settings: [
+      {
+        id: 'level_1',
+        color: '#D46D5D',
+        name: 'fatal',
+        regExp: '/\\b(?:FATAL|CRITICAL|EMERGENCY)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'level_2',
+        color: '#F59789',
+        name: 'error',
+        regExp: '/\\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'level_3',
+        color: '#F5C78E',
+        name: 'warn',
+        regExp: '/\\b(?:WARNING|WARN|ALERT|NOTICE)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'level_4',
+        color: '#6FC5BF',
+        name: 'info',
+        regExp: '/\\b(?:INFO|INFORMATION)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'level_5',
+        color: '#92D4F1',
+        name: 'debug',
+        regExp: '/\\b(?:DEBUG|DIAGNOSTIC)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'level_6',
+        color: '#A3B1CC',
+        name: 'trace',
+        regExp: '/\\b(?:TRACE|TRACING)\\b/i',
+        enable: true,
+      },
+      {
+        id: 'others',
+        color: '#DCDEE5',
+        name: 'others',
+        regExp: '--',
+        enable: true,
+      },
+    ],
+  };
+};
+
 export default defineComponent({
   emits: ['change'],
   setup(_, { emit, expose }) {
@@ -29,62 +88,7 @@ export default defineComponent({
     /**
      * 分级配置表单
      */
-    const gradeOptionForm = ref({
-      disabled: false,
-      type: 'normal',
-      field: null,
-      settings: [
-        {
-          id: 'level_1',
-          color: '#D46D5D',
-          name: 'fatal',
-          regExp: '/\\b(?:FATAL|CRITICAL|EMERGENCY)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'level_2',
-          color: '#F59789',
-          name: 'error',
-          regExp: '/\\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'level_3',
-          color: '#F5C78E',
-          name: 'warn',
-          regExp: '/\\b(?:WARNING|WARN|ALERT|NOTICE)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'level_4',
-          color: '#6FC5BF',
-          name: 'info',
-          regExp: '/\\b(?:INFO|INFORMATION)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'level_5',
-          color: '#92D4F1',
-          name: 'debug',
-          regExp: '/\\b(?:DEBUG|DIAGNOSTIC)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'level_6',
-          color: '#A3B1CC',
-          name: 'trace',
-          regExp: '/\\b(?:TRACE|TRACING)\\b/i',
-          enable: true,
-        },
-        {
-          id: 'others',
-          color: '#DCDEE5',
-          name: 'others',
-          regExp: '--',
-          enable: true,
-        },
-      ],
-    });
+    const gradeOptionForm = ref(getDefaultGradeOption());
 
     const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
     const isLoading = ref(false);
@@ -120,8 +124,13 @@ export default defineComponent({
     };
 
     const updateOptions = (cfg?) => {
-      if (cfg) {
-        Object.assign(gradeOptionForm.value, cfg);
+      Object.assign(gradeOptionForm.value, cfg ?? getDefaultGradeOption());
+    };
+
+    const handleTypeChange = val => {
+      gradeOptionForm.value.type = val;
+      if (val === 'normal') {
+        gradeOptionForm.value.settings = getDefaultGradeOption().settings;
       }
     };
 
@@ -138,7 +147,7 @@ export default defineComponent({
             <bk-switcher
               theme='primary'
               value={!gradeOptionForm.value.disabled}
-              on-change={v => (gradeOptionForm.value.disabled = v)}
+              on-change={v => (gradeOptionForm.value.disabled = !v)}
             ></bk-switcher>
             <span class='bklog-icon bklog-info-fill'></span>
             <span>指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段</span>
@@ -152,7 +161,8 @@ export default defineComponent({
               value={gradeOptionForm.value.type}
               ext-popover-cls='bklog-popover-stop'
               searchable
-              on-change={val => (gradeOptionForm.value.type = val)}
+              disabled={gradeOptionForm.value.disabled}
+              on-change={handleTypeChange}
             >
               {gradeCategory.value.map(option => (
                 <bk-option
@@ -168,6 +178,7 @@ export default defineComponent({
                 ext-popover-cls='bklog-popover-stop'
                 value={gradeOptionForm.value.field}
                 searchable
+                disabled={gradeOptionForm.value.disabled}
                 on-change={val => (gradeOptionForm.value.field = val)}
                 placeholder={$t('请选择字段')}
               >
@@ -257,7 +268,9 @@ export default defineComponent({
                     style='width: 240px'
                     class='grade-table-col'
                   >
-                    {item.id !== 'others' && gradeOptionForm.value.type === 'custom' ? (
+                    {item.id !== 'others' &&
+                    gradeOptionForm.value.type === 'custom' &&
+                    !gradeOptionForm.value.disabled ? (
                       <bk-input
                         value={item.name}
                         on-change={v => (item.name = v)}
@@ -270,7 +283,9 @@ export default defineComponent({
                     style='width: 330px'
                     class='grade-table-col'
                   >
-                    {item.id !== 'others' && gradeOptionForm.value.type === 'custom' ? (
+                    {item.id !== 'others' &&
+                    gradeOptionForm.value.type === 'custom' &&
+                    !gradeOptionForm.value.disabled ? (
                       <bk-input
                         value={item.regExp}
                         on-change={v => (item.regExp = v)}
@@ -288,6 +303,7 @@ export default defineComponent({
                         value={item.enable}
                         theme='primary'
                         size='small'
+                        disabled={gradeOptionForm.value.disabled}
                         on-change={v => (item.enable = v)}
                       ></bk-switcher>
                     </div>

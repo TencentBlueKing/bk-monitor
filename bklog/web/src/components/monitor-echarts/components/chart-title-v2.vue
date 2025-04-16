@@ -112,6 +112,7 @@
   import ChartMenu from './chart-menu.vue';
   import BklogPopover from '../../bklog-popover';
   import GradeOption from './grade-option';
+  import RetrieveHelper, { RetrieveEvent } from '../../../views/retrieve-helper';
 
   @Component({
     name: 'chart-title-v2',
@@ -180,8 +181,11 @@
       this.$emit('interval-change', this.chartInterval);
     }
 
-    handleGradeOptionChange() {
+    handleGradeOptionChange({ isSave }) {
       (this.$refs.refGradePopover as any)?.hide();
+      if (isSave) {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      }
     }
 
     /**

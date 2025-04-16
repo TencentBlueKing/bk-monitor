@@ -381,38 +381,51 @@
         }
       }
 
-      &.TRACE {
+      &.others,
+      &.level-7 {
+        &::before {
+          background: #dcdee5;
+        }
+      }
+
+      &.TRACE,
+      &.level-6 {
         &::before {
           background: #a3b1cc;
         }
       }
 
-      &.FATAL {
+      &.FATAL,
+      &.level-1 {
         &::before {
           background: rgb(212, 109, 93);
         }
       }
 
-      &.DEBUG {
+      &.DEBUG,
+      &.level-5 {
         &::before {
           background: rgb(146, 212, 241);
         }
       }
 
-      &.INFO {
+      &.INFO,
+      &.level-4 {
         &::before {
           background: rgb(111, 197, 191);
         }
       }
 
       &.WARN,
-      &.WARNING {
+      &.WARNING,
+      &.level-3 {
         &::before {
           background: rgb(245, 199, 142);
         }
       }
 
-      &.ERROR {
+      &.ERROR,
+      &.level-2 {
         &::before {
           background: rgb(245, 151, 137);
         }
