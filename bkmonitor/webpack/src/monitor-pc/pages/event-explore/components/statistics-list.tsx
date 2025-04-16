@@ -41,6 +41,7 @@ interface StatisticsListProps {
   popoverInstance?: any;
   isDimensions?: boolean;
   source: APIType;
+  isShow?: boolean;
 }
 
 interface StatisticsListEvents {
@@ -51,6 +52,7 @@ interface StatisticsListEvents {
 
 @Component
 export default class StatisticsList extends tsc<StatisticsListProps, StatisticsListEvents> {
+  @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: String, default: '' }) selectField: string;
   @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
@@ -139,13 +141,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     return this.sliderShow;
   }
 
-  @Watch('selectField')
+  @Watch('isShow')
   watchSelectFieldChange(val) {
     if (!val) {
       this.statisticsList = { distinct_count: 0, field: '', list: [] };
-      return;
+    } else {
+      this.getStatisticsList();
     }
-    this.getStatisticsList();
   }
 
   async getStatisticsList() {
