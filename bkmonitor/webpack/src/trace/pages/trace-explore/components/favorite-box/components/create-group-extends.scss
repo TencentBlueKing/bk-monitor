@@ -1,0 +1,28 @@
+.favorite-box-create-group-extend {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+}
+
+.favorite-box-create-group-extend-form {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: 0 12px;
+  .bk-form {
+    flex: 1;
+  }
+  .bk-form-item {
+    margin-bottom: 0;
+  }
+  .bk-input {
+    background: #fff;
+  }
+  .bk-button {
+    width: 28px;
+    .icon-monitor {
+      font-size: 24px;
+    }
+  }
+}
