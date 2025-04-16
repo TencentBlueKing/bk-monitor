@@ -193,9 +193,12 @@ class EtlStorage(object):
                     result["analyzer"][analyzer_name]["filter"].append("lowercase")
                 if tokenizer_name:
                     result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                    original_text_tokenize_on_chars = etl_params.get("original_text_tokenize_on_chars", "")
+                    if original_text_tokenize_on_chars:
+                        original_text_tokenize_on_chars = unicode_str_decode(original_text_tokenize_on_chars)
                     result["tokenizer"][tokenizer_name] = {
                         "type": "char_group",
-                        "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                        "tokenize_on_chars": [x for x in original_text_tokenize_on_chars],
                     }
                 else:
                     # 自定义分词器为空时, 使用standard分词器, 不传es会报错
@@ -226,9 +229,12 @@ class EtlStorage(object):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
             if tokenizer_name:
                 result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                tokenize_on_chars = field.get("tokenize_on_chars", "")
+                if tokenize_on_chars:
+                    tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
-                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
+                    "tokenize_on_chars": [x for x in tokenize_on_chars],
                 }
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
