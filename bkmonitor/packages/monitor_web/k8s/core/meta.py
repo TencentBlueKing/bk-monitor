@@ -116,7 +116,7 @@ class NetworkWithRelation:
         return (
             f"(count by (service, namespace, pod) "
             f"(pod_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}}) * 0 + 1)"
-            f" * on (namespace, pod) group_left())"
+            f" * on (namespace, pod) group_left()"
         )
 
     def label_join_ingress(self, filter_exclude=""):
@@ -159,7 +159,7 @@ class NetworkWithRelation:
     def pod_filters(self):
         pod_filters = FilterCollection(self)
         for filter_id, r_filter in self.filter.filters.items():
-            if r_filter.resource_type == "pod":
+            if r_filter.resource_type in ["pod", "namespace"]:
                 pod_filters.add(r_filter)
         return pod_filters
 
@@ -786,24 +786,23 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
         self.column_mapping = {"pod_name": "name", "service": "name", "ingress": "name"}
         return self.get_from_meta()
 
-    def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
+    def nw_tpl_prom_with_rate(self, metric_name, exclude="container_exclude"):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""sum by (namespace) ({self.label_join(exclude)}
+            return f"""sum by (namespace) ({self.label_join_pod(exclude)}
             sum by (namespace, pod)
             ({self.agg_method}_over_time(
             rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
-        return f"""{self.agg_method} by (namespace) ({self.label_join(exclude)}
+        return f"""{self.agg_method} by (namespace) ({self.label_join_pod(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         # 网络场景下的网络指标，默认代了前缀，需要去掉
         if metric_name.startswith("nw_"):
-            # 网络场景下的pod数据，需要关联service 和 ingress
-            # ingress_with_service_relation 指标忽略pod相关过滤， 因为该指标对应的pod为采集器所属pod，没意义。
-            return self.nw_tpl_prom_with_rate(metric_name, exclude="pod")
+            # namespace 层级统计流量， 需要制定container=POD, 因此不能使用container_exclude排除掉POD的container
+            return self.nw_tpl_prom_with_rate(metric_name, exclude="container_exclude")
 
         if self.agg_interval:
             return (
