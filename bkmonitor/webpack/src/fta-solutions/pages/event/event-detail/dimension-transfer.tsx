@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
@@ -65,6 +65,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   handleWatchShow() {
     if (this.show) {
       this.searchValue = '';
+      this.searchSelectedValue = ''
       const tempSet = new Set(this.value);
       const selectedFields = [];
       const localFields = [];
@@ -96,18 +97,15 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
 
   filterFields(searchValue, fields) {
     if (!searchValue) return fields;
-
-    const normalizedSearchValue = searchValue.toLocaleLowerCase();
-
+    const normalizedSearchValue = String(searchValue).toLocaleLowerCase();
     return fields.filter(item => {
       const { display_key: displayKey, key, display_value: displayValue, value } = item;
       const compareValues = [
-        displayKey ? displayKey.toLocaleLowerCase() : '',
-        key ? key.toLocaleLowerCase() : '',
-        displayValue ? String(displayValue).toLocaleLowerCase() : '',
-        value ? String(value).toLocaleLowerCase() : '',
+        `${displayKey}(${displayValue})`.toLocaleLowerCase(),
+        `${displayKey}(${value})`.toLocaleLowerCase(),
+        `${key}(${displayValue})`.toLocaleLowerCase(),
+        `${key}(${value})`.toLocaleLowerCase(),
       ];
-
       return compareValues.some(val => val.includes(normalizedSearchValue));
     });
   }

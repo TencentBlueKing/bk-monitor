@@ -77,6 +77,10 @@
         min-width: 70px;
         text-align: right;
         margin-right: 7px;
+
+        &.is-special {
+          padding-top: 4px;
+        }
       }
       .column-content {
         word-wrap: break-word;

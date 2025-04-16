@@ -340,7 +340,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           <div class='column-content'>{this.levelMap[detail.severity]}</div>
         </div>
         <div class='column-item'>
-          <div class='column-label'> {`${this.$t('维度信息')}：`} </div>
+          <div class='column-label is-special'> {`${this.$t('维度信息')}：`} </div>
           <div class='column-content'>
             {detail.dimension?.map((dem, dimensionIndex) => (
               <bk-tag
