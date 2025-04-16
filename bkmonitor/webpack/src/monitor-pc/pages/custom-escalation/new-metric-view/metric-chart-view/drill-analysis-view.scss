@@ -25,43 +25,7 @@
       cursor: pointer;
     }
   }
-  .drill-analysis-filter {
-    width: 100%;
-    min-height: 53px;
-    display: flex;
-    background: #ffffff;
-    .filter-left {
-      flex: 1;
-    }
-    .filter-right {
-      min-width: 240px;
-      display: flex;
-      align-items: center;
-      border-left: 1px solid #dcdee5;
-      border-bottom: 1px solid #dcdee5;
-      .right-line {
-        display: inline-block;
-        width: 1px;
-        height: 14px;
-        background: #dcdee5;
-      }
-    }
-    .filter-tools-interval {
-      width: 84px !important;
-    }
-  }
-  .filter-compare-view {
-    width: 100%;
-    display: flex;
-    background: #fff;
-    flex-wrap: wrap;
-    border-bottom: 1px solid #dcdee5;
-    .new-metric-view-group-by,
-    .new-metric-view-limit-function,
-    .new-metric-view-compare-type {
-      border: none;
-    }
-  }
+
   .drill-analysis-main {
     width: calc(100% - 24px);
     height: calc(100% - 190px);

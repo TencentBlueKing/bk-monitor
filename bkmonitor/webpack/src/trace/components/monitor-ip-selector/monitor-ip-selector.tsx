@@ -66,8 +66,8 @@ import {
 } from './typing';
 import create from './vue3.x';
 
-import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 import './monitor-ip-selector.scss';
+import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 const BkIpSelector: any = create({
   version: '4',
   serviceConfigError: false,
@@ -160,7 +160,6 @@ export default defineComponent({
           ...p,
         })
       );
-      console.info('fetchHostsDynamicGroup', p, data);
       return data;
     }
     async function fetchHostAgentStatisticsDynamicGroups(p) {
@@ -170,7 +169,6 @@ export default defineComponent({
           ...p,
         })
       );
-      console.info('fetchHostAgentStatisticsDynamicGroups', p, data);
       return data;
     }
     /**

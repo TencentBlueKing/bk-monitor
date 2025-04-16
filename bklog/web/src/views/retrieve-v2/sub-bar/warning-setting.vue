@@ -281,7 +281,7 @@
   const strategyList = ref([]);
   const recordListshow = computed(() => {
     if(filterOwner.value){
-      return recordList.value.filter((item: any) =>item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username))
+      return recordList.value.filter((item: any) =>item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username))
     }else{
       return recordList.value
     }
@@ -362,34 +362,15 @@
   };
 
   const getQueryString = () => {
-    const { addition, keyword } = store.getters.retrieveParams;
     const timezone = store.state.indexItem.timezone;
     const [start_time, end_time] = store.state.indexItem.datePickerValue;
 
-    if (addition.length > 0) {
-      return $http
-        .request('retrieve/generateQueryString', {
-          data: {
-            addition,
-          },
-        })
-        .then(res => {
-          if (res.result) {
-            const result = [keyword, res.data?.querystring]
-              .filter(item => item.length > 0 && item !== '*')
-              .join(' AND ');
-            return `queryString=${result}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
-          }
+    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
 
-          return `from=${start_time}&to=${end_time}&timezone=${timezone}`;
-        });
-    }
 
-    if (keyword.length > 0 && keyword !== '*') {
-      return Promise.resolve(`queryString=${keyword}&from=${start_time}&to=${end_time}&timezone=${timezone}`);
-    }
+       
+   
 
-    return Promise.resolve(`from=${start_time}&to=${end_time}&timezone=${timezone}`);
   };
 
   const handleJumpMonitor = () => {
@@ -397,21 +378,21 @@
       mission: 'event-center',
       config: 'strategy-config',
     };
-
-
-    
     if (active.value === 'mission') {
-      getQueryString().then(res => {
-        window.open(
-          `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
-          '_blank',
-        );
-      });
-
+      const res = getQueryString()
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+        '_blank',
+      );
       return;
     }
 
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
+   
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
+      '_blank',
+    )
+   
   };
 
   const handleViewWarningDetail = row => {
@@ -453,7 +434,7 @@
       if (val === 'NOT_SHIELDED_ABNORMAL') {
         badgeCount.value = res?.data.length;
         ownPendingCount.value = res?.data.filter(item =>{
-          return item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username)
+          return item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username)
         }).length
       }
 
@@ -509,6 +490,9 @@
   };
 
   const handleViewLogInfo = row => {
+    const startTime = row.first_anomaly_time * 1000
+    const endTime = row.end_time * 1000 || Date.now();
+
     loading.value = true;
     $http
       .request('alertStrategy/getLogRelatedInfo', {
@@ -539,8 +523,12 @@
           resolveCommonParams(params);
           resolveQueryParams(params, true).then(res => {
             if (res) {
-              store.dispatch('requestIndexSetQuery', { isPagination: false });
-              PopInstanceUtilInstance.hide();
+              store.commit('updateIndexItemParams', { start_time: startTime, end_time: endTime, datePickerValue: [startTime, endTime] });
+              setTimeout(() => {
+                store.dispatch('requestIndexSetQuery', { isPagination: false });
+                PopInstanceUtilInstance.hide();
+              });
+             
             }
           });
           return;

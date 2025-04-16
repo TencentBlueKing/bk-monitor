@@ -1249,6 +1249,7 @@
                 theme: 'success',
                 message: this.$t('操作成功'),
               });
+              this.$set(row, 'strategy_id', strategy_id);
             }
           })
           .finally(() => (this.curEditUniqueVal = {}));
