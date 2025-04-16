@@ -429,7 +429,7 @@ class _TransferApi(object):
         )
         self.create_or_update_es_router = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_or_update_es_router/",
+            url=MONITOR_APIGATEWAY_ROOT + "app/metadata/create_or_update_es_router/",
             module=self.MODULE,
             description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
