@@ -33,11 +33,11 @@ import type { IDimensionItem } from '../typings/event';
 import './dimension-transfer.scss';
 
 interface IProps {
-  fields: IDimensionItem[];
-  value?: string[];
-  show?: boolean;
-  onConfirm?: (value: IDimensionItem[]) => void;
-  onCancel?: () => void;
+  fields: IDimensionItem[]; // 全部数据集合
+  value?: string[]; // 已选列表/默认选中的数据唯一标识集合
+  show?: boolean; // 展示穿梭框
+  onConfirm?: (value: IDimensionItem[]) => void; // 穿梭框确认按钮
+  onCancel?: () => void; // 穿梭框取消按钮
 }
 
 @Component
@@ -46,17 +46,17 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
   @Prop({ type: Boolean, default: false }) show: boolean;
 
-  localFields: IDimensionItem[] = [];
-  searchValue = '';
-  searchSelectedValue = '';
-  selectedFields: IDimensionItem[] = [];
+  localFields: IDimensionItem[] = []; // 待选列表集合
+  searchValue = ''; // 待选列表搜索内容
+  searchSelectedValue = ''; // 已选列表搜索内容
+  selectedFields: IDimensionItem[] = []; // 已选列表集合
 
-  // 待选列表数据
+  // 待选列表搜索后的数据
   get searchLocalFields() {
     return this.filterFields(this.searchValue, this.localFields);
   }
 
-  // 已选列表数据
+  // 已选列表搜索后的数据
   get searchSelectedFields() {
     return this.filterFields(this.searchSelectedValue, this.selectedFields);
   }
@@ -65,7 +65,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   handleWatchShow() {
     if (this.show) {
       this.searchValue = '';
-      this.searchSelectedValue = ''
+      this.searchSelectedValue = '';
       const tempSet = new Set(this.value);
       const selectedFields = [];
       const localFields = [];
@@ -95,6 +95,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
     this.handleSetLocalFields();
   }
 
+  // 通用搜索方法
   filterFields(searchValue, fields) {
     if (!searchValue) return fields;
     const normalizedSearchValue = String(searchValue).toLocaleLowerCase();
@@ -110,22 +111,17 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
     });
   }
 
-  handleCheck(index: number) {
-    const item = JSON.parse(JSON.stringify(this.localFields[index]));
-    this.localFields.splice(index, 1);
-    this.selectedFields.push(item);
-  }
-
-  /**
-   * @description 点击确定
-   */
+  // 穿梭框确认事件
   handleConfirm() {
     this.$emit('confirm', this.selectedFields);
   }
+
+  // 穿梭框取消事件
   handleCancel() {
     this.$emit('cancel');
   }
 
+  // 处理待选列表
   handleSetLocalFields() {
     const localFields = [];
     const selectedFields = new Set(this.selectedFields.map(item => item.key));
@@ -137,21 +133,32 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
     this.localFields = localFields;
   }
 
+  // 单独添加到已选列表
+  handleAdd(index: number) {
+    const item = JSON.parse(JSON.stringify(this.localFields[index]));
+    this.localFields.splice(index, 1);
+    this.selectedFields.push(item);
+  }
+
+  // 单独删除已选列表
   handleDelete(targetItem: IDimensionItem) {
     this.selectedFields = this.selectedFields.filter(item => item.key !== targetItem.key);
     this.handleSetLocalFields();
   }
 
-  handleClear() {
+  // 已选列表全部清除
+  handleClearAll() {
     this.selectedFields = [];
     this.localFields = this.fields.slice();
   }
 
-  handleAllAdd() {
+  // 待选列表全部添加
+  handleAddAll() {
     this.localFields = [];
     this.selectedFields = this.fields.slice();
   }
 
+  // 同步搜索框内容
   @Debounce(300)
   handleSearchValueChange(value: string, field: string) {
     this[field === 'local' ? 'searchValue' : 'searchSelectedValue'] = value;
@@ -176,7 +183,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
               <span class='header-title'>{`${this.$t('待选列表')}（${this.localFields.length}）`}</span>
               <span
                 class='header-btn'
-                onClick={this.handleAllAdd}
+                onClick={this.handleAddAll}
               >
                 {this.$t('全部添加')}
               </span>
@@ -196,7 +203,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
                   <div
                     key={item.key}
                     class='option'
-                    onClick={() => this.handleCheck(index)}
+                    onClick={() => this.handleAdd(index)}
                   >
                     {optionRender(item)}
                     <span class='icon-monitor icon-back-right' />
@@ -213,7 +220,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
               <span class='header-title'>{`${this.$t('已选列表')}（${this.selectedFields.length}）`}</span>
               <span
                 class='header-btn'
-                onClick={this.handleClear}
+                onClick={this.handleClearAll}
               >
                 {this.$t('全部移除')}
               </span>
