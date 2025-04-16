@@ -52,6 +52,7 @@ interface IDrillAnalysisTableProps {
 interface IDrillAnalysisTableEvent {
   onUpdateDimensions?: (v: IDimensionItem[]) => void;
   onShowDetail?: (v: IDataItem, item: IDimensionItem) => void;
+  onChooseDrill?: (v: IDimensionItem[], item: string[]) => void;
 }
 
 @Component
@@ -87,6 +88,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
   sortColumn: IColumnItem[] = [];
+
+  mounted() {
+    setTimeout(() => {
+      const list = this.dimensionsList.filter(item => item.checked);
+      this.isMultiple = list.length > 1;
+      this.activeList = list.map(item => item.name);
+    });
+  }
 
   /** 需要展示的维度列 */
   get dimensionsColumn() {
@@ -372,7 +381,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           label={this.$t(item.label)}
           renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
           sortable={item.sortable}
-        ></bk-table-column>
+        />
       );
     });
   }
@@ -468,7 +477,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             v-model={this.dimensionSearch}
             placeholder={this.$t('搜索 维度')}
             right-icon={'bk-icon icon-search'}
-          ></bk-input>
+          />
           <div class='dimensions-list'>{this.renderDimensionList()}</div>
         </div>
         <div class='table-right'>
@@ -476,8 +485,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             <div class='dimensions-filter'>
               {this.drillList.map(item => (
                 <bk-tag
+                  key={item.key}
                   class='drill-tag'
-                  kry={item.key}
                   closable
                   onClose={() => this.clearDrillFilter(item)}
                 >

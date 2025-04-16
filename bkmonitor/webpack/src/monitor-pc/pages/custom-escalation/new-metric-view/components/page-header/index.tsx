@@ -102,7 +102,7 @@ export default class PageHeader extends tsc<object> {
             <bk-select
               v-model={this.currentCustomTimeSeriesId}
               clearable={false}
-              popover-min-width={240}
+              popover-min-width={400}
               scroll-height={300}
               searchable
               onChange={this.handleSeriesChange}

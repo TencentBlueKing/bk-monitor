@@ -32,7 +32,7 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
 import CompareType from '../components/header-box/components/compare-type';
-import GroupBy from '../components/header-box/components/group-by';
+// import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
 import WhereCondition from '../components/header-box/components/where-condition';
 import { refreshList } from './utils';
@@ -196,10 +196,10 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
           </div>
         </div>
         <div class='filter-compare-view'>
-          <GroupBy
+          {/* <GroupBy
             value={this.filterConfig.group_by}
             onChange={this.handleGroupByChange}
-          />
+          /> */}
           {this.filterConfig.group_by.length > 0 && (
             <LimitFunction
               value={this.filterConfig.limit}

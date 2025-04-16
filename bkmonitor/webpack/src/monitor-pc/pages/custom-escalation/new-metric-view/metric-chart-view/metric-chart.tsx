@@ -136,7 +136,7 @@ class NewMetricChart extends CommonSimpleChart {
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
-  legendSorts: { name: string; timeShift: string }[] = [];
+  legendSorts: { name: string; timeShift: string; tipsName: string }[] = [];
   // 切换图例时使用
   seriesList = null;
   minBase = 0;
@@ -360,7 +360,7 @@ class NewMetricChart extends CommonSimpleChart {
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);
       if (lItem) {
-        result.push(lItem);
+        result.push({ ...lItem, ...{ tipsName: item.tipsName } });
       }
     }
     this.legendData = result;
@@ -392,14 +392,16 @@ class NewMetricChart extends CommonSimpleChart {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set) {
+  handleSeriesName(item: DataQuery, set, isFull = false) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
     const outputStr = output ? `{${output}}` : '';
+    if (isFull) {
+      return `${timeOffset}${this.method}-${outputStr}`;
+    }
     return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
-    // return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
   }
 
   handleTime() {
@@ -480,14 +482,17 @@ class NewMetricChart extends CommonSimpleChart {
             res.series &&
               series.push(
                 ...res.series.map(set => {
-                  const name = this.handleSeriesName(item, set) || set.target;
+                  const name = this.handleSeriesName(item, set, true) || set.target;
+                  const tipsName = this.handleSeriesName(item, set) || set.target;
                   this.legendSorts.push({
                     name,
+                    tipsName,
                     timeShift: set.time_offset || '',
                   });
                   return {
                     ...set,
                     name,
+                    tipsName,
                   };
                 })
               );
@@ -762,6 +767,11 @@ class NewMetricChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+  /** 获取当前指标的维度列表长度 */
+  getDimensionsLen(name: string) {
+    const dimensions = this.currentSelectedMetricList.find(ele => ele.metric_name === name)?.dimensions || [];
+    return dimensions.length || 0;
+  }
 
   renderToolIconList() {
     return this.handleIconList.map(item => {
@@ -786,13 +796,19 @@ class NewMetricChart extends CommonSimpleChart {
               slot='dropdown-content'
             >
               {this.panel.targets.map((target, ind) => {
+                const dimensionsName = target?.metric?.name;
+                const dimensionsLen = this.getDimensionsLen(dimensionsName);
                 return (
                   <li
-                    key={target?.metric?.name}
-                    class='metric-dropdown-item-tool'
-                    onClick={() => this.handleIconClick(item, ind)}
+                    key={dimensionsName}
+                    class={['metric-dropdown-item-tool', { disabled: dimensionsLen === 0 }]}
+                    v-bk-tooltips={{
+                      content: this.$t('无维度数据'),
+                      disabled: dimensionsLen > 0,
+                    }}
+                    onClick={() => dimensionsLen > 0 && this.handleIconClick(item, ind)}
                   >
-                    <span>{target?.metric?.name}</span>
+                    <span>{dimensionsName}</span>
                   </li>
                 );
               })}
@@ -800,15 +816,18 @@ class NewMetricChart extends CommonSimpleChart {
           </bk-dropdown-menu>
         );
       }
+      const dimensionsLen = this.getDimensionsLen(this.panel?.targets[0]?.metric?.name || '--');
+      /** 判断是否有维度可以下钻 */
+      const isDrillDisabled = item.id === 'drillDown' && dimensionsLen === 0;
       return (
         <i
           key={item.id}
-          class={`icon-monitor ${item.icon} menu-list-icon`}
+          class={`icon-monitor ${item.icon} menu-list-icon ${isDrillDisabled ? 'disabled' : ''}`}
           v-bk-tooltips={{
-            content: this.$t(item.text),
+            content: isDrillDisabled ? this.$t('无维度数据可下钻') : this.$t(item.text),
             delay: 200,
           }}
-          onClick={() => this.handleIconClick(item, 0)}
+          onClick={() => !isDrillDisabled && this.handleIconClick(item, 0)}
         />
       );
     });

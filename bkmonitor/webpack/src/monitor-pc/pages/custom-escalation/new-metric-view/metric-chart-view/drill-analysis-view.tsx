@@ -163,6 +163,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     let metrics = [];
     (this.panelData.targets || []).map(item => {
       const timeCompare = item.function;
+      /** 初始化处理对比 */
       this.filterConfig.compare =
         timeCompare.time_compare?.length > 0
           ? {
@@ -171,7 +172,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             }
           : { type: '', offset: [] };
       this.filterConfig.function = timeCompare?.time_compare ? timeCompare : { time_compare: [] };
-
+      /** 初始化过滤条件 */
       (item.query_configs || []).map(query => {
         const commonConditions = [];
         Object.keys(query.filter_dict.concat_filter || {}).map(key =>
@@ -186,10 +187,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         this.filterConfig = {
           ...this.filterConfig,
           where: query.where,
-          group_by: query.group_by.map(item => ({
-            field: item,
-            split: false,
-          })),
+          group_by: query.group_by,
           limit: {
             limit: query.functions[0]?.params[0]?.value || 10,
             function: query.functions[0]?.id || 'top',
@@ -200,12 +198,17 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     });
     const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
     this.dimensionsList = list?.dimensions || [];
+
+    const len = this.filterConfig.group_by.length;
     if (this.dimensionsList.length > 0) {
       for (const item of this.dimensionsList) {
-        item.checked = false;
+        item.checked = this.filterConfig.group_by.includes(item.name);
       }
-      this.dimensionsList[0].checked = true;
-      this.filterConfig.drill_group_by = [this.dimensionsList[0].name];
+      if (len === 0) {
+        this.setPanelConfigAndRefresh('group_by', [this.dimensionsList[0].name], false);
+        this.dimensionsList[0].checked = true;
+      }
+      this.filterConfig.drill_group_by = len === 0 ? [this.dimensionsList[0].name] : this.filterConfig.group_by;
     }
   }
   /** 关闭按钮 */
@@ -217,7 +220,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   handleUpdateDimensions(list: IDimensionItem[], activeKey: string[]) {
     this.dimensionsList = list;
     this.filterConfig.drill_group_by = activeKey;
-    this.getTableList();
+    this.setPanelConfigAndRefresh('group_by', activeKey);
   }
   /** 维度下钻 */
   handleChooseDrill(list, activeKey: string[]) {
@@ -233,7 +236,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.setPanelConfigAndRefresh('filter_dict.drill_filter', drillFilter);
   }
   /** 设置panel的值 */
-  setPanelConfigAndRefresh(keys: string, value) {
+  setPanelConfigAndRefresh(keys: string, value, isGetList = true) {
     const keysArray = keys.split('.');
     let current = this.panelData.targets[0].query_configs[0];
 
@@ -249,7 +252,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       }
     }
     this.panelData = deepClone(this.panelData);
-    this.getTableList();
+    isGetList && this.getTableList();
   }
   /** 修改刷新间隔 */
   handleRefreshInterval(val: number) {
