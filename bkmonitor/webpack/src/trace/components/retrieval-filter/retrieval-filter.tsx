@@ -35,6 +35,7 @@ import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
 
 import QsSelector from './qs-selector';
+import ResidentSetting from './resident-setting';
 import {
   ECondition,
   type EMethod,
@@ -387,6 +388,7 @@ export default defineComponent({
       showResidentSetting,
       clearKey,
       qsSelectorOptionsWidth,
+      isDefaultResidentSetting,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -398,6 +400,7 @@ export default defineComponent({
       handleFavorite,
       handleClickSearchBtn,
       handleQsValueChange,
+      handleCommonWhereChange,
     };
   },
   render() {
@@ -542,6 +545,16 @@ export default defineComponent({
             </div>
           </div>
         </div>
+        {this.showResidentSetting && (
+          <ResidentSetting
+            fields={this.fields}
+            getValueFn={this.getValueFn}
+            isDefaultSetting={this.isDefaultResidentSetting}
+            residentSettingOnlyId={this.residentSettingOnlyId}
+            value={this.residentSettingValue}
+            onChange={this.handleCommonWhereChange}
+          />
+        )}
       </div>
     );
   },
