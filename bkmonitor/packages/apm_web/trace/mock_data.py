@@ -112,28 +112,10 @@ API_VIEW_CONFIG_DATA = {
 }
 
 API_FIELDS_OPTION_VALUE_DATA = {
-    "resource.service.name": [
-        {"value": "example.greeter", "alias": "example.greeter"},
-        {"value": "test_service_name", "alias": "test_service_name"},
-    ],
-    "span_name": [{"value": "/200", "alias": "/200"}],
-    "kind": [
-        {"value": 0, "alias": "未指定"},
-        {"value": 1, "alias": "内部(internal)"},
-        {"value": 2, "alias": "同步被调"},
-        {"value": 3, "alias": "同步主调"},
-        {"value": 4, "alias": "异步主调"},
-        {"value": 5, "alias": "异步被调"},
-    ],
-    "root_service_category": [
-        {"value": "http", "alias": "网页"},
-        {"value": "rpc", "alias": "远程调用"},
-        {"value": "db", "alias": "数据库"},
-        {"value": "messaging", "alias": "消息队列"},
-        {"value": "async_backend", "alias": "后台任务"},
-        {"value": "all", "alias": "全部"},
-        {"value": "other", "alias": "其他"},
-    ],
+    "resource.service.name": ["example.greeter", "test_service_name"],
+    "span_name": ["/200"],
+    "kind": [0, 1, 2, 3, 4, 5],
+    "root_service_category": ["http", "rpc", "db", "messaging", "async_backend", "all", "other"],
 }
 
 API_TOPK_DATA = [
