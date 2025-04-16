@@ -276,7 +276,7 @@
   const strategyList = ref([]);
   const recordListshow = computed(() => {
     if(filterOwner.value){
-      return recordList.value.filter((item: any) =>item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username))
+      return recordList.value.filter((item: any) =>item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username))
     }else{
       return recordList.value
     }
@@ -395,18 +395,18 @@
 
 
     
-    if (active.value === 'mission') {
+    // if (active.value === 'mission') {
       getQueryString().then(res => {
-        window.open(
+        console.log(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`);
+          window.open(
           `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
           '_blank',
-        );
+        )
       });
 
-      return;
-    }
+    // }
 
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
+    // window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
   };
 
   const handleViewWarningDetail = row => {
@@ -448,7 +448,7 @@
       if (val === 'NOT_SHIELDED_ABNORMAL') {
         badgeCount.value = res?.data.length;
         ownPendingCount.value = res?.data.filter(item =>{
-          return item.assignee.some(assignee => assignee === userMeta.value.username) || item.appointee.some(appointee => appointee === userMeta.value.username)
+          return item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username)
         }).length
       }
 
