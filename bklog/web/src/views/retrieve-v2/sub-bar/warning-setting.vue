@@ -504,6 +504,9 @@
   };
 
   const handleViewLogInfo = row => {
+    const startTime = row.first_anomaly_time * 1000
+    const endTime = row.end_time * 1000 || Date.now();
+
     loading.value = true;
     $http
       .request('alertStrategy/getLogRelatedInfo', {
@@ -534,8 +537,12 @@
           resolveCommonParams(params);
           resolveQueryParams(params, true).then(res => {
             if (res) {
-              store.dispatch('requestIndexSetQuery', { isPagination: false });
-              PopInstanceUtilInstance.hide();
+              store.commit('updateIndexItemParams', { start_time: startTime, end_time: endTime, datePickerValue: [startTime, endTime] });
+              setTimeout(() => {
+                store.dispatch('requestIndexSetQuery', { isPagination: false });
+                PopInstanceUtilInstance.hide();
+              });
+             
             }
           });
           return;
