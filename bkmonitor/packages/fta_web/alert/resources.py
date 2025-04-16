@@ -670,9 +670,11 @@ class AlertDetailResource(Resource):
         for d in data["dimensions"]:
             if d["key"].replace("tags.", "") != "bcs_cluster_id":
                 continue
-            cluster = BCSCluster.objects.filter(bcs_cluster_id__iexact=d["value"], bk_biz_id=data["bk_biz_id"]).first()
-            if cluster:
-                d["project_name"] = cluster.space_uid.split("__")[1]
+
+            for cluster in BCSCluster.objects.filter(bcs_cluster_id=d["value"]):
+                if cluster.bcs_cluster_id == d["value"]:
+                    d["project_name"] = cluster.space_uid.split("__")[1]
+                    break
             else:
                 d["project_name"] = ""
 
