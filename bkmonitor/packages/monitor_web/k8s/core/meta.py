@@ -443,8 +443,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             ({self.agg_method}_over_time(rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:]))),
             "pod_name", "$1", "pod", "(.*)")"""
 
-        return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod)
-                    ({self.label_join_pod(exclude)}
+        return f"""label_replace({self.agg_method} by (namespace, pod) ({self.label_join_pod(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m]))),
             "pod_name", "$1", "pod", "(.*)")"""
@@ -884,7 +883,7 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
             ({self.agg_method}_over_time(
             rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
-        return f"""{self.agg_method} by (namespace, ingress, service) ({self.label_join_service(exclude)}
+        return f"""{self.agg_method} by (namespace, service) ({self.label_join_service(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
