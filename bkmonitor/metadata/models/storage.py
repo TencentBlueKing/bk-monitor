@@ -797,6 +797,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         help_text="设置influxdb proxy 和 后端存储集群的关联关系记录 ID, 用以查询结果表使用的 proxy 和后端存储",
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+
     class Meta:
         # 实际数据库存储表信息不可重复
         unique_together = ("real_table_name", "database")
@@ -4881,6 +4883,7 @@ class ArgusStorage(models.Model, StorageResultTable):
     storage_cluster_id = models.IntegerField("存储集群")
 
     tenant_id = models.CharField("argus租户ID", max_length=64)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
 
     def __str__(self):
         return "<{}, {}>".format(self.table_id, self.storage_cluster_id)
