@@ -32,7 +32,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { generateTimeStrings } from './utils';
+import { generateTimeStrings, handleGetMinPrecision } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -298,6 +298,20 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     const color = row[prop] >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: row[prop] ? color : '#313238' }}>{row[prop] ? `${row[prop]}%` : '--'}</span>;
   }
+  renderValue(row: IDataItem, prop: string) {
+    const precision = handleGetMinPrecision(
+      this.tableList.map(item => item[prop]),
+      getValueFormat(row.unit),
+      row.unit
+    );
+    const unitFormatter = getValueFormat(row.unit);
+    const set: any = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
+    return (
+      <span>
+        {set.text} {set.suffix}
+      </span>
+    );
+  }
   /** 自定义表格头部渲染 */
   renderHeader(h, { column }: any, item: any) {
     const tipsKey = ['1h', '1d', '7d', '30d'];
@@ -337,7 +351,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         renderFn: row => this.renderOperation(row),
       },
       { label: '占比', prop: 'percentage', sortable: true },
-      { label: '当前值', prop: 'value', sortable: true },
+      { label: '当前值', prop: 'value', sortable: true, renderFn: row => this.renderValue(row, 'value') },
     ];
     let compareColumn: IColumnItem[] = [];
     /** 根据时间对比动态计算要展示的表格列 */
@@ -350,6 +364,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               label: this.typeEnums[val] || timeOffsetDateFormat(val),
               prop: `${val}_value`,
               sortable: true,
+              renderFn: row => this.renderValue(row, `${val}_value`),
             },
             {
               label: '波动',

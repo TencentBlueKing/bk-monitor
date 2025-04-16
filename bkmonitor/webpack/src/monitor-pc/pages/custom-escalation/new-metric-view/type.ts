@@ -57,6 +57,7 @@ export interface IDataItem {
     fluctuation?: number;
   }[];
   dimensions?: IObjItem;
+  unit?: string;
 }
 
 export interface IRefreshItem {

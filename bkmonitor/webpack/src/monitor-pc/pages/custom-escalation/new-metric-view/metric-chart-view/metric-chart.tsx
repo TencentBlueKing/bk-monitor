@@ -43,9 +43,9 @@ import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
-import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter } from './utils';
+import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
@@ -196,45 +196,6 @@ class NewMetricChart extends CommonSimpleChart {
     }
     return num;
   }
-  /**
-   * @description: 设置精确度
-   * @param {number} data
-   * @param {ValueFormatter} formatter
-   * @param {string} unit
-   * @return {*}
-   */
-  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
-    if (!data || data.length === 0) {
-      return 0;
-    }
-    data.sort((a, b) => a - b);
-    const len = data.length;
-    if (data[0] === data[len - 1]) {
-      if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
-      const setList = String(data[0]).split('.');
-      return !setList || setList.length < 2 ? 2 : setList[1].length;
-    }
-    let precision = 0;
-    let sampling = [];
-    const middle = Math.ceil(len / 2);
-    sampling.push(data[0]);
-    sampling.push(data[Math.ceil(middle / 2)]);
-    sampling.push(data[middle]);
-    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
-    sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
-    while (precision < 5) {
-      const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formatter(cur, precision).text)] = 1;
-        return pre;
-      }, {});
-      if (Object.keys(samp).length >= sampling.length) {
-        return precision;
-      }
-      precision += 1;
-    }
-    return precision;
-  }
 
   /**
    * @description: 转换时序数据 并设置图例
@@ -321,7 +282,7 @@ class NewMetricChart extends CommonSimpleChart {
       legendItem.latestTime = latestVal;
 
       // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
+      const precision = handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
@@ -399,7 +360,7 @@ class NewMetricChart extends CommonSimpleChart {
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
     const outputStr = output ? `{${output}}` : '';
     if (isFull) {
-      return `${timeOffset}${this.method}-${outputStr}`;
+      return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
     }
     return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
   }
