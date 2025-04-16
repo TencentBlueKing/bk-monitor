@@ -77,6 +77,10 @@
         min-width: 70px;
         text-align: right;
         margin-right: 7px;
+
+        &.is-special {
+          padding-top: 4px;
+        }
       }
       .column-content {
         word-wrap: break-word;
@@ -107,6 +111,26 @@
           width: 16px;
           height: 16px;
           line-height: 16px;
+        }
+
+        .dimension-edit {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          overflow: hidden;
+          cursor: pointer;
+
+          .icon-bianji {
+            font-size: 12px;
+            color: #979ba5;
+            transform: scale(2);
+          }
+
+          & + .reset {
+            margin-left: 12px;
+          }
         }
       }
     }
@@ -149,5 +173,15 @@
       max-height: 455px;
       overflow-y: auto;
     }
+  }
+}
+
+.dimension-select-dialog-wrap {
+  .bk-dialog-body {
+    padding: 0;
+  }
+  
+  .header-on-left {
+    margin-top: -7px;
   }
 }
