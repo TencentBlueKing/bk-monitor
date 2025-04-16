@@ -66,6 +66,10 @@ class UnifyQueryHandler(object):
         # 必需参数，索引集id列表
         self.index_set_ids = self.search_params["index_set_ids"]
 
+        # 初始化索引信息（包括索引类型）
+        self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
+        self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
+
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
 
@@ -97,10 +101,6 @@ class UnifyQueryHandler(object):
         self.start_time, self.end_time = deal_time_format(
             self.search_params["start_time"], self.search_params["end_time"]
         )
-
-        # 初始化索引信息（包括索引类型）
-        self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
-        self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
 
         # result fields
         self.field: Dict[str, MAX_LEN_DICT] = {}

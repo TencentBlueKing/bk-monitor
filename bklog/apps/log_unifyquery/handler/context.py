@@ -120,9 +120,11 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
     def _get_context_body(self, order):
         target_fields = self.index_set["target_fields"]
         sort_fields = self.index_set["sort_fields"]
+        body_data = copy.deepcopy(self.base_dict)
 
         if sort_fields:
             return CreateSearchContextBodyCustomField(
+                body_data=body_data,
                 size=self.size,
                 start=self.start,
                 order=order,
@@ -133,6 +135,7 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
 
         elif self.scenario_id == Scenario.BKDATA:
             return CreateSearchContextBodyScenarioBkData(
+                body_data=body_data,
                 size=self.size,
                 start=self.start,
                 gse_index=self.gseindex,
@@ -149,6 +152,7 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
 
         elif self.scenario_id == Scenario.LOG:
             return CreateSearchContextBodyScenarioLog(
+                body_data=body_data,
                 size=self.size,
                 start=self.start,
                 gse_index=self.gseIndex,

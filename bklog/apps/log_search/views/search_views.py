@@ -99,6 +99,7 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
 )
+from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
@@ -452,9 +453,13 @@ class SearchViewSet(APIViewSet):
         """
         data = request.data
         data.update({"search_type_tag": "context"})
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data.update({"index_set_ids": [index_set_id]})
-            query_handler = UnifyQueryContextHandler(data)
+            params = build_context_params(data)
+            query_handler = UnifyQueryContextHandler(params)
             return Response(query_handler.search())
         else:
             data.update({"search_type_tag": "context"})
