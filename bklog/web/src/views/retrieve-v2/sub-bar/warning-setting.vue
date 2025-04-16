@@ -357,34 +357,15 @@
   };
 
   const getQueryString = () => {
-    const { addition, keyword } = store.getters.retrieveParams;
     const timezone = store.state.indexItem.timezone;
     const [start_time, end_time] = store.state.indexItem.datePickerValue;
 
-    if (addition.length > 0) {
-      return $http
-        .request('retrieve/generateQueryString', {
-          data: {
-            addition,
-          },
-        })
-        .then(res => {
-          if (res.result) {
-            const result = [keyword, res.data?.querystring]
-              .filter(item => item.length > 0 && item !== '*')
-              .join(' AND ');
-            return `queryString=${result}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
-          }
+    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
 
-          return `from=${start_time}&to=${end_time}&timezone=${timezone}`;
-        });
-    }
 
-    if (keyword.length > 0 && keyword !== '*') {
-      return Promise.resolve(`queryString=${keyword}&from=${start_time}&to=${end_time}&timezone=${timezone}`);
-    }
+       
+   
 
-    return Promise.resolve(`from=${start_time}&to=${end_time}&timezone=${timezone}`);
   };
 
   const handleJumpMonitor = () => {
@@ -392,21 +373,21 @@
       mission: 'event-center',
       config: 'strategy-config',
     };
+    if (active.value === 'mission') {
+      const res = getQueryString()
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+        '_blank',
+      );
+      return;
+    }
 
-
-    
-    // if (active.value === 'mission') {
-      getQueryString().then(res => {
-        console.log(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`);
-          window.open(
-          `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
-          '_blank',
-        )
-      });
-
-    // }
-
-    // window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
+   
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
+      '_blank',
+    )
+   
   };
 
   const handleViewWarningDetail = row => {
