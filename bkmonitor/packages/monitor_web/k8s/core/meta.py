@@ -105,6 +105,39 @@ class FilterCollection(object):
 class NetworkWithRelation:
     """网络场景，层级关联支持"""
 
+    def label_join_service(self, filter_exclude=""):
+        label_filters = FilterCollection(self)
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type == "ingress":
+                return self.label_join_ingress(filter_exclude)
+            if r_filter.resource_type != "pod":
+                label_filters.add(r_filter)
+
+        return (
+            f"(count by (service, namespace, pod) "
+            f"(pod_with_service_relation{{{label_filters.filter_string(exclude=filter_exclude)}}}) * 0 + 1)"
+            f" * on (namespace, pod) group_left())"
+        )
+
+    def label_join_ingress(self, filter_exclude=""):
+        return self.label_join(filter_exclude)
+
+    def label_join_pod(self, filter_exclude=""):
+        label_filters = FilterCollection(self)
+        filter_service = False
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type == "ingress":
+                return self.label_join(filter_exclude)
+            if r_filter.resource_type == "service":
+                filter_service = True
+            if r_filter.resource_type != "pod":
+                label_filters.add(r_filter)
+
+        if filter_service:
+            return self.label_join_service(filter_exclude)
+
+        return ""
+
     def label_join(self, filter_exclude=""):
         label_filters = FilterCollection(self)
         for filter_id, r_filter in self.filter.filters.items():
@@ -405,12 +438,13 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""label_replace(sum by (namespace, ingress, service, pod) ({self.label_join(exclude)}
+            return f"""label_replace(sum by (namespace, pod) ({self.label_join_pod(exclude)}
             sum by (namespace, pod)
             ({self.agg_method}_over_time(rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:]))),
             "pod_name", "$1", "pod", "(.*)")"""
 
-        return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod) ({self.label_join(exclude)}
+        return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod)
+        ({self.label_join_pod(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m]))),
             "pod_name", "$1", "pod", "(.*)")"""
@@ -827,12 +861,12 @@ class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""sum by (ingress, namespace) ({self.label_join(exclude)}
+            return f"""sum by (ingress, namespace) ({self.label_join_ingress(exclude)}
             sum by (namespace, pod)
             ({self.agg_method}_over_time(
             rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
-        return f"""{self.agg_method} by (ingress, namespace) ({self.label_join(exclude)}
+        return f"""{self.agg_method} by (ingress, namespace) ({self.label_join_ingress(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
@@ -845,12 +879,12 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""sum by (namespace, ingress, service) ({self.label_join(exclude)}
+            return f"""sum by (namespace, service) ({self.label_join_service(exclude)}
             sum by (namespace, pod)
             ({self.agg_method}_over_time(
             rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])[{self.agg_interval}:])))"""
 
-        return f"""{self.agg_method} by (namespace, ingress, service) ({self.label_join(exclude)}
+        return f"""{self.agg_method} by (namespace, ingress, service) ({self.label_join_service(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
