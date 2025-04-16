@@ -26,7 +26,6 @@
 import { Component, Watch, Prop, ProvideReactive, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { Debounce } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
@@ -55,7 +54,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
-  @Prop({ type: Number, default: 3 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
+  @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   // 刷新间隔

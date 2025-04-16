@@ -30,8 +30,8 @@ filterwarnings = [
 ]
 DJANGO_SETTINGS_MODULE = "settings"
 env = [
-    "DJANGO_CONF_MODULE=conf.worker.development.community",
-    "BKAPP_DEPLOY_PLATFORM=community",
+    "D:DJANGO_CONF_MODULE=conf.worker.development.community",
+    "D:BKAPP_DEPLOY_PLATFORM=community",
     "USE_DYNAMIC_SETTINGS=0",
     "D:django_find_project=false",
     "D:BK_MONITOR_APP_CODE=bk_monitorv3",

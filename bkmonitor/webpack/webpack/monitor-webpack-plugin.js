@@ -1,8 +1,9 @@
-const webpackLog = require('webpack-log');
 const crypto = require('node:crypto');
+const webpackLog = require('webpack-log');
 const log = webpackLog({ name: 'monitor-webpack-plugin' });
-const RawSource = require('webpack-sources/lib/RawSource');
 const CachedSource = require('webpack-sources/lib/CachedSource');
+const RawSource = require('webpack-sources/lib/RawSource');
+
 const { transformDistDir, mobileBuildVariates, pcBuildVariates, externalBuildVariates } = require('./utils');
 module.exports = class MonitorWebpackPlugin {
   constructor(app, options = {}) {
@@ -23,7 +24,7 @@ module.exports = class MonitorWebpackPlugin {
   apply(compiler) {
     const hookOption = {
       name: 'MonitorWebpackPlugin',
-      stage: 'PROCESS_ASSETS_STAGE_ANALYSE',
+      stage: 'PROCESS_ASSETS_STAGE_ANALYZE',
     };
     compiler.hooks.thisCompilation.tap(hookOption, compilation => {
       compilation.hooks.afterProcessAssets.tap(hookOption, () => {
@@ -31,28 +32,27 @@ module.exports = class MonitorWebpackPlugin {
           try {
             this.hasChanged = true;
             const assetManifestData = [];
-            Object.keys(compilation.assets).forEach(key => {
-              const chunkItem = compilation.assets[key];
-              const isCahedSource = !!chunkItem._source;
-              let chunkSource = isCahedSource ? chunkItem._source._value : chunkItem._value;
+            for (const [key, chunkItem] of Object.entries(compilation.assets)) {
+              const isCachedSource = !!chunkItem._source;
+              let chunkSource = isCachedSource ? chunkItem._source._value : chunkItem._value;
               chunkSource = Buffer.isBuffer(chunkSource) ? Buffer.toString('utf-8') : chunkSource;
               if (chunkSource) {
                 // 去敏感信息
                 // Object.assign(chunkItem, this.resolveInternalInfo(chunkSource))
                 if (key.match(/\.css$/gi)) {
-                  if (!isCahedSource) {
+                  if (!isCachedSource) {
                     chunkItem._value = this.resolveCssFont(chunkSource);
                   } else {
                     compilation.assets[key] = new CachedSource(new RawSource(this.resolveCssFont(chunkSource)));
                   }
                 } else if (key.match(/index\.html/gi)) {
-                  if (!isCahedSource) {
+                  if (!isCachedSource) {
                     chunkItem._value = this.resolveIndexHtml(chunkSource);
                   } else {
                     compilation.assets[key] = new CachedSource(new RawSource(this.resolveIndexHtml(chunkSource)));
                   }
                 } else if (key.match(/service-worker\.js/i)) {
-                  if (!isCahedSource) {
+                  if (!isCachedSource) {
                     chunkItem._value = this.resolveServiceWorker(chunkSource);
                   } else {
                     compilation.assets[key] = new CachedSource(new RawSource(this.resolveServiceWorker(chunkSource)));
@@ -62,7 +62,7 @@ module.exports = class MonitorWebpackPlugin {
               if (!key.match(/(\.DS_Store|\.html|service-worker\.js|\.json)$/gi)) {
                 assetManifestData.push(this.staticUrlKey + key);
               }
-            });
+            }
             const assetChunk = `self.assetData =${JSON.stringify(assetManifestData)}`;
             compilation.assets['asset-manifest.js'] = new RawSource(assetChunk);
             if (['monitor'].includes(this.modePath)) {
@@ -77,10 +77,10 @@ module.exports = class MonitorWebpackPlugin {
     // if(this.isMobile) {
     //   compiler.hooks.afterEmit.tap(hookOption, (compilation) => {
     //     const chunkItem = compilation.assets['manifest.json']
-    //     const isCahedSource = !!chunkItem._source
-    //     let chunkSource = isCahedSource ? chunkItem._source._value : chunkItem._value
+    //     const isCachedSource = !!chunkItem._source
+    //     let chunkSource = isCachedSource ? chunkItem._source._value : chunkItem._value
     //     chunkSource = Buffer.isBuffer(chunkSource) ? Buffer.toString('utf-8') : chunkSource
-    //     if(!isCahedSource) {
+    //     if(!isCachedSource) {
     //       chunkItem._value = this.resolveManifestJson(chunkSource)
     //     } else {
     //       compilation.assets[key] = new CachedSource(new RawSource(this.resolveManifestJson(chunkSource)))
@@ -93,29 +93,29 @@ module.exports = class MonitorWebpackPlugin {
     const urls = chunk.match(/(href|src|content)="([^"]+)"/gim);
     if (urls) {
       let res = chunk;
-      urls.forEach(url => {
+      for (const url of urls) {
         let machUrl = url.replace(`${this.staticUrl}${this.modePath}/`, '');
         if (
           !/(data:|manifest\.json|http|\/\/)|\$\{STATIC_URL\}| \$\{WEIXIN_STATIC_URL\} |\$\{SITE_URL\}/gim.test(
-            machUrl,
+            machUrl
           ) &&
           /\.(png|css|js)/gim.test(machUrl)
         ) {
           machUrl = machUrl.replace(
             /([^"])"([^"]+)"/gim,
-            `$1"\${${this.staticUrl}}${this.modePath}${this.isMobile ? '' : '/'}$2"`,
+            `$1"\${${this.staticUrl}}${this.modePath}${this.isMobile ? '' : '/'}$2"`
           );
         }
         if (this.isMobile) {
           machUrl = machUrl.replace(/\$\{SITE_URL\}/gm, '${WEIXIN_SITE_URL}');
         }
         res = res.replace(url, machUrl);
-      });
+      }
       const scripts = res.match(/<script template>([^<]+)<\/script>/gim);
       if (scripts) {
-        scripts.forEach(script => {
+        for (const script of scripts) {
           res = res.replace(script, this.variates);
-        });
+        }
       }
       return res;
     }
@@ -127,12 +127,12 @@ module.exports = class MonitorWebpackPlugin {
     const urls = chunk.match(/url\((\/fonts\/|img\/)[^)]+\)/gim);
     if (urls) {
       let res = chunk;
-      urls.forEach(url => {
+      for (const url of urls) {
         const machUrl = url
           .replace(/url\(((\/fonts\/)[^)]+)\)/gim, 'url("..$1")')
           .replace(/url\(((img\/)[^)]+)\)/gim, 'url("../$1")');
         res = res.replace(url, machUrl);
-      });
+      }
       return res;
     }
     return chunk;
@@ -153,16 +153,16 @@ module.exports = class MonitorWebpackPlugin {
     }
     return null;
   }
-  resolveServiceWorker(chunk) {
+  resolveServiceWorker(text) {
     const key = crypto.randomBytes(16).toString('hex');
-    chunk = chunk.replace(/__cache_version___/gm, key);
+    let chunk = text.replace(/__cache_version___/gm, key);
     if (this.isMobile) {
       chunk = chunk.replace('${STATIC_URL}', '${WEIXIN_STATIC_URL}');
     }
     return chunk;
   }
-  resolveManifestJson(chunk) {
-    chunk = chunk
+  resolveManifestJson(text) {
+    const chunk = text
       .replace(/\$\{STATIC_URL\}/gm, '${WEIXIN_STATIC_URL}')
       .replace(/\$\{SITE_URL\}/gm, '${WEIXIN_SITE_URL}');
     return chunk;
