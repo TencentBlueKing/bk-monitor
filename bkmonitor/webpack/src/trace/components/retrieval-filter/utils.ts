@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IFilterItem, IWhereItem } from './typing';
+import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
 /**
@@ -117,4 +117,14 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   }
   result = [...source, ...localTarget];
   return result;
+}
+
+export function defaultWhereItem(params = {}): IWhereItem {
+  return {
+    condition: ECondition.and,
+    key: '',
+    method: EMethod.eq,
+    value: [],
+    ...params,
+  };
 }

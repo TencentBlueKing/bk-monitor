@@ -1,0 +1,233 @@
+/* stylelint-disable declaration-no-important */
+.vue3_resident-setting__setting-kv-selector-component {
+  .mb-5 {
+    margin-bottom: 5px;
+  }
+
+  .component-main {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    min-width: 180px;
+    max-width: 560px;
+    height: 32px;
+    max-height: 32px;
+    padding: 0 0 0 6px;
+    overflow: visible;
+    font-size: 12px;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-right: none;
+    border-radius: 2px;
+
+    .key-wrap {
+      z-index: 2;
+      align-self: flex-start;
+      width: fit-content;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 30px;
+      white-space: nowrap;
+    }
+
+    .method-wrap {
+      position: relative;
+      align-self: flex-start;
+      padding: 0 3px 0 2px;
+      margin-left: 2px;
+      line-height: 30px;
+      color: #3a84ff;
+      cursor: pointer;
+      background: #fff;
+
+      &::after {
+        position: absolute;
+        top: 0;
+        right: -1px;
+        z-index: 3;
+        width: 4px;
+        height: 100%;
+        content: '';
+        background: #fff;
+      }
+
+      .method-span {
+        white-space: nowrap;
+
+        &.red-text {
+          color: #ea3636;
+        }
+      }
+
+      .method-list-wrap {
+        z-index: 4;
+        min-width: 120px;
+
+        .method-list-wrap-item {
+          display: flex;
+          align-items: center;
+          height: 32px;
+          padding: 0 16px;
+          font-size: 12px;
+          color: #4d4f56;
+          cursor: pointer;
+
+          &.active,
+          &:hover {
+            background: #f5f7fa;
+          }
+        }
+      }
+    }
+
+    .value-wrap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      min-width: 160px;
+      height: 30px;
+      min-height: 30px;
+      padding: 4px 32px 0 4px;
+      overflow: hidden;
+      cursor: pointer;
+      background-color: #fff;
+      border: 1px solid #dcdee5;
+      border-top: none;
+      border-bottom-color: transparent;
+
+      &.tippy-active {
+        z-index: 10;
+      }
+
+      .hide-count {
+        display: inline-flex;
+        align-items: center;
+        width: 32px;
+        height: 22px;
+        padding: 0 6px;
+        margin: 0 4px 4px 0;
+        background: #f0f1f5;
+      }
+
+      &::after {
+        position: absolute;
+        top: 7px;
+        color: #c4c6cc;
+        content: attr(data-placeholder);
+      }
+    }
+
+    .expand-btn,
+    .delete-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      align-self: flex-start;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      color: #979ba5;
+
+      .icon-arrow-down {
+        font-size: 20px;
+      }
+
+      .icon-mc-close-fill {
+        font-size: 16px;
+      }
+    }
+
+    &.expand {
+      z-index: 9;
+
+      .value-wrap {
+        z-index: 2;
+        height: auto;
+      }
+
+      .expand-btn {
+        transform: rotate(180deg);
+        transition: all 0.3s;
+      }
+    }
+  }
+
+  &.active {
+    .component-main {
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+
+      .value-wrap {
+        border-color: #3a84ff !important;
+        box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+      }
+    }
+  }
+}
+
+.resident-setting__setting-kv-selector-component-pop {
+  .h-16 {
+    height: 16px;
+  }
+
+  .options-wrap {
+    max-height: 131px;
+    overflow-y: scroll;
+    background: #ffffff;
+
+    .options-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 32px;
+      padding: 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 32px;
+      color: #4d4f56;
+      white-space: nowrap;
+      cursor: pointer;
+
+      .icon-mc-check-small {
+        display: none;
+        font-size: 20px;
+        color: #3a84ff;
+      }
+
+      &:hover,
+      &.active-index {
+        background: #f5f7fa;
+      }
+
+      &.checked {
+        color: #3a84ff;
+
+        .icon-mc-check-small {
+          display: block;
+        }
+      }
+
+      &.skeleton-item {
+        display: flex;
+        align-items: center;
+        background: #fff;
+      }
+    }
+
+    .bk-exception {
+      top: 10px;
+
+      .bk-exception-img {
+        height: 30px;
+      }
+    }
+  }
+}

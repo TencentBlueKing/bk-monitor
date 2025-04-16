@@ -206,6 +206,7 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
+export const OPTIONS_METHODS = [EMethod.ne, EMethod.exclude];
 
 export const qsSelectorOptionsDescMap = {
   ':': [
@@ -603,4 +604,58 @@ export const RESIDENT_SETTING_TRANSFER_PROPS = {
 export const RESIDENT_SETTING_TRANSFER_EMITS = {
   confirm: (_v: IFilterField[]) => true,
   cancel: () => true,
+} as const;
+export const SETTING_KV_SELECTOR_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  value: {
+    type: Object as PropType<IWhereItem>,
+    default: () => null,
+  },
+  maxWidth: {
+    type: Number,
+    default: 560,
+  },
+  getValueFn: {
+    type: Function as PropType<TGetValueFn>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
 };
+export const SETTING_KV_SELECTOR_EMITS = {
+  change: (_v: IWhereItem) => true,
+} as const;
+export const RESIDENT_SETTING_PROPS = {
+  fields: {
+    type: Array as PropType<IFilterField[]>,
+    default: () => [],
+  },
+  getValueFn: {
+    type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  },
+  value: {
+    type: Array as PropType<IWhereItem[]>,
+    default: () => [],
+  },
+  residentSettingOnlyId: {
+    type: String,
+    default: '',
+  },
+  isDefaultSetting: {
+    type: Boolean,
+    default: true,
+  },
+};
+export const RESIDENT_SETTING_EMITS = {
+  change: (_v: IWhereItem[]) => true,
+} as const;
