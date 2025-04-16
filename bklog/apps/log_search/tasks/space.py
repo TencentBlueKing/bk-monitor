@@ -5,7 +5,7 @@ from typing import List
 from celery.schedules import crontab
 from django.db import transaction
 
-from apps.api import TransferApi
+from apps.api import BKLoginApi, TransferApi
 from apps.constants import BATCH_SYNC_SPACE_COUNT
 from apps.log_search.models import Space, SpaceApi, SpaceType
 from apps.utils.log import logger
@@ -63,46 +63,53 @@ def sync_spaces():
     space_uid_mappings = {}
     # 关联空间uid与被关联空间的uid映射
     relate_space_uid_mappings = defaultdict(set)
-    total: int = TransferApi.list_spaces({"page": 1, "page_size": 1})["count"]
-    for i in get_page_numbers(total=total, page_size=BATCH_SYNC_SPACE_COUNT):
-        spaces = TransferApi.list_spaces(
-            {"is_detail": True, "page": i, "page_size": BATCH_SYNC_SPACE_COUNT, "include_resource_id": True}
-        )["list"]
-        for space in spaces:
-            space_pk = space.pop("id")
-            space_type_id = space.pop("space_type_id")
-            space_type_name = type_names.get(space_type_id, space_type_id)
-            space_id = space.pop("space_id")
-            space_name = space.pop("space_name")
-            space_code = space.pop("space_code") or space_id
-            space_uid = space.pop("space_uid")
-            bk_biz_id = space_uid_to_bk_biz_id(space_uid=space_uid, id=space_pk)
 
-            space_obj = Space(
-                id=space_pk,
-                space_uid=space_uid,
-                bk_biz_id=bk_biz_id,
-                space_type_id=space_type_id,
-                space_type_name=space_type_name,
-                space_id=space_id,
-                space_name=space_name,
-                space_code=space_code,
-                properties=space,
-                is_deleted=False,
-            )
+    for tenant in BKLoginApi.list_tenant():
+        tenant_id = tenant["id"]
+        total: int = TransferApi.list_spaces({"page": 1, "page_size": 1}, bk_tenant_id=tenant_id)["count"]
+        logger.info("[sync_spaces] fetch for tenant (%s), total (%s)", tenant_id, total)
 
-            space_mappings[space_pk] = space_obj
-            space_uid_mappings[space_uid] = space_obj
-            space_id_list.append(space_pk)
-            # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
-            if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
-                continue
-            # 获取关联空间与被关联空间的uid映射
-            for resource in space["resources"]:
-                need_relate_space_uid: str = SpaceApi.gen_space_uid(
-                    space_type=resource["resource_type"], space_id=resource["resource_id"]
+        for i in get_page_numbers(total=total, page_size=BATCH_SYNC_SPACE_COUNT):
+            spaces = TransferApi.list_spaces(
+                {"is_detail": True, "page": i, "page_size": BATCH_SYNC_SPACE_COUNT, "include_resource_id": True},
+                bk_tenant_id=tenant_id,
+            )["list"]
+            for space in spaces:
+                space_pk = space.pop("id")
+                space_type_id = space.pop("space_type_id")
+                space_type_name = type_names.get(space_type_id, space_type_id)
+                space_id = space.pop("space_id")
+                space_name = space.pop("space_name")
+                space_code = space.pop("space_code") or space_id
+                space_uid = space.pop("space_uid")
+                bk_biz_id = space_uid_to_bk_biz_id(space_uid=space_uid, id=space_pk)
+
+                space_obj = Space(
+                    id=space_pk,
+                    space_uid=space_uid,
+                    bk_biz_id=bk_biz_id,
+                    space_type_id=space_type_id,
+                    space_type_name=space_type_name,
+                    space_id=space_id,
+                    space_name=space_name,
+                    space_code=space_code,
+                    properties=space,
+                    is_deleted=False,
+                    bk_tenant_id=tenant_id,
                 )
-                relate_space_uid_mappings[need_relate_space_uid].add(space_uid)
+
+                space_mappings[space_pk] = space_obj
+                space_uid_mappings[space_uid] = space_obj
+                space_id_list.append(space_pk)
+                # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
+                if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
+                    continue
+                # 获取关联空间与被关联空间的uid映射
+                for resource in space["resources"]:
+                    need_relate_space_uid: str = SpaceApi.gen_space_uid(
+                        space_type=resource["resource_type"], space_id=resource["resource_id"]
+                    )
+                    relate_space_uid_mappings[need_relate_space_uid].add(space_uid)
 
     # 将BKCC的业务的resources里也添加上其他空间类型的resource, 这样就可以通过BKCC的业务找到其他空间类型的业务
     for need_relate_space_uid, related_spaces_uid in relate_space_uid_mappings.items():
@@ -141,10 +148,11 @@ def sync_spaces():
                 "space_name",
                 "space_code",
                 "properties",
+                "bk_tenant_id",
                 "is_deleted",
             ],
             batch_size=500,
         )
         # 删除不存在的空间
         deleted_rows = Space.origin_objects.exclude(id__in=space_id_list).delete()
-    logger.info("[sync_spaces] sync ({}), delete ({})".format(len(space_id_list), deleted_rows))
+    logger.info("[sync_spaces] sync (%s), delete (%s)", len(space_id_list), deleted_rows)

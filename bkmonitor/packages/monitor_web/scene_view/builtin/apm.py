@@ -280,7 +280,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     [
                         bool(HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)),
                         bool(
-                            HostHandler.list_application_hosts(
+                            HostHandler.has_hosts_relation(
                                 view.bk_biz_id,
                                 app_name,
                                 service_name,
@@ -332,7 +332,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if (
                 app_name
                 and service_name
-                and HostHandler.list_application_hosts(
+                and HostHandler.has_hosts_relation(
                     view.bk_biz_id,
                     app_name,
                     service_name,
