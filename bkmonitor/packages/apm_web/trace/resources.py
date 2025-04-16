@@ -27,6 +27,7 @@ from apm_web.handlers.trace_handler.query import (
     SpanQueryTransformer,
     TraceQueryTransformer,
 )
+from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
@@ -1278,9 +1279,18 @@ class ListTraceViewConfigResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
+        is_mock = serializers.BooleanField(label="是否为 mock 数据", default=False)
 
     def perform_request(self, validated_request_data):
-        return API_VIEW_CONFIG_DATA
+        if validated_request_data.get("is_mock"):
+            return API_VIEW_CONFIG_DATA
+
+        fields_handler = TraceFieldsHandler(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+
+        return {
+            "trace_config": fields_handler.get_fields_by_mode(QueryMode.TRACE),
+            "span_config": fields_handler.get_fields_by_mode(QueryMode.SPAN),
+        }
 
 
 class TraceFieldsTopKResource(Resource):
