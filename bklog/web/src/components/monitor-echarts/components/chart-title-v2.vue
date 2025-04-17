@@ -179,6 +179,9 @@
     // 汇聚周期改变
     handleIntervalChange() {
       this.$emit('interval-change', this.chartInterval);
+      setTimeout(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      });
     }
 
     handleGradeOptionChange({ isSave }) {

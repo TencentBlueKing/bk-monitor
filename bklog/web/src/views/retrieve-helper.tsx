@@ -161,8 +161,16 @@ class RetrieveHelper {
   markInstance: OptimizedHighlighter = undefined;
 
   // 正则表达式提取日志级别
-  logLevelRegex =
-    /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/gi;
+  logLevelRegex = {
+    level_1: '(?<FATAL>\\b(?:FATAL|CRITICAL|EMERGENCY)\\b)',
+    level_2: '(?<ERROR>\\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\\b)',
+    level_3: '(?<WARNING>\\b(?:WARNING|WARN|ALERT|NOTICE)\\b)',
+    level_4: '(?<INFO>\\b(?:INFO|INFORMATION|LOG|STATUS)\\b)',
+    level_5: '(?<DEBUG>\\b(?:DEBUG|DIAGNOSTIC)\\b)',
+    level_6: '(?<TRACE>\\b(?:TRACE|TRACING|VERBOSE|DETAIL)\\b)',
+  };
+
+  // /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/gi;
 
   logRowsContainerId: string;
 
@@ -252,9 +260,19 @@ class RetrieveHelper {
 
       if (!str?.trim()) return null;
 
+      const levelRegExpList = [];
+      (options?.settings ?? []).forEach((item: GradeSetting) => {
+        if (item.enable && this.logLevelRegex[item.id]) {
+          levelRegExpList.push(this.logLevelRegex[item.id]);
+        }
+      });
+
+      const levelRegExStr = `/${levelRegExpList.join('|')}/`;
+      const levelRegExp = new RegExp(levelRegExStr, 'gi');
+
       // 截取前1000字符避免性能问题
       const logSegment = str.slice(0, 1000);
-      const matches = logSegment.matchAll(this.logLevelRegex);
+      const matches = logSegment.matchAll(levelRegExp);
       const levelSet = new Set<string>();
 
       // 收集所有匹配的日志级别
