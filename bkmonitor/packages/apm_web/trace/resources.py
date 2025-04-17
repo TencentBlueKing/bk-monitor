@@ -1049,6 +1049,25 @@ class ListOptionValuesResource(Resource):
     获取Span/Trace表头下拉框候选值
     """
 
+    TRACE_LIST_FIELDS = {
+        QueryMode.TRACE: [
+            "root_service",
+            "root_service_span_name",
+            "root_service_status_code",
+            "root_service_category",
+            "root_span_name",
+            "root_span_service",
+        ],
+        QueryMode.SPAN: [
+            "span_name",
+            "status.code",
+            "kind",
+            "resource.telemetry.sdk.version",
+            "resource.service.name",
+            "resource.bk.instance.id",
+        ],
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
@@ -1058,7 +1077,8 @@ class ListOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_data):
-        return QueryHandler.query_option_values(**validated_data)
+        validated_data["fields"] = self.TRACE_LIST_FIELDS[validated_data["mode"]]
+        return QueryHandler.get_fields_option_values(**validated_data)
 
 
 class GetFieldOptionValuesResource(Resource):
@@ -1103,10 +1123,24 @@ class GetFieldsOptionValuesResource(Resource):
         filters = serializers.ListField(child=FilterSerializer(), label="过滤条件列表", allow_empty=True)
         query_string = serializers.CharField(label="查询字符串", allow_blank=True)
         mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices(), default="span")
+        is_mock = serializers.BooleanField(label="是否为 mock 数据", default=False)
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
-        return API_FIELDS_OPTION_VALUE_DATA
+        if validated_request_data.get("is_mock"):
+            return API_FIELDS_OPTION_VALUE_DATA
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "app_name": validated_request_data["app_name"],
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+            "fields": validated_request_data["fields"],
+            "limit": validated_request_data["limit"],
+            "filters": validated_request_data["filters"],
+            "query_string": validated_request_data["query_string"],
+            "mode": validated_request_data["mode"],
+        }
+        return QueryHandler.get_fields_option_values(**params)
 
 
 class ListSpanStatisticsResource(Resource):
