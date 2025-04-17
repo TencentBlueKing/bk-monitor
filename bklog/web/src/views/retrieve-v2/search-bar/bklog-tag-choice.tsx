@@ -112,6 +112,10 @@ export default defineComponent({
     zIndex: {
       type: Number,
     },
+    bdiDir: {
+      type: String,
+      default: 'ltr',
+    },
   },
   emits: ['change', 'input', 'toggle', 'focus', 'blur', 'custom-tag-enter', 'enter'],
   setup(props, { slots, emit }) {
@@ -857,16 +861,20 @@ export default defineComponent({
         return <div class='empty-row'>{t('暂无数据')}</div>;
       }
 
-      return optionList.value.map(({ item, selected }, index) => (
-        <div
-          class={['bklog-choice-list-item', { 'is-selected': selected }]}
-          onClick={() => handleOptionItemClick(item)}
-          onMouseenter={() => handleOptionItemMouseenter(index)}
-          onMouseleave={() => handleOptionItemMouseleave()}
-        >
-          {slots.item?.(item) ?? getListItemName(item)}
-        </div>
-      ));
+      return optionList.value.map(({ item, selected }, index) => {
+        const name = getListItemName(item);
+        return (
+          <div
+            class={['bklog-choice-list-item', { 'is-selected': selected }]}
+            onClick={() => handleOptionItemClick(item)}
+            onMouseenter={() => handleOptionItemMouseenter(index)}
+            onMouseleave={() => handleOptionItemMouseleave()}
+            title={name}
+          >
+            {slots.item?.(item) ?? getListItemName(item)}
+          </div>
+        );
+      });
     };
 
     const getValueContext = (item, index) => {
@@ -881,13 +889,15 @@ export default defineComponent({
         );
       }
 
+      const name = getListItemName(item);
       return [
-        <span
+        <bdi
           class='bklog-choice-value-span'
           onClick={e => handleSelectedValueItemclick(e, item, index)}
+          title={name}
         >
-          {getListItemName(item)}
-        </span>,
+          {name}
+        </bdi>,
         <i
           class='bklog-icon bklog-close'
           data-bklog-choice-item-del={index}
@@ -942,6 +952,7 @@ export default defineComponent({
             key={getItemKey(item, index)}
             data-item-index={index}
             data-w-hidden={hiddenItemIndex.value.includes(index) && !isInputFocused.value}
+            dir={props.bdiDir}
             {...tagAttrs}
           >
             {getValueContext(item, index)}

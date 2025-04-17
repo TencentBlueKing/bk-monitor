@@ -56,6 +56,11 @@
     };
   });
 
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
   /**
    * 获取操作符展示文本
    * @param {*} item
@@ -211,6 +216,7 @@
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
+            :bdiDir="textDir"
             max-width="460px"
             @focus="() => handleChoiceFocus(index)"
             @blur="() => handleChoiceBlur(index)"

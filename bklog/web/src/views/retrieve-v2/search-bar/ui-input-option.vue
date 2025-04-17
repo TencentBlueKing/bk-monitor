@@ -193,6 +193,11 @@
     return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
@@ -230,7 +235,14 @@
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
       (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
-    return fieldList.value.filter(filterFn);
+
+    const mapFn = item =>
+      Object.assign({}, item, {
+        first_name: item.query_alias || item.field_alias || item.field_name,
+        last_name: item.field_name,
+      });
+
+    return fieldList.value.filter(filterFn).map(mapFn);
   });
 
   const tagValidateFun = item => {
@@ -1064,14 +1076,17 @@
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <div class="display-container rtl-text">
-              <span class="field-alias">
-                {{ item.query_alias || item.field_alias || item.field_name }}
-              </span>
-              <span
-                v-if="!item.is_full_text"
+            <div
+              class="display-container rtl-text"
+              :dir="textDir"
+            >
+              <bdi class="field-alias">
+                {{ item.first_name }}
+              </bdi>
+              <bdi
+                v-if="!item.is_full_text && item.first_name !== item.last_name"
                 class="field-name"
-                >({{ item.field_name }})</span
+                >({{ item.last_name }})</bdi
               >
             </div>
           </div>

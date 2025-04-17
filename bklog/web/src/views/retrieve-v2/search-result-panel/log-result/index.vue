@@ -232,13 +232,7 @@
         return true;
       },
       handleTagRender(item, index) {
-        const colors = [
-          'rgba(245, 149, 0, 0.3)',
-          'rgba(44, 175, 133, 0.3)',
-          'rgba(58, 172, 255, 0.3)',
-          'rgba(210, 93, 250, 0.3)',
-          'rgba(216, 74, 87, 0.3)',
-        ];
+        const colors = RetrieveHelper.RGBA_LIST;
         return {
           style: {
             backgroundColor: colors[index % colors.length],

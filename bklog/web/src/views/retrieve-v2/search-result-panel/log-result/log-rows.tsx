@@ -832,7 +832,7 @@ export default defineComponent({
     };
 
     const hasScrollX = computed(() => {
-      return scrollWidth.value > offsetWidth.value;
+      return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
 
     let isAnimating = false;

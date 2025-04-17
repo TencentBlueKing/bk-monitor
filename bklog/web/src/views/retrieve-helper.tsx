@@ -28,6 +28,7 @@ import { Ref } from 'vue';
 import { random } from '../common/util';
 
 import OptimizedHighlighter from './optimized-highlighter';
+import { getRgbaColors } from './colors';
 
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
@@ -172,6 +173,8 @@ class RetrieveHelper {
 
   logRowsContainerId: string;
 
+  RGBA_LIST: string[];
+
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
@@ -179,6 +182,7 @@ class RetrieveHelper {
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
+    this.RGBA_LIST = getRgbaColors(0.3);
   }
 
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
@@ -217,13 +221,6 @@ class RetrieveHelper {
       return;
     }
 
-    const colors = [
-      'rgba(245, 149, 0, 0.3)',
-      'rgba(44, 175, 133, 0.3)',
-      'rgba(58, 172, 255, 0.3)',
-      'rgba(210, 93, 250, 0.3)',
-      'rgba(216, 74, 87, 0.3)',
-    ];
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
     this.markInstance.highlight(
@@ -231,7 +228,7 @@ class RetrieveHelper {
         return {
           text: keyword,
           className: `highlight-${index}`,
-          backgroundColor: colors[index % colors.length],
+          backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
           textReg: new RegExp(`^${keyword}$`),
         };
       }),

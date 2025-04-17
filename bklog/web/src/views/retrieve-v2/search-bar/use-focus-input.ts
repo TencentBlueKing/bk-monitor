@@ -119,7 +119,10 @@ export default (
     if (input !== undefined && e.target === input) {
       const value = input.value;
       const charLen = getCharLength(value);
-      input.style.setProperty('width', `${(charLen || 1) * INPUT_MIN_WIDTH}px`);
+      const maxWidth = 500;
+      const width = (charLen || 1) * INPUT_MIN_WIDTH;
+
+      input.style.setProperty('width', `${width > maxWidth ? maxWidth : width}px`);
     }
   };
 
