@@ -65,7 +65,7 @@ export const BaseChartProps = {
   width: Number,
   // echart 配置
   options: {
-    type: Object as () => PropType<MonitorEchartOptions>,
+    type: Object as PropType<MonitorEchartOptions>,
     required: true,
   },
   // echarts图表实例分组id

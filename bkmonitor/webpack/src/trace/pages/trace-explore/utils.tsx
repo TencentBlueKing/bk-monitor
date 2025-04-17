@@ -65,6 +65,8 @@ export const fieldTypeMap = {
   },
 };
 
+export const topKColorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
+
 /**
  * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序
  */

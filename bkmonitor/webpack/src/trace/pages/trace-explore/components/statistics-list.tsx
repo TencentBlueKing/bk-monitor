@@ -28,19 +28,21 @@ import { defineComponent, reactive, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
+import { getFieldTopK, getStatisticsChartData, getStatisticsInfo } from '../mock';
+import { topKColorList } from '../utils';
+import DimensionEcharts from './dimension-echarts';
 
-import type { DimensionType, ICommonParams, ITopKField } from '../typing';
+import type { DimensionType, ICommonParams, IStatisticsInfo, ITopKField } from '../typing';
 import type { PropType } from 'vue';
 
 import './statistics-list.scss';
-
-const colorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
 
 export default defineComponent({
   name: 'StatisticsList',
@@ -61,46 +63,124 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    isShow: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['conditionChange', 'showMore', 'sliderShowChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
-    const popoverLoading = shallowRef(true);
+    /** 注意这里的timeRange只做展示用途，实际接口请求需要拿实时的timeRange */
+    const timeRangeText = shallowRef([]);
+    const infoLoading = shallowRef(false);
+    const popoverLoading = shallowRef(false);
+
+    const statisticsInfo = shallowRef<IStatisticsInfo>({
+      field: '',
+      total_count: 0,
+      field_count: 0,
+      distinct_count: 0,
+      field_percent: 0,
+    });
     const statisticsList = reactive<ITopKField>({
       distinct_count: 0,
       field: '',
       list: [],
     });
+    let topKInfoCancelFn = null;
+    let topKCancelFn = null;
+    let topKChartCancelFn = null;
+    const chartData = shallowRef([]);
     const downloadLoading = shallowRef(false);
 
     watch(
-      () => props.selectField,
-      val => {
-        if (!val) {
+      () => props.isShow,
+      async val => {
+        if (val) {
+          await getStatisticsList();
+          timeRangeText.value = handleTransformTime(store.timeRange);
+          await getStatisticsGraphData();
+        } else {
+          popoverLoading.value = false;
+          infoLoading.value = false;
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
-          return;
         }
-        getStatisticsList();
       }
     );
 
     async function getStatisticsList() {
       popoverLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await getFieldTopK({
-        ...props.commonParams,
-        start_time,
-        end_time,
-        limit: 5,
-        fields: [props.selectField],
-      });
+      topKCancelFn?.();
+      const data = await getFieldTopK(
+        {
+          ...props.commonParams,
+          start_time,
+          end_time,
+          limit: 5,
+          fields: [props.selectField],
+        },
+        {
+          cancelToken: new CancelToken(c => (topKCancelFn = c)),
+        }
+      );
       statisticsList.distinct_count = data.distinct_count;
       statisticsList.field = data.field;
       statisticsList.list = data.list;
       popoverLoading.value = false;
+    }
+
+    async function getStatisticsGraphData() {
+      infoLoading.value = true;
+      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
+      topKInfoCancelFn?.();
+      const info = await getStatisticsInfo(
+        {
+          ...props.commonParams,
+          start_time,
+          end_time,
+          field: {
+            name: props.selectField,
+            type: props.fieldType,
+          },
+        },
+        {
+          cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
+        }
+      ).catch(() => []);
+
+      statisticsInfo.value = info[0];
+
+      const { min, max } = statisticsInfo.value.value_analysis || {};
+      const values =
+        props.fieldType === 'integer'
+          ? [min, max, statisticsInfo.value.distinct_count, 8]
+          : statisticsList.list.map(item => item.value);
+      topKChartCancelFn?.();
+      const data = await getStatisticsChartData(
+        {
+          ...props.commonParams,
+          start_time,
+          end_time,
+          field: {
+            name: props.selectField,
+            type: props.fieldType,
+            values,
+          },
+        },
+        {
+          cancelToken: new CancelToken(c => (topKChartCancelFn = c)),
+        }
+      ).catch(() => ({ series: [] }));
+      chartData.value = data.series.map(item => ({
+        name: item.legend_name,
+        data: item.data,
+      }));
+      infoLoading.value = false;
     }
 
     const sliderShow = shallowRef(false);
@@ -165,73 +245,6 @@ export default defineComponent({
       try {
         downloadFile(data.data, 'txt', data.filename);
       } catch {}
-    }
-
-    function getFieldTopK(params) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          console.log(params);
-          const data =
-            Math.random() < 0.5
-              ? {
-                  field: 'apiVersion',
-                  total: 2143,
-                  distinct_count: 8,
-                  list: [
-                    {
-                      value: 'v1',
-                      alias: 'v1',
-                      count: 1730,
-                      proportions: 80.73,
-                    },
-                    {
-                      value: 'apps/v1',
-                      alias: 'apps/v1',
-                      count: 331,
-                      proportions: 15.45,
-                    },
-                    {
-                      value: 'batch/v1',
-                      alias: 'batch/v1',
-                      count: 49,
-                      proportions: 2.29,
-                    },
-                    {
-                      value: 'batch/v1beta1',
-                      alias: 'batch/v1beta1',
-                      count: 21,
-                      proportions: 0.98,
-                    },
-                    {
-                      value: 'kyverno.io/v1',
-                      alias: 'kyverno.io/v1',
-                      count: 7,
-                      proportions: 0.33,
-                    },
-                  ],
-                }
-              : {
-                  field: 'type',
-                  total: 2143,
-                  distinct_count: 2,
-                  list: [
-                    {
-                      value: 'Normal',
-                      alias: 'Normal',
-                      count: 2119,
-                      proportions: 98.88,
-                    },
-                    {
-                      value: 'Warning',
-                      alias: 'Warning',
-                      count: 24,
-                      proportions: 1.12,
-                    },
-                  ],
-                };
-          resolve(data);
-        }, 1000);
-      });
     }
 
     function getDownloadTopK(params) {
@@ -308,7 +321,7 @@ export default defineComponent({
                   </span>
                 </div>
                 <Progress
-                  color={props.fieldType !== 'interger' && scene === 'popover' ? colorList[index] : '#5AB8A8'}
+                  color={props.fieldType !== 'integer' && scene === 'popover' ? topKColorList[index] : '#5AB8A8'}
                   percent={item.proportions}
                   show-text={false}
                   stroke-width={6}
@@ -346,8 +359,13 @@ export default defineComponent({
     }
 
     return {
+      t,
+      timeRangeText,
       popoverLoading,
+      infoLoading,
+      statisticsInfo,
       statisticsList,
+      chartData,
       downloadLoading,
       sliderShow,
       sliderLoading,
@@ -370,9 +388,82 @@ export default defineComponent({
       <div style={{ display: 'none' }}>
         <div
           ref='dimensionPopover'
-          class='dimension-statistics-popover'
+          class='trace-explore-dimension-statistics-popover'
         >
-          <div class='popover-header'>
+          {this.infoLoading ? (
+            <div class='info-skeleton'>
+              <div class='total-skeleton'>
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+              </div>
+              {this.fieldType === 'integer' && (
+                <div class='info-skeleton'>
+                  <div class='skeleton-element' />
+                  <div class='skeleton-element' />
+                  <div class='skeleton-element' />
+                  <div class='skeleton-element' />
+                </div>
+              )}
+              <div class='skeleton-element chart' />
+            </div>
+          ) : (
+            <div class='statistics-info'>
+              <div class='top-k-info-header'>
+                <div class='label-item'>
+                  <span class='label'>{this.t('总行数')}:</span>
+                  <span class='value'> {this.statisticsInfo.total_count}</span>
+                </div>
+                <div class='label-item'>
+                  <span class='label'>{this.t('出现行数')}:</span>
+                  <span class='value'> {this.statisticsInfo.field_count}</span>
+                </div>
+                <div class='label-item'>
+                  <span class='label'>{this.t('总行数')}:</span>
+                  <span class='value'> {this.statisticsInfo.field_percent}%</span>
+                </div>
+              </div>
+
+              {this.fieldType === 'integer' && (
+                <div class='integer-statics-info'>
+                  <div class='integer-item'>
+                    <span class='label'>{this.t('最大值')}</span>
+                    <span class='value'>{this.statisticsInfo.value_analysis?.max || 0}</span>
+                  </div>
+
+                  <div class='integer-item'>
+                    <span class='label'>{this.t('最小值')}</span>
+                    <span class='value'>{this.statisticsInfo.value_analysis?.min || 0}</span>
+                  </div>
+                  <div class='integer-item'>
+                    <span class='label'>{this.t('平均值')}</span>
+                    <span class='value'>{this.statisticsInfo.value_analysis?.avg || 0}</span>
+                  </div>
+                  <div class='integer-item'>
+                    <span class='label'>{this.t('中位数')}</span>
+                    <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              <div class='top-k-chart-title'>
+                <span class='title'>{this.t(this.fieldType === 'integer' ? '数值分布直方图' : 'TOP 5 时序图')}</span>
+                {this.fieldType === 'integer' && (
+                  <span class='time-range'>
+                    {this.timeRangeText[0]} ～ {this.timeRangeText[1]}
+                  </span>
+                )}
+              </div>
+
+              <DimensionEcharts
+                colorList={this.fieldType === 'integer' ? ['#5AB8A8'] : topKColorList}
+                data={this.chartData}
+                seriesType={this.fieldType === 'integer' ? 'bar' : 'line'}
+              />
+            </div>
+          )}
+
+          <div class='top-k-list-header'>
             <div class='dimension-top-k-title'>
               <span
                 class='field-name'

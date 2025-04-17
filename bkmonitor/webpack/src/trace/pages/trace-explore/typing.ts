@@ -37,13 +37,14 @@ export interface IApplicationItem {
   [key: string]: any;
 }
 
-export type DimensionType = 'date' | 'interger' | 'keyword' | 'object' | 'text';
+export type DimensionType = 'date' | 'integer' | 'keyword' | 'object' | 'text';
 
 export interface IDimensionOperation {
   alias: string;
   value: string;
   options: { label: string; name: string }[];
 }
+
 export interface IDimensionField {
   name: string;
   alias: string;
@@ -54,6 +55,7 @@ export interface IDimensionField {
   pinyinStr?: string;
 }
 
+/** 维度列表树形结构 */
 export interface IDimensionFieldTreeItem extends IDimensionField {
   count?: number;
   levelName?: string;
@@ -68,6 +70,7 @@ export interface ICommonParams {
   mode: 'span' | 'trace';
 }
 
+/** topk列表 */
 export interface ITopKField {
   distinct_count: number;
   field: string;
@@ -77,6 +80,21 @@ export interface ITopKField {
     proportions: number;
     value: string;
   }[];
+}
+
+/** 统计信息 */
+export interface IStatisticsInfo {
+  field: string;
+  total_count: number;
+  field_count: number;
+  distinct_count: number;
+  field_percent: number;
+  value_analysis?: {
+    max: number;
+    min: number;
+    avg: number;
+    median: number;
+  };
 }
 
 /**
