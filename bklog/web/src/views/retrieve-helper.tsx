@@ -163,14 +163,12 @@ class RetrieveHelper {
   // 正则表达式提取日志级别
   logLevelRegex = {
     level_1: '(?<FATAL>\\b(?:FATAL|CRITICAL|EMERGENCY)\\b)',
-    level_2: '(?<ERROR>\\b(?:ERROR|ERR|FAIL(?:ED|URE)?)\\b)',
+    level_2: '(?<ERROR>\\b(?:ERROR|ERRORCODE|ERR|FAIL(?:ED|URE)?)\\b)',
     level_3: '(?<WARNING>\\b(?:WARNING|WARN|ALERT|NOTICE)\\b)',
     level_4: '(?<INFO>\\b(?:INFO|INFORMATION|LOG|STATUS)\\b)',
     level_5: '(?<DEBUG>\\b(?:DEBUG|DIAGNOSTIC)\\b)',
     level_6: '(?<TRACE>\\b(?:TRACE|TRACING|VERBOSE|DETAIL)\\b)',
   };
-
-  // /(?<FATAL>\b(?:FATAL|CRITICAL|EMERGENCY)\b)|(?<ERROR>\b(?:ERROR|ERR|FAIL(?:ED|URE)?\b))|(?<WARNING>\b(?:WARNING|WARN|ALERT|NOTICE)\b)|(?<INFO>\b(?:INFO|INFORMATION|LOG|STATUS)\b)|(?<DEBUG>\b(?:DEBUG|DIAGNOSTIC)\b)|(?<TRACE>\b(?:TRACE|TRACING|VERBOSE|DETAIL)\b)/gi;
 
   logRowsContainerId: string;
 
