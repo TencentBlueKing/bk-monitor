@@ -295,12 +295,15 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   getTableList() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.tableLoading = true;
-    const params = {
+    const len = (this.filterConfig.function.time_compare || []).length || 0;
+    const baseParams = {
       start_time: startTime,
       end_time: endTime,
       group_by: this.filterConfig.drill_group_by,
-      function: this.filterConfig.function,
     };
+    const params = len > 0 ? { ...baseParams, ...{ function: this.filterConfig.function } } : baseParams;
+    len === 0 && delete this.panelData.targets[0].function;
+
     graphDrillDown({ ...this.panelData.targets[0], ...params })
       .then(res => {
         this.tableList = (res || []).map(item => {
