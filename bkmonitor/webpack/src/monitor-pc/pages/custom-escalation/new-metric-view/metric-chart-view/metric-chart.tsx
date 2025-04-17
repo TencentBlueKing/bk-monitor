@@ -289,7 +289,7 @@ class NewMetricChart extends CommonSimpleChart {
       );
       if (item.name) {
         for (const key in legendItem) {
-          if (['min', 'max', 'avg', 'total'].includes(key)) {
+          if (['min', 'max', 'avg', 'total', 'latest'].includes(key)) {
             const val = legendItem[key];
             legendItem[`${key}Source`] = val;
             const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : precision);
