@@ -353,7 +353,7 @@ class NewMetricChart extends CommonSimpleChart {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set) {
+  handleSeriesName(item: DataQuery, set, isFull = false) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';

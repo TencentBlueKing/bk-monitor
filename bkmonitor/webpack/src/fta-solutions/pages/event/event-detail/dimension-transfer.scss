@@ -1,6 +1,7 @@
 @mixin option() {
   .option {
     display: flex;
+    flex: 0 0 32px;
     align-items: center;
     height: 32px;
     padding: 0 8px;
@@ -10,8 +11,8 @@
     .option-name-title {
       flex: 1;
       overflow: hidden;
-      color: #313238;
       text-overflow: ellipsis;
+      color: #313238;
       white-space: nowrap;
     }
 
@@ -37,7 +38,6 @@
         display: block;
       }
     }
-    
   }
 }
 
@@ -91,7 +91,7 @@
       display: flex;
       flex: 1;
       flex-direction: column;
-      max-width: 50%;
+      width: 283px;
       border: 1px solid #dcdee5;
       border-bottom: none;
 
