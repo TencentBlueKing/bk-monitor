@@ -91,6 +91,25 @@ export default class K8SCharts extends tsc<
   get groupByField() {
     return this.groupBy.at(-1) || K8sTableColumnKeysEnum.CLUSTER;
   }
+  get filterLevelField() {
+    if (this.scene !== SceneEnum.Network) return '';
+    if (
+      this.groupByField === K8sTableColumnKeysEnum.INGRESS ||
+      this.filterCommonParams?.filter_dict?.[K8sTableColumnKeysEnum.INGRESS]?.length
+    )
+      return K8sTableColumnKeysEnum.INGRESS;
+    if (
+      this.groupByField === K8sTableColumnKeysEnum.SERVICE ||
+      this.filterCommonParams?.filter_dict?.[K8sTableColumnKeysEnum.SERVICE]?.length
+    )
+      return K8sTableColumnKeysEnum.SERVICE;
+    if (
+      this.groupByField === K8sTableColumnKeysEnum.NAMESPACE ||
+      this.filterCommonParams?.filter_dict?.[K8sTableColumnKeysEnum.NAMESPACE]?.length
+    )
+      return K8sTableColumnKeysEnum.NAMESPACE;
+    return K8sTableColumnKeysEnum.POD;
+  }
   get scene() {
     return this.filterCommonParams.scenario;
   }
@@ -275,7 +294,7 @@ export default class K8SCharts extends tsc<
     //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
     //   : '$method';
   }
-  createCommonPromqlContent(onlyNameSpace = false, needExcludePod = true) {
+  createCommonPromqlContent(onlyNameSpace = false, needExcludePod = true, usePod = false) {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
     const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
@@ -285,12 +304,13 @@ export default class K8SCharts extends tsc<
     if (namespace.length > 2) {
       content += `,namespace=~"^(${namespace})$"`;
     }
+    const podName = usePod ? 'pod' : 'pod_name';
     switch (this.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+        content += `,${podName}=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
         break;
       case K8sTableColumnKeysEnum.POD:
-        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
+        content += `,${podName}=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
       case K8sTableColumnKeysEnum.WORKLOAD:
         content += `,workload_kind=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_TYPE)})$",workload_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
@@ -378,62 +398,115 @@ export default class K8SCharts extends tsc<
       case 'nw_container_network_transmit_packets_total': // 网络出包量
       case 'nw_container_network_receive_errors_total': // 网络入丢包量
       case 'nw_container_network_transmit_errors_total': // 网络出丢包量
-        if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField))
-          return `${this.createCommonPromqlMethod()} (count by (bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{${this.createCommonPromqlContent(false, false)}})
+        if (this.filterLevelField === K8sTableColumnKeysEnum.INGRESS) {
+          return `${this.createCommonPromqlMethod()} ((count by (bcs_cluster_id, namespace, ingress, service, pod)
+            (ingress_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1)
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
             * on (namespace, pod) group_left()
             sum by (namespace, pod)
-            (rate(${metric}[$interval] $time_shift)))`;
-        if (this.groupByField === K8sTableColumnKeysEnum.POD) {
-          return `${this.createCommonPromqlMethod()} (count by (bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"})
-            * on (namespace, service) group_left(pod)
-            (count by (service, namespace, pod) (pod_with_service_relation))
-            * on (namespace, pod) group_left()
-            sum by (namespace, pod)
-            (rate(${metric}{${this.createCommonPromqlContent(false, false)}}[1m])))`;
+            (last_over_time(
+            rate(${metric}{${this.createCommonPromqlContent(true, false)}}[$interval])[$interval:] $time_shift)))`;
         }
-        return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent(false, false)}}[$interval] $time_shift))`;
+        if (this.filterLevelField === K8sTableColumnKeysEnum.SERVICE) {
+          return `${this.createCommonPromqlMethod()} ((count by (service, namespace, pod) (pod_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
+            sum by (namespace, pod)
+            (last_over_time(
+            rate(${metric}{${this.createCommonPromqlContent(true, false)}}[$interval])[$interval:] $time_shift)))`;
+        }
+        if (this.filterLevelField === K8sTableColumnKeysEnum.NAMESPACE) {
+          return `${this.createCommonPromqlMethod()} (
+            (last_over_time(
+            rate(${metric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift)))`;
+        }
+        return `${this.createCommonPromqlMethod()} (
+          sum by (namespace, pod)
+          (last_over_time(
+          rate(${metric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift)))`;
       // 网络出丢包率
       case 'nw_container_network_transmit_errors_ratio':
       // 网络入丢包率
       case 'nw_container_network_receive_errors_ratio': {
-        const commonFilter = this.createCommonPromqlContent(false, false);
-        const isPod = this.groupByField === K8sTableColumnKeysEnum.POD;
+        // const commonFilter = this.createCommonPromqlContent(false, false);
+        // const isPod = this.groupByField === K8sTableColumnKeysEnum.POD;
         const isReceiveMetric = metricId === 'nw_container_network_receive_errors_ratio';
-        const firstFilter = isPod ? `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"` : commonFilter;
-        const secondFilter = isPod ? `{${commonFilter}}` : '';
+        // const firstFilter = isPod ? `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"` : commonFilter;
+        // const secondFilter = isPod ? `{${commonFilter}}` : '';
         const errorMetric = isReceiveMetric
           ? 'container_network_receive_errors_total'
           : 'container_network_transmit_errors_total';
         const totalMetric = isReceiveMetric
           ? 'container_network_receive_packets_total'
           : 'container_network_transmit_packets_total';
-        if (
-          [K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE, K8sTableColumnKeysEnum.POD].includes(
-            this.groupByField
+
+        if (this.filterLevelField === K8sTableColumnKeysEnum.INGRESS) {
+          return `${this.createCommonPromqlMethod()} (
+              (
+                count by (bcs_cluster_id, namespace, ingress, pod)
+                (ingress_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1)
+                * on (namespace, service) group_left(pod)
+                (count by (service, namespace, pod) (pod_with_service_relation))
+                * on (namespace, pod) group_left()
+                sum by (namespace, pod)
+                (last_over_time(
+                rate(${errorMetric}{${this.createCommonPromqlContent(true, false)}}[$interval])[$interval:] $time_shift)
+              )
+              /
+              (
+                count by (bcs_cluster_id, namespace, ingress, pod)
+                (ingress_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1)
+                * on (namespace, service) group_left(pod)
+                (count by (service, namespace, pod) (pod_with_service_relation))
+                * on (namespace, pod) group_left()
+                sum by (namespace, pod)
+                (last_over_time(
+                rate(${totalMetric}{${this.createCommonPromqlContent(true, false)}}[$interval])[$interval:] $time_shift)
+              )
+          )`;
+        }
+        if (this.filterLevelField === K8sTableColumnKeysEnum.SERVICE) {
+          return `${this.createCommonPromqlMethod()} (
+            (
+              count by (service, namespace, pod) (pod_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
+              sum by (namespace, pod)
+              (last_over_time(
+              rate(${errorMetric}{${this.createCommonPromqlContent(true, false, true)}}[$interval])[$interval:] $time_shift)
+            )
+            /
+            (
+              count by (service, namespace, pod) (pod_with_service_relation{${this.createCommonPromqlContent(false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
+              sum by (namespace, pod)
+              (last_over_time(
+              rate(${totalMetric}{${this.createCommonPromqlContent(true, false)}}[$interval])[$interval:] $time_shift)
+            )
+          )`;
+        }
+        if (this.filterLevelField === K8sTableColumnKeysEnum.NAMESPACE) {
+          return `${this.createCommonPromqlMethod()} (
+            (
+              last_over_time(
+              rate(${errorMetric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift)
+            )
+            /
+            (
+              last_over_time(
+              rate(${totalMetric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift)
+            )
+          )`;
+        }
+        return `${this.createCommonPromqlMethod()} (
+          (
+            sum by (namespace, pod)
+            (last_over_time(
+            rate(${errorMetric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift))
           )
-        )
-          return `${this.createCommonPromqlMethod()} (count by (bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{${firstFilter}})
-            * on (namespace, service) group_left(pod)
-            (count by (service, namespace, pod) (pod_with_service_relation))
-            * on (namespace, pod) group_left()
+          /
+          (
             sum by (namespace, pod)
-            (rate(${errorMetric}${secondFilter}[$interval] $time_shift))
-        /
-        (count by (bcs_cluster_id, namespace, ingress, service, pod)
-            (ingress_with_service_relation{${firstFilter}})
-            * on (namespace, service) group_left(pod)
-            (count by (service, namespace, pod) (pod_with_service_relation))
-            * on (namespace, pod) group_left()
-            sum by (namespace, pod)
-            (rate(${totalMetric}${secondFilter}[$interval] $time_shift))))`;
-        return `${this.createCommonPromqlMethod()} (rate(${errorMetric}{${this.createCommonPromqlContent(false, false)}}[$interval] $time_shift)
-        /
-        (rate(${totalMetric}{${this.createCommonPromqlContent(false, false)}}[$interval] $time_shift)))`;
+            (last_over_time(
+            rate(${totalMetric}{${this.createCommonPromqlContent(false, false, true)}}[$interval])[$interval:] $time_shift))
+          )
+        )`;
       }
       default:
         return '';
@@ -576,7 +649,6 @@ export default class K8SCharts extends tsc<
     }
     this.resourceList = new Set(data);
     this.resourceMap = resourceMap;
-    console.info('resourceList', this.resourceList, this.resourceMap);
   }
   updateViewOptions() {
     this.viewOptions = {
