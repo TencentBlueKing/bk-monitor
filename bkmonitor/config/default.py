@@ -1551,6 +1551,9 @@ K8S_V2_BIZ_LIST = []
 # 事件检索新版灰度列表
 EVENT_V2_BIZ_LIST = []
 
+# Trace 检索新版灰度配置
+TRACE_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
