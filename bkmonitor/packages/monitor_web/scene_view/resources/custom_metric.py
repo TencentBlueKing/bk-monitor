@@ -361,7 +361,7 @@ class GetCustomTsGraphConfig(Resource):
                                 "alias": "a",
                             }
                         ],
-                        "interval": "auto",
+                        "interval": metric.config.get("interval") or "auto",
                         "table": table.table_id,
                         "data_label": table.data_label,
                         "data_source_label": DataSourceLabel.CUSTOM,
