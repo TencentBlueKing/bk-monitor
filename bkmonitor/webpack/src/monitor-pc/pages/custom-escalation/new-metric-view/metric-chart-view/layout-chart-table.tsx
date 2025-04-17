@@ -143,16 +143,22 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   stopDragging() {
     this.isDragging = false;
   }
+  /** 处理相关过滤条件的格式 */
+  handleFilterData(filter) {
+    const concatFilter = {};
+    Object.keys(filter || {}).map(key => {
+      concatFilter[`${key}__eq`] = [filter[key]];
+    });
+    return concatFilter;
+  }
   /** 维度下钻 */
   handelDrillDown(chart: IPanelModel, ind: number) {
     this.showDrillDown = true;
     (chart.targets[ind]?.query_configs || []).map(item => {
-      const { common_filter = {}, group_filter = {} } = item.filter_dict;
-      const concatFilter = {};
-      Object.keys(group_filter || {}).map(key => {
-        concatFilter[`${key}__eq`] = [group_filter[key]];
-      });
-      item.filter_dict.concat_filter = { ...common_filter, ...concatFilter };
+      const { common_filter = {}, group_filter = {}, panel_filter = {} } = item.filter_dict;
+      const concatFilter = this.handleFilterData(group_filter);
+      const panelFilter = this.handleFilterData(panel_filter);
+      item.filter_dict.concat_filter = { ...common_filter, ...concatFilter, ...panelFilter };
     });
     this.currentChart = {
       ...chart,
@@ -232,9 +238,9 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
-                  title={row.name}
+                  title={row.tipsName}
                 />
-                {row.name}
+                {row.tipsName}
               </span>
             ),
           }}
