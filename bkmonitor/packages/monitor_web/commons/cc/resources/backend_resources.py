@@ -20,6 +20,7 @@ from api.cmdb.define import Host
 from bkmonitor.strategy.new_strategy import Item
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.country import COUNTRIES, ISP_LIST
+from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
 from core.drf_resource import api, resource
@@ -526,7 +527,9 @@ class GetMainlineObjectTopo(Resource):
         }
 
     def perform_request(self, params):
-        object_topo = api.cmdb.get_mainline_object_topo()
+        request = get_request()
+
+        object_topo = api.cmdb.get_mainline_object_topo(bk_tenant_id=request.user.tenant_id)
         object_topo.append(self.generate_topo(_("集群模板"), "SET_TEMPLATE"))
         object_topo.append(self.generate_topo(_("服务模板"), "SERVICE_TEMPLATE"))
         return object_topo

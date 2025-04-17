@@ -418,6 +418,7 @@ def _manage_es_storage(es_storage):
     metrics.report_all()  # 上报全部指标,包括索引轮转原因、轮转状态
 
 
+# TODO: 多租户改造
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def push_and_publish_space_router(
     space_type: Optional[str] = None,

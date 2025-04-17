@@ -19,6 +19,7 @@ from rest_framework import serializers
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import strftime_local
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
@@ -223,6 +224,8 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         return result
 
     def perform_request(self, params):
+        request = get_request()
+
         task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -255,11 +258,13 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         hostid_to_ip = {}
         if is_ipv6_biz(params["bk_biz_id"]):
             ips = [node.ip for node in nodes if node.ip]
-            node_hosts = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+            node_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, ips=ips)["hosts"]
             ip_to_hostid = {(h.ip, h.bk_cloud_id): h.bk_host_id for h in node_hosts}
         else:
             bk_host_ids = [node.bk_host_id for node in nodes if node.bk_host_id]
-            node_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+            node_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=request.user.tenant_id, bk_host_ids=bk_host_ids)[
+                "hosts"
+            ]
             hostid_to_ip = {h.bk_host_id: (h.ip, h.bk_cloud_id) for h in node_hosts}
 
         for node in nodes:
