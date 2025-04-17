@@ -616,11 +616,10 @@ class GraphDrillDownResource(Resource):
             value = self.get_value(params, item["datapoints"])
 
             # 判断是当前值还是时间对比值
-            if item.get("time_offset"):
-                if item["time_offset"] == "current":
-                    dimensions_values[dimension_tuple]["value"] = value
-                else:
-                    dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = value
+            if not item.get("time_offset") or item["time_offset"] == "current":
+                dimensions_values[dimension_tuple]["value"] = value
+            else:
+                dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = value
             dimensions_values[dimension_tuple]["unit"] = item.get("unit") or ""
 
         # 计算占比
