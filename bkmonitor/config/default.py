@@ -1093,6 +1093,8 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
+JOB_USE_APIGW = os.getenv("BKAPP_JOB_USE_APIGW", "false").lower() == "true"
+JOB_API_BASE_URL = os.getenv("BKAPP_JOB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
@@ -1550,6 +1552,9 @@ K8S_V2_BIZ_LIST = []
 
 # 事件检索新版灰度列表
 EVENT_V2_BIZ_LIST = []
+
+# Trace 检索新版灰度配置
+TRACE_V2_BIZ_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
