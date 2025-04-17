@@ -71,7 +71,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: true }) isShowStatisticalValue: boolean;
   // @Prop({ default: 600 }) height: number;
-  @Prop({ default: 372 }) minHeight: number;
+  @Prop({ default: 300 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -328,6 +328,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
+        isShowLegend={true}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
         onDownImage={this.handleDownImage}

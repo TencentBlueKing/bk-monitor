@@ -87,6 +87,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   searchResultList: IDimensionField[] = [];
   /** 已选择的字段 */
   selectField = '';
+  showStatisticsPopover = false;
   slideField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
@@ -146,10 +147,13 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       arrow: true,
       interactive: true,
       onHidden: () => {
+        this.showStatisticsPopover = false;
         this.selectField = '';
       },
     });
+    await this.$nextTick();
     this.popoverInstance?.show(100);
+    this.showStatisticsPopover = true;
   }
 
   destroyPopover() {
@@ -334,6 +338,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
         <StatisticsList
           ref='statisticsList'
           isDimensions={this.slideField?.is_dimensions}
+          isShow={this.showStatisticsPopover}
           popoverInstance={this.popoverInstance}
           selectField={this.selectField}
           source={this.source}
