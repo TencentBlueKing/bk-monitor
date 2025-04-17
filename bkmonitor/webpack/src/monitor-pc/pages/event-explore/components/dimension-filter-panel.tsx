@@ -335,7 +335,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
           ref='statisticsList'
           isDimensions={this.slideField?.is_dimensions}
           popoverInstance={this.popoverInstance}
-          selectField={this.slideField?.name}
+          selectField={this.selectField}
           source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
