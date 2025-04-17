@@ -382,35 +382,35 @@
       }
 
       &.others,
-      &.level-7 {
+      &.level_7 {
         &::before {
           background: #dcdee5;
         }
       }
 
       &.TRACE,
-      &.level-6 {
+      &.level_6 {
         &::before {
           background: #a3b1cc;
         }
       }
 
       &.FATAL,
-      &.level-1 {
+      &.level_1 {
         &::before {
           background: rgb(212, 109, 93);
         }
       }
 
       &.DEBUG,
-      &.level-5 {
+      &.level_5 {
         &::before {
           background: rgb(146, 212, 241);
         }
       }
 
       &.INFO,
-      &.level-4 {
+      &.level_4 {
         &::before {
           background: rgb(111, 197, 191);
         }
@@ -418,14 +418,14 @@
 
       &.WARN,
       &.WARNING,
-      &.level-3 {
+      &.level_3 {
         &::before {
           background: rgb(245, 199, 142);
         }
       }
 
       &.ERROR,
-      &.level-2 {
+      &.level_2 {
         &::before {
           background: rgb(245, 151, 137);
         }
