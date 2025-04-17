@@ -180,7 +180,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         />
       );
     }
-    const baseView = (item: IDimensionItem) => [<span>{item.alias}</span>, <span class='item-name'>{item.name}</span>];
+    const baseView = (item: IDimensionItem) => [
+      <span>{item.alias || item.name}</span>,
+      <span class='item-name'>{item.alias ? item.name : ''}</span>,
+    ];
     /** 单选 */
     if (!this.isMultiple) {
       return this.showDimensionsList.map((item: IDimensionItem) => (
