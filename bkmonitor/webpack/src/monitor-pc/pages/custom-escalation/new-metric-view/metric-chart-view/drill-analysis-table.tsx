@@ -104,7 +104,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.dimensionsList.map(item => {
       if (item.checked) {
         list.push({
-          label: item.name,
+          label: item.alias || item.name,
           prop: `dimensions.${item.name}`,
           renderFn: row => this.renderDimensionRow(row, item),
         });
@@ -180,7 +180,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         />
       );
     }
-    const baseView = (item: IDimensionItem) => [<span>{item.name}</span>, <span class='item-name'>{item.alias}</span>];
+    const baseView = (item: IDimensionItem) => [<span>{item.alias}</span>, <span class='item-name'>{item.name}</span>];
     /** 单选 */
     if (!this.isMultiple) {
       return this.showDimensionsList.map((item: IDimensionItem) => (

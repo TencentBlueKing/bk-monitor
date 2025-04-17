@@ -353,14 +353,14 @@ class NewMetricChart extends CommonSimpleChart {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set, isFull = false) {
+  handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
     const outputStr = output ? `{${output}}` : '';
-    if (isFull) {
-      return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
+    if (!timeOffset && !outputStr) {
+      return metric.alias || metric.name;
     }
     return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
   }
@@ -443,7 +443,7 @@ class NewMetricChart extends CommonSimpleChart {
             res.series &&
               series.push(
                 ...res.series.map(set => {
-                  const name = this.handleSeriesName(item, set, true) || set.target;
+                  const name = this.handleSeriesName(item, set) || set.target;
                   const tipsName = this.handleSeriesName(item, set) || set.target;
                   this.legendSorts.push({
                     name,
