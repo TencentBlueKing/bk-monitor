@@ -38,6 +38,7 @@ from apps.log_clustering.constants import (
     DEFAULT_LABEL,
     DEFAULT_METRIC_CLUSTERING,
     DEFAULT_NO_DATA_CONFIG,
+    DEFAULT_NOTICE_WAY,
     DEFAULT_PATTERN_MONITOR_MSG,
     DEFAULT_SCENARIO,
     ITEM_NAME_CLUSTERING,
@@ -446,7 +447,9 @@ class ClusteringMonitorHandler(object):
             group = MonitorUtils.save_notice_group(
                 bk_biz_id=self.bk_biz_id,
                 name=group_name,
+                message="",
                 notice_receiver=[{"type": "user", "id": name} for name in remark_obj.owners],
+                notice_way=DEFAULT_NOTICE_WAY,
             )
             user_groups = [group["id"]]
             remark_obj.notice_group_id = group["id"]
