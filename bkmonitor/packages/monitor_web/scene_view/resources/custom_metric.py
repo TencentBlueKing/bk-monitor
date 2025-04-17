@@ -173,8 +173,8 @@ class GetCustomTsGraphConfig(Resource):
             split = serializers.BooleanField(label="是否拆分", default=False)
 
         class ConditionSerializer(serializers.Serializer):
-            key = serializers.CharField(label="指标")
-            method = serializers.ChoiceField(choices=["eq", "neq", "gt", "gte", "lt", "lte"], label="方法")
+            key = serializers.CharField(label="字段名")
+            method = serializers.CharField(label="运算符")
             value = serializers.ListField(label="值")
             condition = serializers.ChoiceField(choices=["and", "or"], label="条件", default="and")
 
