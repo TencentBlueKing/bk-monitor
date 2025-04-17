@@ -83,6 +83,10 @@ export default class AiopsContainer extends tsc<IProps> {
   // 是否关联指标
   @ProvideReactive('isCorrelationMetrics') isCorrelationMetrics = false;
   @ProvideReactive('selectActive') selectActive = ETabNames.dimension;
+  @ProvideReactive('currentModeConfig') currentModeConfig = {
+    dimension: 'front',
+    index: 'front',
+  };
   dimensionDrillDownLoading = false;
   metricRecommendationLoading = false;
   /** 保存接口错误信息 */
@@ -134,6 +138,12 @@ export default class AiopsContainer extends tsc<IProps> {
   incidentWxCsLink = '';
   spaceId = '';
 
+  /** 文本溢出相关配置 */
+  overflowEllipsisConfig = [
+    { key: 'front', tips: `空间不足时，文本溢出：<br/>ab...（省略末位）`, icon: 'icon-AB1' },
+    { key: 'back', tips: `空间不足时，文本溢出：<br/>...yz（省略首位）`, icon: 'icon-YZ1' },
+  ];
+
   /** 展示collapse的配置 */
   get tabConfigs() {
     return [
@@ -184,6 +194,7 @@ export default class AiopsContainer extends tsc<IProps> {
       },
     ];
   }
+
   /** 首次告警时间 */
   get firstAnomalyTime() {
     return this.detail?.first_anomaly_time;
@@ -507,6 +518,7 @@ export default class AiopsContainer extends tsc<IProps> {
         key='metricsView'
         ref='metricsView'
         info={this.tabData.index?.info || {}}
+        type={this.tabActive}
         metricRecommendationErr={isDimension ? this.dimensionDrillDownErr : this.metricRecommendationErr}
         metricRecommendationLoading={isDimension ? this.dimensionDrillDownLoading : this.metricRecommendationLoading}
         panelMap={this.panelMap}
@@ -776,6 +788,26 @@ export default class AiopsContainer extends tsc<IProps> {
                   <span class='aiops-tab-title-name'>{this.$t(config.titleKey)}</span>
                   {this.renderStatusTips(config)}
                 </span>
+                {/* 文本溢出设置 */}
+                {config.name !== 'diagnosis' && this.tabActive === config.name && (
+                  <span class='aiops-overflow-ellipsis'>
+                    {this.overflowEllipsisConfig.map(item => (
+                      <span
+                        key={item.key}
+                        class={['ellipsis-item', { active: this.currentModeConfig[config.name] === item.key }]}
+                        v-bk-tooltips={{
+                          content: this.$t(item.tips),
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          this.currentModeConfig[config.name] = item.key;
+                        }}
+                      >
+                        <i class={`icon-monitor ${item.icon}`} />
+                      </span>
+                    ))}
+                  </span>
+                )}
               </div>
               <div
                 class={['aiops-container-menu-item-content', `aiops-container-menu-item-content-${config.name}`]}
