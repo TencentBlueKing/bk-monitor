@@ -34,7 +34,7 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def base_url(self):
         if self.use_apigw():
             base_url = settings.JOB_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-job/prod/"
-            return f"{base_url}api/v3/"
+            return f"{base_url}api/v3/system/"
         return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/jobv3/"
 
     module_name = "bk-job"
