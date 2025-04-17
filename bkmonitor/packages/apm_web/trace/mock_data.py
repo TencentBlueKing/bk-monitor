@@ -35,25 +35,6 @@ API_VIEW_CONFIG_DATA = {
                 ],
             },
         ],
-        "default_config": {
-            "display_fields": [
-                {"name": "trace_id"},
-                {"name": "min_start_time"},
-                {"name": "root_span_name"},
-                {"name": "root_service"},
-                {"name": "root_service_span_name"},
-                {"name": "root_service_category"},
-                {"name": "root_service_status_code"},
-                {"name": "trace_duration"},
-                {"name": "hierarchy_count"},
-                {"name": "service_count"},
-            ],
-            "filter_setting": [
-                {"name": "trace_duration"},
-                {"name": "resource.service.name"},
-                {"name": "span_name"},
-            ],
-        },
     },
     "span_config": {
         "fields": [
@@ -91,23 +72,6 @@ API_VIEW_CONFIG_DATA = {
                 ],
             },
         ],
-        "default_config": {
-            "display_field": [
-                {"name": "span_id"},
-                {"name": "span_name"},
-                {"name": "start__time"},
-                {"name": "end_time"},
-                {"name": "elapsed_time"},
-                {"name": "status.code"},
-                {"name": "kind"},
-                {"name": "trace_id"},
-            ],
-            "filter_setting": [
-                {"name": "elapsed_time"},
-                {"name": "resource.service.name"},
-                {"name": "span_name"},
-            ],
-        },
     },
 }
 
