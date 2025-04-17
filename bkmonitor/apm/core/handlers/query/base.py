@@ -189,9 +189,18 @@ class BaseQuery:
     def metric_q(self) -> QueryConfigBuilder:
         return self._get_q(ApmDataSourceConfigBase.METRIC_DATASOURCE)
 
-    def time_range_queryset(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+    def time_range_queryset(
+        self,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        using_scope: bool = True,
+    ) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
-        return UnifyQuerySet().start_time(start_time).end_time(end_time)
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        if using_scope:
+            # 默认仅查询本业务下的数据
+            return queryset.scope(self.bk_biz_id)
+        return queryset
 
     def _query_option_values(
         self, q: QueryConfigBuilder, fields: List[str], start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -214,7 +223,8 @@ class BaseQuery:
         cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: Dict[str, List[str]]
     ):
         if q.using == cls.USING_LOG:
-            q = q.metric(field=field, method="count").group_by(field)
+            q = q.metric(field=field, method="count", alias="a").group_by(field)
+            queryset = queryset.time_agg(False).instant()
         else:
             q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 

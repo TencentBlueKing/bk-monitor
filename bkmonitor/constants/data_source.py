@@ -226,6 +226,7 @@ UnifyQueryDataSources = [
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
 ]
 
 # V3链路版本

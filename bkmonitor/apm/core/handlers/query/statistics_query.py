@@ -269,7 +269,6 @@ class StatisticsQuery(BaseQuery):
     def _query_specific_span_ids(
         self, start_time: int, end_time: int, logic_field: str, groups: List[Dict[str, Any]]
     ) -> List[str]:
-
         groups_filter: Q = Q()
         logic_span_map = self.LOGIC_FILTER_KEY_MAPPING[logic_field]
         for group in groups:
@@ -283,7 +282,12 @@ class StatisticsQuery(BaseQuery):
             self.trace_query.q.filter(groups_filter).filter(self.trace_query.build_app_filter()).values(span_id_field)
         )
         queryset: UnifyQuerySet = (
-            UnifyQuerySet().add_query(q).start_time(start_time).end_time(end_time).limit(DISCOVER_BATCH_SIZE)
+            UnifyQuerySet()
+            .scope(self.bk_biz_id)
+            .add_query(q)
+            .start_time(start_time)
+            .end_time(end_time)
+            .limit(DISCOVER_BATCH_SIZE)
         )
 
         specific_span_ids: Set[str] = set()
