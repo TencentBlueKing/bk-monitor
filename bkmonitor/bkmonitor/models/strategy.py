@@ -51,6 +51,8 @@ __all__ = [
     "DutyPlanSendRecord",
     "DutyArrangeSnap",
     "DefaultStrategyBizAccessModel",
+    "AlgorithmChoiceConfig",
+    "AlgorithmChoiceConfigAdmin",
 ]
 
 
@@ -926,6 +928,15 @@ class DefaultStrategyBizAccessModel(Model):
         verbose_name_plural = "默认策略业务接入"
         db_table = "alarm_strategy_biz_access"
         unique_together = ("bk_biz_id", "access_type", "version")
+
+
+class AlgorithmChoiceConfigAdmin(admin.ModelAdmin):
+    """
+    算法类型配置表展示
+    """
+    list_display = ("id", "alias", "name", "algorithm", "ts_freq", "is_default", "document", "instruction")
+    search_fields = ("alias", 'name', 'algorithm')
+    list_filter = ("alias", 'algorithm')
 
 
 class AlgorithmChoiceConfig(Model):

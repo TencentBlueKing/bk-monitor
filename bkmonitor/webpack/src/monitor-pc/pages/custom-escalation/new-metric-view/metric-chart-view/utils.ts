@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 export const refreshList = [
   // 刷新间隔列表
   {
@@ -205,4 +206,44 @@ export const generateTimeStrings = (tipsKey: string, timeRange: TimeRangeType) =
   const end = endTime * 1000;
   const year = new Date(start).getFullYear();
   return `${year}（${dayjs(start).format(formatStr)} ~ ${dayjs(end).format(formatStr)}）`;
+};
+
+/**
+ * @description: 设置精确度
+ * @param {number} data
+ * @param {ValueFormatter} formatter
+ * @param {string} unit
+ * @return {*}
+ */
+export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter, unit: string) => {
+  if (!data || data.length === 0) {
+    return 0;
+  }
+  data.sort((a, b) => a - b);
+  const len = data.length;
+  if (data[0] === data[len - 1]) {
+    if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
+    const setList = String(data[0]).split('.');
+    return !setList || setList.length < 2 ? 2 : setList[1].length;
+  }
+  let precision = 0;
+  let sampling = [];
+  const middle = Math.ceil(len / 2);
+  sampling.push(data[0]);
+  sampling.push(data[Math.ceil(middle / 2)]);
+  sampling.push(data[middle]);
+  sampling.push(data[middle + Math.floor((len - middle) / 2)]);
+  sampling.push(data[len - 1]);
+  sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
+  while (precision < 5) {
+    const samp = sampling.reduce((pre, cur) => {
+      pre[Number(formatter(cur, precision).text)] = 1;
+      return pre;
+    }, {});
+    if (Object.keys(samp).length >= sampling.length) {
+      return precision;
+    }
+    precision += 1;
+  }
+  return precision;
 };

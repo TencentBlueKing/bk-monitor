@@ -150,8 +150,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
             checked={isChecked}
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
-            {dimensionData.name}
-            <span class='dimension-alias'>{dimensionData.alias}</span>
+            {dimensionData.alias || dimensionData.name}
           </bk-checkbox>
           {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>
@@ -167,10 +166,10 @@ export default class AppendValue extends tsc<IProps, IEmit> {
                   color: isSplit ? '#4D4F56' : '#C4C6CC',
                 }}
               >
-                {this.$t('拆图')}
+                {this.$t('维度拆解')}
               </span>
               <div slot='content'>
-                <div>{this.$t('拆图：')}</div>
+                <div>{this.$t('维度拆解：')}</div>
                 <div>{this.$t('关闭时，默认是根据聚合维度，画出多条线；')}</div>
                 <div>{this.$t('开启后，根据聚合维度，生成多张图。')}</div>
               </div>

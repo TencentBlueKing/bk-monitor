@@ -29,21 +29,16 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
-import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
-import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 
-import CompareType from '../components/header-box/components/compare-type';
-import GroupBy from '../components/header-box/components/group-by';
-import LimitFunction from '../components/header-box/components/limit-function';
-import WhereCondition from '../components/header-box/components/where-condition';
+import DrillAnalysisFilter from './drill-analysis-filter';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
@@ -168,6 +163,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     let metrics = [];
     (this.panelData.targets || []).map(item => {
       const timeCompare = item.function;
+      /** 初始化处理对比 */
       this.filterConfig.compare =
         timeCompare.time_compare?.length > 0
           ? {
@@ -176,7 +172,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             }
           : { type: '', offset: [] };
       this.filterConfig.function = timeCompare?.time_compare ? timeCompare : { time_compare: [] };
-
+      /** 初始化过滤条件 */
       (item.query_configs || []).map(query => {
         const commonConditions = [];
         Object.keys(query.filter_dict.concat_filter || {}).map(key =>
@@ -191,10 +187,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         this.filterConfig = {
           ...this.filterConfig,
           where: query.where,
-          group_by: query.group_by.map(item => ({
-            field: item,
-            split: false,
-          })),
+          group_by: query.group_by,
           limit: {
             limit: query.functions[0]?.params[0]?.value || 10,
             function: query.functions[0]?.id || 'top',
@@ -205,12 +198,17 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     });
     const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
     this.dimensionsList = list?.dimensions || [];
+
+    const len = this.filterConfig.group_by.length;
     if (this.dimensionsList.length > 0) {
       for (const item of this.dimensionsList) {
-        item.checked = false;
+        item.checked = this.filterConfig.group_by.includes(item.name);
       }
-      this.dimensionsList[0].checked = true;
-      this.filterConfig.drill_group_by = [this.dimensionsList[0].name];
+      if (len === 0) {
+        this.setPanelConfigAndRefresh('group_by', [this.dimensionsList[0].name], false);
+        this.dimensionsList[0].checked = true;
+      }
+      this.filterConfig.drill_group_by = len === 0 ? [this.dimensionsList[0].name] : this.filterConfig.group_by;
     }
   }
   /** 关闭按钮 */
@@ -222,7 +220,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   handleUpdateDimensions(list: IDimensionItem[], activeKey: string[]) {
     this.dimensionsList = list;
     this.filterConfig.drill_group_by = activeKey;
-    this.getTableList();
+    this.setPanelConfigAndRefresh('group_by', activeKey);
   }
   /** 维度下钻 */
   handleChooseDrill(list, activeKey: string[]) {
@@ -238,7 +236,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.setPanelConfigAndRefresh('filter_dict.drill_filter', drillFilter);
   }
   /** 设置panel的值 */
-  setPanelConfigAndRefresh(keys: string, value) {
+  setPanelConfigAndRefresh(keys: string, value, isGetList = true) {
     const keysArray = keys.split('.');
     let current = this.panelData.targets[0].query_configs[0];
 
@@ -254,7 +252,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       }
     }
     this.panelData = deepClone(this.panelData);
-    this.getTableList();
+    isGetList && this.getTableList();
   }
   /** 修改刷新间隔 */
   handleRefreshInterval(val: number) {
@@ -352,56 +350,19 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             onClick={this.handleClose}
           />
         </div>
-        <div class='drill-analysis-filter'>
-          <div class='filter-left'>
-            <WhereCondition
-              customData={this.filterConfig.commonConditions}
-              value={this.filterConfig.where}
-              onChange={this.handleConditionChange}
-            />
-          </div>
-          <div class='filter-right'>
-            {/* 时间工具栏 */}
-            {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-              <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
-            ) : (
-              <TimeRange
-                class='filter-tools-timerange'
-                timezone={this.timezone}
-                value={this.timeRange}
-                onChange={this.handleTimeRangeChange}
-                onTimezoneChange={this.handleTimezoneChange}
-              />
-            )}
-            <span class='right-line' />
-            <MonitorDropdown
-              class='filter-tools-interval'
-              icon='icon-zidongshuaxin'
-              isRefreshInterval={true}
-              list={this.refreshList}
-              text-active={this.refreshInterval !== -1}
-              value={this.refreshInterval}
-              on-change={this.handleRefreshInterval}
-              on-on-icon-click={this.handleImmediateRefresh}
-            />
-          </div>
-        </div>
-        <div class='filter-compare-view'>
-          <GroupBy
-            value={this.filterConfig.group_by}
-            onChange={this.handleGroupByChange}
-          />
-          {this.filterConfig.group_by.length > 0 && (
-            <LimitFunction
-              value={this.filterConfig.limit}
-              onChange={this.handleLimitChange}
-            />
-          )}
-          <CompareType
-            value={this.filterConfig.compare}
-            onChange={this.handleComparTypeChange}
-          />
-        </div>
+        <DrillAnalysisFilter
+          filterConfig={this.filterConfig}
+          refreshInterval={this.refreshInterval}
+          timeRange={this.timeRange}
+          onComparTypeChange={this.handleComparTypeChange}
+          onConditionChange={this.handleConditionChange}
+          onGroupByChange={this.handleGroupByChange}
+          onImmediateRefresh={this.handleImmediateRefresh}
+          onLimitChange={this.handleLimitChange}
+          onRefreshInterval={this.handleRefreshInterval}
+          onTimeRangeChange={this.handleTimeRangeChange}
+          onTimezoneChange={this.handleTimezoneChange}
+        />
         <div
           ref='drillMain'
           class='drill-analysis-main'
