@@ -49,6 +49,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
+import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { REFRESH_IMMEDIATE_KEY, REFRESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
 
 import './monitor-trace-log.scss';
@@ -58,6 +59,7 @@ export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorTraceLog',
   setup() {
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     const empty = ref(true);
     const loading = ref(true);
     const bizId = computed(() => useAppStore().bizId || 0);
@@ -78,7 +80,6 @@ export default defineComponent({
     });
 
     let unPropsWatch = null;
-
     async function init() {
       empty.value = true;
       loading.value = true;
@@ -106,6 +107,7 @@ export default defineComponent({
             const { query = {}, params = {} } = c;
             fakeRoute.query = query;
             fakeRoute.params = params;
+            spanDetailQueryStore.queryData = { ...query };
           },
           push: () => {
             return {};

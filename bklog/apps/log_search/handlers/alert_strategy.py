@@ -68,6 +68,9 @@ class AlertStrategyHandler(object):
                     "duration": alert_config["duration"],
                     "status": alert_config["status"],
                     "severity": alert_config["severity"],
+                    "assignee": alert_config["assignee"],
+                    "appointee": alert_config["appointee"],
+                    "end_time": alert_config["end_time"],
                 }
             )
         return result_list
