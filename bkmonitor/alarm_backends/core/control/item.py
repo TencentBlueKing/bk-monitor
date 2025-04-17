@@ -34,17 +34,14 @@ def gen_condition_matcher(agg_condition):
     and_cond = []
     for cond in agg_condition:
         t = {"field": cond["key"], "method": cond["method"], "value": cond["value"]}
-        connector = cond.get("condition")
-        if connector:
-            if connector.upper() == AND:
-                and_cond.append(t)
-            elif connector.upper() == OR:
-                or_cond.append(and_cond)
-                and_cond = [t]
-            else:
-                raise Exception("Unsupported connector(%s)" % connector)
-        else:
+        connector = cond.get("condition") or AND
+        if connector.upper() == AND:
+            and_cond.append(t)
+        elif connector.upper() == OR:
+            or_cond.append(and_cond)
             and_cond = [t]
+        else:
+            raise Exception("Unsupported connector(%s)" % connector)
 
     if and_cond:
         or_cond.append(and_cond)
