@@ -228,8 +228,8 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
                     }}
                     onClick={() => this.handleChange(dimesionItem.name)}
                   >
-                    {dimesionItem.name}
-                    <span class='dimension-alias'>{dimesionItem.alias}</span>
+                    {dimesionItem.alias || dimesionItem.name}
+                    {dimesionItem.alias && <span class='dimension-name'>{dimesionItem.name}</span>}
                   </div>
                 ))}
               </div>

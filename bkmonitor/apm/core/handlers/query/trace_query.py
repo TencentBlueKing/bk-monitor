@@ -32,7 +32,6 @@ logger = logging.getLogger("apm")
 
 
 class TraceQuery(BaseQuery):
-
     DEFAULT_TIME_FIELD = "min_start_time"
 
     KEY_PREFIX_TRANSLATE_FIELDS = {
@@ -99,7 +98,8 @@ class TraceQuery(BaseQuery):
         if end_time:
             q = q.filter(max_end_time__lte=end_time)
 
-        return self.time_range_queryset().add_query(q).first()
+        # using_scope=False：跨应用检索，需要全局查询。
+        return self.time_range_queryset(using_scope=False).add_query(q).first()
 
     def query_latest(self, trace_id: str) -> Optional[Dict[str, Any]]:
         q: QueryConfigBuilder = (
@@ -137,23 +137,23 @@ class TraceQuery(BaseQuery):
     ) -> List[Dict[str, Any]]:
         base_q: QueryConfigBuilder = (
             QueryConfigBuilder(cls.USING_LOG)
+            .alias("a")
             .filter(trace_id__eq=trace_ids)
             .values("trace_id", "app_name", "error", "trace_duration", "root_service_category", "root_span_id")
             .time_field(cls.DEFAULT_TIME_FIELD)
             .order_by(f"{cls.DEFAULT_TIME_FIELD} desc")
         )
 
-        aliases: List[str] = []
         start_time, end_time = cls._get_time_range(retention, start_time, end_time)
         queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
-        for idx, result_table_id in enumerate(result_table_ids):
-            alias: str = chr(ord("a") + idx)
-            q: QueryConfigBuilder = base_q.table(result_table_id).alias(alias)
+        for result_table_id in result_table_ids:
+            q: QueryConfigBuilder = base_q.table(result_table_id)
             queryset: UnifyQuerySet = queryset.add_query(q)
-            aliases.append(alias)
 
-        # TODO 这里大概率后面对接 UnifyQuery 还需要微调和扩展
-        return list(queryset.expression(" or ".join(aliases)).limit(len(trace_ids)))
+        # 查询多表数据，合并返回，不同查询模式下均能支持：
+        # ES - 并发查询后合并。
+        # UnifyQuery - 多 Table 且 alias 相同的情况下，会自动聚合多表查询结果。
+        return list(queryset.expression("a").limit(len(trace_ids)))
 
     def query_simple_info(
         self, start_time: Optional[int], end_time: Optional[int], offset: int, limit: int

@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CancelToken } from 'monitor-api/index';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
@@ -41,6 +42,7 @@ interface StatisticsListProps {
   popoverInstance?: any;
   isDimensions?: boolean;
   source: APIType;
+  isShow?: boolean;
 }
 
 interface StatisticsListEvents {
@@ -51,6 +53,7 @@ interface StatisticsListEvents {
 
 @Component
 export default class StatisticsList extends tsc<StatisticsListProps, StatisticsListEvents> {
+  @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: String, default: '' }) selectField: string;
   @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
@@ -70,6 +73,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   popoverLoading = true;
   downloadLoading = false;
+
+  topKCancel = null;
 
   /** 渲染TopK字段行 */
   renderTopKField(list: ITopKField['list'] = []) {
@@ -139,13 +144,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     return this.sliderShow;
   }
 
-  @Watch('selectField')
+  @Watch('isShow')
   watchSelectFieldChange(val) {
     if (!val) {
       this.statisticsList = { distinct_count: 0, field: '', list: [] };
-      return;
+    } else {
+      this.getStatisticsList();
     }
-    this.getStatisticsList();
   }
 
   async getStatisticsList() {
@@ -205,12 +210,16 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   async getFieldTopK(params) {
+    this.topKCancel?.();
     const data = await getEventTopK(
       {
         ...this.commonParams,
         ...params,
       },
-      this.source
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKCancel = c)),
+      }
     ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
     return data[0];
   }

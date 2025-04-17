@@ -37,12 +37,11 @@ export default {
   '确定 Ctrl + Enter': 'Confirm Ctrl + Enter',
   '1 列': '1 Column',
   其它维度: 'Other Dimensions',
-  拆图: 'Split Charts',
+  维度拆解: 'Dimensions Split',
   '关闭时，默认是根据聚合维度，画出多条线；':
     'When closed, it will draw multiple lines based on aggregated dimensions by default.',
   '开启后，根据聚合维度，生成多张图。':
     'When enabled, it will generate multiple charts based on aggregated dimensions.',
-  '拆图：': 'Split Charts:',
   限制: 'Limit',
   '1小时前': '1 Hour Ago',
   '1 月前': '1 Month Ago',
@@ -60,7 +59,6 @@ export default {
   多选: 'Multi-Select',
   波动: 'Fluctuation',
   '搜索 维度': 'Search Dimensions',
-  下钻分析: 'Drill Down Analysis',
   '指标：': 'Metrics:',
   '已选 {0} 个指标': 'Selected {0} Metrics',
   '2 列': '2 Columns',
@@ -114,4 +112,9 @@ export default {
   '暂只支持开启，不支持关闭': 'Currently only supports opening, not closing',
   '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',
   清空关键词: 'Clear keywords',
+  '显/隐': 'Show/Hide',
+  '仅允许包含字母、数字、下划线，且必须以字母开头':
+    'Only letters, numbers, and underscores are allowed, and the name must start with a letter',
+  无维度数据可下钻: 'No dimension data available for drilling down',
+  维度下钻: '',
 };
