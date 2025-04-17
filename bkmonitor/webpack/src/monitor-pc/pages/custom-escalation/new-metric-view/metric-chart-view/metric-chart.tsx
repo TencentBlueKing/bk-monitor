@@ -358,7 +358,7 @@ class NewMetricChart extends CommonSimpleChart {
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
-    const outputStr = output ? `{${output}}` : '';
+    const outputStr = output ? `${output}` : '';
     if (!timeOffset && !outputStr) {
       return metric.alias || metric.name;
     }
