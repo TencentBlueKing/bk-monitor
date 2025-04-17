@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, useTemplateRef, watch } from 'vue';
+import { defineComponent, shallowRef, computed, useTemplateRef, watch, triggerRef } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 
@@ -113,6 +113,7 @@ export default defineComponent({
       activeIndex.value = -1;
       if (localValue.value.some(v => v.id === item.id)) return;
       localValue.value.push(item);
+      triggerRef(localValue);
       handleChange();
     }
     /**
@@ -170,6 +171,7 @@ export default defineComponent({
         return;
       }
       localValue.value.push({ id: inputValue.value, name: inputValue.value });
+      triggerRef(localValue);
       activeIndex.value += 1;
       inputValue.value = '';
       handleChange();
@@ -201,6 +203,7 @@ export default defineComponent({
      */
     function handleDelete(index: number) {
       localValue.value.splice(index, 1);
+      triggerRef(localValue);
       handleChange();
     }
     /**
@@ -223,7 +226,7 @@ export default defineComponent({
       } else {
         localValue.value.splice(index, 1);
       }
-
+      triggerRef(localValue);
       handleChange();
     }
     function handleIsChecked(v: boolean) {

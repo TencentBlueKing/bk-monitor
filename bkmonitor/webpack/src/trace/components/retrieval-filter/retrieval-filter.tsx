@@ -69,6 +69,16 @@ export default defineComponent({
     const qsSelectorOptionsWidth = shallowRef(0);
     const clearKey = shallowRef('');
 
+    const localFields = computed(() => {
+      return props.fields.map(item => ({
+        ...item,
+        supported_operations: item.supported_operations.map(s => ({
+          ...s,
+          alias: s.label,
+          value: s.operator,
+        })),
+      })) as IFilterField[];
+    });
     const curFavoriteId = computed(() => props.selectFavorite?.config?.queryConfig?.result_table_id);
     const isDefaultResidentSetting = computed(() => {
       if (curFavoriteId.value === props.dataId) {
@@ -389,6 +399,7 @@ export default defineComponent({
       clearKey,
       qsSelectorOptionsWidth,
       isDefaultResidentSetting,
+      localFields,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -433,7 +444,7 @@ export default defineComponent({
             {this.mode === EMode.ui ? (
               <UiSelector
                 clearKey={this.clearKey}
-                fields={this.fields}
+                fields={this.localFields}
                 getValueFn={this.getValueFn}
                 value={this.uiValue}
                 onChange={this.handleUiValueChange}
@@ -442,7 +453,7 @@ export default defineComponent({
               <QsSelector
                 clearKey={this.clearKey}
                 favoriteList={this.favoriteList}
-                fields={this.fields}
+                fields={this.localFields}
                 getValueFn={this.getValueFn}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
@@ -547,7 +558,7 @@ export default defineComponent({
         </div>
         {this.showResidentSetting && (
           <ResidentSetting
-            fields={this.fields}
+            fields={this.localFields}
             getValueFn={this.getValueFn}
             isDefaultSetting={this.isDefaultResidentSetting}
             residentSettingOnlyId={this.residentSettingOnlyId}

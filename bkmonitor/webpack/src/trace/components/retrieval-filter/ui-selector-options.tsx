@@ -132,7 +132,7 @@ export default defineComponent({
             handleCheck(props.fields[0]);
             setTimeout(() => {
               searchInputRef.value?.focus();
-            }, 200);
+            }, 300);
           }
         }
       },

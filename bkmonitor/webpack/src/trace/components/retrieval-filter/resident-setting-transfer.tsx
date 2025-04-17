@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, computed, watch } from 'vue';
+import { defineComponent, shallowRef, useTemplateRef, computed, watch, triggerRef } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Input } from 'bkui-vue';
@@ -112,9 +112,13 @@ export default defineComponent({
     );
 
     function handleCheck(index: number) {
-      const item = JSON.parse(JSON.stringify(localFields.value[index]));
-      localFields.value.splice(index, 1);
+      const name = searchLocalFields.value[index].name;
+      const delIndex = localFields.value.findIndex(item => item.name === name);
+      const item = JSON.parse(JSON.stringify(localFields.value[delIndex]));
+      localFields.value.splice(delIndex, 1);
       selectedFields.value.push(item);
+      triggerRef(localFields);
+      triggerRef(selectedFields);
     }
     function handleConfirm() {
       emit('confirm', selectedFields.value);
@@ -159,6 +163,7 @@ export default defineComponent({
       // 从数组中移除拖动项，并在目标位置插入
       const movedItem = selectedFields.value.splice(fromIndex, 1)[0];
       selectedFields.value.splice(dropIndex, 0, movedItem);
+      triggerRef(selectedFields);
     }
     function handleClear() {
       selectedFields.value = [];
