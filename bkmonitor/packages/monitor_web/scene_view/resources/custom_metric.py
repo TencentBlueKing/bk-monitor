@@ -268,7 +268,7 @@ class GetCustomTsGraphConfig(Resource):
                     "metrics": [
                         {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
-                    "interval": "auto",
+                    "interval": metric.config.get("interval") or "auto",
                     "table": table.table_id,
                     "data_label": table.data_label,
                     "data_source_label": DataSourceLabel.CUSTOM,
