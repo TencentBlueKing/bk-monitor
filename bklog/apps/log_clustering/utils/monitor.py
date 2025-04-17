@@ -23,9 +23,7 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api import MonitorApi
 from apps.log_clustering.constants import (
-    DEFAULT_ACTION_NOTICE,
-    DEFAULT_ALERT_NOTICE,
-    DEFAULT_MENTION_LIST,
+    DEFAULT_NOTICE_WAY,
     DEFAULT_NOTIFY_RECEIVER_TYPE,
 )
 from apps.log_clustering.models import ClusteringConfig, NoticeGroup
@@ -35,15 +33,14 @@ from apps.log_search.models import LogIndexSet
 
 class MonitorUtils(object):
     @classmethod
-    def save_notice_group(cls, bk_biz_id: int, name: str, notice_receiver: list):
+    def save_notice_group(cls, bk_biz_id: int, name: str, notice_way: dict, notice_receiver: list, message: str = ""):
         return MonitorApi.save_notice_group(
             params={
                 "bk_biz_id": bk_biz_id,
                 "name": name,
-                "duty_arranges": [{"users": notice_receiver}],
-                "mention_list": DEFAULT_MENTION_LIST,
-                "alert_notice": DEFAULT_ALERT_NOTICE,
-                "action_notice": DEFAULT_ACTION_NOTICE,
+                "message": message,
+                "notice_way": notice_way,
+                "notice_receiver": notice_receiver,
             }
         )
 
@@ -62,7 +59,9 @@ class MonitorUtils(object):
         group = cls.save_notice_group(
             bk_biz_id=bk_biz_id,
             name=_("{}_{}聚类告警组").format(log_index_set_id, log_index_set.index_set_name),
+            message="",
             notice_receiver=notice_receiver,
+            notice_way=DEFAULT_NOTICE_WAY,
         )
         NoticeGroup.objects.get_or_create(
             index_set_id=log_index_set_id, notice_group_id=group["id"], bk_biz_id=bk_biz_id
