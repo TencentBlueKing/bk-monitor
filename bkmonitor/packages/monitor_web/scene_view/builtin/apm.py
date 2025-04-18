@@ -343,7 +343,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             ):
                 apm_host_detail_config = copy.deepcopy(DEFAULT_HOST_DETAIL)
                 view_config["overview_panels"] = apm_host_detail_config["overview_panels"]
-                view_config["order"] = apm_host_detail_config["order"]
 
                 if "overview_panel" in view_config.get("options"):
                     # 去除顶部栏中的策略告警信息
