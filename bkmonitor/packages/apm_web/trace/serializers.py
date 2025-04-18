@@ -126,16 +126,16 @@ class BaseTraceFilterSerializer(serializers.Serializer):
 
 class TraceFieldsTopkRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
-    limit = serializers.IntegerField()
+    limit = serializers.IntegerField(label="数量限制", required=False, default=5)
 
 
 class TraceStatisticsFieldSerializer(serializers.Serializer):
-    type = serializers.CharField(label="字段类型")
-    name = serializers.CharField(label="字段名称")
+    field_type = serializers.CharField(label="字段类型")
+    field_name = serializers.CharField(label="字段名称")
     values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
 
     def validate(self, attrs):
-        if attrs["type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
+        if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
             raise ValueError(_("不支持的字段类型"))
         return attrs
 
@@ -150,7 +150,7 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
     def validate(self, attrs):
         attrs = super().validate(attrs)
         field = attrs["field"]
-        if field["type"] == EnabledStatisticsDimension.KEYWORD.value:
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
             return attrs
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))
