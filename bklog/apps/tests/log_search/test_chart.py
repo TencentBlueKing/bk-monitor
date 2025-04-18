@@ -45,12 +45,124 @@ SEARCH_PARAMS = [
             {"field": "__ext.label.component", "operator": "not contains", "value": ["a"]},
         ],
     },
+    {
+        "keyword": "log : * and year:[2020 TO 2023] AND \"abc\" AND def",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
+        "sql": "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
+            {"field": "is_deleted", "operator": "is true", "value": []},
+        ],
+    },
+    {
+        "keyword": "title:\"Python Programming\" AND (author:John AND author: 6 OR author: \"7\")",
+        "start_time": 1732220441,
+        "end_time": 1732820443,
+        "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
+            {"field": "is_deleted", "operator": "is true", "value": []},
+        ],
+    },
 ]
 
 
 SQL_RESULT = [
     f"{SQL_PREFIX} {SQL_SUFFIX}",
-    "SELECT thedate, log, time  LIMIT 10",
+    "SELECT thedate, log, time LIMIT 10",
+    "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
+    "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
+]
+
+
+WHERE_CLAUSE = [
+    (
+        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "AND "
+        "dtEventTimeStamp >= 1732220441 "
+        "AND "
+        "dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Pyth?n\""
+        " AND "
+        "(bk_host_id = '1' OR bk_host_id = '2')"
+    ),
+    (
+        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Pyth?n\" OR title REGEXP '[Pp]ython.*'"
+        " AND "
+        "CAST(__ext['bcs_id'] AS TEXT) = \"test\""
+        " AND "
+        "(bk_host_id = '1' OR bk_host_id = '2')"
+        " AND "
+        "service != 'php'"
+        " AND "
+        "count < 100"
+        " AND "
+        "index > 500"
+        " AND "
+        "number >= 100"
+        " AND "
+        "id <= 500"
+        " AND "
+        "gseIndex LIKE '%_proz/Saved/Logs/ProjectA_2024.10.20-23.17.50%'"
+        " AND "
+        "path NOT LIKE '%_app/%/python.%'"
+        " AND "
+        "(cloudId LIKE '%6%' OR cloudId LIKE '%9%')"
+        " AND "
+        "(cloudId NOT LIKE '%1%' OR cloudId NOT LIKE '%3%')"
+        " AND "
+        "is_deleted IS FALSE"
+        " AND "
+        "flag IS TRUE"
+        " AND "
+        "(log MATCH_PHRASE 'html' OR log MATCH_PHRASE 'css')"
+        " AND "
+        "log NOT MATCH_PHRASE 'js'"
+        " AND "
+        "(log MATCH_PHRASE 'success' AND log MATCH_PHRASE '200')"
+        " AND "
+        "(log NOT MATCH_PHRASE 'error' AND log NOT MATCH_PHRASE '500')"
+        " AND "
+        "(describe LIKE '%_el%' AND describe LIKE '%wor_d%')"
+        " AND "
+        "(theme NOT LIKE '%pg%' AND theme NOT LIKE '%_h_%')"
+        " AND "
+        "(name = 'he''ll''o' OR name = 'world''')"
+        " AND "
+        "(CAST(__ext['bcs_id'] AS TEXT) = 'BCS-1' OR CAST(__ext['bcs_id'] AS TEXT) = 'BCS-2')"
+        " AND "
+        "(CAST(__ext['bcs_id'] AS TEXT) != 'BCS-3' OR CAST(__ext['bcs_id'] AS TEXT) != 'BCS-4')"
+        " AND "
+        "(CAST(__ext['label']['component'] AS TEXT) LIKE '%ds%'"
+        " OR "
+        "CAST(__ext['label']['component'] AS TEXT) LIKE '%py%')"
+        " AND "
+        "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
+    ),
+    (
+        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        " AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "log LIKE '%' AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\" AND log LIKE '%def%'"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
+    ),
+    (
+        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        " AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
+    ),
 ]
 
 
@@ -110,7 +222,7 @@ WHERE_CLAUSE_RESULT = [
 
 class TestChart(TestCase):
     def test_generate_sql(self):
-        for search_param, sql_result in zip(SEARCH_PARAMS, SQL_RESULT):
+        for search_param, sql_result, where_clause in zip(SEARCH_PARAMS, SQL_RESULT, WHERE_CLAUSE):
             start_time = search_param["start_time"]
             end_time = search_param["end_time"]
             addition = search_param["addition"]
@@ -123,8 +235,8 @@ class TestChart(TestCase):
                 sql_param=sql_param,
                 keyword=keyword,
             )
-            self.maxDiff = None
             self.assertEqual(data["sql"], sql_result)
+            self.assertEqual(data["additional_where_clause"], where_clause)
 
     def test_lucene_to_where_clause(self):
         for where_clause_case, where_clause_result in zip(WHERE_CLAUSE_CASE, WHERE_CLAUSE_RESULT):
