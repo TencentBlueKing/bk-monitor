@@ -31,9 +31,12 @@ from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
+    BaseTraceRequestSerializer,
     QuerySerializer,
     QueryStatisticsSerializer,
     SpanIdInputSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
+    TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
 )
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -1276,10 +1279,7 @@ class ListSpanHostInstancesResource(Resource):
 class ListTraceViewConfigResource(Resource):
     """获取 trace 检索页面的视图配置"""
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-        is_mock = serializers.BooleanField(label="是否为 mock 数据", default=False)
+    RequestSerializer = BaseTraceRequestSerializer
 
     def perform_request(self, validated_request_data):
         if validated_request_data.get("is_mock"):
@@ -1305,16 +1305,7 @@ class TraceFieldsTopKResource(Resource):
 class TraceFieldStatisticsInfoResource(Resource):
     """获取 trace 字段的维度统计信息"""
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField()
-        end_time = serializers.IntegerField()
-        field_type = serializers.CharField(label="字段类型")
-        field = serializers.CharField(label="字段名称")
-        filters = serializers.ListField(child=serializers.DictField(), label="过滤条件列表", allow_empty=True)
-        query_string = serializers.CharField(label="查询字符串", allow_blank=True)
-        mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices())
+    RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_request_data):
         return API_INFO_DATA
@@ -1323,20 +1314,7 @@ class TraceFieldStatisticsInfoResource(Resource):
 class TraceFieldStatisticsGraphResource(Resource):
     """获取 trace 字段的维度统计图表"""
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField()
-        end_time = serializers.IntegerField()
-        field_type = serializers.CharField(label="字段类型")
-        field = serializers.CharField(label="字段名称")
-        filters = serializers.ListField(child=serializers.DictField(), label="过滤条件列表", allow_empty=True)
-        query_string = serializers.CharField(label="查询字符串", allow_blank=True)
-        distinct_count = serializers.IntegerField(label="去重数量", required=False)
-        max = serializers.IntegerField(label="最大值", required=False)
-        min = serializers.IntegerField(label="最小值", required=False)
-        threshold = serializers.IntegerField(label="阈值", default=10, required=False)
-        mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices())
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
     def perform_request(self, validated_request_data):
         return API_GRAPH_DATA
