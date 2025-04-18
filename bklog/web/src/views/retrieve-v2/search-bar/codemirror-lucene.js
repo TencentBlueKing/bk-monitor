@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { sql } from '@codemirror/lang-sql';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { EditorView, minimalSetup } from 'codemirror';
+import { debounce } from 'lodash';
 
-export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
@@ -37,6 +38,12 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
       return stopDefaultKeyboard?.() ?? false;
     },
   }));
+
+  const debouncedTrack = debounce(update => {
+    onChange?.(update.state.doc);
+    onFocusPosChange?.(update.state);
+  });
+
   const state = EditorState.create({
     doc: value,
     extensions: [
@@ -52,14 +59,10 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
       minimalSetup,
       sql(),
       EditorView.lineWrapping,
-      EditorView.focusChangeEffect.of((_, focusing) => {
-        onFocusChange?.(focusing);
+      EditorView.focusChangeEffect.of((state, focusing) => {
+        onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of(update => {
-        if (update.docChanged) {
-          onChange?.(update.state.doc);
-        }
-      }),
+      EditorView.updateListener.of(debouncedTrack),
     ],
   });
 
@@ -74,24 +77,64 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
     });
   };
 
-  const setValue = value => {
+  const setValue = (value, from = 0, to = undefined) => {
     if (view.state.doc.toString() === value) {
       return;
     }
 
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value },
-    });
-
-    setTimeout(() => {
+    if (to === Infinity) {
       view.dispatch({
-        selection: {
-          anchor: view.state.doc.length,
-          head: view.state.doc.length,
-        },
+        changes: { from, to: view.state.doc.length, insert: value },
       });
-    });
+
+      view.dispatch({
+        selection: EditorSelection.cursor(view.state.doc.length),
+      });
+
+      return;
+    }
+
+    if (!to) {
+      view.dispatch({
+        changes: { from, insert: value },
+      });
+
+      view.dispatch({
+        selection: EditorSelection.cursor(from + value.length),
+      });
+
+      return;
+    }
+
+    if (typeof to === 'number') {
+      if (to > view.state.doc.length) {
+        view.dispatch({
+          changes: { from, to: view.state.doc.length, insert: value },
+        });
+
+        view.dispatch({
+          selection: EditorSelection.cursor(from + value.length),
+        });
+
+        return;
+      }
+
+      view.dispatch({
+        changes: { from, to, insert: value },
+      });
+
+      view.dispatch({
+        selection: EditorSelection.cursor(from + value.length),
+      });
+    }
   };
 
-  return { state, view, appendText, setValue };
+  const setFocus = () => {
+    view.focus();
+  };
+
+  const getValue = () => {
+    return view.state.doc.toString() ?? '*';
+  };
+  return { state, view, appendText, setValue, setFocus, getValue };
 };

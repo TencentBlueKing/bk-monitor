@@ -39,7 +39,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: Boolean;
+  @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -55,7 +55,8 @@ export default class FieldItem extends tsc<object> {
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
-  btnLoading = false
+  btnLoading = false;
+  expandIconShow = false;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -156,7 +157,7 @@ export default class FieldItem extends tsc<object> {
       placement: 'right-start',
       boundary: 'viewport',
       trigger: 'click',
-      theme: 'light',
+      theme: 'light analysis-chart',
       interactive: true,
       appendTo: document.body,
       onHidden: () => {
@@ -189,8 +190,11 @@ export default class FieldItem extends tsc<object> {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
+  getFieldIconTextColor = type => {
+    return this.fieldTypeMap?.[type]?.textColor;
+  };
   downloadFieldStatistics() {
-    this.btnLoading = true
+    this.btnLoading = true;
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -218,38 +222,49 @@ export default class FieldItem extends tsc<object> {
         blobDownload(res, downloadName);
       })
       .finally(() => {
-        this.btnLoading = false
+        this.btnLoading = false;
       });
   }
-  getdistinctCount(val){
-    this.distinctCount = val
+  getdistinctCount(val) {
+    this.distinctCount = val;
   }
-  retuanFieldName(){
-    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
-    if(this.isFieldObject){
-      const objectName = name.split('.')
-      name = objectName[objectName.length - 1] || objectName[0]
+  retuanFieldName() {
+    let name = this.showFieldAlias
+      ? this.fieldItem.field_name || this.fieldItem.field_alias
+      : this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name;
+    if (this.isFieldObject) {
+      const objectName = name.split('.');
+      name = objectName[objectName.length - 1] || objectName[0];
     }
-    return  name
+    return name;
   }
   render() {
     return (
       <li class='filed-item'>
-        <div
-          class={{ 'filed-title': true, expanded: this.isExpand }}
-        >
-          <div>
-            {/* 三角符号 */}
-            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }> 
+        <div class={{ 'filed-title': true, expanded: this.isExpand }}>
+          <div
+            onClick={() => {
+              // 联合查询 或 非白名单业务和索引集类型 时不能点击弹出字段分析
+              if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) return;
+              this.handleClickAnalysisItem();
+            }}
+          >
+            {/* 拖动字段位置按钮 */}
+            <div class='bklog-drag-dots-box'>
+              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
             </div>
+            {/* 三角符号 */}
+            {/* <div class={this.isFieldObject ? 'filed-item-object' : 'filed-item-triangle'}
+            ></div> */}
 
             {/* 字段类型对应的图标 */}
-            <div>
+            <div class='bklog-field-icon'>
               <span
                 style={{
                   backgroundColor: this.fieldItem.is_full_text
                     ? false
                     : this.getFieldIconColor(this.fieldItem.field_type),
+                  color: this.fieldItem.is_full_text ? false : this.getFieldIconTextColor(this.fieldItem.field_type),
                 }}
                 class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
                 v-bk-tooltips={{
@@ -260,10 +275,16 @@ export default class FieldItem extends tsc<object> {
             </div>
 
             {/* 字段名 */}
-            <span >
-               <span class='field-name'>
-                {this.retuanFieldName()}
-              </span>
+            <span>
+              <span class='field-name'>{this.retuanFieldName()}</span>
+              {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
+              {this.fieldItem.children?.length &&
+                (this.expandIconShow ? (
+                  <span class={['bk-icon', 'icon-angle-up', 'expand']}></span>
+                ) : (
+                  <span class={['bk-icon', 'icon-angle-down', 'expand']}></span>
+                ))}
+
               {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}
@@ -306,7 +327,7 @@ export default class FieldItem extends tsc<object> {
                   this.handleClickAnalysisItem();
                 }}
               >
-                <i class='bklog-icon bklog-log-trend' />
+                <i class='bklog-icon bklog-chart-2' />
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
@@ -314,7 +335,7 @@ export default class FieldItem extends tsc<object> {
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{
-                  content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
+                  content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
                 }}
                 onClick={e => {
                   e.stopPropagation();
@@ -324,11 +345,6 @@ export default class FieldItem extends tsc<object> {
                 <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
               </div>
             }
-          
-            {/* 拖动字段位置按钮 */}
-            <div>
-              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
-            </div>
           </div>
         </div>
         {/* 显示聚合字段图表信息
@@ -343,8 +359,8 @@ export default class FieldItem extends tsc<object> {
           />
         )} */}
         <bk-sideslider
-          width={600}
-          class='sideslider'
+          width={480}
+          class='agg-field-item-sideslider'
           is-show={this.ifShowMore}
           quick-close={true}
           show-mask={false}
@@ -352,29 +368,34 @@ export default class FieldItem extends tsc<object> {
           onAnimation-end={this.closeSlider}
         >
           <template slot='header'>
-            <div class='agg-sides-header'>
+            <div class='agg-sides-slider-header'>
               <div class='distinct-num'>
-                <span>{this.$t('去重后字段统计')}</span>
-                <span class='distinct-count-num'>{this.distinctCount}</span>
+                <span class='field-name'>{this.fieldItem?.field_name}</span>
+                <div class='col-line' />
+                <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
               </div>
               <div class='fnBtn'>
                 <bk-button
-                  style='margin-right:8px'
-                  size='small'
                   loading={this.btnLoading}
+                  size='small'
+                  text={true}
                   onClick={e => {
                     e.stopPropagation();
                     this.downloadFieldStatistics();
                   }}
                 >
-                  {this.$t('下载')}
+                  <div class='download-btn'>
+                    <i class='bklog-icon bklog-download' />
+                    <span>{this.$t('下载')}</span>
+                  </div>
                 </bk-button>
                 {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
             </div>
           </template>
           <template slot='content'>
-            <div class='agg-sides-content'>
+            <div class='agg-sides-content slider-content'>
               <AggChart
                 field-name={this.fieldItem.field_name}
                 field-type={this.fieldItem.field_type}

@@ -1,5 +1,4 @@
-.retrieve-collect-group {
-  // display: block;
+.retrieve2-collect-group {
   .icon-play-shape {
     display: inline-block;
     margin-right: 2px;
@@ -9,11 +8,9 @@
     transform: scale(0.5);
   }
 
-  .bklog-folder-fill{
-    margin: 0px 4px;
-    font-size: 14px;
-    color: #C4C6CC;
-    
+  .bklog-icon {
+    font-size: 16px;
+    color: #a3b1cc;
   }
 
   .group-cur {
@@ -25,8 +22,15 @@
 
     .group-str {
       width: calc(100% - 20px);
-      margin-left: 2px;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      margin-left: 4px !important;
       word-wrap: break-word;
+
+      &.hover {
+        /* stylelint-disable-next-line declaration-no-important */
+        padding: 0px !important;
+      }
     }
 
     .is-active {
@@ -36,7 +40,9 @@
 
   .group-title {
     min-height: 32px;
-    padding: 7px 16px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0px !important;
 
     // &.is-move-cur {
     //   cursor: move;
@@ -55,15 +61,23 @@
       display: inline-block;
       min-width: 20px;
       height: 16px;
+      font-family: RobotoMono-Medium;
+      font-weight: 500;
       line-height: 16px;
+      color: #a3b1cc;
       text-align: center;
-      background: #FAFBFD;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      background: none !important;
       border-radius: 2px;
       transform: translateX(2px);
     }
 
     &:hover {
-      background: #eff1f5;
+      /* stylelint-disable-next-line declaration-no-important */
+      padding: 0px !important;
+      background: #dde1eb;
+      border-radius: 4px;
     }
   }
 
@@ -73,7 +87,8 @@
     }
 
     .group-item {
-      padding: 7px 16px 7px;
+      /* stylelint-disable-next-line declaration-no-important */
+      padding: 7px 0px 7px !important;
       line-height: 16px;
       cursor: pointer;
       border: 1px solid transparent;
@@ -84,7 +99,11 @@
       }
 
       &:hover {
-        background: #f0f1f5;
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #dde1eb !important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        border-radius: 4px !important;
       }
 
       .more-box {
@@ -106,7 +125,9 @@
         flex-wrap: nowrap;
         align-items: center;
         justify-content: space-between;
-        padding-left: 24px;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        padding-left: 16px !important;
         border-bottom: 1px solid transparent;
 
         .fav-name {
@@ -121,7 +142,8 @@
         }
 
         &.active-name {
-          color: #3a84ff;
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #4d4f56 !important;
 
           &::before {
             background: #3a84ff;
@@ -146,11 +168,19 @@
 
         &::before {
           position: absolute;
-          left: 14px;
-          width: 4px;
-          height: 4px;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          left: 5px !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          width: 1px !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          height: 32px !important;
           content: ' ';
-          background: #dcdee5;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          background: #c8d1e1 !important;
           border-radius: 50%;
         }
       }
@@ -158,9 +188,18 @@
       &.active {
         position: relative;
         z-index: 100;
-        background: #edf4ff;
-        border-color: #3a84ff;
-        border-bottom: 1px solid #3a84ff;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #ffffff !important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        border: none !important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        border-radius: 4px !important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        box-shadow: 0 1px 2px 0 #00000014 !important;
       }
 
       &.active .group-item-left {

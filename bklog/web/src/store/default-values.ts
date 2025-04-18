@@ -80,6 +80,14 @@ export const IndexFieldInfo = {
   config_id: 0,
   aggs_items: {},
   last_eggs_request_token: null,
+  custom_config: {
+    grade_options: {
+      disabled: false,
+      type: 'normal',
+      field: null,
+      settings: [],
+    },
+  },
   user_custom_config: {
     filterSetting: [],
     displayFields: [],
@@ -151,3 +159,49 @@ export const routeQueryKeys = [
   'timezone',
   'unionList',
 ];
+
+export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+
+export const getStorageOptions = () => {
+  const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+  let storage = {};
+  if (storageValue) {
+    try {
+      storage = JSON.parse(storageValue);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  return Object.assign(
+    {
+      // 是否换行
+      tableLineIsWrap: false,
+
+      // 是否展示json解析
+      tableJsonFormat: false,
+
+      // json解析展示层级
+      tableJsonFormatDepth: 1,
+
+      // 是否展示行号
+      tableShowRowIndex: false,
+
+      // 是否展示空字段
+      tableAllowEmptyField: false,
+
+      // 是否展开长字段
+      isLimitExpandView: false,
+
+      // 是否展示字段别名
+      showFieldAlias: true,
+
+      // 文本溢出（省略设置）start | end | center
+      textEllipsisDir: 'end',
+
+      // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
+      searchType: 0,
+    },
+    storage,
+  );
+};

@@ -1,9 +1,11 @@
 <script setup>
   import { ref, computed, set } from 'vue';
 
-  import { getOperatorKey, formatDateTimeField } from '@/common/util';
+  import { getOperatorKey, formatDateTimeField, getOsCommandLabel } from '@/common/util';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -15,8 +17,6 @@
   import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import useFieldNameHook from '@/hooks/use-field-name';
-  import { cloneDeep } from 'lodash';
   const props = defineProps({
     value: {
       type: Array,
@@ -25,9 +25,19 @@
     },
   });
 
-  const emit = defineEmits(['input', 'change', 'height-change']);
+  const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
+
+  const inputValueLength = ref(0);
+  // 动态设置placeHolder
+  const inputPlaceholder = computed(() => {
+    if (inputValueLength.value === 0) {
+      return $t('快捷键 /，请输入...');
+    }
+
+    return '';
+  });
 
   const bkBizId = computed(() => store.state.bkBizId);
 
@@ -39,9 +49,17 @@
     if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
-
+    item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
     return { disabled: false, ...(item ?? {}) };
+  };
+
+  /**
+   * tag数量溢出是否展示所有
+   * @param {*} item
+   */
+  const handleShowAll = item => {
+    item.showAll = !item.showAll;
   };
 
   const handleHeightChange = height => {
@@ -78,20 +96,25 @@
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const refSearchInput = ref(null);
+  const refHiddenFocus = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
+
+  // 表示是否来自input输入的点击弹出
+  // 弹出组件依赖此属性展示内容会改变
   const isInputFocus = ref(false);
   const showIpSelector = ref(false);
+
+  // // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
+  // let isInputTextFocus = false;
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
   };
 
-  let inputValueLength = 0;
-
   const setSearchInputValue = val => {
     refSearchInput.value.value = val ?? '';
-    inputValueLength = refSearchInput.value?.value?.length ?? 0;
+    inputValueLength.value = refSearchInput.value?.value?.length ?? 0;
   };
 
   const handleWrapperClickCapture = (e, { getTippyInstance }) => {
@@ -120,24 +143,50 @@
   const {
     modelValue,
     isDocumentMousedown,
+    isInputTextFocus,
+    setIsInputTextFocus,
     setIsDocumentMousedown,
     getTippyInstance,
-    handleInputBlur,
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
+    hideTippyInstance,
   } = useFocusInput(props, {
+    refContent: refPopInstance,
+    refTarget: refHiddenFocus,
+    refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    refContent: refPopInstance,
-    onShowFn: () => {
+    onShowFn: instance => {
       setIsDocumentMousedown(true);
+      const isTagItemClick =
+        instance.reference.classList.contains('search-item') && instance.reference.classList.contains('tag-item');
+      if (!isTagItemClick) {
+        refSearchInput.value?.focus?.();
+      }
+
       refPopInstance.value?.beforeShowndFn?.();
+      isInputFocus.value =
+        instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
+      emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
-      if (isDocumentMousedown.value) {
+      emit('popup-change', { isShow: false });
+
+      if (isDocumentMousedown.value || isInputTextFocus.value) {
         setIsDocumentMousedown(false);
-        return false;
+        // 这里blur事件触发会比出发clickoutside收起弹出晚
+        // 所以在收起时，需要一个延迟检测
+        if (isInputTextFocus.value) {
+          requestAnimationFrame(() => {
+            if (!isInputTextFocus.value) {
+              hideTippyInstance();
+            }
+          });
+
+          return false;
+        }
+        return true;
       }
 
       refPopInstance.value?.afterHideFn?.();
@@ -278,17 +327,19 @@
   const handleGlobalSaveQueryClick = payload => {
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
+    repositionTippyInstance();
+    refSearchInput.value.style.setProperty('width', '12px');
   };
 
   /**
    * input key enter
    * @param e
    */
-  const handleInputValueEnter = () => {
+  const handleInputValueEnter = e => {
     if (!isGlobalKeyEnter.value) {
-      if (!(getTippyInstance().state.isShown ?? false)) {
-        handleSaveQueryClick(undefined);
-      }
+      handleSaveQueryClick(undefined);
+      repositionTippyInstance();
+      e.target.style.setProperty('width', '12px');
     }
 
     isGlobalKeyEnter.value = false;
@@ -299,7 +350,20 @@
     setSearchInputValue('');
   };
 
+  const handleInputTextClick = () => {
+    if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
+      return;
+    }
+
+    debounceShowInstance();
+  };
+
   const handleFocusInput = () => {
+    if (isInstanceShown()) {
+      return;
+    }
+
+    setIsInputTextFocus(true);
     isInputFocus.value = true;
     activeIndex.value = null;
     queryItem.value = '';
@@ -312,16 +376,16 @@
   };
 
   const handleFullTextInputBlur = e => {
-    if (!isInstanceShown()) {
-      handleInputBlur(e);
-      inputValueLength = 0;
-      queryItem.value = '';
-    }
+    setIsInputTextFocus(false);
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
+    queryItem.value = '';
   };
 
   const handleInputValueChange = e => {
-    if (inputValueLength === 0 && e.target.value.length > 0) {
-      inputValueLength = e.target.value.length;
+    if (inputValueLength.value === 0 && e.target.value.length > 0) {
+      inputValueLength.value = e.target.value.length;
       debounceShowInstance();
     }
 
@@ -340,7 +404,7 @@
         if (modelValue.value.length >= 1) {
           modelValue.value.splice(-1, 1);
           emitChange(modelValue.value);
-          closeTippyInstance();
+          repositionTippyInstance();
         }
       }
 
@@ -351,44 +415,70 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
-
-  // const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
-  // const additionList = computed(() => {
-  //   if (!isFilterSecFocused.value) {
-  //     const addition = store.state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
-  //     return [...modelValue.value, ...(addition.map(item => ({ ...item, isCommonFixed: true })))]
-  //   }
-
-  //   return modelValue.value;
-  // })
-
-
 </script>
 
 <template>
-  <ul ref="refUlRoot" class="search-items">
-    <li class="search-item btn-add" @click.stop="handleAddItem">
+  <ul
+    ref="refUlRoot"
+    class="search-items"
+  >
+    <li
+      class="search-item btn-add"
+      @click.stop="handleAddItem"
+    >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
-    <li v-for="(item, index) in modelValue"
+    <li
+      v-for="(item, index) in modelValue"
       :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
-      :key="`${item.field}-${index}`" @click.stop="e => handleTagItemClick(e, item, index)">
+      :key="`${item.field}-${index}`"
+      @click.stop="e => handleTagItemClick(e, item, index)"
+    >
       <div class="tag-row match-name">
-        {{ getMatchName(item.field) }}
-        <span class="symbol" :data-operator="item.operator">{{ getOperatorLabel(item) }}</span>
+        <span class="match-name-label">{{ getMatchName(item.field) }}</span>
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+          >{{ getOperatorLabel(item) }}</span
+        >
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
-          <span class="match-value-text">
-            <IPSelector v-model="item.value[0]" :bk-biz-id="bkBizId" :is-show.sync="showIpSelector"
-              @change="handleIPChange"></IPSelector>
+          <span :class="['match-value-text', { 'is-show-tooltip': item.value.length > 20 }]">
+            <IPSelector
+              v-model="item.value[0]"
+              :bk-biz-id="bkBizId"
+              :is-show.sync="showIpSelector"
+              @change="handleIPChange"
+            ></IPSelector>
           </span>
         </template>
         <template v-else-if="Array.isArray(item.value)">
-          <span v-for="(child, childInex) in item.value" :key="childInex">
-            <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
-            <span v-if="childInex < item.value.length - 1" class="match-value-relation">{{ item.relation }}</span>
+          <span
+            v-for="(child, childIndex) in item.value"
+            :key="childIndex"
+          >
+            <template v-if="item.showAll ? true : childIndex < 3">
+              <span
+                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
+              >
+                {{ formatDateTimeField(child, item.field_type) }}
+              </span>
+              <span
+                v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
+                class="match-value-relation"
+              >
+                {{ item.relation }}
+              </span>
+            </template>
+          </span>
+          <span
+            v-if="item.value.length > 3 && !item.showAll"
+            style="color: #f59500"
+          >
+            +{{ item.value.length - 3 }}
           </span>
         </template>
         <template v-else>
@@ -396,21 +486,47 @@
         </template>
       </div>
       <div class="tag-options">
-        <span :class="[
-          'bklog-icon',
-          { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
-        ]" @click.stop="e => handleDisabledTagItem(item, e)"></span>
-        <span class="bk-icon icon-close" @click.stop="() => handleDeleteTagItem(index, item)"></span>
+        <span
+          :class="[
+            'bklog-icon',
+            { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
+          ]"
+          @click.stop="e => handleDisabledTagItem(item, e)"
+        />
+        <span
+          class="bklog-icon bklog-shanchu tag-options-close"
+          @click.stop="handleDeleteTagItem(index, item)"
+        />
       </div>
     </li>
-    <li class="search-item is-focus-input">
-      <input ref="refSearchInput" class="tag-option-focus-input" type="text" @blur="handleFullTextInputBlur"
-        @focus.stop="handleFocusInput" @input="handleInputValueChange" @keyup.delete="handleDeleteItem"
-        @keyup.enter="handleInputValueEnter" />
+    <li
+      ref="refHiddenFocus"
+      class="search-item-focus hidden-pointer"
+    ></li>
+    <li
+      class="search-item is-focus-input"
+      :data-attr-txt="inputPlaceholder"
+    >
+      <input
+        ref="refSearchInput"
+        class="tag-option-focus-input"
+        type="text"
+        @blur.stop="handleFullTextInputBlur"
+        @click.stop="handleInputTextClick"
+        @focus.stop="handleFocusInput"
+        @input="handleInputValueChange"
+        @keyup.delete="handleDeleteItem"
+        @keyup.enter.stop="handleInputValueEnter"
+      />
     </li>
     <div style="display: none">
-      <UiInputOptions ref="refPopInstance" :is-input-focus="isInputFocus" :value="queryItem" @cancel="handleCancelClick"
-        @save="handleGlobalSaveQueryClick"></UiInputOptions>
+      <UiInputOptions
+        ref="refPopInstance"
+        :is-input-focus="isInputFocus"
+        :value="queryItem"
+        @cancel="handleCancelClick"
+        @save="handleGlobalSaveQueryClick"
+      ></UiInputOptions>
     </div>
   </ul>
 </template>
@@ -421,9 +537,11 @@
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
-      color: #63656e;
-      background-color: #fff;
-      box-shadow: 0 2px 6px 0 #0000001a;
+      color: #4d4f56;
+      background-color: #ffffff;
+      border-radius: 2px;
+      box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.16);
+      transform: translateY(-2px);
 
       .tippy-content {
         padding: 0;
@@ -435,6 +553,43 @@
         &::after {
           background-color: #fff;
           box-shadow: 0 2px 6px 0 #0000001a;
+        }
+
+        &::before {
+          top: -9px;
+        }
+      }
+
+      .ui-query-options {
+        border-radius: 2px;
+
+        .ui-query-option-footer {
+          border-radius: 0 0 2px 2px;
+        }
+      }
+    }
+
+    &[data-theme='log-dark'] {
+      color: #fff;
+      background-color: #4d4f56;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px 0 #fff;
+      transform: translateY(-2px);
+
+      .tippy-content {
+        padding: 4px 8px;
+      }
+
+      .tippy-arrow {
+        color: #4d4f56;
+
+        &::after {
+          background-color: #4d4f56;
+          box-shadow: 0 2px 6px 0 #fff;
+        }
+
+        &::before {
+          top: -9px;
         }
       }
     }

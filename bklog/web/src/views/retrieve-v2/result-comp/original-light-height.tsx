@@ -84,7 +84,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
   }
 
   get tableLineIsWrap() {
-    return this.$store.state.tableLineIsWrap;
+    return this.$store.state.storage.tableLineIsWrap;
   }
 
   @Emit('menu-click')

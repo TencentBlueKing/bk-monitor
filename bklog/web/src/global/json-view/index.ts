@@ -82,7 +82,7 @@ export default class JsonView {
       return node;
     }
 
-    Object.keys(target).forEach(key => {
+    Object.keys(target ?? {}).forEach(key => {
       const row = document.createElement('div');
       row.classList.add('bklog-json-view-row');
       row.setAttribute('data-field-name', key);
@@ -99,37 +99,40 @@ export default class JsonView {
   private createObjectNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
-    const iconExpand = document.createElement('span');
-
     const isExpand = depth <= this.options.depth;
-
-    iconExpand.classList.add('bklog-json-view-icon-expand');
-    iconExpand.classList.add(isExpand ? 'is-expand' : 'is-collapse');
-    iconExpand.innerText = '▶';
 
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
     });
 
-    node.append(iconExpand);
+    if (typeof target === 'object' && target !== null) {
+      const iconExpand = document.createElement('span');
+      iconExpand.classList.add('bklog-json-view-icon-expand');
+      iconExpand.classList.add(isExpand ? 'is-expand' : 'is-collapse');
+      iconExpand.innerText = '▶';
+      node.append(iconExpand);
 
-    const nodeIconText = document.createElement('span');
-    nodeIconText.classList.add('bklog-json-view-icon-text');
-    const text = Array.isArray(target) ? '[...]' : '{...}';
-    nodeIconText.innerText = text;
+      const nodeIconText = document.createElement('span');
+      nodeIconText.classList.add('bklog-json-view-icon-text');
+      const text = Array.isArray(target) ? '[...]' : '{...}';
+      nodeIconText.innerText = text;
 
-    const child: HTMLElement[] = [];
+      const child: HTMLElement[] = [];
 
-    if (isExpand) {
-      child.push(this.createObjectChildNode(target, depth + 1));
+      if (isExpand) {
+        child.push(this.createObjectChildNode(target, depth + 1));
+      }
+
+      const copyItem = document.createElement('span');
+      copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
+      copyItem.setAttribute('title', window.$t('复制'));
+
+      node.append(nodeIconText, copyItem, ...child);
+      return [node];
     }
 
-    const copyItem = document.createElement('span');
-    copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
-    copyItem.setAttribute('title', window.$t('复制'));
-
-    node.append(nodeIconText, copyItem, ...child);
+    node.append(this.createObjectChildNode(target, depth));
     return [node];
   }
 
@@ -140,7 +143,7 @@ export default class JsonView {
     node.setAttribute('data-depth', `${depth}`);
     const nodeType = typeof target;
 
-    if (nodeType === 'object') {
+    if (nodeType === 'object' && target !== null) {
       node.append(...this.createObjectNode(target, depth));
     } else {
       node.classList.add('bklog-json-field-value');
@@ -149,7 +152,7 @@ export default class JsonView {
           this.options.segmentRender(target, node);
         });
       } else {
-        node.append(target);
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${target}</span></span>`;
       }
     }
 

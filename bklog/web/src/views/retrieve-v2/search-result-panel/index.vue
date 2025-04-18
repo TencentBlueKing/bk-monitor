@@ -1,13 +1,15 @@
 <script setup>
-  import { computed, ref, defineComponent, h } from 'vue';
+  import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
 
+  import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
+
   // #else
   // #code const SearchResultChart = defineComponent(() => h('div'));
   // #code const FieldFilter = defineComponent(() => h('div'));
@@ -16,7 +18,7 @@
 
   import LogResult from './log-result/index';
 
-  const DEFAULT_FIELDS_WIDTH = 220;
+  const DEFAULT_FIELDS_WIDTH = 200;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
@@ -41,6 +43,8 @@
   const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
 
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
+
   const changeTotalCount = count => {
     totalCount.value = count;
   };
@@ -51,15 +55,21 @@
   const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
     heightNum.value = height + 4;
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
   };
 
   const handleFieldsShowChange = status => {
-    if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
+    if (status) {
+      fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
+      RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
+    }
     isShowFieldStatistics.value = status;
+    RetrieveHelper.setLeftFieldIsShown(status);
   };
 
   const handleFilterWidthChange = width => {
     fieldFilterWidth.value = width;
+    RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
   };
 
   const handleUpdateActiveTab = active => {
@@ -82,13 +92,10 @@
       padding: '8px 16px',
     };
   });
-
- 
-
 </script>
 
 <template>
-  <div :class="['search-result-panel', {'flex': !__IS_MONITOR_TRACE__}]">
+  <div :class="['search-result-panel', { flex: !__IS_MONITOR_TRACE__ }]">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
@@ -113,10 +120,11 @@
         ></FieldFilter>
       </div>
       <div
-        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
+        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
+          :class="RetrieveHelper.randomTrendGraphClassName"
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"
