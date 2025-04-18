@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import functools
 import operator
+import re
 from typing import Any, Dict, List
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD
@@ -147,3 +148,29 @@ def fetch_request_username():
     else:
         request_username = get_request_username()
     return request_username
+
+
+def add_highlight_mark(data_list: List[dict], match_field: str, pattern: str, tags: dict, ignore_case: bool = False):
+    """
+    添加高亮标记
+    :param data_list: 数据列表
+    :param match_field: data中需要进行高亮的字段
+    :param pattern: 高亮内容的正则表达式
+    :param tags: 高亮起止标签
+    :param ignore_case: 是否忽略大小写
+    """
+    if not data_list or not match_field or not pattern:
+        return data_list
+
+    pre_tag = tags.get("pre_tag", "<mark>")
+    post_tag = tags.get("post_tag", "</mark>")
+    for data in data_list:
+        # 对 grep_field 字段 pattern 内容进行高亮处理
+        data[match_field] = re.sub(
+            pattern,
+            lambda x: pre_tag + x.group() + post_tag,
+            data[match_field],
+            flags=re.I if ignore_case else 0,
+        )
+
+    return data_list

@@ -55,6 +55,7 @@ from apps.log_search.constants import (
     ExportStatus,
     ExportType,
     IndexSetType,
+    QueryMode,
     SearchScopeEnum,
 )
 from apps.log_search.decorators import search_history_record
@@ -79,7 +80,7 @@ from apps.log_search.serializers import (
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
-    LogQuerySerializer,
+    LogGrepQuerySerializer,
     OriginalSearchAttrSerializer,
     QueryStringSerializer,
     SearchAttrSerializer,
@@ -1811,12 +1812,41 @@ class SearchViewSet(APIViewSet):
 
     @detail_route(methods=["POST"], url_path="grep_query")
     def grep_query(self, request, index_set_id):
-        # TODO grep语法查询接口,待完善
-        params = self.params_valid(LogQuerySerializer)
-        data = ChartHandler(index_set_id).generate_where_clause(
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            addition=params["addition"],
-            grep_query=params.get("grep_query"),
-        )
+        """
+        @api {post} /search/index_set/$index_set_id/grep_query/
+        @apiDescription grep语法查询
+        @apiName grep_query
+        @apiGroup 11_Search
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam keyword [String] 搜索关键字
+        @apiParam addition [List[dict]] 搜索条件
+        @apiParam grep_query [String] grep查询条件
+        @apiParam grep_field [String] 高亮字段
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "result_list": [
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:459][290]RPC",
+                    },
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:124][280]RPC",
+                    }
+                ],
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(LogGrepQuerySerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
+        data = instance.fetch_grep_query_data(params)
         return Response(data)

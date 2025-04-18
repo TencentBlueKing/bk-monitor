@@ -44,8 +44,10 @@ from luqum.tree import (
 from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search import metrics
 from apps.log_search.constants import (
+    LOG_HIGHLIGHT_CONFIG,
     SQL_CONDITION_MAPPINGS,
     SQL_PREFIX,
     SQL_SUFFIX,
@@ -58,6 +60,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
+from apps.log_search.utils import add_highlight_mark
 from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
@@ -232,11 +235,39 @@ class ChartHandler(object):
         return build_condition(query_tree)
 
     @classmethod
-    def addition_to_where_clause(cls, addition: List[dict]):
+    def generate_sql(
+        cls,
+        addition,
+        start_time,
+        end_time,
+        sql_param=None,
+        keyword=None,
+        action=SQLGenerateMode.COMPLETE.value,
+    ) -> dict:
         """
-        把addition转化为where子句
+        根据过滤条件生成sql
         :param addition: 过滤条件
+        :param sql_param: SQL条件
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :param keyword: 搜索关键字
+        :param action: 生成SQL的方式
         """
+        start_date = arrow.get(start_time).format("YYYYMMDD")
+        end_date = arrow.get(end_time).format("YYYYMMDD")
+        additional_where_clause = (
+            f"thedate >= {start_date} AND thedate <= {end_date} AND "
+            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
+        )
+
+        if keyword and keyword != "*":
+            # 加上keyword的查询条件
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
+            keyword = enhance_lucene_adapter.enhance()
+            where_clause = cls.lucene_to_where_clause(keyword)
+            if where_clause:
+                additional_where_clause += f" AND {where_clause}"
+
         sql = ""
         for condition in addition:
             field_name = condition["field"]
@@ -289,44 +320,7 @@ class ChartHandler(object):
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
-        return sql
 
-    @classmethod
-    def generate_sql(
-        cls,
-        addition,
-        start_time,
-        end_time,
-        sql_param=None,
-        keyword=None,
-        action=SQLGenerateMode.COMPLETE.value,
-    ) -> dict:
-        """
-        根据过滤条件生成sql
-        :param addition: 过滤条件
-        :param sql_param: SQL条件
-        :param start_time: 开始时间
-        :param end_time: 结束时间
-        :param keyword: 搜索关键字
-        :param action: 生成SQL的方式
-        """
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
-        additional_where_clause = (
-            f"thedate >= {start_date} AND thedate <= {end_date} AND "
-            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
-        )
-
-        if keyword and keyword != "*":
-            # 加上keyword的查询条件
-            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
-            keyword = enhance_lucene_adapter.enhance()
-            where_clause = cls.lucene_to_where_clause(keyword)
-            if where_clause:
-                additional_where_clause += f" AND {where_clause}"
-
-        # 把addition转化为sql条件
-        sql = cls.addition_to_where_clause(addition)
         if sql:
             additional_where_clause += f" AND {sql}"
 
@@ -380,45 +374,6 @@ class ChartHandler(object):
 
         # 返回所有组合条件
         return " AND ".join(conditions)
-
-    @classmethod
-    def generate_where_clause(
-        cls,
-        addition,
-        start_time,
-        end_time,
-        grep_query,
-    ) -> dict:
-        """
-        根据过滤条件生成sql
-        :param addition: 过滤条件
-        :param start_time: 开始时间
-        :param end_time: 结束时间
-        :param grep_query: grep查询
-        """
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
-        grep_where_clause = ""
-        if grep_query:
-            grep_syntax_list = grep_parser(grep_query)
-            grep_where_clause = cls.convert_to_where_clause(grep_syntax_list)
-
-        date_where_clause = (
-            f"thedate >= {start_date} AND thedate <= {end_date} AND "
-            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
-        )
-
-        if grep_where_clause:
-            additional_where_clause = grep_where_clause + " AND " + date_where_clause
-        else:
-            additional_where_clause = f"WHERE {date_where_clause}"
-
-        # 把addition转化为sql条件
-        sql = cls.addition_to_where_clause(addition)
-        if sql:
-            additional_where_clause += f" AND {sql}"
-
-        return {"where_clause": additional_where_clause}
 
 
 class UIChartHandler(ChartHandler):
@@ -557,3 +512,57 @@ class SQLChartHandler(ChartHandler):
                 result_data["data"]["timetaken"],
             )
         return data
+
+    def fetch_grep_query_data(self, params):
+        """
+        :param params: 查询相关参数
+        """
+        where_clause = self.generate_sql(
+            addition=params["addition"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            keyword=params.get("keyword"),
+            action=SQLGenerateMode.WHERE_CLAUSE.value,
+        )
+        grep_field = params.get("grep_field")
+        grep_query = params.get("grep_query")
+        pattern = ""
+        ignore_case = False
+        if grep_query:
+            # 加上 grep 查询条件
+            try:
+                grep_syntax_list = grep_parser(grep_query)
+                grep_where_clause = self.convert_to_where_clause(grep_syntax_list)
+
+                if "v" not in grep_syntax_list[-1]["args"]:
+                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1].strip("'")
+                if "i" in grep_syntax_list[-1]["args"]:
+                    ignore_case = True
+                if grep_where_clause:
+                    where_clause += f" AND {grep_where_clause}"
+            finally:
+                # PLY (Python Lex-Yacc) 和 luqum.parser 在全局状态管理上存在冲突。 这里重新加载luqum的parser模块解决冲突
+                from importlib import reload
+
+                from luqum import parser as luqum_parser_module
+
+                reload(luqum_parser_module)
+
+        # 加上分页条件
+        where_clause += f" LIMIT {params['begin']}, {params['size']}"
+        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
+        # 执行doris查询
+        result = self.fetch_query_data(sql)
+        result_list = result["list"]
+        # 获取高亮配置
+        feature_obj = FeatureToggleObject.toggle(LOG_HIGHLIGHT_CONFIG)
+        if feature_obj:
+            highlight_config = feature_obj.feature_config
+            result_list = add_highlight_mark(
+                data_list=result_list,
+                match_field=grep_field,
+                pattern=pattern,
+                tags=highlight_config,
+                ignore_case=ignore_case,
+            )
+        return {"result_list": result_list}

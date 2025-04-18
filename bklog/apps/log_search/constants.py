@@ -1735,3 +1735,5 @@ class AlertStatusEnum(ChoicesEnum):
 
 
 MAX_WORKERS = 5
+
+LOG_HIGHLIGHT_CONFIG = "log_highlight_config"
