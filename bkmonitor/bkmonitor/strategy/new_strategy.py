@@ -1366,7 +1366,7 @@ class QueryConfig(AbstractConfig):
             if condition["method"] in data_source.ADVANCE_CONDITION_METHOD:
                 has_advance_method = True
             # 数值型字段，不需要进行聚合分组
-            if condition["method"] in ["gt", "lt", "gte", "lte"]:
+            if condition["method"] in ["gt", "gte", "lt", "lte", "eq", "neq"]:
                 continue
             dimensions.add(condition["key"])
 
