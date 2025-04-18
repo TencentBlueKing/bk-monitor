@@ -9,25 +9,98 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import mock
 import pytest  # noqa
 
+from monitor_web.k8s.resources import GetScenarioMetric, ResourceTrendResource
 from packages.monitor_web.k8s.scenario import Scenario
 
 SCENARIO: Scenario = "capacity"
 
 
+@pytest.mark.django_db
 class TestResourceTrendResourceWithCapacity:
-    def test_with_node(self, get_start_time, get_end_time):
+    @pytest.mark.parametrize(
+        ["column"],
+        [
+            pytest.param("node_cpu_seconds_total"),
+            pytest.param("node_cpu_capacity_ratio"),
+            pytest.param("node_cpu_usage_ratio"),
+            pytest.param("node_memory_working_set_bytes"),
+            pytest.param("node_memory_capacity_ratio"),
+            pytest.param("node_memory_usage_ratio"),
+            pytest.param("master_node_count"),
+            pytest.param("worker_node_count"),
+            pytest.param("node_pod_usage"),
+            pytest.param("node_network_receive_bytes_total"),
+            pytest.param("node_network_transmit_bytes_total"),
+            pytest.param("node_network_receive_packets_total"),
+            pytest.param("node_network_transmit_packets_total"),
+        ],
+    )
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_with_node(
+        self,
+        graph_unify_query,
+        column,
+        get_start_time,
+        get_end_time,
+    ):
         """
-        性能场景下pod的数据详情
+        PromQL: 'sum by (node) (last_over_time(rate(node_cpu_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node="master-127-0-0-1",mode!="idle"}[1m])[1m:]))'  # noqa
         """
-        validated_request_data = {  # noqa
-            "bk_biz_id": 2,
+        name = "master-127-0-0-1"
+        resource_type = "node"
+        validated_request_data = {
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
-            "column": "column",
-            "method": "max",
             "start_time": get_start_time,
             "end_time": get_end_time,
-            "scenario": SCENARIO,
+            "column": column,
+            "method": "sum",
+            "resource_type": resource_type,
+            "resource_list": [name],
+            "bk_biz_id": 2,
         }
+
+        metric = GetScenarioMetric()(
+            metric_id=column,
+            scenario=SCENARIO,
+            bk_biz_id=2,
+        )
+        mock_expected_result = [
+            {
+                column: {
+                    "datapoints": [
+                        [
+                            265.1846,
+                            1744874940000,
+                        ],
+                    ],
+                    "unit": metric["unit"],
+                    "value_title": metric["name"],
+                },
+                "resource_name": name,
+            },
+        ]
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"node": "master-127-0-0-1"},
+                    "target": "{node=master-127-0-0-1}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+            ],
+            "metrics": [],
+        }
+
+        result = ResourceTrendResource()(validated_request_data)
+
+        assert result == mock_expected_result
