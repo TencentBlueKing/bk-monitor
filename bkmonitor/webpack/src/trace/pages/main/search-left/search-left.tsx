@@ -23,17 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
+import { useTraceStore } from '../../../store/modules/trace';
 import FieldFiltering from '../event-retrieval/field-filtering';
 
-import type { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';
+import type { IAppItem, ISearchTypeItem, ISpanListItem, ITraceListItem, SearchType } from '../../../typings';
 import type { IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 import type { PropType } from 'vue';
 
@@ -72,6 +74,22 @@ export default defineComponent({
   },
   emits: ['update:app', 'update:searchType', 'appChange', 'searchTypeChange', 'addCondition'],
   setup(props, { slots, emit }) {
+    const store = useTraceStore();
+    const { filterSpanList, filterTraceList, listType, spanList, traceList } = storeToRefs(store);
+
+    /** trace列表数据 */
+    const listData = computed(() => (listType.value === 'trace' ? traceList.value : spanList.value));
+
+    const filterList = computed(() => (listType.value === 'trace' ? filterTraceList.value : filterSpanList.value));
+
+    const filterListChange = (val: ISpanListItem[] | ITraceListItem[]) => {
+      if (listType.value === 'trace') {
+        store.setFilterTraceList(val as ITraceListItem[]);
+      } else {
+        store.setFilterSpanList(val as ISpanListItem[]);
+      }
+    };
+
     const authorityStore = useAuthorityStore();
     const placement = 'top';
     const { t } = useI18n();
@@ -188,7 +206,12 @@ export default defineComponent({
                   <div class='bottom-content'>
                     <div class='results-statistics'>
                       <div class='title'>{t('查询结果统计')}</div>
-                      <ChartFiltering />
+                      <ChartFiltering
+                        filterList={filterList.value}
+                        list={listData.value}
+                        listType={listType.value}
+                        onFilterListChange={filterListChange}
+                      />
                       <FieldFiltering
                         class='field-filtering'
                         onAddCondition={handleAddCondition}

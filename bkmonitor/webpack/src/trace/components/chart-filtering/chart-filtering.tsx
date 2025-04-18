@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { defineComponent, type PropType, ref, watch } from 'vue';
 
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
 
-import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
 import BarChart from './bar-chart';
 import { BASE_BAR_OPTIONS, DURATION_AVERAGE_COUNT, DurationDataModal } from './utils';
 
+import type { ISpanListItem, ITraceListItem } from '../../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-filtering.scss';
@@ -52,9 +52,22 @@ export interface ISliderItem {
 
 export default defineComponent({
   name: 'ChartFiltering',
-  setup() {
-    const store = useTraceStore();
-
+  props: {
+    list: {
+      type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
+      default: () => [],
+    },
+    listType: {
+      type: String,
+      default: 'span',
+    },
+    filterList: {
+      type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
+      default: () => [],
+    },
+  },
+  emits: ['filterListChange'],
+  setup(props, { emit }) {
     /** 耗时图表 */
     const barChartref = ref<HTMLDivElement>();
     /** 耗时图表配置 */
@@ -72,9 +85,6 @@ export default defineComponent({
       step: 0, // 步长 / 刻度
     });
 
-    /** trace列表数据 */
-    const listData = computed(() => (store.listType === 'trace' ? store.traceList : store.spanList));
-
     /** 设置滑动选择器状态 */
     const handleSetDurationSlider = (min: number, max: number, step: number) => {
       const defaultText = `${formatDuration(min)} - ${formatDuration(max)}`;
@@ -87,8 +97,7 @@ export default defineComponent({
         max,
         step,
       };
-
-      if (store.filterTraceList.length) {
+      if (props.filterList.length) {
         // 说明此前已通过滑动选择器过滤且当前范围不在两端
         // 刻度列是固定的 刻度值会根据大小变化 当数据发生变化 保留当前刻度比例范围 重置选中值即可
         const [scaleStart, scaleEnd] = durationSlider.value.scaleRange;
@@ -104,8 +113,8 @@ export default defineComponent({
     };
     /** 初始化图表数据 */
     const initData = () => {
-      if (listData.value?.length) {
-        durationModal.value = new DurationDataModal(listData.value);
+      if (props.list?.length) {
+        durationModal.value = new DurationDataModal(props.list, props.listType);
         const { minDuration, maxDuration, durationStep, xAxisData, seriesData } = durationModal.value;
 
         const echartOptions = deepmerge(deepClone(BASE_BAR_OPTIONS), {});
@@ -142,7 +151,7 @@ export default defineComponent({
       }
     };
 
-    watch(() => listData.value, initData, { immediate: true });
+    watch(() => props.list, initData, { immediate: true });
 
     /** 耗时滑动选择器选择 */
     const handleDurationChange = (val: number[]) => {
@@ -158,11 +167,7 @@ export default defineComponent({
       const [start, end] = durationSlider.value.curValue;
       const list = durationModal.value?.handleFilter(start, end);
       const newList = list?.length ? list : [];
-      if (store.listType === 'trace') {
-        store.setFilterTraceList(newList);
-      } else {
-        store.setFilterSpanList(newList);
-      }
+      emit('filterListChange', newList);
     };
     /** 格式化图表series数据显示 */
     const formatterDurationFunc = (params: any, xAxisData: string[]) => {

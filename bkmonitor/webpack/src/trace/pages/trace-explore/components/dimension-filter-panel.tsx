@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch, type PropType } from 'vue';
+import { defineComponent, shallowRef, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
 import { AngleDownLine } from 'bkui-vue/lib/icon';
 import { CancelToken } from 'monitor-api/index';
+import { storeToRefs } from 'pinia';
 
+import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
@@ -63,6 +65,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
+    const { tableList, filterTableList } = storeToRefs(store);
     const emptyStatus = shallowRef<EmptyStatusType>('empty');
     /** 字段列表的count统计 */
     const fieldListCount = shallowRef({});
@@ -93,7 +96,7 @@ export default defineComponent({
 
     async function getFieldCount() {
       const fields = props.list.reduce((pre, cur) => {
-        if (cur.is_option_enabled) pre.push(cur.name);
+        if (cur.is_dimensions) pre.push(cur.name);
         return pre;
       }, []);
       if (!fields.length) return;
@@ -123,8 +126,32 @@ export default defineComponent({
         setTimeout(() => {
           resolve([
             {
-              distinct_count: 0,
-              field: 'resource.service.name',
+              distinct_count: 1,
+              field: 'trace_duration',
+              list: [
+                {
+                  value: 'test_project',
+                  alias: 'test_project',
+                  count: 121209,
+                  proportions: 100,
+                },
+              ],
+            },
+            {
+              distinct_count: 45,
+              field: 'number',
+              list: [
+                {
+                  value: 'test_project',
+                  alias: 'test_project',
+                  count: 121209,
+                  proportions: 100,
+                },
+              ],
+            },
+            {
+              distinct_count: 11,
+              field: 'time',
               list: [
                 {
                   value: 'test_project',
@@ -152,14 +179,15 @@ export default defineComponent({
       dimensionTreeList.value = convertToTree(searchResultList.value);
     }, 100);
 
+    /** 渲染维度列表项 */
     function renderDimensionItem(item: IDimensionFieldTreeItem, level = 0) {
-      const disabled = !item.children && (!item.is_option_enabled || !fieldListCount.value[item.name]);
+      const disabled = !item.children && (!item.is_dimensions || !fieldListCount.value[item.name]);
       return (
         <div
           key={item.alias}
           style={{ '--level': level }}
           v-bk-tooltips={{
-            content: t(item.is_option_enabled ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'),
+            content: t(item.is_dimensions ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'),
             disabled: !disabled,
             interactive: false,
             placement: 'right',
@@ -195,7 +223,7 @@ export default defineComponent({
                 <AngleDownLine />
               </span>,
             ]}
-            {item.is_option_enabled &&
+            {item.is_dimensions &&
               !item.children && [
                 <span
                   key={`${item.name}__count`}
@@ -225,8 +253,11 @@ export default defineComponent({
     const activeFieldName = shallowRef('');
     /** popover实例 */
     const popoverInstance = shallowRef(null);
-    const statisticsListRef = shallowRef(null);
-
+    const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
+    const durationPopover = useTemplateRef<HTMLDivElement>('durationPopover');
+    const handleFilterListChange = list => {
+      store.updateFilterTableList(list);
+    };
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
@@ -234,11 +265,14 @@ export default defineComponent({
       if (item?.children) {
         item.expand = !item.expand;
       } else {
-        // if (!item.is_option_enabled || !fieldListCount.value[item.name]) return;
+        const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
+        if (!item.is_dimensions || !fieldListCount.value[item.name]) return;
         selectField.value = item;
         popoverInstance.value = $bkPopover({
           target: e.currentTarget as HTMLDivElement,
-          content: statisticsListRef.value.$refs.dimensionPopover,
+          content: isDuration
+            ? durationPopover.value
+            : (statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement),
           trigger: 'click',
           placement: 'right',
           theme: 'light',
@@ -299,6 +333,8 @@ export default defineComponent({
 
     return {
       t,
+      tableList,
+      filterTableList,
       showStatisticsPopover,
       activeFieldName,
       emptyStatus,
@@ -311,6 +347,7 @@ export default defineComponent({
       popoverInstance,
       statisticsListRef,
       handleDimensionItemClick,
+      handleFilterListChange,
       destroyPopover,
       handleConditionChange,
       handleClose,
@@ -365,6 +402,20 @@ export default defineComponent({
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />
+
+        <div style='display: none;'>
+          <div
+            ref='durationPopover'
+            class='duration-popover'
+          >
+            <ChartFiltering
+              filterList={this.filterTableList}
+              list={this.tableList}
+              listType={this.params.mode}
+              onFilterListChange={this.handleFilterListChange}
+            />
+          </div>
+        </div>
       </div>
     );
   },

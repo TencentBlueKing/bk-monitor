@@ -29,7 +29,7 @@ import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-ra
 import { getDefaultTimezone } from '../../i18n/dayjs';
 
 import type { IApplicationItem } from '../../pages/trace-explore/typing';
-import type { TableProps } from 'tdesign-vue-next';
+import type { ISpanListItem, ITraceListItem } from '../../typings';
 
 export interface ITraceExploreState {
   timeRange: TimeRangeType;
@@ -39,7 +39,8 @@ export interface ITraceExploreState {
   refreshInterval: number;
   refreshImmediate: string;
   appList: IApplicationItem[];
-  tableList: TableProps['data'];
+  tableList: ISpanListItem[] | ITraceListItem[];
+  filterTableList: ISpanListItem[] | ITraceListItem[];
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
@@ -51,6 +52,7 @@ export const useTraceExploreStore = defineStore('explore', {
     refreshImmediate: '',
     appList: [],
     tableList: [],
+    filterTableList: [],
   }),
   getters: {
     currentApp: state => state.appList.find(app => app.app_name === state.appName),
@@ -77,8 +79,11 @@ export const useTraceExploreStore = defineStore('explore', {
     updateAppList(appList: IApplicationItem[]) {
       this.appList = appList;
     },
-    updateTableList(tableList: TableProps['data']) {
+    updateTableList(tableList: ISpanListItem[] | ITraceListItem[]) {
       this.tableList = tableList;
+    },
+    updateFilterTableList(filterTableList: ISpanListItem[] | ITraceListItem[]) {
+      this.filterTableList = filterTableList;
     },
     init(data: Partial<ITraceExploreState>) {
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;

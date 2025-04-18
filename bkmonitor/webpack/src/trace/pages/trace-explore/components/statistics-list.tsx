@@ -99,12 +99,11 @@ export default defineComponent({
       () => props.isShow,
       async val => {
         if (val) {
+          infoLoading.value = true;
           await getStatisticsList();
           timeRangeText.value = handleTransformTime(store.timeRange);
           await getStatisticsGraphData();
         } else {
-          popoverLoading.value = false;
-          infoLoading.value = false;
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
@@ -135,7 +134,6 @@ export default defineComponent({
     }
 
     async function getStatisticsGraphData() {
-      infoLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
       const info = await getStatisticsInfo(
@@ -176,10 +174,7 @@ export default defineComponent({
           cancelToken: new CancelToken(c => (topKChartCancelFn = c)),
         }
       ).catch(() => ({ series: [] }));
-      chartData.value = data.series.map(item => ({
-        name: item.legend_name,
-        data: item.data,
-      }));
+      chartData.value = data.series || [];
       infoLoading.value = false;
     }
 
@@ -336,7 +331,7 @@ export default defineComponent({
     function handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
       emit('conditionChange', {
         key: props.selectField,
-        method: type,
+        operator: type,
         value: item.value,
       });
     }

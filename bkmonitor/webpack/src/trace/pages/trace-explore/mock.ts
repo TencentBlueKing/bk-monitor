@@ -53,21 +53,83 @@ export const getStatisticsChartData = (params, options) => {
       resolve({
         series: [
           {
-            legend_name: 'test01',
-            data: [
-              [1742973960000, 8],
-              [1742974020000, 7],
-              [1742974080000, 5],
-              [1742974140000, 4],
-              [1742974200000, 1],
-              [1742974260000, 7],
-              [1742974320000, 6],
-              [1742974380000, 6],
-              [1742974440000, 3],
-              [1742974500000, 7],
+            dimensions: {
+              span_name: 'promqlExecQueue',
+            },
+            target: 'COUNT(_index){span_name=build-metadata-query}',
+            metric_field: '_result_',
+            datapoints: [
+              [4, 1744936200000],
+              [3, 1744936260000],
+              [9, 1744936320000],
+              [7, 1744936380000],
+              [5, 1744936440000],
+              [0, 1744936500000],
             ],
+            alias: '_result_',
+            type: 'bar',
+            dimensions_translation: {},
+            unit: '',
+          },
+          {
+            dimensions: {
+              span_name: 'promqlExecQueue',
+            },
+            target: 'COUNT(_index){span_name=promqlExecQueue',
+            metric_field: '_result_',
+            datapoints: [
+              [3, 1744936200000],
+              [3, 1744936260000],
+              [3, 1744936320000],
+              [3, 1744936380000],
+              [4, 1744936440000],
+              [0, 1744936500000],
+            ],
+            alias: '_result_',
+            type: 'bar',
+            dimensions_translation: {},
+            unit: '',
+          },
+          {
+            dimensions: {
+              span_name: 'kubelet',
+            },
+            target: 'COUNT(_index){span_name=kubelet}',
+            metric_field: '_result_',
+            datapoints: [
+              [51, 1744936200000],
+              [18, 1744936260000],
+              [44, 1744936320000],
+              [41, 1744936380000],
+              [23, 1744936440000],
+              [0, 1744936500000],
+            ],
+            alias: '_result_',
+            type: 'bar',
+            dimensions_translation: {},
+            unit: '',
+          },
+          {
+            dimensions: {
+              span_name: 'promqlSort',
+            },
+            target: 'COUNT(_index){span_name=promqlSort}',
+            metric_field: '_result_',
+            datapoints: [
+              [0, 1744936200000],
+              [0, 1744936260000],
+              [1, 1744936320000],
+              [0, 1744936380000],
+              [1, 1744936440000],
+              [0, 1744936500000],
+            ],
+            alias: '_result_',
+            type: 'bar',
+            dimensions_translation: {},
+            unit: '',
           },
         ],
+        metrics: [],
       });
     }, 500);
   });

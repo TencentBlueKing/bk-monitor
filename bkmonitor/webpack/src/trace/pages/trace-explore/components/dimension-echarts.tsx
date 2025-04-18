@@ -75,8 +75,8 @@ export default defineComponent({
     function setOptions() {
       const series = props.data.map(item => ({
         type: props.seriesType,
-        name: item.name,
-        data: item.data,
+        name: item.target,
+        data: item.datapoints.map(point => [point[1], point[0]]),
         symbol: 'none',
         z: 6,
       }));
