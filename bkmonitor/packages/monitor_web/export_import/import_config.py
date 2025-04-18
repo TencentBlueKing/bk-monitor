@@ -250,8 +250,6 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             parse_instance = ImportParse.objects.get(id=strategy_config.parse_id)
             create_config = copy.deepcopy(parse_instance.config)
 
-            # 覆盖模式，使用原配置策略id覆盖新导入的策略id
-            # 也就是对当前业务下已存在的策略进行覆盖
             if is_overwrite_mode and create_config["name"] in existed_name_to_id:
                 create_config["id"] = existed_name_to_id[create_config["name"]]
             else:
@@ -262,7 +260,6 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             create_config = Strategy.convert_v1_to_v2(create_config)
             create_config["bk_biz_id"] = bk_biz_id
 
-            # 用于创建新通知组或覆盖已有通知组
             user_groups_mapping = {}
             action_list = create_config["actions"] + [create_config["notice"]]
             imported_user_groups_dict = {}  # 新导入的告警组信息 {group.name:group}
@@ -333,6 +330,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             for name, group_detail in imported_user_groups_dict.items():
                 origin_id = group_detail.pop("id", None)
 
+                # 避免重复创建用户组
                 if name in newly_created_user_groups:
                     instance = newly_created_user_groups[name]
                 else:
@@ -364,6 +362,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     while config['name'] in existed_action_names:
                         config['name'] = f"{config['name']}_clone"
 
+                # 避免重复创建处理套餐
                 if config["name"] in newly_created_actions:
                     action["config_id"] = newly_created_actions[config['name']].id
                     continue
