@@ -47,7 +47,7 @@ class CompositeProcessor:
     # 关联告警检测窗口大小（单位 s）
     COMPOSITE_CHECK_WINDOW_SIZE = 60 * 60
 
-    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None):
+    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None, **kwargs):
         self.alert: Alert = alert
         self.alert_status = alert_status or self.alert.status
         # 此处仅做告警关联，不需要重复清洗数据
@@ -56,6 +56,7 @@ class CompositeProcessor:
         self.strategies = []
         self.actions = []
         self.events = []
+        self.composite_strategy_enabled: bool = kwargs.get("composite_strategy_enabled") or True
         self._strategy_cache = {}
 
     def pull(self):
@@ -717,11 +718,14 @@ class CompositeProcessor:
         return False
 
     def process(self):
-        self.process_single_strategy()
+        if self.actions:
+            self.push_actions()
+        else:
+            self.process_single_strategy()
 
         # 1. 如果告警本身就是由关联告警策略产生的，则不再进行关联检测
         # 2. 如果告警是无数据告警，则不参与关联检测
-        if not self.is_composite_strategy() and not self.alert.is_no_data():
+        if self.composite_strategy_enabled and not self.is_composite_strategy() and not self.alert.is_no_data():
             #  关联告警逻辑处理
             self.pull()
             for strategy in self.strategies:
