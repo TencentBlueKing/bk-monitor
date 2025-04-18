@@ -40,6 +40,7 @@
       align-items: center;
       justify-content: center;
       width: 100%;
+      min-height: 0;
       padding: 0 24px;
 
       .transfer-icon {
@@ -54,7 +55,10 @@
 
       .transfer-source,
       .transfer-target {
+        display: flex;
         flex: 1;
+        flex-direction: column;
+        min-width: 0;
         height: 100%;
         border: 1px solid #dcdee5;
         border-bottom: 0;
@@ -85,6 +89,55 @@
             }
           }
         }
+
+        .transfer-list {
+          flex: 1;
+          min-height: 0;
+          padding: 4px 8px;
+          overflow-y: auto;
+          overflow-y: overlay;
+
+          .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 32px;
+            padding: 0 8px;
+            line-height: 20px;
+            border-radius: 4px;
+
+            .list-item-left {
+              display: flex;
+              flex-basis: auto;
+              column-gap: 4px;
+              align-items: center;
+              min-width: 0;
+              user-select: none;
+
+              .item-prefix {
+                flex-shrink: 0;
+              }
+
+              .item-label {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
+            }
+
+            .item-suffix {
+              display: flex;
+              align-items: center;
+            }
+
+            &:hover {
+              color: #3a84ff;
+              background: #f0f5ff;
+            }
+          }
+        }
       }
 
       .transfer-source {
@@ -93,7 +146,7 @@
         .source-search-input {
           display: flex;
           align-items: center;
-          padding: 8px 16px;
+          padding: 8px 16px 0;
 
           .icon-mc-search {
             font-size: 18px;
@@ -116,7 +169,37 @@
               .bk-input--text {
                 background-color: transparent;
               }
+
+              .bk-input--suffix-icon {
+                background-color: transparent;
+              }
             }
+          }
+        }
+
+        .list-item {
+          cursor: pointer;
+
+          .item-suffix {
+            visibility: hidden;
+            font-size: 24px;
+            color: #3a84ff;
+          }
+
+          &:hover {
+            .item-suffix {
+              visibility: visible;
+            }
+          }
+        }
+      }
+
+      .transfer-target {
+        .list-item {
+          .item-suffix {
+            font-size: 14px;
+            color: #c4c6cc;
+            cursor: pointer;
           }
         }
       }
