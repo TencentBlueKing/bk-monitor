@@ -75,6 +75,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @Ref('metricChart') metricChartRef: HTMLDivElement;
   /* 主动刷新图表 */
   chartKey = random(8);
   isDragging = false;
@@ -89,6 +90,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   viewQueryConfig = {};
   currentChart = {};
   currentMethod = '';
+  selectLegendInd = -1;
 
   @Watch('panel', { immediate: true })
   handleFilterOptionChange(val) {
@@ -97,6 +99,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       this.currentMethod = query_configs[0]?.metrics[0]?.method;
     }
   }
+  @Watch('isShowStatisticalValue')
+  handleIsShowStatisticalValueChange() {
+    this.selectLegendInd = -1;
+  }
+
   /** 对比工具栏数据 */
   get compareValue() {
     const { compare } = this.filterOption;
@@ -216,6 +223,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   isNullOrUndefined(value: any) {
     return value === undefined || value === null ? '--' : value;
   }
+  /** 点击表格的图例，与图表联动 */
+  handleRowClick(item, index) {
+    this.selectLegendInd = this.selectLegendInd === index ? -1 : index;
+    this.metricChartRef?.handleSelectLegend({ actionType: 'click', item });
+  }
 
   /** 表格渲染 */
   renderIndicatorTable() {
@@ -237,8 +249,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       >
         <bk-table-column
           scopedSlots={{
-            default: ({ row }) => (
-              <span class='color-name'>
+            default: ({ row, $index }) => (
+              <span
+                class={`color-name ${this.selectLegendInd >= 0 && this.selectLegendInd !== $index ? 'disabled' : ''}`}
+                onClick={() => this.handleRowClick(row, $index)}
+              >
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
@@ -329,6 +344,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     const renderChart = () => (
       <NewMetricChart
         key={this.chartKey}
+        ref='metricChart'
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
