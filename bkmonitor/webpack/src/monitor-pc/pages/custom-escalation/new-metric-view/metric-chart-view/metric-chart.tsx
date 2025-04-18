@@ -289,7 +289,7 @@ class NewMetricChart extends CommonSimpleChart {
       );
       if (item.name) {
         for (const key in legendItem) {
-          if (['min', 'max', 'avg', 'total'].includes(key)) {
+          if (['min', 'max', 'avg', 'total', 'latest'].includes(key)) {
             const val = legendItem[key];
             legendItem[`${key}Source`] = val;
             const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : precision);
@@ -358,9 +358,9 @@ class NewMetricChart extends CommonSimpleChart {
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
     const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
-    const outputStr = output ? `{${output}}` : '';
-    if (isFull) {
-      return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
+    const outputStr = output ? `${output}` : '';
+    if (!timeOffset && !outputStr) {
+      return metric.alias || metric.name;
     }
     return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
   }
@@ -443,7 +443,7 @@ class NewMetricChart extends CommonSimpleChart {
             res.series &&
               series.push(
                 ...res.series.map(set => {
-                  const name = this.handleSeriesName(item, set, true) || set.target;
+                  const name = this.handleSeriesName(item, set) || set.target;
                   const tipsName = this.handleSeriesName(item, set) || set.target;
                   this.legendSorts.push({
                     name,

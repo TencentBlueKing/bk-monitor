@@ -104,7 +104,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.dimensionsList.map(item => {
       if (item.checked) {
         list.push({
-          label: item.name,
+          label: item.alias || item.name,
           prop: `dimensions.${item.name}`,
           renderFn: row => this.renderDimensionRow(row, item),
         });
@@ -180,7 +180,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         />
       );
     }
-    const baseView = (item: IDimensionItem) => [<span>{item.name}</span>, <span class='item-name'>{item.alias}</span>];
+    const baseView = (item: IDimensionItem) => [
+      <span>{item.alias || item.name}</span>,
+      <span class='item-name'>{item.alias ? item.name : ''}</span>,
+    ];
     /** 单选 */
     if (!this.isMultiple) {
       return this.showDimensionsList.map((item: IDimensionItem) => (
@@ -238,6 +241,17 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   renderOperation(row: IDataItem) {
     const drillKey = this.drillList.map(item => item.key);
     const list = this.dimensionsList.filter(item => !drillKey.includes(item.name) && !item.checked);
+    const len = list.length;
+    if (len === 0) {
+      return (
+        <span
+          class='disabled-drill-down'
+          v-bk-tooltips={{ content: this.$t('暂无维度可下钻') }}
+        >
+          {this.$t('下钻')}
+        </span>
+      );
+    }
     return (
       <bk-dropdown-menu
         ref='dropdown'
@@ -264,7 +278,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
                 class={['table-drill-down-item', { active: isActive }]}
                 onClick={() => this.chooseDrill(option, row)}
               >
-                {option.name}
+                {option.alias || option.name}
+                {option.alias ? ` (${option.name})` : ''}
               </li>
             );
           })}
@@ -299,8 +314,11 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     return <span style={{ color: row[prop] ? color : '#313238' }}>{row[prop] ? `${row[prop]}%` : '--'}</span>;
   }
   renderValue(row: IDataItem, prop: string) {
+    if (row[prop] === undefined || row[prop] === null) {
+      return '--';
+    }
     const precision = handleGetMinPrecision(
-      this.tableList.map(item => item[prop]),
+      this.tableList.map(item => item[prop]).filter((set: any) => typeof set === 'number'),
       getValueFormat(row.unit),
       row.unit
     );
@@ -390,7 +408,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               if (item?.renderFn) {
                 return item?.renderFn(row);
               }
-              return row[item.prop] || '--';
+              return row[item.prop] === undefined || row[item.prop] === null ? '--' : row[item.prop];
             },
           }}
           label={this.$t(item.label)}

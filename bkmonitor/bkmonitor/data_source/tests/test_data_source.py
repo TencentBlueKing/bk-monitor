@@ -1628,7 +1628,7 @@ class TestBkApmTraceDataSource:
             {
                 "driver": "influxdb",
                 "data_source": "bkapm",
-                "table_id": "2_bkapm_trace_app",
+                "table_id": "2_bkapm.trace_app",
                 "reference_name": "a",
                 "field_name": "span_name",
                 "time_field": "end_time",
@@ -1865,7 +1865,7 @@ class TestBkApmTraceDataSource:
             {
                 "driver": "influxdb",
                 "data_source": "bkapm",
-                "table_id": "2_bkapm_trace_app",
+                "table_id": "2_bkapm.trace_app",
                 "reference_name": "a",
                 "field_name": "",
                 "time_field": "end_time",

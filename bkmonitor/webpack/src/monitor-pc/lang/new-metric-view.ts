@@ -116,4 +116,5 @@ export default {
   '仅允许包含字母、数字、下划线，且必须以字母开头':
     'Only letters, numbers, and underscores are allowed, and the name must start with a letter',
   无维度数据可下钻: 'No dimension data available for drilling down',
+  维度下钻: '',
 };

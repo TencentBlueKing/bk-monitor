@@ -95,29 +95,6 @@ TRIGGER_CONFIG = {
     "uptime": {"calendars": [], "time_ranges": [{"start": "00:00", "end": "23:59"}]},
 }
 
-DEFAULT_ALERT_NOTICE = [
-    {
-        "time_range": "00:00:00--23:59:00",
-        "notify_config": [
-            {"notice_ways": [{"name": "rtx"}], "level": 3},
-            {"notice_ways": [{"name": "rtx"}], "level": 2},
-            {"notice_ways": [{"name": "rtx"}], "level": 1},
-        ],
-    }
-]
-
-DEFAULT_ACTION_NOTICE = [
-    {
-        "time_range": "00:00:00--23:59:00",
-        "notify_config": [
-            {"notice_ways": [{"name": "rtx"}], "phase": 3},
-            {"notice_ways": [{"name": "rtx"}], "phase": 2},
-            {"notice_ways": [{"name": "rtx"}], "phase": 1},
-        ],
-    }
-]
-
-DEFAULT_MENTION_LIST = [{"id": "all", "display_name": "all", "type": "group"}]
 
 DEFAULT_DETECTS = [
     {
