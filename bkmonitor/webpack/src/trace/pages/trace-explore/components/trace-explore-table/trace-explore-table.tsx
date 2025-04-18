@@ -28,10 +28,11 @@ import { useI18n } from 'vue-i18n';
 
 import { OverflowTitle } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
-import { PrimaryTable, type TableProps } from 'tdesign-vue-next';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
+import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
 import ExploreTableEmpty from './explore-table-empty';
@@ -73,6 +74,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const store = useTraceExploreStore();
     /** table 默认配置项 */
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
     /** 表格单页条数 */
@@ -84,8 +86,6 @@ export default defineComponent({
     const refreshTable = shallowRef(random(8));
     /** table 数据总条数 */
     const tableTotal = shallowRef(0);
-    /** table 数据 */
-    const tableData = deepRef<TableProps['data']>([]);
     /** table 显示列配置 */
     const tableColumns = deepRef<ExploreTableColumn<ExploreTableColumnTypeEnum>[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
@@ -109,6 +109,10 @@ export default defineComponent({
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
+    /** table 数据（所有请求返回的数据） */
+    const tableData = computed(() => store.tableList);
+    /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
+    const tableViewData = computed(() => store.tableList);
     /** 判断当前数据是否需要触底加载更多 */
     const tableHasScrollLoading = computed(() => tableData.value?.length < tableTotal.value);
     /** 请求参数 */
@@ -136,7 +140,7 @@ export default defineComponent({
     watch(
       () => isSpanVisual.value,
       () => {
-        tableData.value = [];
+        store.updateTableList([]);
         tableRowKeyField.value = isSpanVisual.value ? 'span_id' : 'trace_id';
         initTableColumn();
         refreshTable.value = random(8);
@@ -458,17 +462,17 @@ export default defineComponent({
         abortController = null;
       }
       if (!queryParams.value) {
-        tableData.value = [];
+        store.updateTableList([]);
         return;
       }
       let updateTableDataFn = list => {
-        tableData.value.push(...list);
+        store.updateTableList([...tableData.value, ...list]);
       };
 
       if (loadingType === ExploreTableLoadingEnum.REFRESH) {
-        tableData.value = [];
+        store.updateTableList([]);
         updateTableDataFn = list => {
-          tableData.value = list;
+          store.updateTableList(list);
         };
       } else if (!tableHasScrollLoading.value) {
         return;
@@ -478,7 +482,7 @@ export default defineComponent({
       const requestParam = {
         ...queryParams.value,
         limit: limit,
-        offset: tableData?.value?.length || 0,
+        offset: tableData.value?.length || 0,
       };
       abortController = new AbortController();
       const res = await getTableList(requestParam, props.mode, {
@@ -819,7 +823,7 @@ export default defineComponent({
       defaultTableConfig,
       tableRowKeyField,
       tableColumns,
-      tableData,
+      tableViewData,
       traceSliderRender,
       spanSliderRender,
       handleSortChange,
@@ -861,7 +865,8 @@ export default defineComponent({
             };
           })}
           activeRowType='single'
-          data={this.tableData}
+          data={this.tableViewData}
+          headerAffixedTop={true}
           hover={true}
           resizable={true}
           rowKey={this.tableRowKeyField}

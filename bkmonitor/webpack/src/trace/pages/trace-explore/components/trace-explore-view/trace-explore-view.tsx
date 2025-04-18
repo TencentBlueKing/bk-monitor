@@ -37,11 +37,11 @@ import type { ICommonParams } from '../../typing';
 import './trace-explore-view.scss';
 
 /** 快速过滤项(包含) */
-enum TableCheckBoxFiltersEnum {
-  EntrySpan = 'entry',
-  Error = 'error',
-  RootSpan = 'root_span',
-}
+const TableCheckBoxFiltersEnum = {
+  EntrySpan: 'entry',
+  Error: 'error',
+  RootSpan: 'root_span',
+} as const;
 
 export default defineComponent({
   name: 'TraceExploreView',

@@ -47,7 +47,7 @@ import { getTableList, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_C
 
 import type { ICommonParams } from '../../typing';
 
-import './trace-explore-table.scss';
+import './trace-explore-table-old.scss';
 
 export default defineComponent({
   name: 'TraceExploreTable',
