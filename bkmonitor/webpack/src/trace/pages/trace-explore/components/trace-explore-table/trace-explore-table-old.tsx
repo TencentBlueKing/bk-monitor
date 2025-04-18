@@ -26,9 +26,9 @@
 import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { Table, TableColumn } from '@blueking/table';
 import { OverflowTitle } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
-import { PrimaryTable, type TableProps } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
@@ -76,7 +76,7 @@ export default defineComponent({
     /** table 默认配置项 */
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
     /** 表格单页条数 */
-    const limit = 50;
+    const limit = 100;
     /** 表格logs数据请求中止控制器 */
     let abortController: AbortController = null;
 
@@ -85,9 +85,9 @@ export default defineComponent({
     /** table 数据总条数 */
     const tableTotal = shallowRef(0);
     /** table 数据 */
-    const tableData = deepRef<TableProps['data']>([]);
+    const tableData = deepRef([]);
     /** table 显示列配置 */
-    const tableColumns = deepRef<ExploreTableColumn<ExploreTableColumnTypeEnum>[]>([]);
+    const tableColumns = deepRef([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -551,25 +551,6 @@ export default defineComponent({
       console.log('================ filterChangeEvent ================', filterChangeEvent);
     }
     /**
-     * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
-      const alias = getTableCellRenderValue(row, column);
-      return (
-        <div class='explore-col explore-text-col '>
-          <OverflowTitle
-            class='explore-col-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
-          </OverflowTitle>
-        </div>
-      );
-    }
-    /**
      * @description 表格空数据显示中的 数据源配置 点击回调
      *
      */
@@ -642,19 +623,22 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
-      const alias = getTableCellRenderValue(row, column);
-      return (
-        <div class='explore-col explore-click-col'>
-          <OverflowTitle
-            class='explore-click-text'
-            placement='top'
-            type='tips'
-          >
-            <span onClick={event => column?.clickCallback?.(row, column, event)}>{alias}</span>
-          </OverflowTitle>
-        </div>
-      );
+    function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>) {
+      return ({ row }) => {
+        const alias = getTableCellRenderValue(row, column);
+
+        return (
+          <div class='explore-col explore-click-col'>
+            <OverflowTitle
+              class='explore-click-text'
+              placement='top'
+              type='tips'
+            >
+              <span onClick={event => column?.clickCallback?.(row, column, event)}>{alias}</span>
+            </OverflowTitle>
+          </div>
+        );
+      };
     }
 
     /**
@@ -662,23 +646,25 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function iconColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>, row) {
-      const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
-      const { alias, prefixIcon } = item;
-      if (alias == null || alias === '') {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => alias,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
+    function iconColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) {
+      return ({ row }) => {
+        const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
+        const { alias, prefixIcon } = item;
+        if (alias == null || alias === '') {
+          const textColumn = {
+            ...column,
+            getRenderValue: () => alias,
+          };
+          return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>)(row);
+        }
 
-      return (
-        <div class='explore-col explore-prefix-icon-col'>
-          <i class={`prefix-icon ${prefixIcon}`} />
-          <span>{alias}</span>
-        </div>
-      );
+        return (
+          <div class='explore-col explore-prefix-icon-col'>
+            <i class={`prefix-icon ${prefixIcon}`} />
+            <span>{alias}</span>
+          </div>
+        );
+      };
     }
 
     /**
@@ -686,20 +672,22 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
-      const timestamp = getTableCellRenderValue(row, column);
-      const value = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
-      return (
-        <div class='explore-col explore-time-col '>
-          <OverflowTitle
-            class='explore-time-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{value}</span>
-          </OverflowTitle>
-        </div>
-      );
+    function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>) {
+      return ({ row }) => {
+        const timestamp = getTableCellRenderValue(row, column);
+        const value = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
+        return (
+          <div class='explore-col explore-time-col '>
+            <OverflowTitle
+              class='explore-time-text'
+              placement='top'
+              type='tips'
+            >
+              <span>{value}</span>
+            </OverflowTitle>
+          </div>
+        );
+      };
     }
 
     /**
@@ -707,20 +695,22 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row) {
-      const timestamp = getTableCellRenderValue(row, column);
-      const value = formatDuration(+timestamp);
-      return (
-        <div class='explore-col explore-duration-col '>
-          <OverflowTitle
-            class='explore-duration-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{value}</span>
-          </OverflowTitle>
-        </div>
-      );
+    function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>) {
+      return ({ row }) => {
+        const timestamp = getTableCellRenderValue(row, column);
+        const value = formatDuration(+timestamp);
+        return (
+          <div class='explore-col explore-duration-col '>
+            <OverflowTitle
+              class='explore-duration-text'
+              placement='top'
+              type='tips'
+            >
+              <span>{value}</span>
+            </OverflowTitle>
+          </div>
+        );
+      };
     }
 
     /**
@@ -728,35 +718,38 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function linkColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>, row) {
-      const item = getTableCellRenderValue(row, column);
-      // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
-      if (!item?.url) {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => item?.alias,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
-      return (
-        <div class='explore-col explore-link-col '>
-          <OverflowTitle
-            class='explore-link-text'
-            placement='top'
-            type='tips'
-          >
-            <a
-              style={{ color: 'inherit' }}
-              href={item.url}
-              rel='noreferrer'
-              target='_blank'
+    function linkColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>) {
+      return ({ row }) => {
+        const item = getTableCellRenderValue(row, column);
+        // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
+        if (!item?.url) {
+          const textColumn = {
+            ...column,
+            getRenderValue: () => item?.alias,
+          };
+          return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>)(row);
+        }
+        return (
+          <div class='explore-col explore-link-col '>
+            <OverflowTitle
+              class='explore-link-text'
+              placement='top'
+              type='tips'
             >
-              {item.alias}
-            </a>
-          </OverflowTitle>
-          <i class='icon-monitor icon-mc-goto' />
-        </div>
-      );
+              <a
+                style={{ color: 'inherit' }}
+                href={item.url}
+                rel='noreferrer'
+                target='_blank'
+              >
+                {item.alias}
+                {item.alias}
+              </a>
+            </OverflowTitle>
+            <i class='icon-monitor icon-mc-goto' />
+          </div>
+        );
+      };
     }
 
     /**
@@ -764,31 +757,55 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function tagsColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>, row) {
-      const tags = getTableCellRenderValue(row, column);
-      if (!tags?.length) {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => defaultTableConfig.emptyPlaceholder,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
-      return (
-        <div class='explore-col explore-tags-col '>
-          {tags.map(tag => (
-            <div
-              key={tag.alias}
-              style={{
-                '--tag-color': tag.tagColor,
-                '--tag-bg-color': tag.tagBgColor,
-              }}
-              class='tag-item'
+    function tagsColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>) {
+      return ({ row }) => {
+        const tags = getTableCellRenderValue(row, column);
+        if (!tags?.length) {
+          const textColumn = {
+            ...column,
+            getRenderValue: () => defaultTableConfig.emptyPlaceholder,
+          };
+          return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>)(row);
+        }
+        return (
+          <div class='explore-col explore-tags-col '>
+            {tags.map(tag => (
+              <div
+                key={tag.alias}
+                style={{
+                  '--tag-color': tag.tagColor,
+                  '--tag-bg-color': tag.tagBgColor,
+                }}
+                class='tag-item'
+              >
+                <span>{tag.alias}</span>
+              </div>
+            ))}
+          </div>
+        );
+      };
+    }
+
+    /**
+     * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
+     * @param {ExploreTableColumn} column 当前列配置项
+     *
+     */
+    function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>) {
+      return ({ row }) => {
+        const alias = getTableCellRenderValue(row, column);
+        return (
+          <div class='explore-col explore-text-col '>
+            <OverflowTitle
+              class='explore-col-text'
+              placement='top'
+              type='tips'
             >
-              <span>{tag.alias}</span>
-            </div>
-          ))}
-        </div>
-      );
+              <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
+            </OverflowTitle>
+          </div>
+        );
+      };
     }
 
     /**
@@ -796,23 +813,51 @@ export default defineComponent({
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
-    function handleSetFormatter(column, row) {
+    function handleSetFormatter(column) {
       switch (column.type) {
         case ExploreTableColumnTypeEnum.CLICK:
-          return clickColumnFormatter(column, row);
+          return clickColumnFormatter(column);
         case ExploreTableColumnTypeEnum.PREFIX_ICON:
-          return iconColumnFormatter(column, row);
+          return iconColumnFormatter(column);
         case ExploreTableColumnTypeEnum.TIME:
-          return timeColumnFormatter(column, row);
+          return timeColumnFormatter(column);
         case ExploreTableColumnTypeEnum.DURATION:
-          return durationColumnFormatter(column, row);
+          return durationColumnFormatter(column);
         case ExploreTableColumnTypeEnum.LINK:
-          return linkColumnFormatter(column, row);
+          return linkColumnFormatter(column);
         case ExploreTableColumnTypeEnum.TAGS:
-          return tagsColumnFormatter(column, row);
+          return tagsColumnFormatter(column);
         default:
-          return textColumnFormatter(column, row);
+          return textColumnFormatter(column);
       }
+    }
+
+    /**
+     * @description 表格列渲染方法
+     * @param column 列配置项
+     *
+     */
+    function transformColumn(column: ExploreTableColumn<ExploreTableColumnTypeEnum>) {
+      if (!column?.field) {
+        return null;
+      }
+      const { align } = defaultTableConfig;
+      return (
+        <TableColumn
+          key={`explore_table_${column.field}`}
+          width={column.width}
+          v-slots={{ default: handleSetFormatter(column) }}
+          align={column.align || align}
+          field={column.field}
+          filterMultiple={column.filterMultiple}
+          filters={column.filter}
+          fixed={column.fixed}
+          minWidth={column.minWidth}
+          showOverflow={false}
+          sortable={column.sortable}
+          title={column.alias}
+        />
+      );
     }
     return {
       refreshTable,
@@ -822,53 +867,44 @@ export default defineComponent({
       tableData,
       traceSliderRender,
       spanSliderRender,
+      transformColumn,
       handleSortChange,
       handleFilterChange,
       handleDataSourceConfigClick,
-      handleSetFormatter,
     };
   },
 
   render() {
     return (
       <div class='trace-explore-table'>
-        <PrimaryTable
+        {/* @ts-ignore */}
+        <Table
+          key={this.refreshTable}
           v-slots={{
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
-          columns={this.tableColumns.map(column => {
-            return {
-              ...column,
-              colKey: column.field,
-              title: column.alias,
-              width: column.minWidth,
-              sorter: column.sortable,
-              sortType: column.sortable ? 'all' : undefined,
-              ellipsis: false,
-              resizable: true,
-              filter: {
-                list: Array(10)
-                  .fill(1)
-                  .map(i => ({
-                    label: `filter-${i}`,
-                    value: `filter-${i}`,
-                  })),
-                type: column.filterMultiple ? 'multiple' : 'single',
-              },
-              cell: (h, { row }) => {
-                return this.handleSetFormatter(column, row);
-              },
-            };
-          })}
-          activeRowType='single'
+          rowConfig={{
+            useKey: true,
+            isCurrent: true,
+            keyField: this.tableRowKeyField,
+          }}
+          sortConfig={{
+            remote: true,
+            orders: ['asc', 'desc', 'null'],
+          }}
+          autoResize={true}
+          border='inner'
+          columnConfig={{ useKey: true }}
           data={this.tableData}
-          hover={true}
-          resizable={true}
-          rowKey={this.tableRowKeyField}
-          size='small'
-          stripe={false}
-          tableLayout='fixed'
-        />
+          filter-config={{ remote: true }}
+          row-height={this.defaultTableConfig.lineHeight}
+          showOverflow={false}
+          size='mini'
+          onFilterChange={this.handleFilterChange}
+          onSortChange={this.handleSortChange}
+        >
+          {this.tableColumns.map(column => this.transformColumn(column))}
+        </Table>
         {this.traceSliderRender()}
         {this.spanSliderRender()}
       </div>

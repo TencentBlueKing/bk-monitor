@@ -56,10 +56,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const $el = useTemplateRef<HTMLDivElement>('el');
-    const searchInputRef = useTemplateRef('searchInput');
+    const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
-
     const searchValue = shallowRef('');
     const searchLocalFields = shallowRef<IFilterField[]>([]);
     const cursorIndex = shallowRef(0);
@@ -130,9 +129,10 @@ export default defineComponent({
             }
           } else {
             handleCheck(props.fields[0]);
+            // 需要等待popover 动画执行完毕 300ms
             setTimeout(() => {
-              searchInputRef.value?.focus();
-            }, 200);
+              searchInputRef.value.focus();
+            }, 300);
           }
         }
       },
