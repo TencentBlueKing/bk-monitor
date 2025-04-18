@@ -44,7 +44,6 @@ from luqum.tree import (
 from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search import metrics
 from apps.log_search.constants import (
     LOG_HIGHLIGHT_CONFIG,
@@ -346,9 +345,10 @@ class ChartHandler(object):
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
 
     @staticmethod
-    def convert_to_where_clause(commands: List[dict]):
+    def convert_to_where_clause(grep_field, commands: List[dict]):
         """
         将解析后的grep命令转换为 doris SQL的where子句
+        :param grep_field: grep查询字段
         :param commands: 解析后的grep命令列表
         :return: 查询条件
         """
@@ -357,15 +357,22 @@ class ChartHandler(object):
         for cmd in commands:
             args = cmd["args"]
             pattern = f"'{cmd['pattern']}'"
+            use_not = False
+            ignore_case = False
+            for arg in args:
+                if "v" in arg:
+                    use_not = True
+                if "i" in arg:
+                    ignore_case = True
 
             # 构建正则表达式条件
             regex_op = "REGEXP"
-            if "v" in args:
+            if use_not:
                 regex_op = f"NOT {regex_op}"
 
-            field_name = "log"
-            if "i" in args:
-                field_name = "LOWER(log)"
+            field_name = grep_field
+            if ignore_case:
+                field_name = f"LOWER({grep_field})"
                 pattern = f"LOWER({pattern})"
 
             # 构建条件表达式
@@ -528,11 +535,11 @@ class SQLChartHandler(ChartHandler):
         grep_query = params.get("grep_query")
         pattern = ""
         ignore_case = False
-        if grep_query:
+        if grep_query and grep_field:
             # 加上 grep 查询条件
             try:
                 grep_syntax_list = grep_parser(grep_query)
-                grep_where_clause = self.convert_to_where_clause(grep_syntax_list)
+                grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
 
                 if "v" not in grep_syntax_list[-1]["args"]:
                     pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1].strip("'")
@@ -549,20 +556,16 @@ class SQLChartHandler(ChartHandler):
                 reload(luqum_parser_module)
 
         # 加上分页条件
-        where_clause += f" LIMIT {params['begin']}, {params['size']}"
+        where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
         sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
         # 执行doris查询
         result = self.fetch_query_data(sql)
-        result_list = result["list"]
-        # 获取高亮配置
-        feature_obj = FeatureToggleObject.toggle(LOG_HIGHLIGHT_CONFIG)
-        if feature_obj:
-            highlight_config = feature_obj.feature_config
-            result_list = add_highlight_mark(
-                data_list=result_list,
-                match_field=grep_field,
-                pattern=pattern,
-                tags=highlight_config,
-                ignore_case=ignore_case,
-            )
-        return {"result_list": result_list}
+        # 添加高亮标记
+        log_list = add_highlight_mark(
+            data_list=result["list"],
+            match_field=grep_field,
+            pattern=pattern,
+            tags=LOG_HIGHLIGHT_CONFIG,
+            ignore_case=ignore_case,
+        )
+        return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}

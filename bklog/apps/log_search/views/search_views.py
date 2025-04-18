@@ -1829,7 +1829,9 @@ class SearchViewSet(APIViewSet):
         {
             "result": true,
             "data": {
-                "result_list": [
+                "total": 2,
+                "took" 0.88,
+                "list": [
                     {
                         "thedate": 20250416,
                         "dteventtimestamp": 1744788480000,

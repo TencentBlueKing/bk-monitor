@@ -33,6 +33,8 @@ GREP_SYNTAX_CASE = [
     "grep \"suc+e?s{2{1,2}\"",
     "egrep \"suc\\+e\\?s\\{2{1,2}\"",
     "egrep \"s\\.s\\?c\\+e\\?s\\{2{1,2}a.*?\"",
+    "grep -iv \"xxx\"",
+    "grep -Ei -v \"xxx\"",
 ]
 
 GREP_RESULT_CASE = [
@@ -68,6 +70,8 @@ GREP_RESULT_CASE = [
     [{'command': 'grep', 'args': [], 'pattern': 'suc\\+e\\?s\\{2\\{1,2\\}'}],
     [{'command': 'egrep', 'args': [], 'pattern': 'suc\\+e\\?s\\{2{1,2}'}],
     [{'command': 'egrep', 'args': [], 'pattern': 's\\.s\\?c\\+e\\?s\\{2{1,2}a.*?'}],
+    [{'command': 'grep', 'args': ['iv'], 'pattern': 'xxx'}],
+    [{'command': 'egrep', 'args': ['Ei', 'v'], 'pattern': 'xxx'}],
 ]
 
 WHERE_CLAUSE_RESULT = [
@@ -99,18 +103,22 @@ WHERE_CLAUSE_RESULT = [
     "log REGEXP 'suc\+e\?s\{2\{1,2\}'",
     "log REGEXP 'suc\+e\?s\{2{1,2}'",
     "log REGEXP 's\.s\?c\+e\?s\{2{1,2}a.*?'",
+    "LOWER(log) NOT REGEXP LOWER('xxx')",
+    "LOWER(log) NOT REGEXP LOWER('xxx')",
 ]
 
 
 class TestGrepLogic(TestCase):
+    GREP_FIELD = "log"
+
     def test_grep_syntax(self):
-        for i in range(len(GREP_SYNTAX_CASE) - 1):
+        for i in range(len(GREP_SYNTAX_CASE)):
             grep_result_case = grep_parser(GREP_SYNTAX_CASE[i])
             # 验证grep语法是否正确
             self.assertEqual(grep_result_case, GREP_RESULT_CASE[i])
 
             # 验证sql的where条件是否正确
-            where_clause = ChartHandler.convert_to_where_clause(grep_result_case)
+            where_clause = ChartHandler.convert_to_where_clause(self.GREP_FIELD, grep_result_case)
             self.assertEqual(where_clause, WHERE_CLAUSE_RESULT[i])
 
     def test_grep_exception_syntax(self):

@@ -159,17 +159,20 @@ def add_highlight_mark(data_list: List[dict], match_field: str, pattern: str, ta
     :param tags: 高亮起止标签
     :param ignore_case: 是否忽略大小写
     """
-    if not data_list or not match_field or not pattern:
+    if not data_list or not match_field or not pattern or match_field not in data_list[0]:
         return data_list
 
     pre_tag = tags.get("pre_tag", "<mark>")
     post_tag = tags.get("post_tag", "</mark>")
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
+        value = data[match_field]
+        if not isinstance(value, str):
+            value = str(value)
         data[match_field] = re.sub(
             pattern,
             lambda x: pre_tag + x.group() + post_tag,
-            data[match_field],
+            value,
             flags=re.I if ignore_case else 0,
         )
 

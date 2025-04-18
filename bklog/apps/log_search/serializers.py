@@ -1063,6 +1063,6 @@ class LogGrepQuerySerializer(serializers.Serializer):
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
     grep_query = serializers.CharField(label=_("grep查询条件"), required=False, allow_null=True, allow_blank=True)
-    grep_field = serializers.CharField(label=_("高亮字段"), required=False, allow_null=True, allow_blank=True)
+    grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
-    size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=100)
+    size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)

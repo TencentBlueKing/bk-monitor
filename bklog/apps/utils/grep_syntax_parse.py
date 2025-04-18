@@ -61,9 +61,14 @@ def p_commands(p):  # noqa: F841
 def p_command(p):  # noqa: F841
     """command : cmd_prefix args_pattern"""
     cmd, args = p[1]
-    pattern_args, pattern = p[2]
+    _, pattern = p[2]
     result = []
     i = 0
+    # args中存在E时, 使用egrep命令
+    args = args or []
+    for arg in args:
+        if "E" in arg:
+            cmd = "egrep"
     # 对pattern中的转义字符进行处理
     while i < len(pattern):
         if pattern[i] == '\\' and i + 1 < len(pattern):
@@ -93,7 +98,7 @@ def p_command(p):  # noqa: F841
 
     pattern = "".join(result)
     # 默认命令是grep
-    p[0] = {"command": cmd or "grep", "args": (args or []) + (pattern_args or []), "pattern": pattern}
+    p[0] = {"command": cmd or "grep", "args": args, "pattern": pattern}
 
 
 def p_cmd_prefix(p):  # noqa: F841
