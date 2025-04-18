@@ -326,9 +326,9 @@ class CheckMixin(object):
         all_dimensions_md5 = target_dimensions_md5 + data_dimensions_md5
         loop = 0
         try:
-            strategu_ttl = self.get_detect_result_expire_ttl()
+            strategy_ttl = self.get_detect_result_expire_ttl()
         except Exception:
-            strategu_ttl = None
+            strategy_ttl = None
         for _dms in chain(target_instance_dimensions, data_dimensions):
             dimensions_md5 = all_dimensions_md5[loop]
             loop += 1
@@ -353,7 +353,7 @@ class CheckMixin(object):
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
                 kwargs = {name: check_timestamp}
-                check_result.add_check_result_cache(ttl=strategu_ttl, **kwargs)
+                check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
 
                 if self.no_data_config.get("is_enabled"):
                     # 2. 缓存数据(维度缓存) type:Hash
