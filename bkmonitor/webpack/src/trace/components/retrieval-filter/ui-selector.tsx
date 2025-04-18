@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, useTemplateRef, watch } from 'vue';
+import { defineComponent, triggerRef, useTemplateRef, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -269,6 +269,7 @@ export default defineComponent({
           method: { id: EMethod.include, name: t('包含') },
           condition: { id: ECondition.and, name: 'AND' },
         });
+        triggerRef(localValue);
         inputValue.value = '';
         destroyPopoverInstance();
         setTimeout(() => {
@@ -282,6 +283,7 @@ export default defineComponent({
     }
     function handleDeleteTag(index: number) {
       localValue.value.splice(index, 1);
+      triggerRef(localValue);
       handleChange();
       handleCancel();
     }
@@ -296,6 +298,7 @@ export default defineComponent({
         ...localValue.value[index],
         hide,
       });
+      triggerRef(localValue);
       handleChange();
     }
     function handleUpdateTag(event: MouseEvent, index: number) {

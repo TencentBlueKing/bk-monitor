@@ -84,6 +84,11 @@ export default defineComponent({
     const loading = shallowRef(false);
     const queryString = shallowRef('');
 
+    const residentSettingOnlyId = computed(() => {
+      const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
+      return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
+    });
+
     watch(
       [
         () => store.appName,
@@ -167,6 +172,24 @@ export default defineComponent({
                     type: 'date',
                     is_searched: true,
                     is_dimensions: true,
+                    is_option_enabled: false,
+                    supported_operations: [{ operator: '=', label: '=', placeholder: '请选择或直接输入，Enter分隔' }],
+                  },
+                  {
+                    name: 'trace_id',
+                    alias: 'Trace ID',
+                    type: 'keyword',
+                    is_searched: true,
+                    is_dimensions: true,
+                    is_option_enabled: false,
+                    supported_operations: [{ operator: '=', label: '=', placeholder: '请选择或直接输入，Enter分隔' }],
+                  },
+                  {
+                    name: 'root_service_category',
+                    alias: '调用类型',
+                    type: 'keyword',
+                    is_searched: true,
+                    is_dimensions: true,
                     is_option_enabled: true,
                     can_displayed: true,
                     is_default_filter: true,
@@ -207,11 +230,10 @@ export default defineComponent({
           }, 300);
         });
       }
-      if (!store.appName) return;
+      // if (!store.appName) return;
       const data = await mock({
         app_name: store.appName,
       });
-
       fieldListMap.value = {
         trace: data.trace_config.fields,
         span: data.span_config.fields,
@@ -293,6 +315,7 @@ export default defineComponent({
       commonParams,
       loading,
       queryString,
+      residentSettingOnlyId,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -311,7 +334,14 @@ export default defineComponent({
             />
           </div>
           <div class='trace-explore-content'>
-            {this.loading ? <div class='skeleton-element filter-skeleton' /> : <RetrievalFilter />}
+            {this.loading ? (
+              <div class='skeleton-element filter-skeleton' />
+            ) : (
+              <RetrievalFilter
+                fields={this.fieldList}
+                residentSettingOnlyId={this.residentSettingOnlyId}
+              />
+            )}
             <TraceExploreLayout
               ref='traceExploreLayoutRef'
               class='content-container'

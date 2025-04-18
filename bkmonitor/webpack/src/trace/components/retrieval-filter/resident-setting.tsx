@@ -31,6 +31,7 @@ import { $bkPopover } from 'bkui-vue';
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
 import SettingKvSelector from './setting-kv-selector';
+import TimeConsuming from './time-consuming';
 import {
   ECondition,
   type IFieldItem,
@@ -40,7 +41,7 @@ import {
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
 } from './typing';
-import { defaultWhereItem } from './utils';
+import { defaultWhereItem, DURATION_FIELD_KEY } from './utils';
 
 import './resident-setting.scss';
 
@@ -166,7 +167,7 @@ export default defineComponent({
       }));
       handleChange();
       destroyPopoverInstance();
-      handleSetUserConfig(props.residentSettingOnlyId, JSON.stringify(fields.map(item => item.name)));
+      handleSetUserConfig(JSON.stringify(fields.map(item => item.name)), props.residentSettingOnlyId);
     }
     function handleValueChange(value: IWhereItem, index: number) {
       localValue.value[index].value = value;
@@ -185,7 +186,7 @@ export default defineComponent({
         alias: item.alias,
         isEnableOptions: !!item?.is_option_enabled,
         methods:
-          item?.supported_operations.map(o => ({
+          item?.supported_operations?.map(o => ({
             id: o.value,
             name: o.alias,
           })) || [],
@@ -249,16 +250,26 @@ export default defineComponent({
         </span>
         <div class='right-content'>
           {this.localValue.length ? (
-            this.localValue.map((item, index) => (
-              <SettingKvSelector
-                key={index}
-                class='mb-4 mr-4'
-                fieldInfo={this.getFieldInfo(item.field)}
-                getValueFn={this.getValueFnProxy}
-                value={item.value}
-                onChange={v => this.handleValueChange(v, index)}
-              />
-            ))
+            this.localValue.map((item, index) =>
+              item.field.name === DURATION_FIELD_KEY ? (
+                <TimeConsuming
+                  key={index}
+                  class='mb-4 mr-4'
+                  fieldInfo={this.getFieldInfo(item.field)}
+                  value={item.value}
+                  onChange={v => this.handleValueChange(v, index)}
+                />
+              ) : (
+                <SettingKvSelector
+                  key={index}
+                  class='mb-4 mr-4'
+                  fieldInfo={this.getFieldInfo(item.field)}
+                  getValueFn={this.getValueFnProxy}
+                  value={item.value}
+                  onChange={v => this.handleValueChange(v, index)}
+                />
+              )
+            )
           ) : (
             <span class='placeholder-text'>{`（${this.$t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
           )}

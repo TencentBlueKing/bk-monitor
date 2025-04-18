@@ -101,9 +101,14 @@ export interface IFilterField {
   type: EFieldType;
   is_option_enabled: boolean; // 是否可自定选项
   is_dimensions?: boolean;
+  is_searched?: boolean;
+  can_displayed?: boolean;
   supported_operations: {
     alias: string;
     value: EMethod;
+    placeholder?: string;
+    operator?: string;
+    label?: string;
     options?: {
       label: string;
       name: string;
@@ -117,7 +122,7 @@ export enum ECondition {
 
 export interface IWhereItem {
   key: string;
-  condition: ECondition;
+  condition?: ECondition;
   method: EMethod | string;
   value: string[];
   options?: {
@@ -658,4 +663,17 @@ export const RESIDENT_SETTING_PROPS = {
 };
 export const RESIDENT_SETTING_EMITS = {
   change: (_v: IWhereItem[]) => true,
+} as const;
+export const TIME_CONSUMING_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  value: {
+    type: Object as PropType<IWhereItem>,
+    default: () => null,
+  },
+};
+export const TIME_CONSUMING_EMITS = {
+  change: (_v: IWhereItem) => true,
 } as const;

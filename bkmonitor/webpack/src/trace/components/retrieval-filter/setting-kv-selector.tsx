@@ -24,7 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
+import {
+  defineComponent,
+  shallowRef,
+  useTemplateRef,
+  computed,
+  onBeforeUnmount,
+  watch,
+  nextTick,
+  triggerRef,
+} from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { $bkPopover, Dropdown } from 'bkui-vue';
@@ -100,18 +109,20 @@ export default defineComponent({
         methodMap.value[item.id] = item.name;
       }
       overviewCount();
-      const valueWrap = $el.value.querySelector('.component-main > .value-wrap') as any;
-      useResizeObserver(valueWrap, entries => {
-        const entry = entries[0];
-        const { width } = entry.contentRect;
-        optionsWidth.value = width;
-      });
+      const valueWrap = $el.value?.querySelector('.component-main > .value-wrap') as any;
+      if (valueWrap) {
+        useResizeObserver(valueWrap, entries => {
+          const entry = entries[0];
+          const { width } = entry.contentRect;
+          optionsWidth.value = width;
+        });
+      }
     }
 
     function overviewCount() {
       let hasHide = false;
       nextTick(() => {
-        const valueWrap = $el.value.querySelector('.component-main > .value-wrap') as any;
+        const valueWrap = $el.value?.querySelector('.component-main > .value-wrap') as any;
         let i = -1;
         if (!valueWrap) {
           return;
@@ -202,6 +213,7 @@ export default defineComponent({
       if (!isChecked.value || !showSelector.value) {
         if (!localValue.value.includes(inputValue.value) && inputValue.value) {
           localValue.value.push(inputValue.value);
+          triggerRef(localValue);
           handleChange();
         }
         inputValue.value = '';
@@ -221,6 +233,7 @@ export default defineComponent({
     function handleDeleteTag(e: MouseEvent, index: number) {
       e.stopPropagation();
       localValue.value.splice(index, 1);
+      triggerRef(localValue);
       handleChange();
     }
     function handleSelectOption(item: { id: string; name: string }) {
@@ -230,6 +243,7 @@ export default defineComponent({
       } else {
         localValue.value.push(item.id);
       }
+      triggerRef(localValue);
       handleChange();
     }
     function handleMethodChange(item: { id: string; name: string }) {
@@ -254,11 +268,13 @@ export default defineComponent({
       } else {
         localValue.value.splice(index, 1);
       }
+      triggerRef(localValue);
       handleChange();
     }
     function handleBackspaceNull() {
       if (!inputValue.value && localValue.value.length) {
         localValue.value.splice(localValue.value.length - 1, 1);
+        triggerRef(localValue);
       }
     }
 

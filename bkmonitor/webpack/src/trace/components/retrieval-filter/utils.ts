@@ -58,7 +58,7 @@ export function onClickOutside(element, callback, { once = false } = {}) {
   const handler = (event: MouseEvent) => {
     let isInside = false;
     if (Array.isArray(element)) {
-      isInside = element.some(el => el.contains(event.target));
+      isInside = element.some(el => !!el?.contains?.(event.target));
     } else {
       isInside = element.contains(event.target);
     }
@@ -128,3 +128,6 @@ export function defaultWhereItem(params = {}): IWhereItem {
     ...params,
   };
 }
+
+export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
+export const DURATION_FIELD_KEY = 'duration';

@@ -123,12 +123,15 @@ export default defineComponent({
         onClick={this.handleClickComponent}
       >
         <div
-          key={this.tipContent}
           class={['retrieval-filter__kv-tag-component-wrap', { 'yellow-bg': this.isSetting }]}
           v-bk-tooltips={{
-            content: this.tipContent,
             delay: [300, 0],
             allowHTML: true,
+            content: (
+              <div style='max-width: 600px;'>
+                {`${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' OR ')}`}
+              </div>
+            ),
           }}
         >
           <div class='key-wrap'>
