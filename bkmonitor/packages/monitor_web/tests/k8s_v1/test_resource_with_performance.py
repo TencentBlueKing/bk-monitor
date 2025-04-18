@@ -414,3 +414,76 @@ class TestResourceTrendResourceWithPerformance:
         result = ResourceTrendResource()(validated_request_data)
 
         assert result == mock_expected_result
+
+
+@pytest.mark.django_db
+class TestListK8SResources:
+    def test_left_default_namespace(self):
+        """获取左侧默认namespace列表"""
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "namespace",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+
+        ListK8SResources()(validated_request_data)  # noqa
+        ...
+
+    def test_left_default_workload(self):
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"workload": "Deployment:"},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "workload",
+            "bk_biz_id": 2,
+        }
+
+        ListK8SResources()(validated_request_data)  # noqa
+        ...
+
+    def test_left_default_pod(self):
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "pod",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        ListK8SResources()(validated_request_data)  # noqa
+        ...
+
+    def test_left_default_container(self):
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "container",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        ListK8SResources()(validated_request_data)  # noqa
+        ...
