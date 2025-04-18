@@ -1018,6 +1018,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
             }
         )
         response = query.execute()
+        if not response:
+            return []
         results = response.to_dict()
         return results["aggregations"]["group"].get("buckets", [])
 

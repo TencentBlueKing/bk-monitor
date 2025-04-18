@@ -210,9 +210,14 @@ class BaseQuery:
         # 为什么这里使用多线程，而不是构造多个 aggs？
         # 在性能差距不大的情况下，尽可能构造通用查询，便于后续屏蔽存储差异
         option_values: Dict[str, List[str]] = {}
-        ThreadPool().map_ignore_exception(
-            self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
+        results = ThreadPool().map_ignore_exception(
+            self._collect_option_values,
+            [(q, queryset, field, option_values) for field in fields],
+            return_exception=True,
         )
+        # 如果全部 fields 都请求失败 抛出异常
+        if all(i is not None for i in results):
+            raise ValueError(f"请求候选值异常")
 
         # UnifyQuery tag_values 目前还不支持 limit，此处进行截断，避免返回量大导致前端组件卡死的问题
         # 后续会支持 limit，并且请求速度会进一步加快，可以考虑放开一个更大的 limit

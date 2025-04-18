@@ -49,7 +49,7 @@ class TraceQuery(BaseQuery):
         select_fields: List[str] = list(
             all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
         )
-        return select_fields
+        return sorted(select_fields)
 
     def build_app_filter(self) -> Q:
         return Q(biz_id__eq=self.bk_biz_id, app_name__eq=self.app_name)
