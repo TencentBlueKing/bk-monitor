@@ -23,6 +23,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from common.log import logger
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
@@ -656,7 +657,7 @@ class UptimeCheckTask(OperateRecordModel):
 
         # 将新拨测任务追加进缓存表中
         result_table_id_list = ["uptimecheck.{}".format(self.protocol.lower())]
-        append_metric_list_cache.delay(result_table_id_list)
+        append_metric_list_cache.delay(bk_biz_id_to_bk_tenant_id(self.bk_biz_id), result_table_id_list)
 
         return "success"
 

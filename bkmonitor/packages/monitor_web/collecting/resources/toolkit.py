@@ -20,7 +20,7 @@ from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.cipher import RSACipher
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api
@@ -266,7 +266,9 @@ class ListRelatedStrategy(Resource):
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data):
-        collect_config = CollectConfigMeta.objects.get(id=validated_request_data["collect_config_id"])
+        collect_config = CollectConfigMeta.objects.get(
+            id=validated_request_data["collect_config_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         result = {"fuzzy_strategies": [], "accurate_strategies": []}
 
         # 1.拿到所有指标的collect_config_ids
@@ -331,7 +333,9 @@ class IsTaskReady(Resource):
 
     def perform_request(self, validated_request_data):
         config_id = validated_request_data["collect_config_id"]
-        config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+        config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            id=config_id, bk_biz_id=validated_request_data["bk_biz_id"]
+        )
 
         # 兼容非节点管理部署的采集
         if not config.deployment_config.subscription_id:
@@ -394,7 +398,8 @@ class CheckAdjectiveCollect(Resource):
         clean = serializers.BooleanField(required=False, label="是否清理", default=False)
 
     def perform_request(self, validated_request_data):
-        configs = CollectConfigMeta.objects.filter(last_operation="STOP")
+        bk_tenant_id = get_request_tenant_id()
+        configs = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, last_operation="STOP")
         config_id_map = {config.id: config for config in configs}
         dcvs = dict(
             DeploymentConfigVersion.objects.filter(config_meta_id__in=list(config_id_map.keys())).values_list(

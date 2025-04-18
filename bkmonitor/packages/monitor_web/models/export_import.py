@@ -66,7 +66,8 @@ class ImportHistory(OperateRecordModelBase):
         collect_config_ids = [config.config_id for config in detail_instances.filter(type=ConfigType.COLLECT)]
         strategy_config_ids = [config.config_id for config in detail_instances.filter(type=ConfigType.STRATEGY)]
         collect_target_type = [
-            config.target_object_type for config in CollectConfigMeta.objects.filter(id__in=collect_config_ids)
+            config.target_object_type
+            for config in CollectConfigMeta.objects.filter(self.bk_biz_id, id__in=collect_config_ids)
         ]
         strategy_target_type = list(
             map(get_strategy_target_type, StrategyModel.objects.filter(id__in=strategy_config_ids))

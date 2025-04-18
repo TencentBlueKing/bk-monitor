@@ -215,7 +215,9 @@ class ProcessPluginManager(BuiltInPluginManager):
 
     def create_version(self, data):
         version, need_debug = super(ProcessPluginManager, self).create_version(data)
-        plugin = CollectorPluginMeta.objects.get(plugin_id=version.plugin.plugin_id)
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=version.plugin.bk_tenant_id, plugin_id=version.plugin.plugin_id
+        )
         plugin_manager = self.__class__(plugin, self.operator)
         plugin_manager.release_collector_plugin(version)
         return version, need_debug

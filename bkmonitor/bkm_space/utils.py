@@ -56,20 +56,6 @@ def bk_biz_id_to_space_uid(bk_biz_id: Union[str, int]) -> str:
     return space.space_uid
 
 
-def space_to_bk_tenant_id(space_uid: Optional[str] = None, bk_biz_id: Optional[int] = None) -> str:
-    """
-    空间 转换为 租户ID
-    """
-    if not space_uid and not bk_biz_id:
-        raise ValueError("space_uid and bk_biz_id are both None")
-
-    space = api.SpaceApi.get_space_detail(space_uid=space_uid, bk_biz_id=bk_biz_id)
-    if not space:
-        return ""
-
-    return space.bk_tenant_id
-
-
 def parse_space_uid(space_uid: str) -> Tuple[str, str]:
     return api.SpaceApi.parse_space_uid(space_uid)
 
