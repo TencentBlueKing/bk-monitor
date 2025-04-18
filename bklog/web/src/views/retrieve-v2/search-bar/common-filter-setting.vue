@@ -63,9 +63,14 @@
                   <div
                     class="display-container rtl-text"
                     v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    :dir="textDir"
                   >
-                    <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-                    <span class="field-name">({{ item.field_name }})</span>
+                    <bdi class="field-alias">{{ item.first_name }}</bdi>
+                    <bdi
+                      class="field-name"
+                      v-if="item.first_name !== item.last_name"
+                      >({{ item.last_name }})</bdi
+                    >
                   </div>
                   <span class="icon bklog-icon bklog-filled-right-arrow"></span>
                 </li>
@@ -188,6 +193,11 @@
     return [];
   });
 
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
   const shadowTotal = computed(() => {
     const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
@@ -196,7 +206,13 @@
       !excludesFields.includes(field.field_name) &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
 
-    return fieldList.value.filter(filterFn);
+    const mapFn = item =>
+      Object.assign({}, item, {
+        first_name: item.query_alias || item.field_alias || item.field_name,
+        last_name: item.field_name,
+      });
+
+    return fieldList.value.filter(filterFn).map(mapFn);
   });
 
   const shadowVisible = ref([]);

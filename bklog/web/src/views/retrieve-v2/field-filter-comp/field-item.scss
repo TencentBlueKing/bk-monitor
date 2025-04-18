@@ -119,7 +119,7 @@
 
     .field-badge {
       display: inline-block;
-      width: 15px;
+      min-width: 15px;
       height: 15px;
       margin: 0px 5px;
       font-family: Roboto-Bold;
@@ -129,7 +129,7 @@
       text-align: center;
       letter-spacing: 0;
       background-color: rgb(240, 241, 245);
-      border-radius: 50%;
+      border-radius: 7.5px;
     }
 
     .expand {

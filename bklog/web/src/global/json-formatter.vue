@@ -75,7 +75,6 @@
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
-      // const originValue = val.replace(/<\/?mark>/gim, '');
       if (/^(\{|\[)/.test(val)) {
         try {
           return JSON.parse(val);
