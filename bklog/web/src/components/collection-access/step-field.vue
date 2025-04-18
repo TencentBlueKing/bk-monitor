@@ -1588,6 +1588,9 @@
           }
         })
         data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        console.log(data);
+        
+        return
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -2650,8 +2653,9 @@
         })
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
+        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '')
         builtFieldList.forEach(builtField => {
-          if (builtField.field_type === "object" && name.includes(builtField.field_name)) {
+          if (builtField.field_type === "object" && field_name === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);
