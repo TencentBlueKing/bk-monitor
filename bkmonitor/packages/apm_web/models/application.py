@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import Optional, Any
+from typing import Optional
 
 from celery import shared_task
 from django.conf import settings
@@ -24,6 +24,7 @@ from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
+    DEFAULT_APM_APP_EVENT_CONFIG,
     DEFAULT_APM_APP_QPS,
     DEFAULT_DB_CONFIG,
     DEFAULT_DB_CONFIG_CUT_KEY,
@@ -39,7 +40,7 @@ from apm_web.constants import (
     DefaultDimensionConfig,
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
-    TraceMode, DEFAULT_APM_APP_EVENT_CONFIG,
+    TraceMode,
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
@@ -55,6 +56,7 @@ from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import get_datetime_range
 from common.log import logger
 from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api, resource
 
 tracer = trace.get_tracer(__name__)
@@ -197,6 +199,8 @@ class Application(AbstractRecordModel):
     log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
     # ↓ 1 个数据字段 (由定时任务刷新)
     service_count = models.IntegerField("服务个数", default=0)
+    # 租户id
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]

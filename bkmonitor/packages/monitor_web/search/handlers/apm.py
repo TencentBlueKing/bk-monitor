@@ -6,6 +6,7 @@ from django.utils.translation import gettext as _
 
 from apm.models import ApmApplication, TopoNode
 from bkmonitor.iam import ActionEnum
+from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
     SearchResultItem,
@@ -18,7 +19,10 @@ class ApmSearchHandler(BaseSearchHandler):
 
     def search_application(self, query: str, limit: int = 10) -> List[SearchResultItem]:
         # 搜索应用
-        apm_application_qs = ApmApplication.objects.filter(Q(app_name__contains=query) | Q(app_alias__contains=query))
+        bk_tenant_id = get_request_tenant_id()
+        apm_application_qs = ApmApplication.objects.filter(bk_tenant_id=bk_tenant_id).filter(
+            Q(app_name__contains=query) | Q(app_alias__contains=query)
+        )
         if self.scope == SearchScope.BIZ:
             apm_application_qs = apm_application_qs.filter(bk_biz_id=self.bk_biz_id)
 
