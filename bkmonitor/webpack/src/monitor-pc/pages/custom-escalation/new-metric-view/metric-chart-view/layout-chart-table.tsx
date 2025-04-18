@@ -332,7 +332,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
-        isShowLegend={!this.isShowStatisticalValue}
+        isShowLegend={true}
+        // isShowLegend={!this.isShowStatisticalValue}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
         onDownImage={this.handleDownImage}
