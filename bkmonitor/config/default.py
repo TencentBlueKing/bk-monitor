@@ -551,6 +551,8 @@ APM_BMW_TASK_QUEUES = []
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
+# UnifyQuery查询表映射配置
+UNIFY_QUERY_TABLE_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 # profiling 汇聚方法映射配置
