@@ -1359,7 +1359,7 @@
         }else{
           const allFields = this.$refs.fieldTable.getData();
           const builtFields = allFields.filter( item => item.is_built_in)
-          this.formData.fields = allFields.filter( item => !item.is_built_in)
+          this.formData.fields = allFields.filter( item => !item.is_built_in && !item.is_objectKey)
           if(builtFields.length){
             this.copyBuiltField = builtFields;
           }
@@ -1587,7 +1587,7 @@
             path_type: item.field_type
           }
         })
-        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in && !item.is_objectKey )
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
