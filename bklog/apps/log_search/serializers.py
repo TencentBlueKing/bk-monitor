@@ -1055,3 +1055,18 @@ class AlertRecordSerializer(StrategyRecordSerializer):
 
 class LogRelatedInfoSerializer(serializers.Serializer):
     alert_id = serializers.IntegerField(label=_("告警ID"))
+
+
+class LogGrepQuerySerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(label=_("起始时间"), required=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    grep_query = serializers.CharField(label=_("grep查询条件"), required=False, allow_null=True, allow_blank=True)
+    grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
+    begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
+    size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
