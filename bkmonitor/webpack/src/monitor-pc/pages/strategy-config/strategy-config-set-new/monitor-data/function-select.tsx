@@ -43,6 +43,7 @@ interface IFunctionProps {
   placeholder?: string;
   readonly?: boolean;
   isExpSupport?: boolean;
+  isMultiple?: boolean;
 }
 interface IEvent {
   onValueChange?: IFunctionsValue[];
@@ -54,6 +55,8 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly readonly: boolean;
   /** 只展示支持表达式的函数 */
   @Prop({ type: Boolean }) readonly isExpSupport: boolean;
+  /** 是否支持多选 */
+  @Prop({ type: Boolean, default: true }) readonly isMultiple: boolean;
   @Ref('menuList') menuListRef: HTMLDivElement;
   @InjectReactive('metricFunctions') metricFunctions;
   localValue: IFunctionItem[] = [];
@@ -240,6 +243,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
           class='init-add'
           isExpSupport={this.isExpSupport}
           list={this.metricFunctions}
+          isMultiple={this.isMultiple}
           onFuncSelect={this.handleFuncSelect}
         >
           {!this.localValue?.length && <span class='init-add-input'>{this.placeholder}</span>}

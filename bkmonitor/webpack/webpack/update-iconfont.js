@@ -12,12 +12,12 @@ const updateFont = () => {
     // const reg = new RegExp('^@font-face[\\s\\S]*\\.icon-monitor[\\s\\S]*?\\}')
     // 拷贝文件
     const fileMap = ['css', 'ttf', 'woff', 'woff2'];
-    fileMap.forEach(item => {
+    for (const item of fileMap) {
       const sourceFile = path.resolve(`${sourcePreFix}/iconfont/iconfont.${item}`);
       const targetFile = path.resolve(`${sourcePreFix}/monitor-icons.${item}`);
       fs.renameSync(sourceFile, targetFile);
       console.log('文件拷贝成功：', `${sourceFile} => ${targetFile}`);
-    });
+    }
     // 替换文件
     const targetCssFile = path.resolve(`${sourcePreFix}/monitor-icons.css`);
     let targetCss = fs.readFileSync(targetCssFile, 'utf-8');

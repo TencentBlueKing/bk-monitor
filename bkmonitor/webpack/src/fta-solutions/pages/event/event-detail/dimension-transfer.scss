@@ -1,0 +1,151 @@
+@mixin option() {
+  .option {
+    display: flex;
+    flex: 0 0 32px;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+    overflow: hidden;
+    font-size: 12px;
+
+    .option-name-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    .icon-monitor {
+      position: relative;
+      right: -8px; // icon本身四周空隙较大
+      display: none;
+      flex-shrink: 0;
+      margin: 0 0 0 auto;
+      font-size: 24px;
+      color: #3a84ff;
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #e1ecff;
+
+      .option-name-title {
+        color: #3a84ff;
+      }
+
+      .icon-monitor {
+        display: block;
+      }
+    }
+  }
+}
+
+.transfer-component__dimension {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .component-bottom {
+    display: flex;
+    align-items: center;
+    height: 48px;
+    padding: 0 24px;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    .button-wrap {
+      margin: 0 0 0 auto;
+    }
+  }
+
+  .component-top {
+    display: flex;
+    height: 360px;
+    padding: 0 24px;
+
+    .component-top-center {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+
+      .icon-monitor {
+        font-size: 12px;
+        color: #c4c6cc;
+      }
+    }
+
+    .component-top-right,
+    .component-top-left {
+      position: relative;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      width: 283px;
+      border: 1px solid #dcdee5;
+      border-bottom: none;
+
+      .top-header {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        height: 40px;
+        padding: 0 16px;
+        background: #fafbfd;
+        border-bottom: 1px solid #dcdee5;
+
+        .header-title {
+          font-size: 12px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .header-btn {
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .content-wrap {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        overflow: hidden;
+        @include option();
+      }
+
+      .search-wrap {
+        flex-shrink: 0;
+        padding: 4px 6px 4px 10px;
+        background: #fff;
+      }
+
+      .options-wrap {
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      .only-bottom-border {
+        border-bottom-color: #dcdee5;
+      }
+    }
+  }
+
+  .with-left-icon .left-icon {
+    font-size: 15px;
+    font-weight: 700;
+    color: #979ba5;
+  }
+}

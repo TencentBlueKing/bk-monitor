@@ -1,10 +1,10 @@
 const staticUrl = '${STATIC_URL}trace/';
 const cacheNames = {
-  js: `trace-cache-js-__cache_version___`,
-  css: `trace-cache-css-__cache_version___`,
-  font: `trace-cache-font-__cache_version___`,
-  img: `trace-cache-img-__cache_version___`,
-  api: `trace-cache-api-__cache_version___`,
+  js: 'trace-cache-js-__cache_version___',
+  css: 'trace-cache-css-__cache_version___',
+  font: 'trace-cache-font-__cache_version___',
+  img: 'trace-cache-img-__cache_version___',
+  api: 'trace-cache-api-__cache_version___',
 };
 const cacheList = Object.keys(cacheNames).map(key => cacheNames[key]);
 
@@ -16,8 +16,8 @@ const setCache = (cacheName, request) =>
         fetch(request).then(res => {
           cache.put(request.url, res.clone());
           return res;
-        }),
-    ),
+        })
+    )
   );
 
 if (self.importScripts) {
@@ -64,8 +64,8 @@ self.addEventListener('activate', e => {
           if (!cacheList.includes(key) && key !== cacheNames.api) {
             return caches.delete(key);
           }
-        }),
-      ).then(() => self.clients.claim()),
-    ),
+        })
+      ).then(() => self.clients.claim())
+    )
   );
 });

@@ -123,6 +123,13 @@ export default class UseTextSegmentation {
     return this.options?.field;
   }
 
+  private getCellValue(target) {
+    if (typeof target === 'string') {
+      return target.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+    }
+    return target;
+  }
+
   private onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = this.clickValue;
@@ -137,7 +144,7 @@ export default class UseTextSegmentation {
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      value: this.getCellValue(target ?? currentValue),
       depth,
       isNestedField,
     };

@@ -104,6 +104,11 @@ class StorageHandler(object):
         if visible_config["visible_type"] == VisibleEnum.ALL_BIZ.value:
             return True
 
+        # 当前租户可见
+        # TODO: 需要补充过滤判定逻辑
+        if visible_config["visible_type"] == VisibleEnum.CURRENT_TENANT.value:
+            return True
+
         if visible_config["visible_type"] == VisibleEnum.MULTI_BIZ.value:
             return str(bk_biz_id) in [str(bk_biz["bk_biz_id"]) for bk_biz in visible_config["visible_bk_biz"]]
 

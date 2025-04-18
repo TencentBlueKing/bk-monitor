@@ -86,7 +86,7 @@ class CustomTSField(models.Model):
         DIMENSION = "dimension"
 
     MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
-    DimensionConfigFields = ["common"]
+    DimensionConfigFields = ["common", "hidden"]
 
     time_series_group_id = models.IntegerField("时序分组ID")
     type = models.CharField("字段类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)

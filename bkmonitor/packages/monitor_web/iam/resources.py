@@ -381,7 +381,7 @@ class CreateOrUpdateExternalPermission(Resource):
             approval_users = add_authorized_users or authorized_users
             approval_resources = add_resources or resources
             validated_request_data["resources"] = approval_resources
-            self.create_approval_ticket(space, approval_users, validated_request_data)
+            self.create_approval_ticket(related_space, approval_users, validated_request_data)
         return {"need_approval": need_approval}
 
 

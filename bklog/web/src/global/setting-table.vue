@@ -596,7 +596,7 @@
             collectorId: this.collectorConfigId,
           },
           query: {
-            spaceUid: currentIndexSet?.spaceUid,
+            spaceUid: currentIndexSet?.space_uid,
           },
         });
         window.open(newURL.href, '_blank');

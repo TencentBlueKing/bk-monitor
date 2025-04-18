@@ -140,6 +140,7 @@ class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
 class EventStatisticsFieldSerializer(serializers.Serializer):
     type = serializers.CharField(label="字段类型")
     name = serializers.CharField(label="字段名称")
+    values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
 
     def validate(self, attrs):
         if attrs["type"] not in [EventDimensionTypeEnum.INTEGER.value, EventDimensionTypeEnum.KEYWORD.value]:
@@ -150,3 +151,16 @@ class EventStatisticsFieldSerializer(serializers.Serializer):
 class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):
     field = EventStatisticsFieldSerializer(label="字段")
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+
+
+class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
+    field = EventStatisticsFieldSerializer(label="字段")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        field = attrs["field"]
+        if field["type"] != EventDimensionTypeEnum.INTEGER.value:
+            return attrs
+        if len(field["values"]) < 4:
+            raise ValueError(_("数值类型查询条件不足"))
+        return attrs

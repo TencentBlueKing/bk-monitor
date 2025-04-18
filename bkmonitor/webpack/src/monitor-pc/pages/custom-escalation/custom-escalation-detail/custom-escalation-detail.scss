@@ -117,7 +117,6 @@
         display: flex;
         flex-direction: column;
         flex-wrap: wrap;
-        width: 720px;
         height: 160px;
 
         .detail-information-row {
@@ -141,6 +140,10 @@
             color: #313238;
             text-overflow: ellipsis;
             white-space: nowrap;
+          }
+
+          .bk-form-control {
+            width: auto;
           }
 
           .edit-name {
@@ -174,10 +177,11 @@
       position: relative;
       bottom: -30px;
     }
+
     .custom-detail-page-table {
       width: 100%;
-      min-height: 660px;
       height: calc(100% - 264px);
+      min-height: 660px;
       box-shadow: 0 2px 4px 0 #1919291f;
     }
   }

@@ -344,4 +344,5 @@ export default {
   '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorite item?',
   '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be recovered, please operate carefully!',
   '暂无数据，请输入生成': 'No data, please enter to generate',
+  '请输入1~100的数字': 'Please enter a number between 1 and 100',
 };

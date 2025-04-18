@@ -177,30 +177,27 @@ class TenantIdField(serializers.CharField):
     """
 
     def __init__(self, *args, must_system_tenant=False, **kwargs):
+        kwargs["required"] = False
+
         super().__init__(*args, **kwargs)
         self._allow_blank = kwargs.get("allow_blank", False)
         self.allow_blank = True
-        if kwargs.get("default"):
-            self.default = "" if kwargs["default"] is empty else kwargs["default"]
         self.must_system_tenant = must_system_tenant
 
     def run_validation(self, data=...):
-        # 如果必须为系统租户，则对租户ID进行校验
-        if self.must_system_tenant and data != DEFAULT_TENANT_ID:
-            raise ValidationError(_("bk_tenant_id must be system tenant"))
-
-        return super().run_validation(data)
-
-    def to_internal_value(self, data: str):
         # 如果传入的值为空，则使用当前请求的租户ID
-        if not data:
+        if not data or data is empty:
             data = get_request_tenant_id(peaceful=True)
 
         # 如果租户ID为空，则抛出异常
         if not data and not self._allow_blank:
             raise ValidationError(_("tenant_id is required"))
 
-        return super().to_internal_value(data)
+        # 如果必须为系统租户，则对租户ID进行校验
+        if self.must_system_tenant and data != DEFAULT_TENANT_ID:
+            raise ValidationError(_("bk_tenant_id must be system tenant"))
+
+        return super().run_validation(data)
 
 
 class TenantSerializer(serializers.Serializer):

@@ -99,6 +99,12 @@ export default class DimensionTabDetail extends tsc<any> {
     await this.updateDimensionField(row.name, 'disabled', newStatus);
   }
 
+  /** 切换显示 */
+  handleEditHidden(v, row) {
+    row.hidden = !row.hidden;
+    this.updateDimensionField(row.name, 'hidden', !v);
+  }
+
   // 处理常用维度切换
   async handleCommonChange(row: DimensionDetail, val: boolean) {
     this.$set(row, 'common', val);
@@ -194,6 +200,53 @@ export default class DimensionTabDetail extends tsc<any> {
             />
           ),
         },
+        renderHeaderFn: config => (
+          <div class='common-title'>
+            <div>{this.$t(config.label as string)}</div>
+            <bk-popover
+              ext-cls='common-info-popover'
+              offset='-50, 0'
+              placement='top-start'
+              theme='light common-monitor'
+            >
+              <bk-icon type='info-circle' />
+              <div slot='content'>
+                <div class='info'>{this.$t('打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：')}</div>
+                <div class='img'>
+                  <img
+                    alt=''
+                    src={infoSrc}
+                  />
+                </div>
+              </div>
+            </bk-popover>
+          </div>
+        ),
+      },
+      {
+        id: 'hidden',
+        width: 200,
+        label: this.$t('显示'),
+        scopedSlots: {
+          /* 显示 */ default: props => (
+            <bk-switcher
+              class='switcher-btn'
+              size='small'
+              theme='primary'
+              value={!props.row.hidden}
+              onChange={v => this.handleEditHidden(v, props.row)}
+            />
+          ),
+        },
+        renderHeaderFn: () => (
+          <div class='common-title'>
+            <span>{this.$t('显示')}</span>
+            <bk-popover ext-cls='render-header-hidden-popover'>
+              <bk-icon type='info-circle' />
+              <div slot='content'>{this.$t('关闭后，在可视化视图里，将被隐藏')}</div>
+            </bk-popover>
+          </div>
+        ),
       },
     ];
   }
@@ -212,29 +265,8 @@ export default class DimensionTabDetail extends tsc<any> {
             key={config.id}
             width={config.width}
             renderHeader={() => {
-              if (config.id === 'common') {
-                return (
-                  <div class='common-title'>
-                    <div>{this.$t(config.label as string)}</div>
-                    <bk-popover
-                      ext-cls='common-info-popover'
-                      offset='-50, 0'
-                      placement='top-start'
-                      theme='light common-monitor'
-                    >
-                      <bk-icon type='info-circle' />
-                      <div slot='content'>
-                        <div class='info'>{this.$t('打开后，可以在 [可视化] 的 [过滤条件] 里快速展开：')}</div>
-                        <div class='img'>
-                          <img
-                            alt=''
-                            src={infoSrc}
-                          />
-                        </div>
-                      </div>
-                    </bk-popover>
-                  </div>
-                );
+              if (config?.renderHeaderFn) {
+                return config?.renderHeaderFn(config);
               }
               return <div> {this.$t(config.label as string)} </div>;
             }}

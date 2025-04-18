@@ -38,7 +38,9 @@ interface IGroup {
   name: string;
   icon: string;
 }
-@Component
+@Component({
+  inheritAttrs: false,
+})
 export default class MetricTabDetail extends tsc<any, any> {
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: () => [] }) customGroups;

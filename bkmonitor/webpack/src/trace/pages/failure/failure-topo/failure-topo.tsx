@@ -583,126 +583,136 @@ export default defineComponent({
         // },
       });
     };
+    /** 自定义边公共工具函数 */
+    const edgeUtils = {
+      // 处理边动画
+      handleEdgeAnimation(shape: any, cfg: any, edgeInterval: any[]) {
+        const { is_anomaly, anomaly_score, events, edge_type } = cfg;
+        const lineDash = anomaly_score === 0 ? [6] : [10];
+        if (is_anomaly && events?.[0] && edge_type === 'ebpf_call') {
+          const { direction } = events[0];
+          let index = 0;
+          // 这里改为定时器执行，自带的动画流动速度控制不了
+          edgeInterval.push(
+            setInterval(() => {
+              shape.animate(() => {
+                index = index + 1;
+                if (index > (anomaly_score === 0 ? 60 : 120)) {
+                  index = 0;
+                }
+                const res = {
+                  lineDash,
+                  lineDashOffset: direction === 'reverse' ? index : -index,
+                };
+                return res;
+              });
+            }, 30)
+          );
+        }
+      },
+      // 添加聚合点
+      addAggregationMarkers(cfg: any, group: any) {
+        if (!cfg.aggregated || !cfg.count) return;
+        const shape = group.get('children')[0];
+        // 获取路径图形的中点坐标
+        const midPoint = shape.getPoint(0.5);
+        // 在中点增加一个圆形，注意圆形的原点在其左上角
+        group.addShape('circle', {
+          zIndex: 10,
+          attrs: {
+            cursor: 'pointer',
+            r: 10,
+            fill: '#212224',
+            // 使圆形中心在 midPoint 上
+            x: midPoint.x,
+            y: midPoint.y,
+          },
+        });
+        group.addShape('text', {
+          zIndex: 11,
+          attrs: {
+            cursor: 'pointer',
+            x: midPoint.x,
+            y: midPoint.y + 1,
+            textAlign: 'center',
+            textBaseline: 'middle',
+            text: cfg.count,
+            fontSize: 12,
+            fill: '#fff',
+          },
+          name: 'topo-node-text',
+        });
+      },
+      // 处理状态变化
+      handleEdgeState(name: string, value: any, item: any) {
+        const model = item.getModel();
+        const group = item.getContainer();
+        const shape = group.get('children')[0];
+        const { is_anomaly } = model;
+        const colors = {
+          highlight: is_anomaly ? '#F55555' : '#699DF4',
+          dark: is_anomaly ? '#F55555' : '#63656D',
+        };
+
+        switch (name) {
+          case 'show-animate':
+            const length = shape.getTotalLength();
+            const originalStroke = shape.attr('stroke');
+
+            shape.attr({ stroke: colors.highlight, opacity: 0 });
+            item.show();
+            shape.animate(
+              (ratio: number) => ({
+                opacity: 1,
+                quadraticDash: [ratio * length, length - ratio * length],
+              }),
+              {
+                duration: 1000,
+                easing: 'easeLinear',
+                callback: () => shape.attr('stroke', originalStroke),
+              }
+            );
+            break;
+          case 'highlight':
+            shape.attr('stroke', value ? colors.highlight : colors.dark);
+            group.attr('opacity', value ? 1 : 0.4);
+            shape?.cfg?.endArrowShape?.attr({
+              opacity: value ? 1 : 0.2,
+              stroke: value ? colors.highlight : colors.dark,
+              fill: value ? colors.highlight : colors.dark,
+            });
+            break;
+          case 'dark':
+            setTimeout(() => {
+              group.attr('opacity', 1);
+              shape?.cfg?.endArrowShape?.attr({
+                opacity: 1,
+                stroke: colors.dark,
+                fill: colors.dark,
+              });
+            });
+            break;
+        }
+      },
+    };
+    /** 自定义边类型工厂函数 */
+    const createEdgeConfig = () => ({
+      afterDraw(cfg: any, group: any) {
+        const shape = group.get('children')[0];
+        edgeUtils.handleEdgeAnimation(shape, cfg, edgeInterval);
+        edgeUtils.addAggregationMarkers(cfg, group);
+      },
+      setState(name: string, value: any, item: any) {
+        edgeUtils.handleEdgeState(name, value, item);
+      },
+      update: undefined,
+    });
     /** 画布自定义边 */
     const registerCustomEdge = () => {
-      registerEdge(
-        'topo-edge',
-        {
-          afterDraw(cfg, group) {
-            const shape = group.get('children')[0];
-            const { is_anomaly, anomaly_score, events, edge_type } = cfg;
-            const lineDash = anomaly_score === 0 ? [6] : [10];
-            if (is_anomaly && events[0] && edge_type === 'ebpf_call') {
-              const { direction } = events[0];
-              let index = 0;
-              // 这里改为定时器执行，自带的动画流动速度控制不了
-              edgeInterval.push(
-                setInterval(() => {
-                  shape.animate(() => {
-                    index = index + 1;
-                    if (index > (anomaly_score === 0 ? 60 : 120)) {
-                      index = 0;
-                    }
-                    const res = {
-                      lineDash,
-                      lineDashOffset: direction === 'reverse' ? index : -index,
-                    };
-                    return res;
-                  });
-                }, 30)
-              );
-            }
-
-            if (!cfg.aggregated || !cfg.count) return;
-            // 获取路径图形的中点坐标
-            const midPoint = shape.getPoint(0.5);
-            // 在中点增加一个圆形，注意圆形的原点在其左上角
-            group.addShape('circle', {
-              zIndex: 10,
-              attrs: {
-                cursor: 'pointer',
-                r: 10,
-                fill: '#212224',
-                // 使圆形中心在 midPoint 上
-                x: midPoint.x,
-                y: midPoint.y,
-              },
-            });
-            group.addShape('text', {
-              zIndex: 11,
-              attrs: {
-                cursor: 'pointer',
-                x: midPoint.x,
-                y: midPoint.y + 1,
-                textAlign: 'center',
-                textBaseline: 'middle',
-                text: cfg.count,
-                fontSize: 12,
-                fill: '#fff',
-              },
-              name: 'topo-node-text',
-            });
-          },
-          setState(name, value, item) {
-            const { is_anomaly } = item.getModel();
-            const highlightColor = is_anomaly ? '#F55555' : '#699DF4';
-            const darkColor = is_anomaly ? '#F55555' : '#63656D';
-            if (name === 'show-animate') {
-              const group = item.getContainer();
-              const shape = group.get('children')[0];
-              const length = shape.getTotalLength();
-              const stroke = shape.attr('stroke');
-              shape.attr('stroke', highlightColor);
-              shape.attr('opacity', 0);
-              item.show();
-              shape.animate(
-                ratio => {
-                  const startLen = ratio * length;
-                  const cfg = {
-                    opacity: 1,
-                    quadraticDash: [startLen, length - startLen],
-                  };
-                  return cfg;
-                },
-                {
-                  duration: 1000,
-                  easing: 'easeLinear',
-                  callback: () => {
-                    shape.attr('stroke', stroke);
-                  },
-                }
-              );
-            } else if (name === 'highlight') {
-              const group = item.getContainer();
-              const shape = group.get('children')[0];
-              shape.attr('stroke', value ? highlightColor : darkColor);
-              group.attr({
-                opacity: value ? 1 : 0.4,
-              });
-              shape?.cfg?.endArrowShape?.attr({
-                opacity: value ? 1 : 0.2,
-                stroke: value ? highlightColor : darkColor,
-                fill: value ? highlightColor : darkColor,
-              });
-            } else if (name === 'dark') {
-              const group = item.getContainer();
-              const shape = group.get('children')[0];
-              setTimeout(() => {
-                group.attr({
-                  opacity: 1,
-                });
-                shape?.cfg?.endArrowShape?.attr({
-                  opacity: 1,
-                  fill: darkColor,
-                  stroke: darkColor,
-                });
-              });
-            }
-          },
-          update: undefined,
-        },
-        'quadratic'
-      );
+      // 普通边
+      registerEdge('topo-edge', createEdgeConfig(), 'quadratic');
+      // 自环边
+      registerEdge('topo-edge-loop', createEdgeConfig(), 'loop');
     };
     /** 获取相对位置 */
     const getCanvasByPoint = combo => {
@@ -1412,7 +1422,6 @@ export default defineComponent({
         },
         defaultEdge: {
           size: 1,
-          type: 'quadratic',
           color: '#63656D',
           style: {
             cursor: 'pointer',
@@ -1452,9 +1461,11 @@ export default defineComponent({
         };
       });
       graph.edge((cfg: any) => {
-        const { is_anomaly, edge_type, anomaly_score } = cfg;
+        const { is_anomaly, edge_type, anomaly_score, source, target } = cfg;
         const isInvoke = edge_type === 'ebpf_call';
         const color = is_anomaly ? '#F55555' : '#63656E';
+        const isSelfLoop = source === target;
+
         const edg = {
           ...cfg,
           shape: 'quadratic',
@@ -1478,6 +1489,17 @@ export default defineComponent({
           },
         };
         if (!cfg.color) return edg;
+        if (isSelfLoop) {
+          return {
+            ...edg,
+            shape: 'loop',
+            type: 'topo-edge-loop',
+            loopCfg: {
+              dist: 60, // 自环边与节点的距离
+              clockwise: true, // 顺时针方向
+            },
+          };
+        }
         return {
           ...edg,
           shape: 'quadratic',

@@ -563,6 +563,7 @@ class GetCustomTsFields(Resource):
                         "type": CustomTSField.MetricType.DIMENSION,
                         "description": item.description,
                         "disabled": item.disabled,
+                        "hidden": item.config.get("hidden", False),
                         "common": item.config.get("common", False),
                         "create_time": item.create_time.timestamp() if item.create_time else None,
                         "update_time": item.update_time.timestamp() if item.update_time else None,
@@ -655,7 +656,6 @@ class ModifyCustomTsFields(Resource):
             # 根据字段类型，生成 config
             if update_field["type"] == CustomTSField.MetricType.DIMENSION:
                 field_keys = CustomTSField.DimensionConfigFields
-
             else:
                 field_keys = CustomTSField.MetricConfigFields
             field_config = {field_key: update_field[field_key] for field_key in field_keys if field_key in update_field}

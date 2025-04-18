@@ -135,6 +135,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
         }
         return {
           key: item.name,
+          alias: item.alias,
           method: 'eq',
           value: [],
         };

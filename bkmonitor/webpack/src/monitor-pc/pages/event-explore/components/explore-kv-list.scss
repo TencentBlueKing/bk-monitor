@@ -81,6 +81,11 @@
       }
 
       .label-text {
+        display: inline-block;
+        flex-basis: auto;
+        min-width: 0;
+        padding-right: 6px;
+        word-break: break-all;
         @extend %kv-text-hover;
       }
     }

@@ -19,6 +19,7 @@ from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
+from requests.exceptions import MissingSchema
 
 from apm_web.constants import COLLECT_SERVICE_CONFIG_KEY
 from apm_web.handlers.service_handler import ServiceHandler
@@ -162,7 +163,7 @@ class GetFunctionShortcutResource(Resource):
                     records = api.log_search.get_user_recent_index_set(
                         username=username, limit=cls.RECENT_INDEX_SET_RECORD_LIMIT
                     )
-                except BKAPIError as e:
+                except (BKAPIError, MissingSchema) as e:
                     logger.exception("get user recent index set error: %s", e)
                     continue
 
@@ -316,7 +317,7 @@ class GetFunctionShortcutResource(Resource):
             elif function == "log_retrieve":
                 try:
                     records = api.log_search.get_user_favorite_index_set(username=username, limit=limit)
-                except BKAPIError as e:
+                except (BKAPIError, MissingSchema) as e:
                     logger.exception("get user favorite index set error: %s", e)
                     continue
 

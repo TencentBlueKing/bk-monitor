@@ -75,7 +75,7 @@ def convert_notices(
     path_user_groups = {user_group.path: user_group for user_group in user_groups.filter(app=app)}
     name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups}
 
-    parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules)
+    parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules, overwrite=overwrite)
     records = []
     duties = []
     for path, config in configs.items():

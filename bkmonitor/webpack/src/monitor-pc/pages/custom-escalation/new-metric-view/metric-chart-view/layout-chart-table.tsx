@@ -71,7 +71,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: true }) isShowStatisticalValue: boolean;
   // @Prop({ default: 600 }) height: number;
-  @Prop({ default: 372 }) minHeight: number;
+  @Prop({ default: 300 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -143,16 +143,22 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   stopDragging() {
     this.isDragging = false;
   }
+  /** 处理相关过滤条件的格式 */
+  handleFilterData(filter) {
+    const concatFilter = {};
+    Object.keys(filter || {}).map(key => {
+      concatFilter[`${key}__eq`] = [filter[key]];
+    });
+    return concatFilter;
+  }
   /** 维度下钻 */
   handelDrillDown(chart: IPanelModel, ind: number) {
     this.showDrillDown = true;
     (chart.targets[ind]?.query_configs || []).map(item => {
-      const { common_filter = {}, group_filter = {} } = item.filter_dict;
-      const concatFilter = {};
-      Object.keys(group_filter || {}).map(key => {
-        concatFilter[`${key}__eq`] = [group_filter[key]];
-      });
-      item.filter_dict.concat_filter = { ...common_filter, ...concatFilter };
+      const { common_filter = {}, group_filter = {}, panel_filter = {} } = item.filter_dict;
+      const concatFilter = this.handleFilterData(group_filter);
+      const panelFilter = this.handleFilterData(panel_filter);
+      item.filter_dict.concat_filter = { ...common_filter, ...concatFilter, ...panelFilter };
     });
     this.currentChart = {
       ...chart,
@@ -207,6 +213,10 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       .catch(() => {});
   }
 
+  isNullOrUndefined(value: any) {
+    return value === undefined || value === null ? '--' : value;
+  }
+
   /** 表格渲染 */
   renderIndicatorTable() {
     if (this.loading) {
@@ -232,9 +242,9 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
-                  title={row.name}
+                  title={row.tipsName}
                 />
-                {row.name}
+                {row.tipsName}
               </span>
             ),
           }}
@@ -249,7 +259,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.max || '--'}
+                {this.isNullOrUndefined(row.max)}
                 <span class='gray-text'>@{dayjs(row.maxTime).format('HH:mm')}</span>
               </span>
             ),
@@ -264,7 +274,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.min || '--'}
+                {this.isNullOrUndefined(row.min)}
                 <span class='gray-text'>@{dayjs(row.minTime).format('HH:mm')}</span>
               </span>
             ),
@@ -279,7 +289,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.latest || '--'}
+                {this.isNullOrUndefined(row.latest)}
                 <span class='gray-text'>@{dayjs(row.latestTime).format('HH:mm')}</span>
               </span>
             ),
@@ -293,7 +303,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => row.avg || '--',
+            default: ({ row }) => this.isNullOrUndefined(row.avg),
           }}
           label={this.$t('平均值')}
           prop='avg'
@@ -303,7 +313,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => row.total || '--',
+            default: ({ row }) => this.isNullOrUndefined(row.total),
           }}
           label={this.$t('累计值')}
           prop='total'
@@ -322,6 +332,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
+        isShowLegend={!this.isShowStatisticalValue}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
         onDownImage={this.handleDownImage}
@@ -369,6 +380,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           <DrillAnalysisView
             currentMethod={this.currentMethod}
             panel={this.currentChart}
+            timeRangeData={this.timeRange}
             onClose={() => (this.showDrillDown = false)}
           />
         )}

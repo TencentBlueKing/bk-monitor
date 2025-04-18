@@ -329,6 +329,7 @@ admin.site.register(models.StrategyHistoryModel, models.StrategyHistoryModelAdmi
 admin.site.register(models.ApiAuthToken, ApiAuthTokenAdmin)
 admin.site.register(models.StatisticsMetric, StatisticsMetricAdmin)
 admin.site.register(models.AIFeatureSettings, AIFeatureSettingsAdmin)
+admin.site.register(models.AlgorithmChoiceConfig, models.AlgorithmChoiceConfigAdmin)
 
 
 # 因为配置admin界面时，list_display, search_fields, list_filter 都是全部字段中排除效果不好的几个，

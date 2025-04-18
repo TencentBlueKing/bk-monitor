@@ -41,35 +41,31 @@ interface IDimensionItem {
   isNew?: boolean;
   error?: string;
   common?: boolean;
+  type?: string;
 }
 
-// 表格配置
-const FIELD_SETTINGS = {
-  name: { label: '名称', width: 280 },
-  description: { label: '别名', width: 280 },
-  // disabled: { label: '启/停', width: 120 },
-  common: { label: '常用维度', width: 140 },
-  set: { label: '操作', width: 80 },
-};
 @Component
 export default class DimensionTableSlide extends tsc<any> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ default: () => [] }) dimensionTable: any[];
 
+  /** 表格配置 */
+  filedSettings = {
+    name: { label: '名称', width: 280, renderFn: props => this.renderNameColumn(props) },
+    description: { label: '别名', width: 280, renderFn: (props, key) => this.renderInputColumn(props, key) },
+    // disabled: { label: '启/停', width: 120, renderFn: (props, key) => this.renderSwitch(props.row, key) },
+    common: { label: '常用维度', width: 140, renderFn: (props, key) => this.renderCheckbox(props.row, key) },
+    hidden: { label: '显示', width: 120, renderFn: (props, key) => this.renderSwitch(props.row, key, true) },
+    operate: { label: '操作', width: 80, renderFn: props => this.renderOperations(props) },
+  };
+  /** 维度搜索 */
   search = '';
-
+  /** 表格宽度 */
   width = 1400;
-
+  /** 表格数据 */
   localTable: IDimensionItem[] = [];
-  delArray: any[] = [];
-
-  created() {
-    this.initData();
-  }
-
-  initData() {
-    this.localTable = deepClone(this.dimensionTable);
-  }
+  /** 删除的维度名称列表 */
+  delArray: IDimensionItem[] = [];
 
   // 响应式处理
   @Watch('dimensionTable', { immediate: true })
@@ -139,25 +135,16 @@ export default class DimensionTableSlide extends tsc<any> {
                 )}
               </div>
             </div>
-            {Object.entries(FIELD_SETTINGS).map(([key, config]) => (
+            {Object.entries(this.filedSettings).map(([key, config]) => (
               <bk-table-column
                 key={key}
                 scopedSlots={{
                   default: props => {
-                    switch (key) {
-                      case 'name':
-                        return this.renderNameColumn(props);
-                      case 'description':
-                        return this.renderInputColumn(props, key);
-                      case 'disabled':
-                        return this.renderSwitch(props.row, key);
-                      case 'common':
-                        return this.renderCheckbox(props.row, key);
-                      case 'set':
-                        return this.renderOperations(props);
-                      default:
-                        return props.row[key] || '--';
+                    /** 自定义 */
+                    if (config?.renderFn) {
+                      return config?.renderFn(props, key);
                     }
+                    return props.row[key] || '--';
                   },
                 }}
                 label={this.$t(config.label)}
@@ -203,6 +190,10 @@ export default class DimensionTableSlide extends tsc<any> {
 
   handleClearSearch() {
     this.search = '';
+  }
+
+  changeSwitch(row, field, v) {
+    row[field] = v;
   }
 
   // 保存逻辑
@@ -267,12 +258,13 @@ export default class DimensionTableSlide extends tsc<any> {
   }
 
   // 渲染开关
-  private renderSwitch(row: IDimensionItem, field: 'disabled') {
+  private renderSwitch(row: IDimensionItem, field: 'disabled' | 'hidden', isNegation = false) {
     return (
       <bk-switcher
-        v-model={row[field]}
         size='small'
         theme='primary'
+        value={isNegation ? !row[field] : row[field]}
+        onChange={v => this.changeSwitch(row, field, isNegation ? !v : v)}
       />
     );
   }

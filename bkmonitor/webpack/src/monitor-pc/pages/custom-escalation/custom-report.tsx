@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import {
@@ -130,6 +130,8 @@ interface IEventItem {
   update_user: string;
   is_readonly?: boolean; // 是否只读
   is_platform?: boolean; // 是否为公共
+  is_edit?: boolean; // 是否为编辑态
+  oldName?: string; // 修改之前的名字
 }
 
 const commonTableProps: ICommonTableProps = {
@@ -158,6 +160,8 @@ const dataTransform = (data: IEventItem[]) =>
     create: { slotId: 'create' },
     update: { slotId: 'update' },
     opreate: { slotId: 'opreate' },
+    is_edit: false,
+    oldName: item.name,
   }));
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -167,7 +171,7 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 })
 class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+  @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   tableData = {
     ...commonTableProps,
     pagination: {
@@ -189,6 +193,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
 
   /* 当前筛选项 */
   filterType = EFilterType.current;
+
+  isEnterKey = false;
 
   get getRouterName(): pageType {
     return this.$route.name as pageType;
@@ -381,7 +387,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'delete' | 'view' | 'manage', row: IEventItem) {
+  handleOperate(v: 'delete' | 'manage' | 'view', row: IEventItem) {
     const { customMetricV2EnableList, bizId } = this.$store.getters;
     const toView = {
       [CUSTOM_EVENT]: () => {
@@ -510,12 +516,57 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       this.init();
     }
   }
+  // 验证名字是否重复的函数
+  async validateName(row: IEventItem) {
+    try {
+      const res = await this.$store.dispatch('custom-escalation/validateCustomTimetName', {
+        params: { name: row.name, time_series_group_id: row.time_series_group_id },
+      });
+      return res.result ?? true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
+  /** 编辑名称 */
+  async handleNameBlur(row: IEventItem) {
+    /** 没有做修改 */
+    if (row.name === row.oldName) {
+      row.is_edit = false;
+      return;
+    }
+    // 验证名字是否重复
+    const isNameValid = await this.validateName(row);
+    if (!isNameValid) {
+      row.name = row.oldName;
+      this.$nextTick(() => {
+        this.nameInput.focus();
+      });
+      return;
+    }
+
+    row.is_edit = false;
+    this.loading = true;
+    try {
+      const params = {
+        time_series_group_id: row.time_series_group_id,
+        name: row.name,
+      };
+      const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
+      if (data) {
+        this.$bkMessage({ theme: 'success', message: this.$t('修改成功') });
+        this.init();
+      }
+    } finally {
+      this.loading = false;
+    }
+  }
 
   render() {
     return (
       <div
         class='custom-report-page'
-      // v-bkloading={{ isLoading: this.loading }}
+        v-bkloading={{ isLoading: this.loading }}
       >
         <div class='content-left'>
           <PageTips
@@ -544,9 +595,11 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               </bk-button>
               <div class='bk-button-group bk-button-group-capsule'>
                 {filterTypes.map(item => (
-                  <div class='bk-button-container'>
+                  <div
+                    key={item.id}
+                    class='bk-button-container'
+                  >
                     <bk-button
-                      key={item.id}
                       class={this.filterType === item.id ? 'is-selected' : ''}
                       onClick={() => this.handleFilterTypeChange(item.id)}
                     >
@@ -574,9 +627,27 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 {...{ props: this.tableData }}
                 scopedSlots={{
                   name: (row: IEventItem) => (
-                    <span>
+                    <span class='table-name-cell'>
                       {row?.is_readonly ? (
                         <span>{row.name}</span>
+                      ) : row.is_edit ? (
+                        <bk-input
+                          ref='nameInput'
+                          class='table-name-input'
+                          v-model={row.name}
+                          placeholder={this.$t('请输入')}
+                          onBlur={() => {
+                            if (!this.isEnterKey) {
+                              this.handleNameBlur(row);
+                            }
+                            this.isEnterKey = false;
+                          }}
+                          onEnter={(val, e) => {
+                            this.isEnterKey = true;
+                            e.preventDefault();
+                            this.handleNameBlur(row);
+                          }}
+                        />
                       ) : (
                         <span
                           class='col-btn'
@@ -585,7 +656,17 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           {row.name}
                         </span>
                       )}
-                      {row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
+                      {!row.is_edit && row?.is_platform ? (
+                        <span class='platform-tag'>{this.$t('公共')}</span>
+                      ) : undefined}
+                      {!row.is_edit && (
+                        <i
+                          class='icon-monitor icon-bianji edit-btn'
+                          onClick={() => {
+                            row.is_edit = !row.is_edit;
+                          }}
+                        />
+                      )}
                     </span>
                   ),
                   related: (row: IEventItem) => (

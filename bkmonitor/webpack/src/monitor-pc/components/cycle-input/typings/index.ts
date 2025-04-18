@@ -30,6 +30,7 @@ export interface IProps {
   appendTo?: string;
   needAuto?: boolean;
   minSec?: number;
+  isNeedDefaultVal?: boolean;
 }
 
 export interface IEvent {

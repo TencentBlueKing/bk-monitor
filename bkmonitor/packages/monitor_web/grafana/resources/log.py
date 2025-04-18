@@ -169,7 +169,7 @@ class LogQueryResource(ApiAuthResource):
             kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
 
         data_source = data_source_class(**kwargs)
-        limit = None if params["limit"] <= 0 else params["limit"]
+        limit = 1000 if params["limit"] <= 0 else params["limit"]
         records, total = data_source.query_log(
             start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
         )

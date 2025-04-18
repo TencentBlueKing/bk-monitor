@@ -85,12 +85,11 @@ class ApmTopoDiscoverRule(models.Model):
     # key for framework = trpc
     TRPC_PREDICATE_KEY = OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE)
     # key for platform = k8s (k8部署 判断 k8s 部署有多个字段)
+    PLATFORM_K8S_CLUSTER_ID_KEY = OtlpKey.get_resource_key("k8s.bcs.cluster.id")
+    PLATFORM_K8S_POD_NAME_KEY = OtlpKey.get_resource_key("k8s.pod.name")
+    PLATFORM_K8S_NAMESPACE_KEY = OtlpKey.get_resource_key("k8s.namespace.name")
     PLATFORM_K8S_PREDICATE_KEY = ",".join(
-        [
-            OtlpKey.get_resource_key("k8s.bcs.cluster.id"),
-            OtlpKey.get_resource_key("k8s.pod.name"),
-            OtlpKey.get_resource_key("k8s.namespace.name"),
-        ]
+        [PLATFORM_K8S_CLUSTER_ID_KEY, PLATFORM_K8S_POD_NAME_KEY, PLATFORM_K8S_NAMESPACE_KEY]
     )
     # key for platform = system (物理机部署)
     PLATFORM_NODE_PREDICATE_KEY = OtlpKey.get_resource_key("net.host.ip")

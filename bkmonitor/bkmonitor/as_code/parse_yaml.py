@@ -890,7 +890,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
                 rule_instance = None
         rule_slz = DutyRuleDetailSlz(data=duty_rule, instance=rule_instance)
         rule_slz.is_valid(raise_exception=True)
-        if rule_instance and rule_slz.data["hash"] != rule_instance.hash and not self.overwrite:
+        if rule_instance and rule_slz.validated_data["hash"] != rule_instance.hash and not self.overwrite:
             raise ValidationError("Duty rule is existed but overwrite if not allowed")
         rule_instance = rule_slz.save()
         notice_group["duty_rules"] = [rule_instance.id]

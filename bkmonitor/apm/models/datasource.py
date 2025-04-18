@@ -962,6 +962,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         return [endpoint for endpoint in endpoints if not service_name or endpoint.get("service_name") == service_name]
 
     def query_span(self, start_time, end_time, filter_params=None, fields=None, category=None):
+        # TODO(crayon) 910～1087 迁移至 UnifyQuery
         query = self.fetch.query(
             "bool",
             filter=[

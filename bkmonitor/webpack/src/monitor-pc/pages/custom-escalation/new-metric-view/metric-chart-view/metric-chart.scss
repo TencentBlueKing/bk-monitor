@@ -32,6 +32,10 @@
       background: #f0f1f5;
       border-radius: 2px;
     }
+    &.disabled {
+      cursor: not-allowed;
+      color: #c4c6cc;
+    }
   }
   .status-tab-view {
     text-align: center;
@@ -143,6 +147,10 @@
     cursor: pointer;
     &:hover {
       background: #f5f7fa;
+    }
+    &.disabled {
+      cursor: not-allowed;
+      color: #c4c6cc;
     }
   }
 }

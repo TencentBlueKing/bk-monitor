@@ -1244,12 +1244,14 @@ class Space(SoftDeleteModel):
 
     properties = models.JSONField(_("额外属性"), default=dict)
 
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
+
     class Meta:
         verbose_name = _("空间信息")
         verbose_name_plural = _("空间信息")
 
     @classmethod
-    def get_all_spaces(cls):
+    def get_all_spaces(cls, bk_tenant_id):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -1261,9 +1263,12 @@ class Space(SoftDeleteModel):
                        space_uid,
                        space_code,
                        bk_biz_id,
+                       bk_tenant_id,
                        JSON_EXTRACT(properties, '$.time_zone') AS time_zone
                 FROM log_search_space
-            """
+                WHERE bk_tenant_id = %s
+                """,
+                (bk_tenant_id,),
             )
             columns = [col[0] for col in cursor.description]
             spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -1289,6 +1294,7 @@ class SpaceApi(AbstractSpaceApi):
             space_uid=space.space_uid,
             type_name=space.space_type_name,
             bk_biz_id=space.bk_biz_id,
+            bk_tenant_id=space.bk_tenant_id,
             extend=space.properties,
         )
 

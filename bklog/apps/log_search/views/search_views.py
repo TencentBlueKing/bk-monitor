@@ -36,7 +36,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
+from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE, UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -99,8 +99,14 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
 )
+from apps.log_unifyquery.builder.context import build_context_params
+from apps.log_unifyquery.builder.tail import build_tail_params
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class SearchViewSet(APIViewSet):
@@ -325,7 +331,13 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
-        return Response(search_handler.search())
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            query_handler = UnifyQueryHandler(data)
+            return Response(query_handler.search())
+        else:
+            return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
@@ -441,8 +453,18 @@ class SearchViewSet(APIViewSet):
         """
         data = request.data
         data.update({"search_type_tag": "context"})
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_context())
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            params = build_context_params(data)
+            query_handler = UnifyQueryContextHandler(params)
+            return Response(query_handler.search())
+        else:
+            data.update({"search_type_tag": "context"})
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_context())
 
     @detail_route(methods=["POST"], url_path="tail_f")
     def tailf(self, request, index_set_id=None):
@@ -494,10 +516,19 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = request.data
-        data.update({"search_type_tag": "tail"})
-        # search_handler = SearchHandler(index_set_id, data)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_tail_f())
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data.update({"index_set_id": index_set_id})
+            params = build_tail_params(data)
+            query_handler = UnifyQueryTailHandler(params)
+            return Response(query_handler.search())
+        else:
+            data.update({"search_type_tag": "tail"})
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_tail_f())
 
     @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):
@@ -562,11 +593,16 @@ class SearchViewSet(APIViewSet):
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
         output = StringIO()
-        export_fields = data.get("export_fields", [])
-        search_handler = SearchHandlerEsquery(
-            index_set_id, search_dict=data, export_fields=export_fields, export_log=True
-        )
-        result = search_handler.search(is_export=True)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            query_handler = UnifyQueryHandler(data)
+            result = query_handler.search(is_export=True)
+        else:
+            export_fields = data.get("export_fields", [])
+            search_handler = SearchHandlerEsquery(
+                index_set_id, search_dict=data, export_fields=export_fields, export_log=True
+            )
+            result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
             output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
@@ -1393,6 +1429,8 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            return Response(UnionSearchHandler(data).unifyquery_union_search())
         return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")

@@ -3,6 +3,8 @@ from dataclasses import asdict, dataclass, fields
 from enum import Enum
 from typing import Union
 
+from django.conf import settings
+
 
 class SpaceTypeEnum(Enum):
     """
@@ -33,6 +35,8 @@ class Space:
     type_name: Union[None, str]
     bk_biz_id: int
     extend: dict
+
+    bk_tenant_id: str = settings.DEFAULT_TENANT_ID
 
     @classmethod
     def from_dict(cls, data):

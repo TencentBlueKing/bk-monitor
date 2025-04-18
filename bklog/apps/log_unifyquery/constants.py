@@ -9,8 +9,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from enum import Enum
+from typing import Dict
 
 from apps.log_search.constants import OperatorEnum
+
+MAX_LEN_DICT = Dict[str, int]
+
+BODY_DATA_FOR_CONTEXT = {
+    "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
+    "size": "",
+    "from": "",
+    "sort": [],
+}
 
 
 class AggTypeEnum(Enum):

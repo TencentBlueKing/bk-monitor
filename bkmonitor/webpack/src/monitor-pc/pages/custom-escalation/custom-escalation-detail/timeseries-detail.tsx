@@ -32,7 +32,9 @@ import MetricTabDetail from './metric-tab-detail';
 
 import './timeseries-detail.scss';
 
-@Component
+@Component({
+  inheritAttrs: false,
+})
 export default class TimeseriesDetailNew extends tsc<any, any> {
   @Prop({ default: () => [] }) unitList;
   @Prop({ default: '' }) selectedLabel;

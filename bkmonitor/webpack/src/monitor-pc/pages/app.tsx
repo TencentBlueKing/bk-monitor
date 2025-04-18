@@ -482,7 +482,7 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
-    } else if (['k8s', 'k8s-new', 'event-retrieval', 'event-explore'].includes(navId)) {
+    } else if (['k8s', 'k8s-new', 'event-retrieval'].includes(navId)) {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
@@ -490,7 +490,7 @@ export default class App extends tsc<object> {
             if (navId.startsWith('k8s')) {
               routeName = this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s';
             } else {
-              routeName = this.$store.getters.isEnableEventExploreV2 ? 'event-explore' : 'event-retrieval';
+              routeName = 'event-explore';
             }
             this.$router.push({ name: routeName, query: {} }).finally(() => {
               this.routeViewKey = random(10);
@@ -881,7 +881,7 @@ export default class App extends tsc<object> {
                         if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
                           return this.$route.name === item.id;
                         }
-                        if (this.$store.getters.eventExploreV2EnableList && item.id === 'event-explore') return true;
+                        if (item.id === 'event-explore') return true;
                         return false;
                       }
                       return true;

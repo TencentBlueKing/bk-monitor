@@ -33,6 +33,7 @@ import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-select
 interface IProps {
   data: {
     key: string;
+    alias: string;
     method: string;
     value: string[];
   };
@@ -89,7 +90,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
       <KvSelector
         fieldInfo={{
           field: this.data.key,
-          alias: this.data.key,
+          alias: this.data.alias,
           methods: [{ id: 'eq', name: '=' }],
           isEnableOptions: true,
         }}

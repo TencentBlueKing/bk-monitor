@@ -8,12 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 
 from alarm_backends.management.story.color import ConsoleColor
 
+logger = logging.getLogger("self_monitor")
+
 
 class StoryCollection(object):
-
     stories = []
 
     def register(self, story):
@@ -129,6 +131,7 @@ class BaseStory(object):
             try:
                 p = step.check()
             except Exception as err:
+                logger.exception("请关注！自监控执行健康检查异常: {}".format(err))
                 p = StepCheckError("请关注！自监控执行健康检查异常: {}".format(err), self)
             if p:
                 if isinstance(p, list):

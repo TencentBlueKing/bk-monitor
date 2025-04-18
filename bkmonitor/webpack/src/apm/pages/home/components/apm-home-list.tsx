@@ -411,9 +411,9 @@ export default class ApmServiceList extends tsc<
       }, {});
       return { field, data };
     });
-    newData.forEach(item => {
+    for (const item of newData) {
       this.renderTableBatchByBatch(item.field, item.data);
-    });
+    }
     if (this.filterLoading) {
       const { filter: filterDataPart2 = [] } = serviceData;
       this.mergeServiceFilterData(filterDataPart2);
@@ -429,16 +429,18 @@ export default class ApmServiceList extends tsc<
     const setData = (currentIndex = 0) => {
       let needBreak = false;
       if (currentIndex <= this.tableData.length && this.tableData.length) {
-        const endIndex = Math.min(currentIndex + 2, this.tableData.length);
+        const endIndex = Math.min(currentIndex + 1, this.tableData.length);
         for (let i = currentIndex; i < endIndex; i++) {
           const item = this.tableData[i];
           item[field] = dataMap[String(item.service_name.value || '')] || null;
           needBreak = i === this.tableData.length - 1;
         }
         if (!needBreak) {
-          window.requestIdleCallback(() => {
-            window.requestAnimationFrame(() => setData(endIndex));
-          });
+          setTimeout(() => {
+            window.requestAnimationFrame(() => {
+              setData(endIndex);
+            });
+          }, 300);
         } else {
           this.tableColumns.find(col => col.id === field).asyncable = false;
         }

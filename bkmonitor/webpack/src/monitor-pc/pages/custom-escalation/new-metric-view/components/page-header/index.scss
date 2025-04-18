@@ -52,3 +52,33 @@
     margin-left: auto;
   }
 }
+
+.custom-time-series-name,
+.custom-time-series-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custom-time-series-name {
+  font-size: 14px;
+  line-height: 22px;
+  color: #313238;
+  padding-top: 6px;
+}
+.custom-time-series-label {
+  font-size: 12px;
+  line-height: 20px;
+  color: #979ba5;
+  padding-bottom: 6px;
+}
+.bk-option {
+  &.is-selected {
+    background: #f0f5ff;
+    .custom-time-series-name {
+      color: #3a84ff;
+    }
+    .custom-time-series-label {
+      color: #699df4;
+    }
+  }
+}

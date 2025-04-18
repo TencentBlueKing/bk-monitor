@@ -33,6 +33,7 @@ import { random } from 'monitor-common/utils';
 import CommonDetail from '../../../components/common-detail/common-detail';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useTimeOffsetProvider, useViewOptionsProvider } from '../../../plugins/hooks';
+import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import CompareSelect, { CompareId } from './compare-select';
 // import FilterVarGroup from './filter-var-group';
 import FilterVarSelectSimple from './filter-var-select-simple';
@@ -61,6 +62,7 @@ export default defineComponent({
 
   setup(props) {
     const { t } = useI18n();
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     // const currentInstance = getCurrentInstance();
     // const startTime = inject<Ref>('startTime') || ref('');
     // const endTime = inject<Ref>('endTime') || ref('');
@@ -197,6 +199,7 @@ export default defineComponent({
         compare_targets: compareTargets.value,
         current_target: currentTarget.value || undefined,
       };
+      spanDetailQueryStore.queryData = viewOptions.value;
     }
 
     /**
@@ -332,7 +335,7 @@ export default defineComponent({
       <div class='span-details__dashboard-panel'>
         <div class='dashboard-panel__charts'>
           <div class='groups-header'>
-            {!!this.variablesPanel.length && (
+            {!!this.variablesPanel?.length && (
               <FilterVarTagInput
                 panel={this.variablesPanel[0]}
                 podName={this.podName}

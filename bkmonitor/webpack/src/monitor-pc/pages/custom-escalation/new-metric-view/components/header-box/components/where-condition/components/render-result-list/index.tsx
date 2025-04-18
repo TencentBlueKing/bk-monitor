@@ -55,6 +55,10 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get dimensionAliasNameMap() {
+    return customEscalationViewStore.dimensionAliasNameMap;
+  }
+
   get isAddBtnDisabled() {
     return _.every(this.latestMetricsList, metricItem => metricItem.dimensions.length < 1);
   }
@@ -194,7 +198,11 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                   onClick={(event: Event) => this.handleShowEditPanel(item, event)}
                 >
                   <div class='dimension-header'>
-                    <div class='dimension-key'>{item.key}</div>
+                    <div class='dimension-key'>
+                      {this.dimensionAliasNameMap[item.key]
+                        ? `${this.dimensionAliasNameMap[item.key]} (${item.key})`
+                        : item.key}
+                    </div>
                     <div class='dimension-method'>{methodMap[item.method]}</div>
                   </div>
                   <div class='dimension-value-wrapper'>
