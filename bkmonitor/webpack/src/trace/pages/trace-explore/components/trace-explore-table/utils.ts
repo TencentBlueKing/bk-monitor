@@ -33,6 +33,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     lineHeight: 32,
     align: 'left',
     emptyPlaceholder: '--',
+    settingWidth: 32,
   },
   traceConfig: {
     displayFields: [

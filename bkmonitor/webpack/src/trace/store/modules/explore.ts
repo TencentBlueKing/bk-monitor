@@ -29,6 +29,7 @@ import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-ra
 import { getDefaultTimezone } from '../../i18n/dayjs';
 
 import type { IApplicationItem } from '../../pages/trace-explore/typing';
+import type { TableProps } from 'tdesign-vue-next';
 
 export interface ITraceExploreState {
   timeRange: TimeRangeType;
@@ -38,6 +39,7 @@ export interface ITraceExploreState {
   refreshInterval: number;
   refreshImmediate: string;
   appList: IApplicationItem[];
+  tableList: TableProps['data'];
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
@@ -48,6 +50,7 @@ export const useTraceExploreStore = defineStore('explore', {
     refreshInterval: -1,
     refreshImmediate: '',
     appList: [],
+    tableList: [],
   }),
   getters: {
     currentApp: state => state.appList.find(app => app.app_name === state.appName),
@@ -73,6 +76,9 @@ export const useTraceExploreStore = defineStore('explore', {
     },
     updateAppList(appList: IApplicationItem[]) {
       this.appList = appList;
+    },
+    updateTableList(tableList: TableProps['data']) {
+      this.tableList = tableList;
     },
     init(data: Partial<ITraceExploreState>) {
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;

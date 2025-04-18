@@ -16,8 +16,8 @@
     "@blueking/ip-selector": "0.3.0-beta.42",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/monitor-trace-log": "1.0.0-beta.12",
-    "@dagrejs/dagre": "^1.1.4",
     "@blueking/table": "0.0.1-beta.35",
+    "@dagrejs/dagre": "^1.1.4",
     "@vue-flow/core": "^1.42.5",
     "@vue-flow/minimap": "^1.5.3",
     "@vueuse/core": "^13.1.0",
@@ -47,6 +47,7 @@
     "monitor-ui": "workspace:*",
     "pinia": "2.1.7",
     "reselect": "^4.1.8",
+    "tdesign-vue-next": "^1.11.5",
     "throttle-debounce": "^5.0.2",
     "tippy.js": "6.3.7",
     "vue": "^3.5.13",
@@ -55,10 +56,7 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.5.0"
   },
-  "keywords": [
-    "monitor",
-    "trace"
-  ],
+  "keywords": ["monitor", "trace"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {
