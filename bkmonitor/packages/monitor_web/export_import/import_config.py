@@ -242,8 +242,8 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
     }
 
-    # 新创建的轮值规则，旧hash与到新hash的映射
-    old_hash_to_new_hash = {}
+    # 已经创建了轮值规则的hash
+    created_hash_of_rule = set()
 
     for strategy_config in strategy_config_list:
         try:
@@ -274,13 +274,10 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 for rule_info in group_detail.get("duty_rules_info") or []:
                     # 优先沿用 hash 相同的旧 duty_rule 记录
                     rule = existed_hash_to_rule.get(rule_info["hash"])
-                    # 避免重复创建轮值规则：
-                    #   -如果当前轮值的hash已经存在于old_hash_to_new_hash中则表示该轮值规则已经被创建过了
-                    #   -此时rule就是新创建的轮值规则，那么后续操作相当于更新操作
-                    #   -但是当前轮值的hash是旧hash,已经失效，所以需要将旧hash替换为新hash，对应就是如下的：
-                    #    rule_info["hash"] = old_hash_to_new_hash[rule_info["hash"]] 这步操作
-                    if rule_info["hash"] in old_hash_to_new_hash:
-                        rule_info["hash"] = old_hash_to_new_hash[rule_info["hash"]]
+                    # 避免重复创建轮值规则
+                    if rule_info["hash"] in created_hash_of_rule:
+                        rule_id_mapping[rule_info["id"]] = rule.id
+                        continue
 
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
@@ -288,7 +285,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
 
                     # 记录新创建的轮值规则与旧hash的映射
                     existed_hash_to_rule[rule_info["hash"]] = new_rule
-                    old_hash_to_new_hash[rule_info["hash"]] = new_rule.hash
+                    created_hash_of_rule.add(rule_info["hash"])
                     # 记录新旧 id 对应关系
                     rule_id_mapping[rule_info["id"]] = new_rule.id
 
