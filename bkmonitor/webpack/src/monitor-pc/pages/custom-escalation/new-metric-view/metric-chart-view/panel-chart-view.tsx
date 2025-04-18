@@ -136,12 +136,13 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     if (!params.compare?.type) {
       delete params.compare;
     }
-
+    const len = params.metrics.length;
+    const max = Math.ceil(len / this.viewColumn);
     getCustomTsGraphConfig(params)
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
-        this.activeName = this.groupList.map(item => item.name);
+        this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
       })
       .catch(() => {
@@ -171,11 +172,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         {Array(2)
           .fill(null)
           .map((_, index) => (
-            <div class='skeleton-loading-item'>
-              <div
-                key={index}
-                class='skeleton-element'
-              />
+            <div
+              key={index}
+              class='skeleton-loading-item'
+            >
+              <div class='skeleton-element' />
               <div class='skeleton-element-row'>
                 {Array(3)
                   .fill(null)
@@ -240,14 +241,15 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   slot='content'
                 >
                   {/* {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))} */}
-                  {chunkArray(item.panels, this.viewColumn).map((rowItem, rowIndex) => (
-                    <div
-                      key={rowIndex}
-                      class='chart-view-row'
-                    >
-                      {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
-                    </div>
-                  ))}
+                  {this.activeName.includes(item.name) &&
+                    chunkArray(item.panels, this.viewColumn).map((rowItem, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        class='chart-view-row'
+                      >
+                        {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
+                      </div>
+                    ))}
                 </div>
               </bk-collapse-item>
             ))}
