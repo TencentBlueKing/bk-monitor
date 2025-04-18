@@ -1039,4 +1039,6 @@ export default {
   重命名与字段名重复: 'Rename and field name duplicate',
   别名与字段名重复: 'Alias and field name duplicate',
   别名与重命名重复: 'Alias and rename duplicate',
+  '暂无配置责任人，无法自动创建告警策略':
+    'No configured responsible person, unable to automatically create alarm strategy',
 };

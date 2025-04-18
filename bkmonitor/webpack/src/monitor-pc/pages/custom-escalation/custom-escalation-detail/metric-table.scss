@@ -1,17 +1,27 @@
 $text-color: #313238;
 $text-secondary: #979ba5;
 $border-color: #d9d9d9;
+@mixin text-x-ellipsis {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .indicator-table-content {
   height: 100%;
+
   .indicator-table-header {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
 
     .indicator-btn {
       display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       align-items: center;
 
       .header-btn {
@@ -100,11 +110,12 @@ $border-color: #d9d9d9;
   .strategy-config-wrap {
     display: flex;
     height: 100%;
+
     .table-box {
       flex: 1;
       min-width: 0;
       // height: 508px;
-      height: calc(100% - 32px);
+      height: calc(100% - 40px);
       overflow: -moz-scrollbars-none; /* Firefox */
       overflow-y: scroll;
       scrollbar-width: none; /* Firefox 64+ */
@@ -125,13 +136,61 @@ $border-color: #d9d9d9;
         .bk-table {
           overflow: visible;
 
-          .bk-table-body-wrapper {
+          .bk-table-body-wrapper, .bk-table-header-wrapper {
             overflow: visible;
+
+            .bk-table-header {
+              border-top: 1px solid #dfe0e5;
+            }
+
+            .bk-table-empty-block {
+              border-right: 1px solid #dfe0e5;
+              border-left: 1px solid #dfe0e5;
+            }
+
+            .bk-table-header,.bk-table-body {
+              position: relative;
+
+              &:after {
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+              }
+
+              &:before {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 2;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+              }
+            }
+          }
+
+          &.bk-table-outer-border {
+            border: none;
+
+            &:after {
+              background-color: transparent;
+            }
           }
         }
 
         .name {
           color: #3a84ff;
+        }
+
+        .cell {
+          &:has(.table-group-box) {
+            overflow: visible;
+          }
         }
 
         .table-group-box {
@@ -199,6 +258,7 @@ $border-color: #d9d9d9;
             input {
               background-color: #fff !important;
               border: none;
+              @include text-x-ellipsis();
 
               &:hover {
                 background-color: #eaebf0 !important;
@@ -219,6 +279,7 @@ $border-color: #d9d9d9;
       }
 
       .list-pagination {
+        min-width: 673px;
         padding: 14px 16px;
         margin-top: -1px;
         border: 1px solid #dfe0e5;
@@ -273,10 +334,11 @@ $border-color: #d9d9d9;
     }
 
     .detail {
+      height: calc(100% - 40px);
       background: #f5f7fa;
       border: 1px solid #dcdee5;
       border-left: none;
-      height: calc(100% - 40px);
+
       .metric-card {
         padding: 14px 12px 8px 24px;
 
@@ -331,6 +393,31 @@ $border-color: #d9d9d9;
               color: $text-color;
               word-break: break-word;
 
+              .metric-func-selector-add {
+                width: 100%;
+
+                .func-label {
+                  display: none;
+                }
+
+                .function-menu-anchor,
+                .func-item {
+                  margin-top: -5px;
+                  border-color: #e9eaeb;
+                }
+
+                .function-menu-anchor,
+                .init-add {
+                  width: 100%;
+                }
+
+                .init-add-input {
+                  width: 100%;
+                  background: transparent;
+                  border: none;
+                }
+              }
+
               &:hover:not(.readonly) {
                 cursor: pointer;
                 background: #eaebf0;
@@ -346,6 +433,7 @@ $border-color: #d9d9d9;
               .group-list {
                 position: absolute;
                 top: 0;
+                left: 0;
                 display: flex;
                 width: 100%;
                 padding: 0;
@@ -494,12 +582,29 @@ $border-color: #d9d9d9;
               }
             }
 
+            .info-text {
+              @include text-x-ellipsis();
+            }
+
             .switcher-btn {
               margin: 8px;
             }
 
             .unit-content {
-              width: 100%;
+              width: 40%;
+
+              .input-popover .bk-form-input {
+                background-color: #f0f1f5 !important;
+                border: none;
+              }
+
+              .cycle-unit-popover {
+                margin-top: 1.5px;
+
+                .cycle-unit {
+                  border-color: #e9eaeb;
+                }
+              }
             }
 
             .dimension-content {
@@ -597,6 +702,11 @@ $border-color: #d9d9d9;
 
 .header-select-btn-popover,
 .header-select-popover {
+  .mh-300 {
+    max-height: 300px;
+    overflow: scroll;
+  }
+
   .header-select-list {
     display: flex;
     flex-direction: column;

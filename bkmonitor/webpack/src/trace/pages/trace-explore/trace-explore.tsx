@@ -176,54 +176,20 @@ export default defineComponent({
                     is_searched: true,
                     is_dimensions: true,
                     is_option_enabled: true,
-                    supported_operations: [{ operator: '=', label: '=', placeholder: '请选择或直接输入，Enter分隔' }],
+                    can_displayed: true,
+                    is_default_filter: true,
+                  },
+                  {
+                    name: 'number',
+                    alias: '数值',
+                    type: 'integer',
+                    is_searched: true,
+                    is_dimensions: true,
+                    is_option_enabled: true,
+                    can_displayed: true,
+                    is_default_filter: true,
                   },
                 ],
-                default_config: {
-                  display_fields: [
-                    {
-                      name: 'trace_id',
-                    },
-                    {
-                      name: 'min_start_time',
-                    },
-                    {
-                      name: 'root_span_name',
-                    },
-                    {
-                      name: 'root_service',
-                    },
-                    {
-                      name: 'root_service_span_name',
-                    },
-                    {
-                      name: 'root_service_category',
-                    },
-                    {
-                      name: 'root_service_status_code',
-                    },
-                    {
-                      name: 'trace_duration',
-                    },
-                    {
-                      name: 'hierarchy_count',
-                    },
-                    {
-                      name: 'service_count',
-                    },
-                  ],
-                  filter_setting: [
-                    {
-                      name: 'trace_duration',
-                    },
-                    {
-                      name: 'resource.service.name',
-                    },
-                    {
-                      name: 'span_name',
-                    },
-                  ],
-                },
               },
               span_config: {
                 fields: [
@@ -244,45 +210,6 @@ export default defineComponent({
                     ],
                   },
                 ],
-                default_config: {
-                  display_field: [
-                    {
-                      name: 'span_id',
-                    },
-                    {
-                      name: 'span_name',
-                    },
-                    {
-                      name: 'start__time',
-                    },
-                    {
-                      name: 'end_time',
-                    },
-                    {
-                      name: 'elapsed_time',
-                    },
-                    {
-                      name: 'status.code',
-                    },
-                    {
-                      name: 'kind',
-                    },
-                    {
-                      name: 'trace_id',
-                    },
-                  ],
-                  filter_setting: [
-                    {
-                      name: 'elapsed_time',
-                    },
-                    {
-                      name: 'resource.service.name',
-                    },
-                    {
-                      name: 'span_name',
-                    },
-                  ],
-                },
               },
             });
           }, 300);

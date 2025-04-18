@@ -392,6 +392,8 @@ BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
+# APIGW 同步配置
+SYNC_APIGATEWAY_ENABLED = os.getenv("BKAPP_SYNC_APIGATEWAY_ENABLED", "on")
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")
@@ -401,7 +403,6 @@ BK_ASSESSMEN_HOST_COUNT = int(os.getenv("BKAPP_ASSESSMEN_HOST_COUNT", 30))
 # 日志清洗文档
 BK_ETL_DOC_URL = os.getenv("BKAPP_ETL_DOC_URL", "")
 
-BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 # 计算平台文档地址
 BK_DOC_DATA_URL = ""
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
@@ -1240,6 +1241,15 @@ UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 # AIDEV
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+
+# 是否启用多租户模式
+ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# 是否启用全局租户（blueapps依赖）
+IS_GLOBAL_TENANT = True
+# 为了统一多租户和非多租户场景的逻辑，默认使用system租户
+DEFAULT_TENANT_ID = "system"
+# 已经初始化的租户列表
+INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
 
 """
 以下为框架代码 请勿修改

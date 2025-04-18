@@ -220,11 +220,13 @@ export default defineComponent({
     }
 
     /** 已选择的字段 */
+    const showStatisticsPopover = shallowRef(false);
     const selectField = shallowRef<IDimensionField>(null);
     const activeFieldName = shallowRef('');
     /** popover实例 */
     const popoverInstance = shallowRef(null);
     const statisticsListRef = shallowRef(null);
+
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
@@ -232,7 +234,7 @@ export default defineComponent({
       if (item?.children) {
         item.expand = !item.expand;
       } else {
-        if (!item.is_option_enabled || !fieldListCount.value[item.name]) return;
+        // if (!item.is_option_enabled || !fieldListCount.value[item.name]) return;
         selectField.value = item;
         popoverInstance.value = $bkPopover({
           target: e.currentTarget as HTMLDivElement,
@@ -243,22 +245,25 @@ export default defineComponent({
           arrow: true,
           boundary: 'viewport',
           extCls: 'statistics-dimension-popover-cls',
-          width: 400,
+          width: 405,
           distance: -5,
           onHide() {
+            showStatisticsPopover.value = false;
             activeFieldName.value = '';
           },
         });
         setTimeout(() => {
           popoverInstance.value.show();
+          showStatisticsPopover.value = true;
         }, 100);
       }
     }
 
     function destroyPopover() {
+      showStatisticsPopover.value = false;
       activeFieldName.value = '';
       popoverInstance.value?.hide(0);
-      popoverInstance.value?.uninstall();
+      popoverInstance.value?.close();
       popoverInstance.value = null;
     }
 
@@ -294,6 +299,7 @@ export default defineComponent({
 
     return {
       t,
+      showStatisticsPopover,
       activeFieldName,
       emptyStatus,
       fieldListCount,
@@ -351,8 +357,10 @@ export default defineComponent({
 
         <StatisticsList
           ref='statisticsListRef'
+          commonParams={this.params}
           fieldType={this.selectField?.type}
           isDimensions={this.selectField?.is_dimensions}
+          isShow={this.showStatisticsPopover}
           selectField={this.selectField?.name}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}

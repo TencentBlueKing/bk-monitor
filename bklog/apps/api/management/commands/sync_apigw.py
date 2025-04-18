@@ -27,7 +27,7 @@ from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        if not getattr(settings, "SYNC_APIGATEWAY_ENABLED", True):
+        if settings.SYNC_APIGATEWAY_ENABLED == "off":
             return
 
         gateway_name = settings.BK_APIGW_NAME
