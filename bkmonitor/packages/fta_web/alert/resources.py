@@ -90,7 +90,7 @@ from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
-from fta_web.alert.handlers.base import BaseQueryHandler, query_cache
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -581,7 +581,6 @@ class AlertDateHistogramResource(Resource):
                 for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
             ]
         )
-        query_cache.clear()
 
         data = {status: {} for status in EVENT_STATUS_DICT}
         for result in results:
@@ -1852,7 +1851,6 @@ class ValidateQueryString(Resource):
         }
         search_type = validated_request_data["search_type"]
         ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
-        query_cache.clear()
         return ret
 
 
@@ -1909,7 +1907,6 @@ class AlertTopNResource(Resource):
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
-        query_cache.clear()
 
         result = {
             "doc_count": 0,
