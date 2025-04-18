@@ -27,12 +27,12 @@ import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMoun
 import { useI18n } from 'vue-i18n';
 
 import { OverflowTitle } from 'bkui-vue';
-import { random } from 'monitor-common/utils';
 import { PrimaryTable } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
+import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
 import ExploreTableEmpty from './explore-table-empty';
@@ -82,12 +82,10 @@ export default defineComponent({
     /** 表格logs数据请求中止控制器 */
     let abortController: AbortController = null;
 
-    /** 强制刷新 table（由于 Table 组件在 动态列场景 下会出现列顺序混乱不可控的情况 issue: https://github.com/x-extends/vxe-table/issues/2401） */
-    const refreshTable = shallowRef(random(8));
     /** table 数据总条数 */
     const tableTotal = shallowRef(0);
     /** table 显示列配置 */
-    const tableColumns = deepRef<ExploreTableColumn<ExploreTableColumnTypeEnum>[]>([]);
+    const displayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -115,6 +113,16 @@ export default defineComponent({
     const tableViewData = computed(() => store.tableList);
     /** 判断当前数据是否需要触底加载更多 */
     const tableHasScrollLoading = computed(() => tableData.value?.length < tableTotal.value);
+    /** table 所有列配置(字段设置使用) */
+    const tableColumns = computed(() => {
+      const columnMap = getTableColumnMapByVisualMode();
+      return Object.values(columnMap);
+    });
+    /** table 显示列配置 */
+    const tableDisplayColumns = computed<ExploreTableColumn<ExploreTableColumnTypeEnum>[]>(() => {
+      const columnMap = getTableColumnMapByVisualMode();
+      return displayColumnFields.value.map(field => columnMap[field]).filter(Boolean);
+    });
     /** 请求参数 */
     const queryParams = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -142,8 +150,7 @@ export default defineComponent({
       () => {
         store.updateTableList([]);
         tableRowKeyField.value = isSpanVisual.value ? 'span_id' : 'trace_id';
-        initTableColumn();
-        refreshTable.value = random(8);
+        getColumn();
       }
     );
 
@@ -155,7 +162,7 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      initTableColumn();
+      getColumn();
       getExploreList();
     });
 
@@ -444,12 +451,10 @@ export default defineComponent({
      * @description: 获取 table 表格列配置
      *
      */
-    function initTableColumn() {
-      const columnMap = getTableColumnMapByVisualMode();
+    function getColumn() {
       const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
       // 需要展示的字段列名数组
-      const displayColumns = defaultColumnsConfig?.displayFields || [];
-      tableColumns.value = displayColumns.map(field => columnMap[field]).filter(Boolean);
+      displayColumnFields.value = (defaultColumnsConfig?.displayFields || []) as string[];
     }
 
     /**
@@ -554,6 +559,15 @@ export default defineComponent({
     function handleFilterChange(filterChangeEvent: TableFilterChangeEvent) {
       console.log('================ filterChangeEvent ================', filterChangeEvent);
     }
+
+    /**
+     * @description 表格列显示配置项变更回调
+     *
+     */
+    function handleDisplayColumnFieldsChange(displayFields: string[]) {
+      displayColumnFields.value = displayFields;
+    }
+
     /**
      * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
      * @param {ExploreTableColumn} column 当前列配置项
@@ -819,10 +833,11 @@ export default defineComponent({
       }
     }
     return {
-      refreshTable,
       defaultTableConfig,
       tableRowKeyField,
+      displayColumnFields,
       tableColumns,
+      tableDisplayColumns,
       tableViewData,
       traceSliderRender,
       spanSliderRender,
@@ -830,17 +845,24 @@ export default defineComponent({
       handleFilterChange,
       handleDataSourceConfigClick,
       handleSetFormatter,
+      handleDisplayColumnFieldsChange,
     };
   },
 
   render() {
     return (
       <div class='trace-explore-table'>
+        <ExploreFieldSetting
+          fieldMap={{}}
+          sourceList={this.tableColumns}
+          targetList={this.displayColumnFields}
+          onConfirm={this.handleDisplayColumnFieldsChange}
+        />
         <PrimaryTable
           v-slots={{
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
-          columns={this.tableColumns.map(column => {
+          columns={this.tableDisplayColumns.map(column => {
             return {
               ...column,
               colKey: column.field,

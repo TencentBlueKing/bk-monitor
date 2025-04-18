@@ -1926,4 +1926,9 @@ export default {
   语句模式: 'Statement mode',
   收藏名称: 'Collection name',
   收藏详情: 'Collection details',
+
+  // trace
+  字段显示: 'Field display',
+  待选字段: 'Available fields',
+  已选字段: 'Selected fields',
 };
