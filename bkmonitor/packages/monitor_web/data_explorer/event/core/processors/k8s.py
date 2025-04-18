@@ -258,7 +258,7 @@ class K8sEventProcessor(BaseEventProcessor):
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
         filter_by: Dict[str, List[str]] = {"namespace": [], "ingress": [], "service": [], "pod": []}
-        group_by = ["pod"]
+        group_by = ["namespace", "pod"]
         if level == "cluster":
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, ["namespace"], tab_info)
 
