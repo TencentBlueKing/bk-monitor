@@ -12,16 +12,26 @@ import importlib
 import pkgutil
 from collections import namedtuple
 from pathlib import Path
-from typing import List
+from typing import List, Literal
 
 from django.utils.module_loading import import_string
 
+Scenario = Literal['capacity', 'network', 'performance']
 Category = namedtuple("Category", ["id", "name", "children"])
 
 Metric = namedtuple("Metric", ["id", "name", "unit", "unsupported_resource"])
 
 
-def get_metrics(scenario) -> List:
+def get_scenaios() -> List[str]:
+    """
+    获取所有场景
+    """
+    moudle_path = Path(importlib.import_module(get_all_metrics.__module__).__file__).parent
+    scenario_list = [name for _, name, _ in pkgutil.iter_modules([str(moudle_path)])]
+    return scenario_list
+
+
+def get_metrics(scenario: Scenario) -> List:
     """
     获取指标
     """
@@ -40,8 +50,7 @@ def get_all_metrics() -> List[str]:
     """
     获取所有场景的指标
     """
-    moudle_path = Path(importlib.import_module(get_all_metrics.__module__).__file__).parent
-    scenario_list = [name for _, name, _ in pkgutil.iter_modules([str(moudle_path)])]
+    scenario_list = get_scenaios()
 
     metrics_list = []
     for scenario in scenario_list:
