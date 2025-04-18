@@ -158,6 +158,9 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
             )
+
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].append("and")
             reference_list.append(query["reference_name"])
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
