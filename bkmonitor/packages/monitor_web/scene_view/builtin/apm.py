@@ -34,7 +34,7 @@ from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
-from monitor_web.scene_view.builtin.constants import DEFAULT_HOST_DETAIL
+from monitor_web.scene_view.builtin.constants import DEFAULT_APM_HOST_DETAIL
 from monitor_web.scene_view.builtin.utils import gen_string_md5
 
 logger = logging.getLogger(__name__)
@@ -341,7 +341,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     end_time=params.get("end_time"),
                 )
             ):
-                apm_host_detail_config = copy.deepcopy(DEFAULT_HOST_DETAIL)
+                apm_host_detail_config = copy.deepcopy(DEFAULT_APM_HOST_DETAIL)
                 view_config["overview_panels"] = apm_host_detail_config["overview_panels"]
 
                 if "overview_panel" in view_config.get("options"):
