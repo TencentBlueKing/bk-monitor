@@ -152,6 +152,16 @@ export default defineComponent({
               trace_config: {
                 fields: [
                   {
+                    name: 'trace_duration',
+                    alias: '耗时',
+                    type: 'date',
+                    is_searched: true,
+                    is_dimensions: true,
+                    is_option_enabled: true,
+                    can_displayed: true,
+                    is_default_filter: true,
+                  },
+                  {
                     name: 'time',
                     alias: '数据上报时间',
                     type: 'date',

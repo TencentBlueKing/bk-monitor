@@ -39,6 +39,18 @@ export const fieldTypeMap = {
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
+  long: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  double: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
   keyword: {
     name: window.i18n.tc('字符串'),
     icon: 'icon-monitor icon-Str',
