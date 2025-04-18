@@ -1588,9 +1588,6 @@
           }
         })
         data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
-        console.log(data);
-        
-        return
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
