@@ -150,7 +150,11 @@ export default defineComponent({
     };
 
     const updateOptions = (cfg?) => {
-      Object.assign(gradeOptionForm.value, cfg ?? getDefaultGradeOption());
+      const target = cfg ?? getDefaultGradeOption();
+      if (!target.settings?.length) {
+        gradeOptionForm.value.settings = getDefaultGradeOption().settings;
+      }
+      Object.assign(gradeOptionForm.value, target);
     };
 
     const handleTypeChange = val => {

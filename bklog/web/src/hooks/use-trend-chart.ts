@@ -33,6 +33,7 @@ import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
 import chartOption, { getSeriesData } from './trend-chart-options';
+import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -50,11 +51,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
 
-  const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
+  // const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
 
   let runningInterval = '1m';
-  let cachedTimRange = [];
+  // let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
@@ -299,27 +300,26 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
   };
 
+  let cachedBatch: any = null;
+
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
+    if (cachedBatch === null && !batch.dblclick) {
+      cachedBatch = batch;
+    }
 
     if (batch.startValue && batch.endValue) {
       const timeFrom = dayjs.tz(batch.startValue).format('YYYY-MM-DD HH:mm:ss');
       const timeTo = dayjs.tz(batch.endValue).format('YYYY-MM-DD HH:mm:ss');
-
-      if (!cachedTimRange.length) {
-        cachedTimRange = [datepickerValue.value[0], datepickerValue.value[1]];
-      }
-
-      dispatchAction({
-        type: 'restore',
-      });
 
       if (window.__IS_MONITOR_COMPONENT__) {
         handleChartDataZoom([timeFrom, timeTo]);
       } else {
         // 更新Store中的时间范围
         // 同时会自动更新chartKey，触发接口更新当前最新数据
-        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
+          store.dispatch('requestIndexSetQuery');
+        });
       }
     }
   });
@@ -333,22 +333,22 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       chartInstance = Echarts.init(target.value);
 
       chartInstance.on('dataZoom', handleDataZoom);
-      target.value.ondblclick = () => {
-        dispatchAction({
-          type: 'restore',
+      chartInstance.on('dblclick', () => {
+        chartInstance.dispatchAction({
+          type: 'dataZoom',
+          dblclick: true,
+          batch: [
+            {
+              startValue: cachedBatch.startValue,
+              endValue: cachedBatch.endValue,
+              start: cachedBatch.startValue,
+              end: cachedBatch.endValue,
+            },
+          ],
         });
 
-        nextTick(() => {
-          if (cachedTimRange.length) {
-            store.dispatch('handleTrendDataZoom', {
-              start_time: cachedTimRange[0],
-              end_time: cachedTimRange[1],
-              format: true,
-            });
-            cachedTimRange = [];
-          }
-        });
-      };
+        cachedBatch = null;
+      });
 
       addListener(target.value, handleCanvasResize);
     }

@@ -100,6 +100,11 @@ export enum RetrieveEvent {
   TREND_GRAPH_SEARCH = 'trend-graph-search',
 
   /**
+   * 趋势图缩放
+   */
+  TREND_GRAPH_ZOOM = 'trend-graph-zoom',
+
+  /**
    * localStorage 变化
    */
   STORAGE_CHANGE = 'storage-change',

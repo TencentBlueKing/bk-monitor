@@ -1142,7 +1142,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: true },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
@@ -1181,9 +1181,6 @@ const store = new Vuex.Store({
         }
       }
 
-      if (!payload?.isPagination && payload.formChartChange) {
-        store.commit('retrieve/updateChartKey');
-      }
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
         is_loading: true,
@@ -1712,9 +1709,7 @@ const store = new Vuex.Store({
         datePickerValue: [start_time, end_time],
       });
 
-      // 这里通过增加 prefix 标识当前是由图表缩放导致的更新操作
-      // 用于后续逻辑判定使用
-      commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
+      return Promise.resolve(true);
     },
     /**
      * 更新 Vuex 状态中的用户字段配置。
