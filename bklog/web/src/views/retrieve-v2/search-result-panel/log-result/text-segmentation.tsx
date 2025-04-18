@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, nextTick } from 'vue';
 
 import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -34,6 +34,7 @@ import { debounce } from 'lodash';
 
 import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
+import RetrieveHelper from '../../../retrieve-helper';
 
 import './text-segmentation.scss';
 export default defineComponent({
@@ -93,7 +94,7 @@ export default defineComponent({
     });
 
     let wordList: WordListItem[];
-    let renderMoreItems: () => void = null;
+    let renderMoreItems: (size?, next?) => void = null;
 
     const getTagName = item => {
       if (item.isMark) {
@@ -142,7 +143,7 @@ export default defineComponent({
 
     let removeScrollEventFn = null;
     let cellScrollInstance: {
-      setListItem: (size?: number) => void;
+      setListItem: (size?: number, next?: () => void) => void;
       removeScrollEvent: () => void;
       reset: (list: WordListItem[]) => void;
     };
@@ -170,16 +171,18 @@ export default defineComponent({
           child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
 
           if (item.isBlobWord) {
-            child.innerHTML = item.text;
+            child.innerHTML = item.text?.length ? item.text : '""';
             return child;
           }
 
-          child.textContent = item.text;
+          child.textContent = item.text?.length ? item.text : '""';
           return child;
         },
       );
 
       setWordSegmentRender();
+
+      nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
     });
 
     onBeforeUnmount(() => {

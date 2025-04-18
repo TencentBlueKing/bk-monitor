@@ -43,6 +43,7 @@
     &.segment-content {
       span {
         content-visibility: auto;
+        white-space: pre-line;
       }
 
       .last-placeholder {

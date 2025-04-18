@@ -1122,7 +1122,12 @@ export default defineComponent({
 
       if (
         (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
-        !(target?.classList.contains('segment-content') || target?.parentElement?.classList.contains('segment-content'))
+        !(
+          target?.classList.contains('segment-content') ||
+          target?.classList.contains('bklog-json-view-icon-expand') ||
+          target?.classList.contains('bklog-json-view-icon-text') ||
+          target?.parentElement?.classList.contains('segment-content')
+        )
       ) {
         const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
         const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);

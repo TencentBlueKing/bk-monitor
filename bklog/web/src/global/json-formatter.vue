@@ -27,7 +27,7 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
   import { parseTableRowData } from '@/common/util';
@@ -35,6 +35,8 @@
 
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
+  import RetrieveHelper from '../views/retrieve-helper';
+
   const emit = defineEmits(['menu-click']);
   const store = useStore();
 
@@ -132,6 +134,7 @@
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
       setEditor(depth.value);
+      setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
     },
     {
       immediate: true,
@@ -323,6 +326,8 @@
       .valid-text {
         cursor: pointer;
         padding: 2px 0;
+        white-space: pre-wrap;
+
         &.focus-text,
         &:hover {
           color: #3a84ff;

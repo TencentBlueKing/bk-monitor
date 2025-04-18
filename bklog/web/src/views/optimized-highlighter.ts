@@ -106,6 +106,10 @@ export default class OptimizedHighlighter {
   }
 
   public highlightElement(target: HTMLElement) {
+    if (this.currentKeywords.length === 0) {
+      return;
+    }
+
     if (this.sections.includes(target)) {
       const instance = this.chunkMap.get(target)?.instance;
       instance.unmark();
