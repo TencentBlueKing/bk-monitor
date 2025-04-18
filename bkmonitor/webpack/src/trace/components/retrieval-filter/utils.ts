@@ -128,3 +128,6 @@ export function defaultWhereItem(params = {}): IWhereItem {
     ...params,
   };
 }
+
+export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
+export const DURATION_FIELD_KEY = 'duration';

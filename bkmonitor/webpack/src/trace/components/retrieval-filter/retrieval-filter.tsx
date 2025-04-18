@@ -48,7 +48,7 @@ import {
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { getCacheUIData, setCacheUIData } from './utils';
+import { DURATION_FIELD_KEY, getCacheUIData, setCacheUIData } from './utils';
 
 import './retrieval-filter.scss';
 
@@ -72,12 +72,26 @@ export default defineComponent({
     const localFields = computed(() => {
       return props.fields.map(item => ({
         ...item,
-        supported_operations: item.supported_operations.map(s => ({
-          ...s,
-          alias: s.label,
-          value: s.operator,
-        })),
+        supported_operations:
+          item?.supported_operations?.map(s => ({
+            ...s,
+            alias: s.label,
+            value: s.operator,
+          })) || [],
       })) as IFilterField[];
+    });
+    const residentSettingFields = computed(() => {
+      return [
+        {
+          name: DURATION_FIELD_KEY,
+          alias: t('耗时'),
+          type: 'integer',
+          is_dimensions: true,
+          can_displayed: true,
+          is_default_filter: true,
+        },
+        ...localFields.value,
+      ] as IFilterField[];
     });
     const curFavoriteId = computed(() => props.selectFavorite?.config?.queryConfig?.result_table_id);
     const isDefaultResidentSetting = computed(() => {
@@ -400,6 +414,7 @@ export default defineComponent({
       qsSelectorOptionsWidth,
       isDefaultResidentSetting,
       localFields,
+      residentSettingFields,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -558,7 +573,7 @@ export default defineComponent({
         </div>
         {this.showResidentSetting && (
           <ResidentSetting
-            fields={this.localFields}
+            fields={this.residentSettingFields}
             getValueFn={this.getValueFn}
             isDefaultSetting={this.isDefaultResidentSetting}
             residentSettingOnlyId={this.residentSettingOnlyId}

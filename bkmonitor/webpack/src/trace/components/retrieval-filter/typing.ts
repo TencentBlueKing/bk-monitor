@@ -122,7 +122,7 @@ export enum ECondition {
 
 export interface IWhereItem {
   key: string;
-  condition: ECondition;
+  condition?: ECondition;
   method: EMethod | string;
   value: string[];
   options?: {
@@ -663,4 +663,17 @@ export const RESIDENT_SETTING_PROPS = {
 };
 export const RESIDENT_SETTING_EMITS = {
   change: (_v: IWhereItem[]) => true,
+} as const;
+export const TIME_CONSUMING_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  value: {
+    type: Object as PropType<IWhereItem>,
+    default: () => null,
+  },
+};
+export const TIME_CONSUMING_EMITS = {
+  change: (_v: IWhereItem) => true,
 } as const;

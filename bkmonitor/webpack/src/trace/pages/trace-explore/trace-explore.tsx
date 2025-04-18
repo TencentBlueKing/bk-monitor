@@ -84,6 +84,11 @@ export default defineComponent({
     const loading = shallowRef(false);
     const queryString = shallowRef('');
 
+    const residentSettingOnlyId = computed(() => {
+      const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
+      return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
+    });
+
     watch(
       [
         () => store.appName,
@@ -300,6 +305,7 @@ export default defineComponent({
       commonParams,
       loading,
       queryString,
+      residentSettingOnlyId,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -321,7 +327,10 @@ export default defineComponent({
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (
-              <RetrievalFilter fields={this.fieldList} />
+              <RetrievalFilter
+                fields={this.fieldList}
+                residentSettingOnlyId={this.residentSettingOnlyId}
+              />
             )}
             <TraceExploreLayout
               ref='traceExploreLayoutRef'
