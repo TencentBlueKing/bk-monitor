@@ -1,0 +1,24 @@
+.vue3_auto-width-input-component {
+  position: relative;
+  margin: 0 4px 4px 0;
+  line-height: 22px;
+
+  .input-value-hidden {
+    display: flex;
+    visibility: hidden;
+    height: 1px;
+    padding: 0;
+    padding: 0 2px;
+    overflow: hidden;
+  }
+
+  input {
+    min-width: 100%;
+    background: #ffffff00;
+    border: none;
+
+    &::placeholder {
+      color: #ccc;
+    }
+  }
+}

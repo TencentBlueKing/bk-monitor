@@ -3,6 +3,9 @@
   height: 100%;
   padding: 16px;
   background: #fff;
+  .metrics-collapse .correlation-metrics-collapse .correlation-metrics-collapse-head {
+    height: 32px;
+  }
   @keyframes select {
     0% {
       background: #fafbfd;
@@ -23,7 +26,6 @@
       background: white;
       border-color: #dcdee5;
     }
-    
   }
 
   .failure-view-empty {
@@ -43,7 +45,7 @@
     .title-num {
       margin-left: 5px;
       font-size: 12px;
-      color: #979BA5;
+      color: #979ba5;
     }
   }
 
@@ -74,7 +76,7 @@
     flex-direction: row;
     min-height: 260px;
     padding-top: 22px;
-  
+
     .correlation-metric-fixed {
       position: fixed;
       z-index: 999;
@@ -140,11 +142,10 @@
     margin-top: -40px;
   }
 
-
   .select {
     animation: select 1s;
-    animation-delay: .5s;
-      
+    animation-delay: 0.5s;
+
     .chart-wrapper,
     .aiops-dimension-lint {
       background: inherit;
@@ -156,7 +157,7 @@
 
     .flex-dashboard-item {
       border: 1px solid #dcdee5;
-      border-radius: 2px; 
+      border-radius: 2px;
     }
-  }  
+  }
 }

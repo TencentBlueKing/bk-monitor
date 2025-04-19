@@ -78,7 +78,7 @@ export default defineComponent({
                 <div class='label'>{item.label} ：</div>
                 {Array.isArray(item.value) ? (
                   <div class='value'>
-                    {item.value.forEach(tag => (
+                    {item.value.map(tag => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
                   </div>

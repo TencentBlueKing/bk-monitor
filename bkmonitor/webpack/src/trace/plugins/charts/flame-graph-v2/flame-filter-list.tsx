@@ -25,8 +25,8 @@
  */
 import { computed, defineComponent, ref } from 'vue';
 
-import { Select, Table } from 'bkui-vue';
-import random from 'lodash/random';
+import { Table, TableColumn } from '@blueking/table';
+import { Select } from 'bkui-vue';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import './flame-filter-list.scss';
@@ -144,81 +144,109 @@ export default defineComponent({
     function handleColumnValueChange(value: FilterValueKey) {
       columnValueKey.value = value;
     }
+    function handleSortChange({ column, field, order, sortBy, sortList, $event }) {
+      console.info({ column, field, order, sortBy, sortList, $event });
+      // if(order === 'desc') {
+
+      // }
+    }
     return {
       columnKey,
       columnValueKey,
       tableData,
       handleSelectLabelChange,
       handleColumnValueChange,
+      handleSortChange,
     };
   },
   render() {
     if (!this.data?.length) return <div />;
-    const columns = [
-      {
-        label: () => (
-          <div class='col-label'>
-            <Select
-              behavior='simplicity'
-              clearable={false}
-              modelValue={this.columnKey}
-              size='small'
-              onChange={this.handleSelectLabelChange}
-            >
-              {this.data.map(item => (
-                <Select.Option
-                  key={item.aggregation_key}
-                  label={item.display_name}
-                  value={item.aggregation_key}
-                />
-              ))}
-            </Select>
-          </div>
-        ),
-        field: 'display_name',
-        sort: false,
-      },
-      {
-        label: () => (
-          <div class='col-value'>
-            <Select
-              behavior='simplicity'
-              clearable={false}
-              modelValue={this.columnValueKey}
-              size='small'
-              onChange={this.handleColumnValueChange}
-              onClick={e => e.stopPropagation()}
-            >
-              {FilterValueColumn.map(item => (
-                <Select.Option
-                  key={item.id}
-                  label={item.name}
-                  value={item.id}
-                />
-              ))}
-            </Select>
-          </div>
-        ),
-        field: 'value',
-        sort: {
-          value: 'asc',
-          sortFn: (a, b) => {
-            return a.raw - b.raw;
-          },
-        },
-        align: 'right',
-      },
-    ];
     return (
       <div>
         <Table
           class='flame-filter-list'
-          columns={columns}
+          sortConfig={{
+            sortMethod: ({ data, sortList }) => {
+              const sortItem = sortList[0];
+              const { order } = sortItem;
+              let list = [];
+              if (order === 'asc' || order === 'desc') {
+                list = data.sort((a, b) => {
+                  const aVal = a.raw;
+                  const bVal = b.raw;
+                  return aVal === bVal ? 0 : aVal > bVal ? 1 : -1;
+                });
+              }
+              if (order === 'desc') {
+                list.reverse();
+              }
+              return list;
+            },
+          }}
+          autoResize={true}
           data={this.tableData || []}
           maxHeight={this.maxHeight}
-          rowKey={random(10).toString()}
-          showOverflowTooltip={true}
-        />
+          stripe={true}
+          onSortChange={this.handleSortChange}
+        >
+          <TableColumn
+            width={'66%'}
+            v-slots={{
+              header: () => (
+                <div class='col-label'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnKey}
+                    size='small'
+                    onChange={this.handleSelectLabelChange}
+                  >
+                    {this.data.map(item => (
+                      <Select.Option
+                        id={item.aggregation_key}
+                        key={item.aggregation_key}
+                        name={item.display_name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+            }}
+            field='display_name'
+            show-overflow='tooltip'
+          />
+          <TableColumn
+            width={'33%'}
+            v-slots={{
+              header: () => (
+                <div class='col-value'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnValueKey}
+                    size='small'
+                    onChange={this.handleColumnValueChange}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {FilterValueColumn.map(item => (
+                      <Select.Option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+            }}
+            align='right'
+            field='value'
+            headerClassName={'col-value-header'}
+            sortable={true}
+            sortBy={'raw'}
+            sortType='number'
+          />
+        </Table>
       </div>
     );
   },

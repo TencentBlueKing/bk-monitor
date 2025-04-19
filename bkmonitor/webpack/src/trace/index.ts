@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -44,8 +45,11 @@ import store from './store/store';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
-import 'monitor-static/icons/monitor-icons.css';
 import 'monitor-pc/static/css/reset.scss';
+import 'monitor-static/icons/monitor-icons.css';
+import 'tdesign-vue-next/es/style/index.css';
+import './theme/t-design.css';
+
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');

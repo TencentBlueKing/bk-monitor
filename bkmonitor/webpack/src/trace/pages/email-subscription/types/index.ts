@@ -110,3 +110,21 @@ export type Report = {
   timerange?: string[];
 };
 // 订阅详情 对象 结束
+
+export interface IColumn {
+  label: string;
+  field: string;
+  width?: number | string;
+  filter?: { label: string; value: number | string }[];
+  sortable?: boolean;
+}
+
+export interface ITable {
+  data: Record<string, any>[];
+  columns: IColumn[];
+  settings?: {
+    checked: string[];
+    fields: { field: string; label: string }[];
+    size: string;
+  };
+}

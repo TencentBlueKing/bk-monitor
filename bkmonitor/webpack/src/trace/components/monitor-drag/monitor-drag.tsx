@@ -41,6 +41,7 @@ export default defineComponent({
     isShow: { type: Boolean, default: false },
     isInPanelView: { type: Boolean, default: false },
     top: { type: Number, default: 0 },
+    isOnlyShowIndex: { type: Boolean, default: false },
   },
   emits: ['trigger', 'move'],
   setup(props, { emit }) {
@@ -161,7 +162,7 @@ export default defineComponent({
         onMousedown={this.handleMouseDown}
       >
         <div>
-          {['line', 'line-round'].includes(this.theme) && (
+          {['line', 'line-round', 'simple-line-round'].includes(this.theme) && (
             <div class={['theme-line', this.startPlacement, { 'is-show': this.isShow }]}>
               <span class='line-wrap'>
                 <span
@@ -178,13 +179,22 @@ export default defineComponent({
                       ))}
                     </div>
                   )}
+                  {this.theme === 'simple-line-round' && (
+                    <div class='simple-line-round-wrap'>
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <span
+                          key={i}
+                          class='line-round'
+                        />
+                      ))}
+                    </div>
+                  )}
                 </span>
               </span>
-              {this.lineText && (
+              {(this.lineText || this.isOnlyShowIndex) && (
                 <span
                   class='line-trigger'
                   onClick={this.handleTrigger}
-                  onMousedown={e => e.stopPropagation()}
                 >
                   {!this.isShow && <span class='trigger-text'>{this.lineText}</span>}
                   <i class='icon-monitor icon-arrow-left' />

@@ -1,4 +1,3 @@
-/* eslint-disable vue/one-component-per-file */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
 
 import { Message, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import ConditionCondition from './condition';
-import ConditionMethod from './method';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useAppStore } from '../../../../store/modules/app';
+import ConditionCondition from './condition';
+import ConditionMethod from './method';
 import SelectInput, { ALL } from './select-input';
 
 import type { IConditionItem, IDimensionItem, IMetricMeta } from '../../typing';
@@ -142,7 +141,7 @@ export default defineComponent({
     async function getVariableValueList(id: string, strategy?) {
       if (!props.metricMeta && !strategy) return;
       let metricMetaTemp = props.metricMeta;
-      if (!!strategy) {
+      if (strategy) {
         metricMetaTemp = metricMetaMap.value.get(strategy);
       }
       const { dataSourceLabel, metricField, dataTypeLabel, resultTableId } = metricMetaTemp;
@@ -163,7 +162,7 @@ export default defineComponent({
         params.params.index_set_id = metricMetaTemp.indexSetId;
       }
       const { data, tips } = await getVariableValue(params, { needRes: true });
-      if (!!tips?.length) {
+      if (tips?.length) {
         Message({
           theme: 'warning',
           message: tips,
@@ -268,7 +267,7 @@ export default defineComponent({
         conditions.value.push(handleGetDefaultCondition(false));
       } else {
         if (conditions.value[index] && (conditions.value[index - 1]?.condition || index === 0)) {
-          delete conditions.value[index].condition;
+          conditions.value[index].condition = undefined;
         }
       }
       !!deleteList?.[0]?.key && handleConditionChange();
@@ -349,6 +348,7 @@ export default defineComponent({
               />
             ) : undefined,
             <SelectInput
+              key={`key-${index}-${item.key}`}
               class='mb-8'
               dimensionSet={(key, list) => this.handleSetDimensionList(key, list)}
               dimesionKey={item.key}
@@ -368,12 +368,14 @@ export default defineComponent({
             item.dimensionName
               ? [
                   <ConditionMethod
+                    key={`method-${index}-${item.key}`}
                     dimensionKey={item.key}
                     dimensionList={this.dimensionsList}
                     value={item.method}
                     onChange={v => this.handleMehodChange(item, v)}
                   />,
                   <TagInput
+                    key={`value-${index}-${item.key}`}
                     class='condition-item condition-item-value mb-8'
                     allowAutoMatch={true}
                     allowCreate={true}

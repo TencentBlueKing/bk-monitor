@@ -60,13 +60,12 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
   // echart 配置
   options: {
-    type: Object as () => PropType<MonitorEchartOptions>,
+    type: Object as PropType<MonitorEchartOptions>,
     required: true,
   },
   // echarts图表实例分组id

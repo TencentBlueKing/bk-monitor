@@ -265,10 +265,10 @@ export default defineComponent({
           <Dialog
             width={700}
             class='temporary-share'
-            appendToBody={true}
             dialogType='show'
             isShow={this.show}
             title={this.$t('临时分享').toString()}
+            transfer={true}
             onClosed={this.handleHideDialog}
           >
             <div

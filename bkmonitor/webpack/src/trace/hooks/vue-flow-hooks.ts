@@ -124,7 +124,7 @@ export function useLayout() {
         position: { x: nodeWithPosition.x, y: nodeWithPosition.y },
       };
     });
-    result.forEach(node => {
+    for (const node of result) {
       const w = nodeWHMap.get(node.id).width;
       if (w < nodeMaxWidth) {
         node.position.x += (nodeMaxWidth - w) / 2;
@@ -137,7 +137,7 @@ export function useLayout() {
       ) {
         node.position.x += 20;
       }
-    });
+    }
     return result;
   }
 
@@ -150,7 +150,7 @@ export function useScreenshot(): UseScreenshot {
   const error = ref();
 
   async function capture(el: HTMLElement, options: UseScreenshotOptions = {}) {
-    let data;
+    let data = null;
 
     const fileName = options.fileName ?? `vue-flow-screenshot-${Date.now()}`;
 

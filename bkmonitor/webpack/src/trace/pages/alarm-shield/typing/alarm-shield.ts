@@ -36,3 +36,27 @@ export const categoryMap = {
   [EShieldType.Dimension]: 'dimension',
   [EShieldType.Event]: 'alert',
 };
+
+export enum EColumn {
+  beginTime = 'begin_time',
+  cycleDuration = 'cycleDuration',
+  description = 'description',
+  failureTime = 'failure_time',
+  id = 'id',
+  operate = 'operate',
+  shieldContent = 'shieldContent',
+  shieldType = 'shieldType',
+  status = 'status',
+  updateUser = 'update_user',
+}
+
+export interface IColumn {
+  id: EColumn;
+  name: string;
+  minWidth?: number;
+  width?: number;
+  disabled?: boolean;
+  sortable?: boolean;
+  filterMultiple?: boolean;
+  filter?: { label: string; value: string; checked?: boolean }[];
+}

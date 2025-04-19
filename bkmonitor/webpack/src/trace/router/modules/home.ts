@@ -31,4 +31,9 @@ export default [
     name: 'home',
     component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire'),
   },
+  {
+    path: '/trace',
+    name: 'trace',
+    component: () => import(/* webpackChunkName: "traceExplore" */ '../../pages/trace-explore/trace-explore'),
+  },
 ] as RouteRecordRaw[];
