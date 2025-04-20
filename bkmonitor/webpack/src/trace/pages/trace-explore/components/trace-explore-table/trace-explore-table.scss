@@ -1,51 +1,8 @@
 .trace-explore-table {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
-
-  .bk-vxe-table {
-    width: 100%;
-    height: 100%;
-    --vxe-ui-table-column-padding-mini: 4px 0;
-    --vxe-ui-table-header-background-color: #f5f7fa;
-    --table-head-font-color: #000000;
-    --table-body-font-color: #313238;
-
-    .vxe-table {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-
-    .vxe-table--render-wrapper {
-      flex: 1;
-
-      .vxe-table--viewport-wrapper {
-        height: 100%;
-
-        .vxe-table--fixed-wrapper,
-        .vxe-table--main-wrapper {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-
-          .vxe-table--header-inner-wrapper {
-            flex-shrink: 0;
-          }
-
-          .vxe-table--body-wrapper {
-            flex-grow: 1;
-          }
-        }
-
-        .vxe-table--fixed-wrapper {
-          .vxe-table--header {
-            height: 100%;
-          }
-        }
-      }
-    }
-  }
 
   .explore-col {
     width: 100%;
@@ -92,8 +49,8 @@
       align-items: center;
 
       .tag-item {
-        height: 22px;
-        padding: 0 12px;
+        height: 18px;
+        padding: 0 10px;
         color: var(--tag-color);
         background-color: var(--tag-bg-color);
         border-radius: 2px;
@@ -182,16 +139,75 @@
       }
     }
   }
+
+  .explore-table-skeleton {
+    position: absolute;
+    top: 0;
+    padding: 10px 8px;
+  }
 }
 
 .t-table {
+  height: 100%;
+  --td-comp-paddingTB-s: var(--td-size-3);
+  --td-comp-margin-s: var(--td-size-2);
+  --td-text-color-primary: #313238;
+
   &__header {
-    position: sticky;
-    top: 0;
-    z-index: 9999;
+    tr {
+      background: #f5f7fa;
+
+      .t-table__th-cell-inner {
+        color: #000000;
+
+        .t-table__cell--title {
+          color: inherit;
+
+          .t-table__filter-icon-wrap {
+            color: #c4c6cc;
+          }
+        }
+      }
+    }
   }
 
   &__content {
-    overflow: initial;
+    height: 100%;
+
+    .t-table--layout-fixed {
+      height: 100%;
+    }
+
+    .t-table__empty-row {
+      td {
+        padding: 0;
+      }
+    }
+
+    .t-table__last-full-row {
+      td,
+      .t-table__row-full-element {
+        padding: 0;
+
+        .scroll-end-loading {
+          position: sticky;
+          left: 50%;
+          display: inline-flex;
+          align-items: center;
+          height: 32px;
+          transform: translateX(-50%);
+
+          .bk-loading-size-mini {
+            flex-direction: row;
+            column-gap: 8px;
+            align-items: center;
+
+            .bk-loading-title {
+              margin-top: 0;
+            }
+          }
+        }
+      }
+    }
   }
 }

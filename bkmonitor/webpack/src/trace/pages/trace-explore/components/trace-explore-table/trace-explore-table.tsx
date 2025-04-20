@@ -26,9 +26,11 @@
 import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { OverflowTitle } from 'bkui-vue';
-import { PrimaryTable } from 'tdesign-vue-next';
+import { Loading, OverflowTitle } from 'bkui-vue';
+import { AngleUpFill, Funnel } from 'bkui-vue/lib/icon';
+import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
@@ -41,8 +43,6 @@ import {
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
   type GetTableCellRenderValue,
-  type TableFilterChangeEvent,
-  type TableSort,
 } from './typing';
 import { getTableList, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_CONFIG } from './utils';
 
@@ -99,10 +99,14 @@ export default defineComponent({
       /** 表格触底加载更多 loading  */
       [ExploreTableLoadingEnum.SCROLL]: false,
     });
+    /** 表格列筛选值 */
+    const filterValue = deepRef<FilterValue>({});
     /** 表格列排序配置 */
-    const sortContainer = reactive<TableSort>({
-      field: '',
-      order: null,
+    const sortContainer = reactive<SortInfo>({
+      /** 排序字段 */
+      sortBy: '',
+      /** 排序顺序 */
+      descending: null,
     });
 
     /** 当前视角是否为 Span 视角 */
@@ -110,7 +114,7 @@ export default defineComponent({
     /** table 数据（所有请求返回的数据） */
     const tableData = computed(() => store.tableList);
     /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
-    const tableViewData = computed(() => store.tableList);
+    const tableViewData = computed(() => (store?.filterTableList?.length ? store.filterTableList : store.tableList));
     /** 判断当前数据是否需要触底加载更多 */
     const tableHasScrollLoading = computed(() => tableData.value?.length < tableTotal.value);
     /** table 所有列配置(字段设置使用) */
@@ -121,18 +125,15 @@ export default defineComponent({
     /** table 显示列配置 */
     const tableDisplayColumns = computed<ExploreTableColumn<ExploreTableColumnTypeEnum>[]>(() => {
       const columnMap = getTableColumnMapByVisualMode();
-      return displayColumnFields.value.map(field => columnMap[field]).filter(Boolean);
+      return displayColumnFields.value.map(colKey => columnMap[colKey]).filter(Boolean);
     });
     /** 请求参数 */
     const queryParams = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
-      if (!props.commonParams?.app_name || !start_time || !end_time) {
-        return null;
-      }
       let sort = [];
-      if (sortContainer.field && sortContainer.order) {
-        sort = [`${sortContainer.order === 'desc' ? '-' : ''}${sortContainer.field}`];
+      if (sortContainer.sortBy) {
+        sort = [`${sortContainer.descending ? '-' : ''}${sortContainer.sortBy}`];
       }
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { mode, query_string, ...params } = props.commonParams;
@@ -148,9 +149,12 @@ export default defineComponent({
     watch(
       () => isSpanVisual.value,
       () => {
+        tableLoading[ExploreTableLoadingEnum.REFRESH] = true;
         store.updateTableList([]);
         tableRowKeyField.value = isSpanVisual.value ? 'span_id' : 'trace_id';
-        getColumn();
+        getDisplayColumnFields();
+        sortContainer.sortBy = '';
+        sortContainer.descending = null;
       }
     );
 
@@ -162,7 +166,7 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      getColumn();
+      getDisplayColumnFields();
       getExploreList();
     });
 
@@ -174,47 +178,51 @@ export default defineComponent({
       if (isSpanVisual.value) {
         return {
           span_id: {
-            type: ExploreTableColumnTypeEnum.CLICK,
-            field: 'span_id',
-            alias: t('Span ID'),
+            renderType: ExploreTableColumnTypeEnum.CLICK,
+            colKey: 'span_id',
+            title: t('Span ID'),
             minWidth: 160,
-            sortable: true,
+            sorter: true,
             clickCallback: row => handleSliderShowChange('span', row.span_id),
           },
           span_name: {
-            type: ExploreTableColumnTypeEnum.TEXT,
-            field: 'span_name',
-            alias: t('接口名称'),
+            renderType: ExploreTableColumnTypeEnum.TEXT,
+            colKey: 'span_name',
+            title: t('接口名称'),
             minWidth: 200,
-            filter: [],
+            filter: {
+              list: [],
+            },
           },
           start_time: {
-            type: ExploreTableColumnTypeEnum.TIME,
-            field: 'start_time',
-            alias: t('开始时间'),
+            renderType: ExploreTableColumnTypeEnum.TIME,
+            colKey: 'start_time',
+            title: t('开始时间'),
             minWidth: 140,
-            sortable: true,
+            sorter: true,
           },
           end_time: {
-            type: ExploreTableColumnTypeEnum.TIME,
-            field: 'end_time',
-            alias: t('结束时间'),
+            renderType: ExploreTableColumnTypeEnum.TIME,
+            colKey: 'end_time',
+            title: t('结束时间'),
             minWidth: 140,
-            sortable: true,
+            sorter: true,
           },
           elapsed_time: {
-            type: ExploreTableColumnTypeEnum.DURATION,
-            field: 'elapsed_time',
-            alias: t('耗时'),
+            renderType: ExploreTableColumnTypeEnum.DURATION,
+            colKey: 'elapsed_time',
+            title: t('耗时'),
             minWidth: 100,
-            sortable: true,
+            sorter: true,
           },
           'status.code': {
-            type: ExploreTableColumnTypeEnum.PREFIX_ICON,
-            field: 'status.code',
-            alias: t('状态'),
+            renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+            colKey: 'status.code',
+            title: t('状态'),
             minWidth: 100,
-            filter: [],
+            filter: {
+              list: [],
+            },
             getRenderValue: row => {
               const alias = row?.status_code?.value;
               const type = row?.status_code?.type;
@@ -225,48 +233,56 @@ export default defineComponent({
             },
           },
           kind: {
-            type: ExploreTableColumnTypeEnum.PREFIX_ICON,
-            field: 'kind',
-            alias: t('类型'),
+            renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+            colKey: 'kind',
+            title: t('类型'),
             minWidth: 100,
-            filter: [],
+            filter: {
+              list: [],
+            },
             getRenderValue: row => SPAN_KIND_MAPS[row.kind],
           },
           'resource.service.name': {
-            type: ExploreTableColumnTypeEnum.LINK,
-            field: 'resource.service.name',
-            alias: t('所属服务'),
+            renderType: ExploreTableColumnTypeEnum.LINK,
+            colKey: 'resource.service.name',
+            title: t('所属服务'),
             minWidth: 160,
-            filter: [],
+            filter: {
+              list: [],
+            },
             getRenderValue: row => getJumpToApmLinkItem(row?.resource?.['service.name']),
           },
           'resource.bk.instance.id': {
-            type: ExploreTableColumnTypeEnum.TEXT,
-            field: 'resource.bk.instance.id',
-            alias: t('实例 ID'),
+            renderType: ExploreTableColumnTypeEnum.TEXT,
+            colKey: 'resource.bk.instance.id',
+            title: t('实例 ID'),
             minWidth: 160,
-            filter: [],
+            filter: {
+              list: [],
+            },
             getRenderValue: row => row?.resource?.['bk.instance.id'],
           },
           'resource.telemetry.sdk.name': {
-            type: ExploreTableColumnTypeEnum.TEXT,
-            field: 'resource.telemetry.sdk.name',
-            alias: t('SDK 名称'),
+            renderType: ExploreTableColumnTypeEnum.TEXT,
+            colKey: 'resource.telemetry.sdk.name',
+            title: t('SDK 名称'),
             minWidth: 160,
             getRenderValue: row => row?.resource?.['telemetry.sdk.name'],
           },
           'resource.telemetry.sdk.version': {
-            type: ExploreTableColumnTypeEnum.TEXT,
-            field: 'resource.telemetry.sdk.version',
-            alias: t('SDK 版本'),
+            renderType: ExploreTableColumnTypeEnum.TEXT,
+            colKey: 'resource.telemetry.sdk.version',
+            title: t('SDK 版本'),
             minWidth: 160,
-            filter: [],
+            filter: {
+              list: [],
+            },
             getRenderValue: row => row?.resource?.['telemetry.sdk.version'],
           },
           trace_id: {
-            type: ExploreTableColumnTypeEnum.CLICK,
-            field: 'trace_id',
-            alias: t('所属Trace'),
+            renderType: ExploreTableColumnTypeEnum.CLICK,
+            colKey: 'trace_id',
+            title: t('所属Trace'),
             minWidth: 240,
             clickCallback: row => handleSliderShowChange('trace', row.trace_id),
           },
@@ -274,56 +290,66 @@ export default defineComponent({
       }
       return {
         trace_id: {
-          type: ExploreTableColumnTypeEnum.CLICK,
-          field: 'trace_id',
-          alias: t('Trace ID'),
+          renderType: ExploreTableColumnTypeEnum.CLICK,
+          colKey: 'trace_id',
+          title: t('Trace ID'),
           minWidth: 240,
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
         },
         min_start_time: {
-          type: ExploreTableColumnTypeEnum.TIME,
-          field: 'min_start_time',
-          alias: t('开始时间'),
+          renderType: ExploreTableColumnTypeEnum.TIME,
+          colKey: 'min_start_time',
+          title: t('开始时间'),
           minWidth: 140,
         },
         root_span_name: {
-          type: ExploreTableColumnTypeEnum.LINK,
-          field: 'root_span_name',
-          alias: t('根Span'),
+          renderType: ExploreTableColumnTypeEnum.LINK,
+          colKey: 'root_span_name',
+          title: t('根Span'),
           minWidth: 160,
-          filter: [],
+          filter: {
+            list: [],
+          },
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
         root_service: {
-          type: ExploreTableColumnTypeEnum.LINK,
-          field: 'root_service',
-          alias: t('入口服务'),
+          renderType: ExploreTableColumnTypeEnum.LINK,
+          colKey: 'root_service',
+          title: t('入口服务'),
           minWidth: 160,
-          filter: [],
+          filter: {
+            list: [],
+          },
           getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
         },
         root_service_span_name: {
-          type: ExploreTableColumnTypeEnum.LINK,
-          field: 'root_service_span_name',
-          alias: t('入口接口'),
+          renderType: ExploreTableColumnTypeEnum.LINK,
+          colKey: 'root_service_span_name',
+          title: t('入口接口'),
           minWidth: 160,
-          filter: [],
+          filter: {
+            list: [],
+          },
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
         root_service_category: {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'root_service_category',
-          alias: t('调用类型'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'root_service_category',
+          title: t('调用类型'),
           minWidth: 120,
-          filter: [],
+          filter: {
+            list: [],
+          },
           getRenderValue: row => row?.root_service_category?.text,
         },
         root_service_status_code: {
-          type: ExploreTableColumnTypeEnum.TAGS,
-          field: 'root_service_status_code',
-          alias: t('状态码'),
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          colKey: 'root_service_status_code',
+          title: t('状态码'),
           minWidth: 100,
-          filter: [],
+          filter: {
+            list: [],
+          },
           getRenderValue: row => {
             const alias = row?.root_service_status_code?.value as string;
             if (!alias) return [];
@@ -337,112 +363,125 @@ export default defineComponent({
           },
         },
         trace_duration: {
-          type: ExploreTableColumnTypeEnum.DURATION,
-          field: 'trace_duration',
-          alias: t('耗时'),
+          renderType: ExploreTableColumnTypeEnum.DURATION,
+          colKey: 'trace_duration',
+          title: t('耗时'),
           minWidth: 100,
-          sortable: true,
+          sorter: true,
         },
         'kind_statistics.sync': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'kind_statistics.sync',
-          alias: t('同步Span数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'kind_statistics.sync',
+          title: t('同步Span数量'),
           minWidth: 130,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.kind_statistics?.sync || 0,
         },
         'kind_statistics.async': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'kind_statistics.async',
-          alias: t('异步Span数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'kind_statistics.async',
+          title: t('异步Span数量'),
           minWidth: 130,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.kind_statistics?.async || 0,
         },
         'kind_statistics.interval': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'kind_statistics.interval',
-          alias: t('内部Span数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'kind_statistics.interval',
+          title: t('内部Span数量'),
           minWidth: 130,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.kind_statistics?.interval || 0,
         },
         'kind_statistics.unspecified': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'kind_statistics.unspecified',
-          alias: t('未知Span数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'kind_statistics.unspecified',
+          title: t('未知Span数量'),
           minWidth: 130,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.kind_statistics?.unspecified || 0,
         },
         'category_statistics.db': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.db',
-          alias: t('DB 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.db',
+          title: t('DB 数量'),
           minWidth: 100,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.db || 0,
         },
         'category_statistics.messaging': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.messaging',
-          alias: t('Messaging 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.messaging',
+          title: t('Messaging 数量'),
           minWidth: 136,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.messaging || 0,
         },
         'category_statistics.http': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.http',
-          alias: t('HTTP 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.http',
+          title: t('HTTP 数量'),
           minWidth: 110,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.http || 0,
         },
         'category_statistics.rpc': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.rpc',
-          alias: t('RPC 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.rpc',
+          title: t('RPC 数量'),
           minWidth: 100,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.rpc || 0,
         },
         'category_statistics.async_backend': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.async_backend',
-          alias: t('Async 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.async_backend',
+          title: t('Async 数量'),
           minWidth: 110,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.async_backend || 0,
         },
         'category_statistics.other': {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'category_statistics.other',
-          alias: t('Other 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'category_statistics.other',
+          title: t('Other 数量'),
           minWidth: 110,
-          sortable: true,
+          sorter: true,
+          align: 'right',
           getRenderValue: row => row?.category_statistics?.other || 0,
         },
         span_count: {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'span_count',
-          alias: t('Span 数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'span_count',
+          title: t('Span 数量'),
           minWidth: 110,
-          sortable: true,
+          sorter: true,
+          align: 'right',
         },
         hierarchy_count: {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'hierarchy_count',
-          alias: t('Span 层数'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'hierarchy_count',
+          title: t('Span 层数'),
           minWidth: 110,
-          sortable: true,
+          sorter: true,
+          align: 'right',
         },
         service_count: {
-          type: ExploreTableColumnTypeEnum.TEXT,
-          field: 'service_count',
-          alias: t('服务数量'),
+          renderType: ExploreTableColumnTypeEnum.TEXT,
+          colKey: 'service_count',
+          title: t('服务数量'),
           minWidth: 100,
-          sortable: true,
+          sorter: true,
+          align: 'right',
         },
       };
     }
@@ -451,7 +490,7 @@ export default defineComponent({
      * @description: 获取 table 表格列配置
      *
      */
-    function getColumn() {
+    function getDisplayColumnFields() {
       const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
       // 需要展示的字段列名数组
       displayColumnFields.value = (defaultColumnsConfig?.displayFields || []) as string[];
@@ -466,8 +505,11 @@ export default defineComponent({
         abortController.abort();
         abortController = null;
       }
-      if (!queryParams.value) {
+      const { app_name, start_time, end_time } = queryParams.value;
+      if (!app_name || !start_time || !end_time) {
         store.updateTableList([]);
+        tableLoading[ExploreTableLoadingEnum.REFRESH] = false;
+        tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
       let updateTableDataFn = list => {
@@ -493,7 +535,9 @@ export default defineComponent({
       const res = await getTableList(requestParam, props.mode, {
         signal: abortController.signal,
       });
-
+      if (res?.isAborted) {
+        return;
+      }
       tableLoading[loadingType] = false;
 
       updateTableDataFn(res.data);
@@ -521,7 +565,7 @@ export default defineComponent({
      */
     function getJumpToApmApplicationLinkItem(row, column): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
       const service = row?.root_service;
-      const alias = row?.[column.field];
+      const alias = row?.[column.colKey];
       const hash = `#/apm/application?filter-service_name=${service}&filter-app_name=${props.appName}&sceneId=apm_application&sceneType=detail&dashboardId=endpoint&filter-endpoint_name=${alias}`;
       let url = '';
       if (alias && service) {
@@ -535,28 +579,31 @@ export default defineComponent({
 
     /**
      * @description 表格排序回调
-     * @param {string} sortEvent.field 排序字段名
-     * @param {'asc' | 'desc' | null} sortEvent.order 排序方式
+     * @param {string} sortEvent.sortBy 排序字段名
+     * @param {boolean} sortEvent.descending 排序方式
      *
      */
     function handleSortChange(sortEvent: TableSort) {
-      let field = sortEvent.field;
-      let order = sortEvent.order;
-      if (!sortEvent.field || !sortEvent.order) {
-        field = '';
-        order = null;
+      if (Array.isArray(sortEvent)) {
+        return;
       }
-      sortContainer.field = field;
-      sortContainer.order = order;
+      let sortBy = sortEvent?.sortBy;
+      let descending = sortEvent?.descending;
+      if (!sortBy) {
+        sortBy = '';
+        descending = null;
+      }
+      sortContainer.sortBy = sortBy;
+      sortContainer.descending = descending;
     }
 
     /**
      * @description 表格筛选回调
-     * @param {string} filterChangeEvent.field 过滤字段名
+     * @param {string} filterChangeEvent.colKey 过滤字段名
      * @param {Array<boolean | number | string>} filterChangeEvent.values 过滤值
      *
      */
-    function handleFilterChange(filterChangeEvent: TableFilterChangeEvent) {
+    function handleFilterChange(filterChangeEvent: FilterValue) {
       console.log('================ filterChangeEvent ================', filterChangeEvent);
     }
 
@@ -568,25 +615,6 @@ export default defineComponent({
       displayColumnFields.value = displayFields;
     }
 
-    /**
-     * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
-      const alias = getTableCellRenderValue(row, column);
-      return (
-        <div class='explore-col explore-text-col '>
-          <OverflowTitle
-            class='explore-col-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
-          </OverflowTitle>
-        </div>
-      );
-    }
     /**
      * @description 表格空数据显示中的 数据源配置 点击回调
      *
@@ -603,7 +631,6 @@ export default defineComponent({
 
     /**
      * @description TraceId/SpanId 点击触发回调
-     * @param e
      *
      */
     function handleSliderShowChange(openMode: '' | 'span' | 'trace', activeId: string) {
@@ -651,7 +678,7 @@ export default defineComponent({
       row,
       column: ExploreTableColumn<T>
     ): GetTableCellRenderValue<T> {
-      const getRenderValue = column?.getRenderValue || (row => row?.[column.field]);
+      const getRenderValue = column?.getRenderValue || (row => row?.[column.colKey]);
       return getRenderValue(row, column);
     }
 
@@ -810,12 +837,32 @@ export default defineComponent({
     }
 
     /**
+     * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
+     * @param {ExploreTableColumn} column 当前列配置项
+     *
+     */
+    function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
+      const alias = getTableCellRenderValue(row, column);
+      return (
+        <div class='explore-col explore-text-col '>
+          <OverflowTitle
+            class='explore-col-text'
+            placement='top'
+            type='tips'
+          >
+            <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
+          </OverflowTitle>
+        </div>
+      );
+    }
+
+    /**
      * @description 根据列类型，获取对应的表格列渲染方法
      * @param {ExploreTableColumn} column 当前列配置项
      *
      */
     function handleSetFormatter(column, row) {
-      switch (column.type) {
+      switch (column.renderType) {
         case ExploreTableColumnTypeEnum.CLICK:
           return clickColumnFormatter(column, row);
         case ExploreTableColumnTypeEnum.PREFIX_ICON:
@@ -837,6 +884,8 @@ export default defineComponent({
       tableRowKeyField,
       displayColumnFields,
       tableColumns,
+      tableLoading,
+      filterValue,
       tableDisplayColumns,
       tableViewData,
       traceSliderRender,
@@ -853,48 +902,65 @@ export default defineComponent({
     return (
       <div class='trace-explore-table'>
         <ExploreFieldSetting
+          class='table-field-setting'
           fieldMap={{}}
           sourceList={this.tableColumns}
           targetList={this.displayColumnFields}
           onConfirm={this.handleDisplayColumnFieldsChange}
         />
+
         <PrimaryTable
+          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
+            filterIcon: () => <Funnel />,
+            sortIcon: () => <AngleUpFill />,
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
+            lastFullRow: () => (
+              <Loading
+                class='scroll-end-loading'
+                loading={true}
+                mode='spin'
+                size='mini'
+                theme='primary'
+                title={window.i18n.t('加载中…')}
+              />
+            ),
           }}
           columns={this.tableDisplayColumns.map(column => {
             return {
               ...column,
-              colKey: column.field,
-              title: column.alias,
               width: column.minWidth,
-              sorter: column.sortable,
-              sortType: column.sortable ? 'all' : undefined,
               ellipsis: false,
               resizable: true,
-              filter: {
-                list: Array(10)
-                  .fill(1)
-                  .map(i => ({
-                    label: `filter-${i}`,
-                    value: `filter-${i}`,
-                  })),
-                type: column.filterMultiple ? 'multiple' : 'single',
-              },
+              filter: column?.filter
+                ? {
+                    ...this.defaultTableConfig.filter,
+                    ...column.filter,
+                  }
+                : null,
               cell: (h, { row }) => {
                 return this.handleSetFormatter(column, row);
               },
             };
           })}
+          headerAffixedTop={{
+            container: '.trace-explore-view',
+          }}
           activeRowType='single'
           data={this.tableViewData}
-          headerAffixedTop={true}
+          filterValue={this.filterValue}
           hover={true}
           resizable={true}
           rowKey={this.tableRowKeyField}
           size='small'
           stripe={false}
           tableLayout='fixed'
+          onActiveChange={this.handleFilterChange}
+          onSortChange={this.handleSortChange}
+        />
+        <TableSkeleton
+          style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
+          class='explore-table-skeleton'
         />
         {this.traceSliderRender()}
         {this.spanSliderRender()}

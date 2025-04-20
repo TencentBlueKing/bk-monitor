@@ -195,11 +195,28 @@
       }
 
       .transfer-target {
+        .drag-move {
+          transition: transform 0.3s;
+        }
+
         .list-item {
+          .icon-mc-tuozhuai {
+            margin-right: 4px;
+            font-size: 12px;
+            color: #979ba5;
+            cursor: move;
+          }
+
           .item-suffix {
             font-size: 14px;
             color: #c4c6cc;
             cursor: pointer;
+          }
+
+          &.dragging {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            opacity: 0.5;
+            transform: scale(0.98);
           }
         }
       }

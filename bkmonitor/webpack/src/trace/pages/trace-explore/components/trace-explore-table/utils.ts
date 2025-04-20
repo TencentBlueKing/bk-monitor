@@ -34,6 +34,11 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     align: 'left',
     emptyPlaceholder: '--',
     settingWidth: 32,
+    filter: {
+      showConfirmAndReset: true,
+      listFilterConfig: true,
+      type: 'multiple',
+    },
   },
   traceConfig: {
     displayFields: [
@@ -86,14 +91,21 @@ export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTable
   6: { alias: window.i18n.t('推断'), prefixIcon: 'icon-monitor icon-tuiduan' },
 };
 
-export function getTableList(params, mode: 'span' | 'trace', requestConfig): Promise<{ data: any[] }> {
+export function getTableList(
+  params,
+  mode: 'span' | 'trace',
+  requestConfig
+): Promise<{ data: any[]; total: number; isAborted?: boolean }> {
   const apiFunc = mode === 'span' ? listSpan : listTrace;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
     const message = makeMessage(err.error_details || err.message);
+    let isAborted = false;
     if (message && err?.message !== 'canceled') {
       bkMessage(message);
+    } else {
+      isAborted = true;
     }
-    return { data: [], total: 0 };
+    return { data: [], total: 0, isAborted };
   });
 }
