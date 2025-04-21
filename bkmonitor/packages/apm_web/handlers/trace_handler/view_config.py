@@ -26,6 +26,7 @@ from apm_web.handlers.es_handler import ESMappingHandler
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField
 from core.drf_resource import api
+from packages.apm_web.trace.constants import EnabledStatisticsDimension
 
 
 class TraceFieldsInfoHandler:
@@ -139,44 +140,29 @@ class TraceFieldsHandler:
 
         return self.fields_info_handler.get_fields_info_by_mode(QueryMode.SPAN)
 
-    def is_searched(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
+    def is_searched(self, mode: QueryMode, field_name: str) -> bool:
         """判断字段是否可以被查询"""
 
-        is_searched = False
         if mode == QueryMode.TRACE:
             is_searched = field_name in self.trace_fields_info
         elif mode == QueryMode.SPAN:
             is_searched = field_name in self.span_fields_info
-        return is_searched and field_type not in {"object"}
-
-    def is_option_enabled(self, is_searched: bool, field_type: str) -> bool:
-        """判断字段是否可以用于筛选
-
-        候选项的值不依赖于 is_searched，但是选择候选项后要考虑是否能触发搜索
-        """
-
-        return is_searched and field_type not in {"object", "date"}
-
-    def is_dimensions(self, is_searched: bool, field_name: str) -> bool:
-        """判断字段是否可以用于聚合
-
-        因为聚合也需要获取搜索的过滤条件，所以也依赖于 is_searched
-        """
-
         return is_searched
 
-    def can_displayed(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
+    def is_dimensions(self, field_type: str) -> bool:
+        """判断字段是否可以用于聚合和获取枚举值"""
+
+        return field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]
+
+    def can_displayed(self, mode: QueryMode, field_name: str) -> bool:
         """判断字段是否可以显示"""
 
-        if field_type in {"object"}:
-            return False
-
-        can_display = False
         if mode == QueryMode.TRACE:
-            can_display = field_name in self.trace_fields_info
+            can_displayed = field_name in self.trace_fields_info
         elif mode == QueryMode.SPAN:
-            can_display = field_name in self.span_fields_info
-        return can_display
+            can_displayed = field_name in self.span_fields_info
+
+        return can_displayed
 
     def get_supported_operations(self, field_type: str) -> list[str]:
         """获取字段支持的运算符"""
@@ -190,6 +176,7 @@ class TraceFieldsHandler:
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:
         """获取字段类型"""
+
         if mode == QueryMode.TRACE:
             fields_info = self.trace_fields_info
         else:
@@ -198,22 +185,19 @@ class TraceFieldsHandler:
         return fields_info.get(field_name, {}).get("type", "")
 
     def get_fields_info(self, mode: QueryMode, field_names: list[str]) -> list[dict]:
+        """获取字段信息"""
+
         fields = []
         for field_name in field_names:
             field_type = self.get_field_type(mode, field_name)
-            is_searched = self.is_searched(mode, field_name, field_type)
-            is_option_enabled = self.is_option_enabled(is_searched, field_type)
-            is_dimensions = self.is_dimensions(is_searched, field_name)
-            can_displayed = self.can_displayed(mode, field_name, field_type)
             fields.append(
                 dict(
                     name=field_name,
                     alias=self.get_field_alias(field_name),
                     type=field_type,
-                    is_searched=is_searched,
-                    is_option_enabled=is_option_enabled,
-                    is_dimensions=is_dimensions,
-                    can_displayed=can_displayed,
+                    is_searched=self.is_searched(mode, field_name),
+                    is_dimensions=self.is_dimensions(field_type),
+                    can_displayed=self.can_displayed(mode, field_name),
                     supported_operations=self.get_supported_operations(field_type),
                 )
             )
