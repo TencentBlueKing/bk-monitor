@@ -39,6 +39,7 @@ from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
 type_wildcard = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
+type_match_phrase_prefix = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_query = Dict[str, Dict[str, Dict[str, Any]]]  # pylint: disable=invalid-name
 type_should_list = List[type_match_phrase]  # pylint: disable=invalid-name
 type_should = Dict[str, type_should_list]  # pylint: disable=invalid-name
@@ -165,6 +166,14 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
+    def build_match_phrase_prefix_list(cls, value_list: List[Any]) -> list[type_match_phrase_prefix]:
+        match_phrase_prefix_list: type_should_list = []
+        for item in value_list:
+            match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(item)
+            match_phrase_prefix_list.append(match_phrase_prefix)
+        return match_phrase_prefix_list
+
+    @classmethod
     def build_should_list_wildcard(
         cls, field: str, value_list: List[Any], is_contains: bool = False
     ) -> type_should_list:
@@ -199,6 +208,10 @@ class EsQueryBuilder(object):
     @classmethod
     def build_match_phrase(cls, field: str, value: Any) -> type_match_phrase:
         return {"match_phrase": {field: value}}
+
+    @classmethod
+    def build_match_phrase_prefix(cls, value: Any) -> type_match_phrase_prefix:
+        return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": ["*", "__*"], "lenient": True}}
 
     @classmethod
     def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
@@ -255,6 +268,7 @@ class BoolQueryOperation(ABC):
             AllNotContainsMatchPhrase.OPERATOR: AllNotContainsMatchPhrase,
             AllEqWildcard.OPERATOR: AllEqWildcard,
             AllNeWildcard.OPERATOR: AllNeWildcard,
+            ContainsMatchPhrasePrefix.OPERATOR: ContainsMatchPhrasePrefix,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
@@ -571,6 +585,17 @@ class ContainsMatchPhrase(IsOneOf):
             self._bool_dict["field"],
             value_list,
         )
+
+
+class ContainsMatchPhrasePrefix(IsOneOf):
+    TARGET = "must"
+    OPERATOR = "contains match phrase prefix"
+
+    def op(self, field):
+        should_list: type_should_list = EsQueryBuilder.build_match_phrase_prefix_list(field["value"])
+        should: type_should = EsQueryBuilder.build_should(should_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(should)
+        self._set_target_value(a_bool)
 
 
 class NotContainsMatchPhrase(IsNotOneOf):
