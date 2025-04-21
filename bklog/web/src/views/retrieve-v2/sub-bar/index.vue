@@ -174,7 +174,7 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <WarningSetting class="custom-border-right"></WarningSetting>
+      <WarningSetting v-if="!isExternal"  class="custom-border-right"></WarningSetting>
       <ClusterSetting
         class="custom-border-right"
         v-model="isShowClusterSetting"

@@ -237,6 +237,7 @@
             }"
           >
             <bk-user-selector
+             v-if="!isExternal"
               style="margin-top: 4px"
               class="principal-input"
               :api="userApi"
@@ -247,11 +248,23 @@
               @change="val => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
+            <bk-tag-input
+              v-else
+              style="margin-top: 4px"
+              v-model="row.owners"
+              placeholder=" "
+              :allow-create="true"
+              :clearable="false"
+              :has-delete-icon="true"
+              @change="val => handleChangePrincipal(val, row)"
+            >
+            </bk-tag-input>
           </div>
         </template>
       </bk-table-column>
 
       <bk-table-column
+        v-if="!isExternal"
         width="200"
         :label="$t('创建告警策略')"
         :render-header="renderAlertPolicyHeader"
@@ -269,6 +282,7 @@
               <span
                 class="button-view"
                 @click="handleStrategyInfoClick(row)"
+                v-if="row.strategy_id"
                 >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
               ></span>
             </div>
@@ -576,6 +590,9 @@
       username() {
         return this.$store.state.userMeta?.username;
       },
+      isExternal() {
+        return window.IS_EXTERNAL === true
+      }
     },
     watch: {
       'fingerList.length': {
@@ -1426,6 +1443,23 @@
               background: #eaebf0 !important;
             }
           }
+        }
+      }
+
+      :deep(.bk-tag-input){
+        background-color: transparent;
+        border: none;
+
+        .input{
+          background-color: transparent;
+        }
+      }
+
+      :deep(.bk-tag-input):hover{
+        background-color: #eaebf0;
+
+        .input{
+          background-color: #eaebf0;
         }
       }
 
