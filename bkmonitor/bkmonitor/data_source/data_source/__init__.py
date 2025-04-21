@@ -2003,7 +2003,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 
     def _get_unify_query_table(self) -> str:
-        return self.table
+        table_mapping: Dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}
+        return table_mapping.get(self.table, self.table)
 
     def _get_conditions(self) -> Dict[str, List[Any]]:
         return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
@@ -2017,6 +2018,13 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 if field in ["_meta"]:
                     # 排除无需返回的字段。
                     continue
+
+                # TODO(crayon) 目前 Nested 字段在 Doris 查询仅返回字符串，为保证功能可用，此处转为结构化数据，等待 unify-query 支持
+                if field in ["events", "links"] and isinstance(value, str):
+                    try:
+                        value = json.loads(value)
+                    except Exception:  # pylint: disable=broad-except
+                        value = []
 
                 if self.OBJECT_FIELD_SEPERATOR not in field:
                     # 不包含分隔符，设置 kv 并提前返回。

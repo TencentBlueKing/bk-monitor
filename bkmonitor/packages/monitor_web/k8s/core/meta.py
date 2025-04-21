@@ -564,7 +564,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
 
 class K8sNodeMeta(K8sResourceMeta):
-    resource_field = "name"
+    resource_field = "node"
     resource_class = BCSNode
     column_mapping = {"node": "name"}
     only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]

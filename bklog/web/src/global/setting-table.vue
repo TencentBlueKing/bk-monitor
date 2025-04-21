@@ -554,7 +554,10 @@
           errTemp.aliasErr = false;
         }
         copyFields.reduce((list, item) => {
-          list.push(Object.assign({}, errTemp, item));
+          // 采集路径分割正则不展示
+          if(item.option?.metadata_type !== 'path'){
+            list.push(Object.assign({}, errTemp, item));
+          }
           return list;
         }, arr);
         arr.forEach(item => (item.previous_type = item.field_type));
@@ -697,7 +700,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.formData.tableList);
+        const data = cloneDeep(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -1062,10 +1065,10 @@
       addObject(){
         const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
-          let name = item.field_name.split('.')[0]
+          let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true
           this.tableAllList.forEach( builtField => {
-            if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+            if(builtField.field_type === "object" && name === builtField.field_name?.split('.')[0]){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];
                 this.$set(builtField, 'expand', false);

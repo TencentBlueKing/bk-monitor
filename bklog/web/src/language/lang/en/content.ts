@@ -462,7 +462,7 @@ export default {
   '通过字段清洗，可以格式化日志内容方便检索、告警和分析。':
     'By field parsing, log content can be formatted for easy search, alarm and analysis.',
   '关键字范围: 从匹配{0}开始到匹配{1}之间的所有行': 'Keyword range: all rows from matching {0} to matching {1}',
-  '检索结果（找到 {0} 条结果，用时{1}毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
+  '（找到 {0} 条结果，用时 {1} 毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
   '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾':
     'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
   '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)':
@@ -890,16 +890,19 @@ export default {
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
   收藏夹: 'Favorite',
   UI查询: 'UI',
-  语句查询: 'Lucene',
+  语句模式: 'Lucene',
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '输入文本后按 [Enter] 键进行检索': 'Enter text and press [Enter] to search',
+  '请选择 或 输入': 'Please enter or input',
+  输入文本后按: 'Enter text and press',
+  键进行检索: 'to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
+  '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',
   移动光标: 'Move the cursor',
-  '选中/检索': 'Confirm / Search',
+  选中: 'Confirm',
   '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
   搜索名称: 'Search for name',
   '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
@@ -930,7 +933,8 @@ export default {
   确认结果: 'Confirmation',
   副本: 'copy',
   新建检索: 'New search',
-  '收起查询/弹出选项': 'Collapse query/Popup options',
+  收起查询: 'Collapse query',
+  提交查询: 'Submit query',
   '导入{0}的权限配置': 'Import the permission configuration of {0}',
   至少选择一个操作权限: 'Select at least one operation permission',
   '平台上报日志的时间，默认选择该设置': 'Time to report logs on the platform, select this setting by default',
@@ -1022,16 +1026,21 @@ export default {
     'Can exclude matching items that meet the conditions through regular expression syntax. Reference: ',
   正则语法说明: 'expression syntax description',
   '。如：匹配任意字符：.*': 'For example: Match any character: .*',
-  暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
+  暂无匹配的收藏项: 'No matching favorites have been found yet',
   '暂未设置常驻筛选，请点击左侧设置按钮':
     'No permanent filtering has been set, please click the settings button on the left',
   展示空字段: 'Display empty fields',
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
+  '确定 ⌘/Ctrl + Enter': 'Confirm Ctrl + Enter',
   收藏成功: 'Favorite successfully',
+  '请输入关键词...': 'Please enter keywords',
+  '请输入 或 选择': 'Please enter or select',
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
+  '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
+  '前往 "索引配置" 批量修改别名': 'Go to "Index Configuration" to modify the alias in batches',
   '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。':
     'After checking, create a keyword alarm for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alarm strategy can be started and stopped through the switch.',
   '删除失败，开启告警时，需要至少一个责任人':
@@ -1039,6 +1048,12 @@ export default {
   重命名与字段名重复: 'Rename and field name duplicate',
   别名与字段名重复: 'Alias and field name duplicate',
   别名与重命名重复: 'Alias and rename duplicate',
+  '第三方ES、计算平台索引集类型不支持自定义分词':
+    'Third-party ES, calculation platform index set type does not support custom tokenization',
+  '复制分享链接成功，通过链接，可直接查询对应收藏日志。':
+    'The share link was copied successfully, and through the link, you can directly access the corresponding bookmarked logs.',
+  联想到以下: 'Associated with the following:',
+  个收藏: 'favorite items',
   '暂无配置责任人，无法自动创建告警策略':
     'No configured responsible person, unable to automatically create alarm strategy',
 };

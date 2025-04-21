@@ -28,8 +28,9 @@ import { Ref } from 'vue';
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import UseSegmentPropInstance from './use-segment-pop';
 import { optimizedSplit, setScrollLoadCell } from './hooks-helper';
+import UseSegmentPropInstance from './use-segment-pop';
+import RetrieveHelper from '../views/retrieve-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -167,13 +168,13 @@ export default class UseJsonFormatter {
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.textContent = item.text;
+      validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
 
     const textNode = document.createElement('span');
     textNode.classList.add('others-text');
-    textNode.textContent = item.text;
+    textNode.textContent = item.text?.length ? item.text : '""';
     return textNode;
   }
 

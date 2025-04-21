@@ -1,0 +1,45 @@
+.switcher-box {
+  display: inline-block;
+  margin: 0 4px;
+
+  .bk-switcher {
+    background-color: #c4c6cc;
+    border-radius: 2px;
+    padding-right: 16px;
+    position: relative;
+
+    &:hover {
+      background: #c4c6cc;
+    }
+
+    &:after {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      top: 3px;
+    }
+
+    .switcher-label {
+      height: 18px;
+    }
+  }
+
+  .show-label {
+    width: 54px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  .is-unchecked .switcher-label {
+    margin: 0 0 0 20px;
+  }
+
+  .is-checked {
+    background: #3a84ff;
+
+    &:hover {
+      background: #3a84ff;
+    }
+  }
+}

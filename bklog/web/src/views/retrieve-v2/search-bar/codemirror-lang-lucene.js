@@ -27,8 +27,6 @@ import { LRLanguage, LanguageSupport } from '@codemirror/language';
 import { parser } from '@lezer/javascript'; // 使用现有的 JavaScript 解析器
 import { styleTags, tags as t } from '@lezer/highlight';
 
-// 这里假设你有一个简单的词法分析器，它能够识别关键字
-
 const luceneParser = parser.configure({
   props: [
     styleTags({

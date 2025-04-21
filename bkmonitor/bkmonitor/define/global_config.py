@@ -201,6 +201,8 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
+        # 表映射关系，用于在 UnifyQuery 数据检索时，路由到灰度表验证功能（比如 Doris 切换）。
+        ("UNIFY_QUERY_TABLE_MAPPING_CONFIG", slz.DictField(label="UnifyQuery查询表映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),

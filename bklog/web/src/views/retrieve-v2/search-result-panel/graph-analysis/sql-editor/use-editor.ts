@@ -134,11 +134,13 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
   };
 
   const debounceLayout = debounce(() => {
-    const rect = refRootElement.value.getBoundingClientRect();
-    editorInstance.value?.layout({
-      width: rect.width,
-      height: rect.height,
-    });
+    if (refRootElement.value) {
+      const rect = refRootElement.value?.getBoundingClientRect();
+      editorInstance.value?.layout({
+        width: rect.width,
+        height: rect.height,
+      });
+    }
   }, 300);
 
   useResizeObserve(refRootElement, debounceLayout);
