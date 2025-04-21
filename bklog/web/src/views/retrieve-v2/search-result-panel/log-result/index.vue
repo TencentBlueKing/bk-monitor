@@ -54,8 +54,8 @@
               class="bklog-v3-tag-highlight"
               focusBorderColor="#c4c6cc"
               minHeight="32px"
-              maxWidth="400px"
-              minWidth="400px"
+              :maxWidth="highlightStyle.width"
+              :minWidth="highlightStyle.width"
               :value="highlightValue"
               placeholder="输入后按 Enter..."
               template="tag-input"
@@ -111,6 +111,7 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
+  import { debounce } from 'lodash';
 
   import ExportLog from '../../result-comp/export-log.vue';
   import FieldsSetting from '../../result-comp/update/fields-setting';
@@ -119,6 +120,8 @@
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
   import ResultStorage from '../../components/result-storage/index';
   import BkLogPopover from '../../../../components/bklog-popover/index';
+  let logResultResizeObserver;
+  let logResultResizeObserverFn;
 
   export default {
     components: {
@@ -153,6 +156,7 @@
         exportLoading: false,
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
+        highlightWidth: 200,
         tippyOptions: {
           maxWidth: 1200,
           arrow: false,
@@ -200,10 +204,21 @@
       showFieldsConfigPopoverNum() {
         return this.$store.state.showFieldsConfigPopoverNum;
       },
+      jsonFormat() {
+        return this.$store.state.storage.tableJsonFormat;
+      },
+      highlightStyle() {
+        return {
+          width: `${this.highlightWidth}px`,
+        };
+      },
     },
     watch: {
       showFieldsConfigPopoverNum() {
         this.handleAddNewConfig();
+      },
+      jsonFormat() {
+        this.$nextTick(this.calcHighlightWidth);
       },
     },
     mounted() {
@@ -222,8 +237,30 @@
           arrow: true,
         });
       }
+
+      logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
+      logResultResizeObserver = new ResizeObserver(logResultResizeObserverFn);
+      logResultResizeObserver.observe(this.$el);
+    },
+    unmounted() {
+      logResultResizeObserver?.unobserve(this.$el);
+      logResultResizeObserver?.disconnect();
+      logResultResizeObserver = null;
+      logResultResizeObserverFn = null;
     },
     methods: {
+      calcHighlightWidth() {
+        const { offsetWidth } = this.$el;
+        const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
+        const rightWidth = 200;
+        const calcWidth = offsetWidth - leftWidth - rightWidth;
+        if (calcWidth > 400) {
+          this.highlightWidth = 400;
+          return;
+        }
+
+        this.highlightWidth = offsetWidth - leftWidth - rightWidth;
+      },
       handleBeforeHide(e) {
         if (e.target?.closest?.('.bklog-v3-popover-tag')) {
           return false;
