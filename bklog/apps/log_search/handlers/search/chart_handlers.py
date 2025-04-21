@@ -550,7 +550,8 @@ class SQLChartHandler(ChartHandler):
                     if not use_not:
                         pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
                         if ignore_case:
-                            pattern = re.match(r"LOWER\('(.*)'\)", pattern).group(1)
+                            pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
+                        pattern = pattern.strip("'")
                     where_clause += f" AND {grep_where_clause}"
             finally:
                 # PLY (Python Lex-Yacc) 和 luqum.parser 在全局状态管理上存在冲突。 这里重新加载luqum的parser模块解决冲突

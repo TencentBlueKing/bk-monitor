@@ -163,7 +163,7 @@ def add_highlight_mark(data_list: List[dict], match_field: str, pattern: str, ig
 
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
-        value = data["match_field"]
+        value = data[match_field]
         if not isinstance(value, str):
             value = str(value)
         data[match_field] = re.sub(
