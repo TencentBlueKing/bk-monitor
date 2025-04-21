@@ -39,6 +39,7 @@ export const fieldTypeMap = {
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
+
   long: {
     name: window.i18n.tc('数字'),
     icon: 'icon-monitor icon-number1',
@@ -74,6 +75,12 @@ export const fieldTypeMap = {
     icon: 'icon-monitor icon-Object',
     color: '#979BA5',
     bgColor: '#E8EAF0',
+  },
+  boolean: {
+    name: window.i18n.tc('布尔'),
+    icon: 'icon-monitor icon-buer',
+    color: '#cb7979',
+    bgColor: '#F5E1E1',
   },
 };
 

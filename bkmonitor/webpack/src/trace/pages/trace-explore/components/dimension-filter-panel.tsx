@@ -31,6 +31,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
 import { AngleDownLine } from 'bkui-vue/lib/icon';
 import { CancelToken } from 'monitor-api/index';
+import { traceFieldsTopK } from 'monitor-api/modules/apm_trace';
 import { storeToRefs } from 'pinia';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
@@ -68,7 +69,7 @@ export default defineComponent({
     const { tableList, filterTableList } = storeToRefs(store);
     const emptyStatus = shallowRef<EmptyStatusType>('empty');
     /** 字段列表的count统计 */
-    const fieldListCount = shallowRef({});
+    const fieldListCount = shallowRef<{ [key: string]: number }>({});
     /* 搜索关键字 */
     const searchVal = shallowRef('');
     /** 搜索结果列表 */
@@ -94,7 +95,7 @@ export default defineComponent({
       }
     );
 
-    async function getFieldCount() {
+    const getFieldCount = useDebounceFn(async () => {
       const fields = props.list.reduce((pre, cur) => {
         if (cur.is_dimensions) pre.push(cur.name);
         return pre;
@@ -102,7 +103,7 @@ export default defineComponent({
       if (!fields.length) return;
       topKCancelFn?.();
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const list = await mock(
+      const list: ITopKField[] = await traceFieldsTopK(
         {
           ...props.params,
           start_time,
@@ -115,56 +116,10 @@ export default defineComponent({
         }
       );
       fieldListCount.value = list.reduce((pre, cur) => {
-        pre[cur.field] = cur.distinct_count;
+        pre[cur.field] = cur.distinct_count || 1;
         return pre;
       }, {});
-    }
-
-    const mock = async (params, option) => {
-      console.log(params, option);
-      return new Promise<ITopKField[]>(resolve => {
-        setTimeout(() => {
-          resolve([
-            {
-              distinct_count: 1,
-              field: 'trace_duration',
-              list: [
-                {
-                  value: 'test_project',
-                  alias: 'test_project',
-                  count: 121209,
-                  proportions: 100,
-                },
-              ],
-            },
-            {
-              distinct_count: 45,
-              field: 'number',
-              list: [
-                {
-                  value: 'test_project',
-                  alias: 'test_project',
-                  count: 121209,
-                  proportions: 100,
-                },
-              ],
-            },
-            {
-              distinct_count: 11,
-              field: 'time',
-              list: [
-                {
-                  value: 'test_project',
-                  alias: 'test_project',
-                  count: 121209,
-                  proportions: 100,
-                },
-              ],
-            },
-          ]);
-        }, 300);
-      });
-    };
+    }, 200);
 
     /** 关键字搜索 */
     const handleSearch = useDebounceFn((keyword: string) => {

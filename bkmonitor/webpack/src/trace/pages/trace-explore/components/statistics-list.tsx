@@ -29,13 +29,18 @@ import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
+import {
+  traceDownloadTopK,
+  traceFieldStatisticsGraph,
+  traceFieldStatisticsInfo,
+  traceFieldsTopK,
+} from 'monitor-api/modules/apm_trace';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
-import { getFieldTopK, getStatisticsChartData, getStatisticsInfo } from '../mock';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
 
@@ -115,7 +120,7 @@ export default defineComponent({
       popoverLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKCancelFn?.();
-      const data = await getFieldTopK(
+      const data: ITopKField[] = await traceFieldsTopK(
         {
           ...props.commonParams,
           start_time,
@@ -126,24 +131,24 @@ export default defineComponent({
         {
           cancelToken: new CancelToken(c => (topKCancelFn = c)),
         }
-      );
-      statisticsList.distinct_count = data.distinct_count;
-      statisticsList.field = data.field;
-      statisticsList.list = data.list;
+      ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+      statisticsList.distinct_count = data[0].distinct_count;
+      statisticsList.field = data[0].field;
+      statisticsList.list = data[0].list;
       popoverLoading.value = false;
     }
 
     async function getStatisticsGraphData() {
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
-      const info = await getStatisticsInfo(
+      const info: IStatisticsInfo = await traceFieldStatisticsInfo(
         {
           ...props.commonParams,
           start_time,
           end_time,
           field: {
-            name: props.selectField,
-            type: props.fieldType,
+            field_name: props.selectField,
+            field_type: props.fieldType,
           },
         },
         {
@@ -151,7 +156,7 @@ export default defineComponent({
         }
       ).catch(() => []);
 
-      statisticsInfo.value = info[0];
+      statisticsInfo.value = info;
 
       const { min, max } = statisticsInfo.value.value_analysis || {};
       const values =
@@ -159,14 +164,14 @@ export default defineComponent({
           ? [min, max, statisticsInfo.value.distinct_count, 8]
           : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
-      const data = await getStatisticsChartData(
+      const data = await traceFieldStatisticsGraph(
         {
           ...props.commonParams,
           start_time,
           end_time,
           field: {
-            name: props.selectField,
-            type: props.fieldType,
+            field_name: props.selectField,
+            field_type: props.fieldType,
             values,
           },
         },
@@ -202,7 +207,7 @@ export default defineComponent({
     async function loadMore() {
       sliderLoadMoreLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await getFieldTopK({
+      const data = await traceFieldsTopK({
         ...props.commonParams,
         start_time,
         end_time,
@@ -228,7 +233,7 @@ export default defineComponent({
     async function handleDownload() {
       downloadLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await getDownloadTopK({
+      const data = await traceDownloadTopK({
         ...props.commonParams,
         start_time,
         end_time,
@@ -240,15 +245,6 @@ export default defineComponent({
       try {
         downloadFile(data.data, 'txt', data.filename);
       } catch {}
-    }
-
-    function getDownloadTopK(params) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          console.log(params);
-          resolve({ data: 'data', filename: 'filename' });
-        }, 1000);
-      });
     }
 
     function topKItemMouseenter(e: MouseEvent, content: string) {

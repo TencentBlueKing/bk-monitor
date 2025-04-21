@@ -28,6 +28,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
+import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
@@ -149,95 +150,16 @@ export default defineComponent({
     }, 100);
 
     async function getViewConfig() {
-      function mock(params) {
-        console.log(params);
-        return new Promise(resolve => {
-          setTimeout(() => {
-            resolve({
-              trace_config: {
-                fields: [
-                  {
-                    name: 'trace_duration',
-                    alias: '耗时',
-                    type: 'date',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: true,
-                    can_displayed: true,
-                    is_default_filter: true,
-                  },
-                  {
-                    name: 'time',
-                    alias: '数据上报时间',
-                    type: 'date',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: false,
-                    supported_operations: [{ operator: '=', label: '=', placeholder: '请选择或直接输入，Enter分隔' }],
-                  },
-                  {
-                    name: 'trace_id',
-                    alias: 'Trace ID',
-                    type: 'keyword',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: false,
-                    supported_operations: [{ operator: '=', label: '=', placeholder: '请选择或直接输入，Enter分隔' }],
-                  },
-                  {
-                    name: 'root_service_category',
-                    alias: '调用类型',
-                    type: 'keyword',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: true,
-                    can_displayed: true,
-                    is_default_filter: true,
-                  },
-                  {
-                    name: 'number',
-                    alias: '数值',
-                    type: 'integer',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: true,
-                    can_displayed: true,
-                    is_default_filter: true,
-                  },
-                ],
-              },
-              span_config: {
-                fields: [
-                  {
-                    name: 'time',
-                    alias: '数据上报时间',
-                    type: 'date',
-                    is_searched: true,
-                    is_dimensions: true,
-                    is_option_enabled: true,
-                    can_displayed: true,
-                    supported_operations: [
-                      {
-                        operator: '=',
-                        label: '=',
-                        placeholder: '请选择或直接输入，Enter分隔',
-                      },
-                    ],
-                  },
-                ],
-              },
-            });
-          }, 300);
-        });
-      }
-      // if (!store.appName) return;
-      const data = await mock({
+      if (!store.appName) return;
+      loading.value = true;
+      const data = await listTraceViewConfig({
         app_name: store.appName,
-      });
+      }).catch(() => ({ trace_config: [], span_config: [] }));
       fieldListMap.value = {
-        trace: data.trace_config.fields,
-        span: data.span_config.fields,
+        trace: data.trace_config,
+        span: data.span_config,
       };
+      loading.value = false;
     }
 
     onMounted(async () => {
@@ -274,6 +196,7 @@ export default defineComponent({
         showResidentBtn.value = Boolean(queryShowResidentBtn);
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
+        handleQuery();
       } catch (error) {
         console.log('route query:', error);
       }
