@@ -27,12 +27,17 @@ from apm_web.handlers.trace_handler.query import (
     SpanQueryTransformer,
     TraceQueryTransformer,
 )
+from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
+    BaseTraceRequestSerializer,
     QuerySerializer,
     QueryStatisticsSerializer,
     SpanIdInputSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
+    TraceFieldStatisticsInfoRequestSerializer,
+    TraceFieldsTopkRequestSerializer,
 )
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import (
@@ -53,6 +58,13 @@ from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
 from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
+from .mock_data import (
+    API_FIELDS_OPTION_VALUE_DATA,
+    API_GRAPH_DATA,
+    API_INFO_DATA,
+    API_TOPK_DATA,
+    API_VIEW_CONFIG_DATA,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1073,6 +1085,30 @@ class GetFieldOptionValuesResource(Resource):
         return QueryHandler.get_file_option_values(**validated_request_data)
 
 
+class GetFieldsOptionValuesResource(Resource):
+    """获取指定字段列表的候选项值"""
+
+    class RequestSerializer(serializers.Serializer):
+        class FilterSerializer(serializers.Serializer):
+            key = serializers.CharField(label="字段名")
+            operator = serializers.CharField(label="操作符")
+            value = serializers.ListField(child=serializers.CharField(), label="值列表")
+
+        bk_biz_id = serializers.IntegerField()
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField()
+        end_time = serializers.IntegerField()
+        fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
+        limit = serializers.IntegerField(label="查询条数", default=10)
+        filters = serializers.ListField(child=FilterSerializer(), label="过滤条件列表", allow_empty=True)
+        query_string = serializers.CharField(label="查询字符串", allow_blank=True)
+        mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices(), default="span")
+
+    @using_cache(CacheType.APM(60 * 1))
+    def perform_request(self, validated_request_data):
+        return API_FIELDS_OPTION_VALUE_DATA
+
+
 class ListSpanStatisticsResource(Resource):
     """
     接口统计
@@ -1238,3 +1274,47 @@ class ListSpanHostInstancesResource(Resource):
 
     def perform_request(self, validated_request_data):
         return HostHandler.find_host_in_span(**validated_request_data)
+
+
+class ListTraceViewConfigResource(Resource):
+    """获取 trace 检索页面的视图配置"""
+
+    RequestSerializer = BaseTraceRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("is_mock"):
+            return API_VIEW_CONFIG_DATA
+
+        fields_handler = TraceFieldsHandler(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+
+        return {
+            "trace_config": fields_handler.get_fields_by_mode(QueryMode.TRACE),
+            "span_config": fields_handler.get_fields_by_mode(QueryMode.SPAN),
+        }
+
+
+class TraceFieldsTopKResource(Resource):
+    """获取 trace 字段的 topk 数据"""
+
+    RequestSerializer = TraceFieldsTopkRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        return API_TOPK_DATA
+
+
+class TraceFieldStatisticsInfoResource(Resource):
+    """获取 trace 字段的维度统计信息"""
+
+    RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        return API_INFO_DATA
+
+
+class TraceFieldStatisticsGraphResource(Resource):
+    """获取 trace 字段的维度统计图表"""
+
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        return API_GRAPH_DATA

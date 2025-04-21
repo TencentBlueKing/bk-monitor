@@ -15,10 +15,16 @@ export const listOptionValues = request('POST', 'apm/trace_api/trace_query/list_
 export const getFieldOptionValues = request('POST', 'apm/trace_api/trace_query/get_field_option_values/');
 export const listSpanStatistics = request('POST', 'apm/trace_api/trace_query/list_span_statistics/');
 export const listServiceStatistics = request('POST', 'apm/trace_api/trace_query/list_service_statistics/');
+export const listTraceViewConfig = request('GET', 'apm/trace_api/trace_query/view_config/');
+export const getFieldsOptionValues = request('POST', 'apm/trace_api/trace_query/get_fields_option_values/');;
 export const applyTraceComparison = request('POST', 'apm/trace_api/trace_query/apply_trace_comparison/');
 export const deleteTraceComparison = request('POST', 'apm/trace_api/trace_query/delete_trace_comparison/');
 export const listTraceComparison = request('POST', 'apm/trace_api/trace_query/list_trace_comparison/');
 export const listSpanHostInstances = request('GET', 'apm/trace_api/trace_query/list_span_host_instances/');
+export const traceDownloadTopK = request('POST', 'apm/trace_api/trace_query/download_topk/');
+export const traceFieldsTopK = request('POST', 'apm/trace_api/trace_query/fields_topk/');
+export const traceFieldStatisticsInfo = request('POST', 'apm/trace_api/trace_query/field_statistics_info/');
+export const traceFieldStatisticsGraph = request('POST', 'apm/trace_api/trace_query/field_statistics_graph/');
 
 export default {
   traceChats,
@@ -36,8 +42,14 @@ export default {
   getFieldOptionValues,
   listSpanStatistics,
   listServiceStatistics,
+  listTraceViewConfig,
+  getFieldsOptionValues,
   applyTraceComparison,
   deleteTraceComparison,
   listTraceComparison,
   listSpanHostInstances,
+  traceDownloadTopK,
+  traceFieldsTopK,
+  traceFieldStatisticsInfo,
+  traceFieldStatisticsGraph,
 };
