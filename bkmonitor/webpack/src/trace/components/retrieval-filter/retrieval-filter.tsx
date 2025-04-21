@@ -48,7 +48,7 @@ import {
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { DURATION_FIELD_KEY, getCacheUIData, setCacheUIData } from './utils';
+import { DURATION_FIELD_KEY, getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
 
 import './retrieval-filter.scss';
 
@@ -111,7 +111,8 @@ export default defineComponent({
     watch(
       () => props.where,
       val => {
-        handleWatchValueFn(val);
+        const traceWhere = traceWhereFormatter(val);
+        handleWatchValueFn(traceWhere);
       },
       {
         immediate: true,
@@ -246,7 +247,12 @@ export default defineComponent({
       }
       const whereStr = JSON.stringify(where);
       cacheWhereStr.value = whereStr;
-      emit('whereChange', where);
+      const traceWhere = where.map(item => ({
+        key: item.key,
+        operator: item.method,
+        value: item.value,
+      }));
+      emit('whereChange', traceWhere);
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
