@@ -1736,4 +1736,7 @@ class AlertStatusEnum(ChoicesEnum):
 
 MAX_WORKERS = 5
 
-LOG_HIGHLIGHT_CONFIG = {"pre_tag": "<mark>", "post_tag": "</mark>"}
+
+class HighlightConfig(object):
+    PRE_TAG = "<mark>"
+    POST_TAG = "</mark>"

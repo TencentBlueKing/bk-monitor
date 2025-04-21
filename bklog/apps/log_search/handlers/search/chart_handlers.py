@@ -46,7 +46,6 @@ from opentelemetry import trace
 from apps.api import BkDataQueryApi
 from apps.log_search import metrics
 from apps.log_search.constants import (
-    LOG_HIGHLIGHT_CONFIG,
     SQL_CONDITION_MAPPINGS,
     SQL_PREFIX,
     SQL_SUFFIX,
@@ -540,12 +539,18 @@ class SQLChartHandler(ChartHandler):
             try:
                 grep_syntax_list = grep_parser(grep_query)
                 grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
-
-                if "v" not in grep_syntax_list[-1]["args"]:
-                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1].strip("'")
-                if "i" in grep_syntax_list[-1]["args"]:
-                    ignore_case = True
                 if grep_where_clause:
+                    use_not = False
+                    ignore_case = False
+                    for arg in grep_syntax_list[-1]["args"]:
+                        if "v" in arg:
+                            use_not = True
+                        if "i" in arg:
+                            ignore_case = True
+                    if not use_not:
+                        pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
+                        if ignore_case:
+                            pattern = re.match(r"LOWER\('(.*)'\)", pattern).group(1)
                     where_clause += f" AND {grep_where_clause}"
             finally:
                 # PLY (Python Lex-Yacc) 和 luqum.parser 在全局状态管理上存在冲突。 这里重新加载luqum的parser模块解决冲突
@@ -565,7 +570,6 @@ class SQLChartHandler(ChartHandler):
             data_list=result["list"],
             match_field=grep_field,
             pattern=pattern,
-            tags=LOG_HIGHLIGHT_CONFIG,
             ignore_case=ignore_case,
         )
         return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}
