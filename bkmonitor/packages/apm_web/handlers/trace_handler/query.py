@@ -452,6 +452,9 @@ class TraceOptionValues(OptionValues):
 
     FIELDS = [
         OptionValues.Field(id="root_service_category", value_source=ValueSource.METHOD, label=_("入口类型")),
+        OptionValues.Field(id="root_service_kind", value_source=ValueSource.METHOD, label=_("入口服务类型")),
+        OptionValues.Field(id="root_span_kind", value_source=ValueSource.METHOD, label=_("根 Span 类型")),
+        OptionValues.Field(id="kind", value_source=ValueSource.METHOD, label=_("类型")),
     ]
 
     @classmethod
@@ -468,6 +471,15 @@ class TraceOptionValues(OptionValues):
             res.append({"value": i["id"], "text": i["name"]})
 
         return res
+
+    def get_root_service_kind(self):
+        return SpanKind.list()
+
+    def get_root_span_kind(self):
+        return SpanKind.list()
+
+    def get_kind(self):
+        return SpanKind.list()
 
 
 class SpanOptionValues(OptionValues):

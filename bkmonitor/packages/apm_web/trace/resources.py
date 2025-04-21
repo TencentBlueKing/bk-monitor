@@ -1130,7 +1130,12 @@ class GetFieldsOptionValuesResource(Resource):
         if validated_request_data.get("is_mock"):
             return API_FIELDS_OPTION_VALUE_DATA
         validated_request_data.pop("is_mock", None)
-        return QueryHandler.get_fields_option_values(**validated_request_data)
+        option_values_dict = QueryHandler.get_fields_option_values(**validated_request_data)
+        data = {}
+        for field_name, option_value_list in option_values_dict.items():
+            data[field_name] = [option_value_dict.get("value", "") for option_value_dict in option_value_list]
+
+        return data
 
 
 class ListSpanStatisticsResource(Resource):
