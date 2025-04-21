@@ -36,7 +36,6 @@ import {
   ECondition,
   EFieldType,
   EMethod,
-  fieldTypeMap,
   type IFilterField,
   type IFilterItem,
   type IValue,
@@ -44,7 +43,7 @@ import {
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
-import { getTitleAndSubtitle, isNumeric } from './utils';
+import { fieldTypeMap, getTitleAndSubtitle, isNumeric } from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
@@ -314,7 +313,7 @@ export default defineComponent({
             where: [
               {
                 key: params.field,
-                method: 'include',
+                method: 'equal',
                 value: [params.search || ''],
                 condition: ECondition.and,
                 options: {
@@ -481,12 +480,12 @@ export default defineComponent({
                   >
                     <span
                       style={{
-                        background: fieldTypeMap[item.type].bgColor,
-                        color: fieldTypeMap[item.type].color,
+                        background: fieldTypeMap[item.type]?.bgColor || fieldTypeMap.other.bgColor,
+                        color: fieldTypeMap[item.type]?.color || fieldTypeMap.other.color,
                       }}
                       class='option-icon'
                     >
-                      <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
+                      <span class={[fieldTypeMap[item.type]?.icon || fieldTypeMap.other.icon, 'option-icon-icon']} />
                     </span>
                     <span class='option-name-title'>{title}</span>
                     {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}

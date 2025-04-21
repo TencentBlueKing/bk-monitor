@@ -26,6 +26,57 @@
 
 import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
 
+export const fieldTypeMap = {
+  all: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-a-',
+    color: '#979BA5',
+    bgColor: '#E8EAF0',
+  },
+  integer: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  long: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  boolean: {
+    name: window.i18n.tc('布尔'),
+    icon: 'icon-monitor icon-buer',
+    color: '#CB7979',
+    bgColor: '#F0DFDF',
+  },
+  keyword: {
+    name: window.i18n.tc('字符串'),
+    icon: 'icon-monitor icon-Str',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
+  },
+  text: {
+    name: window.i18n.tc('文本'),
+    icon: 'icon-monitor icon-text1',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
+  date: {
+    name: window.i18n.tc('时间'),
+    icon: 'icon-monitor icon-Time',
+    color: '#CDAE71',
+    bgColor: '#EDE7DB',
+  },
+  other: {
+    name: window.i18n.tc('未知'),
+    icon: 'icon-monitor icon-weizhi',
+    color: '#4d4f56',
+    bgColor: '#dcdee5',
+  },
+};
+
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
 /**
  * @description 缓存ui数据
@@ -107,9 +158,10 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
       !(
         sourceItem &&
         sourceItem.key === item.key &&
-        sourceItem.method === item.method &&
+        (sourceItem?.method || null) === (item?.method || null) &&
         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
-        sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+        (sourceItem?.options?.is_wildcard || null) === (item?.options?.is_wildcard || null) &&
+        (sourceItem?.operator || null) === (item?.operator || null)
       )
     ) {
       localTarget.push(item);
@@ -131,3 +183,12 @@ export function defaultWhereItem(params = {}): IWhereItem {
 
 export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
 export const DURATION_FIELD_KEY = 'duration';
+
+export const traceWhereFormatter = (where: IWhereItem[]) => {
+  return where.map(item => ({
+    key: item.key,
+    method: item.operator,
+    value: item.value,
+    condition: ECondition.and,
+  })) as IWhereItem[];
+};

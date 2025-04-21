@@ -200,7 +200,7 @@ export default defineComponent({
             where: [
               {
                 key: params.field,
-                method: 'include',
+                method: 'equal',
                 value: [params.search || ''],
                 condition: ECondition.and,
                 options: {
