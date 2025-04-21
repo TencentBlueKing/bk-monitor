@@ -326,16 +326,15 @@ class FieldTransformer(TreeTransformer):
 
 
 class OptionValues:
+    FIELDS: list["Field"] = []
+    API = None
+
     @dataclass
     class Field:
         # 需要获取候选值的字段
-        name: str
+        id: str
         value_source: str
         label: str
-
-    API = None
-
-    FIELDS: list[Field] = []
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -348,7 +347,14 @@ class OptionValues:
         return option_values
 
     def _get_option_values_from_api(
-        self, value_source: str, fields: List[str], start_time: int, end_time: int
+        self,
+        value_source: str,
+        fields: List[str],
+        start_time: int,
+        end_time: int,
+        limit: Optional[int] = None,
+        filters: Optional[List] = None,
+        query_string: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         field_transformer: Callable[[str], str] = {
             ValueSource.TRACE: self._transform_field_to_log_field,
@@ -369,6 +375,9 @@ class OptionValues:
             "end_time": end_time,
             "fields": query_api_fields,
             "datasource_type": value_source,
+            "limit": limit,
+            "filters": filters,
+            "query_string": query_string,
         }
         field_values_mapping: Dict[str, List[Any]] = self.API(params)
 
@@ -401,7 +410,7 @@ class OptionValues:
 
     @classmethod
     def _get_field_mapping(cls) -> Dict[str, Field]:
-        return {field_info.name: field_info for field_info in cls.FIELDS}
+        return {field_info.id: field_info for field_info in cls.FIELDS}
 
     def get_field_option_values(
         self, fields: List[str], start_time: int, end_time: int
@@ -430,7 +439,11 @@ class OptionValues:
             if value_source == ValueSource.METHOD:
                 option_values.update(self._get_option_values_from_method(fields))
             else:
-                option_values.update(self._get_option_values_from_api(value_source, fields, start_time, end_time))
+                option_values.update(
+                    self._get_option_values_from_api(
+                        value_source, fields, start_time, end_time, limit, filters, query_string
+                    )
+                )
         return option_values
 
 
@@ -438,12 +451,12 @@ class TraceOptionValues(OptionValues):
     API = api.apm_api.query_trace_option_values
 
     FIELDS = [
-        OptionValues.Field(name="root_service_category", value_source=ValueSource.METHOD, label=_("入口类型")),
+        OptionValues.Field(id="root_service_category", value_source=ValueSource.METHOD, label=_("入口类型")),
     ]
 
     @classmethod
     def _transform_field_to_log_field(cls, field: str) -> str:
-        if field not in PreCalculateSpecificField.search_fields():
+        if field in PreCalculateSpecificField.search_fields():
             return field
         return f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
 
@@ -465,7 +478,7 @@ class SpanOptionValues(OptionValues):
     }
 
     FIELDS = [
-        OptionValues.Field(name=field_info.field, value_source=field_info.value_source, label=field_info.value)
+        OptionValues.Field(id=field_info.field, value_source=field_info.value_source, label=field_info.value)
         for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
     ]
 

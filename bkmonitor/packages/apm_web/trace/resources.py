@@ -1112,7 +1112,7 @@ class GetFieldsOptionValuesResource(Resource):
         class FilterSerializer(serializers.Serializer):
             key = serializers.CharField(label="字段名")
             operator = serializers.CharField(label="操作符")
-            value = serializers.ListField(child=serializers.CharField(), label="值列表")
+            value = serializers.ListField(child=serializers.CharField(allow_blank=True), label="值列表")
 
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
@@ -1129,18 +1129,8 @@ class GetFieldsOptionValuesResource(Resource):
     def perform_request(self, validated_request_data):
         if validated_request_data.get("is_mock"):
             return API_FIELDS_OPTION_VALUE_DATA
-        params = {
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            "app_name": validated_request_data["app_name"],
-            "start_time": validated_request_data["start_time"],
-            "end_time": validated_request_data["end_time"],
-            "fields": validated_request_data["fields"],
-            "limit": validated_request_data["limit"],
-            "filters": validated_request_data["filters"],
-            "query_string": validated_request_data["query_string"],
-            "mode": validated_request_data["mode"],
-        }
-        return QueryHandler.get_fields_option_values(**params)
+        validated_request_data.pop("is_mock", None)
+        return QueryHandler.get_fields_option_values(**validated_request_data)
 
 
 class ListSpanStatisticsResource(Resource):
