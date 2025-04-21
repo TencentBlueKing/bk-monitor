@@ -23,47 +23,130 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, useTemplateRef, type PropType } from 'vue';
+import { defineComponent, ref as deepRef, shallowRef, useTemplateRef, type PropType, watch } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { $bkPopover, Button, Input } from 'bkui-vue';
-import { Transfer } from 'bkui-vue/lib/icon';
+import { $bkPopover, Button, Exception, Input } from 'bkui-vue';
+import { Transfer, ArrowsRight, Close } from 'bkui-vue/lib/icon';
+
+import FieldTypeIcon from '../field-type-icon';
+
+import type { ExploreFieldMap } from '../../typing';
 
 import './explore-field-setting.scss';
 
 export default defineComponent({
   name: 'ExploreFieldSetting',
   props: {
+    /** 穿梭框数据源（所有选项列表） */
     sourceList: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<object[]>,
       default: () => [],
     },
+    /** 已选择的数据（唯一标识 setting-key 的数组） */
     targetList: {
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 具有唯一标识的 key 值 */
+    settingKey: {
+      type: String,
+      default: 'field',
+    },
+    /** 展示的 key 值 */
+    displayKey: {
+      type: String,
+      default: 'alias',
+    },
+    /** 字段类型字段名key映射集合(prefix icon 需要) */
+    fieldMap: {
+      type: Object as PropType<ExploreFieldMap>,
+      default: () => {},
+    },
   },
-  setup(props) {
+  emits: {
+    confirm: (targetList: string[]) => Array.isArray(targetList),
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     /** popover 弹窗实例 */
-    let popoverInstance = null;
-
+    const popoverInstance = shallowRef(null);
     /** popover 弹出显示内容容器 */
     const containerRef = useTemplateRef<HTMLElement | null>('containerRef');
+    /** input搜索框输入的值 */
+    const searchKeyword = shallowRef('');
+    /** 穿梭框数据源（所有选项列表） key 映射集合 */
+    const sourceListMap = deepRef({});
+    /** 选中的列表key值 */
+    const selectedList = deepRef([]);
+    /** 选中的集合(待选列表筛选使用) */
+    const selectedSet = computed(() => new Set(selectedList.value));
+    /** 待选列表 */
+    const toBeChosenList = computed(() => {
+      if (!popoverInstance.value) {
+        return [];
+      }
+      return props.sourceList.filter(item => {
+        const field = item[props.settingKey];
+        const matchReg = new RegExp(`${searchKeyword.value}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'ig');
+        return !selectedSet.value.has(field) && matchReg.test(field);
+      });
+    });
+    const selectedListLen = computed(() => selectedList.value.length);
+    const toBeChosenListLen = computed(() => toBeChosenList.value.length);
 
-    const searchInput = shallowRef('');
+    /** 待选区域空数据时展示类型 */
+    const emptyConfig = computed<{ description: string; type: 'empty' | 'search-empty' } | null>(() => {
+      if (toBeChosenList.value.length) {
+        return null;
+      }
+      if (searchKeyword.value) {
+        return {
+          description: t('搜索为空'),
+          type: 'search-empty',
+        };
+      }
+      return {
+        description: t('没有数据'),
+        type: 'empty',
+      };
+    });
+
+    watch(
+      () => popoverInstance.value,
+      v => {
+        if (!v) {
+          init();
+          return;
+        }
+        sourceListMap.value = props.sourceList.reduce((prev, curr) => {
+          const field = curr[props.settingKey];
+          if (prev[field]) return prev;
+          prev[field] = curr;
+          return prev;
+        }, {});
+        selectedList.value = props.targetList.filter(v => sourceListMap.value[v]);
+      }
+    );
+
+    function init() {
+      selectedList.value = [];
+      sourceListMap.value = {};
+      searchKeyword.value = '';
+    }
 
     /**
      * @description 打开 menu下拉菜单 popover 弹窗
      *
      */
     function handleSettingPopoverShow(e: MouseEvent) {
-      if (popoverInstance) {
+      if (popoverInstance.value) {
         handlePopoverHide();
         return;
       }
-      popoverInstance = $bkPopover({
+      popoverInstance.value = $bkPopover({
         target: e.currentTarget as HTMLElement,
         content: containerRef.value,
         trigger: 'click',
@@ -102,9 +185,9 @@ export default defineComponent({
           handlePopoverHide();
         },
       });
-      popoverInstance.install();
+      popoverInstance.value.install();
       setTimeout(() => {
-        popoverInstance?.vm?.show();
+        popoverInstance.value?.vm?.show();
       }, 100);
     }
 
@@ -113,9 +196,140 @@ export default defineComponent({
      *
      */
     function handlePopoverHide() {
-      popoverInstance?.hide?.();
-      popoverInstance?.close?.();
-      popoverInstance = null;
+      popoverInstance.value?.hide?.();
+      popoverInstance.value?.close?.();
+      popoverInstance.value = null;
+    }
+
+    /**
+     * @description 添加选中值回调
+     *
+     */
+    function handleSelectedField(field) {
+      if (selectedSet.value.has(field)) {
+        return;
+      }
+      selectedList.value.push(field);
+    }
+
+    /**
+     * @description 移除选中值回调
+     *
+     */
+    function handleRemoveField(field, index) {
+      if (!selectedSet.value.has(field)) {
+        return;
+      }
+      selectedList.value.splice(index, 1);
+    }
+
+    /**
+     * @description 全部添加按钮点击回调
+     *
+     */
+    function handleSelectedAll() {
+      if (!toBeChosenListLen.value) {
+        return;
+      }
+      const fields = props.sourceList.reduce((prev: string[], curr) => {
+        const field = curr[props.settingKey];
+        if (selectedSet.value.has(field)) {
+          return prev;
+        }
+        prev.push(field);
+        return prev;
+      }, []);
+      selectedList.value = [...selectedList.value, ...fields];
+    }
+
+    function handleRemoveAll() {
+      if (!selectedListLen.value) {
+        return;
+      }
+      selectedList.value = [];
+    }
+
+    /**
+     * @description 确认按钮点击回调
+     *
+     */
+    function handleConfirm() {
+      emit('confirm', selectedList.value);
+      handlePopoverHide();
+    }
+
+    /**
+     * @description 选中列表渲染
+     *
+     */
+    function targetListRender() {
+      return (
+        <ul class='transfer-list target-list'>
+          {selectedList.value.map((field, index) => {
+            const label = sourceListMap.value[field]?.[props.displayKey];
+            return (
+              <li
+                key={field}
+                class='list-item source-item'
+              >
+                <div class='list-item-left'>
+                  <FieldTypeIcon
+                    class='item-prefix'
+                    type={props.fieldMap[field]?.type}
+                  />
+                  <span class='item-label'>{label}</span>
+                </div>
+                <div
+                  class='item-suffix'
+                  onClick={() => handleRemoveField(field, index)}
+                >
+                  <Close />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      );
+    }
+
+    /**
+     * @description 待选列表渲染
+     *
+     */
+    function sourceListRender() {
+      return (
+        <ul class='transfer-list source-list'>
+          {toBeChosenList.value.map(item => {
+            const field = item[props.settingKey];
+            const label = item[props.displayKey];
+            return (
+              <li
+                key={field}
+                class='list-item source-item'
+                onClick={() => handleSelectedField(field)}
+              >
+                <div class='list-item-left'>
+                  <FieldTypeIcon
+                    class='item-prefix'
+                    type={props.fieldMap[field]?.type}
+                  />
+                  <span class='item-label'>{label}</span>
+                </div>
+                <div class='item-suffix'>
+                  <ArrowsRight />
+                </div>
+              </li>
+            );
+          })}
+          {emptyConfig.value ? (
+            <Exception
+              description={emptyConfig.value.description}
+              scene='part'
+              type={emptyConfig.value.type}
+            />
+          ) : null}
+        </ul>
+      );
     }
 
     /**
@@ -134,36 +348,47 @@ export default defineComponent({
               <div class='transfer-header source-header'>
                 <div class='header-title'>
                   <span class='title-label'>{t('待选字段')}</span>
-                  <span class='list-count'>（213）</span>
+                  <span class='list-count'>（{toBeChosenListLen.value}）</span>
                 </div>
-                <span class='header-operation disabled'>{t('全部添加')}</span>
+                <span
+                  class={`header-operation ${!toBeChosenListLen.value ? 'disabled' : ''}`}
+                  onClick={handleSelectedAll}
+                >
+                  {t('全部添加')}
+                </span>
               </div>
               <div class='source-search-input'>
                 <Input
-                  v-model={searchInput.value}
+                  v-model={searchKeyword.value}
                   v-slots={{ prefix: () => <i class='icon-monitor icon-mc-search' /> }}
                   behavior='simplicity'
                   placeholder={t('请输入关键字')}
                   clearable
                 />
               </div>
-              <div class='source-list' />
+              {sourceListRender()}
             </div>
             <Transfer class='transfer-icon bk-transfer-icon' />
             <div class='transfer-target'>
               <div class='transfer-header target-header'>
                 <div class='header-title'>
                   <span class='title-label'>{t('已选字段')}</span>
-                  <span class='list-count'>（213）</span>
+                  <span class='list-count'>（{selectedListLen.value}）</span>
                 </div>
-                <span class='header-operation'>{t('清空')}</span>
+                <span
+                  class={`header-operation ${!selectedListLen.value ? 'disabled' : ''}`}
+                  onClick={handleRemoveAll}
+                >
+                  {t('清空')}
+                </span>
               </div>
+              {targetListRender()}
             </div>
           </div>
           <div class='setting-operation'>
             <Button
               theme='primary'
-              onClick={handlePopoverHide}
+              onClick={handleConfirm}
             >
               {t('确定')}
             </Button>

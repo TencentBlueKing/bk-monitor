@@ -179,15 +179,15 @@ interface ExploreRequestParams {
 export type ExploreTotalRequestParams = Omit<ExploreRequestParams, 'fields' | 'limit' | 'offset'>;
 export type ExploreTableRequestParams = Omit<ExploreRequestParams, 'fields'>;
 
-type ExploreFieldTransform = Record<string, Partial<IDimensionField> & { finalName?: string }>;
-/**
- * @description 用于在表格 kv面板 中获取字段的类型
- * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
- **/
-export interface ExploreFieldMap {
-  source: ExploreFieldTransform;
-  target: ExploreFieldTransform;
-}
+export type ExploreFieldMap = Record<string, Partial<IDimensionField> & { finalName?: string }>;
+// /**
+//  * @description 用于在表格 kv面板 中获取字段的类型
+//  * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
+//  **/
+// export interface ExploreFieldMap {
+//   source: ExploreFieldTransform;
+//   target: ExploreFieldTransform;
+// }
 
 export interface ExploreEntitiesItem {
   alias: string;
