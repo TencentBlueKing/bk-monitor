@@ -270,3 +270,43 @@ export const setScrollLoadCell = (
     removeScrollEvent,
   };
 };
+
+export const getClickTargetElement = (pointer: MouseEvent, lineHeight = 20) => {
+  const textNode = pointer.target as HTMLElement;
+  const range = document.createRange();
+  range.selectNodeContents(textNode);
+  const lineRects = Array.from(range.getClientRects());
+  const { clientX, clientY } = pointer;
+
+  // 遍历所有行，找到点击位置所在的行
+  let targetLineIndex = -1;
+  for (let i = 0; i < lineRects.length; i++) {
+    const rect = lineRects[i];
+    if (clientY >= rect.top && clientY <= rect.bottom && clientX >= rect.left && clientX <= rect.right) {
+      targetLineIndex = i;
+      break;
+    }
+  }
+
+  const target = lineRects[targetLineIndex];
+  return { offsetX: 0, offsetY: target.bottom - pointer.clientY };
+};
+
+export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, offsetX = 0 }) => {
+  const x = e.clientX;
+  const y = e.clientY;
+  let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
+  if (!virtualTarget) {
+    virtualTarget = document.createElement('span') as HTMLElement;
+    virtualTarget.className = 'bklog-virtual-target';
+    virtualTarget.style.setProperty('position', 'absolute');
+    virtualTarget.style.setProperty('visibility', 'hidden');
+    virtualTarget.style.setProperty('z-index', '-1');
+    document.body.appendChild(virtualTarget);
+  }
+
+  virtualTarget.style.setProperty('left', `${x + offsetX}px`);
+  virtualTarget.style.setProperty('top', `${y + offsetY}px`);
+
+  return virtualTarget;
+};

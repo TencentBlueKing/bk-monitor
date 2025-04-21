@@ -241,7 +241,7 @@
     .segment-content {
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
-      line-height: 22px;
+      line-height: 20px;
 
       span {
         width: max-content;
@@ -315,7 +315,7 @@
     .segment-content {
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
-      line-height: 22px;
+      line-height: 20px;
 
       mark {
         &.valid-text {
