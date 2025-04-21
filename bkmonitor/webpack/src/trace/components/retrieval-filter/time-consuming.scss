@@ -1,0 +1,52 @@
+.time-consuming-component {
+  display: flex;
+  align-items: center;
+  width: 212px;
+  height: 32px;
+  padding: 0 4px 0 8px;
+  background: #FFFFFF;
+  border: 1px solid #DCDEE5;
+  border-radius: 2px;
+
+  .time-consuming-title {
+    margin-right: 4px;
+    font-size: 12px;
+    color: #313238;
+  }
+
+  .slider-wrap {
+    flex: 1;
+    margin: 0 6px;
+
+    .bk-slider-button .slider-button {
+      width: 6px;
+      height: 6px;
+      border: 1px solid #3a84ff;
+    }
+  }
+
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    width: 48px;
+    height: 24px;
+
+    .bk-input--small {
+      background: #F0F1F5;
+      border: 1px solid #F0F1F5;
+
+      .bk-input--text {
+        background: #F0F1F5;
+      }
+
+      &.is-focused {
+        background: #fff;
+        border-color: #3a84ff;
+
+        .bk-input--text {
+          background: #fff;
+        }
+      }
+    }
+  }
+}
