@@ -104,7 +104,7 @@ class TraceFieldsInfoHandler:
         standard_fields_info = {}
         for field_name in field_names:
             if field_name in self.es_mapping_fields_info:
-                standard_fields_info[field_name] = self.es_mapping_fields_info[field_name]
+                standard_fields_info.setdefault(field_name, {}).update(self.es_mapping_fields_info[field_name])
         return standard_fields_info
 
     def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict]:
