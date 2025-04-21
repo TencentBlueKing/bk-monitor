@@ -247,7 +247,12 @@ export default defineComponent({
       }
       const whereStr = JSON.stringify(where);
       cacheWhereStr.value = whereStr;
-      emit('whereChange', where);
+      const traceWhere = where.map(item => ({
+        key: item.key,
+        operator: item.method,
+        value: item.value,
+      }));
+      emit('whereChange', traceWhere);
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
