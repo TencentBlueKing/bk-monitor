@@ -271,8 +271,12 @@ export const setScrollLoadCell = (
   };
 };
 
-export const getClickTargetElement = (pointer: MouseEvent, lineHeight = 20) => {
+export const getClickTargetElement = (pointer: MouseEvent) => {
   const textNode = pointer.target as HTMLElement;
+  if (textNode) {
+    return { offsetX: 0, offsetY: 0 };
+  }
+
   const range = document.createRange();
   range.selectNodeContents(textNode);
   const lineRects = Array.from(range.getClientRects());
@@ -288,8 +292,8 @@ export const getClickTargetElement = (pointer: MouseEvent, lineHeight = 20) => {
     }
   }
 
-  const target = lineRects[targetLineIndex];
-  return { offsetX: 0, offsetY: target.bottom - pointer.clientY };
+  const target = lineRects?.[targetLineIndex];
+  return { offsetX: 0, offsetY: (target?.bottom ?? pointer.clientY) - pointer.clientY };
 };
 
 export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, offsetX = 0 }) => {
