@@ -93,7 +93,7 @@ def check_incident_action_and_composite(incident_id: int, incident_stage: str, i
                 "strategy_id": action["strategy_id"],
                 "signal": action["signal"],
                 "alert_ids": [top_alert.id],
-                "alerts": [top_alert.to_document()],
+                "dimensions": top_alert.dimensions,
                 "severity": action["severity"],
             }
             with metrics.COMPOSITE_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).time():
