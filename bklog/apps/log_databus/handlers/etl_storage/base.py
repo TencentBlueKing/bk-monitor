@@ -52,6 +52,7 @@ from apps.log_search.constants import (
     FieldDateFormatEnum,
 )
 from apps.utils import is_match_variate
+from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
 
@@ -147,6 +148,9 @@ class EtlStorage(object):
         # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
         if not is_case_sensitive and not tokenize_on_chars:
             return ""
+        if tokenize_on_chars:
+            # 将unicode编码的字符串转换为正常字符串
+            tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
     @staticmethod
@@ -189,9 +193,12 @@ class EtlStorage(object):
                     result["analyzer"][analyzer_name]["filter"].append("lowercase")
                 if tokenizer_name:
                     result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                    original_text_tokenize_on_chars = etl_params.get("original_text_tokenize_on_chars", "")
+                    if original_text_tokenize_on_chars:
+                        original_text_tokenize_on_chars = unicode_str_decode(original_text_tokenize_on_chars)
                     result["tokenizer"][tokenizer_name] = {
                         "type": "char_group",
-                        "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                        "tokenize_on_chars": [x for x in original_text_tokenize_on_chars],
                     }
                 else:
                     # 自定义分词器为空时, 使用standard分词器, 不传es会报错
@@ -222,9 +229,12 @@ class EtlStorage(object):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
             if tokenizer_name:
                 result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                tokenize_on_chars = field.get("tokenize_on_chars", "")
+                if tokenize_on_chars:
+                    tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
-                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
+                    "tokenize_on_chars": [x for x in tokenize_on_chars],
                 }
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
@@ -573,8 +583,8 @@ class EtlStorage(object):
                 field["option"]["es_norms"] = False
 
         # 别名配置
-        query_alias_settings = []
-        if alias_settings:
+        if alias_settings is not None:
+            query_alias_settings = []
             for item in alias_settings:
                 field_alias = {
                     "field_name": item["field_name"],
@@ -582,7 +592,7 @@ class EtlStorage(object):
                     "path_type": item["path_type"],
                 }
                 query_alias_settings.append(field_alias)
-        params.update({"query_alias_settings": query_alias_settings})
+            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:

@@ -79,7 +79,7 @@ const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
-const NEW_USER_GUIDE_KEY = 'NEW_UER_GUIDE_KEY_1';
+const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
@@ -252,7 +252,7 @@ export default class App extends tsc<object> {
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;
-    const value = await userConfigModal.handleGetUserConfig<string[]>(NEW_USER_GUIDE_KEY);
+    const value = await userConfigModal.handleGetUserConfig<string[]>(NEW_UER_GUDE_KEY);
     this.needNewUserGuide = !value;
   }
   mounted() {
@@ -482,7 +482,7 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
-    } else if (['k8s', 'k8s-new', 'event-retrieval', 'event-explore'].includes(navId)) {
+    } else if (['k8s', 'k8s-new', 'event-retrieval'].includes(navId)) {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
@@ -490,7 +490,7 @@ export default class App extends tsc<object> {
             if (navId.startsWith('k8s')) {
               routeName = this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s';
             } else {
-              routeName = this.$store.getters.isEnableEventExploreV2 ? 'event-explore' : 'event-retrieval';
+              routeName = 'event-explore';
             }
             this.$router.push({ name: routeName, query: {} }).finally(() => {
               this.routeViewKey = random(10);
@@ -558,7 +558,7 @@ export default class App extends tsc<object> {
   }
   handleNoticeDone() {
     // NEW_UER_GUIDE_KEY新手指引字段存储到后台
-    userConfigModal.handleSetUserConfig(NEW_USER_GUIDE_KEY, JSON.stringify(['done']));
+    userConfigModal.handleSetUserConfig(NEW_UER_GUDE_KEY, JSON.stringify(['done']));
   }
   handleHeaderNavClick(id: string) {
     this.headerNavChange = PATCH_ROUTES.includes(this.$route.name) ? true : this.headerNav !== id;
@@ -881,7 +881,7 @@ export default class App extends tsc<object> {
                         if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
                           return this.$route.name === item.id;
                         }
-                        if (this.$store.getters.eventExploreV2EnableList && item.id === 'event-explore') return true;
+                        if (item.id === 'event-explore') return true;
                         return false;
                       }
                       return true;

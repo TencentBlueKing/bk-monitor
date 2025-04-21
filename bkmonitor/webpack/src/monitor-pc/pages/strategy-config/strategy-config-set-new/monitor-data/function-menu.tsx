@@ -53,6 +53,7 @@ export interface IFunctionItem {
 interface IFunctionMenuProps {
   list: IFunctionItem[];
   isExpSupport?: boolean;
+  isMultiple?: boolean;
 }
 interface IFunctionMenuEvent {
   onFuncSelect: IFunctionItem;
@@ -62,6 +63,8 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
   @Prop({ type: Array, default: () => [] }) list: IFunctionItem[];
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
+  /** 是否支持多选 */
+  @Prop({ type: Boolean, default: true }) readonly isMultiple: boolean;
   @Ref('menuPanel') menuPanelRef: HTMLDivElement;
   activeFuncType = '';
   activeFuncId = '';
@@ -153,7 +156,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
           class='function-menu-anchor'
           on-click={this.handleClickMenuAnchor}
         >
-          {this.$slots.default || <span class='icon-monitor icon-mc-add menu-icon' />}
+          {this.$slots.default || (this.isMultiple && <span class='icon-monitor icon-mc-add menu-icon' />)}
         </div>
         <div style='display: none;'>
           <div

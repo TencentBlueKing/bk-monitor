@@ -17,8 +17,8 @@ from alarm_backends.core.cache.key import (
     MD5_TO_DIMENSION_CACHE_KEY,
     OLD_MD5_TO_DIMENSION_CACHE_KEY,
 )
-from alarm_backends.core.control.strategy import Strategy, StrategyCacheManager
-from alarm_backends.core.detect_result import CONST_MAX_LEN_CHECK_RESULT
+from alarm_backends.core.control.item import detect_result_point_required
+from alarm_backends.core.control.strategy import StrategyCacheManager
 
 DUMMY_DIMENSIONS_MD5 = "dummy_dimensions_md5"
 CLEAN_EXPIRED_ARROW_REPLACE_TIME = {"hours": -5}
@@ -125,19 +125,3 @@ class CleanResult(object):
                 if index % 5000 == 4999:
                     pipeline.execute()
         pipeline.execute()
-
-
-def detect_result_point_required(strategy) -> int:
-    """
-    检测结果需要保留多少个检测结果点
-    """
-    # 计算恢复窗口时间偏移量
-    recovery_configs = Strategy.get_recovery_configs(strategy)
-    trigger_configs = Strategy.get_trigger_configs(strategy)
-
-    point_remind = CONST_MAX_LEN_CHECK_RESULT
-    for level in trigger_configs:
-        trigger_window_size = trigger_configs[level].get("check_window_size", 5)
-        recovery_window_size = recovery_configs[level].get("check_window_size", 5)
-        point_remind = max([point_remind, (trigger_window_size + recovery_window_size) * 2])
-    return point_remind

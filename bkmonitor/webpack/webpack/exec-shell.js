@@ -1,5 +1,5 @@
-const util = require('node:util');
 const cp = require('node:child_process');
+const util = require('node:util');
 const execFile = util.promisify(cp.exec);
 const os = require('node:os');
 const platform = os.platform().toLowerCase();
@@ -40,7 +40,8 @@ const execShellFiles = async () => {
     console.log('执行完成');
   } else if (platform === 'win32') {
     if (process.env.execMode === 'install') {
-      readdirSync(srcUrl).forEach(mod => {
+      const list = readdirSync(srcUrl);
+      for (const mod of list) {
         const packageUrl = resolve(srcUrl, mod, './package.json');
         if (mod && !mod.includes('node_modules') && existsSync(packageUrl)) {
           const cmd = /^win/.test(platform) ? 'npm.cmd' : 'npm';
@@ -50,7 +51,7 @@ const execShellFiles = async () => {
             stdio: 'inherit',
           });
         }
-      });
+      }
     } else {
       console.error(`系统 【${platform}】 暂不兼容该命令`);
       process.exit(1);

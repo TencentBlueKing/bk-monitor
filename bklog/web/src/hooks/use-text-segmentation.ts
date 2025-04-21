@@ -42,6 +42,7 @@ export type WordListItem = {
   text: string;
   isMark: boolean;
   isCursorText: boolean;
+  isBlobWord?: boolean;
   startIndex?: number;
   endIndex?: number;
   left?: number;
@@ -92,7 +93,7 @@ export default class UseTextSegmentation {
 
   getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      this.handleSegmentClick(e.target, (e.target as HTMLElement).innerHTML);
+      this.handleSegmentClick(e.target, (e.target as HTMLElement).textContent);
     }
   }
 
@@ -122,6 +123,13 @@ export default class UseTextSegmentation {
     return this.options?.field;
   }
 
+  private getCellValue(target) {
+    if (typeof target === 'string') {
+      return target.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+    }
+    return target;
+  }
+
   private onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = this.clickValue;
@@ -136,7 +144,7 @@ export default class UseTextSegmentation {
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      value: this.getCellValue(target ?? currentValue),
       depth,
       isNestedField,
     };
@@ -187,11 +195,33 @@ export default class UseTextSegmentation {
     return (field?.is_virtual_obj_node ?? false) && field?.field_type === 'object';
   }
 
+  private isJSONStructure(str: string) {
+    const trimmed = str.trim();
+    const len = trimmed.length;
+    if (len === 0) return false; // 空字符串直接返回
+
+    const first = trimmed[0];
+    const last = trimmed[len - 1];
+
+    return (first === '{' && last === '}') || (first === '[' && last === ']');
+  }
+
+  private convertJsonStrToObj(str: string) {
+    if (this.isJSONStructure(str)) {
+      try {
+        return JSON.parse(str);
+      } catch (e) {
+        console.error(e);
+        return str;
+      }
+    }
+
+    return str;
+  }
+
   private convertVirtaulObjToArray() {
-    // this.options.content值为--时，直接JSON.parse会转义报错
-    const target =
-      this.options.data[this.options.field.field_name] ??
-      (['', '--'].includes(this.options.content) ? this.options.content : JSON.parse(this.options.content));
+    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
+
     const convertObjToArray = (root: object, isValue = false) => {
       const result = [];
 

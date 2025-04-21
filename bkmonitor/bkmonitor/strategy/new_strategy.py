@@ -509,6 +509,7 @@ class BaseActionRelation(AbstractConfig):
                 ActionSignal.EXECUTE,
                 ActionSignal.EXECUTE_SUCCESS,
                 ActionSignal.EXECUTE_FAILED,
+                ActionSignal.INCIDENT,
             ],
         )
         options = OptionsSerializer()
@@ -1365,6 +1366,9 @@ class QueryConfig(AbstractConfig):
         for condition in self.agg_condition:
             if condition["method"] in data_source.ADVANCE_CONDITION_METHOD:
                 has_advance_method = True
+            # 数值型字段，不需要进行聚合分组
+            if condition["method"] in ["gt", "gte", "lt", "lte", "eq", "neq"]:
+                continue
             dimensions.add(condition["key"])
 
         if has_advance_method:

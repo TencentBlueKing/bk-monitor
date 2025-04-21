@@ -59,7 +59,6 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FieldBuiltInEnum,
 )
-from apps.utils.codecs import unicode_str_decode
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -737,15 +736,6 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
         label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
 
-    def validate(self, attrs):
-        ret = super().validate(attrs)
-        if ret.get("tokenize_on_chars"):
-            try:
-                ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
-            except Exception as e:
-                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (ret["tokenize_on_chars"], e))
-        return ret
-
 
 class CollectorMetadataSerializer(serializers.Serializer):
     field_name = serializers.CharField(label=_("字段名"), required=True)
@@ -776,15 +766,6 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("元数据字段配置"),
         required=False,
     )
-
-    def validate(self, attrs):
-        ret = super().validate(attrs)
-        if ret.get("original_text_tokenize_on_chars"):
-            try:
-                ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
-            except Exception as e:
-                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (ret["original_text_tokenize_on_chars"], e))
-        return ret
 
 
 class CollectorEtlSerializer(serializers.Serializer):
@@ -1728,3 +1709,7 @@ class CollectorBatchOperationSerializer(serializers.Serializer):
 
 class ProxyHostSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+
+
+class UpdateAliasSettingsSerializers(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)

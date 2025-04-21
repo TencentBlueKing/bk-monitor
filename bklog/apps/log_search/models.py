@@ -1244,12 +1244,14 @@ class Space(SoftDeleteModel):
 
     properties = models.JSONField(_("额外属性"), default=dict)
 
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
+
     class Meta:
         verbose_name = _("空间信息")
         verbose_name_plural = _("空间信息")
 
     @classmethod
-    def get_all_spaces(cls):
+    def get_all_spaces(cls, bk_tenant_id):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -1261,9 +1263,12 @@ class Space(SoftDeleteModel):
                        space_uid,
                        space_code,
                        bk_biz_id,
+                       bk_tenant_id,
                        JSON_EXTRACT(properties, '$.time_zone') AS time_zone
                 FROM log_search_space
-            """
+                WHERE bk_tenant_id = %s
+                """,
+                (bk_tenant_id,),
             )
             columns = [col[0] for col in cursor.description]
             spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -1289,6 +1294,7 @@ class SpaceApi(AbstractSpaceApi):
             space_uid=space.space_uid,
             type_name=space.space_type_name,
             bk_biz_id=space.bk_biz_id,
+            bk_tenant_id=space.bk_tenant_id,
             extend=space.properties,
         )
 
@@ -1460,3 +1466,18 @@ class UserCustomConfig(SoftDeleteModel):
         verbose_name = _("用户自定义配置")
         verbose_name_plural = _("用户自定义配置")
         ordering = ("-updated_at",)
+
+
+class IndexSetCustomConfig(models.Model):
+    index_set_id = models.IntegerField(_("索引集ID"), null=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_hash = models.CharField("索引集哈希", max_length=32, unique=True)
+    index_set_config = models.JSONField(_("索引集自定义配置"), default=dict)
+
+    class Meta:
+        verbose_name = _("索引集自定义配置")
+        verbose_name_plural = _("索引集自定义配置")
+
+    @classmethod
+    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+        return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()

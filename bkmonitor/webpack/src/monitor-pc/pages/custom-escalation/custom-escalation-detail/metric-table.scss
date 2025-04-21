@@ -1,16 +1,27 @@
-$text-color:#313238;
-$text-secondary: #979BA5;
+$text-color: #313238;
+$text-secondary: #979ba5;
 $border-color: #d9d9d9;
+@mixin text-x-ellipsis {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .indicator-table-content {
+  height: 100%;
+
   .indicator-table-header {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
 
     .indicator-btn {
       display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       align-items: center;
 
       .header-btn {
@@ -22,7 +33,7 @@ $border-color: #d9d9d9;
         align-items: center;
         font-family: MicrosoftYaHei;
         font-size: 14px;
-        color: #4D4F56;
+        color: #4d4f56;
         letter-spacing: 0;
 
         .switcher-text {
@@ -34,7 +45,7 @@ $border-color: #d9d9d9;
           align-items: center;
           margin: 3px 12px 0;
           font-size: 12px;
-          color: #979BA5;
+          color: #979ba5;
 
           .icon-info {
             margin-right: 5px;
@@ -63,7 +74,7 @@ $border-color: #d9d9d9;
 
           .btn-name {
             font-size: 14px;
-            color: #4D4F56;
+            color: #4d4f56;
           }
 
           .icon-monitor {
@@ -75,10 +86,10 @@ $border-color: #d9d9d9;
           &.btn-disabled {
             cursor: not-allowed;
             background: #fafafa;
-            border: 1px solid #DCDEE5;
+            border: 1px solid #dcdee5;
 
             .btn-name {
-              color: #C4C6CC;
+              color: #c4c6cc;
             }
 
             .icon-monitor {
@@ -98,16 +109,18 @@ $border-color: #d9d9d9;
 
   .strategy-config-wrap {
     display: flex;
+    height: 100%;
 
     .table-box {
       flex: 1;
       min-width: 0;
-      height: 508px;
-      overflow: -moz-scrollbars-none;    /* Firefox */
+      // height: 508px;
+      height: calc(100% - 40px);
+      overflow: -moz-scrollbars-none; /* Firefox */
       overflow-y: scroll;
-      scrollbar-width: none;             /* Firefox 64+ */
-      transition: width .5s;
-      -ms-overflow-style: none;          /* IE/Edge */
+      scrollbar-width: none; /* Firefox 64+ */
+      transition: width 0.5s;
+      -ms-overflow-style: none; /* IE/Edge */
       td {
         height: 40px;
 
@@ -123,13 +136,61 @@ $border-color: #d9d9d9;
         .bk-table {
           overflow: visible;
 
-          .bk-table-body-wrapper {
+          .bk-table-body-wrapper, .bk-table-header-wrapper {
             overflow: visible;
+
+            .bk-table-header {
+              border-top: 1px solid #dfe0e5;
+            }
+
+            .bk-table-empty-block {
+              border-right: 1px solid #dfe0e5;
+              border-left: 1px solid #dfe0e5;
+            }
+
+            .bk-table-header,.bk-table-body {
+              position: relative;
+
+              &:after {
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+              }
+
+              &:before {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 2;
+                width: 1px;
+                height: 100%;
+                content: "";
+                background-color: #dfe0e5;
+              }
+            }
+          }
+
+          &.bk-table-outer-border {
+            border: none;
+
+            &:after {
+              background-color: transparent;
+            }
           }
         }
 
         .name {
-          color: #3A84FF;
+          color: #3a84ff;
+        }
+
+        .cell {
+          &:has(.table-group-box) {
+            overflow: visible;
+          }
         }
 
         .table-group-box {
@@ -163,10 +224,10 @@ $border-color: #d9d9d9;
             margin-right: 4px;
             font-size: 12px;
             line-height: 22px;
-            color: #4D4F56;
+            color: #4d4f56;
             text-align: left;
-            background: #FAFBFD;
-            border: 1px solid #DCDEE5;
+            background: #fafbfd;
+            border: 1px solid #dcdee5;
             border-radius: 2px;
 
             .icon-close {
@@ -175,8 +236,8 @@ $border-color: #d9d9d9;
           }
 
           .bk-select-overflow-tag {
-            background: #FAFBFD;
-            border: 1px solid #DCDEE5;
+            background: #fafbfd;
+            border: 1px solid #dcdee5;
 
             &.gray {
               background: #f0f1f5;
@@ -195,11 +256,12 @@ $border-color: #d9d9d9;
         .description-content {
           .description-input {
             input {
-              background-color: #FFF!important;
+              background-color: #fff !important;
               border: none;
+              @include text-x-ellipsis();
 
               &:hover {
-                background-color: #eaebf0!important;
+                background-color: #eaebf0 !important;
               }
             }
 
@@ -211,37 +273,37 @@ $border-color: #d9d9d9;
 
             &:hover {
               cursor: pointer;
-
             }
           }
         }
       }
 
       .list-pagination {
+        min-width: 673px;
         padding: 14px 16px;
         margin-top: -1px;
         border: 1px solid #dfe0e5;
 
         .page-button {
-          color: #4D4F56;
+          color: #4d4f56;
           background-color: #fff;
           border: none;
 
           .bk-icon {
-            color: #979BA5;
+            color: #979ba5;
           }
         }
 
         .disabled {
           .bk-icon {
-            color: #DCDEE5;
+            color: #dcdee5;
           }
         }
 
         .cur-page {
           .page-button {
-            color: #3A84FF;
-            background-color: #E1ECFF;
+            color: #3a84ff;
+            background-color: #e1ecff;
           }
         }
 
@@ -269,12 +331,12 @@ $border-color: #d9d9d9;
           }
         }
       }
-
     }
 
     .detail {
-      background: #F5F7FA;
-      border: 1px solid #DCDEE5;
+      height: calc(100% - 40px);
+      background: #f5f7fa;
+      border: 1px solid #dcdee5;
       border-left: none;
 
       .metric-card {
@@ -290,7 +352,7 @@ $border-color: #d9d9d9;
           .icon-mc-close {
             width: 14px;
             font-size: 26px;
-            color:#979BA5;
+            color: #979ba5;
 
             &:hover {
               cursor: pointer;
@@ -331,9 +393,34 @@ $border-color: #d9d9d9;
               color: $text-color;
               word-break: break-word;
 
+              .metric-func-selector-add {
+                width: 100%;
+
+                .func-label {
+                  display: none;
+                }
+
+                .function-menu-anchor,
+                .func-item {
+                  margin-top: -5px;
+                  border-color: #e9eaeb;
+                }
+
+                .function-menu-anchor,
+                .init-add {
+                  width: 100%;
+                }
+
+                .init-add-input {
+                  width: 100%;
+                  background: transparent;
+                  border: none;
+                }
+              }
+
               &:hover:not(.readonly) {
                 cursor: pointer;
-                background: #EAEBF0;
+                background: #eaebf0;
                 border-radius: 2px;
               }
 
@@ -346,6 +433,7 @@ $border-color: #d9d9d9;
               .group-list {
                 position: absolute;
                 top: 0;
+                left: 0;
                 display: flex;
                 width: 100%;
                 padding: 0;
@@ -391,10 +479,10 @@ $border-color: #d9d9d9;
                   margin-right: 4px;
                   font-size: 12px;
                   line-height: 22px;
-                  color: #4D4F56;
+                  color: #4d4f56;
                   text-align: left;
-                  background: #FAFBFD;
-                  border: 1px solid #DCDEE5;
+                  background: #fafbfd;
+                  border: 1px solid #dcdee5;
                   border-radius: 2px;
 
                   .icon-close {
@@ -403,8 +491,8 @@ $border-color: #d9d9d9;
                 }
 
                 .bk-select-overflow-tag {
-                  background: #FAFBFD;
-                  border: 1px solid #DCDEE5;
+                  background: #fafbfd;
+                  border: 1px solid #dcdee5;
 
                   &.gray {
                     background: #f0f1f5;
@@ -425,7 +513,7 @@ $border-color: #d9d9d9;
                 overflow: hidden;
 
                 &:hover {
-                  background-color: #EAEBF0;
+                  background-color: #eaebf0;
                 }
 
                 .table-group-tags {
@@ -441,11 +529,11 @@ $border-color: #d9d9d9;
                     margin-right: 4px;
                     font-size: 12px;
                     line-height: 22px;
-                    color: #4D4F56;
+                    color: #4d4f56;
                     text-align: left;
                     white-space: nowrap;
-                    background: #FAFBFD;
-                    border: 1px solid #DCDEE5;
+                    background: #fafbfd;
+                    border: 1px solid #dcdee5;
                     border-radius: 2px;
                   }
                 }
@@ -487,11 +575,15 @@ $border-color: #d9d9d9;
                   padding: 1px 8px;
                   margin-right: 4px;
                   line-height: 22px;
-                  color: #4D4F56;
-                  background-color: #EAEBF0;
+                  color: #4d4f56;
+                  background-color: #eaebf0;
                   border-radius: 2px;
                 }
               }
+            }
+
+            .info-text {
+              @include text-x-ellipsis();
             }
 
             .switcher-btn {
@@ -499,7 +591,20 @@ $border-color: #d9d9d9;
             }
 
             .unit-content {
-              width: 100%;
+              width: 40%;
+
+              .input-popover .bk-form-input {
+                background-color: #f0f1f5 !important;
+                border: none;
+              }
+
+              .cycle-unit-popover {
+                margin-top: 1.5px;
+
+                .cycle-unit {
+                  border-color: #e9eaeb;
+                }
+              }
             }
 
             .dimension-content {
@@ -576,14 +681,13 @@ $border-color: #d9d9d9;
             }
           }
         }
-
       }
     }
   }
 }
 
 .bk-tooltip-content {
-  color: #4D4F56;
+  color: #4d4f56;
 
   .edit-group-manage {
     text-align: center;
@@ -591,12 +695,18 @@ $border-color: #d9d9d9;
     .icon-jia {
       margin-right: 5px;
       font-size: 13px;
-      color: #979BA5;
+      color: #979ba5;
     }
   }
 }
 
-.header-select-btn-popover, .header-select-popover, {
+.header-select-btn-popover,
+.header-select-popover {
+  .mh-300 {
+    max-height: 300px;
+    overflow: scroll;
+  }
+
   .header-select-list {
     display: flex;
     flex-direction: column;
@@ -613,12 +723,12 @@ $border-color: #d9d9d9;
       align-items: center;
       width: 100px;
       padding: 0 11px;
-      color: #63656E;
+      color: #63656e;
 
       &:hover {
-        color: #4D4F56;
+        color: #4d4f56;
         cursor: pointer;
-        background: #F5F7FA;
+        background: #f5f7fa;
       }
 
       &.disabled {
@@ -631,7 +741,7 @@ $border-color: #d9d9d9;
 
 .render-header-hidden-popover {
   .bk-tooltip-content {
-    color: #FFF;
+    color: #fff;
   }
 }
 
@@ -639,7 +749,7 @@ $border-color: #d9d9d9;
   .bk-tooltip {
     .icon-info-circle {
       margin-left: 2px;
-      color: #979BA5;
+      color: #979ba5;
 
       &:hover {
         cursor: pointer;

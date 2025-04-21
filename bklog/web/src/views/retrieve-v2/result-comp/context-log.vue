@@ -563,7 +563,7 @@
       display: flex;
       flex-flow: column;
       justify-content: space-between;
-      height: 56px;
+      // height: 56px;
 
       .icon {
         font-size: 24px;

@@ -327,18 +327,7 @@ class ChartHandler(object):
             return additional_where_clause
 
         if sql_param:
-            pattern = (
-                r"^\s*?(SELECT\s+?.+?)"
-                r"(?:\bFROM\b.+?)?"
-                r"(?:\bWHERE\b.+?)?"
-                r"(\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
-            )
-            matches = re.match(pattern, sql_param, re.DOTALL | re.IGNORECASE)
-            final_sql = matches.group(1)
-            if sql:
-                final_sql += f"WHERE {sql}"
-            if matches.group(2):
-                final_sql += f" {matches.group(2)}"
+            final_sql = sql_param
         else:
             final_sql = f"{SQL_PREFIX} {SQL_SUFFIX}"
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}

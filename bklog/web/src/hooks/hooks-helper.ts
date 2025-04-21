@@ -123,15 +123,30 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
 
   if (processedLength < str.length) {
     const remaining = str.slice(processedLength);
-    const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
 
-    for (let i = 0; i < chunkCount; i++) {
-      tokens.push({
-        text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-        isMark: false,
-        isCursorText: false,
-        isBlobWord: true,
-      });
+    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
+    for (const segment of segments) {
+      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
+      const isMark = MARK_REGEX.test(segment);
+      const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
+
+      if (isMark) {
+        tokens.push({
+          text: segment.replace(MARK_REGEX, '$1'),
+          isMark: true,
+          isCursorText: false,
+          isBlobWord: false,
+        });
+      } else {
+        for (let i = 0; i < chunkCount; i++) {
+          tokens.push({
+            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+            isMark: false,
+            isCursorText: false,
+            isBlobWord: false,
+          });
+        }
+      }
     }
   }
 
@@ -159,7 +174,7 @@ export const setScrollLoadCell = (
   const defaultRenderFn = (item: any) => {
     const child = document.createElement('span');
     child.classList.add('item-text');
-    child.innerText = item?.text ?? 'text';
+    child.textContent = item?.text?.length ? item.text : "''";
     return child;
   };
 
@@ -178,7 +193,7 @@ export const setScrollLoadCell = (
   };
 
   const appendPageItems = (size?) => {
-    if (startIndex >= wordList.length) {
+    if (startIndex > wordList.length) {
       requestAnimationFrame(appendLastTag);
       startIndex = wordList.length;
       return false;
@@ -197,20 +212,21 @@ export const setScrollLoadCell = (
     return true;
   };
 
-  const handleScrollEvent = debounce(() => {
-    if (rootElement) {
-      const { offsetHeight, scrollHeight } = rootElement;
-      const { scrollTop } = rootElement;
-      if (scrollHeight - offsetHeight - scrollTop < 60) {
-        startIndex = startIndex + pageSize;
-        appendPageItems();
+  const handleScrollEvent = next =>
+    debounce(() => {
+      if (rootElement) {
+        const { offsetHeight, scrollHeight } = rootElement;
+        const { scrollTop } = rootElement;
+        if (scrollHeight - offsetHeight - scrollTop < 60) {
+          appendPageItems();
+          next?.();
+        }
       }
-    }
-  });
+    });
 
-  const addScrollEvent = () => {
+  const addScrollEvent = (next?) => {
     scrollEvtAdded = true;
-    rootElement?.addEventListener('scroll', handleScrollEvent);
+    rootElement?.addEventListener('scroll', handleScrollEvent(next));
   };
 
   const removeScrollEvent = () => {
@@ -222,16 +238,17 @@ export const setScrollLoadCell = (
    * 初始化列表
    * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
    */
-  const setListItem = (size?) => {
+  const setListItem = (size?, next?) => {
     if (appendPageItems(size)) {
       requestAnimationFrame(() => {
         if (rootElement) {
           const { offsetHeight, scrollHeight } = rootElement;
           if (offsetHeight * 1.2 > scrollHeight) {
-            setListItem();
+            setListItem(undefined, next);
           } else {
+            next?.();
             if (!scrollEvtAdded) {
-              addScrollEvent();
+              addScrollEvent(next);
             }
           }
         }

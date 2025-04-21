@@ -94,9 +94,12 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
       this.renderMetricsList = Object.freeze(
         this.metricsList.map(metricsItem => ({
           ...metricsItem,
-          dimensions: _.filter(metricsItem.dimensions, item =>
-            item.name.toLocaleLowerCase().includes(this.filterKey.toLocaleLowerCase())
-          ),
+          dimensions: _.filter(metricsItem.dimensions, item => {
+            const filterKey = this.filterKey.toLocaleLowerCase();
+            return (
+              item.name.toLocaleLowerCase().includes(filterKey) || item.alias.toLocaleLowerCase().includes(filterKey)
+            );
+          }),
         }))
       );
     }, 300);
@@ -225,7 +228,8 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
                     }}
                     onClick={() => this.handleChange(dimesionItem.name)}
                   >
-                    {dimesionItem.name}
+                    {dimesionItem.alias || dimesionItem.name}
+                    {dimesionItem.alias && <span class='dimension-name'>{dimesionItem.name}</span>}
                   </div>
                 ))}
               </div>
