@@ -894,28 +894,36 @@ class ImportConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         uuid_list = serializers.ListField(required=True, label="配置的uuid")
         import_history_id = serializers.IntegerField(required=False, label="导入历史ID")
-        is_overwrite_mode = serializers.BooleanField(required=False, label="是否覆盖", default=False)
+        # 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
+        # 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
+        is_overwrite_mode = serializers.BooleanField(required=False, label="是否覆盖同名的策略、告警组、处理套餐", default=False)
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
         self.uuid_list = validated_request_data["uuid_list"]
         import_history_id = validated_request_data.get("import_history_id", "")
         bk_biz_id = validated_request_data["bk_biz_id"]
+
+        # 校验解析文件有效性
         parse_instances = ImportParse.objects.filter(uuid__in=self.uuid_list, file_status=ImportDetailStatus.SUCCESS)
         if not parse_instances:
             raise ImportConfigError({"msg": _("没有找到对应的解析文件内容")})
 
         parse_ids = [parse_obj.id for parse_obj in parse_instances]
         if import_history_id:
+            # 校验已有导入历史记录
             self.import_history_instance = ImportHistory.objects.filter(
                 id=import_history_id, bk_biz_id=bk_biz_id
             ).first()
             if not self.import_history_instance:
                 raise ImportHistoryNotExistError
+
+            # 获取需要重新导入的配置（排除已成功/正在导入的）
             all_config_list = ImportDetail.objects.filter(
                 history_id=self.import_history_instance.id, parse_id__in=parse_ids
             ).exclude(import_status__in=[ImportDetailStatus.SUCCESS, ImportDetailStatus.IMPORTING])
         else:
+            # 创建新的导入历史记录和详情记录
             self.import_history_instance = ImportHistory.objects.create(
                 status=ImportHistoryStatus.IMPORTING, bk_biz_id=bk_biz_id
             )

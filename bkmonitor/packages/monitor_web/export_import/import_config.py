@@ -212,6 +212,12 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
 
 
 def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is_overwrite_mode=False):
+    """
+    :param is_overwrite_mode:  是否覆盖，默认为False。
+        - 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
+        - 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
+    :return:
+    """
     # 已导入的采集配置，原有ID与创建ID映射，用于更改策略配置的监控条件中关联采集配置
     import_collect_configs = ImportDetail.objects.filter(
         type=ConfigType.COLLECT, history_id=import_history_instance.id, import_status=ImportDetailStatus.SUCCESS
