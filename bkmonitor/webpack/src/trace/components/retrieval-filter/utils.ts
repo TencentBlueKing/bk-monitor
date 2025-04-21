@@ -187,7 +187,7 @@ export const DURATION_FIELD_KEY = 'duration';
 export const traceWhereFormatter = (where: IWhereItem[]) => {
   return where.map(item => ({
     key: item.key,
-    method: item.operator,
+    method: item?.operator || item?.method || '',
     value: item.value,
     condition: ECondition.and,
   })) as IWhereItem[];
