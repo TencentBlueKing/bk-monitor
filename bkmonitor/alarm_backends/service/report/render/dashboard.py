@@ -129,6 +129,9 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
         await page.setViewport({"width": config.width, "height": heights["scroll"], "deviceScaleFactor": config.scale})
         content_selector = "div.react-grid-layout"
 
+    if config.transparent:
+        await page.evaluate("document.body.style.setProperty('background-color', 'transparent', 'important');")
+
     # 等待2秒，等待图表渲染动画完成
     time.sleep(2)
 
