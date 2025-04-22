@@ -42,10 +42,10 @@ type_match_phrase = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_prefix = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_query = Dict[str, Dict[str, Dict[str, Any]]]  # pylint: disable=invalid-name
 type_should_list = List[type_match_phrase]  # pylint: disable=invalid-name
-type_prefix_match_should_list = List[type_match_phrase_prefix]  # pylint: disable=invalid-name
+type_should_list_match_prefix = List[type_match_phrase_prefix]  # pylint: disable=invalid-name
 type_should = Dict[str, type_should_list]  # pylint: disable=invalid-name
 type_filter_list = List[type_match_phrase]  # pylint: disable=invalid-name
-type_prefix_match_filter_list = List[type_match_phrase_prefix]  # pylint: disable=invalid-name
+type_filter_list_match_prefix = List[type_match_phrase_prefix]  # pylint: disable=invalid-name
 type_filter = Dict[str, type_filter_list]  # pylint: disable=invalid-name
 type_bool = Dict[str, type_should]  # pylint: disable=invalid-name
 type_query_string = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
@@ -168,7 +168,7 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
-    def build_prefix_match_should_list(cls, field: str, value_list: List[Any]) -> type_prefix_match_should_list:
+    def build_should_list_match_prefix(cls, field: str, value_list: List[Any]) -> type_should_list_match_prefix:
         should_list: type_should_list = []
         for item in value_list:
             match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
@@ -198,7 +198,7 @@ class EsQueryBuilder(object):
         return filter_list
 
     @classmethod
-    def build_prefix_match_filter_list(cls, field: str, value_list: List[Any]) -> type_prefix_match_filter_list:
+    def build_prefix_match_filter_list(cls, field: str, value_list: List[Any]) -> type_filter_list_match_prefix:
         filter_list: type_filter_list = []
         for item in value_list:
             match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
@@ -281,6 +281,9 @@ class BoolQueryOperation(ABC):
             AllEqWildcard.OPERATOR: AllEqWildcard,
             AllNeWildcard.OPERATOR: AllNeWildcard,
             ContainsMatchPhrasePrefix.OPERATOR: ContainsMatchPhrasePrefix,
+            NotContainsMatchPhrasePrefix.OPERATOR: NotContainsMatchPhrasePrefix,
+            AllContainsMatchPhrasePrefix.OPERATOR: AllContainsMatchPhrasePrefix,
+            AllNotContainsMatchPhrasePrefix.OPERATOR: AllNotContainsMatchPhrasePrefix,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
@@ -649,7 +652,7 @@ class ContainsMatchPhrasePrefix(IsOneOf):
     OPERATOR = "contains match phrase prefix"
 
     def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_prefix_match_should_list(field["field"], field["value"])
+        should_list: type_should_list = EsQueryBuilder.build_should_list_match_prefix(field["field"], field["value"])
         should: type_should = EsQueryBuilder.build_should(should_list)
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
@@ -660,7 +663,7 @@ class NotContainsMatchPhrasePrefix(IsNotOneOf):
     OPERATOR = "not contains match phrase prefix"
 
     def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_prefix_match_should_list(field["field"], field["value"])
+        should_list: type_should_list = EsQueryBuilder.build_should_list_match_prefix(field["field"], field["value"])
         should: type_should = EsQueryBuilder.build_should(should_list)
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
