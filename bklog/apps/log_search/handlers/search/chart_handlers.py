@@ -116,12 +116,6 @@ class ChartHandler(object):
     @classmethod
     def lucene_to_where_clause(cls, lucene_query):
         # 解析 Lucene 查询
-        # from ply.lex import Lexer
-        # lexer = lex.lexer
-        # query_tree = parser.parse(lucene_query, lexer=lexer)
-        # query_tree = parser.parse(lucene_query, lexer=Lexer())
-        # print("parser的真实来源2", parser.__module__)  # 显示parser的真实来源
-        # print("parser的真实来源2", parser.__dict__)  # 显示parser的真实来源
         query_tree = parse(lucene_query)
 
         # 递归遍历语法树并生成 SQL WHERE 子句
