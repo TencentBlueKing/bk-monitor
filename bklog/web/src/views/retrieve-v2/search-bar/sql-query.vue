@@ -337,7 +337,14 @@
             color: #b17313;
 
             .ͼb {
+              font-weight: 700;
               color: #7c609e;
+            }
+
+            .cm-not-keyword{
+              .ͼb {
+                color: #d84a57;
+              }
             }
 
             .ͼi,

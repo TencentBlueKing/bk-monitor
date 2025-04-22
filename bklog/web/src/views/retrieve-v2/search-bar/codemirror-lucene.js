@@ -25,13 +25,31 @@
  */
 import { sql } from '@codemirror/lang-sql';
 import { EditorState, EditorSelection } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
-import { EditorView, minimalSetup } from 'codemirror';
+import { keymap, EditorView, Decoration } from '@codemirror/view';
+import { minimalSetup } from 'codemirror';
 import { debounce } from 'lodash';
+
+const notKeywordDecorator = Decoration.mark({
+  class: 'cm-not-keyword', // 这将添加一个cm-not-keyword类名
+});
+
+function highlightNotKeywords() {
+  return EditorView.decorations.of(view => {
+    const decorations = [];
+    const text = view.state.doc.toString();
+    const regex = /\bNOT\b/g;
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      decorations.push(notKeywordDecorator.range(match.index, match.index + match[0].length));
+    }
+
+    return Decoration.set(decorations);
+  });
+}
 
 export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
   // 键盘操作事件处理函数
-  // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
     key: keymap,
     run: () => {
@@ -58,6 +76,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       ]),
       minimalSetup,
       sql(),
+      highlightNotKeywords(), // 添加自定义高亮扩展
       EditorView.lineWrapping,
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
