@@ -33,3 +33,10 @@ class IncidentEntityNotFoundError(Error):
     code = 3336003
     name = _("实体ID不在当前图谱中")
     message_tpl = _("实体ID ({entity_id}) 不在当前图谱中")
+
+
+class IncidentEntityParentError(Error):
+    status_code = 500
+    code = 3336004
+    name = _("实体从属父节点超过1个，请检查图谱是否正常")
+    message_tpl = _("实体从属父节点超过1个，请检查图谱是否正常")
