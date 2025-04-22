@@ -37,6 +37,8 @@ class RenderDashboardConfig:
     image_format: str = "jpeg"
     # 图片质量，默认85，范围0-100
     image_quality: int = 85
+    # 是否透明背景，默认False
+    transparent: bool = False
 
 
 def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False):
@@ -137,7 +139,9 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     target = await page.querySelector(content_selector)
     if not target:
         raise CustomError(message="screenshot target not found")
-    image = await target.screenshot(type=config.image_format, quality=config.image_quality)
+    image = await target.screenshot(
+        type=config.image_format, quality=config.image_quality, omitBackground=config.transparent
+    )
 
     # 关闭页面
     try:
