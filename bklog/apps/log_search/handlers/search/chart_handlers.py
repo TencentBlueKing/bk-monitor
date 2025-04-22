@@ -26,7 +26,7 @@ from typing import List
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
-from luqum.parser import parser
+from luqum.thread import parse
 from luqum.tree import (
     AndOperation,
     FieldGroup,
@@ -116,7 +116,13 @@ class ChartHandler(object):
     @classmethod
     def lucene_to_where_clause(cls, lucene_query):
         # 解析 Lucene 查询
-        query_tree = parser.parse(lucene_query)
+        # from ply.lex import Lexer
+        # lexer = lex.lexer
+        # query_tree = parser.parse(lucene_query, lexer=lexer)
+        # query_tree = parser.parse(lucene_query, lexer=Lexer())
+        # print("parser的真实来源2", parser.__module__)  # 显示parser的真实来源
+        # print("parser的真实来源2", parser.__dict__)  # 显示parser的真实来源
+        query_tree = parse(lucene_query)
 
         # 递归遍历语法树并生成 SQL WHERE 子句
         def build_condition(node):
@@ -525,30 +531,22 @@ class SQLChartHandler(ChartHandler):
         ignore_case = False
         if grep_query and grep_field:
             # 加上 grep 查询条件
-            try:
-                grep_syntax_list = grep_parser(grep_query)
-                grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
-                if grep_where_clause:
-                    use_not = False
-                    ignore_case = False
-                    for arg in grep_syntax_list[-1]["args"]:
-                        if "v" in arg:
-                            use_not = True
-                        if "i" in arg:
-                            ignore_case = True
-                    if not use_not:
-                        pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
-                        if ignore_case:
-                            pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
-                        pattern = pattern.strip("'")
-                    where_clause += f" AND {grep_where_clause}"
-            finally:
-                # PLY (Python Lex-Yacc) 和 luqum.parser 在全局状态管理上存在冲突。 这里重新加载luqum的parser模块解决冲突
-                from importlib import reload
-
-                from luqum import parser as luqum_parser_module
-
-                reload(luqum_parser_module)
+            grep_syntax_list = grep_parser(grep_query)
+            grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
+            if grep_where_clause:
+                use_not = False
+                ignore_case = False
+                for arg in grep_syntax_list[-1]["args"]:
+                    if "v" in arg:
+                        use_not = True
+                    if "i" in arg:
+                        ignore_case = True
+                if not use_not:
+                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
+                    if ignore_case:
+                        pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
+                    pattern = pattern.strip("'")
+                where_clause += f" AND {grep_where_clause}"
 
         # 加上分页条件
         where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"

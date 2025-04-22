@@ -1,5 +1,5 @@
-import ply.lex as lex
-import ply.yacc as yacc
+from luqum.thread import thread_local
+from ply import lex, yacc
 
 from apps.exceptions import GrepParseError
 from apps.utils.log import logger
@@ -168,6 +168,6 @@ parser = yacc.yacc()
 
 
 def grep_parser(input_string):
-    # 克隆 lexer
-    local_lexer = get_base_lexer().clone()
-    return parser.parse(input_string, lexer=local_lexer)
+    if not hasattr(thread_local, "local_lexer"):
+        thread_local.local_lexer = get_base_lexer().clone()
+    return parser.parse(input_string, lexer=thread_local.local_lexer)
