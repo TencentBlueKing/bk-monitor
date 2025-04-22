@@ -34,7 +34,7 @@
   });
 
   const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
-
+  const isExternal = computed(() => window.IS_EXTERNAL === true);
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
@@ -121,6 +121,7 @@
     <div
       class="btn-alert-policy"
       @click="handleAddAlertPolicy"
+      v-if="!isExternal"
     >
       <span
         class="bklog-icon bklog--celve"

@@ -326,4 +326,5 @@ export default {
   '该字段类型，暂时不支持统计分析': 'This field type does not currently support statistical analysis',
   '新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看':
     'New version event search has not fully covered the old version features yet. If needed, you can switch to the old version to view them',
+  布尔: 'Boolean',
 };
