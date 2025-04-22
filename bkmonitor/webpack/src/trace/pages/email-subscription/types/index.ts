@@ -117,6 +117,7 @@ export interface IColumn {
   width?: number | string;
   filter?: { label: string; value: number | string }[];
   sortable?: boolean;
+  minWidth?: number;
 }
 
 export interface ITable {

@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, reactive, watch } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Table, TableColumn } from '@blueking/table';
 import {
   Button,
   Dialog,
@@ -55,6 +55,7 @@ import {
 } from 'monitor-api/modules/new_report';
 import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
+import { PrimaryTable, type SortInfo, type TableProps, type FilterValue } from 'tdesign-vue-next';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -65,8 +66,6 @@ import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
 import { FrequencyType, type ITable, type TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
-
-import type { Column } from 'bkui-vue/lib/table/props';
 
 import './email-subscription-config.scss';
 
@@ -93,22 +92,22 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     // 查询订阅列表 相关参数 开始
-    const createType = ref<'manager' | 'self' | 'user'>('manager');
-    const queryType = ref<'all' | 'available' | 'invalid'>('all');
-    const queryTypeForSelf = ref<'all' | 'FAILED' | 'RUNNING' | 'SUCCESS'>('all');
-    const searchKey = ref('');
-    const page = ref(1);
-    const pageSize = ref(20);
-    const order = ref('');
-    const conditions = ref([]);
+    const createType = shallowRef<'manager' | 'self' | 'user'>('manager');
+    const queryType = shallowRef<'all' | 'available' | 'invalid'>('all');
+    const queryTypeForSelf = shallowRef<'all' | 'FAILED' | 'RUNNING' | 'SUCCESS'>('all');
+    const searchKey = shallowRef('');
+    const page = shallowRef(1);
+    const pageSize = shallowRef(20);
+    const order = shallowRef('');
+    const conditions = shallowRef([]);
     // 查询订阅列表 相关参数 结束
-    const totalReportSize = ref(0);
+    const totalReportSize = shallowRef(0);
     // 控制 订阅列表 中多个 tooltips 的显隐
     const toggleMap = reactive<TooltipsToggleMapping>({});
     // 显示 发送记录 的 dialog
-    const isShowSendRecord = ref(false);
-    const isShowCreateSubscription = ref(false);
-    const navList = ref([
+    const isShowSendRecord = shallowRef(false);
+    const isShowCreateSubscription = shallowRef(false);
+    const navList = shallowRef([
       {
         id: 'report',
         name: t('订阅配置'),
@@ -120,8 +119,8 @@ export default defineComponent({
       FAILED: t('未通过'),
       SUCCESS: t('已通过'),
     };
-    const isSelfMode = ref(false);
-    const isTableLoading = ref(false);
+    const isSelfMode = shallowRef(false);
+    const isTableLoading = shallowRef(false);
     const table = reactive<ITable>({
       data: [],
       columns: [
@@ -207,7 +206,7 @@ export default defineComponent({
         size: 'small',
       },
     });
-    const emptyType = ref('empty');
+    const emptyType = shallowRef('empty');
     // 根据 table 字段生成对应的字段显隐 setting
     table.settings.fields = table.columns.map(item => {
       return {
@@ -286,23 +285,27 @@ export default defineComponent({
 
     // 发送记录 里控制多个 tooltips 的显隐
     const toggleMapForSendRecord = reactive<TooltipsToggleMapping>({});
-    const sendRecordTable = reactive({
+    const sendRecordTable = reactive<{
+      data: any[];
+      columns: TableProps['columns'];
+      isLoading: boolean;
+    }>({
       data: [],
       columns: [
         {
-          label: `${t('发送时间')}`,
-          field: 'send_time',
-          render: ({ data }) => {
+          title: `${t('发送时间')}`,
+          colKey: 'send_time',
+          cell: (_, { row: data }) => {
             return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
           },
         },
         {
-          label: `${t('类型')}`,
-          render: ({ data }) => <span>{t(ChannelName[data.channel_name])}</span>,
+          title: `${t('类型')}`,
+          cell: (_, { row: data }) => <span>{t(ChannelName[data.channel_name])}</span>,
         },
         {
-          label: `${t('接收人')}`,
-          render: ({ data }) => {
+          title: `${t('接收人')}`,
+          cell: (_, { row: data }) => {
             const content = data.send_results.map(item => item.id).toString();
             return (
               <span
@@ -315,8 +318,8 @@ export default defineComponent({
           },
         },
         {
-          label: `${t('发送结果')}`,
-          render: ({ data }) => {
+          title: `${t('发送结果')}`,
+          cell: (_, { row: data }) => {
             return (
               <span>
                 <i class={['icon-circle', data.send_status]} />
@@ -336,10 +339,11 @@ export default defineComponent({
               </span>
             );
           },
+          colKey: 'send_status',
         },
         {
-          label: `${t('操作')}`,
-          render: ({ data, index }) => {
+          title: `${t('操作')}`,
+          cell: (_, { row: data, rowIndex: index }) => {
             return (
               <Popover
                 extCls='email-subscription-popover'
@@ -485,34 +489,35 @@ export default defineComponent({
               </Popover>
             );
           },
+          colKey: 'action',
         },
       ],
       isLoading: false,
     });
 
     // 显隐 订阅详情 抽屉组件
-    const isShowSubscriptionDetailSideslider = ref(false);
+    const isShowSubscriptionDetailSideslider = shallowRef(false);
     // 显隐 编辑订阅 抽屉组件
-    const isShowEditSideslider = ref(false);
+    const isShowEditSideslider = shallowRef(false);
 
     // 显隐 测试发送 的 dropdownMenu 组件
-    const isShowDropdownMenu = ref(false);
+    const isShowDropdownMenu = shallowRef(false);
     // 测试发送 是否loading
-    const isSending = ref(false);
+    const isSending = shallowRef(false);
     // 子组件 里面是大表单
-    const refOfCreateSubscriptionForm = ref();
+    const refOfCreateSubscriptionForm = shallowRef();
     // 是否显示 测试发送 完成后的弹窗
-    const isShowTestSendResult = ref(false);
+    const isShowTestSendResult = shallowRef(false);
     // 订阅详情 数据，这个数据是来源于 订阅列表 里，该列表是带有详情的，不需要再请求即可获得。
-    const subscriptionDetail = ref(getDefaultReportData());
+    const subscriptionDetail = shallowRef(getDefaultReportData());
 
     // 发送记录 里 重新发送 的 loading
-    const isResending = ref(false);
+    const isResending = shallowRef(false);
     // 点击相同索引集警告中的 订阅名称 ，加载其它订阅详情的 loading
-    const isFetchReport = ref(false);
+    const isFetchReport = shallowRef(false);
     // checkNeedShowEditSlider() 对应的变量。 以免太早显示编辑态触发了表单内部的api请求（要根据该方法获取 scenario 变量才能去调用。）
-    const isShowCreateReportFormComponent = ref(true);
-    const isShowHeaderNav = ref(true);
+    const isShowCreateReportFormComponent = shallowRef(true);
+    const isShowHeaderNav = shallowRef(true);
 
     function handleGoToCreateConfigPage() {
       router.push({
@@ -833,16 +838,16 @@ export default defineComponent({
       return ['manager', 'user'].includes(createType.value);
     });
 
-    const filterConfig = reactive({
-      key: '',
-      value: [],
-    });
+    const filterConfig = shallowRef<FilterValue>({});
 
     const computedTableDataForSelf = computed(() => {
       return tableForSelf.data
         .filter(item => {
-          if (filterConfig.key) return filterConfig.value.includes(item[filterConfig.key]);
-          return item;
+          const entries = Object.entries(filterConfig.value || {});
+          if (!entries.length) return true;
+          return entries.every(([key, valList]) => {
+            return valList.includes(item[key]);
+          });
         })
         .filter(item => {
           return item.content_title.includes(searchKey.value) || item.create_user.includes(searchKey.value);
@@ -1275,139 +1280,124 @@ export default defineComponent({
           {/* 头部搜索 部分 */}
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
-            <Table
+            <PrimaryTable
               style='margin-top: 16px;background-color: white;'
               v-show={this.isManagerOrUser}
+              v-slots={{
+                empty: () => (
+                  <EmptyStatus
+                    type={this.emptyType}
+                    onOperation={this.handleEmptyOperation}
+                  />
+                ),
+              }}
+              columnController={{
+                placement: 'top-right',
+                buttonProps: {
+                  content: '',
+                  size: 'small',
+                },
+                hideTriggerButton: true,
+              }}
+              columns={this.table.columns.map(item => {
+                return {
+                  colKey: item.field,
+                  width: item.width,
+                  filter: item.filter?.length
+                    ? {
+                        list: item.filter,
+                        type: 'multiple',
+                        showConfirmAndReset: true,
+                      }
+                    : undefined,
+                  minWidth: item?.minWidth,
+                  sorter: item.sortable,
+                  ellipsis: true,
+                  title: item.label,
+                  cell: (_, ctx) => this.handleSetFormat(ctx, item.field),
+                };
+              })}
               pagination={{
                 current: this.page,
-                limit: this.pageSize,
-                count: this.totalReportSize,
-                onChange: (pageNum: number) => {
-                  this.page = pageNum;
-                  this.fetchSubscriptionList();
-                },
-                onLimitChange: (limit: number) => {
-                  this.page = 1;
-                  this.pageSize = limit;
-                  this.fetchSubscriptionList();
-                },
+                pageSize: this.pageSize,
+                total: this.totalReportSize,
+              }}
+              sort={{
+                sortBy: this.order?.replace(/^-/, '') || '',
+                descending: this.order?.startsWith('-') || false,
               }}
               data={this.table.data}
               settings={this.table.settings}
               showSettings={true}
-              remote-pagination
-              onColumnFilter={({ checked, column }) => {
-                let currentIndex = -1;
-                const result = this.conditions.filter((item, index) => {
-                  if (item.key === column.field) {
-                    currentIndex = index;
-                    return item;
-                  }
-                  return false;
-                });
-                if (result.length) {
-                  if (checked.length) {
-                    this.conditions[currentIndex].value = checked;
-                  } else {
-                    this.conditions.splice(currentIndex, 1);
-                  }
-                } else {
-                  if (checked.length) {
-                    this.conditions.push({
-                      key: column.field,
-                      value: checked,
+              showSortColumnBgColor={true}
+              onFilterChange={(filters: TableProps['filterValue']) => {
+                const conditions = [];
+                for (const [key, selected] of Object.entries(filters)) {
+                  selected?.length &&
+                    conditions.push({
+                      key,
+                      value: selected,
                     });
-                  }
                 }
+                this.conditions = conditions;
                 this.page = 1;
+                this.fetchSubscriptionList();
+              }}
+              onPageChange={(pageInfo: TableProps['pagination']) => {
+                this.page = pageInfo.current;
+                this.pageSize = pageInfo.pageSize;
                 this.fetchSubscriptionList();
               }}
               onSettingChange={({ checked, size }) => {
                 this.table.settings.size = size;
                 window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
               }}
-              onSortChange={({ field, order }) => {
-                if (order !== null) {
-                  this.order = `${order === 'asc' ? '' : '-'}${field}`;
+              onSortChange={(sort: SortInfo) => {
+                if (sort) {
+                  this.order = `${!sort.descending ? '' : '-'}${sort.sortBy}`;
                 } else {
                   this.order = '';
                 }
                 this.fetchSubscriptionList();
               }}
-            >
-              {{
+            />
+            <PrimaryTable
+              style='margin-top: 16px;background-color: white;'
+              v-show={this.createType === 'self'}
+              v-slots={{
                 empty: () => (
                   <EmptyStatus
                     type={this.emptyType}
                     onOperation={this.handleEmptyOperation}
                   />
                 ),
-                default: () =>
-                  this.table.columns.map(item => (
-                    <TableColumn
-                      key={`manage_table_${item.field}`}
-                      width={item.width}
-                      field={item.field}
-                      filterMultiple={true}
-                      filters={item.filter}
-                      minWidth={item.minWidth}
-                      sortable={item.sortable}
-                      title={item.label}
-                      show-overflow
-                    >
-                      {{
-                        default: row => this.handleSetFormat(row, item.field),
-                      }}
-                    </TableColumn>
-                  )),
               }}
-            </Table>
-            <Table
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.createType === 'self'}
+              columns={this.tableForSelf.columns.map(item => ({
+                colKey: item.field,
+                cell: (_, ctx) => this.handleSetFormat(ctx, item.field),
+                ellipsis: true,
+                title: item.label,
+                filter: item.filter?.length
+                  ? {
+                      list: item.filter,
+                      type: 'multiple',
+                      showConfirmAndReset: true,
+                    }
+                  : undefined,
+                sorter: item.sortable,
+              }))}
               data={this.computedTableDataForSelf}
+              filterValue={this.filterConfig}
               settings={this.tableForSelf.settings}
               showSettings={true}
-              onColumnFilter={({ checked, column }) => {
-                if (!checked.length) {
-                  this.filterConfig.key = '';
-                  this.filterConfig.value.length = 0;
-                  return;
-                }
-                const { field } = column;
-                this.filterConfig.key = field.toString();
-                this.filterConfig.value = deepClone(checked);
+              onFilterChange={(filters: TableProps['filterValue']) => {
+                this.filterConfig = filters;
               }}
               onSettingChange={({ checked, size }) => {
                 this.tableForSelf.settings.size = size;
                 window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
               }}
-            >
-              {{
-                empty: () => (
-                  <EmptyStatus
-                    type={this.emptyType}
-                    onOperation={this.handleEmptyOperation}
-                  />
-                ),
-                default: () =>
-                  this.tableForSelf.columns.map(item => (
-                    <TableColumn
-                      key={`manage_table_${item.field}`}
-                      field={item.field}
-                      filterMultiple={true}
-                      filters={item.filter}
-                      sortable={item.sortable}
-                      title={item.label}
-                      show-overflow
-                    >
-                      {{
-                        default: row => this.handleSetFormat(row, item.field),
-                      }}
-                    </TableColumn>
-                  )),
-              }}
-            </Table>
+            />
           </Loading>
           <Dialog
             width='960'
@@ -1466,18 +1456,12 @@ export default defineComponent({
               </div>
 
               <Loading loading={this.sendRecordTable.isLoading}>
-                <Table
+                <PrimaryTable
                   style='margin-top: 16px;'
                   height={400}
-                  virtual-enabled={{
-                    showOverflow: true,
-                    scrollY: {
-                      enabled: true,
-                      gt: 0,
-                    },
-                  }}
-                  columns={this.sendRecordTable.columns as Column[]}
+                  columns={this.sendRecordTable.columns}
                   data={this.sendRecordTable.data}
+                  rowKey='id'
                 />
               </Loading>
             </div>

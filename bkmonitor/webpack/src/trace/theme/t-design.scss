@@ -356,7 +356,7 @@
     }
   }
 
-  &__header {
+  .t-table__header {
     th {
       background-color: #fafbfd;
 
@@ -377,11 +377,9 @@
 }
 
 .t-table__filter-pop {
-  .bkui-tdesign-table-custom-popup {
-    .t-table__filter-pop-content .t-table__filter-pop-content-inner {
-      max-height: 200px;
-      padding: 6px 12px;
-      overflow: auto;
-    }
+  .t-table__filter-pop-content .t-table__filter-pop-content-inner {
+    max-height: 200px;
+    padding: 6px 12px;
+    overflow: auto;
   }
 }
