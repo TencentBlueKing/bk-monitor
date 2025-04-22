@@ -171,8 +171,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   watchSelectFieldChange(val) {
     if (!val) {
       this.statisticsList = { distinct_count: 0, field: '', list: [] };
-    } else {
       this.infoLoading = true;
+    } else {
       this.timeRangeText = handleTransformTime(this.timeRange);
       this.getStatisticsList();
     }
@@ -180,6 +180,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   @Debounce(200)
   async getStatisticsList() {
+    this.infoLoading = true;
     this.getStatisticsListCount += 1;
     const count = this.getStatisticsListCount;
     this.popoverLoading = true;
@@ -260,6 +261,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
         ...item,
       };
     });
+
     this.infoLoading = false;
   }
 
@@ -376,7 +378,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <span class='value'> {this.statisticsInfo.field_count}</span>
           </div>
           <div class='label-item'>
-            <span class='label'>{this.$t('总行数')}:</span>
+            <span class='label'>{this.$t('日志条数')}:</span>
             <span class='value'> {this.statisticsInfo.field_percent}%</span>
           </div>
         </div>
@@ -464,10 +466,10 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             ) : (
               <div
                 class='download-tool'
+                v-bk-tooltips={{ content: this.$t('下载') }}
                 onClick={this.handleDownload}
               >
                 <i class='icon-monitor icon-xiazai2' />
-                <span class='text'>{this.$t('下载')}</span>
               </div>
             )}
           </div>
