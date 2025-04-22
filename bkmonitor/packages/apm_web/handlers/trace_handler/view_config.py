@@ -21,8 +21,9 @@ from django.utils.functional import cached_property
 
 from apm.constants import KindCategory
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm_web.constants import OPERATORS, TRACE_FIELD_ALIAS, CategoryEnum, QueryMode
+from apm_web.constants import CategoryEnum, QueryMode
 from apm_web.handlers.es_handler import ESMappingHandler
+from apm_web.trace.constants import OPERATORS, TRACE_FIELD_ALIAS
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField
 from core.drf_resource import api
@@ -140,29 +141,20 @@ class TraceFieldsHandler:
 
         return self.fields_info_handler.get_fields_info_by_mode(QueryMode.SPAN)
 
-    def is_searched(self, mode: QueryMode, field_name: str) -> bool:
+    def is_searched(self, field_type: str) -> bool:
         """判断字段是否可以被查询"""
 
-        if mode == QueryMode.TRACE:
-            is_searched = field_name in self.trace_fields_info
-        elif mode == QueryMode.SPAN:
-            is_searched = field_name in self.span_fields_info
-        return is_searched
+        return field_type not in {"object", "nested"}
 
     def is_dimensions(self, field_type: str) -> bool:
         """判断字段是否可以用于聚合和获取枚举值"""
 
         return field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]
 
-    def can_displayed(self, mode: QueryMode, field_name: str) -> bool:
+    def can_displayed(self, field_type: str) -> bool:
         """判断字段是否可以显示"""
 
-        if mode == QueryMode.TRACE:
-            can_displayed = field_name in self.trace_fields_info
-        elif mode == QueryMode.SPAN:
-            can_displayed = field_name in self.span_fields_info
-
-        return can_displayed
+        return field_type not in {"nested"}
 
     def get_supported_operations(self, field_type: str) -> list[str]:
         """获取字段支持的运算符"""
@@ -195,9 +187,9 @@ class TraceFieldsHandler:
                     name=field_name,
                     alias=self.get_field_alias(field_name),
                     type=field_type,
-                    is_searched=self.is_searched(mode, field_name),
+                    is_searched=self.is_searched(field_type),
                     is_dimensions=self.is_dimensions(field_type),
-                    can_displayed=self.can_displayed(mode, field_name),
+                    can_displayed=self.can_displayed(field_type),
                     supported_operations=self.get_supported_operations(field_type),
                 )
             )
