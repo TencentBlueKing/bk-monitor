@@ -1,5 +1,101 @@
 .event-retrieval-dimension-filter-content {
-  .popover-header {
+  .info-skeleton {
+    .total-skeleton {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      
+      .skeleton-element {
+        width: 70px;
+        height: 20px;
+      }
+    }
+
+    .info-skeleton {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: space-between;
+      justify-content: space-between;
+      height: 76px;
+      margin-bottom: 15px;
+
+      .skeleton-element {
+        width: 182px;
+        height: 36px;
+      }
+    }
+
+    .skeleton-element.chart {
+      height: 140px;
+      margin-bottom: 12px;
+    }
+  }
+  
+  .statistics-info {
+    .top-k-info-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+  
+      .label-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+      }
+    }
+
+    .integer-statics-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: space-between;
+      justify-content: space-between;
+      height: 76px;
+      margin-bottom: 15px;
+  
+      .integer-item {
+        width: 182px;
+        height: 36px;
+        line-height: 36px;
+        text-align: center;
+        background: #F5F7FA;
+        border-radius: 2px;
+  
+        .label {
+          font-size: 12px;
+          color: #4D4F56;
+        }
+  
+        .value {
+          margin-left: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #4D4F56;
+        }
+      }
+    }
+  
+
+  
+    .top-k-chart-title {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      line-height: 22px;
+  
+      .title {
+        font-size: 14px;
+        color: #313238;
+      }
+  
+      .time-range {
+        font-size: 12px;
+        color: #4D4F56;
+      }
+    }
+  }
+
+  .top-k-list-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -138,8 +234,8 @@
 
   .field-name {
     overflow: hidden;
-    color: #313238;
     text-overflow: ellipsis;
+    color: #313238;
     white-space: nowrap;
   }
 
@@ -189,9 +285,9 @@
         .field-name {
           flex: 1;
           overflow: hidden;
+          text-overflow: ellipsis;
           font-size: 12px;
           color: #313238;
-          text-overflow: ellipsis;
           white-space: nowrap;
         }
 
