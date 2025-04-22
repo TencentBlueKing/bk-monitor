@@ -198,7 +198,7 @@ class EsQueryBuilder(object):
         return filter_list
 
     @classmethod
-    def build_prefix_match_filter_list(cls, field: str, value_list: List[Any]) -> type_filter_list_match_prefix:
+    def build_filter_list_match_prefix(cls, field: str, value_list: List[Any]) -> type_filter_list_match_prefix:
         filter_list: type_filter_list = []
         for item in value_list:
             match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
@@ -674,7 +674,7 @@ class AllContainsMatchPhrasePrefix(BoolQueryOperation):
     OPERATOR = "all contains match phrase prefix"
 
     def op(self, field):
-        filter_list: type_filter_list = EsQueryBuilder.build_prefix_match_filter_list(field["field"], field["value"])
+        filter_list: type_filter_list = EsQueryBuilder.build_filter_list_match_prefix(field["field"], field["value"])
         filters: type_filter = EsQueryBuilder.build_filter(filter_list)
         a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
