@@ -1,4 +1,3 @@
-from luqum.thread import thread_local
 from ply import lex, yacc
 
 from apps.exceptions import GrepParseError
@@ -46,6 +45,10 @@ def t_RAW_PATTERN(t):  # noqa: F841
 def t_error(t):  # noqa: F841
     logger.info("lexical parsing failed: illegal character [%s] at position [%s]", t.value, t.lexpos)
     raise GrepParseError()
+
+
+# 构建词法分析器
+grep_lexer = lex.lex()
 
 
 # 定义语法规则
@@ -152,22 +155,9 @@ def p_error(p):
     raise GrepParseError()
 
 
-# 延迟初始化词法分析器
-_base_lexer = None
-
-
-def get_base_lexer():
-    global _base_lexer
-    if _base_lexer is None:
-        _base_lexer = lex.lex()
-    return _base_lexer
-
-
-# 构建并返回语法分析器
+# 构建语法分析器
 parser = yacc.yacc()
 
 
 def grep_parser(input_string):
-    if not hasattr(thread_local, "local_lexer"):
-        thread_local.local_lexer = get_base_lexer().clone()
-    return parser.parse(input_string, lexer=thread_local.local_lexer)
+    return parser.parse(input_string, lexer=grep_lexer.clone())

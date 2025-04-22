@@ -26,7 +26,7 @@ from typing import List
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
-from luqum.thread import parse
+from luqum.parser import lexer, parser
 from luqum.tree import (
     AndOperation,
     FieldGroup,
@@ -116,7 +116,7 @@ class ChartHandler(object):
     @classmethod
     def lucene_to_where_clause(cls, lucene_query):
         # 解析 Lucene 查询
-        query_tree = parse(lucene_query)
+        query_tree = parser.parse(lucene_query, lexer=lexer.clone())
 
         # 递归遍历语法树并生成 SQL WHERE 子句
         def build_condition(node):
