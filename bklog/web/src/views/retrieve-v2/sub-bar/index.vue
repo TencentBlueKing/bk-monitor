@@ -1,5 +1,6 @@
 <script setup>
   import { ref, computed } from 'vue';
+  import { bkMessage } from 'bk-magic-vue';
 
   import FieldSetting from '@/global/field-setting.vue';
   import VersionSwitch from '@/global/version-switch.vue';
@@ -17,7 +18,8 @@
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
-  import { bkMessage } from 'bk-magic-vue';
+  import RetrieveHelper from '../../retrieve-helper';
+
   const props = defineProps({
     showFavorites: {
       type: Boolean,
@@ -93,6 +95,8 @@
 
   const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
+
       setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
       store.commit('retrieve/updateChartKey');

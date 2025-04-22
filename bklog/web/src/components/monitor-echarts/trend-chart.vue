@@ -31,6 +31,7 @@
 
   const finishPolling = ref(false);
   const isStart = ref(false);
+
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
@@ -176,11 +177,10 @@
   let runningTimer = null;
   const loadTrendData = () => {
     logChartCancel?.();
+    setChartData(null, null, true);
 
     runningTimer && clearTimeout(runningTimer);
     runningTimer = setTimeout(() => {
-      clearChartData();
-
       finishPolling.value = false;
       isStart.value = false;
       getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
@@ -193,23 +193,9 @@
       RetrieveEvent.SEARCH_TIME_CHANGE,
       RetrieveEvent.TREND_GRAPH_SEARCH,
       RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      RetrieveEvent.INDEX_SET_ID_CHANGE,
     ],
     loadTrendData,
-  );
-
-  const isRenderLoading = ref(false);
-  watch(
-    () => isLoading.value,
-    () => {
-      if (isLoading.value) {
-        isRenderLoading.value = true;
-        return;
-      }
-
-      setTimeout(() => {
-        isRenderLoading.value = false;
-      }, 300);
-    },
   );
 
   onBeforeUnmount(() => {
@@ -227,7 +213,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isRenderLoading }"
+    v-bkloading="{ isLoading: isLoading }"
     class="monitor-echart-wrap"
   >
     <div

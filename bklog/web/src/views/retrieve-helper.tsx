@@ -133,6 +133,11 @@ export enum RetrieveEvent {
    * 全局滚动
    */
   GLOBAL_SCROLL = 'global-scroll',
+
+  /**
+   * 索引集id 变化
+   */
+  INDEX_SET_ID_CHANGE = 'index-set-id-change',
 }
 
 class RetrieveHelper {
@@ -163,6 +168,12 @@ class RetrieveHelper {
 
   // 事件列表
   events: Map<string, ((...args) => void)[]>;
+
+  // 索引集id列表
+  indexSetIdList: string[];
+
+  // 索引集类型
+  indexSetType: string;
 
   markInstance: OptimizedHighlighter = undefined;
 
@@ -204,6 +215,16 @@ class RetrieveHelper {
     });
 
     return this;
+  }
+
+  /**
+   * 更新索引集id
+   * @param id
+   */
+  setIndexsetId(idList: string[], type: string) {
+    this.indexSetIdList = idList;
+    this.indexSetType = type;
+    this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
   }
 
   /**
