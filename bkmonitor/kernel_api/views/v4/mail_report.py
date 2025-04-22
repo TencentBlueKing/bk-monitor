@@ -191,6 +191,8 @@ class RenderImageResource(Resource):
             end_time = serializers.IntegerField()
             scale = serializers.IntegerField(default=2)
             with_panel_title = serializers.BooleanField(default=True)
+            image_format = serializers.ChoiceField(choices=["jpeg", "png"], default="jpeg")
+            image_quality = serializers.IntegerField(default=85, min_value=0, max_value=100)
 
             def validate(self, attrs):
                 # 检查用户是否有权限访问该仪表盘
