@@ -126,7 +126,7 @@ class IncidentBaseResource(Resource):
 
             bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
             bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
-            dependency_parent = snapshot.get_entity_parent(entity.entity_id)
+            dependency_parent = snapshot.get_entity_alert_parent(entity.entity_id)
             nodes.append(
                 {
                     "id": entity.entity_id,
@@ -134,7 +134,7 @@ class IncidentBaseResource(Resource):
                     "subComboId": dependency_parent.entity_id if dependency_parent else "",
                     "dependency_content": self.generate_entity_node_info(incident, snapshot, dependency_parent)
                     if dependency_parent
-                    else "",
+                    else {},
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
                     "total_count": len(entity.aggregated_entities) + 1,
                     "bk_biz_id": bk_biz_id,
