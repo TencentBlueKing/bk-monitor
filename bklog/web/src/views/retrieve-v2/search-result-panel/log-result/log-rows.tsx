@@ -109,8 +109,6 @@ export default defineComponent({
 
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
-    const wheelTrigger = ref({ isWheeling: false, id: '' });
-    provide('wheelTrigger', wheelTrigger);
 
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -1133,6 +1131,7 @@ export default defineComponent({
           target?.classList.contains('segment-content') ||
           target?.classList.contains('bklog-json-view-icon-expand') ||
           target?.classList.contains('bklog-json-view-icon-text') ||
+          target?.classList.contains('black-mark') ||
           target?.parentElement?.classList.contains('segment-content')
         )
       ) {
