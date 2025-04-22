@@ -217,6 +217,7 @@
 
           store.dispatch('requestIndexSetQuery');
           setRouteParams();
+          RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         }
       });
       return;
@@ -224,6 +225,7 @@
 
     store.dispatch('requestIndexSetQuery');
     setRouteParams();
+    RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
   };
 
   const handleSqlQueryChange = value => {

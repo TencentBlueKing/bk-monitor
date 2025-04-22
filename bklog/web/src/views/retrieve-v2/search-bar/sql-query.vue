@@ -337,13 +337,15 @@
             color: #b17313;
 
             .ͼb {
-              font-weight: 700;
+              font-weight: bold;
               color: #7c609e;
+              font-family: RobotoMono-BoldItalic;
+              font-style: italic;
             }
 
-            .cm-not-keyword{
+            .cm-not-keyword {
               .ͼb {
-                color: #d84a57;
+                color: #ea3636;
               }
             }
 
