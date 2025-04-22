@@ -13,6 +13,7 @@ import copy
 import csv
 import json
 import logging
+import re
 import time
 from abc import ABCMeta
 from collections import defaultdict, namedtuple
@@ -1471,6 +1472,35 @@ class SearchAlertResource(Resource):
         show_dsl = serializers.BooleanField(label="展示DSL", default=False)
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
+        replace_time_range = serializers.BooleanField(label="是否替换时间范围", default=False)
+
+        def validate(self, attrs):
+            self.replace_time(attrs)
+            return attrs
+
+        @staticmethod
+        def replace_time(attrs):
+            """
+            替换时间范围
+            获取到告警ID的前10位，前后增加一小时，作为新的时间范围
+            :param attrs:
+            :return:
+            """
+            if not attrs["replace_time_range"]:
+                return attrs
+
+            query_string = attrs.get("query_string", "")
+            match = re.findall(r'(告警ID|处理记录ID)\s*:\s*(\d+)', query_string)
+            if not match:
+                return attrs
+
+            min_id = min(match, key=lambda x: int(x[1]))
+            max_id = max(match, key=lambda x: int(x[1]))
+            one_hour = 3600
+
+            attrs["start_time"] = int(min_id[1][:10]) - one_hour
+            attrs["end_time"] = int(max_id[1][:10]) + one_hour
+            return attrs
 
     def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
