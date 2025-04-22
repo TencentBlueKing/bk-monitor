@@ -50,6 +50,7 @@ function highlightNotKeywords() {
 
 export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
   // 键盘操作事件处理函数
+  // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
     key: keymap,
     run: () => {
