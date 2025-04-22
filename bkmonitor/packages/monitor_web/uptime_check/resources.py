@@ -2690,8 +2690,9 @@ class ImportUptimeCheckTaskResource(Resource):
 
         node_id_list.extend(result_id_list)
         nodes = UptimeCheckNode.objects.filter(
-            Q(bk_biz_id=data["target_conf"]["bk_biz_id"], id__in=node_id_list) | Q(id__in=node_id_list, is_common=True),
+            Q(bk_biz_id=data["target_conf"]["bk_biz_id"]) | Q(is_common=True),
             bk_tenant_id=bk_tenant_id,
+            id__in=node_id_list,
         )
         if not nodes:
             raise CustomException(_("节点不存在，请检查节点配置"))

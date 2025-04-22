@@ -252,7 +252,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         # 过滤业务下所有节点时，同时还应该加上通用节点
         # todo: 过滤增加指定业务可见节点
         nodes = UptimeCheckNode.objects.filter(
-            Q(bk_biz_id=task.bk_biz_id) | Q(is_common=True, bk_tenant_id=bk_tenant_id)
+            Q(bk_biz_id=task.bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id
         )
 
         ip_to_hostid = {}
@@ -368,7 +368,7 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
         bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         var_list = (
-            UptimeCheckNode.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True, bk_tenant_id=bk_tenant_id))
+            UptimeCheckNode.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id)
             .values_list(
                 validated_request_data["var_type"] if validated_request_data["var_type"] != "node" else "name",
                 flat=True,
