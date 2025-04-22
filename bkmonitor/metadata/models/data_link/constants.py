@@ -23,6 +23,7 @@ class DataLinkKind(Enum):
     SINK = "Sink"
     VMSTORAGE = "VmStorage"
     ELASTICSEARCH = "ElasticSearch"
+    DORIS = "Doris"
 
     choices_labels = (
         (DATAID, "dataids"),
@@ -33,6 +34,7 @@ class DataLinkKind(Enum):
         (SINK, "sinks"),
         (VMSTORAGE, "vmstorages"),
         (ELASTICSEARCH, "elasticsearchs"),
+        (DORIS, "dorises"),
     )
 
     @classmethod

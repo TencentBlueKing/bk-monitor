@@ -102,6 +102,7 @@ class ClusterInfo(models.Model):
     TYPE_ES = "elasticsearch"
     TYPE_ARGUS = "argus"
     TYPE_VM = "victoria_metrics"
+    TYPE_DORIS = "doris"
 
     CLUSTER_TYPE_CHOICES = (
         (TYPE_INFLUXDB, "influxDB"),
@@ -110,6 +111,7 @@ class ClusterInfo(models.Model):
         (TYPE_ES, "elasticsearch"),
         (TYPE_ARGUS, "argus"),
         (TYPE_VM, "victoria_metrics"),
+        (TYPE_DORIS, "doris"),
     )
 
     # 默认注册系统名

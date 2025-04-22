@@ -33,4 +33,16 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
         "cluster_type": models.ClusterInfo.TYPE_VM,
         "storage_name": "vm",
     },
+    {
+        "kind": DataLinkKind.get_choice_value(DataLinkKind.DORIS.value),
+        "namespace": "bklog",
+        "field_mappings": {
+            "domain_name": "host",
+            "port": "port",
+            "username": "user",
+            "password": "password",
+        },
+        "cluster_type": models.ClusterInfo.TYPE_DORIS,
+        "storage_name": "doris",
+    },
 ]
