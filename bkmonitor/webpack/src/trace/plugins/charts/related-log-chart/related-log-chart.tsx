@@ -37,7 +37,7 @@ import {
 import { type TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
-import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
+import { Alert, Button, Exception, Input, Popover, Select } from 'bkui-vue';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
@@ -52,12 +52,16 @@ import { debounce } from 'monitor-common/utils/utils';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
+import { PrimaryTable, type TableProps } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+
 // import { VariablesService } from '../../utils/variable';
 import { VariablesService } from '../../../utils';
+
 // import BaseEchart from '../monitor-base-echart';
 import BaseEchart from '../../base-echart';
+
 // mixins 转 hooks 相关
 import {
   useChartIntersection,
@@ -67,9 +71,10 @@ import {
 } from '../../hooks';
 
 import type { ITableDataItem } from '../../typings/table-chart';
+
 // 原有类型
-import type { Column } from 'bkui-vue/lib/table/props';
 import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+
 // import { PanelModel } from '../../typings';
 import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
@@ -572,11 +577,11 @@ export default defineComponent({
     /**
      * columns 是原先用于 vue2 组件的，无法在 vue3 组件上继续使用，这里进行调整。
      */
-    const transformedColumns = computed(() => {
+    const transformedColumns = computed<TableProps['columns']>(() => {
       const result = columns.value.map(item => {
         const newColumn: Record<string, any> = {};
-        newColumn.label = item.name;
-        newColumn.field = item.id;
+        newColumn.title = item.name;
+        newColumn.colKey = item.id;
         newColumn.width = item.width;
         newColumn.minWidth = item.min_width;
         return newColumn;
@@ -764,22 +769,19 @@ export default defineComponent({
                   </Button>
                 </div>
                 <div class='related-table-container'>
-                  <Table
+                  <PrimaryTable
                     style='width: 100%;'
                     height='100%'
-                    v-slots={{
-                      expandRow: row => {
-                        return (
-                          <div>
-                            <JsonPretty data={row.source} />
-                          </div>
-                        );
-                      },
+                    expandedRow={(_, { row }) => {
+                      return (
+                        <div>
+                          <JsonPretty data={row.source} />
+                        </div>
+                      );
                     }}
-                    columns={this.transformedColumns as Column[]}
+                    columns={this.transformedColumns}
                     data={this.tableData}
-                    scroll-loading={this.isScrollLoading}
-                    onScrollBottom={this.handlePageChange}
+                    expandIcon={true}
                   />
                 </div>
               </div>

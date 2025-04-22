@@ -140,106 +140,15 @@
     }
   }
 
-  .explore-table-skeleton {
-    position: absolute;
-    top: 0;
-    padding: 10px 8px;
-  }
-
-  .table-field-setting {
-    position: absolute;
-    top: -22px;
-    right: 6px;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    transform: translateY(-50%);
-    transition: border-color 0.2s;
-
-    &:hover,
-    &.active {
-      border-color: #979ba5;
-    }
-  }
-}
-
-.t-table {
-  height: 100%;
-  --td-comp-paddingTB-s: var(--td-size-3);
-  --td-comp-margin-s: var(--td-size-2);
-  --td-text-color-primary: #313238;
-
-  &__header {
-    tr {
-      background: #f5f7fa;
-
-      .t-table__th-cell-inner {
-        color: #000000;
-
-        .t-table__cell--title {
-          color: inherit;
-
-          .t-table__filter-icon-wrap {
-            color: #c4c6cc;
-          }
-        }
-      }
-    }
-  }
-
-  &__body {
-    tr {
-      &:not(.t-table__row--full) {
-        height: 32px;
-      }
-
-      &.t-table__first-full-row {
-        .t-table__filter-result {
-          position: sticky;
-          left: 50%;
-          display: inline-flex;
-          transform: translateX(-50%);
-        }
-      }
-    }
-  }
-
-  &__content {
-    height: 100%;
-
-    .t-table--layout-fixed {
-      height: 100%;
+  .t-table {
+    &__header {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
     }
 
-    .t-table__empty-row {
-      td {
-        padding: 0;
-      }
-    }
-
-    .t-table__last-full-row {
-      td,
-      .t-table__row-full-element {
-        padding: 0;
-
-        .scroll-end-loading {
-          position: sticky;
-          left: 50%;
-          display: inline-flex;
-          align-items: center;
-          height: 32px;
-          transform: translateX(-50%);
-
-          .bk-loading-size-mini {
-            flex-direction: row;
-            column-gap: 8px;
-            align-items: center;
-
-            .bk-loading-title {
-              margin-top: 0;
-            }
-          }
-        }
-      }
+    &__content {
+      overflow: initial;
     }
   }
 }

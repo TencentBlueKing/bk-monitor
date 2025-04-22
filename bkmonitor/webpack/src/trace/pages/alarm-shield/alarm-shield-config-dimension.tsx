@@ -27,10 +27,10 @@
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Table } from 'bkui-vue';
 import { listAlertTags } from 'monitor-api/modules/alert';
 // import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useAppStore } from '../../store/modules/app';
@@ -303,30 +303,30 @@ export default defineComponent({
           >
             {props.isEdit ? (
               <div class='max-w836'>
-                <Table
+                <PrimaryTable
                   columns={[
                     {
-                      id: 'name',
-                      label: () => t('维度条件'),
-                      render: () =>
-                        (() => {
-                          if (dimensionCondition.conditionList.length) {
-                            return (
-                              <WhereDisplay
-                                key={dimensionCondition.conditionKey}
-                                allNames={dimensionCondition.allNames}
-                                readonly={true}
-                                value={dimensionCondition.conditionList}
-                              />
-                            );
-                          }
-                          return '--';
-                        })(),
+                      colKey: 'name',
+                      title: t('维度条件'),
+                      cell: () => {
+                        if (dimensionCondition.conditionList.length) {
+                          return (
+                            <WhereDisplay
+                              key={dimensionCondition.conditionKey}
+                              allNames={dimensionCondition.allNames}
+                              readonly={true}
+                              value={dimensionCondition.conditionList}
+                            />
+                          );
+                        }
+                        return '--';
+                      },
                     },
                   ]}
-                  border={['outer']}
+                  bordered={true}
                   data={[{}]}
                   maxHeight={450}
+                  rowKey='key'
                 />
               </div>
             ) : (
