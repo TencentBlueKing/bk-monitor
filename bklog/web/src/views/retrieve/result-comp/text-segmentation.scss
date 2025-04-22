@@ -80,6 +80,8 @@
 
   .valid-text {
     cursor: pointer;
+    padding: 2px 0;
+    white-space: pre-wrap;
 
     &.focus-text,
     &:hover {

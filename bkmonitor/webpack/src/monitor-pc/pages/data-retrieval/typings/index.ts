@@ -194,7 +194,7 @@ export declare namespace IDataRetrievalView {
     value?: boolean | string | string[];
   }
   interface ITools {
-    refleshInterval: number;
+    refreshInterval: number;
     timeRange: TimeRangeType;
     timezone: string;
   }
@@ -326,7 +326,7 @@ export class DataRetrievalPromqlItem {
     if (!data) return;
     this.key = data.key || random(8);
     this.code = data.code || '';
-    this.enable = data.enable || true;
+    this.enable = data.enable ?? true;
     this.alias = data.alias || 'a';
     this.step = (data.step as any) || 'auto';
     this.filter_dict = data?.filter_dict;

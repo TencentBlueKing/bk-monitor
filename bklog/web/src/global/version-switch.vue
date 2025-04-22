@@ -38,17 +38,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 108px;
-    height: 32px;
-    font-size: 14px;
-    color: #63656e;
+    width: 90px;
+    height: 100%;
+    font-size: 12px;
+    color: #3a84ff;
     cursor: pointer;
     background: #ffffff;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
 
     span {
       margin-right: 6px;
+      font-size: 16px;
     }
   }
 </style>

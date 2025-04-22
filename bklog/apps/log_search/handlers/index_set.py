@@ -83,6 +83,7 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
+    IndexSetCustomConfig,
     IndexSetFieldsConfig,
     IndexSetTag,
     IndexSetUserFavorite,
@@ -618,7 +619,7 @@ class IndexSetHandler(APIModel):
         """
         查询索引集存储的日用量和总用量
         """
-        from apps.log_unifyquery.handler import UnifyQueryHandler
+        from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 
         multi_execute_func = MultiExecuteFunc(max_workers=10)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
@@ -639,7 +640,7 @@ class IndexSetHandler(APIModel):
                     "end_time": int(current_time.timestamp()),
                 }
                 multi_execute_func.append(
-                    result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
+                    result_key=f"daily_count_{index_set_id}", func=UnifyQueryFieldHandler(params).get_total_count
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception("query storage usage info error, index_set_id->%s, reason: %s", index_set_id, e)
@@ -1466,13 +1467,17 @@ class BaseIndexSetHandler(object):
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id, collector_config_id, indexes):
+    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
+        if clustered_rt:
+            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
         if collector_config_id:
             return ",".join([index["result_table_id"] for index in indexes])
         return f"bklog_index_set_{str(index_set_id)}.__default__"
 
     @staticmethod
-    def get_data_label(scenario_id, index_set_id):
+    def get_data_label(scenario_id, index_set_id, clustered_rt=None):
+        if clustered_rt:
+            return f"{scenario_id}_index_set_{str(index_set_id)}_clustered"
         return f"{scenario_id}_index_set_{str(index_set_id)}"
 
     def post_create(self, index_set):
@@ -1518,7 +1523,7 @@ class BaseIndexSetHandler(object):
                 }
             )
         except Exception as e:
-            logger.exception(f"创建/更新索引({index_set.index_set_id})es路由失败，原因：{e}")
+            logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True
 
     def pre_update(self):
@@ -1912,5 +1917,56 @@ class UserIndexSetConfigHandler(object):
         obj = UserIndexSetCustomConfig.objects.filter(
             index_set_hash=index_set_hash,
             username=get_request_username(),
+        ).first()
+        return obj.index_set_config if obj else {}
+
+
+class IndexSetCustomConfigHandler(object):
+    def __init__(
+        self,
+        index_set_id: int = None,
+        index_set_ids: List[int] = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
+    ):
+        self.index_set_id = index_set_id
+        self.index_set_ids = index_set_ids
+        self.index_set_type = index_set_type
+        # 对列表进行排序
+        if self.index_set_ids:
+            self.index_set_ids.sort()
+        self.index_set_hash = self.get_index_set_hash()
+
+    def update_or_create(self, index_set_config: dict):
+        """
+        更新或创建索引集自定义配置
+        :param index_set_config: 索引集自定义配置
+        """
+        if self.index_set_type == IndexSetType.SINGLE.value:
+            model_params = {"index_set_id": self.index_set_id}
+        elif self.index_set_type == IndexSetType.UNION.value:
+            model_params = {"index_set_ids": self.index_set_ids}
+        model_params.update({"index_set_config": index_set_config})
+
+        obj, _ = IndexSetCustomConfig.objects.update_or_create(
+            index_set_hash=self.index_set_hash,
+            defaults=model_params,
+        )
+        return model_to_dict(obj)
+
+    def get_index_set_hash(self):
+        """
+        获取索引集hash值
+        """
+        if self.index_set_type == IndexSetType.SINGLE.value:
+            return IndexSetCustomConfig.get_index_set_hash(self.index_set_id)
+        elif self.index_set_type == IndexSetType.UNION.value:
+            return IndexSetCustomConfig.get_index_set_hash(self.index_set_ids)
+
+    def get_index_set_config(self):
+        """
+        获取索引集自定义配置
+        """
+        obj = IndexSetCustomConfig.objects.filter(
+            index_set_hash=self.index_set_hash,
         ).first()
         return obj.index_set_config if obj else {}

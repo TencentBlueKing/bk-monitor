@@ -59,6 +59,8 @@
     .bk-table-body-wrapper {
       .bk-table-body {
         .bk-table-row {
+          cursor: pointer;
+
           &.bk-table-row-last .is-last {
             border-bottom: 1px solid #dfe0e5;
           }

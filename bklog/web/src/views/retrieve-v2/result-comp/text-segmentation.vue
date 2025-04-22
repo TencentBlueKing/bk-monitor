@@ -19,8 +19,8 @@
   const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
-  const isWrap = computed(() => store.state.tableLineIsWrap);
-  const isLimitExpandView = computed(() => store.state.isLimitExpandView);
+  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+  const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
   const isIntersecting = ref(false);
@@ -210,18 +210,12 @@
     }
 
     span {
-      line-height: 20px;
+      line-height: 22px;
 
       &.segment-content {
         span {
-          font:
-            12px Menlo,
-            Monaco,
-            Consolas,
-            Courier,
-            'PingFang SC',
-            'Microsoft Yahei',
-            monospace;
+          font: var(--bklog-v3-row-ctx-font);
+          white-space: pre-line;
         }
 
         .btn-more-action {

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, onBeforeMount } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, nextTick } from 'vue';
 
 import {
   parseTableRowData,
@@ -39,15 +39,13 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import aiBlueking from '@/images/ai/ai-blueking.svg';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
-import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import PopInstanceUtil from '../../search-bar/pop-instance-util';
-import ExpandView from '../original-log/expand-view.vue';
-import OperatorTools from '../original-log/operator-tools.vue';
+import PopInstanceUtil from '../../../../global/pop-instance-util';
+import ExpandView from '../../components/result-cell-element/expand-view.vue';
+import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
@@ -67,6 +65,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 
 import './log-rows.scss';
 
@@ -92,6 +91,8 @@ export default defineComponent({
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
+    const refResultRowBox: Ref<HTMLElement> = ref();
+
     const popInstanceUtil = new PopInstanceUtil({
       refContent: ref('智能分析'),
       tippyOptions: {
@@ -107,18 +108,16 @@ export default defineComponent({
     const isRending = ref(false);
 
     const tableRowConfig = new WeakMap();
+    const hasMoreList = ref(true);
 
-    const wheelTrigger = ref({ isWheeling: false, id: '' });
-    provide('wheelTrigger', wheelTrigger);
-
-    const renderList = ref([]);
+    let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.tableJsonFormat);
-    const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
-    const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
+    const formatJson = computed(() => store.state.storage.tableJsonFormat);
+    const tableShowRowIndex = computed(() => store.state.storage.tableShowRowIndex);
+    const tableLineIsWrap = computed(() => store.state.storage.tableLineIsWrap);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
@@ -128,25 +127,18 @@ export default defineComponent({
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+    const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
+    const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
 
     const exceptionMsg = computed(() => {
-      if (indexSetQueryResult.value?.exception_msg === 'Cancel') {
+      if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
       }
+
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
-    const showAiAssistant = computed(() => {
-      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
-      if (ai_assistant === 'debug') {
-        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
-        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
-      }
-
-      return ai_assistant === 'on';
-    });
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -154,39 +146,27 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
 
-    const totalCount = computed(() => {
-      const count = store.state.indexSetQueryResult.total;
-      if (count._isBigNumber) {
-        return count.toNumber();
-      }
-
-      return count;
-    });
-
-    const hasMoreList = computed(
-      () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
-    );
-
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
       const inteval = 50;
 
       const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.value.length;
+        const appendLength = targetLength - renderList.length;
         const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.value.length - 1;
+        const startIndex = renderList.length;
 
         if (appendLength > 0) {
-          renderList.value.push(
-            ...new Array(stepLength).fill('').map((_, i) => {
-              const index = i + startIndex + 1;
-              const row = tableList.value[index];
-              return {
-                item: row,
-                [ROW_KEY]: `${row.dtEventTimeStamp}_${index}`,
-              };
-            }),
-          );
+          const arr = [];
+          const endIndex = startIndex + stepLength;
+          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+          for (let i = 0; i < lastIndex; i++) {
+            arr.push({
+              item: tableList.value[i],
+              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+            });
+          }
+
+          renderList = Object.freeze(arr);
           appendChildNodes();
           return;
         }
@@ -219,11 +199,12 @@ export default defineComponent({
 
     const searchContainerHeight = ref(52);
 
-    const resultContainerId = ref(uniqueId('result_container_key_'));
+    const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const operatorToolsWidth = computed(() => {
-      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+      const w = indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+      return store.getters.isAiAssistantActive ? w + 26 : w;
     });
 
     const originalColumns = computed(() => {
@@ -308,16 +289,49 @@ export default defineComponent({
       };
     };
 
+    const setColWidth = (col, w = '100%') => {
+      col.minWidth = col.width - 4;
+      col.width = '100%';
+    };
+
     const getFieldColumns = () => {
       if (showCtxType.value === 'table') {
-        if (visibleFields.value.length) {
-          return visibleFields.value.map(formatColumn);
+        const columnList = [];
+        const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
+        let maxColWidth = operatorToolsWidth.value + 40;
+        let logField = null;
+
+        columns.forEach(col => {
+          const formatValue = formatColumn(col);
+          if (col.field_name === 'log') {
+            logField = formatValue;
+          }
+
+          columnList.push(formatValue);
+          maxColWidth += formatValue.width;
+        });
+
+        if (!logField && columnList.length > 0) {
+          logField = columnList[columnList.length - 1];
         }
 
-        return fullColumns.value.map(formatColumn);
+        if (logField && offsetWidth.value > maxColWidth) {
+          setColWidth(logField);
+        }
+
+        return columnList;
       }
 
       return originalColumns.value;
+    };
+
+    const hanldeAfterExpandClick = (target: HTMLElement) => {
+      const expandTarget = target
+        .closest('.bklog-row-container')
+        ?.querySelector('.bklog-row-observe .expand-view-wrapper');
+      if (expandTarget) {
+        RetrieveHelper.highlightElement(expandTarget);
+      }
     };
 
     const leftColumns = computed(() => [
@@ -327,15 +341,24 @@ export default defineComponent({
         // 设置需要显示展开图标的列
         type: 'expand',
         title: '',
-        width: 50,
+        width: 36,
         align: 'center',
         resize: false,
         fixed: 'left',
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
 
-          const hanldeExpandClick = () => {
+          const hanldeExpandClick = event => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
             config.expand = !config.expand;
+            nextTick(() => {
+              if (config.expand) {
+                hanldeAfterExpandClick(event.target);
+              }
+            });
           };
 
           return (
@@ -343,7 +366,10 @@ export default defineComponent({
               class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
               onClick={hanldeExpandClick}
             >
-              <i class='bk-icon icon-play-shape'></i>
+              <i
+                style={{ color: '#4D4F56', fontSize: '9px' }}
+                class='bk-icon icon-play-shape'
+              ></i>
             </span>
           );
         },
@@ -363,6 +389,17 @@ export default defineComponent({
       },
     ]);
 
+    const handleRowAIClcik = (e: MouseEvent, row: any) => {
+      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+
+      oldRow?.classList.remove('ai-active');
+      targetRow?.classList.add('ai-active');
+
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    };
+
     const rightColumns = computed(() => {
       if (window?.__IS_MONITOR_TRACE__) {
         return [];
@@ -379,14 +416,19 @@ export default defineComponent({
             return (
               // @ts-ignore
               <OperatorTools
-                handle-click={event =>
+                handle-click={(type, event) => {
+                  if (type === 'ai') {
+                    handleRowAIClcik(event, row);
+                    return;
+                  }
+
                   props.handleClickTools(
-                    event,
+                    type,
                     row,
                     indexSetOperatorConfig.value,
                     tableRowConfig.get(row).value[ROW_INDEX] + 1,
-                  )
-                }
+                  );
+                }}
                 index={row[ROW_INDEX]}
                 operator-config={indexSetOperatorConfig.value}
                 row-data={row}
@@ -408,15 +450,19 @@ export default defineComponent({
       return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
-    const getOriginTimeShow = data => {
-      if (timeFieldType.value === 'date') {
+    const formatDateValue = (data, field_type) => {
+      if (field_type === 'date') {
         return formatDate(Number(data)) || data;
       }
       // 处理纳秒精度的UTC时间格式
-      if (timeFieldType.value === 'date_nanos') {
+      if (field_type === 'date_nanos') {
         return formatDateNanos(data, true, true);
       }
       return data;
+    };
+
+    const getOriginTimeShow = data => {
+      return formatDateValue(data, timeFieldType.value);
     };
 
     const setRouteParams = () => {
@@ -439,6 +485,7 @@ export default defineComponent({
         .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           setRouteParams();
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
@@ -465,6 +512,14 @@ export default defineComponent({
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
+
+      if (type === 'highlight') {
+        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
+          event: 'mark',
+          value: formatDateValue(value ?? content, field.field_type),
+        });
+        return;
+      }
 
       if (type === 'trace-view') {
         handleTraceIdClick(value);
@@ -502,6 +557,9 @@ export default defineComponent({
           break;
         case 'copy':
           copyMessage(option.value);
+          break;
+        case 'highlight':
+          RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value: option.value });
           break;
         case 'display':
           emit('fields-updated', option.displayFieldNames, undefined, false);
@@ -575,11 +633,13 @@ export default defineComponent({
 
     const expandOption = {
       render: ({ row }) => {
+        const config = tableRowConfig.get(row);
         return (
           <ExpandView
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
+            row-index={config.value[ROW_INDEX]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) =>
               handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
@@ -600,7 +660,7 @@ export default defineComponent({
     watch(
       () => [props.contentType, formatJson.value, tableLineIsWrap.value],
       () => {
-        scrollXOffsetLeft.value = 0;
+        scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
 
         showCtxType.value = props.contentType;
@@ -612,7 +672,7 @@ export default defineComponent({
     watch(
       () => [fieldRequestCounter.value],
       () => {
-        scrollXOffsetLeft.value = 0;
+        scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
 
         setTimeout(() => {
@@ -636,10 +696,7 @@ export default defineComponent({
         if (!isRequesting.value) {
           if (isLoading.value) {
             scrollToTop(0);
-
-            renderList.value.length = 0;
-            renderList.value = [];
-
+            renderList = [];
             return;
           }
 
@@ -651,9 +708,14 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
+        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
         setRenderList(null);
         debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
+
+        if (tableDataSize.value <= 50) {
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        }
       },
       {
         immediate: true,
@@ -702,7 +764,8 @@ export default defineComponent({
 
     const loadMoreTableData = () => {
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
-      if (isRequesting.value && tableDataSize.value === 0) {
+      // visibleFields.value 在字段重置时会清空，所以需要判断
+      if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
         return;
       }
 
@@ -712,16 +775,24 @@ export default defineComponent({
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
         setRenderList(maxLength);
         debounceSetLoading(0);
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         return;
       }
 
-      if (totalCount.value > tableList.value.length) {
+      if (hasMoreList.value) {
         isRequesting.value = true;
 
-        return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
-          pageIndex.value++;
-          debounceSetLoading(0);
-        });
+        return store
+          .dispatch('requestIndexSetQuery', { isPagination: true })
+          .then(resp => {
+            if (resp?.size === 50) {
+              pageIndex.value++;
+            }
+          })
+          .finally(() => {
+            debounceSetLoading(0);
+            nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+          });
       }
 
       return Promise.resolve(false);
@@ -731,114 +802,82 @@ export default defineComponent({
       searchContainerHeight.value = entry.contentRect.height;
     });
 
-    const scrollXOffsetLeft = ref(0);
+    let scrollXOffsetLeft = 0;
     const refScrollXBar = ref();
 
     const afterScrollTop = () => {
       pageIndex.value = 1;
 
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList.value = renderList.value.slice(0, maxLength);
+      renderList = renderList.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, computeRect, scrollToTop } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect, scrollToTop } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
       refLoadMoreElement,
     });
 
-    const scrollWidth = computed(() => {
-      const callback = (acc, item) => {
-        acc = acc + (item?.width ?? 0);
-        return acc;
-      };
-
-      const leftWidth = leftColumns.value.reduce(callback, 0);
-      const rightWidth = rightColumns.value.reduce(callback, 0);
-      const visibleWidth = getFieldColumns().reduce(callback, 0);
-
-      if (isNaN(visibleWidth)) {
-        return offsetWidth.value;
+    const setRowboxTransform = () => {
+      if (refResultRowBox.value && refRootElement.value) {
+        refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
+        if (refTableHead.value) {
+          refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
+          const fixedRight = refTableHead.value?.querySelector(
+            '.bklog-list-row .bklog-row-cell.header-cell.right',
+          ) as HTMLElement;
+          if (fixedRight) {
+            fixedRight.style.transform = `translateX(${scrollXOffsetLeft}px)`;
+          }
+        }
       }
-
-      return leftWidth + rightWidth + visibleWidth - 2;
-    });
+    };
 
     const hasScrollX = computed(() => {
-      return offsetWidth.value < scrollWidth.value;
+      return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
 
-    const debounceSetWheel = debounce(() => {
-      wheelTrigger.value.isWheeling = false;
-    }, 300);
-
+    let isAnimating = false;
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
-        wheelTrigger.value.isWheeling = true;
-        wheelTrigger.value.id = uniqueId();
-
-        debounceSetWheel();
-
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();
           event.preventDefault();
-
-          requestAnimationFrame(() => {
-            const nextOffset = scrollXOffsetLeft.value + event.deltaX;
-            if (nextOffset <= maxOffset && nextOffset >= 0) {
-              scrollXOffsetLeft.value += event.deltaX;
-              refScrollXBar.value?.scrollLeft(nextOffset);
-            }
-          });
+          if (!isAnimating) {
+            isAnimating = true;
+            requestAnimationFrame(() => {
+              isAnimating = false;
+              const nextOffset = scrollXOffsetLeft + event.deltaX;
+              if (nextOffset <= maxOffset && nextOffset >= 0) {
+                scrollXOffsetLeft += event.deltaX;
+                setRowboxTransform();
+                refScrollXBar.value?.scrollLeft(nextOffset);
+              }
+            });
+          }
         }
       },
     });
 
     const operatorFixRightWidth = computed(() => {
       const operatorWidth = operatorToolsWidth.value;
-      const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
-      return diff > operatorWidth ? 0 : operatorWidth - diff;
+      const diff = scrollWidth.value - scrollXOffsetLeft - offsetWidth.value;
+
+      return operatorWidth + (diff > 0 ? diff : 0);
     });
 
-    const setHeaderStyle = () => {
-      if (refTableHead.value) {
-        refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
-        refTableHead.value.style.setProperty('top', `${searchContainerHeight.value}px`);
-      }
-    };
-
-    const setBodyStyle = () => {
-      if (refRootElement.value) {
-        refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
-        refRootElement.value.style.setProperty('--padding-right', `${operatorToolsWidth.value}px`);
-        refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
-        refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
-        refRootElement.value.style.setProperty(
-          '--last-column-left',
-          `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-        );
-      }
-    };
-
     watch(
-      () => [
-        scrollXOffsetLeft.value,
-        operatorToolsWidth.value,
-        operatorFixRightWidth.value,
-        offsetWidth.value,
-        scrollWidth.value,
-        searchContainerHeight.value,
-      ],
+      () => [operatorFixRightWidth.value, offsetWidth.value, scrollWidth.value],
       () => {
-        setBodyStyle();
-        setHeaderStyle();
+        setRowboxTransform();
       },
+      { immediate: true },
     );
 
     const showHeader = computed(() => {
@@ -857,7 +896,7 @@ export default defineComponent({
                 key={column.key}
                 width={column.width}
                 class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
-                minWidth={column.minWidth ?? 'auto'}
+                minWidth={column.minWidth > 0 ? column.minWidth : column.width}
                 resize={column.resize}
                 onResize-width={w => handleColumnWidthChange(w, column)}
               >
@@ -869,44 +908,19 @@ export default defineComponent({
       );
     };
 
-    const handleRowAIClcik = (e: MouseEvent, row: any) => {
-      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
-      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
-      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
-
-      oldRow?.classList.remove('ai-active');
-      targetRow?.classList.add('ai-active');
-
-      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
-    };
-
     const renderScrollTop = () => {
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    const handleMouseenter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.show(target);
-      }
-    };
-
-    const handleMouseleave = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target?.classList?.contains('bklog-row-ai')) {
-        popInstanceUtil.hide();
-      }
-    };
-
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
-      const opStyle = {
-        width: `${operatorToolsWidth.value}px`,
-        minWidth: `${operatorToolsWidth.value}px`,
-      };
 
       return [
-        <div class='bklog-list-row'>
+        <div
+          class='bklog-list-row'
+          data-row-index={rowIndex}
+          data-row-click
+        >
           {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => {
             const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
             const cellStyle = {
@@ -926,41 +940,30 @@ export default defineComponent({
               </div>
             );
           })}
-          <div
-            style={opStyle}
-            class={['hidden-field bklog-row-cell']}
-          ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        showAiAssistant.value ? (
-          <span
-            class='bklog-row-ai'
-            onClick={e => handleRowAIClcik(e, row)}
-            onMouseenter={handleMouseenter}
-            onMouseleave={handleMouseleave}
-          >
-            <img src={aiBlueking} />
-          </span>
-        ) : null,
       ];
     };
 
     const renderRowVNode = () => {
-      return renderList.value.map((row, rowIndex) => {
-        return (
+      return renderList.map((row, rowIndex) => {
+        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
+
+        return [
           <RowRender
             key={row[ROW_KEY]}
-            class={['bklog-row-container']}
+            class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
           >
             {renderRowCells(row.item, rowIndex)}
-          </RowRender>
-        );
+          </RowRender>,
+        ];
       });
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft.value = (event.target as HTMLElement)?.scrollLeft;
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
+      setRowboxTransform();
     };
 
     const renderScrollXBar = () => {
@@ -974,6 +977,19 @@ export default defineComponent({
       );
     };
 
+    const isFieldSettingShow = computed(() => {
+      return !store.getters.isUnionSearch && !isExternal.value;
+    });
+
+    const hasCollectorConfigId = computed(() => {
+      const indexSetList = store.state.retrieve.indexSetList;
+      const indexSetId = route.params?.indexId;
+      const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+      return currentIndexSet?.collector_config_id;
+    });
+
+    const isExternal = computed(() => store.state.isExternal);
+
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
         return;
@@ -984,7 +1000,7 @@ export default defineComponent({
       }
 
       if (!isRequesting.value && !hasMoreList.value && tableDataSize.value > 0) {
-        return `已加载所有数据: 共计${tableDataSize.value}条`;
+        return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 
       return '';
@@ -1005,7 +1021,7 @@ export default defineComponent({
       if (window?.__IS_MONITOR_TRACE__) {
         return null;
       }
-      if (tableDataSize.value > 0) {
+      if (tableDataSize.value > 0 && showCtxType.value === 'table') {
         return <div class='fixed-right-shadown'></div>;
       }
 
@@ -1016,17 +1032,144 @@ export default defineComponent({
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
 
-    onBeforeMount(() => {
-      renderList.value.length = 0;
-      renderList.value = [];
-    });
+    const getExceptionRender = () => {
+      if (tableDataSize.value === 0) {
+        if (isRequesting.value || isLoading.value) {
+          return (
+            <bk-exception
+              style='margin-top: 100px;'
+              class='exception-wrap-item exception-part'
+              scene='part'
+              type='search-empty'
+            >
+              loading...
+            </bk-exception>
+          );
+        }
+        if ($t('检索结果为空') === exceptionMsg.value) {
+          return (
+            <div class='bklog-empty-data'>
+              <h1>{$t('检索无数据')}</h1>
+              <div class='sub-title'>您可按照以下顺序调整检索方式</div>
+              <div class='empty-validate-steps'>
+                <div class='validate-step1'>
+                  <h3>1. 优化查询语句</h3>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>查询范围：</span>
+                    <span class='step1-content-value'>
+                      log: bklog*
+                      <br />
+                      包含bklog
+                      <br />= bklog 使用通配符 (*)
+                    </span>
+                  </div>
+                  <div class='step1-content'>
+                    <span class='step1-content-label'>精准匹配：</span>
+                    <span class='step1-content-value'>log: "bklog"</span>
+                  </div>
+                </div>
+                <div class='validate-step2'>
+                  <h3>2. 检查是否为分词问题</h3>
+                  <div>
+                    当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。
+                    <br />
+                    <br />
+                    若目标内容为整段蓝色，或中间存在字符粘连的情况。
+                    <br />
+                    可能是因为分词导致的问题；
+                    <br />
+                    <span
+                      class='segment-span-tag'
+                      onClick={openConfiguration}
+                    >
+                      点击设置自定义分词
+                    </span>
+                    <br />
+                    <br />
+                    将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
+                  </div>
+                </div>
+                <div class='validate-step3'>
+                  <h3>3. 一键反馈</h3>
+                  <div>
+                    若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
+                    {/* <span class='segment-span-tag'>问题反馈</span> */}
+                    <a
+                      class='segment-span-tag'
+                      href={`wxwork://message/?username=BK助手`}
+                    >
+                      问题反馈
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
 
+        return (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            {exceptionMsg.value}
+          </bk-exception>
+        );
+      }
+
+      return null;
+    };
+
+    const onRootClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (
+        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
+        !(
+          target?.classList.contains('segment-content') ||
+          target?.classList.contains('bklog-json-view-icon-expand') ||
+          target?.classList.contains('bklog-json-view-icon-text') ||
+          target?.classList.contains('black-mark') ||
+          target?.parentElement?.classList.contains('segment-content')
+        )
+      ) {
+        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
+        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
+
+        if (index >= 0) {
+          const { item } = renderList[index] ?? {};
+          if (item) {
+            const config: RowConfig = tableRowConfig.get(item).value;
+            config.expand = !config.expand;
+            nextTick(() => {
+              if (config.expand) {
+                hanldeAfterExpandClick(target);
+              }
+            });
+          }
+        }
+      }
+    };
+
+    const openConfiguration = () => {
+      if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+        RetrieveHelper.setIndexConfigOpen(true);
+      } else {
+        bkMessage({
+          theme: 'primary',
+          message: '第三方ES、计算平台索引集类型不支持自定义分词',
+        });
+      }
+    };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
     });
 
     return {
       refRootElement,
+      refResultRowBox,
       isTableLoading,
       renderRowVNode,
       renderFixRightShadow,
@@ -1034,6 +1177,8 @@ export default defineComponent({
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+      getExceptionRender,
+      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
@@ -1049,24 +1194,17 @@ export default defineComponent({
         ref='refRootElement'
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
+        onClick={this.onRootClick}
       >
         {this.renderHeadVNode()}
         <div
           id={this.resultContainerId}
+          ref='refResultRowBox'
           class={['bklog-row-box']}
         >
           {this.renderRowVNode()}
         </div>
-        {this.tableDataSize === 0 ? (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
-          </bk-exception>
-        ) : null}
+        {this.getExceptionRender()}
         {this.renderFixRightShadow()}
         {this.renderScrollXBar()}
         {this.renderLoader()}

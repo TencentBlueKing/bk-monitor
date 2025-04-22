@@ -123,15 +123,30 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
 
   if (processedLength < str.length) {
     const remaining = str.slice(processedLength);
-    const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
 
-    for (let i = 0; i < chunkCount; i++) {
-      tokens.push({
-        text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-        isMark: false,
-        isCursorText: false,
-        isBlobWord: true,
-      });
+    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
+    for (const segment of segments) {
+      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
+      const isMark = MARK_REGEX.test(segment);
+      const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
+
+      if (isMark) {
+        tokens.push({
+          text: segment.replace(MARK_REGEX, '$1'),
+          isMark: true,
+          isCursorText: false,
+          isBlobWord: false,
+        });
+      } else {
+        for (let i = 0; i < chunkCount; i++) {
+          tokens.push({
+            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+            isMark: false,
+            isCursorText: false,
+            isBlobWord: false,
+          });
+        }
+      }
     }
   }
 
@@ -159,7 +174,7 @@ export const setScrollLoadCell = (
   const defaultRenderFn = (item: any) => {
     const child = document.createElement('span');
     child.classList.add('item-text');
-    child.innerText = item?.text ?? 'text';
+    child.textContent = item?.text?.length ? item.text : "''";
     return child;
   };
 
@@ -178,8 +193,9 @@ export const setScrollLoadCell = (
   };
 
   const appendPageItems = (size?) => {
-    if (startIndex >= wordList.length) {
+    if (startIndex > wordList.length) {
       requestAnimationFrame(appendLastTag);
+      startIndex = wordList.length;
       return false;
     }
 
@@ -191,24 +207,26 @@ export const setScrollLoadCell = (
       fragment.appendChild(child);
     });
 
+    startIndex = startIndex + (size ?? pageSize);
     contentElement?.append?.(fragment);
     return true;
   };
 
-  const handleScrollEvent = debounce(() => {
-    if (rootElement) {
-      const { offsetHeight, scrollHeight } = rootElement;
-      const { scrollTop } = rootElement;
-      if (scrollHeight - offsetHeight - scrollTop < 60) {
-        startIndex = startIndex + pageSize;
-        appendPageItems();
+  const handleScrollEvent = next =>
+    debounce(() => {
+      if (rootElement) {
+        const { offsetHeight, scrollHeight } = rootElement;
+        const { scrollTop } = rootElement;
+        if (scrollHeight - offsetHeight - scrollTop < 60) {
+          appendPageItems();
+          next?.();
+        }
       }
-    }
-  });
+    });
 
-  const addScrollEvent = () => {
+  const addScrollEvent = (next?) => {
     scrollEvtAdded = true;
-    rootElement?.addEventListener('scroll', handleScrollEvent);
+    rootElement?.addEventListener('scroll', handleScrollEvent(next));
   };
 
   const removeScrollEvent = () => {
@@ -220,17 +238,17 @@ export const setScrollLoadCell = (
    * 初始化列表
    * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
    */
-  const setListItem = (size?) => {
+  const setListItem = (size?, next?) => {
     if (appendPageItems(size)) {
       requestAnimationFrame(() => {
         if (rootElement) {
           const { offsetHeight, scrollHeight } = rootElement;
           if (offsetHeight * 1.2 > scrollHeight) {
-            startIndex = startIndex + (size ?? pageSize);
-            setListItem();
+            setListItem(undefined, next);
           } else {
+            next?.();
             if (!scrollEvtAdded) {
-              addScrollEvent();
+              addScrollEvent(next);
             }
           }
         }
@@ -251,4 +269,48 @@ export const setScrollLoadCell = (
     addScrollEvent,
     removeScrollEvent,
   };
+};
+
+export const getClickTargetElement = (pointer: MouseEvent) => {
+  const textNode = pointer.target as HTMLElement;
+  if (textNode) {
+    return { offsetX: 0, offsetY: 0 };
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(textNode);
+  const lineRects = Array.from(range.getClientRects());
+  const { clientX, clientY } = pointer;
+
+  // 遍历所有行，找到点击位置所在的行
+  let targetLineIndex = -1;
+  for (let i = 0; i < lineRects.length; i++) {
+    const rect = lineRects[i];
+    if (clientY >= rect.top && clientY <= rect.bottom && clientX >= rect.left && clientX <= rect.right) {
+      targetLineIndex = i;
+      break;
+    }
+  }
+
+  const target = lineRects?.[targetLineIndex];
+  return { offsetX: 0, offsetY: (target?.bottom ?? pointer.clientY) - pointer.clientY };
+};
+
+export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, offsetX = 0 }) => {
+  const x = e.clientX;
+  const y = e.clientY;
+  let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
+  if (!virtualTarget) {
+    virtualTarget = document.createElement('span') as HTMLElement;
+    virtualTarget.className = 'bklog-virtual-target';
+    virtualTarget.style.setProperty('position', 'absolute');
+    virtualTarget.style.setProperty('visibility', 'hidden');
+    virtualTarget.style.setProperty('z-index', '-1');
+    document.body.appendChild(virtualTarget);
+  }
+
+  virtualTarget.style.setProperty('left', `${x + offsetX}px`);
+  virtualTarget.style.setProperty('top', `${y + offsetY}px`);
+
+  return virtualTarget;
 };

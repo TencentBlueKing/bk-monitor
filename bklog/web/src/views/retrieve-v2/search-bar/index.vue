@@ -3,9 +3,9 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  // import PopInstanceUtil from './pop-instance-util';
+  import { useRoute, useRouter } from 'vue-router/composables';
+  import PopInstanceUtil from '../../../global/pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -14,69 +14,60 @@
   // #endif
 
   import { ConditionOperator } from '@/store/condition-operator';
+  import { bkMessage } from 'bk-magic-vue';
 
   import $http from '../../../api';
   import { deepClone, copyMessage } from '../../../common/util';
+  import useResizeObserve from '../../../hooks/use-resize-observe';
+  import CommonFilterSelect from './common-filter-select.vue';
+  import { withoutValueConditionList } from './const.common';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import { bkMessage } from 'bk-magic-vue';
-  import CommonFilterSelect from './common-filter-select.vue';
-  import useResizeObserve from '../../../hooks/use-resize-observe';
-  import { withoutValueConditionList } from './const.common';
-
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import { getCommonFilterAddition } from '../../../store/helper';
   const props = defineProps({
-    activeFavorite: {
-      default: null,
-      type: Object,
+    // activeFavorite: {
+    //   default: null,
+    //   type: Object,
+    // },
+    showFavorites: {
+      type: Boolean,
+      default: false,
     },
   });
 
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
-  const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
+  const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
   const refRootElement = ref(null);
+  const refKeywordInspectElement = ref(null);
+
   const queryParams = ['ui', 'sql'];
-  const btnQuery = $t('查询');
   const route = useRoute();
   const router = useRouter();
 
-  const getDefaultActiveIndex = () => {
-    if (route.query.search_mode) {
-      return queryParams.findIndex(m => m === route.query.search_mode);
-    }
-
-    if (route.query.keyword?.length) {
-      return 1;
-    }
-
-    // addition 是一个json字符串，解析出来之后至少为 [{'field': ''}], 所以这里判定长度至少 包含 '[{}]'
-    if (route.query.addition?.length > 4) {
-      return 0;
-    }
-
-    return Number(localStorage.getItem('bkLogQueryType') ?? 0);
-  };
-
-  const activeIndex = ref(getDefaultActiveIndex());
+  const inspectResponse = ref({
+    is_legal: true,
+    is_resolved: true,
+    keyword: '',
+    message: '',
+  });
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
+  const activeFavorite = ref({});
+  const refPopTraget = ref(null);
 
-  // const refPopContent = ref(null);
-  // const refPopTraget = ref(null);
+  const inspectPopInstance = new PopInstanceUtil({
+    refContent: refKeywordInspectElement,
+    tippyOptions: {
+      placement: 'bottom-end',
+      offset: [0, 10],
+    },
+  });
 
-  // const popToolInstance = new PopInstanceUtil({
-  //   refContent: refPopContent,
-  //   tippyOptions: {
-  //     placement: 'top-end',
-  //     zIndex: 200,
-  //     appendTo: document.body,
-  //     interactive: true,
-  //     theme: 'log-light transparent',
-  //     arrow: false,
-  //   },
-  // });
+  const activeIndex = computed(() => store.state.storage.searchType ?? 0);
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
@@ -102,6 +93,7 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -146,31 +138,6 @@
     { immediate: true, deep: true },
   );
 
-  watch(searchMode, () => {
-    const idex = queryParams.findIndex(m => m === searchMode.value);
-    if (idex >= 0) {
-      activeIndex.value = idex;
-    }
-  });
-
-  watch(
-    activeIndex,
-    () => {
-      store.commit('updateIndexItemParams', {
-        search_mode: queryParams[activeIndex.value],
-      });
-
-      router.replace({
-        params: { ...route.params },
-        query: {
-          ...(route.query ?? {}),
-          search_mode: queryParams[activeIndex.value],
-        },
-      });
-    },
-    { immediate: true },
-  );
-
   const setRouteParams = () => {
     const query = { ...route.query };
 
@@ -186,26 +153,74 @@
     });
   };
 
+  const beforeQueryBtnClick = () => {
+    return $http
+      .request('favorite/checkKeywords', {
+        data: {
+          keyword: sqlQueryValue.value,
+          fields: totalFields.value.map(item => ({
+            field_name: item.field_name,
+            is_analyzed: item.is_analyzed,
+            field_type: item.field_type,
+          })),
+        },
+      })
+      .then(resp => {
+        if (resp.result) {
+          Object.assign(inspectResponse.value, resp.data);
+          return resp.data;
+        }
+
+        return Promise.reject(resp);
+      });
+  };
+
+  const getBtnQueryResult = () => {
+    store.commit('updateIndexItemParams', {
+      addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+      keyword: sqlQueryValue.value ?? '',
+      ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+    });
+
+    if (route.query.tab !== 'graphAnalysis') {
+      store.dispatch('requestIndexSetQuery');
+    }
+
+    setRouteParams();
+  };
+
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
-      store.commit('updateIndexItemParams', {
-        addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-        keyword: sqlQueryValue.value ?? '',
-        ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
-      });
+      if (searchMode.value === 'sql') {
+        beforeQueryBtnClick().then(resp => {
+          if (resp.is_legal && resp.is_resolved) {
+            getBtnQueryResult();
+            RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
+          }
+        });
 
-      if (route.query.tab !== 'graphAnalysis') {
-        store.dispatch('requestIndexSetQuery');
+        return;
       }
 
-      setRouteParams();
+      getBtnQueryResult();
+      RetrieveHelper.searchValueChange(searchMode.value, uiQueryValue.value);
     }
   };
 
   const handleSqlRetrieve = value => {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
+    if (value !== '*') {
+      beforeQueryBtnClick().then(resp => {
+        if (resp.is_legal) {
+          store.commit('updateIndexItemParams', {
+            keyword: value,
+          });
+
+          store.dispatch('requestIndexSetQuery');
+          setRouteParams();
+        }
+      });
+      return;
+    }
 
     store.dispatch('requestIndexSetQuery');
     setRouteParams();
@@ -216,10 +231,15 @@
       keyword: value,
     });
 
+    inspectResponse.value.is_legal = true;
     setRouteParams();
   };
 
   const handleClearBtnClick = () => {
+    if (!isCopyBtnActive.value || isInputLoading.value) {
+      return;
+    }
+
     sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
     store.commit('updateIndexItemParams', {
@@ -243,29 +263,45 @@
   };
 
   const handleQueryTypeChange = () => {
-    activeIndex.value = activeIndex.value === 0 ? 1 : 0;
-    localStorage.setItem('bkLogQueryType', activeIndex.value);
+    store.commit('updateStorage', { searchType: activeIndex.value === 0 ? 1 : 0 });
+    store.commit('updateIndexItemParams', {
+      search_mode: queryParams[activeIndex.value],
+    });
+
+    router.replace({
+      params: { ...route.params },
+      query: {
+        ...(route.query ?? {}),
+        search_mode: queryParams[activeIndex.value],
+      },
+    });
+
+    if (addition.value.length > 0 || (keyword.value !== '*' && keyword.value !== '')) {
+      handleBtnQueryClick();
+    }
   };
+
   const sourceSQLStr = ref('');
   const sourceUISQLAddition = ref([]);
   const initSourceSQLStr = (params, search_mode) => {
     if (search_mode === 'ui') {
       sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
     } else {
-      sourceSQLStr.value = params.keyword;
+      sourceSQLStr.value = params?.keyword ?? '';
     }
   };
-  watch(
-    () => props.activeFavorite?.id,
-    () => {
-      if (!props.activeFavorite) return;
-      initSourceSQLStr(props.activeFavorite.params, props.activeFavorite.search_mode);
-    },
-    { immediate: true },
-  );
+
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+    activeFavorite.value = val;
+    const type = queryParams.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
+
+    initSourceSQLStr(activeFavorite.value.params, activeFavorite.value.search_mode);
+    store.commit('updateStorage', { searchType: type });
+    setRouteParams();
+  });
 
   const matchSQLStr = computed(() => {
-    if (props.activeFavorite?.index_set_id !== store.state.indexId) {
+    if (activeFavorite.value?.index_set_id !== store.state.indexId) {
       return false;
     }
     if (activeIndex.value === 0) {
@@ -290,7 +326,7 @@
       return;
     }
     const { name, group_id, display_fields, visible_type, is_enable_display_fields, index_set_type } =
-      props.activeFavorite;
+      activeFavorite.value;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
     const searchParams =
@@ -325,12 +361,13 @@
     }
     try {
       const res = await $http.request('favorite/updateFavorite', {
-        params: { id: props.activeFavorite?.id },
+        params: { id: activeFavorite.value?.id },
         data,
       });
       if (res.result) {
         window.mainComponent.messageSuccess($t('保存成功'));
         initSourceSQLStr(res.data.params, res.data.search_mode);
+        store.dispatch('requestFavoriteList');
         handleRefresh(true);
       }
     } catch (error) {}
@@ -384,7 +421,7 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const { common_filter_addition } = store.getters;
+        const common_filter_addition = getCommonFilterAddition(store.state);
         if (common_filter_addition.length) {
           window.mainComponent.messageSuccess($t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
@@ -419,6 +456,32 @@
     });
   };
 
+  const handleMouseleaveInspect = e => {
+    inspectPopInstance.hide(300);
+  };
+
+  /**
+   * @description 鼠标移入错误校验区域时，弹出错误信息
+   * @param e
+   */
+  const handleMouseenterInspect = (e, isRoot = true) => {
+    inspectPopInstance.cancelHide();
+    if (isRoot) {
+      inspectPopInstance.show(e.target);
+    }
+  };
+
+  /**
+   * @description 点击错误校验区域时，替换关键字
+   */
+  const handleInspectKeywordReplace = () => {
+    sqlQueryValue.value = inspectResponse.value.keyword;
+    inspectResponse.value.keyword = '';
+    inspectResponse.value.is_legal = true;
+    inspectResponse.is_resolved = false;
+    inspectPopInstance.hide(300);
+  };
+
   onBeforeUnmount(() => {
     // popToolInstance.onBeforeUnmount();
     // popToolInstance.uninstallInstance();
@@ -429,13 +492,18 @@
     ref="refRootElement"
     :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container']">
+    <div
+      :class="[
+        'search-bar-container',
+        { 'set-border': isFilterSecFocused, 'inspect-error': !inspectResponse.is_legal },
+      ]"
+    >
       <div
         class="search-options"
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
-        <span class="bklog-icon bklog-double-arrow"></span>
+        <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div
         class="search-input"
@@ -453,68 +521,85 @@
           @change="handleSqlQueryChange"
         ></SqlQuery>
         <div
-          class="hidden-focus-pointer"
           ref="refPopTraget"
+          class="hidden-focus-pointer"
         ></div>
         <div class="search-tool items">
           <div
+            v-show="!inspectResponse.is_legal"
+            style="color: #ea3636"
+            class="bklog-icon bklog-circle-alert-filled bklog-keyword-validate"
+            @mouseenter="handleMouseenterInspect"
+            @mouseleave="handleMouseleaveInspect"
+          >
+            <div v-show="false">
+              <div
+                class="bklog-keyword-inspect"
+                ref="refKeywordInspectElement"
+                @mouseenter="e => handleMouseenterInspect(e, false)"
+                @mouseleave="handleMouseleaveInspect"
+              >
+                <div class="inspect-row">
+                  <div class="inspect-title">{{ $t('语法错误') }}：</div>
+                  <div class="inspect-message">{{ inspectResponse.message }}</div>
+                </div>
+                <div
+                  class="inspect-row"
+                  v-show="inspectResponse.is_resolved"
+                >
+                  <div class="inspect-title">
+                    <span>{{ $t('你可能想输入:') }}</span
+                    ><span
+                      class="inspect-keyword-replace"
+                      @click="handleInspectKeywordReplace"
+                      >{{ $t('替换') }}</span
+                    >
+                  </div>
+                  <div class="inspect-message">
+                    <span>{{ inspectResponse.keyword }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
-            @click.stop="handleCopyQueryValue"
+            :class="['bklog-icon bklog-copy-4', , { disabled: isInputLoading || !isCopyBtnActive }]"
+            @click="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading || !isCopyBtnActive }]"
-            @click.stop="handleClearBtnClick"
+            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
+            @click="handleClearBtnClick"
           ></div>
-
-          <BookmarkPop
-            :activeFavorite="!props.activeFavorite"
-            :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }"
-            :search-mode="queryParams[activeIndex]"
-            :sql="sqlQueryValue"
-            :matchSQLStr="matchSQLStr"
-            @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
-            @refresh="handleRefresh"
-          ></BookmarkPop>
-
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
             @click="handleFilterSecClick"
-          ></div>
+          />
+          <BookmarkPop
+            :active-favorite="!activeFavorite?.id"
+            :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }"
+            :match-s-q-l-str="matchSQLStr"
+            :search-mode="queryParams[activeIndex]"
+            :sql="sqlQueryValue"
+            @refresh="handleRefresh"
+            @save-current-active-favorite="saveCurrentActiveFavorite"
+          />
         </div>
         <div
           class="search-tool search-btn"
-          @click.stop="handleBtnQueryClick"
+          @click="handleBtnQueryClick"
         >
           <bk-button
-            style="width: 100%; height: 100%"
             :loading="isInputLoading"
-            size="large"
+            icon="search"
+            size="small"
             theme="primary"
-            >{{ btnQuery }}</bk-button
-          >
+          />
         </div>
       </div>
-      <!-- <div style="display: none">
-        <div
-          ref="refPopContent"
-          class="bklog-search-input-poptool"
-        >
-          <div
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"
-          ></div>
-          <div
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"
-          ></div>
-        </div>
-      </div> -->
     </div>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect></CommonFilterSelect>

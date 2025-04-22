@@ -71,9 +71,9 @@ export const encodeRegexp = (paramStr: string) => {
 export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
 
+  isLoading = false;
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
-  isLoading = true;
   groupExpandMap: Readonly<Record<string, boolean>> = {};
   groupCheeckMap: Readonly<Record<string, boolean>> = {};
   handleSearch = () => {};
@@ -96,32 +96,24 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.groupCheeckMap = Object.freeze(makeMap(this.currentSelectedMetricNameList));
   }
 
+  @Watch('metricGroupList', { immediate: true })
+  metricGroupListChange() {
+    this.renderMetricGroupList = Object.freeze(this.metricGroupList);
+    if (this.renderMetricGroupList.length > 0) {
+      this.groupExpandMap = Object.freeze({
+        [this.metricGroupList[0].name]: true,
+      });
+    }
+  }
+
   async fetchData() {
-    const id = Number(this.$route.params.id);
-    const needParseUrl = Boolean(this.$route.query.viewPayload);
-    customEscalationViewStore.updateTimeSeriesGroupId(id);
+    this.isLoading = true;
     try {
       const result = await getCustomTsMetricGroups({
-        time_series_group_id: id,
+        time_series_group_id: Number(this.$route.params.id),
       });
-
       customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-
-      if (!needParseUrl) {
-        if (this.metricGroupList.length > 0) {
-          this.handleMetricSelectChange(true, this.metricGroupList[0].metrics[0]);
-        } else {
-          customEscalationViewStore.updateCurrentSelectedMetricNameList([]);
-        }
-      }
-
-      this.renderMetricGroupList = Object.freeze(this.metricGroupList);
-      if (this.renderMetricGroupList.length > 0) {
-        this.groupExpandMap = Object.freeze({
-          [this.metricGroupList[0].name]: true,
-        });
-      }
     } finally {
       this.isLoading = false;
     }
@@ -192,7 +184,6 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   created() {
-    this.fetchData();
     this.handleSearch = _.throttle(() => {
       if (!this.searchKey) {
         this.renderMetricGroupList = Object.freeze(this.metricGroupList);
@@ -284,7 +275,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <div>{this.renderMetricGroupList.map(renderGroup)}</div>
-        {!this.isLoading && this.metricGroupList.length < 1 && (
+        {this.metricGroupList.length < 1 && (
           <bk-exception
             scene='part'
             type='empty'

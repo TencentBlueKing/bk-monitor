@@ -43,7 +43,7 @@ interface IProps {
   strategyTarget?: any[];
   nearNum?: number;
   dimensions?: Record<string, any>;
-  refleshKey?: string;
+  refreshKey?: string;
   onRefreshCharKey: () => void;
 }
 
@@ -55,7 +55,7 @@ export default class MultipleMetricView extends tsc<IProps> {
   @Prop({ default: 20, type: Number }) nearNum: number;
   /** 维度数据 */
   @Prop({ default: () => ({}), type: Object }) dimensions: string;
-  @Prop({ default: '', type: String }) refleshKey: string;
+  @Prop({ default: '', type: String }) refreshKey: string;
 
   panels = [];
   dashboardId = random(10);
@@ -63,7 +63,7 @@ export default class MultipleMetricView extends tsc<IProps> {
   @Emit('refreshCharKey')
   handleRefreshCharView() {}
 
-  @Watch('refleshKey', { immediate: true })
+  @Watch('refreshKey', { immediate: true })
   handleWatchRefleshKey() {
     this.initPanel();
   }
@@ -195,7 +195,7 @@ export default class MultipleMetricView extends tsc<IProps> {
           >
             <ChartWrapper
               needCheck={false}
-              needHoverStryle={false}
+              needHoverStyle={false}
               panel={panel}
             />
           </div>

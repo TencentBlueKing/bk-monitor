@@ -481,7 +481,7 @@ export interface IPanelModel {
   // 图表subTitle
   subTitle?: string;
   // 图标带icon说明
-  descrition?: string;
+  description?: string;
   // 是否折叠
   collapsed?: boolean;
   // 图表数据源
@@ -523,12 +523,12 @@ export class PanelModel implements IPanelModel {
   // dashbordId
   dashboardId?: string;
   // 图标带icon说明
-  descrition!: string;
+  description!: string;
   dimension_panels?: PanelModel[];
   // 维度列表
   dimensions: string[];
   // 是否正在drag中
-  draging = false;
+  dragging = false;
   externalData: Record<string, any>; // 一些额外自定义数据 用于图表
   extra_panels?: PanelModel[];
   // 图表位置
@@ -551,6 +551,8 @@ export class PanelModel implements IPanelModel {
   realHeight = 0;
   // 是否显示
   show?: boolean = true;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  sub_title?: string;
   subTitle!: string;
   // 图表数据源
   targets: DataQuery[];
@@ -740,7 +742,7 @@ export class PanelModel implements IPanelModel {
     this.panels?.length && this.panels.forEach(item => item?.updateShow?.(v));
   }
   public updateDragging(v: boolean) {
-    this.draging = v;
+    this.dragging = v;
   }
   public updateGridPos(v: IGridPos) {
     this.gridPos = {

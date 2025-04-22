@@ -99,7 +99,7 @@ class MetaViewSet(APIViewSet):
             "result": true
         }
         """
-        return Response(MetaHandler.get_user_spaces(get_request_username()))
+        return Response(MetaHandler.get_user_spaces())
 
     @list_route(methods=["GET"], url_path="projects")
     def list_projects(self, request):

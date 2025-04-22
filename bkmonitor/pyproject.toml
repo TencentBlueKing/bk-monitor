@@ -1,0 +1,39 @@
+[tool.coverage.run]
+omit = [
+    "*/test*",
+    "*/migrations*",
+    "*/__init__.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError"
+]
+skip_empty = true
+
+
+[tool.pytest.ini_options]
+console_output_style = "count"
+testpaths = [
+    "alarm_backends/tests",
+    "bkmonitor/data_source/tests"
+]
+python_files = ["test_*.py", "tests.py"]
+log_level = "ERROR"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::django.utils.deprecation.RemovedInDjango41Warning",
+    "ignore::ImportWarning",
+    "ignore::ResourceWarning"
+]
+DJANGO_SETTINGS_MODULE = "settings"
+env = [
+    "D:DJANGO_CONF_MODULE=conf.worker.development.community",
+    "D:BKAPP_DEPLOY_PLATFORM=community",
+    "USE_DYNAMIC_SETTINGS=0",
+    "D:django_find_project=false",
+    "D:BK_MONITOR_APP_CODE=bk_monitorv3",
+    "D:BK_MONITOR_APP_SECRET=secret"
+]

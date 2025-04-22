@@ -105,6 +105,12 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         unique_together = ["bcs_cluster_id", "name"]
         index_together = ["bk_biz_id", "bcs_cluster_id"]
 
+    def to_meta_dict(self):
+        return {
+            "node": self.name,
+            "ip": self.ip,
+        }
+
     @staticmethod
     def hash_unique_key(bk_biz_id, bcs_cluster_id, name):
         return BCSNode.md5str(

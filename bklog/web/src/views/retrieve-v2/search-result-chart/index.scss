@@ -1,11 +1,19 @@
 .monitor-echarts-container {
   position: relative;
-  height: 136px;
+  // height: 156px;
   overflow: hidden;
   background-color: #fff;
 
+  .monitor-echarts-title {
+    display: flex;
+    display: flex;
+    align-items: center;
+    align-items: center;
+    height: 36px;
+  }
+
   &.is-fold {
-    height: 26px;
+    height: 36px;
   }
 
   :deep(.echart-legend) {
@@ -37,7 +45,7 @@
   }
 
   .monitor-echart-wrap {
-    height: 126px;
+    // height: 126px;
     padding-top: 0;
     padding-bottom: 0;
 

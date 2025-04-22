@@ -35,6 +35,7 @@ import './index.scss';
 interface IProps {
   data: {
     key: string;
+    alias: string;
     method: string;
     value: string[];
   }[];
@@ -72,7 +73,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             <router-link
               style='color: #3a84ff;'
               to={{
-                name: 'custom-detail-timeseries',
+                name: 'new-custom-detail-timeseries',
                 id: this.$route.params.id,
                 activeTab: 'dimension',
               }}

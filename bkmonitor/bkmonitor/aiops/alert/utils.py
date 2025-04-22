@@ -500,7 +500,13 @@ class DimensionDrillManager(AIOPSManager):
         }
 
         # 维度中文名映射
-        dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
+        dim_mappings = {}
+        if metric:
+            dim_mappings = {
+                item["id"]: item["name"]
+                for item in metric.dimensions
+                if item.get("is_dimension", True)
+            }
 
         anomaly_dimensions = []
         for root_dimension in root_dimensions:
@@ -558,14 +564,19 @@ class DimensionDrillManager(AIOPSManager):
         graph_panels = []
 
         # 维度中文名映射
-        dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
+        dim_mappings = {}
+        if metric:
+            dim_mappings = {
+                item["id"]: item["name"]
+                for item in metric.dimensions
+                if item.get("is_dimension", True)
+            }
 
         for dimension in graph_dimensions:
             base_graph_panel = copy.deepcopy(graph_panel)
             base_graph_panel["id"] = cls.generate_id_by_dimension_dict(dimension["root"])
             base_graph_panel["type"] = "aiops-dimension-lint"
             base_graph_panel["subTitle"] = " "
-            base_graph_panel["dimensions"] = dimension["root"]
             base_graph_panel["anomaly_score"] = round(float(dimension["score"]), 2)
             base_graph_panel["anomaly_level"] = generate_anomaly_level(base_graph_panel["anomaly_score"])
             base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
@@ -582,6 +593,9 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["title"] = "_".join(
                 map(lambda x: f"{dim_mappings.get(x, x)}: {dimension['root'][x]}", dimension_keys)
             )
+            base_graph_panel["dimensions"] = {
+                dim_mappings.get(key, key): value for key, value in dimension["root"].items()
+            }
             base_graph_panel["anomaly_dimension_class"] = "&".join(dimension_keys)
             for condition_key in dimension_keys:
                 condition_value = dimension["root"][condition_key]
@@ -1060,9 +1074,13 @@ class RecommendMetricManager(AIOPSManager):
                 }
 
                 # 维度中文名映射
-                dim_mappings = {
-                    item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)
-                }
+                dim_mappings = {}
+                if metric:
+                    dim_mappings = {
+                        item["id"]: item["name"]
+                        for item in metric.dimensions
+                        if item.get("is_dimension", True)
+                    }
                 dimension_keys = sorted(dimensions.keys())
 
                 base_graph_panel["id"] = recommend_metric[0]

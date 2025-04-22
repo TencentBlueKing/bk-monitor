@@ -27,20 +27,27 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { downloadFile } from 'monitor-common/utils';
+import { CancelToken } from 'monitor-api/index';
+import { Debounce, downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { APIType, getDownloadTopK, getEventTopK } from '../api-utils';
+import { handleTransformTime } from '../../../components/time-range/utils';
+import { APIType, getDownloadTopK, getEventTopK, getTopKStatisticGraph, getTopKStatisticInfo } from '../api-utils';
+import { topKColorList } from '../utils';
+import DimensionEcharts from './dimension-echarts';
 
-import type { ConditionChangeEvent, ITopKField } from '../typing';
+import type { ConditionChangeEvent, DimensionType, IStatisticsInfo, ITopKField } from '../typing';
 
 import './statistics-list.scss';
 interface StatisticsListProps {
   selectField: string;
+  fieldType: string;
   popoverInstance?: any;
   isDimensions?: boolean;
   source: APIType;
+  isShow?: boolean;
+  isShowChart?: boolean;
 }
 
 interface StatisticsListEvents {
@@ -51,12 +58,32 @@ interface StatisticsListEvents {
 
 @Component
 export default class StatisticsList extends tsc<StatisticsListProps, StatisticsListEvents> {
+  @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: String, default: '' }) selectField: string;
+  @Prop({ type: String, default: '' }) fieldType: DimensionType;
+  @Prop({ type: Boolean, default: false }) isShowChart: boolean;
   @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+  @InjectReactive('timeRange') timeRange;
   @InjectReactive('commonParams') commonParams;
+
+  localField = '';
+  infoLoading = true;
+  getStatisticsListCount = 0;
+  statisticsInfo: IStatisticsInfo = {
+    field: '',
+    total_count: 0,
+    field_count: 0,
+    distinct_count: 0,
+    field_percent: 0,
+  };
+  /** 格式化后时间范围文本 */
+  timeRangeText = [];
+  chartData = [];
+  topKInfoCancelFn = null;
+  topKChartCancelFn = null;
 
   sliderShow = false;
   sliderLoading = false;
@@ -67,9 +94,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   /** 侧栏维度列表 */
   sliderDimensionList: ITopKField = { distinct_count: 0, field: '', list: [] };
   slideOverflowPopoverInstance = null;
+  /** 侧栏分页 */
+  sliderListPage = 1;
 
   popoverLoading = true;
   downloadLoading = false;
+
+  topKCancel = null;
 
   /** 渲染TopK字段行 */
   renderTopKField(list: ITopKField['list'] = []) {
@@ -77,7 +108,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
     return (
       <div class='top-k-list'>
-        {list.map(item => (
+        {list.map((item, index) => (
           <div
             key={item.value}
             class='top-k-list-item'
@@ -86,14 +117,14 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               <i
                 class='icon-monitor icon-a-sousuo'
                 v-bk-tooltips={{
-                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.selectField} = ${item.value || '""'}`,
+                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.localField} = ${item.value || '""'}`,
                 }}
                 onClick={() => this.handleConditionChange('eq', item)}
               />
               <i
                 class='icon-monitor icon-sousuo-'
                 v-bk-tooltips={{
-                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.selectField} != ${item.value || '""'}`,
+                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.localField} != ${item.value || '""'}`,
                 }}
                 onClick={() => this.handleConditionChange('ne', item)}
               />
@@ -113,7 +144,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
                 </span>
               </div>
               <bk-progress
-                color='#5AB8A8'
+                color={this.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index]}
                 percent={item.proportions / 100}
                 show-text={false}
                 stroke-width={6}
@@ -128,7 +159,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Emit('conditionChange')
   handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
     return {
-      key: this.selectField,
+      key: this.localField,
       method: type,
       value: item.value,
     };
@@ -139,23 +170,103 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     return this.sliderShow;
   }
 
-  @Watch('selectField')
+  @Watch('isShow')
   watchSelectFieldChange(val) {
     if (!val) {
       this.statisticsList = { distinct_count: 0, field: '', list: [] };
-      return;
+      this.infoLoading = true;
+    } else {
+      this.localField = this.selectField;
+      this.timeRangeText = handleTransformTime(this.timeRange);
+      this.getStatisticsList();
     }
-    this.getStatisticsList();
   }
 
+  @Debounce(200)
   async getStatisticsList() {
+    this.infoLoading = true;
+    this.getStatisticsListCount += 1;
+    const count = this.getStatisticsListCount;
     this.popoverLoading = true;
     this.statisticsList = await this.getFieldTopK({
       limit: 5,
-      fields: [this.selectField],
+      fields: [this.localField],
     });
+    if (count !== this.getStatisticsListCount) return;
     this.popoverLoading = false;
     this.popoverInstance?.popperInstance?.update();
+    await this.getStatisticsGraphData();
+  }
+
+  @Debounce(200)
+  async getStatisticsGraphData() {
+    if (!this.isShowChart) return;
+    this.topKInfoCancelFn?.();
+    const info: IStatisticsInfo = await getTopKStatisticInfo(
+      {
+        ...this.commonParams,
+        field: {
+          field_name: this.localField,
+          field_type: this.fieldType,
+        },
+      },
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKInfoCancelFn = c)),
+      }
+    ).catch(err => {
+      console.error(err.error_details || err.message);
+      return null;
+    });
+    if (!info) return;
+
+    this.statisticsInfo = info;
+
+    const { min, max } = this.statisticsInfo.value_analysis || {};
+    const values =
+      this.fieldType === 'integer'
+        ? [min, max, this.statisticsInfo.distinct_count, 8]
+        : this.statisticsList.list.map(item => item.value);
+    const { query_configs, ...other } = this.commonParams;
+    this.topKChartCancelFn?.();
+    const data = await getTopKStatisticGraph(
+      {
+        ...other,
+        query_configs: [
+          {
+            ...query_configs[0],
+            group_by: this.fieldType === 'keyword' ? [this.localField] : [],
+            metrics: [
+              {
+                field: '_index',
+                method: 'COUNT',
+                alias: 'a',
+              },
+            ],
+          },
+        ],
+        field: {
+          field_name: this.localField,
+          field_type: this.fieldType,
+          values,
+        },
+        expression: 'a',
+      },
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKChartCancelFn = c)),
+      }
+    ).catch(() => ({ series: [] }));
+    const series = data.series || [];
+    this.chartData = series.map(item => {
+      const index = this.statisticsList.list.findIndex(i => item.dimensions?.[this.localField] === i.value) || 0;
+      return {
+        color: this.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index],
+        ...item,
+      };
+    });
+
+    this.infoLoading = false;
   }
 
   /** 展示侧栏 */
@@ -172,10 +283,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   async loadMore() {
     this.sliderLoadMoreLoading = true;
     this.sliderDimensionList = await this.getFieldTopK({
-      limit: (Math.floor(this.sliderDimensionList.list.length / 100) + 1) * 100,
-      fields: [this.selectField],
+      limit: this.sliderListPage * 100,
+      fields: [this.localField],
     });
     this.sliderLoadMoreLoading = false;
+    this.sliderListPage += 1;
   }
 
   handleSliderShowChange(show: boolean) {
@@ -183,6 +295,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.sliderShowChange();
     if (!show) {
       this.sliderDimensionList = { distinct_count: 0, field: '', list: [] };
+      this.sliderListPage = 1;
     }
   }
 
@@ -190,8 +303,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.downloadLoading = true;
     const data = await getDownloadTopK(
       {
-        limit: this.statisticsList?.distinct_count,
-        fields: [this.selectField],
+        limit: this.sliderShow ? this.sliderDimensionList.distinct_count : this.statisticsList?.distinct_count,
+        fields: [this.localField],
         ...this.commonParams,
       },
       this.source
@@ -199,20 +312,24 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       this.downloadLoading = false;
     });
     try {
-      console.log(data);
       downloadFile(data.data, 'txt', data.filename);
     } catch {}
   }
 
   async getFieldTopK(params) {
-    const data = await getEventTopK(
+    this.topKCancel?.();
+    return getEventTopK(
       {
         ...this.commonParams,
         ...params,
       },
-      this.source
-    ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
-    return data[0];
+      this.source,
+      {
+        cancelToken: new CancelToken(c => (this.topKCancel = c)),
+      }
+    )
+      .then(data => data[0] || { distinct_count: 0, field: '', list: [] })
+      .catch(() => ({ distinct_count: 0, field: '', list: [] }));
   }
 
   topKItemMouseenter(e: MouseEvent, content: string) {
@@ -231,6 +348,84 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   hiddenSliderPopover() {
     this.slideOverflowPopoverInstance?.hide(0);
     this.slideOverflowPopoverInstance?.destroy();
+  }
+
+  renderStatisticsInfo() {
+    if (!this.isShowChart) return;
+    if (this.infoLoading)
+      return (
+        <div class='info-skeleton'>
+          <div class='total-skeleton'>
+            <div class='skeleton-element' />
+            <div class='skeleton-element' />
+            <div class='skeleton-element' />
+          </div>
+          {this.fieldType === 'integer' && (
+            <div class='info-skeleton'>
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+            </div>
+          )}
+          <div class='skeleton-element chart' />
+        </div>
+      );
+
+    return (
+      <div class='statistics-info'>
+        <div class='top-k-info-header'>
+          <div class='label-item'>
+            <span class='label'>{this.$t('总行数')}:</span>
+            <span class='value'> {this.statisticsInfo.total_count}</span>
+          </div>
+          <div class='label-item'>
+            <span class='label'>{this.$t('出现行数')}:</span>
+            <span class='value'> {this.statisticsInfo.field_count}</span>
+          </div>
+          <div class='label-item'>
+            <span class='label'>{this.$t('日志条数')}:</span>
+            <span class='value'> {this.statisticsInfo.field_percent}%</span>
+          </div>
+        </div>
+
+        {this.fieldType === 'integer' && (
+          <div class='integer-statics-info'>
+            <div class='integer-item'>
+              <span class='label'>{this.$t('最大值')}</span>
+              <span class='value'>{this.statisticsInfo.value_analysis?.max || 0}</span>
+            </div>
+
+            <div class='integer-item'>
+              <span class='label'>{this.$t('最小值')}</span>
+              <span class='value'>{this.statisticsInfo.value_analysis?.min || 0}</span>
+            </div>
+            <div class='integer-item'>
+              <span class='label'>{this.$t('平均值')}</span>
+              <span class='value'>{this.statisticsInfo.value_analysis?.avg || 0}</span>
+            </div>
+            <div class='integer-item'>
+              <span class='label'>{this.$t('中位数')}</span>
+              <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
+            </div>
+          </div>
+        )}
+
+        <div class='top-k-chart-title'>
+          <span class='title'>{this.$t(this.fieldType === 'integer' ? '数值分布直方图' : 'TOP 5 时序图')}</span>
+          {this.fieldType === 'integer' && (
+            <span class='time-range'>
+              {this.timeRangeText[0]} ～ {this.timeRangeText[1]}
+            </span>
+          )}
+        </div>
+
+        <DimensionEcharts
+          data={this.chartData}
+          seriesType={this.fieldType === 'integer' ? 'histogram' : 'line'}
+        />
+      </div>
+    );
   }
 
   renderSkeleton() {
@@ -253,20 +448,22 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           ref='dimensionPopover'
           class='event-retrieval-dimension-filter-content'
         >
-          <div class='popover-header'>
+          {this.renderStatisticsInfo()}
+
+          <div class='top-k-list-header'>
             <div class='dimension-top-k-title'>
               <span
                 class='field-name'
                 v-bk-overflow-tips
               >
-                {this.selectField}
+                {this.localField}
               </span>
               <span class='divider' />
               <span class='desc'>
                 {this.$t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
               </span>
             </div>
-            {this.downloadLoading ? (
+            {this.downloadLoading || this.popoverLoading ? (
               <img
                 class='loading-icon'
                 alt=''
@@ -275,10 +472,10 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             ) : (
               <div
                 class='download-tool'
+                v-bk-tooltips={{ content: this.$t('下载') }}
                 onClick={this.handleDownload}
               >
                 <i class='icon-monitor icon-xiazai2' />
-                <span class='text'>{this.$t('下载')}</span>
               </div>
             )}
           </div>
@@ -315,14 +512,14 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
                 class='field-name'
                 v-bk-overflow-tips
               >
-                {this.selectField}
+                {this.localField}
               </span>
               <span class='divider' />
               <span class='desc'>
                 {this.$t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
               </span>
             </div>
-            {this.downloadLoading ? (
+            {this.downloadLoading || this.sliderLoading ? (
               <img
                 class='loading-icon'
                 alt=''

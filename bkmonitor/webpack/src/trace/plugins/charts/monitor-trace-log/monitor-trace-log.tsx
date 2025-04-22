@@ -49,6 +49,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
+import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
 
 import './monitor-trace-log.scss';
@@ -58,13 +59,14 @@ export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorTraceLog',
   setup() {
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     const empty = ref(true);
     const loading = ref(true);
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
-    const refleshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
-    const refleshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
+    const refreshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
+    const refreshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
     const customTimeProvider = inject<ComputedRef<string[]>>(
@@ -78,7 +80,6 @@ export default defineComponent({
     });
 
     let unPropsWatch = null;
-
     async function init() {
       empty.value = true;
       loading.value = true;
@@ -106,6 +107,7 @@ export default defineComponent({
             const { query = {}, params = {} } = c;
             fakeRoute.query = query;
             fakeRoute.params = params;
+            spanDetailQueryStore.queryData = { ...query };
           },
           push: () => {
             return {};
@@ -125,8 +127,8 @@ export default defineComponent({
               props: {
                 indexSetApi,
                 timeRange: timeRange.value,
-                refleshImmediate: refleshImmediate.value,
-                refleshInterval: refleshInterval.value,
+                refreshImmediate: refreshImmediate.value,
+                refreshInterval: refreshInterval.value,
               },
             });
           },
@@ -135,7 +137,7 @@ export default defineComponent({
         app.$route = fakeRoute;
         app._$route = fakeRoute;
         app.$t = (...args) => i18n.t(...args);
-        unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
+        unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
           app.$forceUpdate();
         });
         await nextTick();

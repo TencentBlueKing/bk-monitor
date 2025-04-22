@@ -69,7 +69,7 @@ export default class EchartsSeries {
       });
     return formatterFunc;
   }
-  public handleYxisLabelFormatter(num: number): string {
+  public handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },

@@ -29,6 +29,8 @@ import {
   eventTotal as apmEventTotal,
   eventViewConfig as apmEventViewConfig,
   eventLogs as apmEventLogs,
+  eventStatisticsInfo as apmEventStatisticsInfo,
+  eventStatisticsGraph as apmEventStatisticsGraph,
 } from 'monitor-api/modules/apm_event';
 import {
   eventDownloadTopK,
@@ -36,6 +38,8 @@ import {
   eventTotal,
   eventViewConfig,
   eventLogs,
+  eventStatisticsInfo,
+  eventStatisticsGraph,
 } from 'monitor-api/modules/data_explorer';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 
@@ -70,6 +74,18 @@ export const getEventTopK = (
   return apiFunc(params, { needMessage: false, ...config }).catch(() => []);
 };
 
+/** 获取topk统计信息 */
+export const getTopKStatisticInfo = (params: any, type = APIType.MONITOR, config = {}) => {
+  const apiFunc = type === APIType.APM ? apmEventStatisticsInfo : eventStatisticsInfo;
+  return apiFunc(params, { needMessage: false, ...config });
+};
+
+/** 获取topk图表数据 */
+export const getTopKStatisticGraph = (params: any, type = APIType.MONITOR, config = {}) => {
+  const apiFunc = type === APIType.APM ? apmEventStatisticsGraph : eventStatisticsGraph;
+  return apiFunc(params, { needMessage: false, ...config });
+};
+
 export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {
   const apiFunc = type === APIType.APM ? apmEventViewConfig : eventViewConfig;
   return apiFunc(params, { isDataParams: true }).catch(() => ({ display_fields: [], entities: [], field: [] }));
@@ -85,11 +101,15 @@ export const getDownloadTopK = (params, type = APIType.MONITOR) => {
  * @param {ExploreTotalRequestParams} params
  * @param {APIType} type
  */
-export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.MONITOR) => {
+export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.MONITOR, requestConfig = {}) => {
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
-  return apiFunc(params).catch(() => ({
-    total: 0,
-  }));
+  const config = { needMessage: false, ...requestConfig };
+  return apiFunc(params, config).catch(err => {
+    requestErrorMessage(err);
+    return {
+      total: 0,
+    };
+  });
 };
 
 /**
@@ -101,12 +121,7 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    const message = makeMessage(err.error_details || err.message);
-    if (message && err?.message !== 'canceled') {
-      if (message) {
-        bkMessage(message);
-      }
-    }
+    requestErrorMessage(err);
     return { list: [] };
   });
 };
@@ -120,3 +135,15 @@ export const getEventTimeSeries = (type = APIType.MONITOR) => {
   const api = type === APIType.APM ? EventTimeSeriesApiEnum.APM : EventTimeSeriesApiEnum.MONITOR;
   return api;
 };
+
+/**
+ * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
+ * @param err
+ *
+ */
+function requestErrorMessage(err) {
+  const message = makeMessage(err.error_details || err.message);
+  if (message && err?.message !== 'canceled') {
+    bkMessage(message);
+  }
+}

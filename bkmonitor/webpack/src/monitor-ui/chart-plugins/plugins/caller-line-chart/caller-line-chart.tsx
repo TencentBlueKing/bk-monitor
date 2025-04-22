@@ -233,10 +233,10 @@ class CallerLineChart extends CommonSimpleChart {
     }
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
+    if (this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const series = [];
       const metrics = [];
       this.legendSorts = [];
@@ -498,7 +498,7 @@ class CallerLineChart extends CommonSimpleChart {
                         }
                         return v;
                       }
-                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
                 },
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
@@ -543,7 +543,7 @@ class CallerLineChart extends CommonSimpleChart {
           })
         );
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -553,7 +553,7 @@ class CallerLineChart extends CommonSimpleChart {
           this.handleResize();
         }, 100);
       } else {
-        this.inited = this.metrics.length > 0;
+        this.initialized = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -564,7 +564,7 @@ class CallerLineChart extends CommonSimpleChart {
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
 
   // 转换time_shift显示
@@ -622,7 +622,7 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    const tranformSeries = series.map((item, index) => {
+    const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
@@ -726,7 +726,7 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
     this.legendData = result;
-    return tranformSeries;
+    return transformSeries;
   }
 
   // 设置x轴label formatter方法
@@ -771,7 +771,7 @@ class CallerLineChart extends CommonSimpleChart {
    * @param {number} num
    * @return {*}
    */
-  handleYxisLabelFormatter(num: number): string {
+  handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -794,11 +794,11 @@ class CallerLineChart extends CommonSimpleChart {
   /**
    * @description: 设置精确度
    * @param {number} data
-   * @param {ValueFormatter} formattter
+   * @param {ValueFormatter} formatter
    * @param {string} unit
    * @return {*}
    */
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -820,7 +820,7 @@ class CallerLineChart extends CommonSimpleChart {
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formattter(cur, precision).text)] = 1;
+        pre[Number(formatter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -1190,8 +1190,8 @@ class CallerLineChart extends CommonSimpleChart {
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          descrition={this.panel.descrition}
-          draging={this.panel.draging}
+          description={this.panel.description}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
@@ -1331,7 +1331,7 @@ class CallerLineChart extends CommonSimpleChart {
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

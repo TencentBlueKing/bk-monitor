@@ -35,6 +35,7 @@ import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
 import store from '@/store';
+
 import './field-analysis.scss';
 
 const CancelToken = axios.CancelToken;
@@ -123,7 +124,7 @@ export default class FieldAnalysis extends Vue {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
       const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
-      return `${window.mainComponent.$t('查询时段')}: ${dayjs.unix(startTime).format(pillarFormatStr)} - ${dayjs.unix(endTime).format(pillarFormatStr)}`;
+      return `${window.mainComponent.$t('查询时段')}: ${dayjs(startTime).format(pillarFormatStr)} - ${dayjs(endTime).format(pillarFormatStr)}`;
     }
     return '';
   }
@@ -157,7 +158,7 @@ export default class FieldAnalysis extends Vue {
       await this.queryStatisticsInfo();
       await this.queryStatisticsGraph();
       this.initFieldChart();
-      this.showMore(false)
+      this.showMore(false);
     });
   }
 
@@ -676,14 +677,6 @@ export default class FieldAnalysis extends Vue {
                 <div class='count-num'>
                   <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
                   <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
-                 {
-                  this.fieldData.distinct_count >5? ( <span
-                    class='moreDistinct'
-                    onClick={this.showMore.bind(this)}
-                  >
-                    {window.mainComponent.$t('更多')}
-                  </span>):null
-                 }
                 </div>
                 <div class='moreFn'>
                   <span
@@ -700,6 +693,7 @@ export default class FieldAnalysis extends Vue {
               </div>
               {this.queryParams.agg_field && (
                 <AggChart
+                  colorList={lineColor}
                   field-name={this.queryParams.agg_field}
                   field-type={this.queryParams.field_type}
                   is-front-statistics={this.queryParams.isFrontStatistics}
@@ -708,6 +702,14 @@ export default class FieldAnalysis extends Vue {
                   statistical-field-data={this.queryParams.statisticalFieldData}
                 />
               )}
+              {this.fieldData.distinct_count > 5 ? (
+                <span
+                  class='moreDistinct'
+                  onClick={this.showMore.bind(this)}
+                >
+                  {window.mainComponent.$t('更多')}
+                </span>
+              ) : null}
             </div>
           ) : (
             <div class='not-data-empty'>

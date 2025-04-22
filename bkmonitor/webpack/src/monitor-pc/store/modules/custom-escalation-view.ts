@@ -1,6 +1,7 @@
-import { type getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 import { makeMap } from 'monitor-common/utils/make-map';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
+import type { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -45,18 +46,32 @@ class CustomEscalationViewStore extends VuexModule {
     const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
     const result: TCustomTsMetricGroups['metric_groups'][number]['metrics'] = [];
     const repeatMap: Record<string, boolean> = {};
-    this.metricGroupList.forEach(groupItem => {
-      groupItem.metrics.forEach(metricsItem => {
+
+    for (const groupItem of this.metricGroupList) {
+      for (const metricsItem of groupItem.metrics) {
         if (repeatMap[metricsItem.metric_name]) {
-          return;
+          break;
         }
         if (metricKeyMap[metricsItem.metric_name]) {
           repeatMap[metricsItem.metric_name] = true;
           result.push(metricsItem);
         }
-      });
-    });
+      }
+    }
     return result;
+  }
+
+  get dimensionAliasNameMap() {
+    return this.metricGroupList.reduce<Record<string, string>>((result, groupItem) => {
+      for (const metricsItem of groupItem.metrics) {
+        for (const dimensionItem of metricsItem.dimensions) {
+          Object.assign(result, {
+            [dimensionItem.name]: dimensionItem.alias,
+          });
+        }
+      }
+      return result;
+    }, {});
   }
 
   get timeRangTimestamp() {

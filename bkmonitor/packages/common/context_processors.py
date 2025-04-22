@@ -175,12 +175,16 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "K8S_V2_BIZ_LIST": settings.K8S_V2_BIZ_LIST,
             # Event v2 是否开启
             "EVENT_V2_BIZ_LIST": settings.EVENT_V2_BIZ_LIST,
+            # Trace v2 是否开启
+            "TRACE_V2_BIZ_LIST": settings.TRACE_V2_BIZ_LIST,
             # 是否开启AI助手
             "ENABLE_AI_ASSISTANT": "true" if settings.AIDEV_API_BASE_URL else "false",
             # APM 日志转发接口 Url
             "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
             # 是否开启新版自定义时序
             "ENABLE_CUSTOM_TS_V2_BIZ_LIST": settings.ENABLE_CUSTOM_TS_V2_BIZ_LIST,
+            # 是否开启事件中心AIOps功能
+            "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
         }
     )
 

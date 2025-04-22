@@ -75,7 +75,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   @InjectReactive('commonParams') commonParams;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') refreshImmediate: string;
+  @InjectReactive('refreshImmediate') refreshImmediate: string;
 
   emptyStatus: EmptyStatusType = 'empty';
 
@@ -86,7 +86,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 搜索结果列表 */
   searchResultList: IDimensionField[] = [];
   /** 已选择的字段 */
-  selectField: IDimensionField = null;
+  selectField = '';
+  showStatisticsPopover = false;
+  slideField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
 
@@ -111,7 +113,6 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Watch('list')
   async watchListChange(list: IDimensionField[]) {
     this.searchVal = '';
-    this.emptyStatus = 'search-empty';
     this.searchResultList = list;
     await this.getFieldCount();
   }
@@ -132,20 +133,27 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 点击维度项后展示统计弹窗 */
   async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
-    this.selectField = item;
-    if (!item.is_option_enabled) return;
+    if (!item.is_option_enabled || !this.fieldListCount[item.name]) return;
+    this.selectField = item.name;
+    this.slideField = item;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
-      width: 400,
+      width: 405,
       distance: -5,
       boundary: 'viewport',
       trigger: 'manul',
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
       interactive: true,
+      onHidden: () => {
+        this.showStatisticsPopover = false;
+        this.selectField = '';
+      },
     });
+    await this.$nextTick();
     this.popoverInstance?.show(100);
+    this.showStatisticsPopover = true;
   }
 
   destroyPopover() {
@@ -281,8 +289,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
               <div
                 key={item.name}
                 v-bk-tooltips={{
-                  content: this.$t('该维度暂无数据，无法进行统计分析'),
-                  disabled: item.is_option_enabled,
+                  content: this.$t(
+                    item.is_option_enabled ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'
+                  ),
+                  disabled: item.is_option_enabled && this.fieldListCount[item.name],
                   interactive: false,
                   placement: 'right',
                 }}
@@ -290,8 +300,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                 <div
                   class={{
                     'dimension-item': true,
-                    active: this.selectField?.name === item.name,
-                    disabled: !item.is_option_enabled,
+                    active: this.selectField === item.name,
+                    disabled: !item.is_option_enabled || !this.fieldListCount[item.name],
                   }}
                   onClick={e => this.handleDimensionItemClick(e, item)}
                 >
@@ -327,9 +337,12 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
-          isDimensions={this.selectField?.is_dimensions}
+          fieldType={this.slideField?.type}
+          isDimensions={this.slideField?.is_dimensions}
+          isShow={this.showStatisticsPopover}
+          isShowChart={true}
           popoverInstance={this.popoverInstance}
-          selectField={this.selectField?.name}
+          selectField={this.slideField?.name}
           source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
