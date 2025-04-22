@@ -23,11 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, shallowRef, computed, reactive, onMounted, type PropType, watch } from 'vue';
+import {
+  defineComponent,
+  ref as deepRef,
+  shallowRef,
+  computed,
+  reactive,
+  onMounted,
+  type PropType,
+  watch,
+  onBeforeUnmount,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Loading, OverflowTitle } from 'bkui-vue';
 import { AngleUpFill, Funnel } from 'bkui-vue/lib/icon';
+import { listOptionValues } from 'monitor-api/modules/apm_trace';
 import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -44,11 +55,19 @@ import {
   ExploreTableLoadingEnum,
   type GetTableCellRenderValue,
 } from './typing';
-import { getTableList, SERVICE_STATUS_COLOR_MAP, SPAN_KIND_MAPS, TABLE_DEFAULT_CONFIG } from './utils';
+import {
+  getTableList,
+  requestErrorMessage,
+  SERVICE_STATUS_COLOR_MAP,
+  SPAN_KIND_MAPS,
+  TABLE_DEFAULT_CONFIG,
+} from './utils';
 
 import type { ICommonParams } from '../../typing';
 
 import './trace-explore-table.scss';
+
+const SCROLL_ELEMENT_CLASS_NAME = '.trace-explore-view';
 
 export default defineComponent({
   name: 'TraceExploreTable',
@@ -78,9 +97,13 @@ export default defineComponent({
     /** table 默认配置项 */
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
     /** 表格单页条数 */
-    const limit = 50;
+    const limit = 30;
     /** 表格logs数据请求中止控制器 */
     let abortController: AbortController = null;
+    /** 获取表格筛选候选值数据请求中止控制器 */
+    let filterAbortController: AbortController = null;
+    /** 滚动容器元素 */
+    let scrollContainer: HTMLElement = null;
 
     /** table 数据总条数 */
     const tableTotal = shallowRef(0);
@@ -100,13 +123,29 @@ export default defineComponent({
       [ExploreTableLoadingEnum.SCROLL]: false,
     });
     /** 表格列筛选值 */
-    const filterValue = deepRef<FilterValue>({});
+    const filtersValue = deepRef<FilterValue>({});
     /** 表格列排序配置 */
     const sortContainer = reactive<SortInfo>({
       /** 排序字段 */
       sortBy: '',
       /** 排序顺序 */
       descending: null,
+    });
+    /** 表格header具有筛选列的候选值集合 */
+    const tableFiltersOptions = reactive({
+      // 属于 Trace 列表的
+      root_service: [],
+      root_service_span_name: [],
+      root_service_status_code: [],
+      root_service_category: [],
+      root_span_name: [],
+      // 属于 Span 列表的
+      kind: [],
+      'resource.bk.instance.id': [],
+      'resource.service.name': [],
+      'resource.telemetry.sdk.version': [],
+      span_name: [],
+      'status.code': [],
     });
 
     /** 当前视角是否为 Span 视角 */
@@ -127,22 +166,45 @@ export default defineComponent({
       const columnMap = getTableColumnMapByVisualMode();
       return displayColumnFields.value.map(colKey => columnMap[colKey]).filter(Boolean);
     });
+
+    /** 请求时间范围 */
+    const timestamp = computed(() => {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
+      return {
+        start_time,
+        end_time,
+      };
+    });
+
     /** 请求参数 */
     const queryParams = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
+      const { mode, query_string, filters, ...params } = props.commonParams;
+
       let sort = [];
       if (sortContainer.sortBy) {
         sort = [`${sortContainer.descending ? '-' : ''}${sortContainer.sortBy}`];
       }
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { mode, query_string, ...params } = props.commonParams;
+
+      const tableFiltersValue = Object.keys(filtersValue.value)
+        .map(key => {
+          const value = filtersValue.value[key];
+          if (!value?.length) return null;
+          return {
+            key,
+            value,
+            operator: 'equal',
+          };
+        })
+        .filter(Boolean);
+
       return {
         ...params,
+        ...timestamp.value,
+        filters: [...tableFiltersValue, ...filters],
         query: query_string,
         sort,
-        start_time,
-        end_time,
       };
     });
 
@@ -155,8 +217,13 @@ export default defineComponent({
         getDisplayColumnFields();
         sortContainer.sortBy = '';
         sortContainer.descending = null;
+        filtersValue.value = {};
+        getTableFiltersOptions();
       }
     );
+    watch([() => props.appName, () => timestamp.value], () => {
+      getTableFiltersOptions();
+    });
 
     watch(
       () => queryParams.value,
@@ -168,7 +235,51 @@ export default defineComponent({
     onMounted(() => {
       getDisplayColumnFields();
       getExploreList();
+      getTableFiltersOptions();
+      addScrollListener();
     });
+
+    onBeforeUnmount(() => {
+      removeScrollListener();
+      abortController?.abort?.();
+      filterAbortController?.abort?.();
+      abortController = null;
+      filterAbortController = null;
+    });
+
+    /**
+     * @description 添加滚动监听
+     */
+    function addScrollListener() {
+      removeScrollListener();
+      scrollContainer = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
+      if (!scrollContainer) return;
+      scrollContainer.addEventListener('scroll', handleScroll);
+    }
+
+    /**
+     * @description 移除滚动监听
+     */
+    function removeScrollListener() {
+      if (!scrollContainer) return;
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      scrollContainer = null;
+    }
+
+    /**
+     * @description 滚动触发事件，滚动触底加载更多
+     *
+     */
+    function handleScroll(event: Event) {
+      const target = event.target as HTMLElement;
+      const { scrollHeight } = target;
+      const { scrollTop } = target;
+      const { clientHeight } = target;
+      const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+      if (isEnd) {
+        getExploreList(ExploreTableLoadingEnum.SCROLL);
+      }
+    }
 
     /**
      * @description 根据当前激活的视角(trace/span)获取对应的table表格列配置
@@ -191,7 +302,7 @@ export default defineComponent({
             title: t('接口名称'),
             minWidth: 200,
             filter: {
-              list: [],
+              list: tableFiltersOptions.span_name,
             },
           },
           start_time: {
@@ -221,7 +332,7 @@ export default defineComponent({
             title: t('状态'),
             minWidth: 100,
             filter: {
-              list: [],
+              list: tableFiltersOptions['status.code'],
             },
             getRenderValue: row => {
               const alias = row?.status_code?.value;
@@ -238,7 +349,7 @@ export default defineComponent({
             title: t('类型'),
             minWidth: 100,
             filter: {
-              list: [],
+              list: tableFiltersOptions.kind,
             },
             getRenderValue: row => SPAN_KIND_MAPS[row.kind],
           },
@@ -248,7 +359,7 @@ export default defineComponent({
             title: t('所属服务'),
             minWidth: 160,
             filter: {
-              list: [],
+              list: tableFiltersOptions['resource.service.name'],
             },
             getRenderValue: row => getJumpToApmLinkItem(row?.resource?.['service.name']),
           },
@@ -258,7 +369,7 @@ export default defineComponent({
             title: t('实例 ID'),
             minWidth: 160,
             filter: {
-              list: [],
+              list: tableFiltersOptions['resource.bk.instance.id'],
             },
             getRenderValue: row => row?.resource?.['bk.instance.id'],
           },
@@ -275,7 +386,7 @@ export default defineComponent({
             title: t('SDK 版本'),
             minWidth: 160,
             filter: {
-              list: [],
+              list: tableFiltersOptions['resource.telemetry.sdk.version'],
             },
             getRenderValue: row => row?.resource?.['telemetry.sdk.version'],
           },
@@ -308,7 +419,7 @@ export default defineComponent({
           title: t('根Span'),
           minWidth: 160,
           filter: {
-            list: [],
+            list: tableFiltersOptions.root_span_name,
           },
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
@@ -318,7 +429,7 @@ export default defineComponent({
           title: t('入口服务'),
           minWidth: 160,
           filter: {
-            list: [],
+            list: tableFiltersOptions.root_service,
           },
           getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
         },
@@ -328,7 +439,7 @@ export default defineComponent({
           title: t('入口接口'),
           minWidth: 160,
           filter: {
-            list: [],
+            list: tableFiltersOptions.root_service_span_name,
           },
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
@@ -338,7 +449,7 @@ export default defineComponent({
           title: t('调用类型'),
           minWidth: 120,
           filter: {
-            list: [],
+            list: tableFiltersOptions.root_service_category,
           },
           getRenderValue: row => row?.root_service_category?.text,
         },
@@ -348,7 +459,7 @@ export default defineComponent({
           title: t('状态码'),
           minWidth: 100,
           filter: {
-            list: [],
+            list: tableFiltersOptions.root_service_status_code,
           },
           getRenderValue: row => {
             const alias = row?.root_service_status_code?.value as string;
@@ -505,6 +616,7 @@ export default defineComponent({
         abortController.abort();
         abortController = null;
       }
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { app_name, start_time, end_time } = queryParams.value;
       if (!app_name || !start_time || !end_time) {
         store.updateTableList([]);
@@ -540,7 +652,42 @@ export default defineComponent({
       }
       tableLoading[loadingType] = false;
 
+      tableTotal.value = res.total;
       updateTableDataFn(res.data);
+    }
+
+    /**
+     * @description: 获取 table 表格具有筛选功能列的候选值配置
+     */
+    function getTableFiltersOptions() {
+      if (filterAbortController) {
+        filterAbortController.abort();
+        filterAbortController = null;
+      }
+      const { appName, mode } = props;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { start_time, end_time } = timestamp.value;
+      if (!appName || !start_time || !end_time) {
+        return;
+      }
+      const params = {
+        app_name: appName,
+        start_time: start_time,
+        end_time: end_time,
+        mode: mode,
+      };
+      filterAbortController = new AbortController();
+      listOptionValues(params, {
+        needMessage: false,
+        signal: filterAbortController.signal,
+      })
+        .then(res => {
+          for (const key of Object.keys(res)) {
+            if (tableFiltersOptions[key]?.length) tableFiltersOptions[key].length = 0;
+            tableFiltersOptions[key]?.push(...res[key].map(e => ({ value: e.value, label: e.text })));
+          }
+        })
+        .catch(requestErrorMessage);
     }
 
     /**
@@ -603,8 +750,8 @@ export default defineComponent({
      * @param {Array<boolean | number | string>} filterChangeEvent.values 过滤值
      *
      */
-    function handleFilterChange(filterChangeEvent: FilterValue) {
-      console.log('================ filterChangeEvent ================', filterChangeEvent);
+    function handleFilterChange(filters: FilterValue) {
+      filtersValue.value = filters;
     }
 
     /**
@@ -885,7 +1032,9 @@ export default defineComponent({
       displayColumnFields,
       tableColumns,
       tableLoading,
-      filterValue,
+      tableHasScrollLoading,
+      filtersValue,
+      sortContainer,
       tableDisplayColumns,
       tableViewData,
       traceSliderRender,
@@ -904,6 +1053,7 @@ export default defineComponent({
         <ExploreFieldSetting
           class='table-field-setting'
           fieldMap={{}}
+          fixedDisplayList={[this.tableRowKeyField]}
           sourceList={this.tableColumns}
           targetList={this.displayColumnFields}
           onConfirm={this.handleDisplayColumnFieldsChange}
@@ -915,8 +1065,10 @@ export default defineComponent({
             filterIcon: () => <Funnel />,
             sortIcon: () => <AngleUpFill />,
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
+            // filterRow: () => <div>筛选行插槽</div>,
             lastFullRow: () => (
               <Loading
+                style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
                 class='scroll-end-loading'
                 loading={true}
                 mode='spin'
@@ -948,14 +1100,16 @@ export default defineComponent({
           }}
           activeRowType='single'
           data={this.tableViewData}
-          filterValue={this.filterValue}
+          filterValue={this.filtersValue}
           hover={true}
           resizable={true}
           rowKey={this.tableRowKeyField}
+          showSortColumnBgColor={true}
           size='small'
+          sort={this.sortContainer}
           stripe={false}
           tableLayout='fixed'
-          onActiveChange={this.handleFilterChange}
+          onFilterChange={this.handleFilterChange}
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton

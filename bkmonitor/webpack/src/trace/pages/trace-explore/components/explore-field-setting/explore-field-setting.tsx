@@ -31,6 +31,7 @@ import {
   type PropType,
   watch,
   TransitionGroup,
+  onBeforeMount,
 } from 'vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -58,6 +59,11 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 固定选中的数据 */
+    fixedDisplayList: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
     /** 具有唯一标识的 key 值 */
     settingKey: {
       type: String,
@@ -79,6 +85,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** 拖拽容器 */
+    let dragContainer = null;
 
     /** popover 弹窗实例 */
     const popoverInstance = shallowRef(null);
@@ -94,6 +102,8 @@ export default defineComponent({
     const draggingField = shallowRef('');
     /** 选中的集合(待选列表筛选使用) */
     const selectedSet = computed(() => new Set(selectedList.value));
+    /** 固定选中的集合 */
+    const fixedDisplaySet = computed(() => new Set(props.fixedDisplayList));
     /** 待选列表 */
     const toBeChosenList = computed(() => {
       if (!popoverInstance.value) {
@@ -130,6 +140,7 @@ export default defineComponent({
       v => {
         if (!v) {
           init();
+          removeDragListener();
           return;
         }
         sourceListMap.value = props.sourceList.reduce((prev, curr) => {
@@ -139,8 +150,33 @@ export default defineComponent({
           return prev;
         }, {});
         selectedList.value = props.targetList.filter(v => sourceListMap.value[v]);
+        addDragListener();
       }
     );
+
+    onBeforeMount(() => {
+      removeDragListener();
+    });
+
+    /** 添加监听事件(消除拖拽元素拖拽时鼠标图标变为黑色的禁止图标的默认行为) */
+    function addDragListener() {
+      dragContainer = document.querySelector('.transfer-list.target-list');
+      if (!dragContainer) {
+        return;
+      }
+      dragContainer.addEventListener('dragover', dragPreventDefault);
+      dragContainer.addEventListener('dragenter', dragPreventDefault);
+    }
+
+    /** 移除监听事件 */
+    function removeDragListener() {
+      if (!dragContainer) {
+        return;
+      }
+      dragContainer?.removeEventListener('dragover', dragPreventDefault);
+      dragContainer?.removeEventListener('dragenter', dragPreventDefault);
+      dragContainer = null;
+    }
 
     function init() {
       selectedList.value = [];
@@ -253,11 +289,15 @@ export default defineComponent({
       selectedList.value = [...selectedList.value, ...fields];
     }
 
+    /**
+     * @description 清空按钮点击回调
+     *
+     */
     function handleRemoveAll() {
       if (!selectedListLen.value) {
         return;
       }
-      selectedList.value = [];
+      selectedList.value = [...props.fixedDisplayList];
     }
 
     /**
@@ -285,7 +325,8 @@ export default defineComponent({
      * @description 源对象开始进入目标对象范围内触发，源对象和目标对象互换位置
      *
      */
-    function handleDragover(field: string) {
+    function handleDragover(e: DragEvent, field: string) {
+      dragPreventDefault(e);
       const sourceField = draggingField.value;
       if (!sourceField || !field || field === draggingField.value) {
         return;
@@ -306,9 +347,14 @@ export default defineComponent({
      * @description 源对象拖动结束时触发
      *
      */
-    function handleDragend(e) {
+    function handleDragend(e: DragEvent) {
       const target = e.target as HTMLElement;
-      target.closest('.target-item')?.classList.remove('dragging');
+      const dragDom = target.closest('.target-item');
+      if (dragDom) {
+        dragDom?.classList.remove('dragging');
+        // @ts-ignore
+        dragDom.draggable = false;
+      }
       draggingField.value = '';
     }
 
@@ -317,6 +363,16 @@ export default defineComponent({
      */
     function dragPreventDefault(e) {
       e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    /**
+     * @description drag 操作句柄鼠标 按下/松开 触发回调事件
+     *
+     */
+    function dragHandleMouseOperation(e: MouseEvent, draggable) {
+      // @ts-ignore
+      e.target.closest('.target-item').draggable = draggable;
     }
 
     /**
@@ -336,25 +392,15 @@ export default defineComponent({
               <li
                 key={field}
                 class='list-item target-item'
-                onDragenter={e => {
-                  dragPreventDefault(e);
-                  e.dataTransfer.dropEffect = 'move';
-                }}
-                onDragleave={dragPreventDefault}
-                onDragover={e => {
-                  dragPreventDefault(e);
-                  e.dataTransfer.dropEffect = 'move';
-                  debounceDragover(field);
-                }}
-                onDrop={dragPreventDefault}
+                onDragend={handleDragend}
+                onDragover={e => debounceDragover(e, field)}
+                onDragstart={e => handleDragstart(e, field)}
               >
                 <div class='list-item-left'>
                   <i
                     class='icon-monitor icon-mc-tuozhuai'
-                    draggable={true}
-                    onDrag={dragPreventDefault}
-                    onDragend={handleDragend}
-                    onDragstart={e => handleDragstart(e, field)}
+                    onMousedown={e => dragHandleMouseOperation(e, true)}
+                    onMouseup={e => dragHandleMouseOperation(e, false)}
                   />
                   <FieldTypeIcon
                     class='item-prefix'
@@ -362,12 +408,14 @@ export default defineComponent({
                   />
                   <span class='item-label'>{label}</span>
                 </div>
-                <div
-                  class='item-suffix'
-                  onClick={() => handleRemoveField(field, index)}
-                >
-                  <Close />
-                </div>
+                {!fixedDisplaySet.value.has(field) ? (
+                  <div
+                    class='item-suffix'
+                    onClick={() => handleRemoveField(field, index)}
+                  >
+                    <Close />
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -480,12 +528,12 @@ export default defineComponent({
         </div>
       );
     }
-    return { settingContainerRender, handleSettingPopoverShow };
+    return { popoverInstance, settingContainerRender, handleSettingPopoverShow };
   },
   render() {
-    const { settingContainerRender, handleSettingPopoverShow } = this;
+    const { popoverInstance, settingContainerRender, handleSettingPopoverShow } = this;
     return (
-      <div class='explore-field-setting'>
+      <div class={{ 'explore-field-setting': true, active: !!popoverInstance }}>
         <div
           class='popover-trigger'
           onClick={handleSettingPopoverShow}

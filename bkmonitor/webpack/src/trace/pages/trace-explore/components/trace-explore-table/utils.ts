@@ -30,7 +30,6 @@ import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typi
 
 export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
-    lineHeight: 32,
     align: 'left',
     emptyPlaceholder: '--',
     settingWidth: 32,
@@ -38,6 +37,9 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
       showConfirmAndReset: true,
       listFilterConfig: true,
       type: 'multiple',
+      popupProps: {
+        destroyOnClose: true,
+      },
     },
   },
   traceConfig: {
@@ -99,13 +101,23 @@ export function getTableList(
   const apiFunc = mode === 'span' ? listSpan : listTrace;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    const message = makeMessage(err.error_details || err.message);
-    let isAborted = false;
-    if (message && err?.message !== 'canceled') {
-      bkMessage(message);
-    } else {
-      isAborted = true;
-    }
+    const isAborted = requestErrorMessage(err);
     return { data: [], total: 0, isAborted };
   });
+}
+
+/**
+ * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
+ * @param err
+ *
+ */
+export function requestErrorMessage(err) {
+  const message = makeMessage(err.error_details || err.message);
+  let isAborted = false;
+  if (message && err?.message !== 'canceled') {
+    bkMessage(message);
+  } else {
+    isAborted = true;
+  }
+  return isAborted;
 }

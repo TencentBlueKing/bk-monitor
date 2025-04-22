@@ -145,6 +145,21 @@
     top: 0;
     padding: 10px 8px;
   }
+
+  .table-field-setting {
+    position: absolute;
+    top: -22px;
+    right: 6px;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    transform: translateY(-50%);
+    transition: border-color 0.2s;
+
+    &:hover,
+    &.active {
+      border-color: #979ba5;
+    }
+  }
 }
 
 .t-table {
@@ -166,6 +181,23 @@
           .t-table__filter-icon-wrap {
             color: #c4c6cc;
           }
+        }
+      }
+    }
+  }
+
+  &__body {
+    tr {
+      &:not(.t-table__row--full) {
+        height: 32px;
+      }
+
+      &.t-table__first-full-row {
+        .t-table__filter-result {
+          position: sticky;
+          left: 50%;
+          display: inline-flex;
+          transform: translateX(-50%);
         }
       }
     }
