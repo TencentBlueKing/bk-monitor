@@ -32,7 +32,7 @@ import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { type Route, type RouteConfig } from 'vue-router';
 
 import introduce from '../common/introduce';
-import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
+import { NO_BUSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
 import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
@@ -42,10 +42,10 @@ import dashboardRoutes from './dashboard';
 import dataRetrievalRoutes from './data-retrieval';
 import eventRoutes from './event';
 import homeRoutes from './home';
-import intergrateRoutes from './integrated';
+import integrateRoutes from './integrated';
 import managerRoutes from './manager';
 import otherRoutes from './others';
-import scensesRoutes from './scenes';
+import scenesRoutes from './scenes';
 import platformSetting from './platform-setting';
 import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
@@ -61,11 +61,11 @@ Vue.use(VueRouter);
 const routes = [
   ...homeRoutes,
   ...dataRetrievalRoutes,
-  ...intergrateRoutes,
+  ...integrateRoutes,
   ...eventRoutes,
   ...managerRoutes,
   ...otherRoutes,
-  ...scensesRoutes,
+  ...scenesRoutes,
   ...platformSetting,
   ...dashboardRoutes,
   ...emailSubscriptionsRoutes,
@@ -128,8 +128,8 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       const { origin, pathname } = location;
-      const bizid = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
-      location.href = `${origin}${pathname}?bizId=${bizid}#${to.fullPath}`;
+      const bizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
+      location.href = `${origin}${pathname}?bizId=${bizId}#${to.fullPath}`;
       return;
     }
   }
@@ -142,7 +142,7 @@ router.beforeEach(async (to, from, next) => {
     if (hasAuthority) {
       let path = fromUrl || '';
       if (to.name === 'no-business') {
-        path = localStorage.getItem(NO_BUSSINESS_PAGE_HASH) || '';
+        path = localStorage.getItem(NO_BUSINESS_PAGE_HASH) || '';
       }
       next(`/${path}`);
     } else {

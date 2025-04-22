@@ -349,6 +349,8 @@
 .t-table {
   thead td,
   th {
+    color: #63656e !important;
+
     .t-table__cell--title {
       color: #63656e;
     }
@@ -370,6 +372,16 @@
       .t-table__sort-icon--active {
         color: #3a84ff;
       }
+    }
+  }
+}
+
+.t-table__filter-pop {
+  .bkui-tdesign-table-custom-popup {
+    .t-table__filter-pop-content .t-table__filter-pop-content-inner {
+      max-height: 200px;
+      padding: 6px 12px;
+      overflow: auto;
     }
   }
 }

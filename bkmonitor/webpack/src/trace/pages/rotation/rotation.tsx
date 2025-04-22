@@ -29,10 +29,10 @@ import { shallowReactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Table, TableColumn } from '@blueking/table';
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -168,11 +168,11 @@ export default defineComponent({
       count: 0,
       limit: 10,
     });
-    const tableSort = shallowRef({
-      column: '',
-      type: '',
+    const tableSort = shallowRef<SortInfo>({
+      sortBy: '',
+      descending: false,
     });
-    const tableFilters = shallowRef<{ checked: string[]; field: string }[]>([]);
+    const tableFilters = shallowRef<FilterValue>({});
     /* 表格设置 */
     const settings = shallowReactive({
       checked: tableColumns.value.map(item => item.field),
@@ -279,15 +279,13 @@ export default defineComponent({
         labels: [],
         status: [],
       };
-      for (const item of tableFilters.value) {
-        if (item.field === EColumn.type) {
-          filterParams.category = item.checked;
-        }
-        if (item.field === EColumn.label) {
-          filterParams.labels = item.checked;
-        }
-        if (item.field === EColumn.status) {
-          filterParams.status = item.checked;
+      for (const [key, val] of Object.entries(tableFilters.value)) {
+        if (key === EColumn.type) {
+          filterParams.category = val;
+        } else if (key === EColumn.label) {
+          filterParams.labels = val;
+        } else if (key === EColumn.status) {
+          filterParams.status = val;
         }
       }
       const filterAllRotationList = targetAllRotationList.filter(item => {
@@ -316,17 +314,16 @@ export default defineComponent({
         return need;
       });
       /* 排序 */
-      if (!!tableSort.value.column && !!tableSort.value.type) {
-        if (tableSort.value.column === EColumn.relation) {
+      if (tableSort.value.sortBy) {
+        if (tableSort.value.sortBy === EColumn.relation) {
           filterAllRotationList.sort((a, b) =>
-            tableSort.value.type === 'asc'
+            !tableSort.value.descending
               ? a.user_groups_count - b.user_groups_count
               : b.user_groups_count - a.user_groups_count
           );
-        }
-        if (tableSort.value.column === EColumn.scope) {
+        } else if (tableSort.value.sortBy === EColumn.scope) {
           filterAllRotationList.sort((a, b) =>
-            tableSort.value.type === 'asc'
+            !tableSort.value.descending
               ? new Date(a.effective_time).getTime() - new Date(b.effective_time).getTime()
               : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime()
           );
@@ -402,19 +399,13 @@ export default defineComponent({
      * @description 排序
      * @param _opt
      */
-    function handleColumnSort(opt) {
-      const { field, type } = opt;
-      const sort = {
-        column: '',
-        type: '',
-      };
-      if (opt.type) {
-        sort.column = field;
-        sort.type = type;
-      } else {
-        sort.column = field;
-      }
-      tableSort.value = sort;
+    function handleColumnSort(opt: TableSort) {
+      tableSort.value = opt
+        ? (opt as SortInfo)
+        : {
+            sortBy: '',
+            descending: false,
+          };
       tablePagination.current = 1;
       setFilterList();
     }
@@ -422,18 +413,8 @@ export default defineComponent({
      * @description 筛选
      * @param _opt
      */
-    function handleColumnFilter(opt) {
-      const filters = tableFilters.value.slice();
-      const filter = filters.find(item => item.field === opt.field);
-      if (filter) {
-        filter.checked = opt.checked;
-      } else {
-        filters.push({
-          field: opt.field,
-          checked: opt.checked,
-        });
-      }
-      tableFilters.value = filters;
+    function handleColumnFilter(value: FilterValue) {
+      tableFilters.value = value;
       tablePagination.current = 1;
       setFilterList();
     }
@@ -721,39 +702,9 @@ export default defineComponent({
             <div class='table-content'>
               {!this.loading ? (
                 [
-                  <Table
+                  <PrimaryTable
                     key={'rotation-table'}
-                    autoResize={true}
-                    border={'inner'}
-                    darkHeader={true}
-                    data={this.tableData}
-                    pagination={false}
-                    settings={this.settings}
-                    showSettings={true}
-                    size={this.settings.size}
-                    onColumnFilter={this.handleColumnFilter}
-                    onColumnSort={this.handleColumnSort}
-                    onSettingChange={this.handleSettingChange}
-                  >
-                    {{
-                      default: () =>
-                        this.tableColumns.map(column => (
-                          <TableColumn
-                            key={column.field}
-                            field={column.field}
-                            filter-multiple={true}
-                            filters={column.filters}
-                            showOverflow={'tooltip'}
-                            sortable={!!column?.sortable}
-                            title={column.title}
-                          >
-                            {{
-                              default: ({ row }) => {
-                                return this.handleSetFormatter(row, column.field);
-                              },
-                            }}
-                          </TableColumn>
-                        )),
+                    v-slots={{
                       empty: () => (
                         <EmptyStatus
                           scene='page'
@@ -762,7 +713,32 @@ export default defineComponent({
                         />
                       ),
                     }}
-                  </Table>,
+                    columns={this.tableColumns.map(column => ({
+                      colKey: column.field,
+                      cell: (_, { row }) => this.handleSetFormatter(row, column.field),
+                      title: column.title,
+                      ellipsis: true,
+                      filter: column.filters?.length
+                        ? {
+                            list: column.filters,
+                            type: 'multiple',
+                            showConfirmAndReset: true,
+                            resetValue: [],
+                          }
+                        : undefined,
+                      sorter: column.sortable,
+                    }))}
+                    data={this.tableData}
+                    resizable={true}
+                    rowKey='name'
+                    settings={this.settings}
+                    showSettings={true}
+                    showSortColumnBgColor={true}
+                    size={this.settings.size}
+                    onFilterChange={this.handleColumnFilter}
+                    onSettingChange={this.handleSettingChange}
+                    onSortChange={this.handleColumnSort}
+                  />,
                   <Pagination
                     key={'rotation-pagination'}
                     class='mt-14'

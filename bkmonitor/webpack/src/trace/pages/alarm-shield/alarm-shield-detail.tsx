@@ -27,12 +27,12 @@ import { defineComponent, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Table, TableColumn } from '@blueking/table';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
 import { getStrategyV2 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { useAppStore } from '../../store/modules/app';
@@ -392,19 +392,20 @@ export default defineComponent({
                           <div class='scope-content'>
                             {this.scopeData.type !== 'biz' ? (
                               <div>
-                                <Table
-                                  autoResize={true}
-                                  border={'outer'}
+                                <PrimaryTable
+                                  columns={[
+                                    {
+                                      colKey: 'name',
+                                      title: this.scopeLabelMap?.[this.scopeData?.type] || '',
+                                      ellipsis: true,
+                                    },
+                                  ]}
+                                  bordered={true}
                                   data={this.scopeData.tableData}
                                   maxHeight={450}
-                                >
-                                  <TableColumn
-                                    key={'name'}
-                                    field={'name'}
-                                    showOverflow={'tooltip'}
-                                    title={this.scopeLabelMap?.[this.scopeData?.type] || ''}
-                                  />
-                                </Table>
+                                  resizable={true}
+                                  rowKey='name'
+                                />
                               </div>
                             ) : (
                               <span>{this.scopeData.biz}</span>
@@ -462,19 +463,20 @@ export default defineComponent({
                           {this.strategyData.scope.tableData.length ? (
                             <div class='scope-content'>
                               <div>
-                                <Table
-                                  autoResize={true}
-                                  border={'outer'}
+                                <PrimaryTable
+                                  columns={[
+                                    {
+                                      colKey: 'name',
+                                      title: this.scopeLabelMap?.[this.strategyData?.scope?.type] || '',
+                                      ellipsis: true,
+                                    },
+                                  ]}
+                                  bordered={true}
                                   data={this.strategyData.scope.tableData}
                                   maxHeight={450}
-                                >
-                                  <TableColumn
-                                    key={'name'}
-                                    field={'name'}
-                                    showOverflow={'tooltip'}
-                                    title={this.scopeLabelMap?.[this.strategyData?.scope?.type] || ''}
-                                  />
-                                </Table>
+                                  resizable={true}
+                                  rowKey='name'
+                                />
                               </div>
                             </div>
                           ) : (

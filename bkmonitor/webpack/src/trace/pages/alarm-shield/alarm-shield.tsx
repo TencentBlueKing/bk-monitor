@@ -23,22 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
-import { shallowReactive } from 'vue';
+import { defineComponent, provide, reactive, ref as deepRef, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Table, TableColumn } from '@blueking/table';
 import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import {
+  type FilterValue,
+  PrimaryTable,
+  type SortInfo,
+  type TableFilterChangeContext,
+  type TableRowData,
+  type TableSort,
+} from 'tdesign-vue-next';
 
 import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
-import { EColumn, type IColumn } from './typing';
+import { type AlarmShieldTableItem, EColumn, type IColumn } from './typing';
 
 import type { IAuthority } from '../../typings/authority';
 
@@ -57,12 +63,13 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
     /* 时间范围 */
-    const dateRange = ref([]);
+    const dateRange = deepRef([]);
     /* 参数范围 */
-    const backDisplayMap = ref({});
+    const backDisplayMap = deepRef({});
     /* 搜索内容 */
-    const searchData = ref([]);
-    const searchValues = ref([]);
+    const searchData = deepRef([]);
+    const searchValues = deepRef([]);
+    const filterValue = shallowRef<FilterValue>({});
     let searchCondition = [];
     /* 状态映射 */
     const statusMap = {
@@ -83,7 +90,7 @@ export default defineComponent({
       },
     };
     /* 屏蔽状态 */
-    const shieldStatus = ref(0);
+    const shieldStatus = deepRef(0);
     const shieldStatusList = [
       { name: t('屏蔽中'), id: 0, type: 'effct' },
       { name: t('屏蔽失效'), id: 1, type: 'overdue' },
@@ -160,7 +167,7 @@ export default defineComponent({
         disabled: true,
       },
     ]);
-    const tableLoading = ref(false);
+    const tableLoading = deepRef(false);
 
     const pagination = reactive({
       current: 1,
@@ -168,32 +175,14 @@ export default defineComponent({
       limit: 10,
     });
 
-    const sort = ref({
-      field: '',
-      order: '',
+    const sort = deepRef<SortInfo>({
+      sortBy: '',
+      descending: false,
     });
 
-    const tableList = ref([]);
+    const tableList = shallowRef<AlarmShieldTableItem[]>([]);
 
-    const filter = reactive({});
-
-    const settings = shallowReactive({
-      checked: columns.value.map(item => item.id),
-      size: 'small',
-      fields: columns.value
-        .filter(item => {
-          if (shieldStatus.value === 0) {
-            return ![EColumn.failureTime, EColumn.status].includes(item.id);
-          }
-          return ![EColumn.cycleDuration].includes(item.id);
-        })
-        .map(item => ({
-          label: item.name,
-          field: item.id,
-          disabled: item.disabled,
-        })),
-    });
-    const emptyType = ref<EmptyStatusType>('empty');
+    const emptyType = deepRef<EmptyStatusType>('empty');
     /* 详情数据 */
     const detailData = reactive({
       show: false,
@@ -227,16 +216,15 @@ export default defineComponent({
         },
       };
       const res = [];
-      const map = backDisplayMap.value;
-      Object.keys(map).forEach((key: string) => {
-        const { name, id, list } = map[key];
+      const map: Record<string, any> = backDisplayMap.value;
+      for (const { name, id, list } of Object.values(map)) {
         res.push({
           name,
           id,
           multiple: true,
           children: list || [],
         });
-      });
+      }
       searchData.value = res;
       getRouterParams();
     }
@@ -261,21 +249,21 @@ export default defineComponent({
         }
         if (queryStringObj) {
           const ids = Object.keys(backDisplayMap.value);
-          const searchValues_ = [];
-          queryStringObj?.forEach(item => {
+          const searchValueList = [];
+          for (const item of queryStringObj) {
             if (ids.includes(item.key)) {
               if (item.value?.length)
-                searchValues_.push({
+                searchValueList.push({
                   id: item.key,
                   multiple: true,
                   name: backDisplayMap.value[item.key].name,
                   values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
                 });
             } else {
-              if (item.key) searchValues_.push({ id: item.key, name: item.key });
+              if (item.key) searchValueList.push({ id: item.key, name: item.key });
             }
-          });
-          searchValues.value = searchValues_;
+          }
+          searchValues.value = searchValueList;
           searchCondition = routerParamsReplace();
         }
       }
@@ -291,22 +279,9 @@ export default defineComponent({
       if (shieldStatus.value !== item.id) {
         shieldStatus.value = item.id;
         pagination.current = 1;
-        settings.fields = columns.value
-          .filter(item => {
-            if (shieldStatus.value === 0) {
-              return ![EColumn.failureTime, EColumn.status].includes(item.id);
-            }
-            return ![EColumn.cycleDuration].includes(item.id);
-          })
-          .map(item => ({
-            label: item.name,
-            field: item.id,
-            disabled: item.disabled,
-          }));
-        settings.checked = settings.fields.map(item => item.field);
         sort.value = {
-          field: '',
-          order: '',
+          sortBy: '',
+          descending: false,
         };
         handleGetShieldList();
       }
@@ -318,7 +293,7 @@ export default defineComponent({
       tableLoading.value = true;
       // tableData.data = [];
 
-      let categories = filter[EColumn.shieldType];
+      let categories = filterValue.value[EColumn.shieldType];
       if (!categories?.length) {
         categories = columns.value.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
       }
@@ -335,11 +310,11 @@ export default defineComponent({
         categories,
         search: '',
         order: (() => {
-          if (sort.value.order) {
-            if (sort.value.order === 'asc') {
-              return sort.value.field;
+          if (sort.value.sortBy) {
+            if (!sort.value.descending) {
+              return sort.value.sortBy;
             }
-            return `-${sort.value.field}`;
+            return `-${sort.value.sortBy}`;
           }
           return undefined;
         })(),
@@ -372,13 +347,13 @@ export default defineComponent({
     function routerParamsReplace() {
       const query = [];
       const ids = Object.keys(backDisplayMap.value);
-      searchValues.value.forEach(item => {
+      for (const item of searchValues.value) {
         if (ids.includes(item.id)) {
           if (item.values?.length) query.push({ key: item.id, value: item.values.map(v => v.id) });
         } else {
           if (item.id) query.push({ key: 'query', value: item.id });
         }
-      });
+      }
       const queryStr = JSON.stringify(query);
       router
         .replace({
@@ -457,16 +432,13 @@ export default defineComponent({
      * @description 当前排序
      * @param opt
      */
-    function handleSortChange({ field, order }) {
-      if (order !== null) {
-        sort.value = {
-          field,
-          order,
-        };
+    function handleSortChange(info: TableSort) {
+      if (info) {
+        sort.value = { ...info };
       } else {
         sort.value = {
-          field,
-          order: '',
+          sortBy: '',
+          descending: false,
         };
       }
       pagination.current = 1;
@@ -476,13 +448,10 @@ export default defineComponent({
      * @description 当前筛选
      * @param opt
      */
-    function handleFilterChange(opt) {
-      const target = columns.value.find(item => item.id === opt.field);
-      target.filter = target.filter.map(item => ({
-        ...item,
-        checked: opt.values.includes(item.value),
-      }));
-      filter[opt.field] = opt.values;
+    function handleFilterChange(value: FilterValue, context: TableFilterChangeContext<TableRowData>) {
+      const field = context?.col?.colKey;
+      filterValue.value = value;
+      if (!field) return;
       pagination.current = 1;
       handleGetShieldList();
     }
@@ -533,10 +502,6 @@ export default defineComponent({
       }
     }
 
-    function handleSettingChange(opt) {
-      settings.checked = opt.checked;
-      settings.size = opt.size;
-    }
     /**
      * @description 清空时间范围
      */
@@ -644,11 +609,11 @@ export default defineComponent({
       tableLoading,
       tableList,
       pagination,
-      settings,
       authorityStore,
       authority,
       handleAdd,
       shieldStatusList,
+      filterValue,
       t,
       shieldStatus,
       handleStatusChange,
@@ -662,7 +627,6 @@ export default defineComponent({
       handleSetFormat,
       handleSortChange,
       handleFilterChange,
-      handleSettingChange,
       handleEmptyOperation,
       handlePageChange,
       handleLimitChange,
@@ -727,55 +691,67 @@ export default defineComponent({
           </div>
           <div class='table-wrap'>
             {!this.tableLoading ? (
-              <Table
+              <PrimaryTable
                 class='shield-table'
-                border='inner'
-                data={this.tableList}
-                pagination={false}
-                settings={this.settings}
-                showSettings={true}
-                sort-config={{ remote: true, defaultSort: this.sort, trigger: 'cell' }}
-                onFilterChange={this.handleFilterChange}
-                onSettingChange={this.handleSettingChange}
-                onSortChange={this.handleSortChange}
-              >
-                {{
+                v-slots={{
                   empty: () => (
                     <EmptyStatus
                       type={this.emptyType}
                       onOperation={this.handleEmptyOperation}
                     />
                   ),
-                  default: () =>
-                    this.columns
-                      .filter(item => {
-                        if (this.shieldStatus === 0) {
-                          return (
-                            ![EColumn.failureTime, EColumn.status].includes(item.id) &&
-                            this.settings.checked.includes(item.id)
-                          );
-                        }
-                        return ![EColumn.cycleDuration].includes(item.id) && this.settings.checked.includes(item.id);
-                      })
-                      .map(item => (
-                        <TableColumn
-                          key={item.id}
-                          width={item.width}
-                          field={item.id}
-                          filterMultiple={item.filterMultiple}
-                          filters={item.filter}
-                          minWidth={item.minWidth}
-                          sortable={item.sortable}
-                          title={item.name}
-                          show-overflow
-                        >
-                          {{
-                            default: ({ row }) => this.handleSetFormat(row, item.id),
-                          }}
-                        </TableColumn>
-                      )),
                 }}
-              </Table>
+                columns={
+                  this.columns.map(item => ({
+                    title: item.name,
+                    minWidth: item.minWidth || item.width,
+                    resizable: true,
+                    cellKey: item.id,
+                    colKey: item.id,
+                    ellipsis: true,
+                    sortType: 'all',
+                    sorter: item.sortable,
+                    filter: item.filter?.length
+                      ? {
+                          resetValue: [],
+                          type: 'multiple',
+                          list: item.filter,
+                          showConfirmAndReset: true,
+                          props: {},
+                        }
+                      : undefined,
+                    cell: (_, { row }) => this.handleSetFormat(row, item.id),
+                  }))
+                  // .map(item => (
+                  //   <TableColumn
+                  //     key={item.id}
+                  //     width={item.width}
+                  //     field={item.id}
+                  //     filterMultiple={item.filterMultiple}
+                  //     filters={item.filter}
+                  //     minWidth={item.minWidth}
+                  //     sortable={item.sortable}
+                  //     title={item.name}
+                  //     show-overflow
+                  //   >
+                  //     {{
+                  //       default: ({ row }) => this.handleSetFormat(row, item.id),
+                  //     }}
+                  //   </TableColumn>
+                  // ))
+                }
+                // filterRow={() => {
+                //   return 'asdfasdfasdfasdf';
+                // }}
+                data={this.tableList}
+                filterValue={this.filterValue}
+                rowKey='id'
+                showSortColumnBgColor={true}
+                sort={this.sort}
+                resizable
+                onFilterChange={this.handleFilterChange}
+                onSortChange={this.handleSortChange}
+              />
             ) : (
               <TableSkeleton />
             )}
