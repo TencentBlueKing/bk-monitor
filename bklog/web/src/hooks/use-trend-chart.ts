@@ -208,7 +208,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return count;
   };
 
-  const setDefaultData = (aggs, isInit?) => {
+  const setDefaultData = (aggs?, isInit?) => {
     let opt_data = new Map<Number, Number[]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
     const series = [];
@@ -237,7 +237,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
-    if (fieldName && eggs[fieldName]) {
+    if (fieldName && eggs?.[fieldName]) {
       return setGroupData(eggs[fieldName], isInit);
     }
 

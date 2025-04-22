@@ -27,7 +27,7 @@ import { Ref } from 'vue';
 
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
-import { optimizedSplit } from './hooks-helper';
+import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
 
 export type FormatterConfig = {
   onSegmentClick: (args: any) => void;
@@ -73,27 +73,15 @@ export default class UseTextSegmentation {
   }
 
   getCellClickHandler(e: MouseEvent, value, { offsetY = 0, offsetX = 0 }) {
-    const x = e.clientX;
-    const y = e.clientY;
-    let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
-    if (!virtualTarget) {
-      virtualTarget = document.createElement('span') as HTMLElement;
-      virtualTarget.className = 'bklog-virtual-target';
-      virtualTarget.style.setProperty('position', 'absolute');
-      virtualTarget.style.setProperty('visibility', 'hidden');
-      virtualTarget.style.setProperty('z-index', '-1');
-      document.body.appendChild(virtualTarget);
-    }
-
-    virtualTarget.style.setProperty('left', `${x + offsetX}px`);
-    virtualTarget.style.setProperty('top', `${y + offsetY}px`);
-
-    this.handleSegmentClick(virtualTarget, value);
+    const target = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
+    this.handleSegmentClick(target, value);
   }
 
   getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      this.handleSegmentClick(e.target, (e.target as HTMLElement).textContent);
+      const { offsetY, offsetX } = getClickTargetElement(e);
+      const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
+      this.handleSegmentClick(offsetTarget, (e.target as HTMLElement).textContent);
     }
   }
 
