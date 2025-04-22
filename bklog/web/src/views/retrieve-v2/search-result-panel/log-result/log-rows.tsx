@@ -452,15 +452,19 @@ export default defineComponent({
       return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
-    const getOriginTimeShow = data => {
-      if (timeFieldType.value === 'date') {
+    const formatDateValue = (data, field_type) => {
+      if (field_type === 'date') {
         return formatDate(Number(data)) || data;
       }
       // 处理纳秒精度的UTC时间格式
-      if (timeFieldType.value === 'date_nanos') {
+      if (field_type === 'date_nanos') {
         return formatDateNanos(data, true, true);
       }
       return data;
+    };
+
+    const getOriginTimeShow = data => {
+      return formatDateValue(data, timeFieldType.value);
     };
 
     const setRouteParams = () => {
@@ -512,7 +516,10 @@ export default defineComponent({
         .replace(/<\/mark>/g, '');
 
       if (type === 'highlight') {
-        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value });
+        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
+          event: 'mark',
+          value: formatDateValue(value ?? content, field.field_type),
+        });
         return;
       }
 

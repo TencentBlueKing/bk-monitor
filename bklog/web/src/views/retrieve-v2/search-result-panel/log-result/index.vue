@@ -226,7 +226,7 @@
       RetrieveHelper.setMarkInstance();
       RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
         if (event === 'mark' && !this.highlightValue.includes(value)) {
-          this.highlightValue.push(value);
+          this.highlightValue.push(...value.split(/\s+/));
           RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
         }
       });
