@@ -166,10 +166,10 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
-    def build_match_phrase_prefix_list(cls, value_list: List[Any]) -> list[type_match_phrase_prefix]:
+    def build_match_phrase_prefix_list(cls, field: str, value_list: List[Any]) -> list[type_match_phrase_prefix]:
         match_phrase_prefix_list: type_should_list = []
         for item in value_list:
-            match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(item)
+            match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
             match_phrase_prefix_list.append(match_phrase_prefix)
         return match_phrase_prefix_list
 
@@ -210,8 +210,10 @@ class EsQueryBuilder(object):
         return {"match_phrase": {field: value}}
 
     @classmethod
-    def build_match_phrase_prefix(cls, value: Any) -> type_match_phrase_prefix:
-        return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": ["*", "__*"], "lenient": True}}
+    def build_match_phrase_prefix(cls, field: str, value: Any) -> type_match_phrase_prefix:
+        if field == "*":
+            return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": ["*", "__*"], "lenient": True}}
+        return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": [field], "lenient": True}}
 
     @classmethod
     def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
@@ -592,7 +594,7 @@ class ContainsMatchPhrasePrefix(IsOneOf):
     OPERATOR = "contains match phrase prefix"
 
     def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_match_phrase_prefix_list(field["value"])
+        should_list: type_should_list = EsQueryBuilder.build_match_phrase_prefix_list(field["field"], field["value"])
         should: type_should = EsQueryBuilder.build_should(should_list)
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
