@@ -1483,8 +1483,7 @@ class SearchAlertResource(Resource):
             """
             替换时间范围
             获取到告警ID的前10位，前后增加一小时，作为新的时间范围
-            :param attrs:
-            :return:
+            :return: attrs
             """
             if not attrs["replace_time_range"]:
                 return attrs
