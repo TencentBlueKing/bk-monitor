@@ -166,6 +166,14 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
+    def build_should_list_by_match_phrase_prefix(cls, field: str, value_list: List[Any]) -> type_should_list:
+        should_list: type_should_list = []
+        for item in value_list:
+            match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
+            should_list.append(match_phrase_prefix)
+        return should_list
+
+    @classmethod
     def build_match_phrase_prefix_list(cls, field: str, value_list: List[Any]) -> list[type_match_phrase_prefix]:
         match_phrase_prefix_list: type_should_list = []
         for item in value_list:
@@ -193,6 +201,14 @@ class EsQueryBuilder(object):
         for item in value_list:
             match_phrase: type_match_phrase = cls.build_match_phrase(field, item)
             filter_list.append(match_phrase)
+        return filter_list
+
+    @classmethod
+    def build_filter_list_by_match_phrase_prefix(cls, field: str, value_list: List[Any]) -> type_filter_list:
+        filter_list: type_filter_list = []
+        for item in value_list:
+            match_phrase_prefix: type_match_phrase_prefix = cls.build_match_phrase_prefix(field, item)
+            filter_list.append(match_phrase_prefix)
         return filter_list
 
     @classmethod
@@ -589,17 +605,6 @@ class ContainsMatchPhrase(IsOneOf):
         )
 
 
-class ContainsMatchPhrasePrefix(IsOneOf):
-    TARGET = "must"
-    OPERATOR = "contains match phrase prefix"
-
-    def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_match_phrase_prefix_list(field["field"], field["value"])
-        should: type_should = EsQueryBuilder.build_should(should_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(should)
-        self._set_target_value(a_bool)
-
-
 class NotContainsMatchPhrase(IsNotOneOf):
     TARGET = "must_not"
     OPERATOR = "not contains match phrase"
@@ -643,6 +648,48 @@ class AllNotContainsMatchPhrase(AllContainsMatchPhrase):
 
     def to_querystring(self):
         return "NOT " + super().to_querystring()
+
+
+class ContainsMatchPhrasePrefix(IsOneOf):
+    TARGET = "must"
+    OPERATOR = "contains match phrase prefix"
+
+    def op(self, field):
+        should_list: type_should_list = EsQueryBuilder.build_match_phrase_prefix_list(field["field"], field["value"])
+        should: type_should = EsQueryBuilder.build_should(should_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(should)
+        self._set_target_value(a_bool)
+
+
+class NotContainsMatchPhrasePrefix(IsNotOneOf):
+    TARGET = "must_not"
+    OPERATOR = "not contains match phrase prefix"
+
+    def op(self, field):
+        should_list: type_should_list = EsQueryBuilder.build_should_list_by_match_phrase_prefix(
+            field["field"], field["value"]
+        )
+        should: type_should = EsQueryBuilder.build_should(should_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(should)
+        self._set_target_value(a_bool)
+
+
+class AllContainsMatchPhrasePrefix(BoolQueryOperation):
+    TARGET = "must"
+    OPERATOR = "all contains match phrase prefix"
+
+    def op(self, field):
+        filter_list: type_filter_list = EsQueryBuilder.build_filter_list_by_match_phrase_prefix(
+            field["field"], field["value"]
+        )
+        filters: type_filter = EsQueryBuilder.build_filter(filter_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(filters)
+        self._set_target_value(a_bool)
+
+
+class AllNotContainsMatchPhrasePrefix(AllContainsMatchPhrasePrefix):
+    TARGET = "must_not"
+    OPERATOR = "all not contains match phrase prefix"
 
 
 class AllEqWildcard(BoolQueryOperation):
