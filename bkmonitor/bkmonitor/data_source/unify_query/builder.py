@@ -32,6 +32,7 @@ from bkmonitor.data_source.models.sql import Query
 from bkmonitor.data_source.models.sql.query import get_limit_range
 from bkmonitor.data_source.models.sql.where import WhereNode
 from bkmonitor.data_source.unify_query.query import UnifyQuery
+from constants.data_source import GrayUnifyQueryDataSources
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ logger = logging.getLogger(__name__)
 - 在过程中发现每个场景的查询都在进行相似的数据结构拼装，过于重复冗长，基于 unify[query_configs] 场景进行类 ORM 的封装
 - 后台逻辑实现从 dict 构造转为基于查询条件编写 ORM 语句，提升可维护和可读性
 """
+
+
+QueryFuncT = Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]
 
 
 class QueryConfig(Query):
@@ -217,9 +221,7 @@ class QueryHelper:
         return dimensions
 
     @classmethod
-    def _get_query_func(
-        cls, query_body: Dict[str, Any]
-    ) -> Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]:
+    def _get_query_func(cls, query_body: Dict[str, Any]) -> QueryFuncT:
         # 1. Dimensions
         if query_body.get("dimension_fields"):
             return cls._query_dimensions
@@ -239,21 +241,31 @@ class QueryHelper:
         logger.info("[QueryHelper] table_id -> %s query_body -> %s", table_id, query_body)
 
         data_sources: List[DataSource] = []
+        bk_biz_id: int = query_body["bk_biz_id"]
+        override_query_func: Optional[QueryFuncT] = None
         for query_config in query_body["query_configs"]:
-            data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
+            using: Tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+            data_source_class = load_data_source(*using)
             data_source = data_source_class(
                 bk_biz_id=query_body["bk_biz_id"], use_full_index_names=True, **query_config
             )
             data_sources.append(data_source)
 
+            # distinct 对 UnifyQuery 而言是聚合逻辑，而在 ES 中是原始日志查询，当进入 UnifyQuery 灰度时，需重定向查询方法。
+            # 等后续 ES DSL 查询全部迁移到 UnifyQuery 后，可以移除该逻辑。
+            if query_config.get("distinct") and using in GrayUnifyQueryDataSources:
+                if data_source.switch_unify_query(bk_biz_id):
+                    override_query_func = cls._query_reference
+
         unify_query: UnifyQuery = UnifyQuery(
-            bk_biz_id=query_body["bk_biz_id"],
+            bk_biz_id=bk_biz_id,
             data_sources=data_sources,
             expression=query_body["expression"],
             functions=query_body["functions"],
         )
 
-        return cls._get_query_func(query_body)(unify_query, query_body)
+        query_func: QueryFuncT = override_query_func or cls._get_query_func(query_body)
+        return query_func(unify_query, query_body)
 
 
 class UnifyQueryCompiler(SQLCompiler):

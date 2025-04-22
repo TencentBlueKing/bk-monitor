@@ -50,8 +50,8 @@ class OriginTraceQuery(BaseQuery):
 
         def _fill_data():
             _trace_ids: List[str] = []
-            _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID)
-            for _info in queryset.add_query(_q).offset(offset).limit(limit):
+            _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID)
+            for _info in queryset.add_query(_q).offset(offset).limit(limit).time_agg(False):
                 _trace_id: Union[str, List[str]] = _info[OtlpKey.TRACE_ID]
                 if isinstance(_trace_id, list):
                     _trace_id = _trace_id[0]
