@@ -357,24 +357,17 @@ class SearchHandler(object):
         """
         for item in self.addition:
             field: str = item.get("key") if item.get("key") else item.get("field")
-            # 全文检索key & 存量query_string转换
-            if field in ["*", "__query_string__"]:
-                if field == "*" and "prefix" in item["operator"]:
-                    continue
+            # 存量query_string转换
+            if field == "__query_string__":
                 value = item.get("value", [])
                 value_list = value if isinstance(value, list) else value.split(",")
                 new_value_list = []
                 for value in value_list:
-                    if field == "*":
-                        value = "\"" + value.replace('"', '\\"') + "\""
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
                     new_query_string = " OR ".join(new_value_list)
-                    if field == "*" and self.query_string != "*":
-                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
-                    else:
-                        self.query_string = new_query_string
+                    self.query_string = new_query_string
 
     @property
     def index_set(self):
@@ -1957,10 +1950,8 @@ class SearchHandler(object):
         new_filter_list: list = []
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
-            # 全文检索key & 存量query_string转换
+            # 存量query_string转换
             if field == "__query_string__":
-                continue
-            if field == "*" and "prefix" not in item["operator"]:
                 continue
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):

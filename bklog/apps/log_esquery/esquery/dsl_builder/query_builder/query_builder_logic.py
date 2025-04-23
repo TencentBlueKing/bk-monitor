@@ -217,6 +217,8 @@ class EsQueryBuilder(object):
 
     @classmethod
     def build_match_phrase(cls, field: str, value: Any) -> type_match_phrase:
+        if field == "*":
+            return {"multi_match": {"query": value, "type": "phrase", "fields": ["*", "__*"], "lenient": True}}
         return {"match_phrase": {field: value}}
 
     @classmethod
@@ -657,10 +659,30 @@ class ContainsMatchPhrasePrefix(IsOneOf):
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
+
 
 class NotContainsMatchPhrasePrefix(ContainsMatchPhrasePrefix):
     TARGET = "must_not"
     OPERATOR = "not contains match phrase prefix"
+
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return "NOT " + self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
 
 
 class AllContainsMatchPhrasePrefix(BoolQueryOperation):
@@ -673,10 +695,24 @@ class AllContainsMatchPhrasePrefix(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+            condition_type="AND",
+        )
+
 
 class AllNotContainsMatchPhrasePrefix(AllContainsMatchPhrasePrefix):
     TARGET = "must_not"
     OPERATOR = "all not contains match phrase prefix"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class AllEqWildcard(BoolQueryOperation):

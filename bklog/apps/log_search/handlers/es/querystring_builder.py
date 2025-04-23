@@ -43,14 +43,9 @@ class QueryStringBuilder(object):
                 continue
 
             # 全文检索的情况
-            if condition["field"] in ["*", "__query_string__"]:
-                if condition["field"] == "*" and "prefix" in condition["operator"]:
-                    continue
+            if condition["field"] == "__query_string__":
                 transform_result_list = []
                 for value in condition["value"]:
-                    if condition["field"] == "*":
-                        value = value.replace('"', '\\"')
-                        value = f"\"{value}\""
                     transform_result_list.append(value)
                 transform_result = " OR ".join(transform_result_list)
                 querystring_list.append(f"({transform_result})")
