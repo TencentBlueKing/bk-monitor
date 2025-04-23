@@ -179,6 +179,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     buckets.forEach((item, index) => {
       let opt_data = new Map<Number, Number[]>();
+
+      if (!isInit) {
+        (options.series[index]?.data ?? []).forEach(item => {
+          opt_data.set(item[0], [item[1], item[2]]);
+        });
+      }
+
       (item.group_by_histogram?.buckets || []).forEach(({ key, doc_count, key_as_string }) => {
         opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
         count += doc_count;
@@ -190,7 +197,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       if (isInit) {
         series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
       } else {
-        options.series[index].data.push(...data);
+        options.series[index].data = data;
       }
 
       opt_data.clear();
@@ -214,6 +221,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const series = [];
     let count = 0;
 
+    if (!isInit) {
+      (options.series[0]?.data ?? []).forEach(item => {
+        opt_data.set(item[0], [item[1], item[2]]);
+      });
+    }
+
     buckets.forEach(({ key, doc_count, key_as_string }) => {
       opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
       count += doc_count;
@@ -227,7 +240,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
       options.series = series;
     } else {
-      options.series[0].data.push(...data);
+      options.series[0].data = data;
     }
 
     updateChart(isInit);

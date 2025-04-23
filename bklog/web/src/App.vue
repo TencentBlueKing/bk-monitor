@@ -29,10 +29,12 @@
     id="app"
     v-bkloading="{ isLoading: pageLoading }"
     :class="{ 'clear-min-height': $route.name === 'retrieve' }"
+    :style="noticeComponentStyle"
   >
     <NoticeComponent
       v-if="!isAsIframe"
       api-url="/notice/announcements/"
+      ref="refNoticeComponent"
       @show-alert-change="showAlertChange"
     />
     <head-nav
@@ -165,13 +167,13 @@
         navThemeColor: '#2c354d',
         isExpand: true,
         curGuideStep: 0,
-        isAsIframe: false,
         rightClickRouteName: '', // 当前右键选中的路由
         visible: false, // 是否展示右键菜单
         top: 0, // 右键菜单定位top
         left: 0, // 右键菜单定位left
         /** 全局设置列表 */
         dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }],
+        noticeComponentHeight: 0,
       };
     },
     computed: {
@@ -188,7 +190,7 @@
       ]),
       ...mapGetters({
         pageLoading: 'pageLoading',
-        asIframe: 'asIframe',
+        isAsIframe: 'asIframe',
         authPageInfo: 'globals/authContainerInfo',
         maskingToggle: 'maskingToggle',
       }),
@@ -209,14 +211,13 @@
       guideStep() {
         return this.userGuideData?.default || {};
       },
+      noticeComponentStyle() {
+        return {
+          '--notice-component-height': `${this.noticeComponentHeight}px`,
+        };
+      },
     },
     watch: {
-      asIframe: {
-        immediate: true,
-        handler(val) {
-          this.isAsIframe = val;
-        },
-      },
       maskingToggle: {
         deep: true,
         handler(val) {
@@ -339,6 +340,10 @@
       },
       showAlertChange(v) {
         this.$store.commit('updateNoticeAlert', v);
+        const refNoticeComponent = this.$refs.refNoticeComponent;
+        if (refNoticeComponent) {
+          this.noticeComponentHeight = refNoticeComponent.$el.offsetHeight;
+        }
       },
     },
   };
@@ -390,7 +395,7 @@
   .log-search-container {
     position: relative;
     width: 100%;
-    height: calc(100% - 50px);
+    height: calc(100% - 52px - var(--notice-component-height));
     overflow-y: hidden;
 
     &.as-iframe {

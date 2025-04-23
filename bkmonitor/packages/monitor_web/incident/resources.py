@@ -121,47 +121,64 @@ class IncidentBaseResource(Resource):
         nodes = []
 
         for entity in entities:
-            alert_ids = snapshot.entity_alerts(entity.entity_id)
+            if entity.entity_type in ("BcsWorkload", "BcsService"):
+                continue
+
             bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
             bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
+            dependency_parent = snapshot.get_entity_alert_parent(entity.entity_id)
             nodes.append(
                 {
                     "id": entity.entity_id,
                     "comboId": str(entity.rank.rank_category.category_id),
-                    "subComboId": entity.logic_key(),
-                    "logic_content": entity.logic_content(),
+                    "subComboId": dependency_parent.entity_id if dependency_parent else "",
+                    "dependency_content": self.generate_entity_node_info(incident, snapshot, dependency_parent)
+                    if dependency_parent
+                    else {},
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
-                    "entity": {
-                        key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"
-                    },
                     "total_count": len(entity.aggregated_entities) + 1,
-                    "anomaly_count": self.get_anomaly_entity_count(entity),
-                    "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
-                    "is_on_alert": entity.is_on_alert,
-                    "alert_all_recorved": all(
-                        map(
-                            lambda alert_id: snapshot.alert_entity_mapping[alert_id].alert_status
-                            in (EventStatus.RECOVERED, EventStatus.CLOSED),
-                            alert_ids,
-                        )
-                    )
-                    if alert_ids
-                    else False,
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": bk_biz_name,
-                    "alert_ids": alert_ids,
-                    "alert_display": (
-                        {
-                            "alert_id": alert_ids[0],
-                            "alert_name": AlertDocument.get(alert_ids[0]).alert_name,
-                        }
-                        if len(alert_ids) > 0
-                        else {}
-                    ),
+                    **self.generate_entity_node_info(incident, snapshot, entity),
                 }
             )
 
         return nodes
+
+    def generate_entity_node_info(
+        self, incident: IncidentDocument, snapshot: IncidentSnapshot, entity: IncidentGraphEntity
+    ) -> Dict:
+        """根据实体生成节点信息.
+
+        :param snapshot: 快照内容
+        :param entity: 实体
+        :return: 节点信息
+        """
+        alert_ids = snapshot.entity_alerts(entity.entity_id)
+        return {
+            "entity": {key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"},
+            "anomaly_count": self.get_anomaly_entity_count(entity),
+            "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
+            "is_on_alert": entity.is_on_alert,
+            "alert_all_recorved": all(
+                map(
+                    lambda alert_id: snapshot.alert_entity_mapping[alert_id].alert_status
+                    in (EventStatus.RECOVERED, EventStatus.CLOSED),
+                    alert_ids,
+                )
+            )
+            if alert_ids
+            else False,
+            "alert_ids": alert_ids,
+            "alert_display": (
+                {
+                    "alert_id": alert_ids[0],
+                    "alert_name": AlertDocument.get(alert_ids[0]).alert_name,
+                }
+                if len(alert_ids) > 0
+                else {}
+            ),
+        }
 
     def get_anomaly_entity_count(self, entity: IncidentGraphEntity) -> int:
         """获取实体（包含聚合在这个实体的其他实体）的异常数量
@@ -238,14 +255,19 @@ class IncidentBaseResource(Resource):
                 "label": node["subComboId"],
                 "dataType": node["subComboId"],
                 "comboId": str(node["entity"]["rank"]["rank_category"]["category_id"]),
-                "dimensions": node["logic_content"],
+                **node["dependency_content"],
             }
             for node in nodes
             if node["subComboId"]
         ]
         topology_data = {
             "nodes": nodes,
-            "edges": [edge.to_src_dict() for edge in snapshot.incident_graph_edges.values()],
+            "edges": [
+                edge.to_src_dict()
+                for edge in snapshot.incident_graph_edges.values()
+                if edge.source.entity_type not in ("BcsWorkload", "BcsService")
+                and edge.target.entity_type not in ("BcsWorkload", "BcsService")
+            ],
             "sub_combos": list({item["id"]: item for item in sub_combos}.values()),
             "combos": [
                 {
@@ -521,7 +543,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         )
         last_snapshot_content = None
         topologies_data = []
-        complete_topologies = {"nodes": {}, "edges": {}}
+        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}}
         for incident_snapshot in incident_snapshots:
             snapshot = snapshots[incident_snapshot.id]
             if validated_request_data["only_diff"]:
@@ -548,6 +570,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             "complete": {
                 "nodes": list(complete_topologies["nodes"].values()),
                 "edges": list(complete_topologies["edges"].values()),
+                "sub_combos": list(complete_topologies["sub_combos"].values()),
             },
         }
 
@@ -566,61 +589,82 @@ class IncidentTopologyResource(IncidentBaseResource):
         last_snapshot_content: Dict,
         complete_topologies: Dict,
     ) -> Dict:
-        new_nodes = []
-        new_edges = []
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
-        last_nodes = {node["id"]: node for node in last_snapshot_content["nodes"]} if last_snapshot_content else {}
-        last_edges = (
-            {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in last_snapshot_content["edges"]}
-            if last_snapshot_content
-            else {}
+
+        last_nodes = self.generate_sub_content(last_snapshot_content, "nodes", lambda obj: obj["id"])
+        last_edges = self.generate_sub_content(
+            last_snapshot_content, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
         )
+        last_sub_combos = self.generate_sub_content(last_snapshot_content, "sub_combos", lambda obj: obj["id"])
 
         # 找出所有在上一帧没有出现过的节点(边)或者出现过但是已经修改的节点(边)
-        for current_node in current["nodes"]:
-            if current_node["id"] not in last_nodes:
-                new_nodes.append(current_node)
-                complete_topologies["nodes"][current_node["id"]] = current_node
-            elif self.check_node_diff(current_node, last_nodes[current_node["id"]]):
-                new_nodes.append(current_node)
-                complete_topologies["nodes"][current_node["id"]] = current_node
-            elif current_node["id"] not in complete_topologies["nodes"]:
-                complete_topologies["nodes"][current_node["id"]] = current_node
-
-        for current_edge in current["edges"]:
-            edge_id = (current_edge["source"], current_edge["target"], current_edge["edge_type"])
-            if edge_id not in last_edges:
-                new_edges.append(current_edge)
-                complete_topologies["edges"][edge_id] = current_edge
-            elif self.check_edge_diff(current_edge, last_edges[edge_id]):
-                new_edges.append(current_edge)
-                complete_topologies["edges"][edge_id] = current_edge
-            elif edge_id not in complete_topologies["edges"]:
-                complete_topologies["edges"][edge_id] = current_edge
+        new_nodes = self.generate_new_objs(
+            current, "nodes", last_nodes, complete_topologies, lambda obj: obj["id"], self.check_node_diff
+        )
+        new_edges = self.generate_new_objs(
+            current,
+            "edges",
+            last_edges,
+            complete_topologies,
+            lambda obj: (obj["source"], obj["target"], obj["edge_type"]),
+            self.check_edge_diff,
+        )
+        new_sub_combos = self.generate_new_objs(
+            current, "sub_combos", last_sub_combos, complete_topologies, lambda obj: obj["id"], self.check_node_diff
+        )
 
         # 找出所有在之前帧出现过，且未删除，但是在当前帧没有的节点(边)节点(边)
-        current_nodes = {node["id"]: node for node in current["nodes"]}
-        current_edges = {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in current["edges"]}
-        for complete_node_id, complete_node in complete_topologies["nodes"].items():
-            if complete_node.get("is_deleted", False):
+        current_nodes = self.generate_sub_content(current, "nodes", lambda obj: obj["id"])
+        current_edges = self.generate_sub_content(
+            current, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
+        )
+        current_sub_combos = self.generate_sub_content(current, "sub_combos", lambda obj: obj["id"])
+
+        # 增加删除标记位
+        self.generate_delete_tag("nodes", current_nodes, complete_topologies, new_nodes)
+        self.generate_delete_tag("edges", current_edges, complete_topologies, new_edges)
+        self.generate_delete_tag("sub_combos", current_sub_combos, complete_topologies, new_sub_combos)
+
+        return current, {"nodes": new_nodes, "edges": new_edges, "sub_combos": new_sub_combos}
+
+    def generate_sub_content(self, snapshot_content: Dict, content_key: str, id_func: callable) -> Dict:
+        return (
+            {id_func(sub_obj): sub_obj for sub_obj in snapshot_content.get(content_key, [])} if snapshot_content else {}
+        )
+
+    def generate_new_objs(
+        self,
+        snapshot_content: Dict,
+        content_key: str,
+        last_objs: Dict,
+        complete_content: Dict,
+        id_func: callable,
+        diff_func: callable,
+    ) -> List[Dict]:
+        new_objs = []
+        for current_obj in snapshot_content[content_key]:
+            obj_id = id_func(current_obj)
+            if obj_id not in last_objs:
+                new_objs.append(current_obj)
+                complete_content[content_key][obj_id] = current_obj
+            elif diff_func(current_obj, last_objs[obj_id]):
+                new_objs.append(current_obj)
+                complete_content[content_key][obj_id] = current_obj
+            elif obj_id not in complete_content[content_key]:
+                complete_content[content_key][obj_id] = current_obj
+
+        return new_objs
+
+    def generate_delete_tag(
+        self, content_key: str, current_objs: Dict, complete_content: Dict, new_objs: List[Dict]
+    ) -> List[Dict]:
+        for complete_obj_id, complete_obj in complete_content[content_key].items():
+            if complete_obj.get("is_deleted", False):
                 continue
 
-            if complete_node_id not in current_nodes:
-                complete_node["is_deleted"] = True
-                new_nodes.append(complete_node)
-
-        for complete_edge_id, complete_edge in complete_topologies["edges"].items():
-            if complete_edge.get("is_deleted", False):
-                continue
-
-            if complete_edge_id not in current_edges:
-                complete_edge["is_deleted"] = True
-                new_edges.append(complete_edge)
-
-        return current, {
-            "nodes": new_nodes,
-            "edges": new_edges,
-        }
+            if complete_obj_id not in current_objs:
+                complete_obj["is_deleted"] = True
+                new_objs.append(complete_obj)
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
@@ -632,6 +676,9 @@ class IncidentTopologyResource(IncidentBaseResource):
             "aggregated_nodes",
             "alert_all_recorved",
         ]:
+            if node_key not in current_node and node_key not in last_node:
+                continue
+
             if current_node[node_key] != last_node[node_key]:
                 return True
 

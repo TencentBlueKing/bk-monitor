@@ -226,7 +226,7 @@
       RetrieveHelper.setMarkInstance();
       RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
         if (event === 'mark' && !this.highlightValue.includes(value)) {
-          this.highlightValue.push(value);
+          this.highlightValue.push(...value.split(/\s+/));
           RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
         }
       });
@@ -277,8 +277,11 @@
         };
       },
       handleHighlightEnter(valList) {
-        this.highlightValue = valList.map(v => v.split(/\s+/)).flat();
-        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+        this.highlightValue = valList
+          .map(v => v.split(/\s+/))
+          .flat()
+          .filter(w => w.length > 0);
+        RetrieveHelper.highLightKeywords(this.highlightValue);
       },
 
       cancelModifyFields() {
@@ -294,7 +297,9 @@
       handleClickTableBtn(active = 'table') {
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
-        RetrieveHelper.highLightKeywords(null, false);
+        setTimeout(() => {
+          RetrieveHelper.highLightKeywords(this.highlightValue);
+        });
       },
     },
   };

@@ -35,9 +35,9 @@ const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
 export interface GradeSetting {
   id: string;
-  color: string;
-  name: string;
-  regExp: string;
+  color?: string;
+  name?: string;
+  regExp?: string;
   enable: boolean;
 }
 
@@ -282,7 +282,16 @@ class RetrieveHelper {
       if (!str?.trim()) return null;
 
       const levelRegExpList = [];
-      (options?.settings ?? []).forEach((item: GradeSetting) => {
+      (
+        options?.settings ?? [
+          { id: 'level_1', enable: true },
+          { id: 'level_2', enable: true },
+          { id: 'level_3', enable: true },
+          { id: 'level_4', enable: true },
+          { id: 'level_5', enable: true },
+          { id: 'level_6', enable: true },
+        ]
+      ).forEach((item: GradeSetting) => {
         if (item.enable && this.logLevelRegex[item.id]) {
           levelRegExpList.push(this.logLevelRegex[item.id]);
         }
@@ -306,7 +315,7 @@ class RetrieveHelper {
 
       // 按优先级顺序查找最高级别
       const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
-      return PRIORITY_ORDER.find(level => levelSet.has(level)) || null;
+      return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
     if (options.type === 'custom' && field[options.field]) {
@@ -364,8 +373,10 @@ class RetrieveHelper {
    * @param width
    */
   setLeftFieldSettingWidth(width: number) {
-    this.leftFieldSettingWidth = width;
-    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    if (this.leftFieldSettingWidth !== width) {
+      this.leftFieldSettingWidth = width;
+      this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    }
   }
 
   /**

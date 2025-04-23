@@ -2053,12 +2053,12 @@ class FetchBCSClusterAlertEnabledIDList(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, params):
+        # 获取空间关联的集群id列表，基于集群id列表，再过滤alert_status
         bk_biz_id = params["bk_biz_id"]
-        if bk_biz_id < 0:
-            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            data = BCSCluster.objects.filter(space_uid=space_uid, alert_status="enabled").values("bcs_cluster_id")
-        else:
-            data = BCSCluster.objects.filter(bk_biz_id=bk_biz_id, alert_status="enabled").values("bcs_cluster_id")
+        cluster_ids = list(GetClusterInfoFromBcsSpaceResource()(bk_biz_id=bk_biz_id).keys())
+        data = BCSCluster.objects.filter(bcs_cluster_id__in=cluster_ids, alert_status="enabled").values(
+            "bcs_cluster_id"
+        )
         return [item["bcs_cluster_id"] for item in data]
 
 

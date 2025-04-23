@@ -337,7 +337,16 @@
             color: #b17313;
 
             .ͼb {
+              font-weight: bold;
               color: #7c609e;
+              font-family: RobotoMono-BoldItalic;
+              font-style: italic;
+            }
+
+            .cm-not-keyword {
+              .ͼb {
+                color: #ea3636;
+              }
             }
 
             .ͼi,
