@@ -21,7 +21,7 @@ from constants.incident import (
     IncidentGraphEdgeType,
 )
 from core.drf_resource import api
-from core.errors.incident import IncidentEntityNotFoundError, IncidentEntityParentError
+from core.errors.incident import IncidentEntityNotFoundError
 
 
 @dataclass
@@ -336,7 +336,7 @@ class IncidentSnapshot(object):
             if item["entity_id"] == entity_id
         ]
 
-    def get_entity_parent(self, entity_id: str) -> IncidentGraphEntity:
+    def get_entity_alert_parent(self, entity_id: str) -> IncidentGraphEntity:
         """获取实体父节点
 
         :param entity_id: 实体ID
@@ -345,11 +345,15 @@ class IncidentSnapshot(object):
         if len(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
             return None
 
-        if len(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]) > 1:
-            raise IncidentEntityParentError()
+        parent_entity = None
+        for parent_entity_id in self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
+            if self.incident_graph_entities[parent_entity_id].is_on_alert:
+                parent_entity = self.incident_graph_entities[parent_entity_id]
+                # 优先展示BcsService的有告警的父节点
+                if self.incident_graph_entities[parent_entity_id].entity_type == "BcsService":
+                    break
 
-        parent_entity_id = list(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY])[0]
-        return self.incident_graph_entities[parent_entity_id]
+        return parent_entity
 
     def generate_entity_sub_graph(self, entity_id: str) -> "IncidentSnapshot":
         """生成资源子图
