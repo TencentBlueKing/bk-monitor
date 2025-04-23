@@ -129,7 +129,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       }
     }
 
-    runningInterval = intervals[intervals.length - 1]?.[0] ?? '1s';
+    runningInterval = `1${intervals[intervals.length - 1]?.[0] ?? 's'}`;
     return runningInterval;
   };
 
@@ -328,8 +328,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       if (window.__IS_MONITOR_COMPONENT__) {
         handleChartDataZoom([timeFrom, timeTo]);
       } else {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         // 更新Store中的时间范围
-        // 同时会自动更新chartKey，触发接口更新当前最新数据
         store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
           store.dispatch('requestIndexSetQuery');
         });
