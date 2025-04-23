@@ -1158,10 +1158,13 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} action 操作
         @apiSuccessExample {json} 成功返回:
         {
-            "message": "",
+            "result": true,
+            "data": [
+                "3978321",
+                "3978431"
+            ],
             "code": 0,
-            "data": "",
-            "result": true
+            "message": ""
         }
         """
         data = self.validated_data
