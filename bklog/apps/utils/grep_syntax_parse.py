@@ -45,7 +45,9 @@ def t_RAW_PATTERN(t):  # noqa: F841
 def t_error(t):  # noqa: F841
     logger.info("lexical parsing failed: illegal character [%s] at position [%s]", t.value, t.lexpos)
     raise GrepParseError(
-        f"lexical parsing failed: illegal character [{t.value}] at position [{t.lexpos}]",
+        GrepParseError.MESSAGE.format(
+            reason=f"lexical parsing failed: illegal character [{t.value}] at position [{t.lexpos}]"
+        )
     )
 
 
@@ -155,7 +157,9 @@ def p_pattern_raw(p):  # noqa: F841
 def p_error(p):
     logger.info("syntax parsing failed: illegal character [%s] at position [%s]", p.value, p.lexpos)
     raise GrepParseError(
-        f"syntax parsing failed: illegal character [{p.value}] at position [{p.lexpos}]",
+        GrepParseError.MESSAGE.format(
+            reason=f"syntax parsing failed: illegal character [{p.value}] at position [{p.lexpos}]"
+        )
     )
 
 

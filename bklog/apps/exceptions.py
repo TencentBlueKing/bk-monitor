@@ -133,4 +133,4 @@ class GrepParseError(BaseException):
     """grep解析失败"""
 
     ERROR_CODE = "501"
-    MESSAGE = _("grep语法解析失败")
+    MESSAGE = _("grep语法解析失败: {reason}")
