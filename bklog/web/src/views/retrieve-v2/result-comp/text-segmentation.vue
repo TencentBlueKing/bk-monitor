@@ -195,7 +195,7 @@
     max-height: 60px;
     overflow: hidden;
     font-size: 12px;
-    white-space: pre-line;
+    white-space: pre-wrap;
 
     &.is-expand-all {
       max-height: max-content;
@@ -215,7 +215,7 @@
       &.segment-content {
         span {
           font: var(--bklog-v3-row-ctx-font);
-          white-space: pre-line;
+          white-space: pre-wrap;
         }
 
         .btn-more-action {
