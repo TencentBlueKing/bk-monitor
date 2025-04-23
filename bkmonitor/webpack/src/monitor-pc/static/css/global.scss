@@ -372,6 +372,7 @@
   }
 
   .tooltips-content {
+    width: 100% !important;
     padding: 0;
     margin: 0;
 
@@ -405,12 +406,13 @@
 
       .item-name {
         display: inline-block;
-        min-width: 80px;
+        min-width: 120px;
         max-width: calc(100% - 20px);
         margin-right: 5px;
         // overflow: hidden;
         // text-overflow: ellipsis;
         color: #f1f3fa;
+        word-break: break-all;
         white-space: pre-wrap;
       }
 
