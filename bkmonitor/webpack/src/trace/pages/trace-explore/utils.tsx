@@ -87,25 +87,32 @@ export const fieldTypeMap = {
 export const topKColorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
 
 /**
- * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序
+ * @description "包含" 筛选区域checkbox值映射filter配置
  */
-export const eventChartMap = {
-  [DimensionsTypeEnum.WARNING]: 0,
-  [DimensionsTypeEnum.NORMAL]: 1,
-  [DimensionsTypeEnum.DEFAULT]: 2,
+const checkboxFilterMapByMode = {
+  trace: {
+    error: {
+      key: 'error',
+      operator: 'logic',
+      value: [],
+    },
+  },
+  span: {
+    root_span: { key: 'parent_span_id', operator: 'equal', value: [''] },
+    entry_span: { key: 'kind', operator: 'equal', value: ['2', '5'] },
+    error: { key: 'status.code', operator: 'equal', value: ['2'] },
+  },
 };
-export const EVENT_CHART_COLORS = ['#F5C78E', '#70A0FF', '#A3B1CC'];
 
 /**
- * @description 根据事件类型获取图表颜色
- * @param {DimensionsTypeEnum} type 事件类型
+ * @description 根据当前激活视角和checkbox值获取filter配置
+ * @param mode 当前激活的视角
+ * @param val 需要获取对应filter配置的checkbox值
+ *
  */
-export const getEventLegendColorByType = (type: DimensionsTypeEnum) => {
-  const index = eventChartMap[type];
-  if (index == null) {
-    return;
-  }
-  return EVENT_CHART_COLORS[eventChartMap[type]];
+export const getFilterByCheckboxFilter = (mode: 'span' | 'trace', val: string) => {
+  const filterMap = checkboxFilterMapByMode[mode];
+  return filterMap[val];
 };
 
 /**

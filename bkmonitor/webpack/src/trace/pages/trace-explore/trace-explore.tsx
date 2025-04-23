@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
@@ -44,6 +44,7 @@ import DimensionFilterPanel from './components/dimension-filter-panel';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
+import { getFilterByCheckboxFilter } from './utils';
 
 import type { ConditionChangeEvent, IApplicationItem, ICommonParams } from './typing';
 
@@ -74,6 +75,8 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
     const fieldListMap = shallowRef({ trace: [], span: [] });
+    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
+    const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
@@ -101,15 +104,18 @@ export default defineComponent({
     watch(
       [
         () => store.appName,
+        () => store.mode,
         () => store.timeRange,
         () => store.refreshImmediate,
-        () => store.mode,
         () => store.refreshInterval,
       ],
       async (val, oldVal) => {
         loading.value = true;
         if (val[0] !== oldVal[0]) {
           await getViewConfig();
+        }
+        if (val[1] !== oldVal[1]) {
+          checkboxFilters.value = [];
         }
         loading.value = false;
         handleQuery();
@@ -151,6 +157,8 @@ export default defineComponent({
         filters = [];
       }
 
+      filters = [...filters, ...checkboxFilters.value.map(v => getFilterByCheckboxFilter(store.mode, v))];
+
       commonParams.value = {
         app_name: store.appName,
         mode: store.mode,
@@ -191,6 +199,7 @@ export default defineComponent({
         commonWhere: queryCommonWhere,
         showResidentBtn: queryShowResidentBtn,
         queryString: queryQueryString,
+        selectedType,
       } = route.query;
       try {
         store.init({
@@ -206,6 +215,7 @@ export default defineComponent({
         showResidentBtn.value = Boolean(queryShowResidentBtn);
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
+        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         handleQuery();
       } catch (error) {
         console.log('route query:', error);
@@ -226,6 +236,7 @@ export default defineComponent({
         commonWhere: JSON.stringify(commonWhere.value),
         showResidentBtn: String(showResidentBtn.value),
         filterMode: filterMode.value,
+        selectedType: JSON.stringify(checkboxFilters.value),
       };
 
       const targetRoute = router.resolve({
@@ -263,6 +274,16 @@ export default defineComponent({
     }
     function handleFilterSearch() {
       handleQuery();
+    }
+
+    /**
+     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后回调
+     *
+     */
+    function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
+      checkboxFilters.value = checkboxGroupEvent;
+      handleQuery();
+      setUrlParams();
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
@@ -314,6 +335,7 @@ export default defineComponent({
       commonWhere,
       showResidentBtn,
       filterMode,
+      checkboxFilters,
       defaultResidentSetting,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
@@ -326,6 +348,7 @@ export default defineComponent({
       handleShowResidentBtnChange,
       handleFilterModeChange,
       handleFilterSearch,
+      handleCheckboxFiltersChange,
     };
   },
   render() {
@@ -381,7 +404,11 @@ export default defineComponent({
                 ),
                 default: () => (
                   <div class='result-content-panel'>
-                    <TraceExploreView commonParams={this.commonParams} />
+                    <TraceExploreView
+                      checkboxFilters={this.checkboxFilters}
+                      commonParams={this.commonParams}
+                      onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                    />
                   </div>
                 ),
               }}
