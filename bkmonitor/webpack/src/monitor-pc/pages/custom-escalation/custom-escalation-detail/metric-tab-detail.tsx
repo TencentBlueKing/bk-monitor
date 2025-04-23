@@ -93,6 +93,13 @@ export default class MetricTabDetail extends tsc<any, any> {
     return this.customGroups.filter(group => group.name.toLowerCase().includes(keyword));
   }
 
+  /**
+   * 获取分组名称列表
+   */
+  get groupNameList(): string[] {
+    return this.customGroups.map(item => item.name);
+  }
+
   // 搜索处理函数
   handleSearchInput(val: string) {
     this.searchGroupKeyword = val;
@@ -279,6 +286,7 @@ export default class MetricTabDetail extends tsc<any, any> {
               <AddGroupDialog
                 groupInfo={this.currentGroupInfo}
                 isEdit={this.isEdit}
+                nameList={this.groupNameList}
                 show={this.showAddGroupDialog}
                 onCancel={this.handleCancel}
                 onGroupSubmit={this.submitGroup}
