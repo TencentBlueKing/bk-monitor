@@ -204,7 +204,7 @@ export default defineComponent({
     /** 拓扑图事件监听 */
     const bindListener = (graph: Graph) => {
       graph.on('node:mouseenter', e => {
-        const { id } = e.item?.get('model');
+        const { id } = e.item.get('model');
         const activeNode = graph.getNodes().find((node: any) => node.get('model').id === id);
         activeNode && graph.setItemState(activeNode, 'active', true);
       });
@@ -391,7 +391,7 @@ export default defineComponent({
         name: 'left-border-rect',
       });
 
-      let durationRect;
+      let durationRect = undefined;
       if (
         // 显示耗时或者对比存在 added 或者 removed 标签的情况下
         isShowDuration.value ||
@@ -902,7 +902,7 @@ export default defineComponent({
       // graph.fitCenter();
       // graph.fitView();
     };
-    const handleKeywordFliter = (value: string[]) => {
+    const handleKeywordFilter = (value: string[]) => {
       state.keyword = value;
       handleHighlightNode();
     };
@@ -1080,11 +1080,11 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      state.isCompareView = !!props.compareTraceID ?? false;
+      state.isCompareView = !!(props.compareTraceID ?? false);
       setTimeout(() => {
         try {
           if (!state.isCompareView) initGraph();
-        } catch (error) {
+        } catch {
           empty.value = false;
         }
       }, 100);
@@ -1100,7 +1100,7 @@ export default defineComponent({
       nextResult,
       prevResult,
       clearSearch,
-      handleKeywordFliter,
+      handleKeywordFilter,
       handleClassifyFilter,
       viewCompare,
     });

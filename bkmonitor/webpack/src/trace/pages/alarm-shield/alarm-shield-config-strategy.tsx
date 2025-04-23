@@ -26,7 +26,7 @@
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Checkbox, Loading, Select, Table } from 'bkui-vue';
+import { Checkbox, Loading, Select } from 'bkui-vue';
 import {
   getMetricListV2,
   getStrategyListV2,
@@ -35,6 +35,7 @@ import {
   promqlToQueryConfig,
 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 import DimensionConditionInput from './components/dimension-input/dimension-input';
@@ -423,8 +424,8 @@ export default defineComponent({
               <Select
                 class='width-940'
                 disabled={this.isEdit}
-                filterOption={this.customFilter}
                 filterable={true}
+                filterOption={this.customFilter}
                 modelValue={this.strategyId}
                 multiple={true}
                 selectedStyle={'checkbox'}
@@ -464,30 +465,30 @@ export default defineComponent({
             >
               {this.isEdit ? (
                 <div class='max-w836'>
-                  <Table
+                  <PrimaryTable
                     columns={[
                       {
-                        id: 'name',
-                        label: () => this.t('维度条件'),
-                        render: () =>
-                          (() => {
-                            if (this.dimensionCondition.conditionList.length) {
-                              return (
-                                <WhereDisplay
-                                  key={this.dimensionCondition.conditionKey}
-                                  allNames={this.dimensionCondition.allNames}
-                                  readonly={true}
-                                  value={this.dimensionCondition.conditionList}
-                                />
-                              );
-                            }
-                            return '--';
-                          })(),
+                        colKey: 'name',
+                        title: () => this.t('维度条件'),
+                        cell: () => {
+                          if (this.dimensionCondition.conditionList.length) {
+                            return (
+                              <WhereDisplay
+                                key={this.dimensionCondition.conditionKey}
+                                allNames={this.dimensionCondition.allNames}
+                                readonly={true}
+                                value={this.dimensionCondition.conditionList}
+                              />
+                            );
+                          }
+                          return '--';
+                        },
                       },
                     ]}
-                    border={['outer']}
+                    bordered={true}
                     data={[{}]}
                     maxHeight={450}
+                    rowKey='key'
                   />
                 </div>
               ) : (

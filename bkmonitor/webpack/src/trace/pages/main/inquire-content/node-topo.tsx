@@ -93,8 +93,8 @@ export default defineComponent({
         emit('typeChange', value);
       }
     }
-    function handleKeywordFliter(value: string[]) {
-      relationTopo.value?.handleKeywordFliter?.(value);
+    function handleKeywordFilter(value: string[]) {
+      relationTopo.value?.handleKeywordFilter?.(value);
     }
     function clearSearch() {
       relationTopo.value?.clearSearch?.();
@@ -124,7 +124,7 @@ export default defineComponent({
       isShowDuration,
       currentClassify,
       handleTypeChange,
-      handleKeywordFliter,
+      handleKeywordFilter,
       clearSearch,
       handleClassifyFilter,
       viewCompare,
@@ -139,6 +139,7 @@ export default defineComponent({
         <div class='header-type-list'>
           {typeList.map(item => (
             <div
+              key={item.id}
               class={['header-type-list-item', { active: this.type === item.id }]}
               onClick={() => this.handleTypeChange(item.id)}
             >

@@ -29,13 +29,8 @@ import { defineComponent, shallowRef, useTemplateRef, computed, watch, triggerRe
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Input } from 'bkui-vue';
 
-import {
-  fieldTypeMap,
-  type IFilterField,
-  RESIDENT_SETTING_TRANSFER_EMITS,
-  RESIDENT_SETTING_TRANSFER_PROPS,
-} from './typing';
-import { getTitleAndSubtitle } from './utils';
+import { type IFilterField, RESIDENT_SETTING_TRANSFER_EMITS, RESIDENT_SETTING_TRANSFER_PROPS } from './typing';
+import { fieldTypeMap, getTitleAndSubtitle } from './utils';
 
 import './resident-setting-transfer.scss';
 

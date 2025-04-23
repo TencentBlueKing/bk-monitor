@@ -26,9 +26,9 @@
 import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Table, TableColumn } from '@blueking/table';
 import { Button, Popover, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import CommonTip from '../../components/common-tip/common-tip';
 import AlarmShieldIpv6 from './components/alarm-shield-ipv6';
@@ -423,19 +423,20 @@ export default defineComponent({
             {!!this.isEdit &&
               (this.scopeState.bkGroup.value !== 'biz' ? (
                 <div class='w-836'>
-                  <Table
-                    autoResize={true}
-                    border={'outer'}
+                  <PrimaryTable
+                    columns={[
+                      {
+                        colKey: 'name',
+                        title: this.scopeState?.labelMap?.[this.scopeState?.bkGroup?.value] || '',
+                        ellipsis: true,
+                      },
+                    ]}
+                    bordered={true}
                     data={this.scopeState.tableData}
                     maxHeight={450}
-                  >
-                    <TableColumn
-                      key={'name'}
-                      field={'name'}
-                      showOverflow={'tooltip'}
-                      title={this.scopeState?.labelMap?.[this.scopeState?.bkGroup?.value] || ''}
-                    />
-                  </Table>
+                    resizable={true}
+                    rowKey='name'
+                  />
                 </div>
               ) : (
                 <span>{this.t('业务')}</span>

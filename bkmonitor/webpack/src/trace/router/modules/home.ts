@@ -27,13 +27,13 @@ import type { RouteRecordRaw } from 'vue-router';
  */
 export default [
   {
-    path: '/home',
-    name: 'home',
+    path: '/trace',
+    name: 'trace',
     component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire'),
   },
   {
-    path: '/trace',
-    name: 'trace',
+    path: '/home',
+    name: 'home',
     component: () => import(/* webpackChunkName: "traceExplore" */ '../../pages/trace-explore/trace-explore'),
   },
 ] as RouteRecordRaw[];

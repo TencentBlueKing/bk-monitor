@@ -27,7 +27,7 @@ export type TestSendingTarget = 'all' | 'self';
 
 export enum FrequencyType {
   /** 按天 */
-  dayly = 2,
+  daily = 2,
   /** 按小时 */
   hourly = 5,
   /** 按月 */
@@ -117,6 +117,7 @@ export interface IColumn {
   width?: number | string;
   filter?: { label: string; value: number | string }[];
   sortable?: boolean;
+  minWidth?: number;
 }
 
 export interface ITable {

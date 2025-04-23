@@ -349,12 +349,18 @@
 .t-table {
   thead td,
   th {
+    color: #63656e !important;
+
+    &.__table-custom-setting-col__ {
+      padding: 0 !important;
+    }
+
     .t-table__cell--title {
       color: #63656e;
     }
   }
 
-  &__header {
+  .t-table__header {
     th {
       background-color: #fafbfd;
 
@@ -371,5 +377,13 @@
         color: #3a84ff;
       }
     }
+  }
+}
+
+.t-table__filter-pop {
+  .t-table__filter-pop-content .t-table__filter-pop-content-inner {
+    max-height: 200px;
+    padding: 6px 12px;
+    overflow: auto;
   }
 }

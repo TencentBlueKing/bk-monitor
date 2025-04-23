@@ -28,13 +28,13 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { ECondition, EMode } from '../../components/retrieval-filter/typing';
+import { ECondition, EMode, type IWhereItem, type IGetValueFnParams } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import TraceExploreHeader from './components/trace-explore-header';
@@ -63,9 +63,9 @@ export default defineComponent({
     }
     const filterMode = shallowRef<EMode>(EMode.ui);
 
-    const where = shallowRef([]);
+    const where = shallowRef<IWhereItem[]>([]);
     /** 常驻筛选 */
-    const commonWhere = shallowRef([]);
+    const commonWhere = shallowRef<IWhereItem[]>([]);
     /** 是否展示常驻筛选 */
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
@@ -84,6 +84,7 @@ export default defineComponent({
 
     const loading = shallowRef(false);
     const queryString = shallowRef('');
+    const queryStringInput = shallowRef('');
 
     const residentSettingOnlyId = computed(() => {
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
@@ -100,6 +101,7 @@ export default defineComponent({
       ],
       async (val, oldVal) => {
         if (val[0] !== oldVal[0]) {
+          console.log('xxx');
           await getViewConfig();
         }
         handleQuery();
@@ -229,6 +231,68 @@ export default defineComponent({
       }
     }
 
+    function handleCommonWhereChange(whereP: IWhereItem[]) {
+      commonWhere.value = whereP;
+      handleQuery();
+    }
+    function handleWhereChange(whereP: IWhereItem[]) {
+      where.value = whereP;
+      handleQuery();
+    }
+    function handleQueryStringChange(val: string) {
+      queryString.value = val;
+      handleQuery();
+    }
+    function handleQueryStringInputChange(val: string) {
+      queryStringInput.value = val;
+    }
+    function handleShowResidentBtnChange(val: boolean) {
+      showResidentBtn.value = val;
+      setUrlParams();
+    }
+    function handleFilterModeChange(filterModeP: EMode) {
+      filterMode.value = filterModeP;
+    }
+    function handleFilterSearch() {
+      handleQuery();
+    }
+
+    function getRetrievalFilterValueData(params: IGetValueFnParams) {
+      const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
+      return getFieldsOptionValues({
+        app_name: store.appName,
+        start_time: startTime,
+        end_time: endTime,
+        fields: params?.fields || [],
+        limit: params?.limit || 5,
+        filters:
+          params?.where?.map(item => ({
+            key: item.key,
+            operator: item.method,
+            value: item.value || [],
+          })) || [],
+        query_string: params?.queryString || '',
+        mode: store.mode,
+      })
+        .then(res => {
+          const data = res?.[params?.fields?.[0]] || [];
+          return {
+            count: +data?.length || 0,
+            list:
+              data?.map(item => ({
+                id: item,
+                name: item,
+              })) || [],
+          };
+        })
+        .catch(() => {
+          return {
+            count: 0,
+            list: [],
+          };
+        });
+    }
+
     return {
       traceExploreLayoutRef,
       applicationList,
@@ -239,9 +303,20 @@ export default defineComponent({
       loading,
       queryString,
       residentSettingOnlyId,
+      commonWhere,
+      showResidentBtn,
+      filterMode,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
+      getRetrievalFilterValueData,
+      handleCommonWhereChange,
+      handleWhereChange,
+      handleQueryStringChange,
+      handleQueryStringInputChange,
+      handleShowResidentBtnChange,
+      handleFilterModeChange,
+      handleFilterSearch,
     };
   },
   render() {
@@ -261,8 +336,21 @@ export default defineComponent({
               <div class='skeleton-element filter-skeleton' />
             ) : (
               <RetrievalFilter
+                commonWhere={this.commonWhere}
+                defaultShowResidentBtn={this.showResidentBtn}
                 fields={this.fieldList}
+                filterMode={this.filterMode}
+                getValueFn={this.getRetrievalFilterValueData}
+                queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
+                where={this.where}
+                onCommonWhereChange={this.handleCommonWhereChange}
+                onModeChange={this.handleFilterModeChange}
+                onQueryStringChange={this.handleQueryStringChange}
+                onQueryStringInputChange={this.handleQueryStringInputChange}
+                onSearch={this.handleFilterSearch}
+                onShowResidentBtnChange={this.handleShowResidentBtnChange}
+                onWhereChange={this.handleWhereChange}
               />
             )}
             <TraceExploreLayout

@@ -24,60 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import type { TranslateResult } from 'vue-i18n';
-
-/** 表格排序类型 */
-export interface TableSort {
-  /** 排序字段名 */
-  field: string;
-  /** 排序方式 */
-  order: 'asc' | 'desc' | null;
-}
+import type { OptionData, PrimaryTableCol } from 'tdesign-vue-next';
 
 /** 表格筛选项类型 */
-export interface TableFilterItem {
-  /** 筛选项名称 */
-  label: string;
-  /** 筛选项值 */
-  value: boolean | number | string;
-}
-
-/** 表格筛选项变更事件类型 */
-export interface TableFilterChangeEvent {
-  /** 筛选项字段 */
-  field: string;
-  /** 筛选项值 */
-  values: Array<boolean | number | string>;
-  /** 筛选项列表 */
-  filterList: TableFilterItem[];
-}
+export type TableFilterItem = OptionData;
 
 /** trace检索 表格列配置类型 */
-export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum> {
+export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
+  extends PrimaryTableCol {
   /** 字段类型 */
-  type?: T;
-  /** 字段id */
-  field: string;
-  /** 字段名称（渲染指标列时为指标名称） */
-  alias: TranslateResult;
-  /** 列宽 */
-  width?: number;
-  /** 最小列宽 */
-  minWidth?: number;
-  /** 是否固定列 */
-  fixed?: 'left' | 'right';
-  /** 列渲染顺序权重 */
-  order?: number;
-  /** 是否允许列排序 */
-  sortable?: boolean;
-  /** 列筛选项 */
-  filter?: TableFilterItem[];
-  /** 是否多选筛选项 */
-  filterMultiple?: boolean;
-  /** 内容过长时显示为省略号 */
-  showOverflow?: 'ellipsis' | 'title' | 'tooltip';
-  /** 列对齐方式 */
-  align?: 'center' | 'left' | 'right';
+  renderType?: T;
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */

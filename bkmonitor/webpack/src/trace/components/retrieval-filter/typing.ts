@@ -57,39 +57,6 @@ export enum APIType {
   MONITOR = 'monitor', // monitor default
 }
 
-export const fieldTypeMap = {
-  all: {
-    name: window.i18n.tc('数字'),
-    icon: 'icon-monitor icon-a-',
-    color: '#979BA5',
-    bgColor: '#E8EAF0',
-  },
-  integer: {
-    name: window.i18n.tc('数字'),
-    icon: 'icon-monitor icon-number1',
-    color: '#60A087',
-    bgColor: '#DDEBE6',
-  },
-  keyword: {
-    name: window.i18n.tc('字符串'),
-    icon: 'icon-monitor icon-Str',
-    color: '#6498B3',
-    bgColor: '#D9E5EB',
-  },
-  text: {
-    name: window.i18n.tc('文本'),
-    icon: 'icon-monitor icon-text1',
-    color: '#508CC8',
-    bgColor: '#E1E7F2',
-  },
-  date: {
-    name: window.i18n.tc('时间'),
-    icon: 'icon-monitor icon-Time',
-    color: '#CDAE71',
-    bgColor: '#EDE7DB',
-  },
-};
-
 export interface IValue {
   id: string;
   name: string;
@@ -119,11 +86,11 @@ export interface IFilterField {
 export enum ECondition {
   and = 'and',
 }
-
 export interface IWhereItem {
   key: string;
   condition?: ECondition;
-  method: EMethod | string;
+  method?: EMethod | string;
+  operator?: string;
   value: string[];
   options?: {
     is_wildcard: boolean;
