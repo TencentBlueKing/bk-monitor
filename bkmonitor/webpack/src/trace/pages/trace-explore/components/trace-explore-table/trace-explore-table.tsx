@@ -1050,15 +1050,6 @@ export default defineComponent({
   render() {
     return (
       <div class='trace-explore-table'>
-        <ExploreFieldSetting
-          class='table-field-setting'
-          fieldMap={{}}
-          fixedDisplayList={[this.tableRowKeyField]}
-          sourceList={this.tableColumns}
-          targetList={this.displayColumnFields}
-          onConfirm={this.handleDisplayColumnFieldsChange}
-        />
-
         <PrimaryTable
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
@@ -1078,25 +1069,56 @@ export default defineComponent({
               />
             ),
           }}
-          columns={this.tableDisplayColumns.map(column => {
-            return {
-              ...column,
-              width: column.minWidth,
-              ellipsis: false,
-              resizable: true,
-              filter: column?.filter
-                ? {
-                    ...this.defaultTableConfig.filter,
-                    ...column.filter,
-                  }
-                : null,
-              cell: (h, { row }) => {
-                return this.handleSetFormatter(column, row);
+          columns={[
+            ...this.tableDisplayColumns.map(column => {
+              return {
+                ...column,
+                width: column.minWidth,
+                minWidth: undefined,
+                ellipsis: false,
+                resizable: true,
+                filter: column?.filter
+                  ? {
+                      ...this.defaultTableConfig.filter,
+                      ...column.filter,
+                    }
+                  : null,
+                cell: (h, { row }) => {
+                  return this.handleSetFormatter(column, row);
+                },
+              };
+            }),
+            {
+              width: '32px',
+              minWidth: '32px',
+              fixed: 'right',
+              align: 'center',
+              resizable: false,
+              thClassName: '__table-custom-setting-col__',
+              colKey: '__col_setting__',
+              title: () => {
+                return (
+                  <ExploreFieldSetting
+                    class='table-field-setting'
+                    fieldMap={{}}
+                    fixedDisplayList={[this.tableRowKeyField]}
+                    sourceList={this.tableColumns}
+                    targetList={this.displayColumnFields}
+                    onConfirm={this.handleDisplayColumnFieldsChange}
+                  />
+                );
               },
-            };
-          })}
+              cell: () => undefined,
+            },
+          ]}
           headerAffixedTop={{
             container: '.trace-explore-view',
+          }}
+          rowspanAndColspan={({ colIndex }) => {
+            return {
+              rowspan: 1,
+              colspan: colIndex === this.tableDisplayColumns.length - 1 ? 2 : 1,
+            };
           }}
           activeRowType='single'
           data={this.tableViewData}

@@ -701,48 +701,26 @@ export default defineComponent({
                     />
                   ),
                 }}
-                columns={
-                  this.columns.map(item => ({
-                    title: item.name,
-                    minWidth: item.minWidth || item.width,
-                    resizable: true,
-                    cellKey: item.id,
-                    colKey: item.id,
-                    ellipsis: true,
-                    sortType: 'all',
-                    sorter: item.sortable,
-                    filter: item.filter?.length
-                      ? {
-                          resetValue: [],
-                          type: 'multiple',
-                          list: item.filter,
-                          showConfirmAndReset: true,
-                          props: {},
-                        }
-                      : undefined,
-                    cell: (_, { row }) => this.handleSetFormat(row, item.id),
-                  }))
-                  // .map(item => (
-                  //   <TableColumn
-                  //     key={item.id}
-                  //     width={item.width}
-                  //     field={item.id}
-                  //     filterMultiple={item.filterMultiple}
-                  //     filters={item.filter}
-                  //     minWidth={item.minWidth}
-                  //     sortable={item.sortable}
-                  //     title={item.name}
-                  //     show-overflow
-                  //   >
-                  //     {{
-                  //       default: ({ row }) => this.handleSetFormat(row, item.id),
-                  //     }}
-                  //   </TableColumn>
-                  // ))
-                }
-                // filterRow={() => {
-                //   return 'asdfasdfasdfasdf';
-                // }}
+                columns={this.columns.map(item => ({
+                  title: item.name,
+                  minWidth: item.minWidth || item.width,
+                  resizable: true,
+                  cellKey: item.id,
+                  colKey: item.id,
+                  ellipsis: true,
+                  sortType: 'all',
+                  sorter: item.sortable,
+                  filter: item.filter?.length
+                    ? {
+                        resetValue: [],
+                        type: 'multiple',
+                        list: item.filter,
+                        showConfirmAndReset: true,
+                        props: {},
+                      }
+                    : undefined,
+                  cell: (_, { row }) => this.handleSetFormat(row, item.id),
+                }))}
                 data={this.tableList}
                 filterValue={this.filterValue}
                 rowKey='id'

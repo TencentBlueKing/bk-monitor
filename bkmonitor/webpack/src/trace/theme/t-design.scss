@@ -351,6 +351,10 @@
   th {
     color: #63656e !important;
 
+    &.__table-custom-setting-col__ {
+      padding: 0 !important;
+    }
+
     .t-table__cell--title {
       color: #63656e;
     }
