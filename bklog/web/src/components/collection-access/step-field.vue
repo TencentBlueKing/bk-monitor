@@ -1359,7 +1359,7 @@
         }else{
           const allFields = this.$refs.fieldTable.getData();
           const builtFields = allFields.filter( item => item.is_built_in)
-          this.formData.fields = allFields.filter( item => !item.is_built_in)
+          this.formData.fields = allFields.filter( item => !item.is_built_in && !item.is_objectKey)
           if(builtFields.length){
             this.copyBuiltField = builtFields;
           }
@@ -1587,7 +1587,7 @@
             path_type: item.field_type
           }
         })
-        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in && !item.is_objectKey )
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -2650,8 +2650,9 @@
         })
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
+        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '')
         builtFieldList.forEach(builtField => {
-          if (builtField.field_type === "object" && name.includes(builtField.field_name)) {
+          if (builtField.field_type === "object" && field_name === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);

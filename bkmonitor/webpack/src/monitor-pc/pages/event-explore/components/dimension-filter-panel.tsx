@@ -87,6 +87,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   searchResultList: IDimensionField[] = [];
   /** 已选择的字段 */
   selectField = '';
+  showStatisticsPopover = false;
   slideField: IDimensionField = null;
   /** popover实例 */
   popoverInstance = null;
@@ -138,7 +139,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
-      width: 400,
+      width: 405,
       distance: -5,
       boundary: 'viewport',
       trigger: 'manul',
@@ -146,10 +147,13 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       arrow: true,
       interactive: true,
       onHidden: () => {
+        this.showStatisticsPopover = false;
         this.selectField = '';
       },
     });
+    await this.$nextTick();
     this.popoverInstance?.show(100);
+    this.showStatisticsPopover = true;
   }
 
   destroyPopover() {
@@ -333,9 +337,12 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
+          fieldType={this.slideField?.type}
           isDimensions={this.slideField?.is_dimensions}
+          isShow={this.showStatisticsPopover}
+          isShowChart={true}
           popoverInstance={this.popoverInstance}
-          selectField={this.selectField}
+          selectField={this.slideField?.name}
           source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}

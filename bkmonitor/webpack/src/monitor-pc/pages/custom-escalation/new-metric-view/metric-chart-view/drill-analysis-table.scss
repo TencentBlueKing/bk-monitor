@@ -91,6 +91,7 @@
   .table-right {
     flex: 1;
     background: #fff;
+    height: 100%;
     .table-skeleton-block {
       width: 100%;
       padding: 0 12px;
@@ -128,6 +129,8 @@
       }
     }
     .dimensions-table {
+      height: calc(100% - 10px);
+      overflow-y: auto;
       .color-box {
         width: 8px;
         height: 4px;
@@ -147,6 +150,10 @@
         tr {
           background-color: #fafbfd;
         }
+      }
+      .disabled-drill-down {
+        color: #c4c6cc;
+        cursor: not-allowed;
       }
       .dimensions-value {
         // color: #3a84ff;
@@ -188,7 +195,7 @@
   .table-drill-down-list {
     background: rgb(255, 255, 255);
     max-height: 300px;
-    min-height: 50px;
+    min-height: 20px;
     min-width: 80px;
     overflow: auto;
     .table-drill-down-item {

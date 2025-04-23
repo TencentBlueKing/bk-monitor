@@ -13,6 +13,7 @@ import copy
 import csv
 import json
 import logging
+import re
 import time
 from abc import ABCMeta
 from collections import defaultdict, namedtuple
@@ -90,7 +91,7 @@ from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
-from fta_web.alert.handlers.base import BaseQueryHandler, query_cache
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -581,7 +582,6 @@ class AlertDateHistogramResource(Resource):
                 for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
             ]
         )
-        query_cache.clear()
 
         data = {status: {} for status in EVENT_STATUS_DICT}
         for result in results:
@@ -972,6 +972,8 @@ class AlertRelatedInfoResource(Resource):
 
         set_template = _("集群({}) ")
         module_template = _("模块({})")
+        environment_template = _(" 环境类型({})")
+        environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
 
         def enrich_related_infos(bk_biz_id, instances):
             ips = instances["ips"]
@@ -1003,6 +1005,7 @@ class AlertRelatedInfoResource(Resource):
             sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(module_to_set.values()))
             module_names = {module.bk_module_id: module.bk_module_name for module in modules}
             set_names = {s.bk_set_id: s.bk_set_name for s in sets}
+            environment_types = {s.bk_set_id: s.bk_set_env for s in sets}
 
             # 事件对应到模块ID
             alert_to_module_ids = {}
@@ -1039,6 +1042,18 @@ class AlertRelatedInfoResource(Resource):
                         [module_names[bk_module_id] for bk_module_id in bk_module_ids if bk_module_id in module_names]
                     )
                 )
+
+                if environment_types and bk_set_ids:
+                    environments = []
+                    for bk_set_id in bk_set_ids:
+                        environment_type_id = environment_types.get(bk_set_id)
+                        if environment_type_id is not None:
+                            environment = environment_mapping.get(environment_type_id, str(environment_type_id))
+                            environments.append(environment)
+
+                    if environments:
+                        topo_info += environment_template.format(",".join(environments))
+
                 related_infos[alert_id]["topo_info"] = topo_info
 
         # 多线程处理每个业务的主机和服务实例信息
@@ -1457,12 +1472,17 @@ class SearchAlertResource(Resource):
         show_dsl = serializers.BooleanField(label="展示DSL", default=False)
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
+        replace_time_range = serializers.BooleanField(label="是否替换时间范围", default=False)
 
     def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+
+        # 替换时间范围
+        if validated_request_data.get("replace_time_range"):
+            validated_request_data = self.replace_time(validated_request_data)
 
         handler = AlertQueryHandler(**validated_request_data)
 
@@ -1474,6 +1494,35 @@ class SearchAlertResource(Resource):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
 
         return result
+
+    @staticmethod
+    def replace_time(request_data: Dict) -> Dict:
+        """
+        根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
+        规则：提取所有ID的前10位作为基准时间戳，前后扩展1小时
+        """
+
+        one_hour_in_seconds = 3600  # 一小时的秒数
+        timestamp_length = 10  # 时间戳位数
+
+        query_string = request_data.get("query_string", "")
+
+        # 匹配所有告警ID/处理记录ID
+        id_matches = re.findall(r'(告警ID|处理记录ID)\s*:\s*(\d+)', query_string)
+        if not id_matches:
+            return request_data
+
+        # 提取出所有的时间戳
+        timestamps = [int(match[1][:timestamp_length]) for match in id_matches]
+
+        min_timestamp = min(timestamps)  # 最小时间戳
+        max_timestamp = max(timestamps)  # 最大时间戳
+
+        # 计算新的时间范围，确保原本提供的时间范围也被包含，以确保如果存在其他查询条件时，新的范围能够覆盖所有情况
+        request_data["start_time"] = min(min_timestamp - one_hour_in_seconds, request_data["start_time"])
+        request_data["end_time"] = max(max_timestamp + one_hour_in_seconds, request_data["end_time"])
+
+        return request_data
 
 
 class ExportAlertResource(Resource):
@@ -1837,7 +1886,6 @@ class ValidateQueryString(Resource):
         }
         search_type = validated_request_data["search_type"]
         ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
-        query_cache.clear()
         return ret
 
 
@@ -1894,7 +1942,6 @@ class AlertTopNResource(Resource):
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
-        query_cache.clear()
 
         result = {
             "doc_count": 0,

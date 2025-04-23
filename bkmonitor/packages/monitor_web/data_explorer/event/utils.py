@@ -74,7 +74,7 @@ def _get_data_labels_map(bk_biz_id: int, tables: Tuple[str, ...]) -> Dict[str, s
     return api.metadata.get_data_labels_map(bk_biz_id=bk_biz_id, table_or_labels=list(tables))
 
 
-def create_workload_info(origin_data, fields: List[str]):
+def create_k8s_info(origin_data, fields: List[str]):
     return create_event_info(origin_data, fields, EventCategory.K8S_EVENT.value)
 
 

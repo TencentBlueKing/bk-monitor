@@ -638,7 +638,9 @@ export const copyMessage = (val, alertMsg) => {
     input.select();
     document.execCommand('copy');
     document.body.removeChild(input);
-    window.mainComponent.messageSuccess(alertMsg ? alertMsg : window.mainComponent.$t('复制成功'));
+    window.mainComponent.messageSuccess(
+      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
+    );
   } catch (e) {
     console.warn(e);
   }
@@ -1259,4 +1261,47 @@ export const isNestedField = (fieldKeys, obj) => {
   }
 
   return false;
+};
+
+/**
+ * 下载文件
+ * @param url 资源地址
+ * @param name 资源名称
+ */
+export const downFile = (url, name = '') => {
+  const element = document.createElement('a');
+  element.setAttribute('class', 'bklog-v3-popover-tag');
+  element.setAttribute('href', url.replace(/^https?:/gim, location.protocol));
+  element.setAttribute('download', name);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+};
+
+/**
+ * 根据json字符串下载json文件
+ * @param jsonStr json字符串
+ */
+export const downJsonFile = (jsonStr, name = 'json-file.json') => {
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const href = window.URL.createObjectURL(blob);
+  downFile(href, name);
+};
+
+/**
+ * 获取当前操作系统
+ */
+export const getOs = () => {
+  const userAgent = navigator.userAgent;
+  const isMac = userAgent.includes('Macintosh');
+  const isWin = userAgent.includes('Windows');
+  return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
+};
+
+/**
+ * 获取当前操作系统的控制键盘文案
+ */
+export const getOsCommandLabel = () => {
+  return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
 };

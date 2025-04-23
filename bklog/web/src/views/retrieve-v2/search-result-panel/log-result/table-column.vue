@@ -27,8 +27,6 @@
 <template>
   <div
     class="bklog-column-wrapper"
-    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-    @click.stop="handleClickContent"
   >
     <template v-if="isJsonFormat">
       <JsonFormatter
@@ -68,10 +66,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -87,8 +82,8 @@
     },
     computed: {
       ...mapState({
-        // formatJson: state => state.tableJsonFormat,
-        tableLineIsWrap: state => state.tableLineIsWrap,
+        // formatJson: state => state.storage.tableJsonFormat,
+        tableLineIsWrap: state => state.storage.tableLineIsWrap,
         isFormatDateField: state => state.isFormatDate,
       }),
 
@@ -111,10 +106,6 @@
       },
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
-
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
@@ -130,7 +121,7 @@
   .bklog-column-wrapper {
     display: flex;
     align-items: flex-start;
-    height: 100%;
+    height: fit-content;
     padding: 0;
   }
 </style>

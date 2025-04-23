@@ -25,15 +25,11 @@
 -->
 
 <template>
-  <div
-    :class="['td-log-container', { 'is-wrap': isWrap }]"
-    @click.stop
-  >
+  <div :class="['td-log-container', { 'is-wrap': isWrap }]">
     <!-- eslint-disable vue/no-v-html -->
     <span
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-      :class="['field-container', 'add-to', { active: hasClickEvent }]"
-      @click.stop="handleClickContent"
+      v-bk-tooltips="{ content: $t('查看调用链'), delay: 500 }"
+      :class="['field-container', 'add-to']"
     >
       <text-segmentation
         :content="content"
@@ -60,10 +56,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -81,9 +74,6 @@
       this.unregisterOberver();
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
       handleMenuClick(option, content, isLink = false) {
         const operator = option === 'not' ? 'is not' : option;
         this.$emit('icon-click', operator, content, isLink);

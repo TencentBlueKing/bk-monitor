@@ -29,82 +29,42 @@
     <div class="original-log-panel-tools">
       <div class="left-operate">
         <div class="bk-button-group">
-          <bk-button
-            :class="!showOriginalLog ? 'is-selected' : ''"
-            size="small"
-            @click="handleClickTableBtn('table')"
+          <span
+            v-for="type in ['original', 'table']"
+            class="option"
+            :class="contentType === type ? 'option-selected' : ''"
+            :key="type"
+            @click="handleClickTableBtn(type)"
           >
-            {{ $t('表格') }}
-          </bk-button>
-          <bk-button
-            :class="showOriginalLog ? 'is-selected' : ''"
-            size="small"
-            @click="handleClickTableBtn('original')"
-          >
-            {{ $t('原始') }}
-          </bk-button>
-        </div>
-        <bk-checkbox
-          style="margin: 0 12px"
-          class="bklog-option-item"
-          :value="showRowIndex"
-          theme="primary"
-          @change="handleShowRowIndexChange"
-        >
-          <span class="switch-label">{{ $t('行号') }}</span>
-        </bk-checkbox>
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          v-model="expandTextView"
-          theme="primary"
-          @change="handleChangeExpandView"
-        >
-          <span class="switch-label">{{ $t('展开长字段') }}</span>
-        </bk-checkbox>
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
-          :value="isWrap"
-          theme="primary"
-          @change="handleChangeIsWarp"
-          ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
-        >
-
-        <bk-checkbox
-          style="margin: 0 12px 0 0"
-          :value="isJsonFormat"
-          theme="primary"
-          @change="handleJsonFormat"
-          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
-        >
-
-        <bk-input
-          v-if="isJsonFormat"
-          class="json-depth-num"
-          :max="15"
-          :min="1"
-          :value="jsonFormatDeep"
-          type="number"
-          @change="handleJsonFormatDeepChange"
-        ></bk-input>
-
-        <bk-checkbox
-          style="margin: 0 12px 0 12px"
-          :value="isAllowEmptyField"
-          theme="primary"
-          @change="handleEmptyFieldFormat"
-        >
-          <span class="switch-label">
-            {{ $t('展示空字段') }}
+            {{ type === 'table' ? '表格' : '原始' }}
           </span>
-        </bk-checkbox>
+        </div>
+        <ResultStorage></ResultStorage>
       </div>
       <div
-        class="tools-more"
         v-if="!isMonitorTrace"
+        class="tools-more"
       >
         <div class="operation-icons">
+          <div class="group-text light-search">
+            <label>高亮</label>
+            <bklogTagChoice
+              :foucsFixed="true"
+              :onTagRender="handleTagRender"
+              class="bklog-v3-tag-highlight"
+              focusBorderColor="#c4c6cc"
+              minHeight="32px"
+              :maxWidth="highlightStyle.width"
+              :minWidth="highlightStyle.width"
+              :value="highlightValue"
+              placeholder="输入后按 Enter..."
+              template="tag-input"
+              @change="handleHighlightEnter"
+            >
+              <template slot="prepend"> </template>
+            </bklogTagChoice>
+          </div>
+
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -114,34 +74,30 @@
             :total-count="totalCount"
           >
           </export-log>
-          <bk-popover
-            ref="fieldsSettingPopper"
-            :distance="15"
-            :offset="0"
-            :on-hide="handleDropdownHide"
-            :on-show="handleDropdownShow"
-            animation="slide-toggle"
-            placement="bottom-end"
-            theme="light bk-select-dropdown"
-            trigger="click"
+          <BkLogPopover
+            ref="refFieldsSettingPopper"
+            content-class="bklog-v3-select-dropdown"
+            :options="tippyOptions"
+            :beforeHide="handleBeforeHide"
           >
-            <slot name="trigger">
-              <div class="operation-icon">
-                <span class="icon bklog-icon bklog-set-icon"></span>
-              </div>
-            </slot>
+            <div class="operation-icon">
+              <span
+                style="font-size: 16px"
+                class="icon bklog-icon bklog-shezhi"
+              ></span>
+            </div>
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
-                  v-if="showFieldsSetting"
                   :field-alias-map="fieldAliasMap"
+                  :is-show="true"
                   :retrieve-params="retrieveParams"
+                  config-type="list"
                   @cancel="cancelModifyFields"
-                  @set-popper-instance="setPopperInstance"
                 />
               </div>
             </template>
-          </bk-popover>
+          </BkLogPopover>
         </div>
       </div>
     </div>
@@ -155,16 +111,26 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
+  import { debounce } from 'lodash';
 
   import ExportLog from '../../result-comp/export-log.vue';
-  import FieldsSetting from '../../result-comp/fields-setting';
+  import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
+  import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+  import bklogTagChoice from '../../search-bar/bklog-tag-choice';
+  import ResultStorage from '../../components/result-storage/index';
+  import BkLogPopover from '../../../../components/bklog-popover/index';
+  let logResultResizeObserver;
+  let logResultResizeObserverFn;
 
   export default {
     components: {
       TableLog,
       FieldsSetting,
       ExportLog,
+      bklogTagChoice,
+      ResultStorage,
+      BkLogPopover,
     },
     inheritAttrs: false,
     props: {
@@ -183,13 +149,18 @@
     },
     data() {
       return {
+        highlightValue: [],
         contentType: 'table',
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
-        expandTextView: false,
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
+        highlightWidth: 200,
+        tippyOptions: {
+          maxWidth: 1200,
+          arrow: false,
+        },
       };
     },
     computed: {
@@ -214,11 +185,6 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
-        isWrap: 'tableLineIsWrap',
-        jsonFormatDeep: state => state.tableJsonFormatDepth,
-        isJsonFormat: state => state.tableJsonFormat,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
-        showRowIndex: state => state.tableShowRowIndex,
       }),
 
       routeIndexSet() {
@@ -238,66 +204,102 @@
       showFieldsConfigPopoverNum() {
         return this.$store.state.showFieldsConfigPopoverNum;
       },
+      jsonFormat() {
+        return this.$store.state.storage.tableJsonFormat;
+      },
+      highlightStyle() {
+        return {
+          width: `${this.highlightWidth}px`,
+        };
+      },
     },
     watch: {
       showFieldsConfigPopoverNum() {
         this.handleAddNewConfig();
       },
+      jsonFormat() {
+        this.$nextTick(this.calcHighlightWidth);
+      },
     },
     mounted() {
-      const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-      this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
-      this.handleChangeExpandView(this.expandTextView);
+      RetrieveHelper.setMarkInstance();
+      RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
+        if (event === 'mark' && !this.highlightValue.includes(value)) {
+          this.highlightValue.push(...value.split(/\s+/));
+          RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+        }
+      });
+
+      if (document.body.offsetHeight < 900) {
+        this.$refs.refFieldsSettingPopper?.setProps({
+          placement: 'auto',
+          arrow: true,
+        });
+      }
+
+      logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
+      logResultResizeObserver = new ResizeObserver(logResultResizeObserverFn);
+      logResultResizeObserver.observe(this.$el);
+    },
+    unmounted() {
+      logResultResizeObserver?.unobserve(this.$el);
+      logResultResizeObserver?.disconnect();
+      logResultResizeObserver = null;
+      logResultResizeObserverFn = null;
     },
     methods: {
-      // 字段设置
-      handleDropdownShow() {
-        this.showFieldsSetting = true;
+      calcHighlightWidth() {
+        const { offsetWidth } = this.$el;
+        const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
+        const rightWidth = 200;
+        const calcWidth = offsetWidth - leftWidth - rightWidth;
+        if (calcWidth > 400) {
+          this.highlightWidth = 400;
+          return;
+        }
+
+        this.highlightWidth = offsetWidth - leftWidth - rightWidth;
       },
-      handleDropdownHide() {
-        this.showFieldsSetting = false;
+      handleBeforeHide(e) {
+        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+          return false;
+        }
+
+        return true;
       },
+      handleTagRender(item, index) {
+        const colors = RetrieveHelper.RGBA_LIST;
+        return {
+          style: {
+            backgroundColor: colors[index % colors.length],
+          },
+        };
+      },
+      handleHighlightEnter(valList) {
+        this.highlightValue = valList
+          .map(v => v.split(/\s+/))
+          .flat()
+          .filter(w => w.length > 0);
+        RetrieveHelper.highLightKeywords(this.highlightValue);
+      },
+
       cancelModifyFields() {
         this.closeDropdown();
       },
       closeDropdown() {
-        this.showFieldsSetting = false;
-        this.$refs.fieldsSettingPopper?.instance.hide();
-        this.$refs.fieldsSettingPopper?.instance.hide();
+        this.$refs.refFieldsSettingPopper?.hide();
       },
-      setPopperInstance(status = true) {
-        this.$refs.fieldsSettingPopper?.instance.set({
-          hideOnClick: status,
-        });
-      },
+
       handleAddNewConfig() {
-        this.$refs.configSelectRef?.close();
-        this.$refs.fieldsSettingPopper?.instance.show();
+        this.$refs.refFieldsSettingPopper.show();
       },
       handleClickTableBtn(active = 'table') {
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
-      },
-      handleShowRowIndexChange(val) {
-        this.$store.commit('updateTableShowRowIndex', val);
-      },
-      handleChangeExpandView(val) {
-        this.$store.commit('updateIsLimitExpandView', val);
-      },
-      handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWrap', val);
-      },
-      handleJsonFormat(val) {
-        this.$store.commit('updateTableJsonFormat', val);
-      },
-      handleEmptyFieldFormat(val) {
-        this.$store.commit('updateTableEmptyFieldFormat', val);
-      },
-      handleJsonFormatDeepChange(val) {
-        const value = Number(val);
-        const target = value > 15 ? 15 : value < 1 ? 1 : value;
-        this.$store.commit('updatetableJsonFormatDepth', target);
+        setTimeout(() => {
+          RetrieveHelper.highLightKeywords(this.highlightValue);
+        });
       },
     },
   };
@@ -310,7 +312,7 @@
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;
-      padding: 0 3px 0 16px;
+      padding: 0 6px 0 6px;
     }
 
     .tools-more {
@@ -337,13 +339,13 @@
         height: 32px;
         margin-left: 10px;
         cursor: pointer;
-        border: 1px solid #c4c6cc;
+        background-color: #f0f1f5;
         border-radius: 2px;
         outline: none;
         transition: boder-color 0.2s;
 
         &:hover {
-          border-color: #979ba5;
+          border-color: #4d4f56;
           transition: boder-color 0.2s;
         }
 
@@ -355,7 +357,33 @@
         .bklog-icon {
           width: 16px;
           font-size: 16px;
-          color: #979ba5;
+          color: #4d4f56;
+        }
+      }
+
+      .light-search {
+        display: flex;
+        align-items: center;
+        background: #ffffff;
+        font-size: 12px;
+        color: #4d4f56;
+
+        label {
+          border-left: 1px solid #c4c6cc;
+          border-top: 1px solid #c4c6cc;
+          border-bottom: 1px solid #c4c6cc;
+          border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
+          border-right: none;
+          width: 40px;
+          padding: 0px 0px;
+          color: #4d4f56;
+          text-align: center;
+          background: #fafbfd;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       }
 
@@ -380,6 +408,35 @@
 
       > div {
         flex-shrink: 0;
+      }
+
+      .bk-button-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 104px;
+        height: 32px;
+        padding: 4px 4px;
+        font-size: 12px;
+        background-color: #f0f1f5;
+        border-radius: 2px;
+      }
+
+      .option {
+        display: flex; /* 使用 flex 布局 */
+        flex: 1;
+        align-items: center; /* 垂直居中 */
+        justify-content: center; /* 水平居中 */
+        width: 100%;
+        height: 100%;
+        color: #4d4f56;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .option.option-selected {
+        color: #3a84ff; /* 蓝色 */
+        background-color: #ffffff;
       }
 
       .bklog-option-item {

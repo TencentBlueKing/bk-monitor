@@ -30,68 +30,80 @@ export const fieldTypeMap = {
   any: {
     name: i18n.t('不限'),
     icon: 'bk-icon icon-check-line',
-    color: '#DCDEE5'
+    color: '#DCDEE5',
   },
   number: {
     name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number',
-    color: '#F7F0CA'
+    icon: 'bklog-icon bklog-number-2',
+    color: '#DDEBE6',
+    textColor: '#60A087',
   },
   integer: {
     name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number',
-    color: '#F7F0CA'
+    icon: 'bklog-icon bklog-number-2',
+    color: '#DDEBE6',
+    textColor: '#60A087',
   },
   double: {
     name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number',
-    color: '#F7F0CA'
+    icon: 'bklog-icon bklog-number-2',
+    color: '#DDEBE6',
+    textColor: '#60A087',
   },
   keyword: {
     name: i18n.t('字符串'),
-    icon: 'bklog-icon bklog-string',
-    color: '#DCF4F8',
+    icon: 'bklog-icon bklog-str-2',
+    color: '#D9E5EB',
+    textColor: '#6498B3',
   },
   long: {
     name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number',
-    color: '#F7F0CA'
+    icon: 'bklog-icon bklog-number-2',
+    color: '#DDEBE6',
+    textColor: '#60A087',
   },
   text: {
     name: i18n.t('文本'),
-    icon: 'bklog-icon bklog-text',
-    color: '#D9E5F9'
+    icon: 'bklog-icon bklog-text-2',
+    color: '#E1E7F2',
+    textColor: '#508CC8',
   },
   date: {
     name: i18n.t('时间'),
-    icon: 'bk-icon icon-clock',
-    color: '#E2F8E8'
+    icon: 'bklog-icon bklog-time-2',
+    color: '#EDE7DB',
+    textColor: '#CDAE71',
   },
   date_nanos: {
     name: i18n.t('时间'),
-    icon: 'bk-icon icon-clock',
-    color: '#E2F8E8'
+    icon: 'bklog-icon bklog-time-2',
+    color: '#EDE7DB',
+    textColor: '#CDAE71',
   },
   boolean: {
     name: i18n.t('布尔'),
-    icon: 'bklog-icon bklog-boolean',
-    color: '#A3C5FD'
+    icon: 'bklog-icon bklog-buer-2',
+    color: '#F0DFDF',
+    textColor: '#CB7979',
   },
   conflict: {
     name: i18n.t('冲突字段'),
-    icon: 'bk-icon icon-exclamation-triangle',
-    color: '#FFB848'
+    icon: 'bk-icon icon-clock',
+    color: '#EDE7DB',
+    textColor: '#CDAE71',
   },
   __virtual__: {
-    name: i18n.t('该字段为平台补充 不可检索'),
-    icon: 'bklog-icon bklog-ext',
-    color: '#F2E2FB'
+    name: i18n.t('内置字段'),
+    icon: 'bklog-icon bklog-ext-2',
+    color: '#EAE4EB',
+    textColor: '#B68ABB',
   },
   object: {
     name: i18n.t('对象'),
-    icon: 'bklog-icon bklog-object',
-    color: '#E8EAF0;'
-  }
+    icon: 'bklog-icon bklog-object-2',
+    color: '#E8EAF0',
+    textColor: '#979BA5',
+  },
 };
 
 export const SPACE_TYPE_MAP = {

@@ -1,87 +1,50 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import { ConditionOperator } from '@/store/condition-operator';
+  import { ref, computed, watch, nextTick } from 'vue';
+
+  import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+
+  import bklogTagChoice from './bklog-tag-choice';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, deepClone } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { debounce } from 'lodash';
+  import RetrieveHelper from '../../retrieve-helper';
+  import { useRoute } from 'vue-router/composables';
+  import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
+
   const { $t } = useLocale();
   const store = useStore();
-  const debouncedHandleChange = debounce(() => handleChange(), 300);
-  const filterFieldsList = computed(() => {
-    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
-      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
-    }
-
-    return [];
-  });
+  const route = useRoute();
+  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+  const commonFilterAddition = ref([]);
 
-  const commonFilterAddition = computed({
-    get() {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      // 将本地存储的JSON字符串解析为对象并创建映射
-      const parsedValueMap = additionValue
-        ? additionValue.value.reduce((acc, item) => {
-            acc[item.field] = item.value;
-            return acc;
-          }, {})
-        : {};
-      // 如果本地存储的字段列表不为空，则将本地存储的字段列表与当前字段列表合并
-      const filterAddition = (store.getters.common_filter_addition || []).map(commonItem => ({
-        ...commonItem,
-        value: parsedValueMap[commonItem.field] || commonItem.value,
-      }));
-      return filterFieldsList.value.map(item => {
-        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        return (
-          matchingItem ?? {
-            field: item.field_name || '',
-            operator: '=',
-            value: [],
-            list: [],
-          }
-        );
-      });
-    },
-    set(val) {
-      const target = val.map(item => {
-        if (!isShowConditonValueSetting(item.operator)) {
-          item.value = [];
-        }
+  const setCommonFilterAddition = () => {
+    commonFilterAddition.value.length = 0;
+    commonFilterAddition.value = [];
+    // 合并策略优化
+    commonFilterAddition.value = getCommonFilterAddition(store.state);
+  };
 
-        return item;
-      });
-
-      store.commit('retrieve/updateCatchFieldCustomConfig', {
-        filterAddition: target,
-      });
-    },
-  });
   watch(
-    () => store.state.indexId,
+    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
     () => {
-      const additionValue =  JSON.parse(localStorage.getItem('commonFilterAddition'));
-      if(additionValue?.indexId !== store.state.indexId){
+      const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
+
+      // indexId 变化时清除无效缓存
+      if (additionValue?.indexId !== store.state.indexId) {
         localStorage.removeItem('commonFilterAddition');
       }
-      else{
-        const currentConfig = store.state.retrieve.catchFieldCustomConfig;
-        const updatedConfig = { ...currentConfig, filterAddition: additionValue.value };
-        store.commit('retrieve/updateCatchFieldCustomConfig', updatedConfig)
-      }
+
+      setCommonFilterAddition();
     },
-    { immediate: true }
+    { immediate: true, deep: true },
   );
   const activeIndex = ref(-1);
-  let requestTimer = null;
-  const isRequesting = ref(false);
 
   const operatorDictionary = computed(() => {
     const defVal = {
@@ -91,6 +54,11 @@
       ...defVal,
       ...store.state.operatorDictionary,
     };
+  });
+
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
   /**
@@ -110,77 +78,51 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const { requestFieldEgges } = useFieldEgges();
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      isRequesting.value = true;
-      requestFieldEgges(
-        item,
-        null,
-        resp => {
-          if (typeof resp === 'boolean') {
-            return;
-          }
-          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-        },
-        () => {
-          isRequesting.value = false;
-        },
-      );
+      requestFieldEgges(item, null, resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      });
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
     activeIndex.value = index;
-    isRequesting.value = true;
-    requestFieldEgges(
-      item,
-      value,
-      resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      },
-      () => {
-        isRequesting.value = false;
-      },
-    );
-  };
-
-  // 新建提交逻辑
-  const updateCommonFilterAddition = async() => {
-    try {
-      const Additionvalue = deepClone(commonFilterAddition.value);
-      const target = Additionvalue.map(item => {
-        if (!isShowConditonValueSetting(item.operator)) {
-          item.value = [];
-        }
-        item.value = [];
-        return item;
-      });
-
-      const param = {
-        filterAddition: target,
-        isUpdate: true
-      };
-      const res = await store.dispatch('userFieldConfigChange', param);
-      const { data: { index_set_config } } = res;
-      index_set_config.filterAddition = commonFilterAddition.value;
-      store.commit('retrieve/updateCatchFieldCustomConfig', index_set_config);
-      store.dispatch('requestIndexSetQuery');
-    } catch (error) {
-      console.error('Failed to change user field config:', error);
-    }
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
   };
 
   const handleChange = () => {
-    localStorage.setItem('commonFilterAddition', JSON.stringify({
-      indexId: store.state.indexId,
-      value: commonFilterAddition.value
-    }));
-    updateCommonFilterAddition();
+    commonFilterAddition.value.forEach(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+    });
+
+    localStorage.setItem(
+      'commonFilterAddition',
+      JSON.stringify({
+        indexId: store.state.indexId,
+        value: commonFilterAddition.value,
+      }),
+    );
+
+    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+
+    if (route.query.tab !== 'graphAnalysis') {
+      store.dispatch('requestIndexSetQuery');
+    }
+
+    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
   };
 
   const focusIndex = ref(null);
@@ -190,8 +132,34 @@
     }
   };
 
+  const isChoiceInputFocus = ref(false);
+
+  const handleChoiceFocus = index => {
+    isChoiceInputFocus.value = true;
+    focusIndex.value = index;
+  };
+
+  const handleChoiceBlur = index => {
+    if (focusIndex.value === index) {
+      focusIndex.value = null;
+      isChoiceInputFocus.value = null;
+    }
+  };
+
   const handleRowBlur = () => {
+    if (isChoiceInputFocus.value) {
+      return;
+    }
+
     focusIndex.value = null;
+  };
+
+  const handleDeleAllOptions = () => {
+    commonFilterAddition.value.forEach(item => {
+      item.value = [];
+    });
+
+    handleChange();
   };
 </script>
 
@@ -207,12 +175,12 @@
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
-        @focus.capture="e => handleRowFocus(index, e)"
-        @blur.capture="handleRowBlur"
       >
         <div
           class="title"
           v-bk-overflow-tips
+          @blur.capture="handleRowBlur"
+          @focus.capture="e => handleRowFocus(index, e)"
         >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
@@ -222,10 +190,16 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="debouncedHandleChange"
+          @change="handleChange"
+          @blur.native.capture="handleRowBlur"
+          @focus.native.capture="e => handleRowFocus(index, e)"
         >
           <template #trigger>
-            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
+            <span
+              class="operator-label"
+              :data-operator="commonFilterAddition[index].operator"
+              >{{ getOperatorLabel(commonFilterAddition[index]) }}</span
+            >
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
@@ -235,35 +209,28 @@
           />
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
-          <bk-select
-            class="value-select"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
+          <bklogTagChoice
+            :class="['value-select', { 'is-focus': focusIndex === index }]"
             v-model="commonFilterAddition[index].value"
-            allow-create
-            display-tag
-            multiple
-            searchable
-            :fix-height="true"
-            @change="debouncedHandleChange"
+            :foucs-fixed="true"
+            :list="commonFilterAddition[index].list"
+            :loading="activeIndex === index && isRequesting"
+            :placeholder="$t('请选择 或 输入')"
+            :bdiDir="textDir"
+            max-width="460px"
+            @focus="() => handleChoiceFocus(index)"
+            @blur="() => handleChoiceBlur(index)"
+            @change="handleChange"
+            @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
-          >
-            <template #search>
-              <bk-input
-                behavior="simplicity"
-                :clearable="true"
-                :left-icon="'bk-icon icon-search'"
-                @input="e => handleInputVlaueChange(e, item, index)"
-              ></bk-input>
-            </template>
-            <bk-option
-              v-for="option in commonFilterAddition[index].list"
-              :id="option"
-              :key="option"
-              :name="option"
-            />
-          </bk-select>
+            @custom-tag-enter="() => handleToggle(true, item, index)"
+          ></bklogTagChoice>
         </template>
       </div>
+      <span
+        @click="handleDeleAllOptions"
+        class="btn-del-action bklog-icon bklog-qingkong"
+      ></span>
     </div>
     <div
       v-else
@@ -277,18 +244,15 @@
   .filter-container-wrap {
     display: flex;
     align-items: center;
-    max-height: 95px;
     padding: 0 10px 0px 10px;
-    overflow: auto;
     background: #ffffff;
-    box-shadow:
-      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
-      0 1px 0 0 #eaebf0;
+    border-radius: 0 0 2px 2px;
+    box-shadow: 0 2px 4px 0 #19192914;
 
     .filter-setting-btn {
-      width: 83px;
+      min-width: 83px;
       height: 40px;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 40px;
       color: #3880f8;
       cursor: pointer;
@@ -296,8 +260,7 @@
 
     .empty-tips {
       font-size: 12px;
-      line-height: 40px;
-      color: #a1a5ae;
+      color: #979ba5;
     }
   }
 
@@ -305,40 +268,74 @@
     display: flex;
     flex-wrap: wrap;
     width: calc(100% - 80px);
+    max-height: 114px;
+    margin-top: 4px;
+    overflow: auto;
+    position: relative;
+    padding-right: 30px;
+
+    .btn-del-action {
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      cursor: pointer;
+    }
   }
 
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 120px;
     max-width: 560px;
-    margin: 4px 0;
-    margin-right: 8px;
-    border: 1px solid #dbdde1;
-    border-radius: 3px;
-
-    &.is-focus {
-      border-color: #3a84ff;
-    }
+    margin-right: 4px;
+    margin-bottom: 4px;
+    box-sizing: content-box;
 
     .title {
       max-width: 120px;
-      margin-left: 8px;
+      padding-left: 8px;
       overflow: hidden;
       font-size: 12px;
       color: #313238;
       text-overflow: ellipsis;
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
+      border-left: 1px solid #dbdde1;
+      border-top: 1px solid #dbdde1;
+      border-bottom: 1px solid #dbdde1;
+      line-height: 32px;
+      height: 32px;
+      border-right: none;
     }
 
     .operator-select {
       border: none;
+      border-top: 1px solid #dbdde1;
+      border-bottom: 1px solid #dbdde1;
+      line-height: 32px;
+      height: 32px;
+      border-left: none;
+      border-right: none;
+      border-radius: 0;
 
       .operator-label {
         display: inline-block;
         width: 100%;
-        padding: 4px;
+        // padding: 4px;
+        padding-left: 2px;
         color: #3a84ff;
         white-space: nowrap;
+
+        &[data-operator^='not contains'],
+        &[data-operator^='does not exists'],
+        &[data-operator^='is false'],
+        &[data-operator^='!='] {
+          color: #ea3636;
+        }
+
+        &[data-operator^='exists'],
+        &[data-operator^='does not exists'] {
+          padding-right: 4px;
+        }
       }
 
       &.bk-select.is-focus {
@@ -347,42 +344,68 @@
     }
 
     .value-select {
-      min-width: 200px;
-      max-width: 460px;
+      min-width: 120px;
+      border-left: none;
+      border-radius: 0;
 
-      :deep(.bk-select-dropdown .bk-select-tag-container) {
-        .bk-select-tag {
-          &.width-limit-tag {
-            max-width: 200px;
-
-            > span {
-              max-width: 180px;
-            }
-          }
-        }
+      &:not(.is-focus) {
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+        border-right: 1px solid #dbdde1;
+        border-top: 1px solid #dbdde1;
+        border-bottom: 1px solid #dbdde1;
       }
 
-      &.bk-select {
-        border: none;
+      &.is-focus {
+        border-top-right-radius: 3px;
+        border-top: 1px solid #3a84ff;
+        border-bottom: 1px solid #3a84ff;
 
-        &.is-focus {
-          box-shadow: none;
+        &.is-ellipsis {
+          border-bottom-color: transparent;
         }
-
-        .bk-select-name {
-          padding: 0 25px 0 0px;
-        }
-      }
-
-      .bk-loading .bk-loading1 {
-        margin-top: 10px;
-        margin-left: -20px;
       }
     }
 
     .bk-select-angle {
       font-size: 22px;
       color: #979ba5;
+    }
+
+    &.is-focus {
+      border-color: #3a84ff;
+      .title {
+        border-left-color: #3a84ff;
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      .operator-select {
+        border-top-color: #3a84ff;
+        border-bottom-color: #3a84ff;
+      }
+
+      > div {
+        &:last-child {
+          &:not(.is-choice-active) {
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border-right: 1px solid #3a84ff;
+            padding-right: 4px;
+          }
+        }
+      }
+    }
+
+    > div {
+      &:last-child {
+        &:not(.value-select) {
+          border-top-right-radius: 3px;
+          border-bottom-right-radius: 3px;
+          border-right: 1px solid #dbdde1;
+          padding-right: 4px;
+        }
+      }
     }
   }
 </style>

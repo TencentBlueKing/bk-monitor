@@ -392,6 +392,8 @@ BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
+# APIGW 同步配置
+SYNC_APIGATEWAY_ENABLED = os.getenv("BKAPP_SYNC_APIGATEWAY_ENABLED", "on")
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")

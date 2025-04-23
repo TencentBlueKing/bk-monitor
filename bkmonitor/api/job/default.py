@@ -16,24 +16,28 @@ from django.conf import settings
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
+from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request
 from core.drf_resource.contrib.api import APIResource
 from core.errors.alarm_backends import EmptyAssigneeError
 from core.errors.iam import APIPermissionDeniedError
 
 
-class IPSerializer(serializers.Serializer):
-    """
-    IP参数
-    """
-
-    ip = serializers.IPAddressField(required=True, label="IP地址")
-    bk_cloud_id = serializers.IntegerField(required=True, label="云区域ID")
-
-
 class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/c/compapi/v2/job/" % settings.BK_COMPONENT_API_URL
-    module_name = "job"
+    def use_apigw(self):
+        """
+        是否使用apigw
+        """
+        return settings.ENABLE_MULTI_TENANT_MODE or settings.JOB_USE_APIGW
+
+    @property
+    def base_url(self):
+        if self.use_apigw():
+            base_url = settings.JOB_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-job/prod/"
+            return f"{base_url}api/v3/system/"
+        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/jobv3/"
+
+    module_name = "bk-job"
 
     def perform_request(self, params):
         try:
@@ -75,41 +79,85 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return validated_request_data
 
 
-class JobV3BaseResource(JobBaseResource):
+class GetJobPlanListResource(JobBaseResource):
     """
-    作业平台V3
-    """
-
-    base_url = "%s/api/c/compapi/v2/jobv3/" % settings.BK_COMPONENT_API_URL
-    module_name = "jobv3"
-
-
-class GetJobListResource(JobBaseResource):
-    """
-    作业列表
+    作业方案列表
     """
 
-    action = "get_job_list"
+    action = "get_job_plan_list"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
+    def perform_request(self, params):
+        job_plans = batch_request(
+            super().perform_request,
+            params,
+            limit=1000,
+            get_count=lambda result: result.get("total"),
+            get_data=lambda result: result.get("data", []),
+            thread_num=5,
+            app="job",
+        )
+        return job_plans
 
-class GetJobDetailResource(JobBaseResource):
+
+class GetJobListResource(GetJobPlanListResource):
     """
-    作业详情
+    作业方案列表（适配旧的调用）
     """
 
-    action = "get_job_detail"
+    def perform_request(self, params):
+        result = super().perform_request(params)
+        for plan in result:
+            plan["bk_job_id"] = plan["id"]
+        return result
+
+
+class GetJobPlanDetailResource(JobBaseResource):
+    """
+    作业方案详情
+    """
+
+    action = "get_job_plan_detail"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        bk_job_id = serializers.IntegerField(label="作业模板ID")
+        job_plan_id = serializers.IntegerField(label="作业模板ID")
 
 
-class FastExecuteScriptResource(JobV3BaseResource):
+class ExecuteJobPlanResource(JobBaseResource):
+    """
+    执行作业方案
+    """
+
+    action = "execute_job_plan"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        job_plan_id = serializers.IntegerField(label="作业执行方案")
+        assignee = serializers.ListField(label="执行人", required=False, child=serializers.CharField())
+        global_var_list = serializers.ListField(child=serializers.JSONField(), label="全局变量")
+
+
+class GetJobInstanceStatusResource(JobBaseResource):
+    """
+    获取任务执行状态
+    """
+
+    action = "get_job_instance_status"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        job_instance_id = serializers.IntegerField(label="任务ID")
+        return_ip_result = serializers.BooleanField(label="是否返回每个主机上的任务详情", required=False, default=False)
+
+
+class FastExecuteScriptResource(JobBaseResource):
     """
     快速执行脚本
     """
@@ -127,91 +175,9 @@ class FastExecuteScriptResource(JobV3BaseResource):
         account_alias = serializers.CharField(label="执行账户")
 
 
-class ExecuteJobResource(JobBaseResource):
+class GetJobInstanceIpLogResource(JobBaseResource):
     """
-    执行作业方案
-    """
-
-    action = "execute_job_plan"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        job_plan_id = serializers.IntegerField(label="作业执行方案")
-        assignee = serializers.ListField(label="执行人", required=False, child=serializers.CharField())
-        global_var_list = serializers.ListField(child=serializers.JSONField(), label="全局变量")
-
-
-class GetJobPlanListResource(JobV3BaseResource):
-    """
-    作业列表
-    """
-
-    action = "get_job_plan_list"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-
-
-class GetJobPlanDetailResource(JobV3BaseResource):
-    """
-    作业详情
-    """
-
-    action = "get_job_plan_detail"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        job_plan_id = serializers.IntegerField(label="作业模板ID")
-
-
-class ExecuteJobPlanResource(JobV3BaseResource):
-    """
-    执行作业方案
-    """
-
-    action = "execute_job_plan"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        job_plan_id = serializers.IntegerField(label="作业执行方案")
-        assignee = serializers.ListField(label="执行人", required=False, child=serializers.CharField())
-        global_var_list = serializers.ListField(child=serializers.JSONField(), label="全局变量")
-
-
-class GetJobInstanceStatusResource(JobV3BaseResource):
-    """
-    获取任务执行状态
-    """
-
-    action = "get_job_instance_status"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        job_instance_id = serializers.IntegerField(label="任务ID")
-        return_ip_result = serializers.BooleanField(label="是否返回每个主机上的任务详情", required=False, default=False)
-
-
-class GetJobInstanceLogResource(JobBaseResource):
-    """
-    获取IP的任务状态
-    """
-
-    action = "get_job_instance_log"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        job_instance_id = serializers.IntegerField(label="任务ID")
-
-
-class GetJobInstanceIpLogResource(JobV3BaseResource):
-    """
-    获取主机的任务日志V3（Job - 3.7.x版本支持host_id）
+    获取主机的任务日志V3
     """
 
     action = "batch_get_job_instance_ip_log"
@@ -224,27 +190,13 @@ class GetJobInstanceIpLogResource(JobV3BaseResource):
         host_id_list = serializers.ListField(
             required=False, label="主机ID列表", allow_empty=True, child=serializers.IntegerField()
         )
+
+        class IPSerializer(serializers.Serializer):
+            """
+            IP参数
+            """
+
+            ip = serializers.IPAddressField(required=True, label="IP地址")
+            bk_cloud_id = serializers.IntegerField(required=True, label="云区域ID")
+
         ip_list = IPSerializer(required=False, label="IP列表", many=True, allow_empty=True)
-
-
-class PushConfigFileResource(JobBaseResource):
-    """
-    分发配置文件
-    """
-
-    action = "push_config_file"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        class FileSerializer(serializers.Serializer):
-            file_name = serializers.CharField(required=True, label="文件名称")
-            content = serializers.CharField(required=True, label="文件内容")
-
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        ip_list = IPSerializer(required=True, many=True)
-        file_list = FileSerializer(required=True, many=True)
-        file_target_path = serializers.CharField(required=True, label="目标路径")
-        account = serializers.CharField(default="root", label="执行账户")
-
-    class ResponseSerializer(serializers.Serializer):
-        job_instance_id = serializers.IntegerField(label="任务ID")

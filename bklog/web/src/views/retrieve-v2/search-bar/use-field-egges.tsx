@@ -30,27 +30,47 @@ import { ConditionOperator } from '@/store/condition-operator';
 
 export default () => {
   const store = useStore();
+
   let requestTimer;
   const isRequesting = ref(false);
   const taskPool = [];
+
+  const setIsRequesting = val => {
+    isRequesting.value = val;
+  };
+
+  const isValidateEgges = field => {
+    return ['keyword'].includes(field.field_type);
+  };
+
   const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
+    if (
+      taskPool.some(task => {
+        return task.fields[0] === field && task.query_value === value && task.pending;
+      })
+    ) {
+      setIsRequesting(false);
+      return;
+    }
+
     const getConditionValue = () => {
       if (['keyword'].includes(field.field_type)) {
         return [`*${value}*`];
       }
-
+      setIsRequesting(false);
       return [];
     };
 
-    if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
+    if (value !== undefined && value !== null && !isValidateEgges(field)) {
+      setIsRequesting(false);
       return;
     }
 
-    const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
-    isRequesting.value = true;
-
+    const size = value?.length > 0 ? 50 : 100;
     requestTimer && clearTimeout(requestTimer);
     requestTimer = setTimeout(() => {
+      setIsRequesting(true);
+
       const addition = value
         ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
             const instance = new ConditionOperator(val);
@@ -67,7 +87,9 @@ export default () => {
         index: taskPool.length,
         commit: false,
         cancelToken: true,
+        query_value: value,
       };
+
       taskPool.forEach(task => {
         task.pending = false;
       });
@@ -81,9 +103,14 @@ export default () => {
             callback?.(resp);
           }
         })
+        .catch(err => {
+          if (err.code === 'ERR_CANCELED') {
+            console.log('取消请求');
+          }
+        })
         .finally(() => {
           if (taskArgs.pending) {
-            isRequesting.value = false;
+            setIsRequesting(false);
           }
           const index = taskPool.findIndex(t => t === taskArgs);
           taskPool.splice(index, 1);
@@ -92,9 +119,5 @@ export default () => {
     }, 300);
   };
 
-  const isValidateEgges = field => {
-    return ['keyword', 'text'].includes(field.field_type);
-  };
-
-  return { requestFieldEgges, isValidateEgges, isRequesting };
+  return { requestFieldEgges, isValidateEgges, isRequesting, setIsRequesting };
 };
