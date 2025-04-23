@@ -93,6 +93,10 @@ export const BaseChartProps = {
     type: Boolean,
     default: true,
   },
+  customTooltips: {
+    type: Function as PropType<(params: any) => string>,
+    default: null,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
@@ -229,6 +233,9 @@ export default defineComponent({
       if (params[0]?.data?.tooltips) {
         liHtmlList.push(params[0].data.tooltips);
       } else {
+        if (typeof props.customTooltips === 'function') {
+          return props.customTooltips(params);
+        }
         const data = params
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
             color: item.color,

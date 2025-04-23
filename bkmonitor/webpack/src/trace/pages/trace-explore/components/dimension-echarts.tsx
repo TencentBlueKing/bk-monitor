@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
-import { MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { MONITOR_BAR_OPTIONS, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 
 import BaseEchart from '../../../plugins/base-echart';
 import { useChartResize } from '../../../plugins/hooks';
@@ -41,12 +41,8 @@ import './dimension-echarts.scss';
 export default defineComponent({
   name: 'DimensionEcharts',
   props: {
-    colorList: {
-      type: Array as PropType<string[]>,
-      default: () => [],
-    },
     seriesType: {
-      type: String as PropType<'bar' | 'line'>,
+      type: String as PropType<'histogram' | 'line'>,
       default: 'line',
     },
     data: {
@@ -64,6 +60,17 @@ export default defineComponent({
 
     useChartResize(chartContainer, chartContainer, width, height);
 
+    function customTooltips(params) {
+      return `<div class="monitor-chart-tooltips">
+              <ul class="tooltips-content">
+                 <li class="tooltips-content-item" style="--series-color: ${params[0].color}">
+                    <span class="item-name" style="color: #fff;font-weight: bold;">${params[0].axisValue}:</span>
+                    <span class="item-value" style="color: #fff;font-weight: bold;">${params[0].value[1]}</span>
+                 </li>
+              </ul>
+              </div>`;
+    }
+
     watch(
       () => props.data,
       () => {
@@ -73,20 +80,44 @@ export default defineComponent({
     );
 
     function setOptions() {
-      const series = props.data.map(item => ({
-        type: props.seriesType,
-        name: item.target,
-        data: item.datapoints.map(point => [point[1], point[0]]),
-        symbol: 'none',
-        z: 6,
-      }));
-
+      const series = props.data.map(item => {
+        const color =
+          props.seriesType === 'histogram'
+            ? {
+                itemStyle: {
+                  color: item.color,
+                },
+              }
+            : {
+                lineStyle: {
+                  color: item.color,
+                },
+              };
+        return {
+          type: props.seriesType === 'histogram' ? 'bar' : 'line',
+          name: props.seriesType === 'histogram' ? '' : item.target,
+          data: item.datapoints.map(point => [point[1], point[0]]),
+          symbol: 'none',
+          z: 6,
+          ...color,
+        };
+      });
+      const interval = series.length ? Math.round(series[0].data.length / 2) - 1 : 0;
       options.value = deepmerge(
-        deepClone(MONITOR_LINE_OPTIONS),
+        deepClone(props.seriesType === 'histogram' ? MONITOR_BAR_OPTIONS : MONITOR_LINE_OPTIONS),
         {
+          xAxis: {
+            type: props.seriesType === 'histogram' ? 'category' : 'time',
+            boundaryGap: props.seriesType === 'histogram',
+            splitNumber: 5,
+            axisLabel: {
+              showMaxLabel: props.seriesType === 'histogram',
+              showMinLabel: props.seriesType === 'histogram',
+              interval: props.seriesType === 'histogram' ? interval : 1,
+            },
+          },
           series,
           toolbox: [],
-          color: props.colorList,
           yAxis: {
             splitLine: {
               lineStyle: {
@@ -98,7 +129,7 @@ export default defineComponent({
           },
         },
         { arrayMerge: (_, newArr) => newArr }
-      );
+      ) as MonitorEchartOptions;
     }
 
     return {
@@ -108,6 +139,7 @@ export default defineComponent({
       height,
       baseEchartRef,
       options,
+      customTooltips,
     };
   },
   render() {
@@ -121,6 +153,7 @@ export default defineComponent({
             ref='baseEchartRef'
             width={this.width}
             height={this.height}
+            customTooltips={this.seriesType === 'histogram' ? this.customTooltips : null}
             options={this.options}
           />
         ) : (
