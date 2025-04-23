@@ -1474,38 +1474,15 @@ class SearchAlertResource(Resource):
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
         replace_time_range = serializers.BooleanField(label="是否替换时间范围", default=False)
 
-        def validate(self, attrs):
-            self.replace_time(attrs)
-            return attrs
-
-        @staticmethod
-        def replace_time(attrs):
-            """
-            替换时间范围
-            获取到告警ID的前10位，前后增加一小时，作为新的时间范围
-            :return: attrs
-            """
-            if not attrs["replace_time_range"]:
-                return attrs
-
-            query_string = attrs.get("query_string", "")
-            match = re.findall(r'(告警ID|处理记录ID)\s*:\s*(\d+)', query_string)
-            if not match:
-                return attrs
-
-            min_id = min(match, key=lambda x: int(x[1]))
-            max_id = max(match, key=lambda x: int(x[1]))
-            one_hour = 3600
-
-            attrs["start_time"] = int(min_id[1][:10]) - one_hour
-            attrs["end_time"] = int(max_id[1][:10]) + one_hour
-            return attrs
-
     def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+
+        # 替换时间范围
+        if validated_request_data.get("replace_time_range"):
+            validated_request_data = self.replace_time(validated_request_data)
 
         handler = AlertQueryHandler(**validated_request_data)
 
@@ -1517,6 +1494,38 @@ class SearchAlertResource(Resource):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
 
         return result
+
+    @staticmethod
+    def replace_time(request_data: Dict) -> Dict:
+        """
+        根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
+        规则：提取所有ID，取最小和最大ID的前10位作为基准时间戳，前后扩展1小时
+
+        :param request_data 包含查询参数的字典，会被原地修改
+        :return: 调整后的参数字典
+        """
+        # 常量定义
+        one_hour_in_seconds = 3600
+        timestamp_length = 10  # 时间戳位数
+
+        query_string = request_data.get("query_string", "")
+
+        # 匹配所有告警ID/处理记录ID
+        id_matches = re.findall(r'(告警ID|处理记录ID)\s*:\s*(\d+)', query_string)
+        if not id_matches:
+            return request_data
+
+        # 提取出所有的时间戳
+        timestamps = [int(match[1][:timestamp_length]) for match in id_matches]
+
+        min_timestamp = min(timestamps)  # 最小时间戳
+        max_timestamp = max(timestamps)  # 最大时间戳
+
+        # 计算新的时间范围，确保原本提供的时间范围也被包含，以确保如果存在其他查询条件时，新的范围能够覆盖所有情况
+        request_data["start_time"] = min(min_timestamp - one_hour_in_seconds, request_data["start_time"])
+        request_data["end_time"] = max(max_timestamp + one_hour_in_seconds, request_data["end_time"])
+
+        return request_data
 
 
 class ExportAlertResource(Resource):
