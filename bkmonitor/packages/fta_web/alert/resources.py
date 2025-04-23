@@ -1499,10 +1499,7 @@ class SearchAlertResource(Resource):
     def replace_time(request_data: Dict) -> Dict:
         """
         根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
-        规则：提取所有ID，取最小和最大ID的前10位作为基准时间戳，前后扩展1小时
-
-        :param request_data 包含查询参数的字典，会被原地修改
-        :return: 调整后的参数字典
+        规则：提取所有ID的前10位作为基准时间戳，前后扩展1小时
         """
         # 常量定义
         one_hour_in_seconds = 3600
