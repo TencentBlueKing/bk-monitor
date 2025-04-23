@@ -21,11 +21,12 @@ the project delivered to anyone in the future.
 """
 import re
 import time
+from typing import List
 
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
-from luqum.parser import parser
+from luqum.parser import lexer, parser
 from luqum.tree import (
     AndOperation,
     FieldGroup,
@@ -57,6 +58,8 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
+from apps.log_search.utils import add_highlight_mark
+from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -113,7 +116,7 @@ class ChartHandler(object):
     @classmethod
     def lucene_to_where_clause(cls, lucene_query):
         # 解析 Lucene 查询
-        query_tree = parser.parse(lucene_query)
+        query_tree = parser.parse(lucene_query, lexer=lexer.clone())
 
         # 递归遍历语法树并生成 SQL WHERE 子句
         def build_condition(node):
@@ -329,6 +332,44 @@ class ChartHandler(object):
             final_sql = f"{SQL_PREFIX} {SQL_SUFFIX}"
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
 
+    @staticmethod
+    def convert_to_where_clause(grep_field, commands: List[dict]):
+        """
+        将解析后的grep命令转换为 doris SQL的where子句
+        :param grep_field: grep查询字段
+        :param commands: 解析后的grep命令列表
+        :return: 查询条件
+        """
+        conditions = []
+
+        for cmd in commands:
+            args = cmd["args"]
+            pattern = f"'{cmd['pattern']}'"
+            use_not = False
+            ignore_case = False
+            for arg in args:
+                if "v" in arg:
+                    use_not = True
+                if "i" in arg:
+                    ignore_case = True
+
+            # 构建正则表达式条件
+            regex_op = "REGEXP"
+            if use_not:
+                regex_op = f"NOT {regex_op}"
+
+            field_name = grep_field
+            if ignore_case:
+                field_name = f"LOWER({grep_field})"
+                pattern = f"LOWER({pattern})"
+
+            # 构建条件表达式
+            condition = f"{field_name} {regex_op} {pattern}"
+            conditions.append(condition)
+
+        # 返回所有组合条件
+        return " AND ".join(conditions)
+
 
 class UIChartHandler(ChartHandler):
     def get_chart_data(self, params: dict) -> dict:
@@ -466,3 +507,51 @@ class SQLChartHandler(ChartHandler):
                 result_data["data"]["timetaken"],
             )
         return data
+
+    def fetch_grep_query_data(self, params):
+        """
+        :param params: 查询相关参数
+        """
+        where_clause = self.generate_sql(
+            addition=params["addition"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+            keyword=params.get("keyword"),
+            action=SQLGenerateMode.WHERE_CLAUSE.value,
+        )
+        grep_field = params.get("grep_field")
+        grep_query = params.get("grep_query")
+        pattern = ""
+        ignore_case = False
+        if grep_query and grep_field:
+            # 加上 grep 查询条件
+            grep_syntax_list = grep_parser(grep_query)
+            grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
+            if grep_where_clause:
+                use_not = False
+                ignore_case = False
+                for arg in grep_syntax_list[-1]["args"]:
+                    if "v" in arg:
+                        use_not = True
+                    if "i" in arg:
+                        ignore_case = True
+                if not use_not:
+                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
+                    if ignore_case:
+                        pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
+                    pattern = pattern.strip("'")
+                where_clause += f" AND {grep_where_clause}"
+
+        # 加上分页条件
+        where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
+        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
+        # 执行doris查询
+        result = self.fetch_query_data(sql)
+        # 添加高亮标记
+        log_list = add_highlight_mark(
+            data_list=result["list"],
+            match_field=grep_field,
+            pattern=pattern,
+            ignore_case=ignore_case,
+        )
+        return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}

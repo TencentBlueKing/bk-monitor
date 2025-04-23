@@ -1735,3 +1735,8 @@ class AlertStatusEnum(ChoicesEnum):
 
 
 MAX_WORKERS = 5
+
+
+class HighlightConfig(object):
+    PRE_TAG = "<mark>"
+    POST_TAG = "</mark>"
