@@ -83,7 +83,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={isAllowEmptyField.value}
           theme='primary'
-          on-change="val => handleStorageChange(val, 'tableAllowEmptyField')"
+          on-change={val => handleStorageChange(val, 'tableAllowEmptyField')}
         >
           <span class='switch-label'>{$t('展示空字段')}</span>
         </bk-checkbox>

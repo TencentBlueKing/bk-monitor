@@ -1529,6 +1529,10 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
             if char in ["[", "]", "{", "}"]:
                 return True
 
+        if field_value.startswith('"') and field_value.endswith('"'):
+            # 截取引号中的内容
+            field_value = field_value[1:-1]
+
         # 检查字符串是否为整数
         if field_value.isdigit():
             return True

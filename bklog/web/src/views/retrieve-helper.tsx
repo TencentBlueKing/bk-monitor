@@ -373,8 +373,10 @@ class RetrieveHelper {
    * @param width
    */
   setLeftFieldSettingWidth(width: number) {
-    this.leftFieldSettingWidth = width;
-    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    if (this.leftFieldSettingWidth !== width) {
+      this.leftFieldSettingWidth = width;
+      this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    }
   }
 
   /**
