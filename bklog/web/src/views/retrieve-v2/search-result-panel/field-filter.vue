@@ -38,10 +38,7 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] = showFieldAlias.value
-        ? item.field_name || item.field_alias
-        : item.query_alias || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = item.query_alias || item.field_alias || item.field_name;
     });
 
     return fieldAliasMap;
