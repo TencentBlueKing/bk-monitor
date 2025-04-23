@@ -624,7 +624,9 @@
 
     const target = refConditionInput.value?.parentNode;
     if (!operatorInstance.isShown() && target) {
-      conditionValueInstance.show(target, true);
+      nextTick(() => {
+        conditionValueInstance.show(target, true);
+      });
     }
 
     requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
