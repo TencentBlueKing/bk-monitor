@@ -66,6 +66,7 @@ from apps.log_databus.serializers import (
     FastContainerCollectorCreateSerializer,
     FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
+    IPSubscriptionSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
@@ -171,6 +172,7 @@ class CollectorViewSet(ModelViewSet):
             "list": CollectorListSerializer,
             "retry": RetrySerializer,
             "list_collectors": CollectorListSerializer,
+            "run": IPSubscriptionSerializer,
         }
         return action_serializer_map.get(self.action, serializers.Serializer)
 
@@ -1142,6 +1144,29 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         return Response(CollectorHandler(collector_config_id=collector_config_id).tail())
+
+    @detail_route(methods=["POST"], url_path="run")
+    def run(self, request, collector_config_id=None):
+        """
+        @api {post} /databus/collectors/$collector_config_id/run/ 订阅按ip下发
+        @apiName run_collector
+        @apiGroup 10_Collector
+        @apiDescription 订阅按ip下发
+        @apiParam {Int} collector_config_id 采集项ID
+        @apiParam {Int} scope 事件订阅监听的范围
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {Int} action 操作
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        data = self.validated_data
+        result = CollectorHandler(collector_config_id).run(data)
+        return Response(result)
 
     @detail_route(methods=["POST"], url_path="start")
     def start(self, request, collector_config_id=None):

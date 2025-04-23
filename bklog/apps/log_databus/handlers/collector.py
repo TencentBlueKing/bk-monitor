@@ -1124,6 +1124,13 @@ class CollectorHandler(object):
 
         return True
 
+    def run(self, params):
+        action = params.get("action")
+        scope = params.get("scope")
+        if self.data.subscription_id:
+            return self._run_subscription_task(action=action, scope=scope)
+        return True
+
     @transaction.atomic
     def start(self, **kwargs):
         """
@@ -1294,7 +1301,7 @@ class CollectorHandler(object):
 
         return res
 
-    def _run_subscription_task(self, action=None, nodes=None):
+    def _run_subscription_task(self, action=None, scope: Dict[str, Any] = None):
         """
         触发订阅事件
         :param: action 动作 [START, STOP, INSTALL, UNINSTALL]
@@ -1307,17 +1314,19 @@ class CollectorHandler(object):
             params.update({"actions": {collector_scenario.PLUGIN_NAME: action}})
 
         # 无nodes时，节点管理默认对全部已配置的nodes进行操作
-        # 有nodes时，对指定nodes进行操作，可用于重试的场景
-        if nodes:
-            params["scope"] = {"node_type": TargetNodeTypeEnum.INSTANCE.value, "nodes": nodes}
+        # 有scope时，对指定nodes进行操作
+        if scope:
+            params["scope"] = scope
+            params["scope"]["bk_biz_id"] = self.data.bk_biz_id
 
-        task_id = str(NodeApi.run_subscription_task(params)["task_id"])
-
-        # 对指定nodes进行重试，合并任务
-        if nodes is not None:
-            self.data.task_id_list.append(task_id)
-        else:
-            self.data.task_id_list = [str(task_id)]
+        result = NodeApi.run_subscription_task(params)
+        if task_id := result.get("task_id"):
+            # 对指定nodes进行重试，合并任务
+            scope = scope or {}
+            if scope.get("nodes") is not None:
+                self.data.task_id_list.append(str(task_id))
+            else:
+                self.data.task_id_list = [str(task_id)]
         self.data.save()
         return self.data.task_id_list
 

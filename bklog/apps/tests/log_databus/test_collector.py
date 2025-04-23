@@ -26,7 +26,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from apps.exceptions import ApiRequestError, ApiResultError
-from apps.log_databus.constants import LogPluginInfo, WorkLoadType
+from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_search.models import Space
@@ -1155,13 +1155,13 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": LAST_TASK_ID})
     def _test_run_subscription_task(self, collector_config_id):
-        target_nodes = [{"ip": "127.0.0.1", "bk_cloud_id": 0}]
+        scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
 
         # 指定订阅节点
         collector1 = CollectorHandler(collector_config_id=collector_config_id)
         task_id_one = copy.deepcopy(collector1.data.task_id_list)
         task_id_one.append(str(LAST_TASK_ID))
-        result1 = collector1._run_subscription_task(nodes=target_nodes)
+        result1 = collector1._run_subscription_task(scope=scope)
         self.assertEqual(result1, task_id_one)
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 6})
