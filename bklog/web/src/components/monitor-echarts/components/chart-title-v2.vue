@@ -43,7 +43,7 @@
           <div class="title-name">{{ title }}</div>
           <i18n
             class="time-result"
-            path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}"
+            path="（找到 {0} 条结果，用时 {1} 毫秒) {2}"
           >
             <span class="total-count">{{ getShowTotalNum(totalCount) }}</span>
             <span>{{ tookTime }}</span>
@@ -54,12 +54,12 @@
           class="converge-cycle"
           @click.stop
         >
-          <span>{{ $t('汇聚周期') }}</span>
+          <span>{{ $t('汇聚周期') + ' : ' }}</span>
           <bk-select
-            style="width: 120px"
             ext-cls="select-custom"
             v-model="chartInterval"
             :clearable="false"
+            :popover-width="70"
             behavior="simplicity"
             data-test-id="generalTrendEcharts_div_selectCycle"
             size="small"
@@ -73,6 +73,21 @@
             >
             </bk-option>
           </bk-select>
+
+          <BklogPopover
+            content-class="bklog-v3-grade-setting"
+            ref="refGradePopover"
+            :options="tippyOptions"
+            :beforeHide="beforePopoverHide"
+          >
+            <span class="bklog-icon bklog-shezhi"></span>
+            <template #content>
+              <GradeOption
+                ref="refGradeOption"
+                @change="handleGradeOptionChange"
+              ></GradeOption>
+            </template>
+          </BklogPopover>
         </div>
       </div>
       <div
@@ -86,36 +101,25 @@
       v-if="loading && !isFold"
       class="chart-spin"
     ></bk-spin>
-    <!-- <div
-      v-else-if="!isFold"
-      class="menu-list"
-    >
-      <span
-        class="bklog-icon bklog-xiangji"
-        data-test-id="generalTrendEcharts_span_downloadEcharts"
-        @click.stop="handleMenuClick({ id: 'screenshot' })"
-      >
-      </span>
-    </div> -->
-    <!-- <chart-menu
-      v-show="showMenu"
-      :list="menuList"
-      @menu-click="handleMenuClick"
-      :style="{ left: menuLeft + 'px' }">
-    </chart-menu> -->
   </div>
 </template>
 
 <script lang="ts">
   import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+
   import { formatNumberWithRegex } from '@/common/util';
 
   import ChartMenu from './chart-menu.vue';
+  import BklogPopover from '../../bklog-popover';
+  import GradeOption from './grade-option';
+  import RetrieveHelper, { RetrieveEvent } from '../../../views/retrieve-helper';
 
   @Component({
     name: 'chart-title-v2',
     components: {
       ChartMenu,
+      BklogPopover,
+      GradeOption,
     },
   })
   export default class ChartTitle extends Vue {
@@ -134,8 +138,17 @@
       { id: '1m', name: '1 min' },
       { id: '5m', name: '5 min' },
       { id: '1h', name: '1 h' },
-      { id: '1d', name: '1d' },
+      { id: '1d', name: '1 d' },
     ];
+
+    tippyOptions = {
+      appendTo: document.body,
+      hideOnClick: false,
+      onShown: () => {
+        const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options;
+        this.$refs.refGradeOption?.updateOptions?.(cfg);
+      },
+    };
 
     get retrieveParams() {
       return this.$store.getters.retrieveParams;
@@ -145,6 +158,10 @@
       return Number.parseFloat(this.$store.state.tookTime).toFixed(0);
     }
 
+    get fieldList() {
+      return this.$store.state.indexFieldInfo.fields ?? [];
+    }
+
     @Watch('retrieveParams.interval')
     watchChangeChartInterval(newVal) {
       this.chartInterval = newVal;
@@ -152,10 +169,6 @@
 
     handleShowMenu(e: MouseEvent) {
       this.$emit('toggle-expand', !this.isFold);
-
-      // this.showMenu = !this.showMenu
-      // const rect = this.chartTitleRef.getBoundingClientRect()
-      // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
     }
     getShowTotalNum(num) {
       return formatNumberWithRegex(num);
@@ -166,6 +179,33 @@
     // 汇聚周期改变
     handleIntervalChange() {
       this.$emit('interval-change', this.chartInterval);
+      setTimeout(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      });
+    }
+
+    handleGradeOptionChange({ isSave }) {
+      (this.$refs.refGradePopover as any)?.hide();
+      if (isSave) {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      }
+    }
+
+    /**
+     * 通过判定当前点击元素是否为指定弹出下拉菜单的子元素判定是否允许关闭弹出
+     * @param e
+     */
+    beforePopoverHide(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+
+      if (
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
+        target.classList.contains('bklog-popover-stop')
+      ) {
+        return false;
+      }
+      return true;
     }
   }
 </script>
@@ -182,20 +222,36 @@
       margin-left: 14px;
       font-size: 12px;
       font-weight: normal;
-      color: #63656e;
+      color: #4d4f56;
 
       .select-custom {
         display: inline-block;
-        margin-left: 5px;
+        padding-left: 5px;
+        color: #313238;
         vertical-align: middle;
+        border: none;
+
+        :deep(.bk-select-name) {
+          width: 60px;
+          padding-right: 20px;
+          padding-left: 0;
+          text-align: center;
+        }
+      }
+
+      .bklog-icon {
+        padding: 1px;
+        font-size: 14px;
+        cursor: pointer;
       }
     }
 
     .chart-title {
-      padding: 0 10px;
+      width: 100%;
+      padding: 0 4px;
       margin-left: -10px;
       font-size: 12px;
-      color: #63656e;
+      color: #4d4f56;
       border-radius: 2px;
 
       .title-click {
@@ -215,15 +271,15 @@
         .title-name {
           height: 20px;
           overflow: hidden;
+          font-family: MicrosoftYaHei-Bold, sans-serif;
           font-weight: 700;
           line-height: 20px;
+          color: #313238;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .time-result {
-          margin-left: 14px;
-
           .total-count {
             color: #f00;
           }
@@ -238,20 +294,6 @@
             transform: rotate(-90deg);
           }
         }
-
-        // &::after {
-        //   /* stylelint-disable-next-line declaration-no-important */
-        //   font-family: 'icon-monitor' !important;
-        //   content: '\e61c';
-        //   font-size: 20px;
-        //   width: 24px;
-        //   height: 16px;
-        //   align-items: center;
-        //   justify-content: center;
-        //   color: #979ba5;
-        //   margin-right: auto;
-        //   display: none;
-        // }
       }
 
       .sub-title {
@@ -283,3 +325,4 @@
     }
   }
 </style>
+<style lang="scss"></style>

@@ -55,6 +55,9 @@
         isExpand: true,
       };
     },
+    mounted() {
+      this.$store.commit('updateSpace', this.$route.query.spaceUid);
+    },
     computed: {
       ...mapState(['topMenu', 'activeManageNav']),
       ...mapState('globals', ['globalsData']),

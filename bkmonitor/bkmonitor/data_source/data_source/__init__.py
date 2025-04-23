@@ -1979,6 +1979,9 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         "lte": "lte",
     }
 
+    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
+    FUNC_METHOD_MAPPING: Dict[str, str] = {"distinct": "cardinality"}
+
     PERCENTILES_AGG_TRANSLATE = {
         CpAggMethods["cp50"].vargs_list[0]: "50.0",
         CpAggMethods["cp90"].vargs_list[0]: "90.0",
@@ -2003,7 +2006,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 
     def _get_unify_query_table(self) -> str:
-        return self.table
+        table_mapping: Dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}
+        return table_mapping.get(self.table, self.table)
 
     def _get_conditions(self) -> Dict[str, List[Any]]:
         return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
@@ -2017,6 +2021,13 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 if field in ["_meta"]:
                     # 排除无需返回的字段。
                     continue
+
+                # TODO(crayon) 目前 Nested 字段在 Doris 查询仅返回字符串，为保证功能可用，此处转为结构化数据，等待 unify-query 支持
+                if field in ["events", "links"] and isinstance(value, str):
+                    try:
+                        value = json.loads(value)
+                    except Exception:  # pylint: disable=broad-except
+                        value = []
 
                 if self.OBJECT_FIELD_SEPERATOR not in field:
                     # 不包含分隔符，设置 kv 并提前返回。
@@ -2054,12 +2065,22 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             "order_by": [],
         }
 
+        metrics: List[Dict[str, Any]] = self.metrics
+        if self.distinct:
+            # 针对原始 Trace 检索（未开启预计算）场景，默认需要按指定时间字段进行排序。
+            # 后续如果有多字段排序的需求，也相应需要在这里进行调整扩展。
+            metrics = [{"method": "max", "field": self.time_field, "alias": "a"}]
+            group_by.append(self.distinct)
+
         query_list: List[Dict[str, Any]] = []
-        for metric in self.metrics:
+        for metric in metrics:
             query: Dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
-            function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
+            function: Dict[str, Any] = {
+                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
+                "dimensions": group_by,
+            }
             if method in CpAggMethods:
                 cp_agg_method = CpAggMethods[method]
                 function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]

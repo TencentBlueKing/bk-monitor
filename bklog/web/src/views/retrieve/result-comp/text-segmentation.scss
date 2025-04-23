@@ -70,7 +70,7 @@
 
   .segment-content {
     line-height: 20px;
-    white-space: normal;
+    white-space: pre-wrap;
   }
 
   .menu-list {
@@ -80,6 +80,8 @@
 
   .valid-text {
     cursor: pointer;
+    padding: 2px 0;
+    white-space: pre-wrap;
 
     &.focus-text,
     &:hover {

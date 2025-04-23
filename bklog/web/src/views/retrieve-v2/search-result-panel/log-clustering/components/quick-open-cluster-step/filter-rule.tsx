@@ -95,7 +95,7 @@ export default class FilterRule extends tsc<IProps> {
     return false;
   }
   get showFieldAlias() {
-    return this.$store.state.showFieldAlias;
+    return this.$store.state.storage.showFieldAlias;
   }
   // 优先展示选中字段名
   get filterSelectList() {

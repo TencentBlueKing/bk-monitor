@@ -21,11 +21,11 @@
         class="bklog-warning-wrapper"
       >
         <bk-tab
-          style="width: 580px; min-height: 200px; background-color: #fff"
+          style="width: 580px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
-          @tab-change="handleTabChange"
           type="card"
+          @tab-change="handleTabChange"
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
@@ -48,6 +48,7 @@
                 </span>
               </div>
               <div
+                class="selector-more"
                 style="margin: 0 12px; color: #3a84ff; cursor: pointer"
                 @click="handleJumpMonitor()"
               >
@@ -92,6 +93,7 @@
               :outer-border="false"
               :row-border="false"
               @sort-change="handleSortChange"
+              :stripe="true"
             >
               <bk-table-column
                 :label="$t('告警名称')"
@@ -106,6 +108,7 @@
                       '--severity-color': getLevelColor(row.severity),
                     }"
                     @click="handleViewWarningDetail(row)"
+                    v-bk-overflow-tips="row.alert_name"
                   >
                     <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
@@ -113,7 +116,7 @@
               </bk-table-column>
               <bk-table-column
                 :label="$t('首次发生时间')"
-                min-width="115"
+                min-width="140"
                 sortable="true"
               >
                 <template #default="{ row }">
@@ -174,6 +177,7 @@
               :max-height="200"
               :outer-border="false"
               :row-border="false"
+              :stripe="true"
             >
               <bk-table-column :label="$t('策略')">
                 <template #default="{ row }">
@@ -204,11 +208,12 @@
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
   import $http from '@/api';
-  import useLocale from '@/hooks/use-locale';
   import { formatDate } from '@/common/util';
+  import PopInstanceUtil from '@/global/pop-instance-util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import PopInstanceUtil from '../search-bar/pop-instance-util';
   import { bkMessage } from 'bk-magic-vue';
+
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
   // import label from '../../../language/lang/en/label';
@@ -582,13 +587,12 @@
     justify-content: center;
     width: 70px;
     height: 32px;
-    margin-left: 10px;
-    font-size: 14px;
-    color: #63656e;
+    font-size: 12px;
     cursor: pointer;
 
     .bklog-icon {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
+      font-size: 16px;
     }
   }
 
@@ -598,6 +602,7 @@
 
       .bk-tab-section {
         padding: 0px;
+        border: none;
       }
 
       .bk-tab-header {
@@ -622,10 +627,12 @@
           }
 
           .bk-tab-label-item {
-            font-size: 13px;
-
             /* stylelint-disable-next-line declaration-no-important */
             line-height: 42px !important;
+
+            .panel-name{
+              font-size: 13px;
+            }
           }
 
           .active-box {
@@ -650,6 +657,14 @@
         td {
           height: 32px;
           border-bottom: none;
+        }
+
+        .bk-table-empty-text {
+          padding: 20px 0;
+        }
+
+        .bk-table-row-striped td {
+          background-color: #FAFBFD;
         }
       }
     }
@@ -690,8 +705,11 @@
     padding: 4px 4px;
     font-size: 12px;
     background-color: #dcdee5;
-    border: 1px solid #dcdcdc;
     border-radius: 4px;
+  }
+
+  .selector-more{
+    font-size: 12px;
   }
 
   .option {
@@ -703,6 +721,7 @@
     height: 100%;
     color: #4d4f56;
     cursor: pointer;
+    border-radius: 2px;
     transition: background-color 0.3s;
   }
 
