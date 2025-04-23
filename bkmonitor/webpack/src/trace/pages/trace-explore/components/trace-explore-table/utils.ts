@@ -100,10 +100,10 @@ export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTable
 
 export function getTableList(
   params,
-  mode: 'span' | 'trace',
+  isSpanVisual: boolean,
   requestConfig
 ): Promise<{ data: any[]; total: number; isAborted?: boolean }> {
-  const apiFunc = mode === 'span' ? listSpan : listTrace;
+  const apiFunc = isSpanVisual ? listSpan : listTrace;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
     const isAborted = requestErrorMessage(err);

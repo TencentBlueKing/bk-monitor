@@ -146,21 +146,6 @@
     padding: 10px 8px;
   }
 
-  .table-field-setting {
-    position: absolute;
-    top: -22px;
-    right: 6px;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    transform: translateY(-50%);
-    transition: border-color 0.2s;
-
-    &:hover,
-    &.active {
-      border-color: #979ba5;
-    }
-  }
-
   .t-table {
     height: 100%;
     --td-comp-paddingTB-s: var(--td-size-3);
@@ -177,7 +162,14 @@
           .t-table__cell--title {
             color: inherit;
 
+            .t-text-ellipsis {
+              flex-basis: auto;
+              width: unset;
+              min-width: 0;
+            }
+
             .t-table__filter-icon-wrap {
+              flex-shrink: 0;
               color: #c4c6cc;
             }
           }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, type PropType } from 'vue';
+import { defineComponent, type PropType, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox } from 'bkui-vue';
@@ -38,7 +38,7 @@ import './trace-explore-view.scss';
 
 /** 快速过滤项(包含) */
 const TableCheckBoxFiltersEnum = {
-  EntrySpan: 'entry',
+  EntrySpan: 'entry_span',
   Error: 'error',
   RootSpan: 'root_span',
 } as const;
@@ -50,14 +50,22 @@ export default defineComponent({
       type: Object as PropType<ICommonParams>,
       default: () => ({}),
     },
+    checkboxFilters: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
-  setup() {
+  emits: {
+    checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
 
-    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
-    const checkboxFilters = deepRef([]);
     const { mode, appName, timeRange } = storeToRefs(store);
+
+    /** 当前视角是否为 Span 视角 */
+    const isSpanVisual = computed(() => mode.value === 'span');
 
     /**
      * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后触发的回调
@@ -65,8 +73,7 @@ export default defineComponent({
      *
      */
     function handleCheckboxGroupChange(checkedGroup: string[]) {
-      checkboxFilters.value = checkedGroup;
-      console.log('================ handleCheckboxGroupChange逻辑待补充 ================');
+      emit('checkboxFiltersChange', checkedGroup);
     }
 
     /**
@@ -76,36 +83,42 @@ export default defineComponent({
     function filtersCheckBoxGroupRender() {
       return (
         <Checkbox.Group
-          modelValue={checkboxFilters.value}
+          model-value={props.checkboxFilters}
           onChange={handleCheckboxGroupChange}
         >
-          <Checkbox
-            v-bk-tooltips={{
-              content: t('整个Trace的第一个Span'),
-              placement: 'top',
-              theme: 'light',
-            }}
-            label={TableCheckBoxFiltersEnum.RootSpan}
-          >
-            {t('根Span')}
-          </Checkbox>
-          <Checkbox
-            v-bk-tooltips={{
-              content: t('每个Service的第一个Span'),
-              placement: 'top',
-              theme: 'light',
-            }}
-            label={TableCheckBoxFiltersEnum.EntrySpan}
-          >
-            {t('入口Span')}
-          </Checkbox>
+          {isSpanVisual.value
+            ? [
+                <Checkbox
+                  key={TableCheckBoxFiltersEnum.RootSpan}
+                  v-bk-tooltips={{
+                    content: t('整个Trace的第一个Span'),
+                    placement: 'top',
+                    theme: 'light',
+                  }}
+                  label={TableCheckBoxFiltersEnum.RootSpan}
+                >
+                  {t('根Span')}
+                </Checkbox>,
+                <Checkbox
+                  key={TableCheckBoxFiltersEnum.EntrySpan}
+                  v-bk-tooltips={{
+                    content: t('每个Service的第一个Span'),
+                    placement: 'top',
+                    theme: 'light',
+                  }}
+                  label={TableCheckBoxFiltersEnum.EntrySpan}
+                >
+                  {t('入口Span')}
+                </Checkbox>,
+              ]
+            : null}
           <Checkbox label={TableCheckBoxFiltersEnum.Error}>{t('错误')}</Checkbox>
         </Checkbox.Group>
       );
     }
 
     return {
-      mode,
+      isSpanVisual,
       appName,
       timeRange,
       filtersCheckBoxGroupRender,
@@ -113,7 +126,7 @@ export default defineComponent({
   },
   render() {
     const { commonParams } = this.$props;
-    const { mode, appName, timeRange, filtersCheckBoxGroupRender } = this;
+    const { isSpanVisual, appName, timeRange, filtersCheckBoxGroupRender } = this;
 
     return (
       <div class='trace-explore-view'>
@@ -126,7 +139,7 @@ export default defineComponent({
           <TraceExploreTable
             appName={appName}
             commonParams={commonParams}
-            mode={mode}
+            isSpanVisual={isSpanVisual}
             timeRange={timeRange}
           />
         </div>

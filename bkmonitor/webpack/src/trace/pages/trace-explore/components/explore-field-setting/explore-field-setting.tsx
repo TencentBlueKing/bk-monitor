@@ -151,6 +151,7 @@ export default defineComponent({
           return prev;
         }, {});
         selectedList.value = props.targetList.filter(v => sourceListMap.value[v]);
+
         nextTick(() => {
           addDragListener();
         });
@@ -163,7 +164,7 @@ export default defineComponent({
 
     /** 添加监听事件(消除拖拽元素拖拽时鼠标图标变为黑色的禁止图标的默认行为) */
     function addDragListener() {
-      dragContainer = document.querySelector('.transfer-list.target-list');
+      dragContainer = containerRef.value?.querySelector?.('.transfer-list.target-list');
       if (!dragContainer) {
         return;
       }
@@ -226,7 +227,7 @@ export default defineComponent({
         modifiers: [],
         extCls: '',
         referenceCls: '',
-        hideIgnoreReference: false,
+        hideIgnoreReference: true,
         componentEventDelay: 0,
         forceClickoutside: false,
         immediate: false,
