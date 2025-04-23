@@ -228,6 +228,17 @@ class QueryHelper:
 
         # 2. Data
         for query_config in query_body.get("query_configs") or []:
+            using: Tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+
+            # distinct 对 UnifyQuery 而言是聚合逻辑，而在 ES 中是原始日志查询，当进入 UnifyQuery 灰度时，需重定向查询方法。
+            # 等后续 ES DSL 查询全部迁移到 UnifyQuery 后，可以移除该逻辑。
+            if query_config.get("distinct") and using in GrayUnifyQueryDataSources:
+                data_source = load_data_source(*using)(
+                    bk_biz_id=query_body["bk_biz_id"], use_full_index_names=True, **query_config
+                )
+                if data_source.switch_unify_query(query_body["bk_biz_id"]):
+                    return cls._query_reference
+
             if query_config.get("metrics"):
                 if query_config["is_time_agg"]:
                     return cls._query_data
@@ -244,18 +255,11 @@ class QueryHelper:
         bk_biz_id: int = query_body["bk_biz_id"]
         override_query_func: Optional[QueryFuncT] = None
         for query_config in query_body["query_configs"]:
-            using: Tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
-            data_source_class = load_data_source(*using)
+            data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
                 bk_biz_id=query_body["bk_biz_id"], use_full_index_names=True, **query_config
             )
             data_sources.append(data_source)
-
-            # distinct 对 UnifyQuery 而言是聚合逻辑，而在 ES 中是原始日志查询，当进入 UnifyQuery 灰度时，需重定向查询方法。
-            # 等后续 ES DSL 查询全部迁移到 UnifyQuery 后，可以移除该逻辑。
-            if query_config.get("distinct") and using in GrayUnifyQueryDataSources:
-                if data_source.switch_unify_query(bk_biz_id):
-                    override_query_func = cls._query_reference
 
         unify_query: UnifyQuery = UnifyQuery(
             bk_biz_id=bk_biz_id,
