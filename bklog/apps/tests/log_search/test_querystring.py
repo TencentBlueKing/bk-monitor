@@ -37,6 +37,12 @@ SEARCH_PARAMS = {
         {"field": "__query_string__", "operator": "=", "value": []},
         {"field": "error", "operator": "contains", "value": []},
         {"field": "test", "operator": "test", "value": ["test"]},
+        {"field": "*", "operator": "contains match phrase prefix", "value": ["error"]},
+        {"field": "log", "operator": "contains match phrase prefix", "value": ["html", "hello world"]},
+        {"field": "log", "operator": "not contains match phrase prefix", "value": ["are you ok"]},
+        {"field": "log", "operator": "all contains match phrase prefix", "value": ["su 7"]},
+        {"field": "log", "operator": "all not contains match phrase prefix", "value": ["error", "500"]},
+        {"field": "log", "operator": "all not contains match phrase prefix", "value": ["This is a \"test\" string"]},
     ],
 }
 
@@ -97,13 +103,26 @@ TRANSFORM_RESULT = (
     " AND "
     r"NOT theme: (pg\||db* AND ?h\\h?)"
     " AND "
-    "(\"error\")"
+    "*: \"error\""
     " AND "
     "(success OR 200)"
+    " AND "
+    "*: \"error\""
+    " AND "
+    "log: (\"html\" OR \"hello world\")"
+    " AND "
+    "NOT log: \"are you ok\""
+    " AND "
+    "log: \"su 7\""
+    " AND "
+    "NOT log: (\"error\" AND \"500\")"
+    " AND "
+    "NOT log: \"This is a \\\"test\\\" string\""
 )
 
 
 class TestQueryString(TestCase):
     def test_querystring(self):
         result = QueryStringBuilder.to_querystring(SEARCH_PARAMS)
+        print(result)
         self.assertEqual(result, TRANSFORM_RESULT)
