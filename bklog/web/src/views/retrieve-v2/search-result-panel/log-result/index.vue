@@ -160,6 +160,7 @@
         tippyOptions: {
           maxWidth: 1200,
           arrow: false,
+          hideOnClick: false,
         },
       };
     },
@@ -262,6 +263,7 @@
         this.highlightWidth = offsetWidth - leftWidth - rightWidth;
       },
       handleBeforeHide(e) {
+        console.log('--handleBeforeHide--', e);
         if (e.target?.closest?.('.bklog-v3-popover-tag')) {
           return false;
         }
