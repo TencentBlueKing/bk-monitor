@@ -617,12 +617,17 @@
     }
 
     setIsRequesting(true);
+
+    const target = refConditionInput.value?.parentNode;
+    if (!operatorInstance.isShown() && target) {
+      conditionValueInstance.show(target, true);
+    }
+
     requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
 
         if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
-          const target = refConditionInput.value?.parentNode;
           if (target) {
             conditionValueInstance.show(target, true);
           }
@@ -1258,17 +1263,6 @@
                     class="condition-value-options"
                   >
                     <li
-                      v-if="isConditionValEmptyShow"
-                      class="empty-section"
-                    >
-                      <bk-exception
-                        style="height: 94px"
-                        :type="conditionValueEmptyType"
-                        scene="part"
-                      >
-                      </bk-exception>
-                    </li>
-                    <li
                       v-show="conditionValueInputVal.length > 0"
                       :class="{ active: conditionValueInputVal.length > 0, 'is-custom-tag': true }"
                       @click.stop="handleCustomTagItemClick"
@@ -1276,11 +1270,14 @@
                       {{ $t('生成“{n}”标签', { n: conditionValueInputVal }) }}
                     </li>
                     <li
-                      v-if="isRequesting"
-                      style="display: 32px"
+                      v-show="isRequesting || activeItemMatchList.length === 0"
                       v-bkloading="{ isLoading: isRequesting, size: 'small' }"
-                    ></li>
-                    <template v-if="!isRequesting">
+                      style="min-height: 32px"
+                    >
+                      {{ $t('暂无数据') }}
+                    </li>
+
+                    <template v-if="!isRequesting && activeItemMatchList.length > 0">
                       <li
                         v-for="(item, index) in activeItemMatchList"
                         :class="{
