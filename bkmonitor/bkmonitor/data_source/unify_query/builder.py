@@ -253,7 +253,6 @@ class QueryHelper:
 
         data_sources: List[DataSource] = []
         bk_biz_id: int = query_body["bk_biz_id"]
-        override_query_func: Optional[QueryFuncT] = None
         for query_config in query_body["query_configs"]:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
@@ -268,7 +267,7 @@ class QueryHelper:
             functions=query_body["functions"],
         )
 
-        query_func: QueryFuncT = override_query_func or cls._get_query_func(query_body)
+        query_func: QueryFuncT = cls._get_query_func(query_body)
         return query_func(unify_query, query_body)
 
 
