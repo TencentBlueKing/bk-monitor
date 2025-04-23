@@ -642,7 +642,7 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleConditionValueClick(e);
+    // handleConditionValueClick(e);
   };
 
   const handleDeleteTagItem = index => {
@@ -674,6 +674,8 @@
   const handleTagItemClick = (value, index) => {
     refValueTagInput.value.value = '';
     conditionValueInputVal.value = '';
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
 
     if (!appendConditionValue(value)) {
       condition.value.value.splice(index, 1);
@@ -1256,9 +1258,9 @@
                     @input="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
+                    @blur.stop="handleConditionValueInputBlur"
+                    @focus.stop="handleConditionValueInputFocus"
                   />
-                  <!-- @blur.stop="handleConditionValueInputBlur" -->
-                  <!-- @focus.stop="handleConditionValueInputFocus" -->
                 </li>
                 <div style="display: none">
                   <ul
