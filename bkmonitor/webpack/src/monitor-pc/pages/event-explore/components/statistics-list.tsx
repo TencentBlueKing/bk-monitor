@@ -103,7 +103,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   topKCancel = null;
 
   /** 渲染TopK字段行 */
-  renderTopKField(list: ITopKField['list'] = []) {
+  renderTopKField(list: ITopKField['list'], type: 'list' | 'slider') {
     if (!list.length) return <EmptyStatus type='empty' />;
 
     return (
@@ -144,7 +144,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
                 </span>
               </div>
               <bk-progress
-                color={this.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index]}
+                color={this.fieldType === 'integer' || type === 'slider' ? '#5AB8A8' : topKColorList[index]}
                 percent={item.proportions / 100}
                 show-text={false}
                 stroke-width={6}
@@ -214,8 +214,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       {
         cancelToken: new CancelToken(c => (this.topKInfoCancelFn = c)),
       }
-    ).catch(err => {
-      console.error(err.error_details || err.message);
+    ).catch(() => {
       return null;
     });
     if (!info) return;
@@ -225,7 +224,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     const { min, max } = this.statisticsInfo.value_analysis || {};
     const values =
       this.fieldType === 'integer'
-        ? [min, max, this.statisticsInfo.distinct_count, 8]
+        ? [min, max, this.statisticsInfo.distinct_count, 10]
         : this.statisticsList.list.map(item => item.value);
     const { query_configs, ...other } = this.commonParams;
     this.topKChartCancelFn?.();
@@ -259,9 +258,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     ).catch(() => ({ series: [] }));
     const series = data.series || [];
     this.chartData = series.map(item => {
-      const index = this.statisticsList.list.findIndex(i => item.dimensions?.[this.localField] === i.value) || 0;
+      const name = item.dimensions?.[this.localField];
+      const index = this.statisticsList.list.findIndex(i => name === i.value) || 0;
       return {
         color: this.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index],
+        name,
         ...item,
       };
     });
@@ -482,7 +483,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           {this.popoverLoading
             ? this.renderSkeleton()
             : [
-                this.renderTopKField(this.statisticsList?.list),
+                this.renderTopKField(this.statisticsList?.list, 'list'),
                 this.statisticsList?.distinct_count > 5 && (
                   <div
                     class='load-more'
@@ -539,7 +540,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-content'
             slot='content'
           >
-            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList.list)}
+            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList.list, 'slider')}
             {this.sliderDimensionList.distinct_count > this.sliderDimensionList.list.length && (
               <div
                 class={['slider-load-more', { 'is-loading': this.sliderLoadMoreLoading }]}
