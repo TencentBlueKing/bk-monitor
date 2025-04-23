@@ -223,7 +223,7 @@ class EsQueryBuilder(object):
     def build_match_phrase_prefix(cls, field: str, value: Any) -> type_match_phrase_prefix:
         if field == "*":
             return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": ["*", "__*"], "lenient": True}}
-        return {"multi_match": {"query": value, "type": "phrase_prefix", "fields": [field], "lenient": True}}
+        return {"match_phrase_prefix": {field: {"query": value}}}
 
     @classmethod
     def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
@@ -658,15 +658,9 @@ class ContainsMatchPhrasePrefix(IsOneOf):
         self._set_target_value(a_bool)
 
 
-class NotContainsMatchPhrasePrefix(IsNotOneOf):
+class NotContainsMatchPhrasePrefix(ContainsMatchPhrasePrefix):
     TARGET = "must_not"
     OPERATOR = "not contains match phrase prefix"
-
-    def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_should_list_match_prefix(field["field"], field["value"])
-        should: type_should = EsQueryBuilder.build_should(should_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(should)
-        self._set_target_value(a_bool)
 
 
 class AllContainsMatchPhrasePrefix(BoolQueryOperation):
