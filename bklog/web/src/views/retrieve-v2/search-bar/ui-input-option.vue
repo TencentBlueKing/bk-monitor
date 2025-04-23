@@ -113,12 +113,19 @@
     tippyOptions,
   });
 
+  let conditionBlurTimer = null;
+
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
     newInstance: true,
     watchElement: refConditionInput,
+    onShowFn: () => {
+      conditionBlurTimer && clearTimeout(conditionBlurTimer);
+      conditionBlurTimer = null;
+      return true;
+    },
     onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
       return true;
@@ -412,13 +419,20 @@
       if (isValidateEgges(item)) {
         setIsRequesting(true);
 
+        nextTick(() => {
+          if (!conditionValueInstance.isShown()) {
+            const target = refConditionInput.value?.parentNode;
+            target && conditionValueInstance.show(target, true);
+          }
+        });
+
         if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
           requestFieldEgges(item, null, () => {
             if (!conditionValueInstance.repositionTippyInstance()) {
               if (!isOperatorInstanceActive()) {
-                const target = refConditionInput.value?.parentNode;
-                if (target) {
-                  conditionValueInstance.show(target, true);
+                if (!conditionValueInstance.isShown()) {
+                  const target = refConditionInput.value?.parentNode;
+                  target && conditionValueInstance.show(target, true);
                 }
               }
             }
@@ -538,8 +552,10 @@
 
   const handleConditionValueClick = (e = null, autoFocus = false) => {
     conditionValueInstance.cancelHide();
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
 
-    if (e?.target !== refConditionInput.value || !e) {
+    if (!e) {
       return;
     }
 
@@ -571,18 +587,6 @@
     const instance = conditionValueInstance.getTippyInstance();
     return isConditionValueInputFocus.value && instance?.state.isShown;
   };
-
-  /**
-   * 条件值下拉选择设置当前hover项
-   */
-  // const activeConditionValueOption = () => {
-  //   const instance = conditionValueInstance.getTippyInstance();
-  //   if (instance?.state.isShown) {
-  //     instance.popper?.querySelector('li.is-hover')?.classList.remove('is-hover');
-  //     instance.popper?.querySelectorAll('li.is-system-tag')[conditionValueActiveIndex.value]?.classList.add('is-hover');
-  //     instance.popper?.querySelector('li.is-hover')?.scrollIntoView({ block: 'nearest' });
-  //   }
-  // };
 
   const handleInputValueChange = e => {
     const input = e.target;
@@ -967,7 +971,6 @@
     handleInputValueChange(e);
   };
 
-  let conditionBlurTimer = null;
   const handleConditionValueInputBlur = e => {
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     conditionBlurTimer = setTimeout(() => {
@@ -1250,12 +1253,12 @@
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
                     type="text"
-                    @blur.stop="handleConditionValueInputBlur"
-                    @focus.stop="handleConditionValueInputFocus"
                     @input="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
                   />
+                  <!-- @blur.stop="handleConditionValueInputBlur" -->
+                  <!-- @focus.stop="handleConditionValueInputFocus" -->
                 </li>
                 <div style="display: none">
                   <ul
