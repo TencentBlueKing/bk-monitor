@@ -148,6 +148,10 @@ export default defineComponent({
       'status.code': [],
     });
 
+    /** table 列配置本地缓存时的 key */
+    const displayColumnFieldsCacheKey = computed(() =>
+      props.isSpanVisual ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
+    );
     /** table 数据（所有请求返回的数据） */
     const tableData = computed(() => store.tableList);
     /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
@@ -601,8 +605,11 @@ export default defineComponent({
      */
     function getDisplayColumnFields() {
       const defaultColumnsConfig = props.isSpanVisual ? spanConfig : traceConfig;
+      const cacheColumns = JSON.parse(localStorage.getItem(displayColumnFieldsCacheKey.value)) as string[];
       // 需要展示的字段列名数组
-      displayColumnFields.value = (defaultColumnsConfig?.displayFields || []) as string[];
+      displayColumnFields.value = cacheColumns?.length
+        ? cacheColumns
+        : ((defaultColumnsConfig?.displayFields || []) as string[]);
     }
 
     /**
@@ -758,6 +765,7 @@ export default defineComponent({
      */
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
       displayColumnFields.value = displayFields;
+      localStorage.setItem(displayColumnFieldsCacheKey.value, JSON.stringify(displayFields));
     }
 
     /**
