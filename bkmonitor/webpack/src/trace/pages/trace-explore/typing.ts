@@ -37,7 +37,7 @@ export interface IApplicationItem {
   [key: string]: any;
 }
 
-export type DimensionType = 'date' | 'integer' | 'keyword' | 'object' | 'text';
+export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
 
 export interface IDimensionOperation {
   alias: string;

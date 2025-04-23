@@ -136,8 +136,16 @@ body {
       }
 
       .item-name {
+        display: inline-block;
+        min-width: 80px;
+        max-width: calc(100% - 20px);
         margin-right: 5px;
+        // overflow: hidden;
+        // text-overflow: ellipsis;
         color: #f1f3fa;
+        word-break: break-all;
+        word-wrap: break-word;
+        white-space: pre-wrap;
       }
 
       .item-value {

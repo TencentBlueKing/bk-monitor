@@ -29,13 +29,18 @@ import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
+import {
+  traceDownloadTopK,
+  traceFieldStatisticsGraph,
+  traceFieldStatisticsInfo,
+  traceFieldsTopK,
+} from 'monitor-api/modules/apm_trace';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
-import { getFieldTopK, getStatisticsChartData, getStatisticsInfo } from '../mock';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
 
@@ -77,6 +82,9 @@ export default defineComponent({
     const infoLoading = shallowRef(false);
     const popoverLoading = shallowRef(false);
 
+    const localField = shallowRef('');
+    /** 获取字段统计接口次数，用于判断接口取消后的逻辑 */
+    const getStatisticsListCount = shallowRef(1);
     const statisticsInfo = shallowRef<IStatisticsInfo>({
       field: '',
       total_count: 0,
@@ -97,76 +105,81 @@ export default defineComponent({
 
     watch(
       () => props.isShow,
-      async val => {
+      val => {
         if (val) {
-          infoLoading.value = true;
-          await getStatisticsList();
+          localField.value = props.selectField;
           timeRangeText.value = handleTransformTime(store.timeRange);
-          await getStatisticsGraphData();
+          getStatisticsList();
         } else {
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
+          infoLoading.value = true;
         }
       }
     );
 
     async function getStatisticsList() {
+      infoLoading.value = true;
       popoverLoading.value = true;
+      getStatisticsListCount.value += 1;
+      const count = getStatisticsListCount.value;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKCancelFn?.();
-      const data = await getFieldTopK(
+      const data: ITopKField[] = await traceFieldsTopK(
         {
           ...props.commonParams,
           start_time,
           end_time,
           limit: 5,
-          fields: [props.selectField],
+          fields: [localField.value],
         },
         {
           cancelToken: new CancelToken(c => (topKCancelFn = c)),
         }
-      );
-      statisticsList.distinct_count = data.distinct_count;
-      statisticsList.field = data.field;
-      statisticsList.list = data.list;
+      ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+      if (count !== getStatisticsListCount.value) return;
+      statisticsList.distinct_count = data[0].distinct_count;
+      statisticsList.field = data[0].field;
+      statisticsList.list = data[0].list;
       popoverLoading.value = false;
+      await getStatisticsGraphData();
     }
 
     async function getStatisticsGraphData() {
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
-      const info = await getStatisticsInfo(
+      const info: IStatisticsInfo = await traceFieldStatisticsInfo(
         {
           ...props.commonParams,
           start_time,
           end_time,
           field: {
-            name: props.selectField,
-            type: props.fieldType,
+            field_name: localField.value,
+            field_type: props.fieldType,
           },
         },
         {
           cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
         }
       ).catch(() => []);
-
-      statisticsInfo.value = info[0];
+      if (!info) return;
+      statisticsInfo.value = info;
 
       const { min, max } = statisticsInfo.value.value_analysis || {};
       const values =
         props.fieldType === 'integer'
-          ? [min, max, statisticsInfo.value.distinct_count, 8]
+          ? [min, max, statisticsInfo.value.distinct_count, 10]
           : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
-      const data = await getStatisticsChartData(
+      const data = await traceFieldStatisticsGraph(
         {
           ...props.commonParams,
           start_time,
           end_time,
           field: {
-            name: props.selectField,
-            type: props.fieldType,
+            field_name: localField.value,
+            field_type: props.fieldType,
             values,
           },
         },
@@ -174,13 +187,22 @@ export default defineComponent({
           cancelToken: new CancelToken(c => (topKChartCancelFn = c)),
         }
       ).catch(() => ({ series: [] }));
-      chartData.value = data.series || [];
+
+      const series = data.series || [];
+      chartData.value = series.map(item => {
+        const index = statisticsList.list.findIndex(i => item.dimensions?.[localField.value] === i.value) || 0;
+        return {
+          color: props.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index],
+          ...item,
+        };
+      });
       infoLoading.value = false;
     }
 
     const sliderShow = shallowRef(false);
     const sliderLoading = shallowRef(false);
     const sliderLoadMoreLoading = shallowRef(false);
+    const sliderListPage = shallowRef(1);
     const sliderDimensionList = reactive<ITopKField>({
       distinct_count: 0,
       field: '',
@@ -202,23 +224,25 @@ export default defineComponent({
     async function loadMore() {
       sliderLoadMoreLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await getFieldTopK({
+      const data = await traceFieldsTopK({
         ...props.commonParams,
         start_time,
         end_time,
-        limit: (Math.floor(sliderDimensionList.list.length / 100) + 1) * 100,
-        fields: [props.selectField],
+        limit: sliderListPage.value * 100,
+        fields: [localField.value],
       });
       sliderDimensionList.distinct_count = data.distinct_count;
       sliderDimensionList.field = data.field;
       sliderDimensionList.list = data.list;
       sliderLoadMoreLoading.value = false;
+      sliderListPage.value += 1;
     }
 
     function handleSliderShowChange(show: boolean) {
       sliderShow.value = show;
       sliderShowChange();
       if (!show) {
+        sliderListPage.value = 1;
         sliderDimensionList.distinct_count = 0;
         sliderDimensionList.field = '';
         sliderDimensionList.list = [];
@@ -228,27 +252,18 @@ export default defineComponent({
     async function handleDownload() {
       downloadLoading.value = true;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await getDownloadTopK({
+      const data = await traceDownloadTopK({
         ...props.commonParams,
         start_time,
         end_time,
-        limit: statisticsList?.distinct_count,
-        fields: [props.selectField],
+        limit: sliderShow.value ? sliderDimensionList?.distinct_count : statisticsList?.distinct_count,
+        fields: [localField.value],
       }).finally(() => {
         downloadLoading.value = false;
       });
       try {
         downloadFile(data.data, 'txt', data.filename);
       } catch {}
-    }
-
-    function getDownloadTopK(params) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          console.log(params);
-          resolve({ data: 'data', filename: 'filename' });
-        }, 1000);
-      });
     }
 
     function topKItemMouseenter(e: MouseEvent, content: string) {
@@ -289,14 +304,14 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-a-sousuo'
                   v-bk-tooltips={{
-                    content: `${props.isDimensions ? 'dimensions.' : ''}${props.selectField} = ${item.value || '""'}`,
+                    content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} = ${item.value || '""'}`,
                   }}
                   onClick={() => handleConditionChange('eq', item)}
                 />
                 <i
                   class='icon-monitor icon-sousuo-'
                   v-bk-tooltips={{
-                    content: `${props.isDimensions ? 'dimensions.' : ''}${props.selectField} != ${item.value || '""'}`,
+                    content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} != ${item.value || '""'}`,
                   }}
                   onClick={() => handleConditionChange('ne', item)}
                 />
@@ -330,7 +345,7 @@ export default defineComponent({
 
     function handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
       emit('conditionChange', {
-        key: props.selectField,
+        key: localField.value,
         operator: type,
         value: item.value,
       });
@@ -414,7 +429,7 @@ export default defineComponent({
                   <span class='value'> {this.statisticsInfo.field_count}</span>
                 </div>
                 <div class='label-item'>
-                  <span class='label'>{this.t('总行数')}:</span>
+                  <span class='label'>{this.t('日志条数')}:</span>
                   <span class='value'> {this.statisticsInfo.field_percent}%</span>
                 </div>
               </div>
@@ -451,9 +466,8 @@ export default defineComponent({
               </div>
 
               <DimensionEcharts
-                colorList={this.fieldType === 'integer' ? ['#5AB8A8'] : topKColorList}
                 data={this.chartData}
-                seriesType={this.fieldType === 'integer' ? 'bar' : 'line'}
+                seriesType={this.fieldType === 'integer' ? 'histogram' : 'line'}
               />
             </div>
           )}

@@ -160,13 +160,16 @@ export default defineComponent({
     }, 100);
 
     async function getViewConfig() {
+      if (!store.appName) return;
+      loading.value = true;
       const data = await listTraceViewConfig({
         app_name: store.appName,
-      });
+      }).catch(() => ({ trace_config: [], span_config: [] }));
       fieldListMap.value = {
         trace: data.trace_config,
         span: data.span_config,
       };
+      loading.value = false;
     }
 
     onMounted(async () => {
@@ -203,6 +206,7 @@ export default defineComponent({
         showResidentBtn.value = Boolean(queryShowResidentBtn);
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
+        handleQuery();
       } catch (error) {
         console.log('route query:', error);
       }
