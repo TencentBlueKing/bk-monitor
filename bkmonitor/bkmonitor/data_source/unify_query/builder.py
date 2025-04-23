@@ -51,9 +51,6 @@ logger = logging.getLogger(__name__)
 """
 
 
-QueryFuncT = Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]
-
-
 class QueryConfig(Query):
     def __init__(self, using: Tuple[str, str], where: Type[WhereNode] = WhereNode):
         super().__init__(using, where)
@@ -221,7 +218,9 @@ class QueryHelper:
         return dimensions
 
     @classmethod
-    def _get_query_func(cls, query_body: Dict[str, Any]) -> QueryFuncT:
+    def _get_query_func(
+        cls, query_body: Dict[str, Any]
+    ) -> Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]:
         # 1. Dimensions
         if query_body.get("dimension_fields"):
             return cls._query_dimensions
