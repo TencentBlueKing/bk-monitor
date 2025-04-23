@@ -27,9 +27,11 @@
 import { defineComponent, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
 import { MONITOR_BAR_OPTIONS, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 
 import BaseEchart from '../../../plugins/base-echart';
 import { useChartResize } from '../../../plugins/hooks';
@@ -60,6 +62,43 @@ export default defineComponent({
 
     useChartResize(chartContainer, chartContainer, width, height);
 
+    function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
+      let formatterFunc = null;
+      const [firstItem] = seriesData;
+      const lastItem = seriesData[seriesData.length - 1];
+      const val = new Date('2010-01-01').getTime();
+      const getXVal = (timeVal: any) => {
+        if (!timeVal) return timeVal;
+        return timeVal[0] > val ? timeVal[0] : timeVal[1];
+      };
+      const minX = Array.isArray(firstItem) ? getXVal(firstItem) : getXVal(firstItem?.value);
+      const maxX = Array.isArray(lastItem) ? getXVal(lastItem) : getXVal(lastItem?.value);
+
+      minX &&
+        maxX &&
+        // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+        (formatterFunc = (v: any) => {
+          const duration = Math.abs(dayjs.tz(maxX).diff(dayjs.tz(minX), 'second'));
+          if (onlyBeginEnd && v > minX && v < maxX) {
+            return '';
+          }
+          if (duration < 1 * 60) {
+            return dayjs.tz(v).format('mm:ss');
+          }
+          if (duration < 60 * 60 * 24 * 1) {
+            return dayjs.tz(v).format('HH:mm');
+          }
+          if (duration < 60 * 60 * 24 * 6) {
+            return dayjs.tz(v).format('MM-DD HH:mm');
+          }
+          if (duration <= 60 * 60 * 24 * 30 * 12) {
+            return dayjs.tz(v).format('MM-DD');
+          }
+          return dayjs.tz(v).format('YYYY-MM-DD');
+        });
+      return formatterFunc;
+    }
+
     function customTooltips(params) {
       return `<div class="monitor-chart-tooltips">
               <ul class="tooltips-content">
@@ -80,56 +119,85 @@ export default defineComponent({
     );
 
     function setOptions() {
-      const series = props.data.map(item => {
-        const color =
-          props.seriesType === 'histogram'
-            ? {
-                itemStyle: {
-                  color: item.color,
-                },
-              }
-            : {
-                lineStyle: {
-                  color: item.color,
-                },
-              };
-        return {
-          type: props.seriesType === 'histogram' ? 'bar' : 'line',
-          name: props.seriesType === 'histogram' ? '' : item.target,
+      if (props.seriesType === 'histogram') {
+        const series = props.data.map(item => ({
+          type: 'bar',
+          name: '',
           data: item.datapoints.map(point => [point[1], point[0]]),
           symbol: 'none',
           z: 6,
-          ...color,
-        };
-      });
-      const interval = series.length ? Math.round(series[0].data.length / 2) - 1 : 0;
-      options.value = deepmerge(
-        deepClone(props.seriesType === 'histogram' ? MONITOR_BAR_OPTIONS : MONITOR_LINE_OPTIONS),
-        {
-          xAxis: {
-            type: props.seriesType === 'histogram' ? 'category' : 'time',
-            boundaryGap: props.seriesType === 'histogram',
-            splitNumber: 5,
-            axisLabel: {
-              showMaxLabel: props.seriesType === 'histogram',
-              showMinLabel: props.seriesType === 'histogram',
-              interval: props.seriesType === 'histogram' ? interval : 1,
-            },
+          itemStyle: {
+            color: item.color,
           },
-          series,
-          toolbox: [],
-          yAxis: {
-            splitLine: {
-              lineStyle: {
-                color: '#F0F1F5',
-                type: 'solid',
+        }));
+        options.value = deepmerge(
+          deepClone(MONITOR_BAR_OPTIONS),
+          {
+            xAxis: {
+              type: 'category',
+              boundaryGap: true,
+              splitNumber: 5,
+              axisLabel: {
+                showMaxLabel: true,
+                showMinLabel: true,
+                hideOverlap: true,
               },
             },
-            splitNumber: 5,
+            series,
+            toolbox: [],
+            yAxis: {
+              splitLine: {
+                lineStyle: {
+                  color: '#F0F1F5',
+                  type: 'solid',
+                },
+              },
+              splitNumber: 5,
+            },
           },
-        },
-        { arrayMerge: (_, newArr) => newArr }
-      ) as MonitorEchartOptions;
+          { arrayMerge: (_, newArr) => newArr }
+        );
+      } else {
+        const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(props.data);
+        const series = props.data.map(item => ({
+          type: 'line',
+          name: item.name,
+          data: item.datapoints.map(point => [point[1], point[0]]),
+          symbol: 'none',
+          z: 6,
+          lineStyle: {
+            color: item.color,
+          },
+        }));
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width.value, maxSeriesCount);
+        const formatterFunc = handleSetFormatterFunc(series[0]?.data || []);
+        options.value = deepmerge(
+          deepClone(MONITOR_LINE_OPTIONS),
+          {
+            xAxis: {
+              type: 'time',
+              splitNumber: 4,
+              axisLabel: {
+                formatter: formatterFunc || '{value}',
+                hideOverlap: true,
+              },
+              ...xInterval,
+            },
+            series,
+            toolbox: [],
+            yAxis: {
+              splitLine: {
+                lineStyle: {
+                  color: '#F0F1F5',
+                  type: 'solid',
+                },
+              },
+              splitNumber: 5,
+            },
+          },
+          { arrayMerge: (_, newArr) => newArr }
+        );
+      }
     }
 
     return {

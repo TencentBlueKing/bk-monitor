@@ -169,7 +169,7 @@ export default defineComponent({
       const { min, max } = statisticsInfo.value.value_analysis || {};
       const values =
         props.fieldType === 'integer'
-          ? [min, max, statisticsInfo.value.distinct_count, 8]
+          ? [min, max, statisticsInfo.value.distinct_count, 10]
           : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
       const data = await traceFieldStatisticsGraph(
