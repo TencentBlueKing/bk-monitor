@@ -1501,8 +1501,8 @@ class SearchAlertResource(Resource):
         根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
         规则：提取所有ID的前10位作为基准时间戳，前后扩展1小时
         """
-        # 常量定义
-        one_hour_in_seconds = 3600
+
+        one_hour_in_seconds = 3600  # 一小时的秒数
         timestamp_length = 10  # 时间戳位数
 
         query_string = request_data.get("query_string", "")
