@@ -124,5 +124,4 @@ TRANSFORM_RESULT = (
 class TestQueryString(TestCase):
     def test_querystring(self):
         result = QueryStringBuilder.to_querystring(SEARCH_PARAMS)
-        print(result)
         self.assertEqual(result, TRANSFORM_RESULT)
