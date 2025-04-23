@@ -25,6 +25,8 @@
  */
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+const DEFAULT_FIELDS_WIDTH = 200;
+
 export const getDefaultRetrieveParams = () => {
   return {
     keyword: '',
@@ -201,6 +203,12 @@ export const getStorageOptions = () => {
 
       // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
       searchType: 0,
+
+      // 左侧字段设置缓存配置
+      fieldSetting: {
+        show: true,
+        width: DEFAULT_FIELDS_WIDTH,
+      },
     },
     storage,
   );

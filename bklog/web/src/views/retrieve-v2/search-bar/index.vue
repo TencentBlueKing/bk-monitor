@@ -193,10 +193,8 @@
     if (!isInputLoading.value) {
       if (searchMode.value === 'sql') {
         beforeQueryBtnClick().then(resp => {
-          if (resp.is_legal && resp.is_resolved) {
-            getBtnQueryResult();
-            RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
-          }
+          getBtnQueryResult();
+          RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         });
 
         return;
@@ -210,15 +208,13 @@
   const handleSqlRetrieve = value => {
     if (value !== '*') {
       beforeQueryBtnClick().then(resp => {
-        if (resp.is_legal) {
-          store.commit('updateIndexItemParams', {
-            keyword: value,
-          });
+        store.commit('updateIndexItemParams', {
+          keyword: value,
+        });
 
-          store.dispatch('requestIndexSetQuery');
-          setRouteParams();
-          RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
-        }
+        store.dispatch('requestIndexSetQuery');
+        setRouteParams();
+        RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
       return;
     }
@@ -277,6 +273,9 @@
         search_mode: queryParams[activeIndex.value],
       },
     });
+
+    inspectResponse.value.is_legal = true;
+    inspectResponse.is_resolved = false;
 
     if (addition.value.length > 0 || (keyword.value !== '*' && keyword.value !== '')) {
       handleBtnQueryClick();

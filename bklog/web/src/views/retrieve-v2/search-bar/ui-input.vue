@@ -325,10 +325,14 @@
   // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
   const isGlobalKeyEnter = ref(false);
   const handleGlobalSaveQueryClick = payload => {
+    blurTimer && clearTimeout(blurTimer);
+
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
     repositionTippyInstance();
     refSearchInput.value.style.setProperty('width', '12px');
+    nextInputBlur?.();
+    nextInputBlur = null;
   };
 
   /**
@@ -375,12 +379,22 @@
     debounceShowInstance();
   };
 
+  let blurTimer = null;
+  let nextInputBlur = null;
+
   const handleFullTextInputBlur = e => {
-    setIsInputTextFocus(false);
-    inputValueLength.value = 0;
-    e.target.style.setProperty('width', '12px');
-    e.target.value = '';
-    queryItem.value = '';
+    nextInputBlur = () => {
+      setIsInputTextFocus(false);
+      inputValueLength.value = 0;
+      e.target.style.setProperty('width', '12px');
+      e.target.value = '';
+      queryItem.value = '';
+    };
+
+    blurTimer = setTimeout(() => {
+      nextInputBlur();
+      nextInputBlur = null;
+    }, 300);
   };
 
   const handleInputValueChange = e => {
