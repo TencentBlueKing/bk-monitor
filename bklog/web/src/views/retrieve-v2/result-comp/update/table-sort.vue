@@ -33,7 +33,7 @@
                 :key="option.field_name"
                 :name="option.field_name"
               >
-                <div class="custom-option-item">
+                <div class="custom-option-item bklog-v3-popover-tag">
                   <span
                     :style="{
                       backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),

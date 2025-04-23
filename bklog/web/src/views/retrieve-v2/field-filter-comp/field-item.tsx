@@ -230,8 +230,8 @@ export default class FieldItem extends tsc<object> {
   }
   retuanFieldName() {
     let name = this.showFieldAlias
-      ? this.fieldItem.field_name || this.fieldItem.field_alias
-      : this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name;
+      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
+      : this.fieldItem.field_name;
     if (this.isFieldObject) {
       const objectName = name.split('.');
       name = objectName[objectName.length - 1] || objectName[0];
@@ -253,9 +253,6 @@ export default class FieldItem extends tsc<object> {
             <div class='bklog-drag-dots-box'>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
             </div>
-            {/* 三角符号 */}
-            {/* <div class={this.isFieldObject ? 'filed-item-object' : 'filed-item-triangle'}
-            ></div> */}
 
             {/* 字段类型对应的图标 */}
             <div class='bklog-field-icon'>
@@ -285,12 +282,6 @@ export default class FieldItem extends tsc<object> {
                   <span class={['bk-icon', 'icon-angle-down', 'expand']}></span>
                 ))}
 
-              {/* <span
-                class='field-count'
-                v-show={this.isShowFieldsCount}
-              >
-                ({this.gatherFieldsCount})
-              </span> */}
               {this.isUnionConflictFields(this.fieldItem.field_type) && (
                 <bk-popover
                   ext-cls='conflict-popover'
@@ -347,17 +338,7 @@ export default class FieldItem extends tsc<object> {
             }
           </div>
         </div>
-        {/* 显示聚合字段图表信息
-        {/* {!!this.showFieldsChart && this.isExpand && (
-          <AggChart
-            field-name={this.fieldItem.field_name}
-            field-type={this.fieldItem.field_type}
-            is-front-statistics={this.isFrontStatistics}
-            parent-expand={this.isExpand}
-            retrieve-params={this.retrieveParams}
-            statistical-field-data={this.statisticalFieldData}
-          />
-        )} */}
+
         <bk-sideslider
           width={480}
           class='agg-field-item-sideslider'

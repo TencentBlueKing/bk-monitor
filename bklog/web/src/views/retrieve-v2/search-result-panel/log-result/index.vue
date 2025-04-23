@@ -160,6 +160,7 @@
         tippyOptions: {
           maxWidth: 1200,
           arrow: false,
+          hideOnClick: false,
         },
       };
     },
