@@ -177,6 +177,9 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         "&=~",
                         "&!=~",
                         "contains match phrase prefix",
+                        "not contains match phrase prefix",
+                        "all contains match phrase prefix",
+                        "all not contains match phrase prefix",
                     ]:
                         # 以上操作符接受的是字符串的列表，如果是字符串，需要将其split
                         if isinstance(value, str):
