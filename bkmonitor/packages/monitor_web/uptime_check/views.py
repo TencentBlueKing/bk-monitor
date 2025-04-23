@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_api.filtersets import get_filterset
@@ -115,9 +116,11 @@ def get_capacity(targets_count):
 
 
 class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
-    queryset = UptimeCheckNode.objects.all()
     _, filterset_class = get_filterset(UptimeCheckNode)
     serializer_class = UptimeCheckNodeSerializer
+
+    def get_queryset(self):
+        return UptimeCheckNode.objects.filter(bk_tenant_id=get_request_tenant_id())
 
     def retrieve(self, request, *args, **kwargs):
         data = super(UptimeCheckNodeViewSet, self).retrieve(request, *args, **kwargs).data
@@ -174,8 +177,8 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         # 如用户传入业务，同时还应该加上通用节点
         id_list = get_business_id_list()
         # 使用business_id_list过滤掉业务已经不存在的公共节点
-        common_nodes = UptimeCheckNode.objects.filter(is_common=True, bk_biz_id__in=id_list)
-        biz_nodes = UptimeCheckNode.objects.filter(is_common=False).values("biz_scope", "id")
+        common_nodes = self.get_queryset().filter(is_common=True, bk_biz_id__in=id_list)
+        biz_nodes = self.get_queryset().filter(is_common=False).values("biz_scope", "id")
 
         # 指定业务范围可见节点过滤
         bk_biz_id = request.GET.get("bk_biz_id")
@@ -184,11 +187,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             if bk_biz_id in biz_node["biz_scope"]:
                 biz_node_ids.append(biz_node["id"])
         queryset = (
-            (
-                UptimeCheckNode.objects.filter(id__in=biz_node_ids)
-                | common_nodes
-                | self.filter_queryset(self.get_queryset())
-            )
+            (self.get_queryset().filter(id__in=biz_node_ids) | common_nodes | self.filter_queryset(self.get_queryset()))
             .distinct()
             .prefetch_related(Prefetch("tasks", queryset=UptimeCheckTask.objects.only("id")))
         )
@@ -260,7 +259,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         ip = request.GET.get("ip")
         bk_biz_id = request.GET.get("bk_biz_id")
         return Response(
-            {"is_exist": True if UptimeCheckNode.objects.filter(ip=ip, bk_biz_id=bk_biz_id).exists() else False}
+            {"is_exist": True if self.get_queryset().filter(ip=ip, bk_biz_id=bk_biz_id).exists() else False}
         )
 
     @action(methods=["GET"], detail=False)
@@ -273,14 +272,13 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         bk_biz_id = request.GET.get("bk_biz_id")
         id = request.GET.get("id")
 
-        is_exists = (
-            UptimeCheckNode.objects.filter(name=name, bk_biz_id=bk_biz_id).exclude(id=id).exists()
-            if id
-            else UptimeCheckNode.objects.filter(name=name, bk_biz_id=bk_biz_id).exists()
-        )
+        queryset = self.get_queryset().filter(name=name, bk_biz_id=bk_biz_id)
+        if id:
+            queryset = queryset.exclude(id=id)
+        is_exists = queryset.exists()
 
         if is_exists:
-            all_names = UptimeCheckNode.objects.filter(name__startswith=name, bk_biz_id=bk_biz_id).values("name")
+            all_names = self.get_queryset().filter(name__startswith=name, bk_biz_id=bk_biz_id).values("name")
             num_suffix_list = []
             for item in all_names:
                 num_suffix_list.append(safe_int(item["name"].strip(name)))
