@@ -242,6 +242,7 @@
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
       line-height: 20px;
+      white-space: pre-wrap;
 
       span {
         width: max-content;
@@ -316,6 +317,7 @@
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
       line-height: 20px;
+      white-space: pre-wrap;
 
       mark {
         &.valid-text {

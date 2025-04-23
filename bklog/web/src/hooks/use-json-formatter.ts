@@ -71,32 +71,40 @@ export default class UseJsonFormatter {
     return this.config.fields.find(item => item.field_name === fieldName);
   }
 
-  getFieldValue() {
+  getFieldNameValue() {
     const tippyInstance = segmentPopInstance.getInstance();
     const target = tippyInstance.reference;
-    if (target.hasAttribute('data-field-value')) {
-      return target.getAttribute('data-field-value');
+    let name = target.getAttribute('data-field-name');
+    let value = target.getAttribute('data-field-value');
+    let depth = target.getAttribute('data-field-dpth');
+
+    if (value === undefined) {
+      value = target.textContent;
     }
 
-    return target.textContent;
+    if (name === undefined) {
+      const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
+      name = valueElement?.getAttribute('data-field-name');
+    }
+
+    if (depth === undefined) {
+      depth = target.closest('[data-depth]')?.getAttribute('data-depth');
+    }
+
+    return { value, name, depth };
   }
 
   onSegmentEnumClick(val, isLink) {
-    const tippyInstance = segmentPopInstance.getInstance();
-    const currentValue = this.getFieldValue();
-    const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
-    const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
-
-    const fieldName = valueElement?.getAttribute('data-field-name');
-    const activeField = this.getField(fieldName);
+    const { name, value, depth } = this.getFieldNameValue();
+    const activeField = this.getField(name);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
-      : currentValue;
+      : value;
 
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: target ?? currentValue,
+      value: target ?? value,
       depth,
     };
 
@@ -117,7 +125,14 @@ export default class UseJsonFormatter {
 
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
+
+    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const fieldName = valueElement?.getAttribute('data-field-name');
+    const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
+
     target.setAttribute('data-field-value', value);
+    target.setAttribute('data-field-name', fieldName);
+    target.setAttribute('data-field-dpth', depth);
 
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
