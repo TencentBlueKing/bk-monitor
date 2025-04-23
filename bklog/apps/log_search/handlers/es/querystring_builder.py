@@ -44,8 +44,7 @@ class QueryStringBuilder(object):
 
             # 全文检索的情况
             if condition["field"] in ["*", "__query_string__"]:
-                field_operator = condition["operator"]
-                if condition["field"] == "*" and "prefix" in field_operator:
+                if condition["field"] == "*" and "prefix" in condition["operator"]:
                     continue
                 transform_result_list = []
                 for value in condition["value"]:

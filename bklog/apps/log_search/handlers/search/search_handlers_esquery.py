@@ -359,8 +359,7 @@ class SearchHandler(object):
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
-                field_operator = item["operator"]
-                if field == "*" and "prefix" in field_operator:
+                if field == "*" and "prefix" in item["operator"]:
                     continue
                 value = item.get("value", [])
                 value_list = value if isinstance(value, list) else value.split(",")
@@ -1961,8 +1960,7 @@ class SearchHandler(object):
             # 全文检索key & 存量query_string转换
             if field == "__query_string__":
                 continue
-            field_operator = item["operator"]
-            if field == "*" and "prefix" not in field_operator:
+            if field == "*" and "prefix" not in item["operator"]:
                 continue
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
