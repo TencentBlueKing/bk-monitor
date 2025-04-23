@@ -26,11 +26,11 @@
 
 import { defineComponent, shallowRef, computed, useTemplateRef, watch, triggerRef } from 'vue';
 
-import { promiseTimeout } from '@vueuse/core';
+import { promiseTimeout, onClickOutside } from '@vueuse/core';
 
 import AutoWidthInput from './auto-width-input';
-import { type IValue, VALUE_TAG_SELECTOR_EMITS, VALUE_TAG_SELECTOR_PROPS } from './typing';
-import { isNumeric, onClickOutside } from './utils';
+import { EFieldType, type IValue, VALUE_TAG_SELECTOR_EMITS, VALUE_TAG_SELECTOR_PROPS } from './typing';
+import { isNumeric } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -41,7 +41,7 @@ export default defineComponent({
   props: VALUE_TAG_SELECTOR_PROPS,
   emits: VALUE_TAG_SELECTOR_EMITS,
   setup(props, { emit }) {
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
 
     const localValue = shallowRef<IValue[]>([]);
     const isShowDropDown = shallowRef(false);
@@ -50,7 +50,7 @@ export default defineComponent({
     const isFocus = shallowRef(false);
     const isChecked = shallowRef(false);
 
-    const isTypeInteger = computed(() => (isTypeInteger.value ? localValue.value.some(v => !isNumeric(v)) : false));
+    const isTypeInteger = computed(() => [EFieldType.integer, EFieldType.long].includes(props.fieldInfo?.type));
 
     init();
     watch(
@@ -86,13 +86,14 @@ export default defineComponent({
       if (isShowDropDown.value) {
         setTimeout(() => {
           onClickOutside(
-            $el.value,
+            elRef.value,
             () => {
+              console.log('aaaaa');
               isShowDropDown.value = false;
               isFocus.value = false;
               handleSelectorBlur();
             },
-            { once: true }
+            { controls: true }
           );
         }, 100);
       }
@@ -263,7 +264,7 @@ export default defineComponent({
         class='mb-4 mr-4'
         fontSize={12}
         isFocus={this.isFocus}
-        placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
+        placeholder={this.placeholder || `${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
         value={this.inputValue}
         onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}

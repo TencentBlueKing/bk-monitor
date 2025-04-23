@@ -182,7 +182,6 @@ export function defaultWhereItem(params = {}): IWhereItem {
 }
 
 export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
-export const DURATION_FIELD_KEY = 'duration';
 
 export const traceWhereFormatter = (where: IWhereItem[]) => {
   return where.map(item => ({
@@ -192,3 +191,7 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
     condition: ECondition.and,
   })) as IWhereItem[];
 };
+
+export const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
+export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = ['trace_duration', 'resource.service.name', 'span_name'];
+export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['elapsed_time', 'resource.service.name', 'span_name'];

@@ -60,25 +60,6 @@
         }
       }
 
-      .method-list-wrap {
-        z-index: 4;
-        min-width: 120px;
-
-        .method-list-wrap-item {
-          display: flex;
-          align-items: center;
-          height: 32px;
-          padding: 0 16px;
-          font-size: 12px;
-          color: #4d4f56;
-          cursor: pointer;
-
-          &.active,
-          &:hover {
-            background: #f5f7fa;
-          }
-        }
-      }
     }
 
     .value-wrap {
@@ -228,6 +209,26 @@
       .bk-exception-img {
         height: 30px;
       }
+    }
+  }
+}
+
+.vue3_resident-setting__setting-kv-selector-component_method-list-wrap {
+  z-index: 4;
+  min-width: 120px;
+
+  .method-list-wrap-item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 16px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &.active,
+    &:hover {
+      background: #f5f7fa;
     }
   }
 }

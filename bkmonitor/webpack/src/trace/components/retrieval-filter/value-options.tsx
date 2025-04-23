@@ -40,7 +40,7 @@ export default defineComponent({
   props: VALUE_OPTIONS_PROPS,
   emits: VALUE_OPTIONS_EMITS,
   setup(props, { emit }) {
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
 
     const localOptions = shallowRef<IValue[]>([]);
     const loading = shallowRef(false);
@@ -160,7 +160,7 @@ export default defineComponent({
     function updateSelection() {
       emit('isChecked', hoverActiveIndex.value >= 0 && hoverActiveIndex.value <= localOptions.value.length - 1);
       nextTick(() => {
-        const listEl = $el.value.querySelector('.options-drop-down-wrap.main__wrap');
+        const listEl = elRef.value.querySelector('.options-drop-down-wrap.main__wrap');
         const el = hasCustomOption.value
           ? listEl?.children?.[hoverActiveIndex.value + 1]
           : listEl?.children?.[hoverActiveIndex.value];

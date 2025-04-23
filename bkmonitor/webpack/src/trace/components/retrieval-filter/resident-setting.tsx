@@ -41,7 +41,7 @@ import {
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
 } from './typing';
-import { defaultWhereItem, DURATION_FIELD_KEY } from './utils';
+import { defaultWhereItem, DURATION_KEYS } from './utils';
 
 import './resident-setting.scss';
 
@@ -57,7 +57,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
     const popoverInstance = shallowRef(null);
     const localValue = shallowRef<IResidentSetting[]>([]);
@@ -94,7 +94,7 @@ export default defineComponent({
             }
           }
         } else {
-          for (const key of defaultConfig) {
+          for (const key of defaultConfig.length ? defaultConfig : props.defaultResidentSetting) {
             if (fieldNameMap.value[key]) {
               fields.push({
                 field: fieldNameMap.value[key],
@@ -149,7 +149,7 @@ export default defineComponent({
     function handleShowSettingTransfer(event: MouseEvent) {
       event.stopPropagation();
       handleShowSelect({
-        target: $el.value,
+        target: elRef.value,
       } as any);
     }
     function handleCancel() {
@@ -227,6 +227,7 @@ export default defineComponent({
       localValue,
       showTransfer,
       popoverInstance,
+      fieldNameMap,
       handleShowSettingTransfer,
       getFieldInfo,
       getValueFnProxy,
@@ -251,7 +252,7 @@ export default defineComponent({
         <div class='right-content'>
           {this.localValue.length ? (
             this.localValue.map((item, index) =>
-              item.field.name === DURATION_FIELD_KEY ? (
+              DURATION_KEYS.includes(item.field.name) ? (
                 <TimeConsuming
                   key={index}
                   class='mb-4 mr-4'

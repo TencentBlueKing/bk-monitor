@@ -33,7 +33,11 @@ import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { ECondition, EMode, type IWhereItem, type IGetValueFnParams } from '../../components/retrieval-filter/typing';
-import { mergeWhereList } from '../../components/retrieval-filter/utils';
+import {
+  mergeWhereList,
+  SPAN_DEFAULT_RESIDENT_SETTING_KEY,
+  TRACE_DEFAULT_RESIDENT_SETTING_KEY,
+} from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
@@ -90,6 +94,9 @@ export default defineComponent({
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
       return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
     });
+    const defaultResidentSetting = computed(() => {
+      return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
+    });
 
     watch(
       [
@@ -100,10 +107,11 @@ export default defineComponent({
         () => store.refreshInterval,
       ],
       async (val, oldVal) => {
+        loading.value = true;
         if (val[0] !== oldVal[0]) {
-          console.log('xxx');
           await getViewConfig();
         }
+        loading.value = false;
         handleQuery();
       }
     );
@@ -302,6 +310,7 @@ export default defineComponent({
       commonWhere,
       showResidentBtn,
       filterMode,
+      defaultResidentSetting,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -333,6 +342,7 @@ export default defineComponent({
             ) : (
               <RetrievalFilter
                 commonWhere={this.commonWhere}
+                defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
                 fields={this.fieldList}
                 filterMode={this.filterMode}
