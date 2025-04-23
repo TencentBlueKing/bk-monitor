@@ -1056,10 +1056,9 @@ export default defineComponent({
             filterIcon: () => <Funnel />,
             sortIcon: () => <AngleUpFill />,
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
-            // filterRow: () => <div>筛选行插槽</div>,
             lastFullRow: () => (
               <Loading
-                style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
+                style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
                 class='scroll-end-loading'
                 loading={true}
                 mode='spin'
@@ -1072,11 +1071,10 @@ export default defineComponent({
           columns={[
             ...this.tableDisplayColumns.map(column => {
               return {
+                ...this.defaultTableConfig,
                 ...column,
                 width: column.minWidth,
                 minWidth: undefined,
-                ellipsis: false,
-                resizable: true,
                 filter: column?.filter
                   ? {
                       ...this.defaultTableConfig.filter,

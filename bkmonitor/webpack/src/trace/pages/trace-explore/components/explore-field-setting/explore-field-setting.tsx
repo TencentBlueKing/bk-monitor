@@ -32,6 +32,7 @@ import {
   watch,
   TransitionGroup,
   onBeforeMount,
+  nextTick,
 } from 'vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -150,7 +151,9 @@ export default defineComponent({
           return prev;
         }, {});
         selectedList.value = props.targetList.filter(v => sourceListMap.value[v]);
-        addDragListener();
+        nextTick(() => {
+          addDragListener();
+        });
       }
     );
 

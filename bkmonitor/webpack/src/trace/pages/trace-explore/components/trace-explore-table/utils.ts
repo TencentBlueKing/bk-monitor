@@ -30,9 +30,14 @@ import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typi
 
 export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
+    resizable: true,
+    ellipsis: false,
+    ellipsisTitle: {
+      destroyOnClose: true,
+      placement: 'top',
+    },
     align: 'left',
     emptyPlaceholder: '--',
-    settingWidth: 32,
     filter: {
       showConfirmAndReset: true,
       listFilterConfig: true,
