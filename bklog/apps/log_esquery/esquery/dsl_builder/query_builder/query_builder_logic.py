@@ -235,6 +235,8 @@ class EsQueryBuilder(object):
 
     @classmethod
     def build_match_phrase_query(cls, field: str, value: Any) -> type_match_phrase_query:
+        if field == "*":
+            return {"multi_match": {"query": value, "type": "phrase", "fields": ["*", "__*"], "lenient": True}}
         return {"match_phrase": {field: {"query": value}}}
 
     @classmethod
@@ -317,6 +319,8 @@ class BoolQueryOperation(ABC):
         transform_result = f" {condition_type} ".join([str(v) for v in value_list])
         # 有两个以上的值时加括号
         transform_result = transform_result if len(value_list) == 1 else f"({transform_result})"
+        if field_name == "*":
+            return transform_result
         return f"{field_name}: {transform_result}"
 
     @staticmethod
