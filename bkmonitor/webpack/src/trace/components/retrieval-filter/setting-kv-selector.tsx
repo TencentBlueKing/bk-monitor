@@ -34,6 +34,7 @@ import {
   nextTick,
   triggerRef,
 } from 'vue';
+import { onMounted } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { $bkPopover, Dropdown } from 'bkui-vue';
@@ -52,7 +53,7 @@ export default defineComponent({
   emits: SETTING_KV_SELECTOR_EMITS,
   setup(props, { emit }) {
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
     const localValue = shallowRef<string[]>([]);
     const localMethod = shallowRef('');
     const expand = shallowRef(false);
@@ -74,6 +75,17 @@ export default defineComponent({
     const isHighLight = computed(() => !!inputValue.value || showSelector.value || expand.value);
 
     init();
+    onMounted(() => {
+      overviewCount();
+      const valueWrap = elRef.value?.querySelector('.component-main > .value-wrap') as any;
+      if (valueWrap) {
+        useResizeObserver(valueWrap, entries => {
+          const entry = entries[0];
+          const { width } = entry.contentRect;
+          optionsWidth.value = width;
+        });
+      }
+    });
     onBeforeUnmount(() => {
       clickOutsideFn();
     });
@@ -108,21 +120,12 @@ export default defineComponent({
       for (const item of props.fieldInfo?.methods || []) {
         methodMap.value[item.id] = item.name;
       }
-      overviewCount();
-      const valueWrap = $el.value?.querySelector('.component-main > .value-wrap') as any;
-      if (valueWrap) {
-        useResizeObserver(valueWrap, entries => {
-          const entry = entries[0];
-          const { width } = entry.contentRect;
-          optionsWidth.value = width;
-        });
-      }
     }
 
     function overviewCount() {
       let hasHide = false;
       nextTick(() => {
-        const valueWrap = $el.value?.querySelector('.component-main > .value-wrap') as any;
+        const valueWrap = elRef.value?.querySelector('.component-main > .value-wrap') as any;
         let i = -1;
         if (!valueWrap) {
           return;
@@ -153,7 +156,7 @@ export default defineComponent({
         isFocus.value = true;
       }
       const targetEvent = {
-        target: $el.value.querySelector('.component-main > .value-wrap'),
+        target: elRef.value.querySelector('.component-main > .value-wrap'),
       };
       handleShowSelect(targetEvent as any);
     }
@@ -169,20 +172,21 @@ export default defineComponent({
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
-        arrow: true,
+        arrow: false,
         boundary: 'window',
         zIndex: 998,
         padding: 0,
-        offset: 10,
+        offset: 4,
         onHide: () => {
           destroyPopoverInstance();
         },
       });
       popoverInstance.value.install();
-      await nextTick();
-      popoverInstance.value?.vm?.show();
-      showSelector.value = true;
-      handleOnClickOutside();
+      setTimeout(() => {
+        popoverInstance.value?.vm?.show();
+        showSelector.value = true;
+        handleOnClickOutside();
+      }, 100);
     }
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
@@ -193,7 +197,7 @@ export default defineComponent({
     function handleOnClickOutside() {
       const el = document.querySelector('.resident-setting__setting-kv-selector-component-pop');
       clickOutsideFn = onClickOutside(
-        [$el, el],
+        [elRef, el],
         () => {
           expand.value = false;
           inputValue.value = '';
@@ -326,7 +330,12 @@ export default defineComponent({
             {this.fieldInfo?.alias || this.value?.key}
           </span>
           <span class='method-wrap'>
-            <Dropdown trigger='click'>
+            <Dropdown
+              popoverOptions={{
+                clickContentAutoHide: true,
+              }}
+              trigger='click'
+            >
               {{
                 default: () => (
                   <span class={['method-span', { 'red-text': OPTIONS_METHODS.includes(this.localMethod as any) }]}>
@@ -334,7 +343,7 @@ export default defineComponent({
                   </span>
                 ),
                 content: () => (
-                  <ul class='method-list-wrap'>
+                  <ul class='vue3_resident-setting__setting-kv-selector-component_method-list-wrap'>
                     {this.fieldInfo.methods.map(item => (
                       <li
                         key={item.id}

@@ -35,6 +35,7 @@ export enum EFieldType {
   date = 'date',
   integer = 'integer',
   keyword = 'keyword',
+  long = 'long',
   text = 'text',
 }
 
@@ -279,6 +280,14 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  isTraceRetrieval: {
+    type: Boolean,
+    default: true,
+  },
+  defaultResidentSetting: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -357,6 +366,10 @@ export const VALUE_TAG_SELECTOR_PROPS = {
   autoFocus: {
     type: Boolean,
     default: false,
+  },
+  placeholder: {
+    type: String,
+    default: '',
   },
   getValueFn: {
     type: Function as PropType<TGetValueFn>,
@@ -626,6 +639,10 @@ export const RESIDENT_SETTING_PROPS = {
   isDefaultSetting: {
     type: Boolean,
     default: true,
+  },
+  defaultResidentSetting: {
+    type: Array as PropType<string[]>,
+    default: () => [],
   },
 };
 export const RESIDENT_SETTING_EMITS = {

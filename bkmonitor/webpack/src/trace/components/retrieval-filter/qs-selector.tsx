@@ -43,7 +43,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const selectRef = useTemplateRef<HTMLDivElement>('select');
     const elRef = useTemplateRef<HTMLDivElement>('el');
-    const $el = useTemplateRef<HTMLDivElement>('$el');
+    const elBRef = useTemplateRef<HTMLDivElement>('elB');
 
     const localValue = shallowRef('');
     const popoverInstance = shallowRef(null);
@@ -93,7 +93,7 @@ export default defineComponent({
         if (queryStringEditor.value) {
           queryStringEditor.value.setQueryString(localValue.value);
         } else {
-          const el = $el.value.querySelector('.retrieval-filter__qs-selector-component');
+          const el = elRef.value.querySelector('.retrieval-filter__qs-selector-component');
           queryStringEditor.value = new QueryStringEditor({
             target: el,
             value: localValue.value,
@@ -142,7 +142,7 @@ export default defineComponent({
       popoverInstance.value?.vm?.show();
       showSelector.value = true;
       onClickOutsideFn = onClickOutside(
-        [$el.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
+        [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
         () => {
           destroyPopoverInstance();
         },
@@ -170,7 +170,7 @@ export default defineComponent({
       curTokenType.value = type;
       curTokenField.value = fieldStr;
       const customEvent = {
-        target: elRef.value,
+        target: elBRef.value,
       };
       if (popoverInstance.value) {
         popoverInstance.value?.vm?.show();
@@ -259,7 +259,7 @@ export default defineComponent({
   render() {
     return (
       <div
-        ref='$el'
+        ref='elRef'
         class='vue3_retrieval-filter__qs-selector-component-wrap'
         data-placeholder={
           !this.inputValue && !this.localValue
@@ -269,7 +269,7 @@ export default defineComponent({
       >
         <div class='retrieval-filter__qs-selector-component' />
         <div
-          ref='el'
+          ref='elB'
           class='__bottom__'
         />
 

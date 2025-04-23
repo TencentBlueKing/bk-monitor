@@ -53,7 +53,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
 
     const showSelector = shallowRef(false);
@@ -214,7 +214,7 @@ export default defineComponent({
       event?.stopPropagation();
       updateActive.value = -1;
       inputFocus.value = true;
-      const el = $el.value.querySelector('.kv-placeholder');
+      const el = elRef.value.querySelector('.kv-placeholder');
       const customEvent = {
         ...event,
         target: el,

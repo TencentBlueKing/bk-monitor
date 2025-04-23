@@ -54,7 +54,7 @@ export default defineComponent({
   emits: UI_SELECTOR_OPTIONS_EMITS,
   setup(props, { emit }) {
     const { t } = useI18n();
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
     const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
@@ -80,13 +80,17 @@ export default defineComponent({
       return {
         field: checkedItem.value?.name,
         alias: checkedItem.value?.alias,
-        isEnableOptions: !!checkedItem.value?.is_option_enabled,
+        isEnableOptions: !!checkedItem.value?.is_option_enabled || !!checkedItem.value?.is_dimensions,
         methods: checkedItem.value.supported_operations.map(item => ({
           id: item.value,
           name: item.alias,
+          placeholder: item?.placeholder || '',
         })),
         type: checkedItem.value?.type,
       };
+    });
+    const placeholderStr = computed(() => {
+      return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -263,7 +267,7 @@ export default defineComponent({
     }
     function updateSelection() {
       nextTick(() => {
-        const listEl = $el.value.querySelector('.component-top-left .options-wrap');
+        const listEl = elRef.value.querySelector('.component-top-left .options-wrap');
         const el = listEl?.children?.[cursorIndex.value];
         if (el) {
           el.scrollIntoView(false);
@@ -350,6 +354,7 @@ export default defineComponent({
       searchLocalFields,
       cursorIndex,
       isMacSystem,
+      placeholderStr,
       getValueFnProxy,
       handleValueChange,
       handleValueSelectorBlur,
@@ -431,6 +436,7 @@ export default defineComponent({
                   ref='valueSelector'
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
+                  placeholder={''}
                   value={this.values}
                   autoFocus
                   onChange={this.handleValueChange}

@@ -54,7 +54,7 @@ export default defineComponent({
   props: QS_SELECTOR_OPTIONS_PROPS,
   emits: QS_SELECTOR_OPTIONS_EMITS,
   setup(props, { emit }) {
-    const $el = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('el');
     const optionsRef = useTemplateRef<HTMLDivElement>('options');
 
     const localOptions = shallowRef<IOptions[]>([]);
@@ -228,7 +228,7 @@ export default defineComponent({
       emit('select', str);
     }
     function updateSelection() {
-      const listEl = $el.value.querySelector('.wrap-left .options-wrap');
+      const listEl = elRef.value.querySelector('.wrap-left .options-wrap');
       const el = listEl?.children?.[cursorIndex.value] as HTMLDivElement;
       el?.focus();
     }

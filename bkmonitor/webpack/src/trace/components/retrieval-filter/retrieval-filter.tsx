@@ -48,7 +48,7 @@ import {
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { DURATION_FIELD_KEY, getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
+import { getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
 
 import './retrieval-filter.scss';
 
@@ -57,7 +57,7 @@ export default defineComponent({
   props: RETRIEVAL_FILTER_PROPS,
   emits: RETRIEVAL_FILTER_EMITS,
   setup(props, { emit }) {
-    const $el = useTemplateRef('el');
+    const elRef = useTemplateRef('el');
     const { t } = useI18n();
 
     const showResidentSetting = shallowRef(false);
@@ -80,19 +80,6 @@ export default defineComponent({
           })) || [],
       })) as IFilterField[];
     });
-    const residentSettingFields = computed(() => {
-      return [
-        {
-          name: DURATION_FIELD_KEY,
-          alias: t('耗时'),
-          type: 'integer',
-          is_dimensions: true,
-          can_displayed: true,
-          is_default_filter: true,
-        },
-        ...localFields.value,
-      ] as IFilterField[];
-    });
     const curFavoriteId = computed(() => props.selectFavorite?.config?.queryConfig?.result_table_id);
     const isDefaultResidentSetting = computed(() => {
       if (curFavoriteId.value === props.dataId) {
@@ -101,9 +88,13 @@ export default defineComponent({
       return true;
     });
     const residentSettingValue = computed(() => {
-      if (isDefaultResidentSetting.value) return props.commonWhere;
+      if (isDefaultResidentSetting.value) {
+        return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+      }
       /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
-      return props.selectFavorite?.config?.queryConfig?.commonWhere || [];
+      return props.isTraceRetrieval
+        ? traceWhereFormatter(props.selectFavorite?.config?.queryConfig?.commonWhere || [])
+        : props.selectFavorite?.config?.queryConfig?.commonWhere || [];
     });
 
     init();
@@ -112,7 +103,7 @@ export default defineComponent({
       () => props.where,
       val => {
         const traceWhere = traceWhereFormatter(val);
-        handleWatchValueFn(traceWhere);
+        handleWatchValueFn(props.isTraceRetrieval ? traceWhere : val);
       },
       {
         immediate: true,
@@ -153,7 +144,7 @@ export default defineComponent({
     function init() {
       const uiValue = getCacheUIData();
       setCacheUIData(uiValue.filter(item => !item?.hide));
-      useResizeObserver($el as any, entries => {
+      useResizeObserver(elRef as any, entries => {
         const entry = entries[0];
         const contentEl = entry.target.querySelector('.retrieval-filter__component-main > .filter-content');
         const rightEl = entry.target.querySelector('.retrieval-filter__component-main > .component-right');
@@ -228,7 +219,12 @@ export default defineComponent({
      * @param value
      */
     function handleCommonWhereChange(value: IWhereItem[]) {
-      emit('commonWhereChange', value);
+      const traceWhere = value.map(item => ({
+        key: item.key,
+        operator: item.method,
+        value: item.value,
+      }));
+      emit('commonWhereChange', props.isTraceRetrieval ? traceWhere : value);
     }
 
     function handleChange() {
@@ -252,7 +248,7 @@ export default defineComponent({
         operator: item.method,
         value: item.value,
       }));
-      emit('whereChange', traceWhere);
+      emit('whereChange', props.isTraceRetrieval ? traceWhere : where);
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
@@ -420,7 +416,6 @@ export default defineComponent({
       qsSelectorOptionsWidth,
       isDefaultResidentSetting,
       localFields,
-      residentSettingFields,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -579,7 +574,8 @@ export default defineComponent({
         </div>
         {this.showResidentSetting && (
           <ResidentSetting
-            fields={this.residentSettingFields}
+            defaultResidentSetting={this.defaultResidentSetting}
+            fields={this.localFields}
             getValueFn={this.getValueFn}
             isDefaultSetting={this.isDefaultResidentSetting}
             residentSettingOnlyId={this.residentSettingOnlyId}
