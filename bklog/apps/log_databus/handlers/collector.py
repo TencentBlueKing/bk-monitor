@@ -1313,8 +1313,8 @@ class CollectorHandler(object):
         if action:
             params.update({"actions": {collector_scenario.PLUGIN_NAME: action}})
 
-        # 无nodes时，节点管理默认对全部已配置的nodes进行操作
-        # 有scope时，对指定nodes进行操作
+        # 无scope.nodes时，节点管理默认对全部已配置的scope.nodes进行操作
+        # 有scope.nodes时，对指定scope.nodes进行操作
         if scope:
             params["scope"] = scope
             params["scope"]["bk_biz_id"] = self.data.bk_biz_id
