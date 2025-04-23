@@ -382,6 +382,7 @@ export default class MonitorEcharts extends Vue {
     immediateQuery?: boolean
   ) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @Inject({ from: 'csvFileValDbQuotes', default: false }) readonly csvFileValDbQuotes: boolean;
   // chart: Echarts.ECharts = null
   resizeHandler: ResizeCallback<HTMLDivElement>;
   unwatchOptions: () => void;
@@ -1170,7 +1171,12 @@ export default class MonitorEcharts extends Vue {
     if (!!this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
-      csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
+      // value是否需要添加双引号
+      if (this.csvFileValDbQuotes) {
+        csvList.push(keys.map(key => key.replace(/=([^,}]+)/g, (match, p1) => `="${p1}_"`)).join(','));
+      } else {
+        csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
+      }
       this.tableData.forEach(item => {
         const list = [];
         keys.forEach(key => {
