@@ -252,7 +252,6 @@ class QueryHelper:
         logger.info("[QueryHelper] table_id -> %s query_body -> %s", table_id, query_body)
 
         data_sources: List[DataSource] = []
-        bk_biz_id: int = query_body["bk_biz_id"]
         for query_config in query_body["query_configs"]:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
@@ -261,14 +260,13 @@ class QueryHelper:
             data_sources.append(data_source)
 
         unify_query: UnifyQuery = UnifyQuery(
-            bk_biz_id=bk_biz_id,
+            bk_biz_id=query_body["bk_biz_id"],
             data_sources=data_sources,
             expression=query_body["expression"],
             functions=query_body["functions"],
         )
 
-        query_func: QueryFuncT = cls._get_query_func(query_body)
-        return query_func(unify_query, query_body)
+        return cls._get_query_func(query_body)(unify_query, query_body)
 
 
 class UnifyQueryCompiler(SQLCompiler):
