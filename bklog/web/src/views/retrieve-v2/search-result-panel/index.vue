@@ -5,10 +5,13 @@
 
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
+  import { throttle } from 'lodash';
+
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
+  // #endif
 
   // #else
   // #code const SearchResultChart = defineComponent(() => h('div'));
@@ -39,11 +42,12 @@
   const totalCount = ref(0);
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
-  const isShowFieldStatistics = ref(true);
-  const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
 
-  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
+  const fieldFilterWidth = computed(() => store.state.storage.fieldSetting.width);
+  const isShowFieldStatistics = computed(() => store.state.storage.fieldSetting.show);
+
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
   const changeTotalCount = count => {
     totalCount.value = count;
@@ -60,17 +64,28 @@
 
   const handleFieldsShowChange = status => {
     if (status) {
-      fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
-      RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
+      RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
     }
-    isShowFieldStatistics.value = status;
-    RetrieveHelper.setLeftFieldIsShown(status);
+    RetrieveHelper.setLeftFieldIsShown(!!status);
+    store.commit('updateStorage', {
+      fieldSetting: {
+        show: !!status,
+        width: DEFAULT_FIELDS_WIDTH,
+      },
+    });
   };
 
-  const handleFilterWidthChange = width => {
-    fieldFilterWidth.value = width;
-    RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
-  };
+  const handleFilterWidthChange = throttle(width => {
+    if (width !== fieldFilterWidth.value) {
+      RetrieveHelper.setLeftFieldSettingWidth(width);
+      store.commit('updateStorage', {
+        fieldSetting: {
+          show: true,
+          width,
+        },
+      });
+    }
+  });
 
   const handleUpdateActiveTab = active => {
     emit('update:active-tab', active);
@@ -101,12 +116,12 @@
     <template v-else>
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
-          v-model="isShowFieldStatistics"
+          :value="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
             maxWidth: 500,
-            defaultWidth: DEFAULT_FIELDS_WIDTH,
+            defaultWidth: fieldFilterWidth,
             autoHidden: false,
             theme: 'dotted',
             placement: 'left',
@@ -115,6 +130,7 @@
             onWidthChange: handleFilterWidthChange,
           }"
           v-show="isOriginShow"
+          :width="fieldFilterWidth"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>

@@ -399,7 +399,20 @@
       },
       // 显示或隐藏字段
       handleShowOrHiddenItem(visible, field) {
-        this.$store.dispatch('toggleFieldVisible', { visible, field });
+        const displayFields = [];
+        this.visibleFields.forEach(child => {
+          if (field.field_name !== child.field_name) {
+            displayFields.push(child.field_name);
+          }
+        });
+
+        if (visible) {
+          displayFields.push(field.field_name);
+        }
+        this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
+          this.$store.commit('resetVisibleFields', displayFields);
+          this.$store.commit('updateIsSetDefaultTableColumn');
+        });
       },
     },
   };
