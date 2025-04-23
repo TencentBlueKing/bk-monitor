@@ -56,7 +56,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-  ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
+  ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
   operateDesc = null;
   showReason = false;
   get bizList() {
@@ -123,10 +123,16 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     );
   }
 
-  handleToPerformance(item) {
+  handleGoToLink(item) {
     if (this.ipMap.includes(item.key)) {
       if (item.key === 'bk_host_id') {
         toPerformanceDetail(this.basicInfo.bk_biz_id, item.value);
+      } else if (item.key === 'tags.bcs_cluster_id') {
+        const url =
+          item.project_name && item.value
+            ? `${window.bk_bcs_url}bcs/projects/${item.project_name}/clusters?clusterId=${item.value}&active=info`
+            : '';
+        url && window.open(url, '_blank');
       } else {
         const cloudId = this.basicInfo.dimensions.find(item => this.cloudIdMap.includes(item.key)).value;
         toPerformanceDetail(this.basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
@@ -169,7 +175,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto',
             }}
             class='dimensions-item'
-            onClick={() => !this.readonly && this.handleToPerformance(item)}
+            onClick={() => !this.readonly && this.handleGoToLink(item)}
           >
             <span class='name'>{item.display_key}</span>
             <span class='eq'>=</span>
