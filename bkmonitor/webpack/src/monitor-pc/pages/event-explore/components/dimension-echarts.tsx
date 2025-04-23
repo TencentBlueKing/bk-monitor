@@ -154,7 +154,7 @@ class DimensionEcharts extends Mixins<ResizeMixin>(ResizeMixin) {
       },
     }));
     const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
-    const formatterFunc = this.handleSetFormatterFunc(series[0]?.data);
+    const formatterFunc = this.handleSetFormatterFunc(series[0]?.data || []);
     return deepmerge(
       deepClone(MONITOR_LINE_OPTIONS),
       {
