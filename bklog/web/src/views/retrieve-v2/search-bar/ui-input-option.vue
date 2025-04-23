@@ -541,8 +541,17 @@
 
   const currentEditTagIndex = ref(null);
 
+  const handleConditonValueTagItemClick = () => {
+    isConditionValueInputFocus.value = true;
+
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
+  };
+
   const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
 
     currentEditTagIndex.value = tagIndex;
     setTimeout(() => {
@@ -555,7 +564,8 @@
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     conditionBlurTimer = null;
 
-    if (!e) {
+    // tag-item-input edit-input
+    if (!e || e.target.classList.contains('edit-input')) {
       return;
     }
 
@@ -573,8 +583,15 @@
       }
     }
   };
+
+  let tagInputTimer = null;
+
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';
+
+    tagInputTimer = setTimeout(() => {
+      isConditionValueInputFocus.value = false;
+    }, 300);
   };
 
   const handleTagInputEnter = () => {
@@ -644,6 +661,9 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
+
     // handleConditionValueClick(e);
   };
 
@@ -1232,9 +1252,10 @@
                 >
                   <template v-if="currentEditTagIndex === index">
                     <textarea
-                      class="tag-item-input"
+                      class="tag-item-input edit-input"
                       v-model="condition.value[index]"
                       type="text"
+                      @focus.stop="handleConditionValueInputFocus"
                       @blur.stop="handleTagInputBlur"
                       @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
@@ -1243,6 +1264,7 @@
                   <template>
                     <span
                       class="tag-item-text"
+                      @click.stop="handleConditonValueTagItemClick"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
