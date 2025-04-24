@@ -333,6 +333,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("KAFKA_TAIL_API_TIMEOUT_SECONDS", slz.IntegerField(label="Kafka采样接口Consumer超时时间(秒)", default=1000)),
         ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
         ("BKBASE_REDIS_PATTERN", slz.CharField(label="计算平台Redis监听模式", default="databus_v4_dataid")),
+        ("BKBASE_REDIS_SCAN_COUNT", slz.IntegerField(label="计算平台Redis单次SCAN数量", default=1000)),
         ("BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS", slz.IntegerField(label="Redis Watch锁续约间隔(秒)", default=15)),
         ("BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS", slz.IntegerField(label="Redis Watch锁过期时间(秒)", default=60)),
         ("BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS", slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400)),
