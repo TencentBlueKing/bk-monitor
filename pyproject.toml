@@ -50,3 +50,5 @@ exclude = [
     "__pypackages__",
     "__pycache__",
 ]
+[tool.ruff.lint.extend-per-file-ignores]
+"bkmonitor/config/**" = ["F405"]
