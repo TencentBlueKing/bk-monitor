@@ -23,6 +23,7 @@ the project delivered to anyone in the future.
 """
 MONITOR 模块，调用接口汇总
 """
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
@@ -34,17 +35,11 @@ class _MonitorApi(object):
     MODULE = _("Monitor监控平台")
 
     def __init__(self):
-        self.save_alarm_strategy = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "save_alarm_strategy/",
-            module=self.MODULE,
-            description="保存告警策略",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
+        self.base_url = MONITOR_APIGATEWAY_ROOT_NEW if settings.NEW_MONITOR_APIGATEWAY_ROOT else MONITOR_APIGATEWAY_ROOT
+
         self.search_user_groups = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "search_user_groups/",
+            url=self._build_url("app/user_group/search/", "search_user_groups/"),
             module=self.MODULE,
             description="查询通知组",
             default_return_value=None,
@@ -52,39 +47,15 @@ class _MonitorApi(object):
         )
         self.save_notice_group = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "save_notice_group/",
+            url=self._build_url("app/user_group/save/", "save_notice_group/"),
             module=self.MODULE,
             description="保存通知组",
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
-        self.save_alarm_strategy_v2 = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "save_alarm_strategy_v2/",
-            module=self.MODULE,
-            description="保存告警策略V2",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
-        self.search_alarm_strategy_v2 = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "search_alarm_strategy_v2/",
-            module=self.MODULE,
-            description="查询告警策略V2",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
-        self.delete_alarm_strategy_v2 = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "delete_alarm_strategy_v2/",
-            module=self.MODULE,
-            description="删除告警策略V2",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
         self.delete_alarm_strategy_v3 = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "delete_alarm_strategy_v3/",
+            url=self._build_url("app/alarm_strategy/delete/", "delete_alarm_strategy_v3/"),
             module=self.MODULE,
             description="删除告警策略V3",
             default_return_value=None,
@@ -92,7 +63,7 @@ class _MonitorApi(object):
         )
         self.search_alarm_strategy_v3 = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "search_alarm_strategy_v3",
+            url=self._build_url("app/alarm_strategy/search/", "search_alarm_strategy_v3"),
             module=self.MODULE,
             description="查询告警策略V3",
             default_return_value=None,
@@ -100,7 +71,7 @@ class _MonitorApi(object):
         )
         self.save_alarm_strategy_v3 = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "save_alarm_strategy_v3/",
+            url=self._build_url("app/alarm_strategy/save/", "save_alarm_strategy_v3/"),
             module=self.MODULE,
             description="保存告警策略V3",
             default_return_value=None,
@@ -108,7 +79,7 @@ class _MonitorApi(object):
         )
         self.query_log_relation = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "query_log_relation",
+            url=self._build_url("app/apm/query_log_relation/", "query_log_relation"),
             module=self.MODULE,
             description="根据索引集id获取服务关联",
             default_return_value=None,
@@ -116,7 +87,7 @@ class _MonitorApi(object):
         )
         self.create_or_update_report = DataAPI(
             method="POST",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "create_or_update_report/",
+            url=self._build_url("app/new_report/create_or_update_report/", "create_or_update_report/"),
             module=self.MODULE,
             description="创建或更新订阅报表",
             default_return_value=None,
@@ -124,7 +95,7 @@ class _MonitorApi(object):
         )
         self.send_report = DataAPI(
             method="POST",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "send_report/",
+            url=self._build_url("app/new_report/send_report/", "send_report/"),
             module=self.MODULE,
             description="发送阅报表",
             default_return_value=None,
@@ -132,7 +103,7 @@ class _MonitorApi(object):
         )
         self.get_reports = DataAPI(
             method="GET",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_exist_reports/",
+            url=self._build_url("app/new_report/get_exist_reports/", "get_exist_reports/"),
             module=self.MODULE,
             description="获取已存在的订阅报表",
             default_return_value=None,
@@ -140,7 +111,7 @@ class _MonitorApi(object):
         )
         self.get_report_variables = DataAPI(
             method="GET",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_report_variables/",
+            url=self._build_url("app/new_report/get_report_variables/", "get_report_variables/"),
             module=self.MODULE,
             description="获取订阅报表的变量列表",
             default_return_value=None,
@@ -148,7 +119,7 @@ class _MonitorApi(object):
         )
         self.search_alert = DataAPI(
             method="POST",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "search_alert/",
+            url=self._build_url("app/alert/search/", "search_alert/"),
             module=self.MODULE,
             description="查询告警",
             default_return_value=None,
@@ -156,11 +127,18 @@ class _MonitorApi(object):
         )
         self.get_alert_detail = DataAPI(
             method="GET",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "get_alert_detail/",
+            url=self._build_url("app/alert/detail/", "get_alert_detail/"),
             module=self.MODULE,
             description="获取告警详情",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+        )
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{self.base_url}{new_path}"
+            if self.base_url == MONITOR_APIGATEWAY_ROOT_NEW
+            else f"{self.base_url}{old_path}"
         )
 
 
