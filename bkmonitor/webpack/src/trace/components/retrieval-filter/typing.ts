@@ -92,7 +92,7 @@ export interface IWhereItem {
   condition?: ECondition;
   method?: EMethod | string;
   operator?: string;
-  value: string[];
+  value: number[] | string[];
   options?: {
     is_wildcard: boolean;
   };
@@ -649,15 +649,15 @@ export const RESIDENT_SETTING_EMITS = {
   change: (_v: IWhereItem[]) => true,
 } as const;
 export const TIME_CONSUMING_PROPS = {
-  fieldInfo: {
-    type: Object as PropType<IFieldItem>,
-    default: () => null,
+  styleType: {
+    type: String as PropType<'' | 'form'>,
+    default: '',
   },
   value: {
-    type: Object as PropType<IWhereItem>,
-    default: () => null,
+    type: Array as PropType<number[] | string[]>,
+    default: () => [],
   },
 };
 export const TIME_CONSUMING_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: number[] | string[]) => true,
 } as const;

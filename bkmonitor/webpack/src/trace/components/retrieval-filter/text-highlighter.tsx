@@ -49,16 +49,20 @@ export default defineComponent({
   setup(props) {
     const processedFragments = computed(() => splitHighlightFragments(props.content, props.keyword));
     function splitHighlightFragments(content: string, keyword: string) {
-      const escapedKeyword = escapeRegExp(keyword);
-      if (!keyword) return [{ text: content, highlight: false }];
+      try {
+        const escapedKeyword = escapeRegExp(keyword);
+        if (!keyword) return [{ text: content, highlight: false }];
 
-      const regex = new RegExp(`(${escapedKeyword})`, 'gi');
-      const tokens = content.split(regex);
+        const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+        const tokens = content.split(regex);
 
-      return tokens.filter(Boolean).map(token => ({
-        text: token,
-        highlight: props.caseSensitive ? token === keyword : token.toLowerCase() === keyword.toLowerCase(),
-      }));
+        return tokens.filter(Boolean).map(token => ({
+          text: token,
+          highlight: props.caseSensitive ? token === keyword : token.toLowerCase() === keyword.toLowerCase(),
+        }));
+      } catch (_err) {
+        return [];
+      }
     }
     return {
       processedFragments,
