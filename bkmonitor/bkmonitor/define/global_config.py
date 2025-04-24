@@ -182,7 +182,27 @@ ADVANCED_OPTIONS = OrderedDict(
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
+        (
+            "APM_PROFILING_AGG_METHOD_MAPPING",
+            slz.DictField(
+                label="profiling汇聚方法映射配置",
+                default={
+                    "HEAP-SPACE": "AVG",
+                    "WALL-TIME": "SUM",
+                    "ALLOC-SPACE": "AVG",
+                    "ALLOC_SPACE": "AVG",
+                    "CPU-TIME": "SUM",
+                    "EXCEPTION-SAMPLES": "SUM",
+                    "CPU": "SUM",
+                    "INUSE_SPACE": "AVG",
+                    "DELAY": "AVG",
+                    "GOROUTINE": "AVG",
+                },
+            ),
+        ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
+        # 表映射关系，用于在 UnifyQuery 数据检索时，路由到灰度表验证功能（比如 Doris 切换）。
+        ("UNIFY_QUERY_TABLE_MAPPING_CONFIG", slz.DictField(label="UnifyQuery查询表映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),
@@ -507,15 +527,19 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
+        # TODO(crayon) 已全量放开，下个版本删除该配置项。
         # 事件检索新版灰度配置
         ("EVENT_V2_BIZ_LIST", slz.ListField(label=_("事件检索新版灰度配置"), default=[])),
+        # Trace 检索新版灰度配置（开启后 Trace 使用新版页面，并且通过 UnifyQuery 检索）。
+        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("Trace 检索灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
         # 新版自定义时序灰度业务列表
         ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
-        ("BKCI_HOST", slz.CharField(label=_("蓝盾地址"), default="", allow_blank=True)),
+        # 事件中心AIOps功能灰度业务列表
+        ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]
 )
 

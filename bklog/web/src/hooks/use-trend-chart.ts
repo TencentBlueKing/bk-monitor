@@ -32,11 +32,13 @@ import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
-import chartOption from './trend-chart-options';
+import chartOption, { getSeriesData } from './trend-chart-options';
+import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
   handleChartDataZoom?: (val) => void;
+  dynamicHeight?: Ref<number>;
 };
 
 export type EchartData = {
@@ -44,19 +46,16 @@ export type EchartData = {
   target: string;
   isFinish: boolean;
 };
-export default ({ target, handleChartDataZoom }: TrandChartOption) => {
+export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
 
-  const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
+  // const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
 
-  let chartData = [];
   let runningInterval = '1m';
-  const optionData = new Map<number, number[]>();
-
-  let cachedTimRange = [];
+  // let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
@@ -101,13 +100,14 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     return timeunit[unit] * Number(num);
   };
 
-  const updateChartData = () => {
-    const keys = [...optionData.keys()];
-
-    keys.sort((a, b) => a[0] - b[0]);
-    const data = keys.map(key => [key, optionData.get(key)[0], optionData.get(key)[1]]);
-    chartData = data;
-  };
+  // 默认需要展示的柱子数量
+  const barCount = 60;
+  const intervals: [string, number][] = [
+    ['d', 86400],
+    ['h', 3600],
+    ['m', 60],
+    ['s', 1],
+  ];
 
   const setRunnningInterval = () => {
     if (retrieveParams.value.interval !== 'auto') {
@@ -118,37 +118,27 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     const { start_time, end_time } = retrieveParams.value;
 
     // 按照小时统计
-    const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
-
-    // 按照分钟统计
-    const durationMin = (end_time / 1000 - start_time / 1000) / 60;
-
-    if (durationHour < 1) {
-      // 小于1小时 1min
-      runningInterval = '1m';
-
-      if (durationMin < 5) {
-        runningInterval = '30s';
+    // 按照指定的柱子数量分割
+    const duration = (end_time - start_time) / 1000;
+    const segments = Math.floor(duration / barCount);
+    for (const [name, seconds] of intervals) {
+      if (segments >= seconds) {
+        const interval = Math.floor(segments / seconds);
+        runningInterval = `${interval >= 1 ? interval : 1}${name}`;
+        return name;
       }
-
-      if (durationMin < 2) {
-        runningInterval = '5s';
-      }
-
-      if (durationMin < 1) {
-        runningInterval = '1s';
-      }
-    } else if (durationHour < 6) {
-      // 小于6小时 5min
-      runningInterval = '5m';
-    } else if (durationHour < 72) {
-      // 小于72小时 1hour
-      runningInterval = '1h';
-    } else {
-      // 大于72小时 1day
-      runningInterval = '1d';
     }
+
+    runningInterval = `1${intervals[intervals.length - 1]?.[0] ?? 's'}`;
+    return runningInterval;
   };
+
+  const initChartData = () => {
+    setRunnningInterval();
+    return { interval: runningInterval };
+  };
+
+  const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
 
   // 时间向下取整
   const getIntegerTime = time => {
@@ -162,46 +152,112 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     return Math.floor(time / intervalTimestamp) * intervalTimestamp;
   };
 
-  const initChartData = (start_time, end_time) => {
-    setRunnningInterval();
-    const intervalTimestamp = getIntervalValue(runningInterval);
-
+  const getDefData = () => {
+    const data = [];
+    const { start_time, end_time } = retrieveParams.value;
     const startValue = getIntegerTime(start_time / 1000);
     let endValue = getIntegerTime(end_time / 1000);
+    const intervalTimestamp = getIntervalValue(runningInterval);
 
     while (endValue > startValue) {
-      optionData.set(endValue * 1000, [0, null]);
+      data.push([endValue * 1000, 0, null]);
       endValue = endValue - intervalTimestamp;
     }
 
     if (endValue < startValue) {
       endValue = startValue;
-      optionData.set(endValue * 1000, [0, null]);
+      data.push([endValue * 1000, 0, null]);
     }
 
-    updateChartData();
-
-    return { interval: runningInterval };
+    return data;
   };
-  const setChartData = (data: number[][]) => {
-    data.forEach(item => {
-      const [timestamp, value, timestring] = item;
-      optionData.set(timestamp, [value + (optionData.get(timestamp)?.[0] ?? 0), timestring]);
+
+  const setGroupData = (group, isInit?) => {
+    const buckets = group?.buckets || [];
+    const series = [];
+    let count = 0;
+
+    buckets.forEach((item, index) => {
+      let opt_data = new Map<Number, Number[]>();
+
+      if (!isInit) {
+        (options.series[index]?.data ?? []).forEach(item => {
+          opt_data.set(item[0], [item[1], item[2]]);
+        });
+      }
+
+      (item.group_by_histogram?.buckets || []).forEach(({ key, doc_count, key_as_string }) => {
+        opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
+        count += doc_count;
+      });
+
+      const keys = [...opt_data.keys()];
+      keys.sort((a, b) => a[0] - b[0]);
+      const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+      if (isInit) {
+        series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
+      } else {
+        options.series[index].data = data;
+      }
+
+      opt_data.clear();
+      opt_data = null;
     });
 
-    updateChartData();
-    updateChart();
+    if (isInit) {
+      if (!series.length) {
+        series.push(getSeriesData({ name: '', data: getDefData(), color: '#A4B3CD' }));
+      }
+      options.series = series;
+    }
 
-    const totalCount = optionData.values().reduce((count, item) => {
-      count = count + (item[0] ?? 0);
-      return count;
-    }, 0);
-    return totalCount;
+    updateChart(isInit);
+    return count;
+  };
+
+  const setDefaultData = (aggs?, isInit?) => {
+    let opt_data = new Map<Number, Number[]>();
+    const buckets = aggs?.group_by_histogram?.buckets || [];
+    const series = [];
+    let count = 0;
+
+    if (!isInit) {
+      (options.series[0]?.data ?? []).forEach(item => {
+        opt_data.set(item[0], [item[1], item[2]]);
+      });
+    }
+
+    buckets.forEach(({ key, doc_count, key_as_string }) => {
+      opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
+      count += doc_count;
+    });
+
+    const keys = [...opt_data.keys()];
+    keys.sort((a, b) => a[0] - b[0]);
+    const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+
+    if (isInit) {
+      series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
+      options.series = series;
+    } else {
+      options.series[0].data = data;
+    }
+
+    updateChart(isInit);
+    opt_data.clear();
+    opt_data = null;
+    return count;
+  };
+
+  const setChartData = (eggs, fieldName?, isInit?) => {
+    if (fieldName && eggs?.[fieldName]) {
+      return setGroupData(eggs[fieldName], isInit);
+    }
+
+    return setDefaultData(eggs, isInit);
   };
 
   const clearChartData = () => {
-    optionData.clear();
-    updateChartData();
     updateChart();
   };
 
@@ -230,16 +286,24 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     return `${formatter.format(newValue)}${suffix}`;
   };
 
-  const updateChart = () => {
+  const updateChart = (notMerge = true) => {
     if (!chartInstance) {
       return;
     }
 
-    options.series[0].data = chartData;
+    options.series.forEach(s => {
+      s.barMinHeight = 2;
+      s.itemStyle.color = params => {
+        return (params.value[1] ?? 0) > 0 ? params.color : '#fff';
+      };
+    });
+
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
-    chartInstance.setOption(options);
+    options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
+
+    chartInstance.setOption(options, { notMerge });
     nextTick(() => {
       dispatchAction({
         type: 'takeGlobalCursor',
@@ -249,27 +313,26 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     });
   };
 
+  let cachedBatch: any = null;
+
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
+    if (cachedBatch === null && !batch.dblclick) {
+      cachedBatch = batch;
+    }
 
     if (batch.startValue && batch.endValue) {
       const timeFrom = dayjs.tz(batch.startValue).format('YYYY-MM-DD HH:mm:ss');
       const timeTo = dayjs.tz(batch.endValue).format('YYYY-MM-DD HH:mm:ss');
 
-      if (!cachedTimRange.length) {
-        cachedTimRange = [datepickerValue.value[0], datepickerValue.value[1]];
-      }
-
-      dispatchAction({
-        type: 'restore',
-      });
-
       if (window.__IS_MONITOR_COMPONENT__) {
         handleChartDataZoom([timeFrom, timeTo]);
       } else {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         // 更新Store中的时间范围
-        // 同时会自动更新chartKey，触发接口更新当前最新数据
-        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
+          store.dispatch('requestIndexSetQuery');
+        });
       }
     }
   });
@@ -283,22 +346,22 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
       chartInstance = Echarts.init(target.value);
 
       chartInstance.on('dataZoom', handleDataZoom);
-      target.value.ondblclick = () => {
-        dispatchAction({
-          type: 'restore',
+      chartInstance.on('dblclick', () => {
+        chartInstance.dispatchAction({
+          type: 'dataZoom',
+          dblclick: true,
+          batch: [
+            {
+              startValue: cachedBatch.startValue,
+              endValue: cachedBatch.endValue,
+              start: cachedBatch.startValue,
+              end: cachedBatch.endValue,
+            },
+          ],
         });
 
-        nextTick(() => {
-          if (cachedTimRange.length) {
-            store.dispatch('handleTrendDataZoom', {
-              start_time: cachedTimRange[0],
-              end_time: cachedTimRange[1],
-              format: true,
-            });
-            cachedTimRange = [];
-          }
-        });
-      };
+        cachedBatch = null;
+      });
 
       addListener(target.value, handleCanvasResize);
     }

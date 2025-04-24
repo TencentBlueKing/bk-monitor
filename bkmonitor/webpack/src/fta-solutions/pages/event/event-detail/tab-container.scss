@@ -4,13 +4,16 @@
   position: relative;
   margin-top: 16px;
   background: #fff;
+  box-shadow: 0 -1px 3px 0 #0000000f;
 
   .aiops-container {
     padding: 20px;
   }
-  
+
   .bk-tab-header {
-    background-image: linear-gradient(transparent 47px,#dcdee5 0);
+    padding: 0 24px;
+
+    background-image: linear-gradient(transparent 47px, #dcdee5 0);
   }
 
   .bk-tab-header,
@@ -23,11 +26,16 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .bk-tab-label-wrapper .bk-tab-label-list .bk-tab-label-item {
     height: 100%;
+    color: #313238;
+
+    &.active {
+      color: #3a84ff;
+    }
   }
 
   .bk-tab-section {
@@ -87,9 +95,9 @@
     margin: 15px 20px 22px 24px;
 
     .tool-popover-content-item {
+      flex-shrink: 0;
       flex-basis: 33.33%;
       flex-flow: 0;
-      flex-shrink: 0;
       max-width: 200px;
       margin: 8px 0;
 

@@ -173,8 +173,19 @@ class UnifyQuery:
 
     def process_data_by_datasource(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         first_ds: DataSource = self.data_sources[0]
-        if (first_ds.data_source_label, first_ds.data_type_label) == (DataSourceLabel.BK_APM, DataTypeLabel.EVENT):
+        if (first_ds.data_source_label, first_ds.data_type_label) in [
+            (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
+        ]:
             records = first_ds.process_unify_query_data(records)
+        return records
+
+    def process_log_by_datasource(self, records: List[Dict[str, Any]]):
+        first_ds: DataSource = self.data_sources[0]
+        if (first_ds.data_source_label, first_ds.data_type_label) in [
+            (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+        ]:
+            records = first_ds.process_unify_query_log(records)
         return records
 
     @classmethod
@@ -222,7 +233,8 @@ class UnifyQuery:
             return False
 
         # 如果是多指标，必然会走统一查询模块
-        if len(self.data_sources) > 1:
+        # APM 的灰度仅通过 switch_unify_query 判断
+        if len(self.data_sources) > 1 and self.data_sources[0].id != (DataSourceLabel.BK_APM, DataTypeLabel.LOG):
             return True
 
         # 如果使用表达式，走统一查询模块
@@ -400,10 +412,9 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
+        params["limit"] = limit or 1
+        params["_from"] = offset or 0
         params["timezone"] = timezone.get_current_timezone_name()
-
-        for query in params["query_list"]:
-            query.update({"limit": limit or 1, "from": offset or 0})
 
         params_json: str = json.dumps(params)
         logger.info("UNIFY_QUERY: %s", params_json)
@@ -412,7 +423,9 @@ class UnifyQuery:
             span.set_attribute("bk.unify_query.api", "query_raw")
             span.set_attribute("bk.unify_query.statement", params_json)
             data = api.unify_query.query_raw(**params)
-        return self.process_unify_query_log(params, data)
+            records: List[Dict[str, Any]] = self.process_unify_query_log(params, data)
+            records = self.process_log_by_datasource(records)
+        return records
 
     def _query_data_using_datasource(
         self,

@@ -34,16 +34,13 @@
 }
 
 .span-details-sideslider {
-  
   position: fixed !important;
 
   .bk-modal-header {
-    
     display: block !important;
   }
 
   .bk-sideslider-title {
-    
     width: auto !important;
   }
 
@@ -56,18 +53,16 @@
     .sideslider-hd {
       display: flex;
       align-items: center;
-      
+
       &.show-flip-button {
         .sideslider-title {
           width: 230px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-        }    
+        }
       }
     }
-
-    
 
     .arrow-wrap {
       display: inline-flex;
@@ -130,7 +125,6 @@
     top: 0;
     z-index: 99;
 
-    
     width: auto !important;
     height: 100%;
 
@@ -197,12 +191,33 @@
         background: #ea3636;
       }
     }
+
+    .quick-jump {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      // height: 26px;
+      // padding: 0 7px;
+      // font-size: 12px;
+      // color: #3a84ff;
+      // text-align: center;
+      // cursor: pointer;
+      // background: #ffffff;
+      // border: 1px solid #3a84ff;
+      // border-radius: 2px;
+
+      .icon-monitor {
+        margin-left: 4px;
+        font-size: 12px;
+        line-height: 15px;
+        transform: scale(0.85);
+      }
+    }
   }
 
   .header {
     padding: 24px 40px 0 40px;
 
-    
     margin-right: 20px !important;
   }
 
@@ -246,7 +261,6 @@
         white-space: normal;
 
         .icon-type {
-          
           margin: 0 4px 0 0 !important;
         }
 
@@ -300,7 +314,6 @@
     background: #fff;
 
     .time-series {
-      
       border: 1px solid #dcdee5 !important;
 
       &:hover {
@@ -329,7 +342,6 @@
 
         .monitor-trace-log {
           padding-right: 16px;
-
         }
       }
 
@@ -340,7 +352,7 @@
 
     &.is-host-tab,
     &.is-container-tab {
-      padding: 0 0  0 40px;
+      padding: 0 0 0 40px;
 
       .host-tab-container {
         height: 100%;
@@ -364,8 +376,8 @@
 
       .icon-mc-triangle-down {
         font-size: 24px;
-        transition: transform 0.3s;
         transform: rotate(-90deg);
+        transition: transform 0.3s;
 
         &.active {
           transform: rotate(0);
@@ -637,8 +649,8 @@
 
       .icon-arrow-down {
         font-size: 20px;
-        transition: transform 0.3s;
         transform: rotate(-90deg);
+        transition: transform 0.3s;
 
         &.active {
           transform: rotate(0);
@@ -649,10 +661,10 @@
         margin-right: 10px;
         margin-left: 8px;
         overflow: hidden;
+        text-overflow: ellipsis;
         font-size: 12px;
         font-weight: Bold;
         color: #63656e;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
 

@@ -33,6 +33,7 @@ import {
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
 import { getFunctions } from 'monitor-api/modules/grafana';
+import { Debounce } from 'monitor-common/utils';
 
 import { defaultCycleOptionSec } from '../../../components/cycle-input/utils';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -40,54 +41,58 @@ import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
 import DimensionTableSlide from './dimension-table-slide';
-import IndicatorTableSlide from './metric-table-slide';
+import IndicatorTableSlide, { fuzzyMatch } from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
-import type { IDetailData, IEditParams } from '../../../types/custom-escalation/custom-escalation-detail';
+import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
+// 常量定义
 export const ALL_LABEL = '__all_label__';
 export const NULL_LABEL = '__null_label__';
 
-interface ICustomTSFields {
-  dimensions: Item[];
-  metrics: Item[];
-}
-
-interface Item {
-  name: string;
-  type: 'dimension' | 'metric';
-  description: string;
-  disabled?: boolean;
-  unit?: string;
-  hidden?: boolean;
-  aggregate_method?: string;
-  function?: object;
-  interval?: number;
-  label?: string[];
-  dimensions?: string[];
-  common?: boolean;
-}
+// 接口定义
 export interface IGroupListItem {
-  name: string;
-  matchRules: string[];
-  manualList: string[];
-  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标数
+  name: string; // 分组名称
+  matchRules: string[]; // 匹配规则
+  manualList: string[]; // 手动添加的指标
+  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
 }
 
+interface IMetricSearchObject {
+  name: string[];
+  description: string[];
+  unit: string[];
+  func: string[];
+  aggregate: string[];
+  show: string[];
+}
+
+interface IMetricGroupMapItem {
+  groups: string[];
+  matchType: Record<string, string[]>;
+}
+
+interface ISDKData {
+  preGoOne?: string;
+  prePythonOne?: string;
+}
+
+/**
+ * 自定义指标详情页组件
+ */
 @Component
 export default class CustomEscalationDetailNew extends tsc<any, any> {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   @Ref() readonly dataLabelInput!: HTMLInputElement;
   @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
-  @ProvideReactive('metricFunctions') metricFunctions = [];
+  @ProvideReactive('metricFunctions') metricFunctions: any[] = [];
 
   isShowMetricSlider = false; // 展示指标抽屉
   isShowDimensionSlider = false; // 展示维度抽屉
-  descName = ''; // 别名
-  loading = false;
+  loading = false; // 加载状态
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
   copyDescribe = ''; // 修改的描述
@@ -95,14 +100,14 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   isShowEditName = false; // 是否显示名字编辑框
   isShowRightWindow = true; // 是否显示右侧帮助栏
   isShowEditDataLabel = false; // 是否展示英文名编辑框
-  isShowEditIsPlatform = false; // 是否展示平台师表
   isShowEditDesc = false; // 是否展示描述编辑框
   scenario = ''; // 分类
   protocol = ''; // 上报协议
-  proxyInfo = []; // 云区域分类数据
+  proxyInfo: any[] = []; // 云区域分类数据
   preData = ''; // 数据上报格式样例
-  sdkData: any = {}; // sdk 接入数据
-  //  详情数据
+  sdkData: ISDKData = {}; // sdk 接入数据
+
+  // 详情数据
   detailData: IDetailData = {
     bk_data_id: '',
     access_token: '',
@@ -116,24 +121,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     auto_discover: false,
   };
 
-  //  指标维度数据 时序数据
-  metricData = [];
-  isShowData = true; // 是否展示数据预览 时序数据
-  unitList = []; // 单位list
-  unit = {
-    value: true,
-    index: -1,
-    toggle: false,
-  };
+  // 指标维度数据 时序数据
+  metricData: any[] = [];
+  unitList: any[] = []; // 单位list
 
-  pagination = {
-    page: 1,
-    pageSize: 20,
-    total: 100,
-    pageList: [10, 20, 50, 100],
-  };
-  tableId = '';
-  groupSelectList: any = [
+  groupSelectList: any[] = [
     {
       id: '',
       name: '未分组',
@@ -141,36 +133,38 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   ];
 
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
-  groupFilterList: string[] = [];
+  groupFilterList: string[] = []; // 分组过滤列表
 
   /* 筛选条件(简化) */
-  metricSearchObj = {
-    type: [],
+  metricSearchObj: IMetricSearchObject = {
     name: [],
-    enName: [],
+    description: [],
     unit: [],
-    text: [],
+    func: [],
+    aggregate: [],
+    show: [],
   };
+
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
+
   /* 每个匹配规则包含指标 */
-  matchRulesMap = new Map();
+  matchRulesMap: Map<string, string[]> = new Map();
+
   /* 每个组所包含的指标 */
   groupsMap: Map<string, IGroupListItem> = new Map();
+
   /* 每个指标包含的组 */
-  metricGroupsMap = new Map();
+  metricGroupsMap: Map<string, IMetricGroupMapItem> = new Map();
+
   /* 指标列表 */
-  metricList = [];
+  metricList: any[] = [];
+
   /* 维度列表 */
-  dimensions = [];
+  dimensions: any[] = [];
 
   /* 数据预览ALL */
-  allDataPreview = {};
-
-  /* 所有单位数据 */
-  allUnitList = [];
-  /* 列表中已选的单位数据 */
-  tableAllUnitList = [];
+  allDataPreview: Record<string, any> = {};
 
   autoDiscover = false;
 
@@ -179,161 +173,201 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     dataLabel: false,
   };
 
-  get computedWidth() {
-    return window.innerWidth < 2560 ? 960 : 1200;
-  }
+  nonGroupNum = 0; // 未分组数量
 
-  get type() {
+  /**
+   * 获取当前页面类型：自定义事件或自定义时序
+   */
+  get type(): string {
     return this.$route.name === 'custom-detail-event' ? 'customEvent' : 'customTimeSeries';
   }
 
-  get isReadonly() {
+  /**
+   * 检查数据是否为只读
+   */
+  get isReadonly(): boolean {
     return !!this.detailData.is_readonly;
   }
 
-  //  指标数量
-  get metricNum() {
-    return this.metricData.filter(item => item.monitor_type === 'metric').length;
-  }
-
-  get metricNameList() {
-    return this.metricData.map(item => ({ name: item.name, description: item.description }));
-  }
-
-  //  维度数量
-  get dimensionNum() {
-    return this.dimensions.length;
-  }
-
-  // 未分组数量
-  get nonGroupNum() {
-    return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
-  }
-
-  // 上报周期
-  get cycleOption() {
+  /**
+   * 获取上报周期选项（除了auto之外）
+   */
+  get cycleOption(): any[] {
     return defaultCycleOptionSec.filter(({ id }) => id !== 'auto');
   }
 
-  // 分组名称列表
-  get groupNameList() {
-    return this.groupList.map(item => item.name);
-  }
+  /**
+   * 获取过滤后的指标表格数据
+   */
+  get metricTable(): any[] {
+    const length = this.groupFilterList.length;
+    const nameLength = this.metricSearchObj.name.length;
+    const descriptionLength = this.metricSearchObj.description.length;
+    const unitLength = this.metricSearchObj.unit.length;
+    const aggregateLength = this.metricSearchObj.aggregate.length;
+    const isShowLength = this.metricSearchObj.show.length;
 
-  get metricTable() {
-    const labelsMatchTypes = labels => {
-      let temp = [];
-      for (const item of labels) {
-        temp = temp.concat(item.match_type);
-      }
-      temp = [...new Set(temp)];
-      return temp;
-    };
-    // 模糊匹配
-    const fuzzyMatch = (str: string, pattern: string) => {
-      const lowerStr = String(str).toLowerCase();
-      const lowerPattern = String(pattern).toLowerCase();
-      return lowerStr.includes(lowerPattern);
-    };
-    const leng1 = this.groupFilterList.length;
-    const typeLeng = this.metricSearchObj.type.length;
-    const nameLeng = this.metricSearchObj.name.length;
-    const enNameLeng = this.metricSearchObj.enName.length;
-    const unitLeng = this.metricSearchObj.unit.length;
-    const textleng = this.metricSearchObj.text.length;
-    const filterList = this.metricData.filter(item => {
-      const isMetric = item.monitor_type === 'metric';
+    return this.metricData.filter(item => {
       return (
-        (leng1
+        // 过滤分组
+        (length
           ? this.groupFilterList.some(
-            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-          ) && isMetric
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            )
           : true) &&
-        (typeLeng
-          ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+        // 过滤名称
+        (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
+        // 过滤描述
+        (descriptionLength ? this.metricSearchObj.description.some(n => fuzzyMatch(item.description, n)) : true) &&
+        // 过滤单位
+        (unitLength ? this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || 'none', u)) : true) &&
+        // 过滤聚合方法
+        (aggregateLength
+          ? this.metricSearchObj.aggregate.some(a => fuzzyMatch(item.aggregate_method || 'none', a))
           : true) &&
-        (nameLeng
-          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
-          : true) &&
-        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
-        (unitLeng
-          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
-          : true) &&
-        (textleng
-          ? this.metricSearchObj.text.some(t => {
-            const monitorType = {
-              指标: 'metric',
-              维度: 'dimension',
-            };
-            return (
-              item.monitor_type === t ||
-              monitorType?.[t] === item.monitor_type ||
-              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
-              fuzzyMatch(item.name, t) ||
-              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
-            );
-          })
-          : true)
+        // 过滤显示状态
+        (isShowLength ? this.metricSearchObj.show.some(s => s === String(!item.hidden)) : true)
       );
     });
-    return filterList;
   }
 
-  /** 处理导出 */
-  handleExportMetric() {
+  /**
+   * 处理搜索变更，使用防抖减少频繁调用
+   * @param list 搜索列表
+   */
+  @Debounce(300)
+  handleSearchChange(list: any[] = []): void {
+    const search: IMetricSearchObject = {
+      name: [],
+      description: [],
+      unit: [],
+      func: [],
+      aggregate: [],
+      show: [],
+    };
+
+    for (const item of list) {
+      if (item.type === 'text') {
+        item.id = 'name';
+        item.values = [{ id: item.name, name: item.name }];
+      }
+      search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
+    }
+
+    this.metricSearchObj = search;
+  }
+
+  /**
+   * 清除搜索条件
+   */
+  handleClearSearch(): void {
+    this.handleSearchChange();
+  }
+
+  /**
+   * 获取未分组数量
+   */
+  getNonGroupNum(): number {
+    return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
+  }
+
+  /**
+   * 处理导出指标数据
+   */
+  handleExportMetric(): void {
     // 构建JSON内容
     const dimensions = this.dimensions.length
-      ? this.dimensions
+      ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
+          name,
+          type,
+          description,
+          disabled,
+          common,
+        }))
       : [
-        {
-          name: 'dimension1',
-          type: 'dimension',
-          description: '',
-          disabled: true,
-          common: true,
-        },
-      ];
+          {
+            name: 'dimension1',
+            type: 'dimension',
+            description: '',
+            disabled: true,
+            common: true,
+          },
+        ];
+
     const metrics = this.metricData.length
-      ? this.metricData
+      ? this.metricData.map(
+          ({
+            name,
+            type,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          }) => ({
+            type,
+            name,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          })
+        )
       : [
-        {
-          name: 'metric1',
-          type: 'metric',
-          description: '',
-          disabled: false,
-          unit: '',
-          hidden: false,
-          aggregate_method: '',
-          function: {},
-          interval: 0,
-          label: [],
-          dimensions: ['dimension1'],
-        },
-      ];
+          {
+            name: 'metric1',
+            type: 'metric',
+            description: '',
+            disabled: false,
+            unit: '',
+            hidden: false,
+            aggregate_method: '',
+            function: {},
+            interval: 0,
+            label: [],
+            dimensions: ['dimension1'],
+          },
+        ];
+
     const groupRules = this.groupList
       ? this.groupList
       : [
-        {
-          name: '测试分组',
-          manual_list: ['metric1'],
-          auto_rules: ['rule1'],
-        },
-      ];
+          {
+            name: '测试分组',
+            manual_list: ['metric1'],
+            auto_rules: ['rule1'],
+          },
+        ];
+
     const template = {
       dimensions,
       metrics,
       group_rules: groupRules,
     };
+
     // 生成动态文件名
-    const generateFileName = () => {
+    const generateFileName = (): string => {
       return `自定义指标-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.json`;
     };
+
     // 执行下载
     downCsvFile(JSON.stringify(template, null, 2), generateFileName());
   }
 
-  /** 处理导入 */
-  async handleUploadMetric(jsonData) {
+  /**
+   * 处理导入指标数据
+   * @param jsonData JSON字符串
+   */
+  async handleUploadMetric(jsonData: string): Promise<void> {
     if (!jsonData) {
       return;
     }
@@ -345,168 +379,138 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   }
 
   /**
-   * @description: 获取指标函数列表
-   * @param {*}
-   * @return {*}
+   * 获取指标函数列表
    */
-  async handleGetMetricFunctions() {
+  async handleGetMetricFunctions(): Promise<void> {
     this.metricFunctions = await getFunctions().catch(() => []);
   }
 
-  changePageCount(count: number) {
-    this.pagination.total = count;
-  }
-
-  changeGroupFilterList(v: string) {
+  /**
+   * 更改分组过滤列表
+   * @param v 分组值
+   */
+  changeGroupFilterList(v: string): void {
+    this.handleClearSearch();
     this.groupFilterList = v === ALL_LABEL ? [] : [v];
     this.updateAllSelection();
   }
 
-  created() {
-    this.getDetailData();
-    this.handleGetMetricFunctions();
+  /**
+   * 加载静态数据（云区域和单位列表）
+   */
+  async loadStaticData(): Promise<void> {
+    try {
+      const [proxyInfo, unitList] = await Promise.all([
+        this.$store.dispatch('custom-escalation/getProxyInfo'),
+        this.$store.dispatch('strategy-config/getUnitList'),
+      ]);
+
+      this.proxyInfo = proxyInfo;
+      this.unitList = unitList;
+    } catch (error) {
+      console.error('加载静态数据失败:', error);
+    }
   }
 
-  updateAllSelection(v = false) {
+  /**
+   * 组件创建时的初始化
+   */
+  async created(): Promise<void> {
+    await this.loadStaticData();
+    await this.getDetailData();
+    this.handleGetMetricFunctions();
+    this.nonGroupNum = this.getNonGroupNum();
+  }
+
+  /**
+   * 更新全选状态
+   * @param v 是否选中
+   */
+  updateAllSelection(v = false): void {
     this.metricTable.forEach(item => item.monitor_type === 'metric' && (item.selection = v));
     this.updateCheckValue();
   }
 
-  updateCheckValue() {
-    const metricLiist = this.metricTable.filter(item => item.monitor_type === 'metric');
-    const checkedLeng = metricLiist.filter(item => item.selection).length;
-    const allLeng = metricLiist.length;
-    this.allCheckValue = 0;
-    if (checkedLeng > 0) {
-      this.allCheckValue = checkedLeng < allLeng ? 1 : 2;
+  /**
+   * 更新选中状态值
+   */
+  updateCheckValue(): void {
+    const metricList = this.metricTable.filter(item => item.monitor_type === 'metric');
+    const checkedLength = metricList.filter(item => item.selection).length;
+    const allLength = metricList.length;
+
+    if (checkedLength > 0) {
+      this.allCheckValue = checkedLength < allLength ? 1 : 2;
     } else {
       this.allCheckValue = 0;
     }
   }
 
-  //  获取详情
-  async getDetailData(needLoading = true) {
+  /**
+   * 获取详情数据
+   * @param needLoading 是否显示加载状态
+   */
+  async getDetailData(needLoading = true): Promise<void> {
     this.loading = needLoading;
-    this.$store.commit('app/SET_NAV_TITLE', this.$t('加载中...'));
-    const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
-    let title = '';
-    let metricData: ICustomTSFields;
-    promiseItem.push(
-      this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
-        time_series_group_id: this.$route.params.id,
-      })
-    );
-    promiseItem.push(
-      this.$store.dispatch('custom-escalation/getCustomTSFields', {
-        time_series_group_id: this.$route.params.id,
-      })
-    );
-    promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     try {
-      const data = await Promise.all(promiseItem);
+      const [detailData, metricData] = await Promise.all([
+        this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
+          time_series_group_id: this.$route.params.id,
+        }),
+        this.$store.dispatch('custom-escalation/getCustomTSFields', {
+          time_series_group_id: this.$route.params.id,
+        }),
+      ]);
 
-      [this.proxyInfo] = data; // 云区域展示数据
-      [, this.detailData = this.detailData] = data;
+      this.detailData = detailData || this.detailData;
       this.autoDiscover = this.detailData.auto_discover;
-      [, , metricData] = data;
-      if (this.type === 'customTimeSeries') {
-        [, , , this.unitList] = data; // 单位list
-        const allUnitList = [];
-        const allUnitListMap = new Map();
-        for (const groupItem of this.unitList) {
-          for (const unitItem of groupItem?.formats || []) {
-            if (unitItem.id) {
-              allUnitList.push({
-                id: unitItem.id,
-                name: unitItem.name,
-              });
-              allUnitListMap.set(unitItem.id, unitItem.name);
-            }
-          }
-        }
-        this.allUnitList = allUnitList;
-        title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
-          } ${this.detailData.name}`;
-        this.metricList = metricData?.metrics || [];
-        this.dimensions = metricData?.dimensions || [];
-        // this.metricList =
-        //   this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
 
-        // 获取表格内的单位数据
-        const tempSet = new Set();
-        const tableAllUnitList = [];
-        for (const metricItem of this.metricList) {
-          if (!tempSet.has(metricItem.unit)) {
-            const unitName = allUnitListMap.get(metricItem.unit);
-            if (unitName) {
-              tableAllUnitList.push({
-                id: metricItem.unit,
-                name: unitName,
-              });
-            }
-          }
-          tempSet.add(metricItem.unit);
+      // 处理指标函数数据
+      for (const item of metricData?.metrics || []) {
+        if (!item?.function?.[0]) {
+          item.function = [];
         }
-        this.tableAllUnitList = [
-          ...tableAllUnitList,
-          {
-            id: 'none',
-            name: 'none',
-          },
-          {
-            id: '--',
-            name: '--',
-          },
-        ];
-
-        await this.getGroupList();
-      } else {
-        title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${this.detailData.name
-          }`;
       }
-      this.$store.commit('app/SET_NAV_TITLE', title);
+
+      this.metricList = metricData?.metrics || [];
+      this.dimensions = metricData?.dimensions || [];
+
+      await this.getGroupList();
       this.handleDetailData(this.detailData);
-      this.loading = false;
     } catch (error) {
-      console.error(error);
+      console.error('获取详情数据失败:', error);
+    } finally {
       this.loading = false;
     }
   }
 
-  //  处理详情数据
-  handleDetailData(detailData: IDetailData) {
+  /**
+   * 处理详情数据
+   * @param detailData 详情数据
+   */
+  handleDetailData(detailData: IDetailData): void {
     if (this.type === 'customTimeSeries') {
-      this.tableId = detailData.table_id;
       this.metricData = this.metricList.map(item => ({
         ...item,
         selection: false,
         descReValue: false,
-        // labels: [],
         monitor_type: 'metric',
       }));
       this.setMetricDataLabels();
-      this.pagination.total = this.metricData.length;
-      if (!this.metricData.length) {
-        this.isShowData = false;
-      }
     }
+
     this.scenario = `${detailData.scenario_display[0]} - ${detailData.scenario_display[1]}`;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyDescribe = this.detailData.desc || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
-    const str =
-      this.type === 'customEvent'
-        ? `# ${this.$t('事件标识名，最大长度128')}
-                "event_name": "input_your_event_name",
-                "event": {
-                    # ${this.$t('事件内容，必需项')}
-                    "content": "user xxx login failed"
-                },`
-        : `# ${this.$t('指标，必需项')}
+
+    // 生成数据上报样例
+    const str = `# ${this.$t('指标，必需项')}
         "metrics": {
             "cpu_load": 10
         },`;
+
     this.preData = `{
         # ${this.$t('数据通道标识，必需项')}
         "data_id": ${detailData.bk_data_id},
@@ -528,9 +532,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
             "timestamp": ${new Date().getTime()}
         }]
     }`;
-    // 判断如果是 prometheus 类型则展示不同的内容
+
+    // 处理 Prometheus 类型的特殊内容
     if (detailData.protocol === 'prometheus') {
-      // # ${this.$t('event_type 为非必须项，用于标记事件类型，默认为异常事件')}
       this.sdkData.preGoOne = `type bkClient struct{}
 func (c *bkClient) Do(r *http.Request) (*http.Response, error) {
 	r.Header.Set("X-BK-TOKEN", "$TOKEN")
@@ -587,40 +591,52 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
 
-  /* 获取分组管理数据 */
-  async getGroupList() {
+  /**
+   * 获取分组管理数据
+   */
+  async getGroupList(): Promise<void> {
     const data = await customTsGroupingRuleList({
       time_series_group_id: this.detailData.time_series_group_id,
     }).catch(() => []);
+
     this.groupList = data.map(item => ({
       name: item.name,
       matchRules: item.auto_rules,
       manualList: item.manual_list,
     }));
+
     this.groupsDataTidy();
   }
 
-  /* 分组数据整理 */
-  groupsDataTidy() {
+  /**
+   * 整理分组数据
+   */
+  groupsDataTidy(): void {
     const metricNames = this.metricList.map(item => item.name);
     const allMatchRulesSet = new Set();
     const metricGroupsMap = new Map();
+
+    // 收集所有匹配规则
     for (const item of this.groupList) {
       for (const rule of item.matchRules) {
         allMatchRulesSet.add(rule);
       }
     }
     const allMatchRules = Array.from(allMatchRulesSet);
+
     /* 整理每个匹配规则配的指标数据 */
     for (const rule of allMatchRules) {
       this.matchRulesMap.set(
-        rule,
+        rule as string,
         metricNames.filter(name => matchRuleFn(name, rule as string))
       );
     }
 
+    // 为每个组构建指标映射
     for (const item of this.groupList) {
       const tempSet = new Set();
+
+      // 收集通过匹配规则匹配到的指标
       for (const rule of item.matchRules) {
         const metrics = this.matchRulesMap.get(rule) || [];
         for (const m of metrics) {
@@ -628,23 +644,28 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
       }
       const matchRulesOfMetrics = Array.from(tempSet) as string[];
+
+      // 更新组映射
       this.groupsMap.set(item.name, {
         ...item,
         matchRulesOfMetrics,
       });
-      /* 写入每个指标包含的组 */
-      const setMetricGroup = (m, type) => {
-        const metricItem = metricGroupsMap.get(m);
+
+      /* 为每个指标建立包含的组的映射 */
+      const setMetricGroup = (metricName: string, type: string): void => {
+        const metricItem = metricGroupsMap.get(metricName);
         if (metricItem) {
           const { groups, matchType } = metricItem;
           const targetGroups = [...new Set(groups.concat([item.name]))];
           const targetMatchType = JSON.parse(JSON.stringify(matchType));
+
           for (const t of targetGroups) {
             if (t === item.name) {
-              targetMatchType[t as string] = [...new Set((matchType[t as string] || []).concat([type]))];
+              targetMatchType[t] = [...new Set((matchType[t] || []).concat([type]))];
             }
           }
-          metricGroupsMap.set(m, {
+
+          metricGroupsMap.set(metricName, {
             groups: targetGroups,
             matchType: targetMatchType,
           });
@@ -652,19 +673,24 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           const matchTypeObj = {
             [item.name]: [type],
           };
-          metricGroupsMap.set(m, {
+          metricGroupsMap.set(metricName, {
             groups: [item.name],
             matchType: matchTypeObj,
           });
         }
       };
+
+      // 应用匹配规则匹配的指标
       matchRulesOfMetrics.forEach(m => {
         setMetricGroup(m, 'auto');
       });
+
+      // 应用手动添加的指标
       item.manualList.forEach(m => {
         setMetricGroup(m, 'manual');
       });
     }
+
     this.metricGroupsMap = metricGroupsMap;
     this.groupSelectList = this.groupList.map(item => ({
       id: item.name,
@@ -672,15 +698,20 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }));
   }
 
-  //  点击icon展示name编辑
-  handleShowEdit() {
+  /**
+   * 显示名称编辑框
+   */
+  handleShowEdit(): void {
     this.isShowEditName = true;
     this.$nextTick(() => {
       this.nameInput.focus();
     });
   }
-  /** 点击显示英文名的编辑 */
-  handleShowEditDataLabel() {
+
+  /**
+   * 显示英文名编辑框
+   */
+  handleShowEditDataLabel(): void {
     this.isShowEditDataLabel = true;
     this.rule.dataLabelTips = '';
     this.rule.dataLabel = false;
@@ -688,22 +719,34 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.dataLabelInput.focus();
     });
   }
-  /** 点击显示描述的编辑 */
-  handleShowEditDes() {
+
+  /**
+   * 显示描述编辑框
+   */
+  handleShowEditDes(): void {
     this.isShowEditDesc = true;
     this.$nextTick(() => {
       this.describeInput.focus();
     });
   }
-  /** 保存自动发现 */
-  handleEditAutoDiscover(autoDiscover) {
+
+  /**
+   * 保存自动发现设置
+   * @param autoDiscover 是否自动发现
+   */
+  handleEditAutoDiscover(autoDiscover: boolean): void {
     this.autoDiscover = autoDiscover;
     this.handleEditFiled({
       auto_discover: autoDiscover,
     });
   }
 
-  async handleEditFiled(props, showMsg = true) {
+  /**
+   * 编辑字段通用方法
+   * @param props 字段属性
+   * @param showMsg 是否显示成功消息
+   */
+  async handleEditFiled(props: Record<string, any>, showMsg = true): Promise<void> {
     this.loading = true;
     try {
       const params = {
@@ -718,18 +761,26 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.loading = false;
     }
   }
-  /** 编辑英文名 */
-  async handleEditDataLabel() {
+
+  /**
+   * 编辑英文名
+   */
+  async handleEditDataLabel(): Promise<void> {
+    // 如果英文名为空或未变更，则不做处理
     if (!this.copyDataLabel || this.copyDataLabel === this.detailData.data_label) {
       this.copyDataLabel = this.detailData.data_label;
       this.isShowEditDataLabel = false;
       return;
     }
+
+    // 检查是否含有中文
     if (/[\u4e00-\u9fa5]/.test(this.copyDataLabel)) {
       this.rule.dataLabelTips = this.$tc('输入非中文符号');
       this.rule.dataLabel = true;
       return;
     }
+
+    // 验证英文名唯一性
     const { message: errorMsg } = await validateCustomTsGroupLabel(
       {
         data_label: this.copyDataLabel,
@@ -739,27 +790,34 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         needMessage: false,
       }
     ).catch(err => err);
+
     if (errorMsg) {
       this.rule.dataLabelTips = this.$t(errorMsg) as string;
       this.rule.dataLabel = true;
       return;
     }
+
+    // 保存英文名
     await this.handleEditFiled({
       data_label: this.copyDataLabel,
     });
+
     this.detailData.data_label = this.copyDataLabel;
     this.isShowEditDataLabel = false;
-    this.loading = false;
   }
 
-  //  编辑名字
-  async handleEditName() {
+  /**
+   * 编辑名字
+   */
+  async handleEditName(): Promise<void> {
+    // 如果名字为空或未变更，则不做处理
     if (!(this.copyName && this.copyName !== this.detailData.name)) {
       this.copyName = this.detailData.name;
       this.isShowEditName = false;
       return;
     }
-    //  名字是否重复校验
+
+    // 验证名字唯一性
     let isOkName = true;
     const res = await this.$store
       .dispatch('custom-escalation/validateCustomTimetName', {
@@ -767,9 +825,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       })
       .then(res => res.result ?? true)
       .catch(() => false);
+
     if (!res) {
       isOkName = false;
     }
+
     if (!isOkName) {
       this.copyName = this.detailData.name;
       this.$nextTick(() => {
@@ -777,84 +837,86 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       });
       return;
     }
-    if (this.type === 'customEvent') {
-      const params: IEditParams = {
-        bk_event_group_id: this.detailData.bk_event_group_id,
-        name: this.copyName,
-        scenario: this.detailData.scenario,
-        is_enable: true,
-      };
-      this.loading = true;
-      await this.$store.dispatch('custom-escalation/editCustomEvent', params);
-    } else {
-      await this.handleEditFiled({
-        name: this.copyName,
-      });
-    }
+
+    // 保存名字
+    await this.handleEditFiled({
+      name: this.copyName,
+    });
+
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
-    this.loading = false;
   }
 
-  // 编辑描述
-  async handleEditDescribe() {
+  /**
+   * 编辑描述
+   */
+  async handleEditDescribe(): Promise<void> {
+    // 如果描述未变更，则不做处理
     if (this.copyDescribe.trim() === this.detailData.desc) {
       this.copyDescribe = this.detailData.desc || '';
       this.isShowEditDesc = false;
       return;
     }
+
+    // 保存描述
     this.isShowEditDesc = false;
     this.handleEditFiled({
       desc: this.copyDescribe,
     });
+
     this.detailData.desc = this.copyDescribe;
   }
 
-  //  复制数据上报样例
-  handleCopyData() {
-    const str =
-      this.type === 'customEvent'
-        ? `"event_name": "input_your_event_name",
-        "event": {
-            "content": "user xxx login failed"
-        },`
-        : `"metrics": {
+  /**
+   * 复制数据上报样例
+   */
+  handleCopyData(): void {
+    const str = `"metrics": {
             "cpu_load": 10
         },`;
     const example = `{
-    "data_id": ${this.detailData.bk_data_id},
-    "access_token": "${this.detailData.access_token}",
-    "data": [{
-        ${str}
-        "target": "127.0.0.1",
-        "dimension": {
-            "module": "db",
-            "location": "guangdong"
-        },
-        "timestamp": ${new Date().getTime()}
-    }]
-}`;
+      "data_id": ${this.detailData.bk_data_id},
+      "access_token": "${this.detailData.access_token}",
+      "data": [{
+          ${str}
+          "target": "127.0.0.1",
+          "dimension": {
+              "module": "db",
+              "location": "guangdong"
+          },
+          "timestamp": ${new Date().getTime()}
+      }]
+    }`;
+
     this.textCopy.value = example;
     this.textCopy.select();
     document.execCommand('copy');
+
     this.$bkMessage({
       theme: 'success',
       message: this.$t('样例复制成功'),
     });
   }
 
-  // 复制Prometheus  sdk 接入流程代码
-  handleCopyPrometheus(type) {
+  /**
+   * 复制Prometheus SDK接入流程代码
+   * @param type 复制类型（golang或python）
+   */
+  handleCopyPrometheus(type: string): void {
     this[type].value = type === 'golangCopy' ? this.sdkData.preGoOne : this.sdkData.prePythonOne;
     this[type].select();
     document.execCommand('copy');
+
     this.$bkMessage({
       theme: 'success',
       message: this.$t('样例复制成功'),
     });
   }
-  /* 通过分组管理计算每个指标包含的组 */
-  setMetricDataLabels() {
+
+  /**
+   * 通过分组管理计算每个指标包含的组
+   */
+  setMetricDataLabels(): void {
     for (const item of this.metricData) {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
@@ -870,8 +932,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
 
-  handleJump() {
+  /**
+   * 处理路由跳转
+   */
+  handleJump(): void {
     const { customMetricV2EnableList, bizId } = this.$store.getters;
+
     const toView = {
       customEvent: () => {
         this.$router.push({
@@ -883,15 +949,20 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       customTimeSeries: () => {
         this.$router.push({
           name: customMetricV2EnableList.includes(bizId) ? 'new-custom-escalation-view' : 'custom-escalation-view',
-          // name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
           query: { name: this.detailData.name },
         });
       },
     };
+
     toView[this.type]();
   }
-  getBaseInfoCmp() {
+
+  /**
+   * 获取基础信息组件
+   * @returns 基础信息JSX
+   */
+  getBaseInfoCmp(): JSX.Element {
     return (
       <div class='detail-information'>
         <div class='detail-information-title'>{this.$t('基本信息')}</div>
@@ -971,7 +1042,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               >
                 <bk-input
                   ref='dataLabelInput'
-                  style='width: 240px'
                   v-model={this.copyDataLabel}
                   onBlur={this.handleEditDataLabel}
                   onInput={() => {
@@ -1002,7 +1072,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             ) : (
               <bk-input
                 ref='nameInput'
-                style='width: 240px'
                 v-model={this.copyName}
                 onBlur={this.handleEditName}
               />
@@ -1028,7 +1097,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             ) : (
               <bk-input
                 ref='describeInput'
-                style='width: 440px'
                 class='form-content-textarea'
                 v-model={this.copyDescribe}
                 rows={3}
@@ -1042,10 +1110,21 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     );
   }
 
-  getGroupChanges(metricName, newGroups, metricMap) {
+  /**
+   * 获取指标分组变更信息
+   * @param metricName 指标名称
+   * @param newGroups 新分组列表
+   * @param metricMap 指标映射Map
+   * @returns 变更信息
+   */
+  getGroupChanges(
+    metricName: string,
+    newGroups: string[],
+    metricMap: Map<string, any>
+  ): { added: string[]; removed: string[] } {
     // 获取原有分组信息
     const metricInfo = metricMap.get(metricName);
-    const oldGroups = metricInfo ? metricInfo.groups : [];
+    const oldGroups = metricInfo?.groups || [];
 
     const oldSet = new Set(oldGroups);
     const newSet = new Set(newGroups);
@@ -1057,15 +1136,21 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     return { added, removed };
   }
 
-  /** 批量添加至分组 */
-  async handleBatchAddGroup(groupName, manualList) {
+  /**
+   * 批量添加至分组
+   * @param groupName 分组名称
+   * @param manualList 手动添加的指标列表
+   */
+  async handleBatchAddGroup(groupName: string, manualList: string[]): Promise<void> {
     const group = this.groupsMap.get(groupName);
     if (!group) {
       return;
     }
 
+    // 合并当前指标和新添加的指标
     const currentMetrics = group.manualList || [];
     const newMetrics = [...new Set([...currentMetrics, ...manualList])];
+
     try {
       await this.submitGroupInfo({
         name: groupName,
@@ -1076,11 +1161,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.getDetailData();
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
     } catch (error) {
-      console.error(`Batch group ${groupName} update failed:`, error);
+      console.error(`批量添加分组 ${groupName} 更新失败:`, error);
     }
   }
 
-  async updateGroupInfo(metricName, groupNames, isAdd = true) {
+  /**
+   * 更新分组信息
+   * @param metricName 指标名称
+   * @param groupNames 分组名称列表
+   * @param isAdd 是否添加
+   */
+  async updateGroupInfo(metricName: string, groupNames: string[], isAdd = true): Promise<void> {
     if (!groupNames?.length) return;
 
     const updatePromises = groupNames.map(async groupName => {
@@ -1092,7 +1183,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       const currentMetrics = group.manualList || [];
       const newMetrics = isAdd
         ? [...new Set([...currentMetrics, metricName])] // 防止重复添加
-        : currentMetrics.filter(m => m !== metricName);
+        : currentMetrics.filter(m => m !== metricName); // 移除指标
 
       try {
         await this.submitGroupInfo({
@@ -1101,56 +1192,85 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           auto_rules: group.matchRules || [],
         });
       } catch (error) {
-        console.error(`Group ${groupName} update failed:`, error);
+        console.error(`分组 ${groupName} 更新失败:`, error);
       }
     });
 
     await Promise.all(updatePromises);
   }
 
-  async saveSelectGroup(selectedGroups, metricName) {
+  /**
+   * 保存选择的分组
+   * @param selectedGroups 选中的分组列表
+   * @param metricName 指标名称
+   */
+  async saveSelectGroup(selectedGroups: string[], metricName: string): Promise<void> {
     try {
+      // 计算分组变更
       const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
+
+      // 并行处理添加和移除操作
       await Promise.all([
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
       ]);
+
+      this.getDetailData();
     } catch (error) {
-      console.error('Group update failed:', error);
+      console.error('分组更新失败:', error);
     }
   }
 
-  async submitGroupInfo(config) {
+  /**
+   * 提交分组信息
+   * @param config 分组配置
+   */
+  async submitGroupInfo(config: Record<string, any>): Promise<void> {
     await this.$store.dispatch('custom-escalation/createOrUpdateGroupingRule', {
       time_series_group_id: this.$route.params.id,
       ...config,
     });
   }
 
-  /** 更新自定义分组 */
-  async handleSubmitGroup(config) {
+  /**
+   * 更新自定义分组
+   * @param config 分组配置
+   */
+  async handleSubmitGroup(config: Record<string, any>): Promise<void> {
     await this.submitGroupInfo(config);
     await this.getGroupList();
     this.changeGroupFilterList(config.name);
     this.getDetailData();
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
-  /** 删除自定义分组 */
-  async handleDelGroup(name) {
+  /**
+   * 删除自定义分组
+   * @param name 分组名称
+   */
+  async handleDelGroup(name: string): Promise<void> {
     await this.$store.dispatch('custom-escalation/deleteGroupingRule', {
       time_series_group_id: this.$route.params.id,
       name,
     });
+
+    // 如果当前选中的是被删除的分组，则重置筛选条件
     if (this.groupFilterList[0] === name) {
       this.changeGroupFilterList(ALL_LABEL);
     }
+
     this.getDetailData();
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
-  /* 分组管理指标 */
-  handleSelectGroup([value, index]) {
+  /**
+   * 处理分组选择
+   * @param data 选择数据
+   */
+  handleSelectGroup([value, index]: [string[], number]): void {
     const metricName = this.metricTable[index].name;
     const labels = [];
+
     for (const item of this.groupList) {
       const groupItem = this.groupsMap.get(item.name);
       const { matchRulesOfMetrics, manualList } = groupItem;
@@ -1158,9 +1278,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         name: item.name,
         match_type: [],
       };
+
+      // 处理自动匹配
       if (matchRulesOfMetrics.includes(metricName)) {
         tempObj.match_type.push('auto');
       }
+
+      // 处理手动匹配
       if (value.includes(item.name)) {
         tempObj.match_type.push('manual');
         this.groupsMap.set(item.name, {
@@ -1173,38 +1297,55 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           manualList: manualList.filter(m => m !== metricName),
         });
       }
+
       if (tempObj.match_type.length) labels.push(tempObj);
     }
+
     this.metricTable[index].labels = labels;
     this.updateGroupList();
   }
 
-  /* 更新分组管理 */
-  updateGroupList() {
+  /**
+   * 更新分组管理列表
+   */
+  updateGroupList(): void {
     this.groupList = this.groupList.map(item => ({
       ...item,
       manualList: this.groupsMap.get(item.name)?.manualList || [],
     }));
+    this.nonGroupNum = this.getNonGroupNum();
   }
 
-  /** 批量更新 */
-  async handleSaveSliderInfo(localTable, delArray = []) {
+  /**
+   * 保存抽屉信息
+   * @param localTable 本地表格数据
+   * @param delArray 删除数组
+   */
+  async handleSaveSliderInfo(localTable: any[], delArray: any[] = []): Promise<void> {
     this.isShowMetricSlider = false;
     this.isShowDimensionSlider = false;
+
     await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
       time_series_group_id: this.$route.params.id,
       update_fields: localTable,
       delete_fields: delArray,
     });
+
     this.getDetailData();
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
-  render() {
+
+  /**
+   * 渲染组件
+   * @returns 组件JSX
+   */
+  render(): JSX.Element {
     return (
       <div
         class='custom-detail-page-component'
         v-bkloading={{ isLoading: this.loading }}
       >
+        {/* 导航栏 */}
         <CommonNavBar
           class='common-nav-bar-single'
           needBack={true}
@@ -1224,6 +1365,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             />
           </div>
         </CommonNavBar>
+
+        {/* 提示条 */}
         <bk-alert class='hint-alert'>
           <i18n
             slot='title'
@@ -1237,16 +1380,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </i18n>
         </bk-alert>
+
         <div class='custom-detail-page'>
-          <div
-            style={{ minWidth: `${this.computedWidth}px` }}
-            class='custom-detail'
-          >
+          <div class='custom-detail'>
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
+
             {/* 指标/维度列表 */}
-            {
-              this.type === 'customTimeSeries' ? (
+            <div class='custom-detail-page-table'>
+              {this.type === 'customTimeSeries' ? (
                 <TimeseriesDetailNew
                   class='detail-information detail-list'
                   allCheckValue={this.allCheckValue}
@@ -1254,16 +1396,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   autoDiscover={this.autoDiscover}
                   customGroups={this.groupList}
                   cycleOption={this.cycleOption}
-                  dimensionNum={this.dimensionNum}
-                  dimensionTable={this.dimensions}
+                  dimensions={this.dimensions}
                   groupSelectList={this.groupSelectList}
                   groupsMap={this.groupsMap}
                   metricGroupsMap={this.metricGroupsMap}
                   metricList={this.metricData}
-                  metricNameList={this.metricNameList}
-                  metricNum={this.metricNum}
                   metricTable={this.metricTable}
-                  nameList={this.groupNameList}
                   nonGroupNum={this.nonGroupNum}
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
@@ -1283,18 +1421,20 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   onHandleSelectToggle={this.saveSelectGroup}
                   onHandleUpload={this.handleUploadMetric}
                   onRowCheck={this.updateCheckValue}
+                  onSearchChange={this.handleSearchChange}
                   onShowDimensionSlider={v => {
                     this.isShowDimensionSlider = v;
                   }}
                   onSwitcherChange={this.handleEditAutoDiscover}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
-              ) : undefined /* TODO[自定义事件]  */
-            }
+              ) : undefined}
+            </div>
           </div>
-          {/* <!-- 展开内容 --> */}
+
+          {/* 右侧帮助面板 */}
           <div class={['right-window', this.isShowRightWindow ? 'active' : '']}>
-            {/* <!-- 右边展开收起按钮 --> */}
+            {/* 右边展开收起按钮 */}
             <div
               class={['right-button', this.isShowRightWindow ? 'active-buttom' : '']}
               onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
@@ -1305,6 +1445,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 <i class='icon-monitor icon-arrow-left icon' />
               )}
             </div>
+
+            {/* 帮助标题 */}
             <div class='right-window-title'>
               <span>{this.type === 'customEvent' ? this.$t('自定义事件帮助') : this.$t('自定义指标帮助')}</span>
               <span
@@ -1314,16 +1456,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 <span class='line' />
               </span>
             </div>
+
+            {/* 帮助内容 */}
             <div class='right-window-content'>
+              {/* JSON协议注意事项 */}
               {this.detailData.protocol !== 'prometheus' && (
                 <div>
                   <div class='content-title'>{this.$t('注意事项')}</div>
                   <span>{this.$t('API频率限制 1000/min，单次上报Body最大为500KB')}</span>
                 </div>
               )}
+
               <div class={['content-title', this.detailData.protocol !== 'prometheus' ? 'content-interval' : '']}>
                 {this.$t('使用方法')}
               </div>
+
+              {/* 云区域信息 */}
               <div class='content-row'>
                 <span>
                   {this.detailData.protocol === 'prometheus'
@@ -1339,6 +1487,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   ))}
                 </div>
               </div>
+
+              {/* JSON协议调用样例 */}
               {this.detailData.protocol !== 'prometheus' && (
                 <div class='content-row'>
                   <span>{this.$t('命令行直接调用样例')}</span>
@@ -1347,6 +1497,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   </div>
                 </div>
               )}
+
+              {/* Prometheus协议相关内容 */}
               {this.detailData.protocol === 'prometheus' ? (
                 <div>
                   <div class='content-title content-interval'>{this.$t('数据上报端点样例')}</div>
@@ -1365,6 +1517,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                       {this.$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}
                     </div>
                   </div>
+
                   {/* Golang 示例部分 */}
                   <div class='content-row mt10'>
                     <div>{this.$t('各语言接入示例')} :</div>
@@ -1393,6 +1546,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                       />
                     </div>
                   </div>
+
                   {/* Python 示例部分 */}
                   <div class='content-row'>
                     <div>Python</div>
@@ -1436,26 +1590,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {this.metricTable.length > 0 && (
-          <IndicatorTableSlide
-            autoDiscover={this.autoDiscover}
-            cycleOption={this.cycleOption}
-            dimensionTable={this.dimensions}
-            isShow={this.isShowMetricSlider}
-            metricTable={this.metricTable}
-            unitList={this.unitList}
-            onHidden={v => (this.isShowMetricSlider = v)}
-            onSaveInfo={this.handleSaveSliderInfo}
-          />
-        )}
-        {this.dimensions.length > 0 && (
-          <DimensionTableSlide
-            dimensionTable={this.dimensions}
-            isShow={this.isShowDimensionSlider}
-            onHidden={v => (this.isShowDimensionSlider = v)}
-            onSaveInfo={this.handleSaveSliderInfo}
-          />
-        )}
+        <IndicatorTableSlide
+          autoDiscover={this.autoDiscover}
+          cycleOption={this.cycleOption}
+          dimensionTable={this.dimensions}
+          isShow={this.isShowMetricSlider}
+          metricTable={this.metricTable}
+          unitList={this.unitList}
+          onHidden={v => (this.isShowMetricSlider = v)}
+          onSaveInfo={this.handleSaveSliderInfo}
+        />
+        <DimensionTableSlide
+          dimensionTable={this.dimensions}
+          isShow={this.isShowDimensionSlider}
+          onHidden={v => (this.isShowDimensionSlider = v)}
+          onSaveInfo={this.handleSaveSliderInfo}
+        />
       </div>
     );
   }

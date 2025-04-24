@@ -1,9 +1,113 @@
 .event-retrieval-dimension-filter-content {
-  .popover-header {
+  .info-skeleton {
+    .total-skeleton {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      
+      .skeleton-element {
+        width: 70px;
+        height: 20px;
+      }
+    }
+
+    .info-skeleton {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: space-between;
+      justify-content: space-between;
+      height: 76px;
+      margin-bottom: 15px;
+
+      .skeleton-element {
+        width: 182px;
+        height: 36px;
+      }
+    }
+
+    .skeleton-element.chart {
+      height: 140px;
+      margin-bottom: 12px;
+    }
+  }
+  
+  .statistics-info {
+    .top-k-info-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+  
+      .label-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+      }
+    }
+
+    .integer-statics-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: space-between;
+      justify-content: space-between;
+      height: 76px;
+      margin-bottom: 15px;
+  
+      .integer-item {
+        width: 182px;
+        height: 36px;
+        line-height: 36px;
+        text-align: center;
+        background: #F5F7FA;
+        border-radius: 2px;
+  
+        .label {
+          font-size: 12px;
+          color: #4D4F56;
+        }
+  
+        .value {
+          margin-left: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #4D4F56;
+        }
+      }
+    }
+  
+
+  
+    .top-k-chart-title {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      line-height: 22px;
+  
+      .title {
+        font-size: 14px;
+        color: #313238;
+      }
+  
+      .time-range {
+        font-size: 12px;
+        color: #4D4F56;
+      }
+    }
+  }
+
+  .top-k-list-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 22px;
+
+    .field-name {
+      font-size: 12px;
+    }
+
+    .desc {
+      font-size: 12px;
+    }
 
     .loading-icon {
       width: 20px;
@@ -16,13 +120,7 @@
 
       .icon-xiazai2 {
         font-size: 14px;
-        color: #4d4f56;
-      }
-
-      .text {
-        margin-left: 6px;
-        font-size: 12px;
-        color: #4d4f56;
+        color: #3A84FF;
       }
     }
   }
@@ -40,35 +138,6 @@
     line-height: 20px;
     color: #3a84ff;
     cursor: pointer;
-  }
-
-  .dimension-top-k-title {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    overflow: hidden;
-
-    .field-name {
-      overflow: hidden;
-      font-size: 12px;
-      color: #313238;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .divider {
-      display: inline-block;
-      width: 1px;
-      height: 14px;
-      margin: 0 8px 0 6px;
-      background: #dcdee5;
-    }
-
-    .desc {
-      flex-shrink: 0;
-      font-size: 12px;
-      color: #979ba5;
-    }
   }
 
   .empty-text {
@@ -89,6 +158,14 @@
     align-items: center;
     justify-content: space-between;
     padding-right: 24px;
+
+    .field-name {
+      font-size: 16px;
+    }
+
+    .desc {
+      font-size: 12px;
+    }
 
     .loading-icon {
       width: 20px;
@@ -142,6 +219,34 @@
   }
 }
 
+
+.dimension-top-k-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  overflow: hidden;
+
+  .field-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #313238;
+    white-space: nowrap;
+  }
+
+  .divider {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    margin: 0 8px 0 6px;
+    background: #dcdee5;
+  }
+
+  .desc {
+    flex-shrink: 0;
+    color: #979ba5;
+  }
+}
+
 .top-k-list {
   .top-k-list-item {
     display: flex;
@@ -174,9 +279,9 @@
         .field-name {
           flex: 1;
           overflow: hidden;
+          text-overflow: ellipsis;
           font-size: 12px;
           color: #313238;
-          text-overflow: ellipsis;
           white-space: nowrap;
         }
 

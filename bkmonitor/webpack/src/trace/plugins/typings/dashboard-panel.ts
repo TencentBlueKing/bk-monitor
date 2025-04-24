@@ -343,7 +343,7 @@ export class PanelModel implements IPanelModel {
   // dashbordId
   dashboardId?: string;
   // 是否正在drag中
-  draging = false;
+  dragging = false;
   // 图表位置
   gridPos!: IGridPos;
   // 组id
@@ -407,7 +407,7 @@ export class PanelModel implements IPanelModel {
     this.panels?.length && this.panels.forEach(item => item.updateShow(v));
   }
   public updateDragging(v: boolean) {
-    this.draging = v;
+    this.dragging = v;
   }
   public updateGridPos(v: IGridPos) {
     this.gridPos = {

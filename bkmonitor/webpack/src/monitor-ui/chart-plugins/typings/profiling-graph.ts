@@ -94,6 +94,7 @@ export interface IQueryParams {
   start?: number;
   end?: number;
   data_type?: string;
+  agg_method?: string;
   profile_id?: string;
   diff_profile_id?: string;
   offset?: number;
@@ -107,4 +108,5 @@ export interface IQueryParams {
 export interface DataTypeItem {
   key: string;
   name: string;
+  default_agg_method?: string;
 }

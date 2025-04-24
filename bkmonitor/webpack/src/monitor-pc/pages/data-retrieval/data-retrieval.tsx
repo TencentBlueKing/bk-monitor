@@ -209,7 +209,7 @@ export default class DataRetrieval extends tsc<object> {
       value: true,
     },
     tools: {
-      refleshInterval: -1,
+      refreshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefaultTimezone(),
     },
@@ -779,6 +779,7 @@ export default class DataRetrieval extends tsc<object> {
       };
     });
     this.filterQueryResult = isExist ? result : [];
+    this.routerParamsUpdate();
   }
 
   /**
@@ -1740,6 +1741,7 @@ export default class DataRetrieval extends tsc<object> {
             group_by: item.agg_dimension,
             where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
             functions: item.functions,
+            display: !!item.enable,
             metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
           };
           item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
@@ -1768,7 +1770,7 @@ export default class DataRetrieval extends tsc<object> {
       }
     } else if (this.editMode === 'PromQL') {
       for (const promqlItem of this.promqlData) {
-        if (!!promqlItem.code && promqlItem.enable) {
+        if (promqlItem.code) {
           const temp = {
             data: {
               query_configs: [
@@ -1778,6 +1780,7 @@ export default class DataRetrieval extends tsc<object> {
                   promql: promqlItem.code,
                   interval: promqlItem.step || 'auto',
                   alias: promqlItem.alias,
+                  hidden: !promqlItem.enable,
                 },
               ],
             },
@@ -2295,6 +2298,7 @@ export default class DataRetrieval extends tsc<object> {
           alias: t.data.promqlAlias,
           step: t.data.step,
           filter_dict: t.data.filter_dict,
+          enable: !t.data.hidden,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2309,6 +2313,7 @@ export default class DataRetrieval extends tsc<object> {
           filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
           alias: q.alias || LETTERS.at(i),
+          enable: !q.hidden,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2384,7 +2389,7 @@ export default class DataRetrieval extends tsc<object> {
       },
       tools: {
         ...this.compareValue.tools,
-        refleshInterval: -1,
+        refreshInterval: -1,
       },
     };
   }
@@ -2916,8 +2921,11 @@ export default class DataRetrieval extends tsc<object> {
       const promiseList = [];
       const localValueFilter = this.localValue.filter((item: DataRetrievalQueryItem) => !!item.metric_id);
       for (const item of localValueFilter as DataRetrievalQueryItem[]) {
+        const queryConfigs = this.getQueryConfgs(undefined, item);
+        if (!queryConfigs?.length) {
+          continue;
+        }
         const promiseItem = new Promise((resolve, reject) => {
-          const queryConfigs = this.getQueryConfgs(undefined, item);
           const params = {
             query_config_format: 'graph',
             expression: queryConfigs[0].alias || 'a',
@@ -3486,12 +3494,12 @@ export default class DataRetrieval extends tsc<object> {
               {!this.onlyShowView && this.needMenu && (
                 <PanelHeader
                   eventSelectTimeRange={this.eventSelectTimeRange}
-                  refleshInterval={this.compareValue.tools.refleshInterval}
+                  refreshInterval={this.compareValue.tools.refreshInterval}
                   showDownSample={false}
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
-                  onImmediateReflesh={() => (this.refleshNumber += 1)}
-                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
+                  onImmediateRefresh={() => (this.refleshNumber += 1)}
+                  onRefreshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
@@ -3532,7 +3540,7 @@ export default class DataRetrieval extends tsc<object> {
                       </div>
                     </div>
                   </div>
-                  {this.eventType === 'custom_event' && (
+                  {this.$route.name === 'event-retrieval' && this.eventType === 'custom_event' && (
                     <bk-button
                       style={{ marginTop: '8px' }}
                       slot='center'

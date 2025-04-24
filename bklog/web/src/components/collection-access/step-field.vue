@@ -418,6 +418,7 @@
                   :popover-min-width="160"
                   clearable
                   searchable
+                  @change="changeFieldName"
                 >
                   <bk-option
                     v-for="option in renderFieldNameList"
@@ -1227,8 +1228,7 @@
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
       },
       renderFieldNameList() {
-        return this.fieldNameList.filter((item,index) => {
-          item.field_index = index
+        return this.fieldNameList.filter((item) => {
           return item.field_name && !item.is_built_in
         });
       },
@@ -1359,7 +1359,7 @@
         }else{
           const allFields = this.$refs.fieldTable.getData();
           const builtFields = allFields.filter( item => item.is_built_in)
-          this.formData.fields = allFields.filter( item => !item.is_built_in)
+          this.formData.fields = allFields.filter( item => !item.is_built_in && !item.is_objectKey)
           if(builtFields.length){
             this.copyBuiltField = builtFields;
           }
@@ -1587,7 +1587,7 @@
             path_type: item.field_type
           }
         })
-        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in && !item.is_objectKey )
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -2106,42 +2106,41 @@
 
                   if (etl_config === 'bk_log_delimiter') {
                     // 分隔符逻辑较特殊，需要单独拎出来
-                    let index;
+                    let index = [];
                     newFields.forEach((item, idx) => {
                       // 找到最后一个field_name不为空的下标
                       if (item.field_name && !item.is_delete) {
-                        index = idx + 1;
+                        index.push(item)
                       }
                     });
+                    
                     const list = [];
+                    // 将标记为删除的字段过滤出来，并添加到 list 中
                     const deletedFileds = newFields.filter(item => item.is_delete);
                     list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
-                    if (index) {
-                      newFields.forEach((item, idx) => {
-                        // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index === item.field_index + 1);
-                        item.value = child ? child.value : ''; // 修改value值(预览值)
-                        if (index > idx && !item.is_delete) {
-                          // 将未删除的存进数组
-                          list.push(item);
-                        }
+                    // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
+                    if (index.length) {
+                      index.forEach((item, idx) => {
+                        const child = dataFields[idx];
+                        item.value = child ? child.value : '';
+                        list.push(item);
                       });
-                      dataFields.forEach(item => {
-                        // 新增的字段需要存进数组
-                        const child = list.find(field => field.field_index === item.field_index);
-                        if (!child) {
-                          list.push(Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item));
-                        }
-                      });
+                      // 处理 dataFields 中超出 index 范围的部分
+                      if (dataFields.length > index.length) {
+                        dataFields.slice(index.length).forEach((item) => {
+                          const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                          list.push(newItem);
+                        });
+                      }
                     } else {
                       dataFields.reduce((arr, item) => {
+                        item.field_index = arr.length;
                         const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
                         arr.push(field);
                         return arr;
                       }, list);
                     }
-                    list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
-
+                    // list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
                     this.formData.fields.splice(0, fields.length, ...list);
                   }
                 }
@@ -2651,8 +2650,9 @@
         })
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
+        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '')
         builtFieldList.forEach(builtField => {
-          if (builtField.field_type === "object" && name.includes(builtField.field_name)) {
+          if (builtField.field_type === "object" && field_name === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);
@@ -2660,6 +2660,14 @@
             builtField.children.push(item);
           }
         });
+      },
+      // 切换后time_unix字段后，取消上次time_unix标识
+      changeFieldName(val,oldVal){
+        this.fieldNameList.forEach(item => {
+          if(item.field_name === oldVal){
+            item.is_time = false;
+            }
+        })
       }
     },
   };
@@ -2768,10 +2776,10 @@
     }
 
     .switcher-tips{
-      color: #979BA5;
-      font-size: 12px;
       position: absolute;
       top: 20px;
+      font-size: 12px;
+      color: #979BA5;
     }
 
     .text-nav {

@@ -38,7 +38,9 @@ interface IGroup {
   name: string;
   icon: string;
 }
-@Component
+@Component({
+  inheritAttrs: false,
+})
 export default class MetricTabDetail extends tsc<any, any> {
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: () => [] }) customGroups;
@@ -81,7 +83,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   isSearchMode: boolean;
   delGroupName = '';
 
-  created() { }
+  created() {}
 
   // 过滤后的自定义分组
   get filteredCustomGroups() {
@@ -89,6 +91,13 @@ export default class MetricTabDetail extends tsc<any, any> {
     if (!this.searchGroupKeyword) return this.customGroups;
     const keyword = this.searchGroupKeyword.toLowerCase();
     return this.customGroups.filter(group => group.name.toLowerCase().includes(keyword));
+  }
+
+  /**
+   * 获取分组名称列表
+   */
+  get groupNameList(): string[] {
+    return this.customGroups.map(item => item.name);
   }
 
   // 搜索处理函数
@@ -217,64 +226,67 @@ export default class MetricTabDetail extends tsc<any, any> {
                 onInput={this.handleSearchInput} // 绑定输入事件
               />
             </div>
-            {this.filteredCustomGroups.length ? ( // 过滤后的列表
-              <CustomGroupingList
-                groupList={this.filteredCustomGroups}
-                isSearchMode={this.isSearchMode}
-                selectedLabel={this.selectedLabel}
-                onChangeGroup={this.changeSelectedLabel}
-                onMenuClick={this.handleMenuClick}
-                {...{
-                  on: {
-                    ...this.$listeners,
-                  },
-                  props: this.$attrs,
-                }}
-              />
-            ) : (
-              <div>
-                {this.searchGroupKeyword ? (
-                  <div class='empty-group'>
-                    <div class='empty-img'>
-                      <bk-exception
-                        scene='part'
-                        type='search-empty'
+            <div class='filter-group-list-main'>
+              {this.filteredCustomGroups.length ? ( // 过滤后的列表
+                <CustomGroupingList
+                  groupList={this.filteredCustomGroups}
+                  isSearchMode={this.isSearchMode}
+                  selectedLabel={this.selectedLabel}
+                  onChangeGroup={this.changeSelectedLabel}
+                  onMenuClick={this.handleMenuClick}
+                  {...{
+                    on: {
+                      ...this.$listeners,
+                    },
+                    props: this.$attrs,
+                  }}
+                />
+              ) : (
+                <div>
+                  {this.searchGroupKeyword ? (
+                    <div class='empty-group'>
+                      <div class='empty-img'>
+                        <bk-exception
+                          scene='part'
+                          type='search-empty'
+                        >
+                          <span class='empty-text'>{this.$t('搜索结果为空')}</span>
+                        </bk-exception>
+                      </div>
+                      <div
+                        class='add-group'
+                        onClick={this.handleClearSearch}
                       >
-                        <span class='empty-text'>{this.$t('搜索结果为空')}</span>
-                      </bk-exception>
+                        {this.$t('清空关键词')}
+                      </div>
                     </div>
-                    <div
-                      class='add-group'
-                      onClick={this.handleClearSearch}
-                    >
-                      {this.$t('清空关键词')}
-                    </div>
-                  </div>
-                ) : (
-                  <div class='empty-group'>
-                    <div class='empty-img'>
-                      <bk-exception
-                        class='exception-wrap-item exception-part'
-                        scene='part'
-                        type='empty'
+                  ) : (
+                    <div class='empty-group'>
+                      <div class='empty-img'>
+                        <bk-exception
+                          class='exception-wrap-item exception-part'
+                          scene='part'
+                          type='empty'
+                        >
+                          <span class='empty-text'>{this.$t('暂无自定义分组')}</span>
+                        </bk-exception>
+                      </div>
+                      <div
+                        class='add-group'
+                        onClick={this.handleAddGroup}
                       >
-                        <span class='empty-text'>{this.$t('暂无自定义分组')}</span>
-                      </bk-exception>
+                        {this.$t('新建')}
+                      </div>
                     </div>
-                    <div
-                      class='add-group'
-                      onClick={this.handleAddGroup}
-                    >
-                      {this.$t('新建')}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
             {
               <AddGroupDialog
                 groupInfo={this.currentGroupInfo}
                 isEdit={this.isEdit}
+                nameList={this.groupNameList}
                 show={this.showAddGroupDialog}
                 onCancel={this.handleCancel}
                 onGroupSubmit={this.submitGroup}

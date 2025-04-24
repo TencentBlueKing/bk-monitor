@@ -32,6 +32,10 @@
         display: flex;
         align-items: center;
         margin-left: 2px;
+        cursor: pointer;
+        &.disabled {
+          color: rgb(204, 204, 204);
+        }
       }
       .color-box {
         display: inline-block;

@@ -18,6 +18,7 @@ from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.user import get_backend_username
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
@@ -34,9 +35,10 @@ class CustomEventGroup(OperateRecordModelBase):
         (EVENT_TYPE.KEYWORDS, EVENT_TYPE.KEYWORDS),
     )
 
+    bk_tenant_id = models.CharField("租户ID", default=DEFAULT_TENANT_ID, db_index=True, max_length=128)
+    bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
     bk_event_group_id = models.IntegerField("事件分组ID", primary_key=True)
     bk_data_id = models.IntegerField("数据ID")
-    bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
     name = models.CharField("名称", max_length=128)
     scenario = models.CharField("监控场景", max_length=128, db_index=True)
     is_enable = models.BooleanField("是否启用", default=True)
@@ -84,7 +86,7 @@ class CustomTSField(models.Model):
         DIMENSION = "dimension"
 
     MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
-    DimensionConfigFields = ["common"]
+    DimensionConfigFields = ["common", "hidden"]
 
     time_series_group_id = models.IntegerField("时序分组ID")
     type = models.CharField("字段类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)
@@ -107,6 +109,7 @@ class CustomTSTable(OperateRecordModelBase):
         ("prometheus", "Prometheus"),
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     time_series_group_id = models.IntegerField("时序分组ID", primary_key=True)
     bk_data_id = models.IntegerField("数据ID")
     bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
@@ -300,7 +303,7 @@ class CustomTSTable(OperateRecordModelBase):
             if clean:
                 labels = []
             else:
-                labels = field.config.get("label", [])
+                labels = field.config.get("label", []).copy()
 
             for group_rule in group_rules:
                 if not delete and group_rule.match_metric(field.name):
@@ -394,7 +397,7 @@ class CustomTSTable(OperateRecordModelBase):
 
 class CustomTSItem(models.Model):
     """
-    自定义时序指标
+    自定义时序指标(legacy)
     """
 
     table = models.ForeignKey(

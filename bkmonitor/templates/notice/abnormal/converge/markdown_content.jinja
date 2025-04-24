@@ -1,7 +1,11 @@
+{% if alarm.level == 1 %}
 {{gettext("已汇总`%(collect_count)d`条`[%(level_name)s]`告警", collect_count=alarm.collect_count, level_name=level_name)}}
+{% else %}
+{{gettext("已汇总`%(collect_count)d`条[%(level_name)s]告警", collect_count=alarm.collect_count, level_name=level_name)}}
+{% endif %}
 {% if alarm.detail_url %}
 **{{gettext("—— 更多请查看详情 ——")}}**
-{{alert.alert_name | safe}} {% if alarm.detail_url %}[汇总详情]({{alarm.detail_url}}){% endif %}
+{% if alarm.detail_url %}[汇总详情]({{alarm.detail_url}}) {% else %} {{alert.alert_name | safe}} {% endif %}
 {% endif %}
 
 **{{gettext("—— 摘要其中 1 条告警 ——")}}**

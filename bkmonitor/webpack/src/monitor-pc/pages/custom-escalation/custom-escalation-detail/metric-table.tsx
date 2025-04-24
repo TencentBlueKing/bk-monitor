@@ -28,25 +28,33 @@ import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import { deepClone } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
-import FunctionMenu from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
+import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { matchRuleFn } from '../group-manage-dialog';
-import { fuzzyMatch } from './metric-table-slide';
 
 import './metric-table.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 export const statusMap = new Map([
   [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
   [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
 ]);
+/** 默认高度偏移量 */
+const DEFAULT_HEIGHT_OFFSET = 8;
 
 interface ILabel {
+  name: string;
+}
+interface IFunc {
+  id: string;
   name: string;
 }
 interface IMetricDetail {
@@ -57,10 +65,7 @@ interface IMetricDetail {
   unit: string;
   aggregate_method: string;
   disabled?: boolean;
-  function: {
-    id: string;
-    name: string;
-  };
+  function: IFunc[];
   hidden: boolean;
   dimensions?: string[];
   reportInterval: string;
@@ -99,9 +104,9 @@ export default class IndicatorTable extends tsc<any, any> {
   @Ref() readonly descriptionInput!: HTMLInputElement;
   @Ref() readonly unitInput!: HTMLInputElement;
   @Ref() readonly aggConditionInput!: HTMLInputElement;
-  @Ref() readonly dimensionInput!: HTMLInputElement;
   @Ref() readonly intervalInput!: HTMLInputElement;
   @Ref() readonly batchAddGroupPopover!: HTMLInputElement;
+  @Ref() readonly metricTableHeader!: HTMLInputElement;
 
   table = {
     data: [],
@@ -119,8 +124,6 @@ export default class IndicatorTable extends tsc<any, any> {
   copyAggregation = ''; // 聚合备份
   canEditInterval = false; // 编辑聚合
   copyInterval = ''; // 聚合备份
-  canEditDimension = false; // 编辑维度
-  copyDimension = []; // 编辑维度
 
   /* 分组标签pop实例 */
   groupTagInstance = null;
@@ -148,25 +151,30 @@ export default class IndicatorTable extends tsc<any, any> {
     list: [{ id: 0, name: I18N.t('添加至分组') }],
   };
   editingIndex = -1;
-  search = '';
 
   emptyType = 'empty'; // 空状态
+  groupWidth = 200;
+  resizeObserver = null;
+  rectHeight = 32;
+  /** 表格搜索 */
+  search = [];
 
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
   }
 
-  get selectionLeng() {
+  get computedHeight() {
+    return this.rectHeight + DEFAULT_HEIGHT_OFFSET;
+  }
+
+  get selectionLength() {
     const selectionList = this.metricTableVal.filter(item => item.selection);
     return selectionList.length;
   }
 
   get metricTableVal() {
-    const filterTable = this.metricTable.filter(item => {
-      return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.description, this.search);
-    });
-    this.tableInstance.total = filterTable.length;
-    return filterTable.slice(
+    this.tableInstance.total = this.metricTable.length;
+    return this.metricTable.slice(
       this.tableInstance.pageSize * (this.tableInstance.page - 1),
       this.tableInstance.pageSize * this.tableInstance.page
     );
@@ -174,6 +182,50 @@ export default class IndicatorTable extends tsc<any, any> {
 
   get groups() {
     return Array.from(this.groupsMap.keys());
+  }
+
+  get metricSearchData() {
+    return [
+      {
+        name: window.i18n.t('名称'),
+        id: 'name',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('别名'),
+        id: 'description',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('单位'),
+        id: 'unit',
+        multiple: false,
+        children: this.unitList,
+      },
+      // {
+      //   name: window.i18n.t('函数'),
+      //   id: 'func',
+      //   multiple: false,
+      //   children: this.metricFunctions,
+      // },
+      {
+        name: window.i18n.t('汇聚方法'),
+        id: 'aggregate',
+        multiple: false,
+        children: METHOD_LIST,
+      },
+      {
+        name: window.i18n.t('显/隐'),
+        id: 'show',
+        multiple: false,
+        children: [
+          { id: 'true', name: window.i18n.t('显示') },
+          { id: 'false', name: window.i18n.t('隐藏') },
+        ],
+      },
+    ];
   }
 
   created() {
@@ -313,51 +365,6 @@ export default class IndicatorTable extends tsc<any, any> {
     );
   }
 
-  getGroupCpm(row, index) {
-    return (
-      <bk-select
-        autoHeight={false}
-        clearable={false}
-        value={row.labels?.map(item => item.name)}
-        displayTag
-        multiple
-        searchable
-        onChange={(v: string[]) => this.handleSelectGroup(v, index, row)}
-      >
-        {this.groupSelectList.map(item => (
-          <bk-option
-            id={item.name}
-            key={item.name}
-            v-bk-tooltips={
-              !this.getIsDisable(row.name, item.id)
-                ? { disabled: true }
-                : {
-                    content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
-                    placements: ['right'],
-                    boundary: 'window',
-                    allowHTML: false,
-                  }
-            }
-            disabled={this.getIsDisable(row.name, item.id)}
-            name={item.name}
-          >
-            {item.name}
-          </bk-option>
-        ))}
-        {
-          <div
-            class='edit-group-manage'
-            slot='extension'
-            onClick={this.handleShowGroupManage}
-          >
-            <i class='icon-monitor icon-jia' />
-            <span>{this.$t('新建分组')}</span>
-          </div>
-        }
-      </bk-select>
-    );
-  }
-
   renderSelectionHeader() {
     return (
       <ColumnCheck
@@ -396,6 +403,7 @@ export default class IndicatorTable extends tsc<any, any> {
             ext-cls='description-input'
             readonly={this.editingIndex !== props.$index}
             value={props.row.description}
+            show-overflow-tooltips
             onBlur={() => {
               this.editingIndex = -1;
               this.handleEditDescription(props.row);
@@ -406,7 +414,15 @@ export default class IndicatorTable extends tsc<any, any> {
       ),
     };
     const groupSlot = {
-      /* 分组 */ default: ({ row, $index }) => <div class='table-group-box'>{this.getGroupCpm(row, $index)}</div>,
+      /* 分组 */ default: ({ row, $index }) => (
+        <div
+          key={this.groupWidth}
+          style={`width: ${this.groupWidth - 20}px;`}
+          class='table-group-box'
+        >
+          {this.getGroupCpm(row, $index)}
+        </div>
+      ),
     };
     const statusSlot = {
       /* 状态 */ default: props => {
@@ -442,6 +458,11 @@ export default class IndicatorTable extends tsc<any, any> {
         <bk-table
           v-bkloading={{ isLoading: this.table.loading }}
           empty-text={this.$t('无数据')}
+          on-header-dragend={(newWidth, oldWidth, col) => {
+            if (col.property === 'group') {
+              this.groupWidth = newWidth;
+            }
+          }}
           on-selection-change={this.handleCheckChange}
           {...{
             props: {
@@ -468,8 +489,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {name.checked && (
             <bk-table-column
               key='name'
-              width='150'
               label={this.$t('名称')}
+              minWidth='150'
               prop='name'
               scopedSlots={nameSlot}
             />
@@ -477,8 +498,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {description.checked && (
             <bk-table-column
               key='description'
-              width='200'
               label={this.$t('别名')}
+              minWidth='200'
               prop='description'
               scopedSlots={descriptionSlot}
             />
@@ -495,8 +516,8 @@ export default class IndicatorTable extends tsc<any, any> {
           {status.checked && (
             <bk-table-column
               key='status'
-              width='125'
               label={this.$t('状态')}
+              minWidth='125'
               prop='status'
               scopedSlots={statusSlot}
             />
@@ -504,7 +525,6 @@ export default class IndicatorTable extends tsc<any, any> {
           {hidden.checked && (
             <bk-table-column
               key='hidden'
-              width='75'
               renderHeader={() => (
                 <div>
                   <span>{this.$t('显示')}</span>
@@ -515,6 +535,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 </div>
               )}
               label={this.$t('显示')}
+              minWidth='75'
               prop='hidden'
               scopedSlots={hiddenSlot}
             />
@@ -578,6 +599,12 @@ export default class IndicatorTable extends tsc<any, any> {
     return true;
   }
 
+  @Emit('searchChange')
+  handleSearchChange(list) {
+    this.search = list;
+    return list;
+  }
+
   async updateCustomFields(k, v, metricName, showMsg = false) {
     try {
       await this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
@@ -635,16 +662,13 @@ export default class IndicatorTable extends tsc<any, any> {
   handleShowEditUnit(unit) {
     this.canEditUnit = true;
     this.copyUnit = unit;
-    this.$nextTick(() => {
-      this.unitInput?.getPopoverInstance?.()?.show?.();
-    });
+    // this.$nextTick(() => {
+    //   this.unitInput?.getPopoverInstance?.()?.show?.();
+    // });
   }
 
   /** 编辑函数 */
   async editFunction(func, metricInfo) {
-    if (!func?.name || func?.name === metricInfo?.function?.name) {
-      return;
-    }
     metricInfo.function = func;
     await this.updateCustomFields('function', func, metricInfo.name);
   }
@@ -673,32 +697,18 @@ export default class IndicatorTable extends tsc<any, any> {
       this.intervalInput?.getPopoverInstance?.()?.show?.();
     });
   }
-  editInterval(metricInfo, isShow) {
-    if (isShow) return;
-    this.canEditInterval = false;
-    if (metricInfo.interval === this.copyInterval) {
-      return;
-    }
-    metricInfo.interval = this.copyInterval;
-    this.updateCustomFields('interval', this.copyInterval, metricInfo.name);
+  editInterval(v, metricInfo) {
+    // if (isShow) return;
+    // this.canEditInterval = false;
+    // if (metricInfo.interval === this.copyInterval) {
+    //   return;
+    // }
+    metricInfo.interval = v;
+    this.updateCustomFields('interval', v, metricInfo.name);
   }
-
-  /** 编辑维度 */
-  handleShowEditDimension(dimension) {
-    this.canEditDimension = true;
-    this.copyDimension = deepClone(dimension);
-    this.$nextTick(() => {
-      this.dimensionInput?.getPopoverInstance?.()?.show?.();
-    });
-  }
-  editDimension(metricInfo, isShow) {
-    if (isShow) return;
-    this.canEditDimension = false;
-    if (JSON.stringify(metricInfo.dimensions) === JSON.stringify(this.copyDimension)) {
-      return;
-    }
-    metricInfo.dimensions = this.copyDimension;
-    this.updateCustomFields('dimensions', this.copyDimension, metricInfo.name);
+  editDimension(metricInfo, v) {
+    metricInfo.dimensions = v;
+    this.updateCustomFields('dimensions', v, metricInfo.name);
   }
   /** 切换显示 */
   handleEditHidden(v, metricInfo) {
@@ -710,6 +720,50 @@ export default class IndicatorTable extends tsc<any, any> {
     if (this.autoDiscover) return;
     metricInfo.disabled = !metricInfo.disabled;
     this.updateCustomFields('disabled', metricInfo.disabled, metricInfo.name, true);
+  }
+  getGroupCpm(row, index, showFoot = true) {
+    return (
+      <bk-select
+        key={row.name}
+        clearable={false}
+        value={row.labels?.map(item => item.name)}
+        displayTag
+        multiple
+        searchable
+        onChange={(v: string[]) => this.handleSelectGroup(v, index, row)}
+      >
+        {this.groupSelectList.map(item => (
+          <bk-option
+            id={item.name}
+            key={item.name}
+            v-bk-tooltips={
+              !this.getIsDisable(row.name, item.id)
+                ? { disabled: true }
+                : {
+                    content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
+                    placements: ['right'],
+                    boundary: 'window',
+                    allowHTML: false,
+                  }
+            }
+            disabled={this.getIsDisable(row.name, item.id)}
+            name={item.name}
+          >
+            {item.name}
+          </bk-option>
+        ))}
+        {showFoot && (
+          <div
+            class='edit-group-manage'
+            slot='extension'
+            onClick={this.handleShowGroupManage}
+          >
+            <i class='icon-monitor icon-jia' />
+            <span>{this.$t('新建分组')}</span>
+          </div>
+        )}
+      </bk-select>
+    );
   }
   getDetailCmp() {
     const renderInfoItem = (props: { label: string; value?: any }, readonly = false) => {
@@ -726,6 +780,9 @@ export default class IndicatorTable extends tsc<any, any> {
       this.showDetail = false;
       return;
     }
+    const getKey = obj => {
+      return `${obj?.id || ''}_${obj?.params[0]?.value || ''}`;
+    };
     return (
       <div class='metric-card'>
         <div class='card-header'>
@@ -743,10 +800,11 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('别名')}：</span>
               {!this.canEditName ? (
                 <div
-                  class='info-content'
+                  class='info-content info-text'
+                  v-bk-overflow-tips
                   onClick={() => this.handleShowEditDescription(metricData.description)}
                 >
-                  {metricData.description ?? '-'}
+                  {metricData.description || '-'}
                 </div>
               ) : (
                 <bk-input
@@ -758,7 +816,9 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
             <div class='info-item'>
               <span class='info-label'>{this.$t('分组')}：</span>
-              <div class='info-content group-list'>{this.getGroupCpm(metricData, this.detailActiveIndex, false)}</div>
+              <div class='info-content'>
+                <div class='group-list'>{this.getGroupCpm(metricData, this.detailActiveIndex, false)}</div>
+              </div>
             </div>
 
             {/* TODO: 暂不支持配置 */}
@@ -793,6 +853,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   ext-cls='unit-content'
                   v-model={this.copyUnit}
                   clearable={false}
+                  allow-create
                   searchable
                   onToggle={v => this.handleEditUnit(v, metricData)}
                 >
@@ -845,57 +906,37 @@ export default class IndicatorTable extends tsc<any, any> {
             <div class='info-item'>
               <span class='info-label'>{this.$t('函数')}：</span>
               <div class='info-content'>
-                {
-                  <FunctionMenu
-                    class='init-add'
-                    list={this.metricFunctions}
-                    onFuncSelect={v => this.editFunction(v, metricData)}
-                  >
-                    {metricData.function?.name ?? '-'}
-                  </FunctionMenu>
-                }
+                <FunctionSelect
+                  key={getKey(metricData.function[0])}
+                  class='metric-func-selector-add'
+                  v-model={metricData.function}
+                  isMultiple={false}
+                  onValueChange={params => this.editFunction(params, metricData)}
+                />
               </div>
             </div>
             <div class='info-item'>
               <span class='info-label'>{this.$t('关联维度')}：</span>
-              {this.autoDiscover || !this.canEditDimension ? (
-                <div
-                  class='info-content'
-                  onClick={() => this.handleShowEditDimension(metricData.dimensions)}
-                >
-                  {metricData.dimensions?.length ? (
-                    <div class='table-dimension-tags'>
-                      {metricData.dimensions.map(item => (
-                        <span
-                          key={item}
-                          class='table-dimension-tag'
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div class='table-dimension-select'>{this.$t('-')}</div>
-                  )}
-                </div>
-              ) : (
-                <div class='info-content'>
+              {
+                <div class='info-content dimension-content'>
                   <bk-select
-                    ref='dimensionInput'
-                    extCls='dimension-content'
-                    v-model={this.copyDimension}
+                    v-bk-tooltips={{
+                      disabled: !this.autoDiscover,
+                      content: this.$t('已开启自动发现新增指标，无法操作'),
+                    }}
+                    autoHeight={false}
                     clearable={false}
-                    collapseTag={false}
+                    disabled={this.autoDiscover}
+                    value={metricData.dimensions}
                     displayTag
                     multiple
                     searchable
-                    onToggle={v => this.editDimension(metricData, v)}
+                    onChange={v => this.editDimension(metricData, v)}
                   >
                     {this.dimensionTable.map(dim => (
                       <bk-option
                         id={dim.name}
                         key={dim.name}
-                        class='dimension-tag'
                         name={dim.name}
                       >
                         {dim.name}
@@ -903,37 +944,30 @@ export default class IndicatorTable extends tsc<any, any> {
                     ))}
                   </bk-select>
                 </div>
-              )}
+              }
             </div>
 
             {/* 上报周期 */}
             <div class='info-item'>
               <span class='info-label'>{this.$t('上报周期')}：</span>
-              {!this.canEditInterval ? (
+              <CycleInput
+                class='unit-content'
+                isNeedDefaultVal={true}
+                minSec={10}
+                needAuto={false}
+                value={metricData.interval}
+                onChange={(v: number) => this.editInterval(v, metricData)}
+              />
+              {/* {!this.canEditInterval ? (
                 <div
                   class='info-content'
                   onClick={() => this.handleShowEditInterval(metricData.interval)}
                 >
-                  {`${metricData.interval}s` || 0}
+                  {`${metricData.interval}` || 0}
                 </div>
               ) : (
-                <bk-select
-                  ref='intervalInput'
-                  ext-cls='unit-content'
-                  v-model={this.copyInterval}
-                  clearable={false}
-                  placeholder={this.$t('请选择')}
-                  onToggle={v => this.editInterval(metricData, v)}
-                >
-                  {this.cycleOption.map(option => (
-                    <bk-option
-                      id={option.id}
-                      key={option.id}
-                      name={`${option.name}s`}
-                    />
-                  ))}
-                </bk-select>
-              )}
+
+              )} */}
             </div>
             {renderInfoItem({ label: '创建时间', value: this.getShowTime(metricData.create_time) }, true)}
             {renderInfoItem({ label: '更新时间', value: this.getShowTime(metricData.update_time) }, true)}
@@ -956,14 +990,49 @@ export default class IndicatorTable extends tsc<any, any> {
       </div>
     );
   }
+  mounted() {
+    this.handleSetDefault(); // 初始化高度
+    this.resizeObserver = new ResizeObserver(this.handleResize);
+    if (this.metricTableHeader) {
+      this.resizeObserver.observe(this.metricTableHeader);
+    }
+  }
+  destroyed() {
+    window.removeEventListener('resize', this.handleClientResize);
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect(); // 清除监听
+    }
+  }
+  /** 处理元素尺寸变化（带防抖） */
+  @Debounce(100)
+  handleResize(entries) {
+    const entry = entries[0];
+    if (entry) {
+      this.rectHeight = entry.contentRect.height;
+    }
+  }
+  /** 初始化或窗口调整时设置默认值 */
+  handleSetDefault() {
+    if (this.metricTableHeader) {
+      const rect = this.metricTableHeader.getBoundingClientRect();
+      this.rectHeight = rect.height;
+    }
+  }
+  /** 窗口调整防抖处理 */
+  @Debounce(100)
+  handleClientResize() {
+    this.handleSetDefault();
+  }
   render() {
     return (
       <div class='indicator-table-content'>
-        <div class='indicator-table-header'>
+        <div
+          ref='metricTableHeader'
+          class='indicator-table-header'
+        >
           <div class='indicator-btn'>
             <bk-button
               class='header-btn'
-              disabled={!this.metricTableVal.length}
               theme='primary'
               onClick={this.handleClickSlider}
             >
@@ -972,12 +1041,12 @@ export default class IndicatorTable extends tsc<any, any> {
             <bk-popover
               ext-cls='header-select-btn-popover'
               arrow={false}
-              disabled={!this.selectionLeng}
+              disabled={!this.selectionLength}
               placement='bottom-start'
               theme='light common-monitor'
               trigger='click'
             >
-              <div class={['header-select-btn', { 'btn-disabled': !this.selectionLeng }]}>
+              <div class={['header-select-btn', { 'btn-disabled': !this.selectionLength }]}>
                 <span class='btn-name'> {this.$t('批量操作')} </span>
                 <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
               </div>
@@ -996,7 +1065,7 @@ export default class IndicatorTable extends tsc<any, any> {
                   >
                     <div class='list-item'>{option.name}</div>
                     <div
-                      class='header-select-list'
+                      class='header-select-list mh-300'
                       slot='content'
                     >
                       {Array.from(this.groupsMap.keys()).map(group => (
@@ -1016,6 +1085,10 @@ export default class IndicatorTable extends tsc<any, any> {
             {this.showAutoDiscover && (
               <div class='list-header-button'>
                 <bk-switcher
+                  v-bk-tooltips={{
+                    disabled: !this.autoDiscover,
+                    content: this.$t('暂只支持开启，不支持关闭'),
+                  }}
                   // TODO: 暂只支持开启，不支持关闭
                   disabled={this.autoDiscover}
                   preCheck={this.handChangeSwitcher}
@@ -1034,18 +1107,24 @@ export default class IndicatorTable extends tsc<any, any> {
               </div>
             )}
           </div>
-          <bk-input
+          <SearchSelect
+            class='search-table'
             ext-cls='search-table'
-            v-model={this.search}
-            placeholder={this.$t('搜索')}
-            right-icon='icon-monitor icon-mc-search'
+            data={this.metricSearchData}
+            modelValue={this.search}
+            placeholder={this.$t('搜索指标')}
+            show-popover-tag-change
+            on-change={this.handleSearchChange}
           />
         </div>
         <div class='strategy-config-wrap'>
           {this.loading ? (
             <TableSkeleton type={2} />
           ) : (
-            <div class='table-box'>
+            <div
+              style={{ height: `calc(100% - ${this.computedHeight}px)` }}
+              class='table-box'
+            >
               {[
                 this.getTableComponent(),
                 this.metricTableVal?.length ? (
@@ -1069,7 +1148,7 @@ export default class IndicatorTable extends tsc<any, any> {
             </div>
           )}
           <div
-            style={{ width: `${this.computedWidth}px` }}
+            style={{ width: `${this.computedWidth}px`, height: `calc(100% - ${this.computedHeight}px)` }}
             class='detail'
             v-show={this.showDetail}
           >

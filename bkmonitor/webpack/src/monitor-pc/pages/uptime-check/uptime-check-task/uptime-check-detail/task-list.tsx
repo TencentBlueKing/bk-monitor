@@ -71,7 +71,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   @Prop({ default: false, type: Boolean }) isTargetCompare: boolean;
 
   loading = false;
-  inited = false;
+  initialized = false;
   /** 搜索关键字 */
   searchKeyword = '';
   activeTask = '';
@@ -130,10 +130,10 @@ export default class TaskList extends tsc<IProps, IEvents> {
         this.taskData = res;
         this.handleSearch();
         this.handleListChange(res);
-        if (!this.inited) {
+        if (!this.initialized) {
           const curData = this.taskData.find(data => String(data.id) === String(this.activeTask));
           Boolean(curData) && this.handleTitleChange(curData);
-          this.inited = true;
+          this.initialized = true;
         }
       })
       .finally(() => (this.loading = false));

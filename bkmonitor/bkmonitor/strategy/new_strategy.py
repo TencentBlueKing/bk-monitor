@@ -56,6 +56,7 @@ from bkmonitor.models.strategy import (
     StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
+    AlgorithmChoiceConfig,
 )
 from bkmonitor.strategy.expression import parse_expression
 from bkmonitor.strategy.serializers import (
@@ -93,7 +94,7 @@ from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, strftime
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.aiops import SDKDetectStatus
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, DATA_SOURCE_LABEL_ALIAS
 from constants.strategy import (
     DATALINK_SOURCE,
     HOST_SCENARIO,
@@ -509,6 +510,7 @@ class BaseActionRelation(AbstractConfig):
                 ActionSignal.EXECUTE,
                 ActionSignal.EXECUTE_SUCCESS,
                 ActionSignal.EXECUTE_FAILED,
+                ActionSignal.INCIDENT,
             ],
         )
         options = OptionsSerializer()
@@ -1365,6 +1367,9 @@ class QueryConfig(AbstractConfig):
         for condition in self.agg_condition:
             if condition["method"] in data_source.ADVANCE_CONDITION_METHOD:
                 has_advance_method = True
+            # 数值型字段，不需要进行聚合分组
+            if condition["method"] in ["gt", "gte", "lt", "lte", "eq", "neq"]:
+                continue
             dimensions.add(condition["key"])
 
         if has_advance_method:
@@ -2494,6 +2499,22 @@ class Strategy(AbstractConfig):
         # 4.3.1 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
         if getattr(query_config, "result_table_id", None):
             # 4.3.2 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
+            if query_config.data_source_label not in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
+                data_source_label_name = DATA_SOURCE_LABEL_ALIAS.get(
+                    query_config.data_source_label, query_config.data_source_label
+                )
+
+                plan = AlgorithmChoiceConfig.objects.filter(id=algorithm_plan_id).first()
+                if not plan:
+                    raise ValidationError(_("未找到当前智能算法的方案配置，请联系系统管理员"))
+
+                unsupported_algorithms = [
+                    "log_patterns_anomaly_detection_with_dimensions",
+                    "general_anomaly_detection_for_crash_failure_metric",
+                ]
+                if plan.name in unsupported_algorithms:
+                    raise ValidationError(_(f"{plan.alias}算法不支持数据来源: {data_source_label_name}"))
+
             if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
                 need_access = True
 

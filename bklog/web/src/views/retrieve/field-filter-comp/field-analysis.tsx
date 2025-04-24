@@ -121,7 +121,7 @@ export default class FieldAnalysis extends Vue {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
       const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
-      return `${window.mainComponent.$t('查询时段')}: ${dayjs.unix(startTime).format(pillarFormatStr)} - ${dayjs.unix(endTime).format(pillarFormatStr)}`;
+      return `${window.mainComponent.$t('查询时段')}: ${dayjs(startTime).format(pillarFormatStr)} - ${dayjs(endTime).format(pillarFormatStr)}`;
     }
     return '';
   }

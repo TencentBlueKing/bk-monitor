@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Watch, Prop, ProvideReactive, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { Debounce } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import LayoutChartTable from './layout-chart-table';
 import { chunkArray } from './utils';
@@ -55,16 +55,16 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
-  @Prop({ type: Number, default: 3 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
+  @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
     interval: 'auto',
   };
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   activeName = [];
   groupList = [];
   collapseRefsHeight: number[][] = [];
@@ -83,6 +83,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     // this.timeRange = [val.start_time, val.end_time];
     val && this.getGroupList();
   }
+
   /** 展示的个数发生变化时 */
   @Watch('viewColumn')
   handleColumnNumChange() {
@@ -124,7 +125,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     }
 
     this.loading = true;
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...this.config,
       time_series_group_id: Number(this.$route.params.id),
@@ -135,12 +136,13 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     if (!params.compare?.type) {
       delete params.compare;
     }
-
+    const len = params.metrics.length;
+    const max = Math.ceil(len / this.viewColumn);
     getCustomTsGraphConfig(params)
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
-        this.activeName = this.groupList.map(item => item.name);
+        this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
       })
       .catch(() => {
@@ -159,7 +161,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
           isShowStatisticalValue={this.showStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
-        ></LayoutChartTable>
+        />
       </div>
     );
   }
@@ -170,11 +172,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         {Array(2)
           .fill(null)
           .map((_, index) => (
-            <div class='skeleton-loading-item'>
-              <div
-                key={index}
-                class='skeleton-element'
-              />
+            <div
+              key={index}
+              class='skeleton-loading-item'
+            >
+              <div class='skeleton-element' />
               <div class='skeleton-element-row'>
                 {Array(3)
                   .fill(null)
@@ -231,7 +233,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   <span
                     class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.name) ? 'down' : 'right'}`}
                     slot='icon'
-                  ></span>
+                  />
                   {item.name}
                 </span>
                 <div
@@ -239,14 +241,15 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   slot='content'
                 >
                   {/* {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))} */}
-                  {chunkArray(item.panels, this.viewColumn).map((rowItem, rowIndex) => (
-                    <div
-                      key={rowIndex}
-                      class='chart-view-row'
-                    >
-                      {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
-                    </div>
-                  ))}
+                  {this.activeName.includes(item.name) &&
+                    chunkArray(item.panels, this.viewColumn).map((rowItem, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        class='chart-view-row'
+                      >
+                        {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
+                      </div>
+                    ))}
                 </div>
               </bk-collapse-item>
             ))}

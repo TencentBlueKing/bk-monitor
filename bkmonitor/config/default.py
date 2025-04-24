@@ -551,12 +551,23 @@ APM_BMW_TASK_QUEUES = []
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
 APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
+# UnifyQuery查询表映射配置
+UNIFY_QUERY_TABLE_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
-
-# 蓝盾配置
-BKCI_HOST = ""
-
+# profiling 汇聚方法映射配置
+APM_PROFILING_AGG_METHOD_MAPPING = {
+    "HEAP-SPACE": "AVG",
+    "WALL-TIME": "SUM",
+    "ALLOC-SPACE": "AVG",
+    "ALLOC_SPACE": "AVG",
+    "CPU-TIME": "SUM",
+    "EXCEPTION-SAMPLES": "SUM",
+    "CPU": "SUM",
+    "INUSE_SPACE": "AVG",
+    "DELAY": "AVG",
+    "GOROUTINE": "AVG",
+}
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
@@ -1082,7 +1093,10 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
+JOB_USE_APIGW = os.getenv("BKAPP_JOB_USE_APIGW", "false").lower() == "true"
+JOB_API_BASE_URL = os.getenv("BKAPP_JOB_API_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
@@ -1541,6 +1555,9 @@ K8S_V2_BIZ_LIST = []
 # 事件检索新版灰度列表
 EVENT_V2_BIZ_LIST = []
 
+# Trace 检索新版灰度配置
+TRACE_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
@@ -1572,3 +1589,6 @@ INITIALIZED_TENANT_LIST = ["system"]
 
 # 新版自定义时序灰度业务列表
 ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
+
+# 事件中心AIOps功能灰度业务列表
+ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []

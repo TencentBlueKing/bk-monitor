@@ -108,6 +108,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       onClick: this.handleNewExplorePage,
     },
   ];
+  showStatisticsPopover = false;
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
   /** 当前激活触发弹出 popover 的列或者激活的分词下标 */
@@ -222,6 +223,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       onHidden: () => {
         this.popoverInstance?.destroy?.();
         this.popoverInstance = null;
+        this.showStatisticsPopover = false;
         if (!this.statisticsSliderShow) {
           this.fieldTarget = null;
           this.activeColumnOrIndex = null;
@@ -229,7 +231,9 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       },
       interactive: true,
     });
+    await this.$nextTick();
     this.popoverInstance?.show(100);
+    this.showStatisticsPopover = true;
   }
 
   /**
@@ -487,7 +491,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div style={{ display: 'none' }}>
         <StatisticsList
           ref='statisticsList'
+          fieldType={this.fieldTarget?.type}
           isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
+          isShow={this.showStatisticsPopover}
+          isShowChart={false}
           popoverInstance={this.popoverInstance}
           selectField={this.fieldTarget?.sourceName}
           source={this.source}

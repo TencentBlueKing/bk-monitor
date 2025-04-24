@@ -13,7 +13,7 @@ SEARCH_PARAMS = [
         ],
     },
     {
-        "sql": "SELECT thedate, log, time ",
+        "sql": "SELECT thedate, log, time LIMIT 10",
         "keyword": "title:\"Pyth?n\" OR title:/[Pp]ython.*/ AND __ext.bcs_id: \"test\"",
         "start_time": 1732220441,
         "end_time": 1732820443,
@@ -69,10 +69,35 @@ SEARCH_PARAMS = [
 
 
 SQL_RESULT = [
-    (f"{SQL_PREFIX} {SQL_SUFFIX}"),
+    f"{SQL_PREFIX} {SQL_SUFFIX}",
+    "SELECT thedate, log, time LIMIT 10",
+    "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 WHERE a=1 or b=2 LIMIT 10",
+    "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
+]
+
+
+WHERE_CLAUSE = [
     (
-        "SELECT thedate, log, time "
-        "WHERE (bk_host_id = '1' OR bk_host_id = '2')"
+        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "AND "
+        "dtEventTimeStamp >= 1732220441 "
+        "AND "
+        "dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Pyth?n\""
+        " AND "
+        "(bk_host_id = '1' OR bk_host_id = '2')"
+    ),
+    (
+        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Pyth?n\" OR title REGEXP '[Pp]ython.*'"
+        " AND "
+        "CAST(__ext['bcs_id'] AS TEXT) = \"test\""
+        " AND "
+        "(bk_host_id = '1' OR bk_host_id = '2')"
         " AND "
         "service != 'php'"
         " AND "
@@ -121,12 +146,22 @@ SQL_RESULT = [
         "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
     ),
     (
-        "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
-        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        " AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "log LIKE '%' AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\" AND log LIKE '%def%'"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
     ),
     (
-        "SELECT thedate, dtEventTimeStamp, log "
-        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        " AND "
+        "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
+        " AND "
+        "title = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
+        " AND "
+        "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
     ),
 ]
 
@@ -144,6 +179,15 @@ WHERE_CLAUSE_CASE = [
     "NOT log: \"ts\" AND -a : \"b\"",
     "span_id:(6cee80d18 OR \"c866d58ac1\") AND (-log:\"a\" OR NOT a:b)",
     "(index: >=200 OR index: <100) AND id: <10 AND age: >18",
+    "log: (1 OR \"abc\" OR \"xxx\" AND 111)",
+    "ID: (\"abc\" OR (\"cde\" AND \"ddd\"))",
+    "ID: ((\"a\" AND b) OR \"d\" AND 2 AND 3 AND (4 OR 5))",
+    "log: ((\"a\" OR (\"b\" OR \"c\")) AND \"d\") AND -name: test",
+    "log: ((\"a\" OR (\"b\" OR \"c\")) OR \"d\") AND -name: test",
+    "log: ((\"a\" AND b) OR \"c\" AND \"d\")",
+    "log: (\"a\" OR (\"b\" OR \"c\")) AND (1 OR 2 AND 3) OR \"f\" AND \"g\"",
+    "ID: (\"abc\" AND 5 OR 6 AND (\"cde\" AND \"ddd\") AND (1 AND 2))",
+    "ID: (\"abc\" OR 5 AND 6 AND (\"cde\" AND \"ddd\") AND (1 OR 2))",
 ]
 WHERE_CLAUSE_RESULT = [
     "log LIKE '%'",
@@ -158,12 +202,27 @@ WHERE_CLAUSE_RESULT = [
     "NOT log MATCH_PHRASE \"ts\" AND NOT a = \"b\"",
     "(span_id LIKE '%6cee80d18%' OR span_id = \"c866d58ac1\") AND (NOT log MATCH_PHRASE \"a\" OR NOT a LIKE '%b%')",
     "(index >=200 OR index <100) AND id <10 AND age >18",
+    "(log MATCH_PHRASE \"xxx\" AND log LIKE '%111%' OR (log LIKE '%1%' OR log MATCH_PHRASE \"abc\"))",
+    "((ID = \"cde\" AND ID = \"ddd\") OR ID = \"abc\")",
+    "((ID = \"a\" AND ID LIKE '%b%') OR ID = \"d\" AND ID LIKE '%2%' AND ID LIKE '%3%' AND "
+    "(ID LIKE '%4%' OR ID LIKE '%5%'))",
+    "((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") AND "
+    "log MATCH_PHRASE \"d\" AND NOT name LIKE '%test%'",
+    "(((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") OR "
+    "log MATCH_PHRASE \"d\") AND NOT name LIKE '%test%'",
+    "((log MATCH_PHRASE \"a\" AND log LIKE '%b%') OR log MATCH_PHRASE \"c\" AND log MATCH_PHRASE \"d\")",
+    "((log MATCH_PHRASE \"b\" OR log MATCH_PHRASE \"c\") OR log MATCH_PHRASE \"a\") AND "
+    "(log LIKE '%1%' OR log LIKE '%2%' AND log LIKE '%3%') OR log MATCH_PHRASE \"f\" AND log MATCH_PHRASE \"g\"",
+    "(ID = \"abc\" AND ID LIKE '%5%' OR ID LIKE '%6%' AND (ID = \"cde\" AND ID = \"ddd\") AND "
+    "(ID LIKE '%1%' AND ID LIKE '%2%'))",
+    "(ID LIKE '%5%' AND ID LIKE '%6%' AND (ID = \"cde\" AND ID = \"ddd\") AND "
+    "(ID LIKE '%1%' OR ID LIKE '%2%') OR ID = \"abc\")",
 ]
 
 
 class TestChart(TestCase):
     def test_generate_sql(self):
-        for search_param, sql_result in zip(SEARCH_PARAMS, SQL_RESULT):
+        for search_param, sql_result, where_clause in zip(SEARCH_PARAMS, SQL_RESULT, WHERE_CLAUSE):
             start_time = search_param["start_time"]
             end_time = search_param["end_time"]
             addition = search_param["addition"]
@@ -176,8 +235,8 @@ class TestChart(TestCase):
                 sql_param=sql_param,
                 keyword=keyword,
             )
-            self.maxDiff = None
             self.assertEqual(data["sql"], sql_result)
+            self.assertEqual(data["additional_where_clause"], where_clause)
 
     def test_lucene_to_where_clause(self):
         for where_clause_case, where_clause_result in zip(WHERE_CLAUSE_CASE, WHERE_CLAUSE_RESULT):

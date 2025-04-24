@@ -253,23 +253,16 @@
         {{ $t('取消') }}
       </bk-button>
     </div>
-    <!-- <div class="field-alias-setting">
-      <span style="margin-right: 4px">{{ $t('表头显示别名') }}</span>
-      <bk-switcher
-        v-model="showFieldAlias"
-        size="small"
-        theme="primary"
-      ></bk-switcher>
-    </div> -->
   </div>
 </template>
 
 <script>
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
+
   // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
 
   export default {
     components: {
@@ -305,7 +298,7 @@
           'ghost-class': 'sortable-ghost-class',
         },
         isSortFieldChanged: false,
-        keyword:''
+        keyword: '',
       };
     },
     computed: {
@@ -324,7 +317,7 @@
         });
       },
       showFieldAlias() {
-        return this.$store.state.showFieldAlias;
+        return this.$store.state.storage.showFieldAlias;
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -334,7 +327,7 @@
         return fieldAliasMap;
       },
       toSelectLength() {
-        if(this.keyword){
+        if (this.keyword) {
           return this.filterShadowTotal.length;
         }
         if (this.activeFieldTab === 'visible') {
@@ -414,7 +407,6 @@
             await this.submitFieldsSet(this.currentClickConfigData.id);
           }
           this.cancelModifyFields();
-          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -656,7 +648,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
             this.$store.dispatch('requestIndexSetQuery');
@@ -717,9 +708,9 @@
       setPopperInstance(status) {
         this.$emit('set-popper-instance', status);
       },
-      searchChange(v){
-        this.keyword = v
-      }
+      searchChange(v) {
+        this.keyword = v;
+      },
     },
   };
 </script>
@@ -851,7 +842,7 @@
       padding: 0px 10px 0 10px;
     }
 
-    .menu-select-search{
+    .menu-select-search {
       width: 340px;
       padding-left: 10px;
       margin-top: -30px;

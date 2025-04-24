@@ -65,6 +65,7 @@ export default class TableStore {
     const searchNames = [];
     const searcOthers = [];
     const searchRules = [];
+    const searchNotifyTarget = [];
     this.searchCondition.forEach(c => {
       if (c.id === 'id') {
         c?.values?.forEach(v => {
@@ -79,6 +80,11 @@ export default class TableStore {
       if (c.id === 'rule') {
         c?.values?.forEach(v => {
           searchRules.push(v.id);
+        });
+      }
+      if (c.id === 'notify-target') {
+        c?.values?.forEach(v => {
+          searchNotifyTarget.push(v.id);
         });
       }
       if (typeof c.values === 'undefined') {
@@ -99,6 +105,15 @@ export default class TableStore {
       if (searchRules.length) {
         // iss.push(searchRules.some(id => item.duty_rules.map(d => String(d)).indexOf(id) > -1));
         iss.push(searchRules.some(id => item.dutyRuleNames.some(d => d.name === id)));
+      }
+      if (searchNotifyTarget.length) {
+        iss.push(
+          searchNotifyTarget.some(targetId =>
+            item.users.some(notifytarget =>
+              `${notifytarget.id || ''}(${notifytarget.display_name || ''})`.includes(targetId)
+            )
+          )
+        );
       }
       return iss.length ? iss.some(is => is) : true;
     });

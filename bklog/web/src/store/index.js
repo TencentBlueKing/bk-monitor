@@ -55,8 +55,11 @@ import {
   logSourceField,
   indexSetClusteringData,
   getDefaultRetrieveParams,
+  getStorageOptions,
+  BkLogGlobalStorageKey,
 } from './default-values.ts';
 import globals from './globals';
+import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
@@ -152,24 +155,22 @@ const stateTpl = {
   /** 是否清空了显示字段，展示全量字段 */
   isNotVisibleFieldsShow: false,
   showAlert: false, // 是否展示跑马灯
-  isLimitExpandView: false,
   storeIsShowClusterStep: false,
   retrieveDropdownData: {},
   notTextTypeFields: [],
-  tableLineIsWrap: false,
-  tableJsonFormat: false,
-  tableJsonFormatDepth: 1,
-  tableShowRowIndex: false,
-  // 是否展示空字段
-  tableAllowEmptyField: false,
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
-  showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
   clearSearchValueNum: 0,
   // 存放接口报错信息的对象
   apiErrorInfo: {},
   clusterParams: null,
+  storage: {
+    ...getStorageOptions(),
+  },
+  features: {
+    isAiAssistantActive: false,
+  },
 };
 
 const store = new Vuex.Store({
@@ -221,8 +222,9 @@ const store = new Vuex.Store({
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
-    isLimitExpandView: state => state.isLimitExpandView,
-    common_filter_addition: state => state.retrieve.catchFieldCustomConfig.filterAddition ?? [],
+    isLimitExpandView: state => state.storage.isLimitExpandView,
+    custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
+
     // @ts-ignore
     retrieveParams: state => {
       const {
@@ -290,21 +292,16 @@ const store = new Vuex.Store({
     resultTableStaticWidth: state => {
       return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
     },
+    isAiAssistantActive: state => state.features.isAiAssistantActive,
   },
   // 公共 mutations
   mutations: {
-    updatetableJsonFormatDepth(state, val) {
-      state.tableJsonFormatDepth = val;
-    },
-    updateTableJsonFormat(state, val) {
-      state.tableJsonFormat = val;
-    },
-    updateTableShowRowIndex(state, val) {
-      state.tableShowRowIndex = val;
-    },
-    // 更新是否展示空字段
-    updateTableEmptyFieldFormat(state, val) {
-      state.tableAllowEmptyField = val;
+    updateStorage(state, payload) {
+      Object.keys(payload).forEach(key => {
+        state.storage[key] = payload[key];
+      });
+
+      localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
@@ -396,6 +393,12 @@ const store = new Vuex.Store({
       });
 
       Object.assign(state.indexSetFieldConfig, result ?? {});
+    },
+
+    updateIndexSetCustomConfig(state, payload) {
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexFieldInfo.custom_config, key, payload[key]);
+      });
     },
 
     resetIndexSetQueryResult(state, payload) {
@@ -505,6 +508,7 @@ const store = new Vuex.Store({
       state.bkBizId = state.space.bk_biz_id;
       state.spaceUid = spaceUid;
       state.isSetDefaultTableColumn = false;
+      state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {
@@ -627,10 +631,7 @@ const store = new Vuex.Store({
     updateNoticeAlert(state, val) {
       state.showAlert = val;
     },
-    updateIsLimitExpandView(state, val) {
-      localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
-      state.isLimitExpandView = val;
-    },
+
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
@@ -723,18 +724,14 @@ const store = new Vuex.Store({
       );
     },
     updateTableLineIsWrap(state, payload) {
-      state.tableLineIsWrap = payload;
-    },
-    updateShowFieldAlias(state, payload) {
-      window.localStorage.setItem('showFieldAlias', payload);
-      state.showFieldAlias = payload;
+      state.storage.tableLineIsWrap = payload;
     },
     /** 初始化表格宽度 为false的时候会按照初始化的情况来更新宽度 */
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
-        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 104 : 84;
         setDefaultTableWidth(
           state.visibleFields,
           payload?.list ?? state.indexSetQueryResult.list,
@@ -986,6 +983,7 @@ const store = new Vuex.Store({
 
       if (route.query?.bizId) {
         state.bkBizId = route.query?.bizId;
+        state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
       }
 
       if (result.ip_chooser) {
@@ -1035,6 +1033,7 @@ const store = new Vuex.Store({
 
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
+        commit('updateStorage', { searchType: payload.search_mode === 'ui' ? 0 : 1 });
       }
     },
 
@@ -1143,8 +1142,15 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: true },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
+      if (!payload?.isPagination) {
+        commit('updateIndexSetQueryResult', {
+          origin_log_list: [],
+          list: [],
+        });
+      }
+
       if (
         (!state.indexItem.isUnionIndex && !state.indexId) ||
         (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
@@ -1157,23 +1163,24 @@ const store = new Vuex.Store({
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
 
-      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
-      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
-      const { datePickerValue } = state.indexItem;
-      const letterRegex = /[a-zA-Z]/;
-      const needTransform = datePickerValue.every(d => letterRegex.test(d));
+      // 如果是第一次请求
+      // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
+      if (!payload?.isPagination) {
+        // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+        // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+        const { datePickerValue } = state.indexItem;
+        const letterRegex = /[a-zA-Z]/;
+        const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
-      const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue, format)
-        : [state.indexItem.start_time, state.indexItem.end_time];
+        const [start_time, end_time] = needTransform
+          ? handleTransformToTimestamp(datePickerValue, format)
+          : [state.indexItem.start_time, state.indexItem.end_time];
 
-      if (needTransform) {
-        commit('updateIndexItem', { start_time, end_time });
+        if (needTransform) {
+          commit('updateIndexItem', { start_time, end_time });
+        }
       }
 
-      if (!payload?.isPagination && payload.formChartChange) {
-        store.commit('retrieve/updateChartKey');
-      }
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
         is_loading: true,
@@ -1190,13 +1197,16 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
+      const { start_time, end_time } = state.indexItem;
+
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
+        addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
+        sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
       };
 
       // 更新联合查询的begin
@@ -1243,6 +1253,7 @@ const store = new Vuex.Store({
                 const indexSetQueryResult = state.indexSetQueryResult;
                 const logList = parseBigNumberList(rsolvedData.list);
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                const size = logList.length;
 
                 rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
                 rsolvedData.origin_log_list = payload.isPagination
@@ -1269,6 +1280,7 @@ const store = new Vuex.Store({
                   code,
                   result,
                   length: logList.length,
+                  size,
                 };
               }
 
@@ -1280,6 +1292,7 @@ const store = new Vuex.Store({
                 code,
                 result,
                 length: 0,
+                size: 0,
               };
             });
           }
@@ -1289,7 +1302,9 @@ const store = new Vuex.Store({
         .catch(e => {
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
-          commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
+          if (e.code !== 'ERR_CANCELED') {
+            commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
+          }
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });
@@ -1383,7 +1398,7 @@ const store = new Vuex.Store({
         !state.indexFieldInfo.aggs_items[field.field_name]?.length &&
         field.es_doc_values &&
         filterBuildIn(field) &&
-        ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
+        ['keyword'].includes(field.field_type) &&
         !/^__dist_/.test(field.field_name);
 
       const mapFn = field => field.field_name;
@@ -1441,7 +1456,13 @@ const store = new Vuex.Store({
           },
         })
         .then(resp => {
-          commit('updateFavoriteList', resp.data || []);
+          const results = (resp.data || []).map(item => {
+            item.favorites?.forEach(sub => {
+              sub.full_name = `${item.group_name}/${sub.name}`;
+            });
+            return item;
+          });
+          commit('updateFavoriteList', results);
           return resp;
         });
     },
@@ -1655,7 +1676,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...(getters.common_filter_addition ?? [])],
+              addition: [...getters.retrieveParams.addition, ...getCommonFilterAdditionWithValues(state)],
             },
           },
           {
@@ -1688,9 +1709,7 @@ const store = new Vuex.Store({
         datePickerValue: [start_time, end_time],
       });
 
-      // 这里通过增加 prefix 标识当前是由图表缩放导致的更新操作
-      // 用于后续逻辑判定使用
-      commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
+      return Promise.resolve(true);
     },
     /**
      * 更新 Vuex 状态中的用户字段配置。
@@ -1728,6 +1747,37 @@ const store = new Vuex.Store({
           reject(err);
         }
       });
+    },
+
+    toggleFieldVisible({ commit, state }, { visible, field }) {
+      const displayFieldNames = state.visibleFields.map(item => item.field_name);
+      if (visible) {
+        // 需要显示字段
+        displayFieldNames.push(field.field_name);
+      } else {
+        // 需要隐藏字段
+        const index = state.visibleFields.findIndex(item => field.field_name === item.field_name);
+        displayFieldNames.splice(index, 1);
+      }
+      if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
+
+      http
+        .request('retrieve/postFieldsConfig', {
+          params: { index_set_id: state.indexId },
+          data: {
+            display_fields: displayFieldNames,
+            sort_list: state.indexFieldInfo.sort_list,
+            config_id: state.retrieve.filedSettingConfigID,
+            index_set_id: state.indexId,
+            index_set_ids: state.unionIndexList,
+            index_set_type: state.isUnionSearch ? 'union' : 'single',
+          },
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+      commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
+      commit('updateIsSetDefaultTableColumn', false);
     },
   },
 });

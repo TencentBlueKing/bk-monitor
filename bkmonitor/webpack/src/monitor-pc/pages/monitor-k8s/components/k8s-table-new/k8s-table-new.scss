@@ -81,10 +81,21 @@
       border-bottom: 0;
     }
 
-    .bk-table-row.hover-row {
-      .col-item-operate {
-        visibility: visible;
-        animation: debouncedIconShow 0.6s steps(2);
+    .bk-table-row {
+      min-height: var(--row-min-height, 42px);
+
+      &:has(.drill-down-icon.active) {
+        .col-item-operate {
+          visibility: visible;
+          animation: debouncedIconShow 0.6s steps(2);
+        }
+      }
+
+      &.hover-row {
+        .col-item-operate {
+          visibility: visible;
+          animation: debouncedIconShow 0.6s steps(2);
+        }
       }
     }
   }

@@ -34,6 +34,7 @@ from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
+from monitor_web.scene_view.builtin.constants import DEFAULT_APM_HOST_DETAIL
 from monitor_web.scene_view.builtin.utils import gen_string_md5
 
 logger = logging.getLogger(__name__)
@@ -280,7 +281,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     [
                         bool(HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)),
                         bool(
-                            HostHandler.list_application_hosts(
+                            HostHandler.has_hosts_relation(
                                 view.bk_biz_id,
                                 app_name,
                                 service_name,
@@ -332,7 +333,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if (
                 app_name
                 and service_name
-                and HostHandler.list_application_hosts(
+                and HostHandler.has_hosts_relation(
                     view.bk_biz_id,
                     app_name,
                     service_name,
@@ -340,7 +341,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     end_time=params.get("end_time"),
                 )
             ):
-                cls._add_config_from_host(view, view_config)
+                apm_host_detail_config = copy.deepcopy(DEFAULT_APM_HOST_DETAIL)
+                view_config["overview_panels"] = apm_host_detail_config["overview_panels"]
+
+                if "overview_panel" in view_config.get("options"):
+                    # 去除顶部栏中的策略告警信息
+                    del view_config["options"]["overview_panel"]
+
                 # 兼容前端对 selector_panel 类型为 target_list 做的特殊处理 直接直接替换变量
                 view_config["options"]["selector_panel"]["targets"][0]["data"] = {
                     "app_name": app_name,
@@ -652,7 +659,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             pod_view = pod_view.first()
 
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
-        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
+        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config, view_position="APM")
 
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]

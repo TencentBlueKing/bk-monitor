@@ -46,7 +46,7 @@ export interface IDataIdItem {
   [key: string]: any;
 }
 
-export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
+export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
 
 export interface IDimensionOperation {
   alias: string;
@@ -82,6 +82,21 @@ export interface ITopKField {
     proportions: number;
     value: string;
   }[];
+}
+
+/** 统计信息 */
+export interface IStatisticsInfo {
+  field: string;
+  total_count: number;
+  field_count: number;
+  distinct_count: number;
+  field_percent: number;
+  value_analysis?: {
+    max: number;
+    min: number;
+    avg: number;
+    median: number;
+  };
 }
 
 /**
@@ -127,7 +142,7 @@ export enum DimensionsTypeEnum {
 /** 检索表格列配置类型 */
 export interface EventExploreTableColumn {
   /** 字段类型 */
-  type: ExploreTableColumnTypeEnum;
+  type?: ExploreTableColumnTypeEnum;
   /** 字段id */
   id: string;
   /** 字段名称（渲染指标列时为指标名称） */
@@ -205,3 +220,20 @@ export interface KVSplitItem {
   value: string;
   type: KVSplitEnum;
 }
+
+export const EventExploreFeatures = [
+  /** 收藏 */
+  'favorite',
+  /** 数据ID */
+  'dataId',
+  /** 时间范围 */
+  'dateRange',
+  /** 维度筛选 */
+  'dimensionFilter',
+  /** 标题 */
+  'title',
+  /** 表头 */
+  'header',
+] as const;
+
+export type HideFeatures = Array<(typeof EventExploreFeatures)[number]>;

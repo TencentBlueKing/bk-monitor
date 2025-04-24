@@ -20,6 +20,8 @@ from pypinyin import lazy_pinyin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.time_tools import timestamp_to_tz_datetime
 from calendars.constants import (
     CHANGE_TYPE_LIST,
@@ -244,14 +246,16 @@ class SaveItemResource(Resource):
 
         def validate_calendar_id(self, value):
             if value:
-                canendar = CalendarModel.objects.get(id=value)
-                if canendar.classify == "default":
+                calendar = CalendarModel.objects.filter(id=value, bk_tenant_id=get_request_tenant_id()).first()
+                if not calendar:
+                    raise ValidationError(_("日历不存在"))
+                if calendar.classify == "default":
                     raise ValidationError(_("这是内置日历，不能进行任何操作"))
             return value
 
-    def perform_request(self, validated_request_data):
-        item = CalendarItemModel.objects.create(**validated_request_data)
-        return {"id": item.id}
+    def perform_request(self, params: dict):
+        params["bk_tenant_id"] = get_request_tenant_id()
+        return {"id": CalendarItemModel.objects.create(**params).id}
 
 
 class DeleteItemResource(Resource):
@@ -272,23 +276,29 @@ class DeleteItemResource(Resource):
 
         def validate_id(self, value):
             if value:
-                item = CalendarItemModel.objects.get(id=value)
-                calendar = CalendarModel.objects.get(id=item.calendar_id)
+                item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=value)
+                calendar = CalendarModel.objects.filter(
+                    id=item.calendar_id, bk_tenant_id=get_request_tenant_id()
+                ).first()
+                if not calendar:
+                    raise ValidationError(_("日历不存在"))
                 if calendar.classify == "default":
                     raise ValidationError(_("该事项属于内置日历事项，不能进行任何操作"))
             return value
 
-    def perform_request(self, validated_request_data):
-        delete_type = validated_request_data["delete_type"]
-        item_id = validated_request_data["id"]
-        item = CalendarItemModel.objects.get(id=item_id)
-        start_time = validated_request_data["start_time"]
+    def perform_request(self, params: dict):
+        delete_type = params["delete_type"]
+        item_id = params["id"]
+        item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=item_id)
+        start_time = params["start_time"]
 
         if not item.repeat or item.parent_id:
             item.delete()
         elif delete_type == DELETE_TYPE_LIST[0]:
             if start_time == item.start_time:
-                CalendarItemModel.objects.filter(Q(parent_id=item_id) | Q(id=item_id)).delete()
+                CalendarItemModel.objects.filter(
+                    Q(parent_id=item_id) | Q(id=item_id), bk_tenant_id=get_request_tenant_id()
+                ).delete()
             else:
                 raise ValueError(_("当前事项不是第一项，无法删除全部"))
         elif delete_type == DELETE_TYPE_LIST[1]:
@@ -298,7 +308,9 @@ class DeleteItemResource(Resource):
             item.save()
         else:
             # 将item.start_time大于start_time并且挂在在当前事项的子事项解除挂载
-            CalendarItemModel.objects.filter(start_time__gte=start_time, parent_id=item_id).update(parent_id=None)
+            CalendarItemModel.objects.filter(
+                start_time__gte=start_time, parent_id=item_id, bk_tenant_id=get_request_tenant_id()
+            ).update(parent_id=None)
             exclude_date = item.repeat["exclude_date"]
             exclude_date.append(get_day(start_time, item.time_zone))
             for time in exclude_date.copy():
@@ -329,28 +341,31 @@ class EditItemResource(Resource):
 
         def validate_calendar_id(self, value):
             if value:
-                calendar = CalendarModel.objects.get(id=value)
+                calendar = CalendarModel.objects.filter(id=value, bk_tenant_id=get_request_tenant_id()).first()
+                if not calendar:
+                    raise ValidationError(_("日历不存在"))
+
                 if calendar.classify == "default":
                     raise ValidationError(_("这是内置日历，不能进行任何操作"))
             return value
 
         def validate_id(self, value):
             if value:
-                item = CalendarItemModel.objects.get(id=value)
-                calendar = CalendarModel.objects.get(id=item.calendar_id)
+                item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=value)
+                calendar = CalendarModel.objects.get(id=item.calendar_id, bk_tenant_id=get_request_tenant_id())
                 if calendar.classify == "default":
                     raise ValidationError(_("该事项属于内置日历事项，不能进行任何操作"))
             return value
 
-    def perform_request(self, validated_request_data):
-        change_type = validated_request_data["change_type"]
-        item_id = validated_request_data["id"]
-        item = CalendarItemModel.objects.get(id=item_id)
-        name = validated_request_data.get("name", item.name)
-        calendar_id = validated_request_data.get("calendar_id", item.calendar_id)
-        start_time = validated_request_data.get("start_time", item.start_time)
-        end_time = validated_request_data.get("end_time", item.end_time)
-        repeat = validated_request_data.get("repeat")
+    def perform_request(self, params: dict):
+        change_type = params["change_type"]
+        item_id = params["id"]
+        item = CalendarItemModel.objects.get(bk_tenant_id=get_request_tenant_id(), id=item_id)
+        name = params.get("name", item.name)
+        calendar_id = params.get("calendar_id", item.calendar_id)
+        start_time = params.get("start_time", item.start_time)
+        end_time = params.get("end_time", item.end_time)
+        repeat = params.get("repeat")
         repeat = repeat if repeat else item.repeat
 
         if not item.repeat or item.parent_id or change_type == CHANGE_TYPE_LIST[0]:
@@ -365,6 +380,7 @@ class EditItemResource(Resource):
             # 仅改变当前时间的日历事项
             # 1. 将该事项设置为新事项，并且将该新事项挂载到item上
             new_item = CalendarItemModel.objects.create(
+                bk_tenant_id=get_request_tenant_id(),
                 name=name,
                 calendar_id=calendar_id,
                 start_time=start_time,
@@ -381,6 +397,7 @@ class EditItemResource(Resource):
             # 改变当前事项及未来所有事项
             # 1. 根据相关配置生成新的事项
             new_item = CalendarItemModel.objects.create(
+                bk_tenant_id=get_request_tenant_id(),
                 name=name,
                 calendar_id=calendar_id,
                 start_time=start_time,
@@ -389,7 +406,9 @@ class EditItemResource(Resource):
                 time_zone=item.time_zone,
             )
             # 2. 根据start_time去将子表解除关联
-            CalendarItemModel.objects.filter(parent_id=item_id, start_time__gte=start_time).update(parent_id=None)
+            CalendarItemModel.objects.filter(
+                parent_id=item_id, start_time__gte=start_time, bk_tenant_id=get_request_tenant_id()
+            ).update(parent_id=None)
             # 3. 删除exclude_date中
             exclude_date = item.repeat["exclude_date"]
             exclude_date.append(get_day(start_time, item.time_zone))
@@ -412,15 +431,17 @@ class ItemDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         calendar_ids = serializers.ListField(label="所属日历ID列表")
         time = serializers.IntegerField(label="查询时间")
         start_time = serializers.IntegerField(required=False, label="日历详情开始时间")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
         return ItemListResource()(
-            calendar_ids=validated_request_data["calendar_ids"],
-            start_time=validated_request_data["time"],
-            end_time=validated_request_data["time"],
+            bk_tenant_id=params["bk_tenant_id"],
+            calendar_ids=params["calendar_ids"],
+            start_time=params["time"],
+            end_time=params["time"],
             time_zone=settings.TIME_ZONE,
         )
 
@@ -431,6 +452,7 @@ class ItemListResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         calendar_ids = serializers.ListField(label="所属日历ID列表")
         start_time = serializers.IntegerField(label="日历查询范围开始时间")
         end_time = serializers.IntegerField(label="日历查询范围结束时间")
@@ -442,9 +464,9 @@ class ItemListResource(Resource):
                 raise ValidationError(_("所选时区错误，请修改后再次尝试"))
             return value
 
-    def perform_request(self, validated_request_data):
-        calendar_ids = validated_request_data["calendar_ids"]
-        search_key = validated_request_data["search_key"]
+    def perform_request(self, params: dict):
+        calendar_ids = params["calendar_ids"]
+        search_key = params["search_key"]
         validated_data = {}
         if 0 not in calendar_ids:
             validated_data["calendar_id__in"] = calendar_ids
@@ -452,16 +474,16 @@ class ItemListResource(Resource):
             validated_data["name__icontains"] = search_key
 
         item_dict = {}
-        items = CalendarItemModel.objects.filter(**validated_data)
+        items = CalendarItemModel.objects.filter(bk_tenant_id=params["bk_tenant_id"], **validated_data)
 
         for item in items:
-            time_zone = validated_request_data.get("time_zone", item.time_zone)
+            time_zone = params.get("time_zone", item.time_zone)
             offset = get_offset(time_zone)
             repeat = item.repeat
             item_start_time = timestamp_to_tz_datetime(item.start_time, offset)  # 事项单次开始时间
             item_end_time = timestamp_to_tz_datetime(item.end_time, offset)  # 事项单次结束时间
-            start_time = timestamp_to_tz_datetime(validated_request_data["start_time"], offset)  # 查询范围开始时间
-            end_time = timestamp_to_tz_datetime(validated_request_data["end_time"], offset)  # 查询范围结束时间
+            start_time = timestamp_to_tz_datetime(params["start_time"], offset)  # 查询范围开始时间
+            end_time = timestamp_to_tz_datetime(params["end_time"], offset)  # 查询范围结束时间
             now = datetime.now().timestamp()  # 此刻的时间，用来计算该事项的状态
 
             # 对于一次性的可以直接存入
@@ -540,9 +562,9 @@ class GetParentItemListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         calendar_ids = serializers.ListField(label="所属日历ID列表", child=serializers.IntegerField())
 
-    def perform_request(self, validated_request_data):
-        calendar_ids = validated_request_data["calendar_ids"]
-        items = CalendarItemModel.objects.all()
+    def perform_request(self, params: dict):
+        calendar_ids = params["calendar_ids"]
+        items = CalendarItemModel.objects.filter(bk_tenant_id=get_request_tenant_id())
         if 0 not in calendar_ids:
             items = items.filter(calendar_id__in=calendar_ids)
         item_list = []

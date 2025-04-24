@@ -76,7 +76,7 @@
                  
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div 
-                    v-if="!props.row.alias_name" 
+                    v-if="aliasShow(props.row)" 
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
                     class="field-name">
                     <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
@@ -95,7 +95,15 @@
                     ></i>
                     </div>
                     <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
-                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name"></bk-input>
+                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name" @blur="checkAliasNameItem(props.row)"></bk-input>
+                    <template v-if="props.row.fieldErr">
+                    <i
+                      style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="props.row.fieldErr"
+                    >
+                    </i>
+                  </template>
                   </div>
                 </div>
                 <bk-form-item
@@ -546,7 +554,10 @@
           errTemp.aliasErr = false;
         }
         copyFields.reduce((list, item) => {
-          list.push(Object.assign({}, errTemp, item));
+          // 采集路径分割正则不展示
+          if(item.option?.metadata_type !== 'path'){
+            list.push(Object.assign({}, errTemp, item));
+          }
           return list;
         }, arr);
         arr.forEach(item => (item.previous_type = item.field_type));
@@ -588,7 +599,7 @@
             collectorId: this.collectorConfigId,
           },
           query: {
-            spaceUid: currentIndexSet?.spaceUid,
+            spaceUid: currentIndexSet?.space_uid,
           },
         });
         window.open(newURL.href, '_blank');
@@ -689,7 +700,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.formData.tableList);
+        const data = cloneDeep(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -794,7 +805,7 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              // 如果有别名，不判断字段名，判断别名，如果为内置字段不判断
+              // 如果有重命名，不判断字段名，判断重命名，如果为内置字段不判断
               if (!row.is_built_in) {
                 const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
                 const hasFieldNameIssue = this.checkFieldNameItem(row);
@@ -816,25 +827,25 @@
         });
       },
       checkAliasNameItem(row) {
-        const { field_name: fieldName, query_alias: aliasName, is_delete: isDelete } = row;
+        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
         if (aliasName) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
-            // 别名只支持【英文、数字、下划线】，并且不能以数字开头
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+          // 设置了重命名
+          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
+            row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
             return false;
+          }else if (aliasName === fieldName) {
+            row.fieldErr = this.$t('重命名与字段名重复');
           }
           if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-            // 别名不能与内置字段名相同
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
+            row.fieldErr = this.$t('重命名不能与内置字段名相同');
             return false;
           }
         } 
 
-        row.aliasErr = '';
+        row.fieldErr = '';
         return true;
       },
       checkAliasName() {
@@ -842,7 +853,7 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (!this.checkAliasNameItem(row)) {
+              if (!row.is_built_in && !this.checkAliasNameItem(row)) {
                 result = false;
               }
             });
@@ -859,7 +870,7 @@
         });
       },
       checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -868,6 +879,12 @@
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }else if (queryAlias === fieldName) {
+            row.aliasErr = this.$t('别名与字段名重复');
+            return false;
+          }else if (queryAlias === aliasName) {
+            row.aliasErr = this.$t('别名与重命名重复');
             return false;
           }
           if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
@@ -1046,10 +1063,10 @@
       addObject(){
         const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
-          let name = item.field_name.split('.')[0]
+          let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true
           this.tableAllList.forEach( builtField => {
-            if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+            if(builtField.field_type === "object" && name === builtField.field_name?.split('.')[0]){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];
                 this.$set(builtField, 'expand', false);
@@ -1058,6 +1075,12 @@
             }
           } )
         })
+      },
+      aliasShow(row){
+        if (row.is_built_in) {
+          return true;
+        }
+        return !row.alias_name
       }
     },
   };
@@ -1137,6 +1160,13 @@
               }
               .participle-icon-color{
                 background-color: rgb(250, 251, 253) !important;
+              }
+              .tooltips-icon{
+                position: absolute;
+                z-index: 10;
+                color: #ea3636;
+                cursor: pointer;
+                font-size: 16px;
               }
             }
           }

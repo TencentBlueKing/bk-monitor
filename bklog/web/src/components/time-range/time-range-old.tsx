@@ -191,7 +191,6 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           disabled
           on-change={this.dateTimeChange}
           on-open-change={this.handlePanelShowChange}
-          on-pick-click={val => console.log(1111, val)}
         >
           <bk-popover
             slot='trigger'

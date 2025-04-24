@@ -34,7 +34,8 @@ export default defineComponent({
       default: 0,
     },
   },
-  setup(props, { slots }) {
+  emits: ['row-click'],
+  setup(props, { slots, emit }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
 

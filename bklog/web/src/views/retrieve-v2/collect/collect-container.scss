@@ -1,4 +1,4 @@
-.retrieve-collect-container {
+.bklog-v3-retrieve-collect-container {
   width: 100%;
   height: 100%;
   font-size: 12px;
@@ -12,7 +12,37 @@
   }
 
   .search-container-new {
-    padding: 0 16px 16px;
+    padding: 0 12px 12px;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+
+      &-num {
+        display: inline-flex;
+        align-items: center;
+        height: 16px;
+        padding: 0 8px;
+        margin: 0 4px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px;
+        color: #ffffff;
+        text-align: center;
+        letter-spacing: 0;
+        background: #a3b1cc;
+        border-radius: 8px;
+      }
+
+      &-right {
+        display: flex;
+        column-gap: 12px;
+        align-items: center;
+        justify-content: center;
+      }
+    }
 
     .search-title,
     .bklog-icon {
@@ -63,7 +93,7 @@
 
   .group-container-new {
     height: calc(100vh - 210px);
-    margin-right: 2px;
+
     overflow-y: auto;
 
     &::-webkit-scrollbar {
@@ -73,13 +103,7 @@
 
   .icon-box {
     display: inline-block;
-    border: 1px solid #63656e;
-    transform: scale(0.84);
-  }
-
-  .operate-box {
-    width: 57px;
-    margin-left: 12px;
+    color: #4d4f56;
   }
 
   .list-number {
@@ -98,6 +122,22 @@
     width: 100%;
     height: 100%;
     padding-top: 30px;
+
+    .empty-box {
+      flex: 1;
+      min-width: 0;
+
+      .exception-wrap-item.exception-part {
+        .part-img {
+          width: 100%;
+
+          .exception-image {
+            flex: 1;
+            min-width: 0;
+          }
+        }
+      }
+    }
 
     .exception-image {
       height: 175px;
@@ -154,7 +194,9 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    margin-top: 10px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-top: 16px !important;
 
     > :first-child {
       margin-right: 12px;

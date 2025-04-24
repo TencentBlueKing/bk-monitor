@@ -9,8 +9,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from enum import Enum
+from typing import Dict
 
 from apps.log_search.constants import OperatorEnum
+
+MAX_LEN_DICT = Dict[str, int]
+
+BODY_DATA_FOR_CONTEXT = {
+    "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
+    "size": "",
+    "from": "",
+    "sort": [],
+}
 
 
 class AggTypeEnum(Enum):
@@ -57,9 +67,13 @@ BASE_OP_MAP = {
 ADVANCED_OP_MAP = {
     OperatorEnum.CONTAINS_MATCH_PHRASE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "ne", "condition": "or"},
-    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {"operator": "eq", "condition": "or", "is_wildcard": True},
+    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
+        "operator": "contains",
+        "condition": "or",
+        "is_wildcard": True
+    },
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
-        "operator": "ne",
+        "operator": "ncontains",
         "condition": "or",
         "is_wildcard": True,
     },

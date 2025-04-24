@@ -89,6 +89,8 @@ class VisibleEnum(ChoicesEnum):
     CURRENT_BIZ = "current_biz"
     # 多业务可见
     MULTI_BIZ = "multi_biz"
+    # 当前租户可见
+    CURRENT_TENANT = "current_tenant"
     # 全业务
     ALL_BIZ = "all_biz"
     # 业务属性可见
@@ -97,6 +99,7 @@ class VisibleEnum(ChoicesEnum):
     _choices_labels = (
         (CURRENT_BIZ, _("当前业务")),
         (MULTI_BIZ, _("多业务")),
+        (CURRENT_TENANT, _("当前租户")),
         (ALL_BIZ, _("全业务")),
         (BIZ_ATTR, _("业务属性")),
     )
@@ -705,3 +708,15 @@ class CollectorBatchOperationType(ChoicesEnum):
         (START, _("启用")),
         (MODIFY_STORAGE, _("修改存储配置")),
     )
+
+
+class OTLPProxyHostConfig(object):
+    """
+    OTLP代理主机配置信息
+    """
+
+    GRPC = "grpc"
+    GRPC_TRACE_PATH = ":4317"
+    HTTP = "http"
+    HTTP_TRACE_PATH = ":4318/v1/traces"
+    HTTP_SCHEME = "http://"
