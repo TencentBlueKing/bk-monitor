@@ -74,8 +74,8 @@ from apps.log_databus.serializers import (
     PreviewContainersSerializer,
     ProxyHostSerializer,
     RetrySerializer,
-    RunIPSubscriptionSerializer,
     RunSubscriptionSerializer,
+    RunSubscriptionTaskSerializer,
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
@@ -172,7 +172,7 @@ class CollectorViewSet(ModelViewSet):
             "list": CollectorListSerializer,
             "retry": RetrySerializer,
             "list_collectors": CollectorListSerializer,
-            "run": RunIPSubscriptionSerializer,
+            "run": RunSubscriptionTaskSerializer,
         }
         return action_serializer_map.get(self.action, serializers.Serializer)
 
