@@ -42,8 +42,22 @@ export default defineComponent({
   setup() {
     const store = useStore();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle } = useAppInit();
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
+      useAppInit();
     const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+
+    const renderResultContent = () => {
+      if (isPreApiLoaded.value) {
+        return <V3SearchResult></V3SearchResult>;
+      }
+
+      return (
+        <div
+          style={{ minHeight: '50vh', width: '100%' }}
+          v-bkloading={{ isLoading: !isPreApiLoaded.value }}
+        ></div>
+      );
+    };
 
     return () => (
       <div
@@ -67,7 +81,7 @@ export default defineComponent({
                 'is-sticky-top-result': isSearchResultStickyTop.value,
               }}
             ></V3Searchbar>
-            <V3SearchResult></V3SearchResult>
+            {renderResultContent()}
           </V3Container>
         </div>
       </div>
