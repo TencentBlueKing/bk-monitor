@@ -35,10 +35,10 @@ import { mapState, mapGetters } from 'vuex';
 
 import OriginalLightHeight from '../result-comp/original-light-height.tsx';
 import TableColumn from '../result-comp/table-column';
-import EmptyView from '../search-result-panel/original-log/empty-view';
-import ExpandView from '../search-result-panel/original-log/expand-view.vue';
-import OperatorTools from '../search-result-panel/original-log/operator-tools';
-import TimeFormatterSwitcher from '../search-result-panel/original-log/time-formatter-switcher';
+import EmptyView from '../components/result-cell-element/empty-view.ts';
+import ExpandView from '../search-result-panel/result-cell-element/expand-view.vue';
+import OperatorTools from '../components/result-cell-element/operator-tools.ts';
+import TimeFormatterSwitcher from '../components/result-cell-element/time-formatter-switcher.tsx';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 import useFieldNameHook from '@/hooks/use-field-name';
 export default {

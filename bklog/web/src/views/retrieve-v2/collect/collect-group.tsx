@@ -27,8 +27,6 @@
 import { Component, Prop, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Popover } from 'bk-magic-vue';
-
 import { utcFormatDate } from '../../../common/util';
 import { IGroupItem, IFavoriteItem } from './collect-index';
 import GroupDropdown from './component/group-dropdown';
@@ -76,12 +74,58 @@ export default class CollectGroup extends tsc<ICollectProps> {
   }
   handleHoverFavoriteName(e, item) {
     if (!this.favoriteMessageInstance) {
-      this.favoriteMessageInstance = this.$bkPopover(e.target, {
-        content: `<div style="font-size: 12px;">
+      let failureContent = '';
+
+      // 收藏项失效时需要额外展示的 dom 拼接逻辑
+      if (this.isFailFavorite(item)) {
+        const failureIconDom = `
+          <span style="color: #ff9c01; font-size: 12px;" class='bk-icon bklog-icon bklog-shixiao'></span>
+        `;
+
+        if (this.isMultiIndex(item)) {
+          const domArr = item.index_set_names.reduce((prev, setItem, setIndex) => {
+            const contentConfig = !item.is_actives[setIndex]
+              ? {
+                  rowPaddingStyle: 'margin-bottom: 10px',
+                  prefix: failureIconDom,
+                  suffix: `<span>(${this.$t('已失效')})</span>`,
+                }
+              : null;
+
+            const failureContentItem = `
+              <p style="${contentConfig?.rowPaddingStyle || ''}">
+                ${contentConfig?.prefix || ''}
+                <span>${setItem}</span>
+                ${contentConfig?.suffix || ''}
+              </p>
+              `;
+
+            if (!item.is_actives[setIndex]) {
+              prev.unshift(failureContentItem);
+            } else {
+              prev.push(failureContentItem);
+            }
+            return prev;
+          }, []);
+
+          failureContent = domArr.join('');
+        } else {
+          failureContent = `
+          <p style="margin-bottom: 10px">
+            ${failureIconDom}
+            ${this.$t('数据源不存在')}
+          </p>`;
+        }
+      }
+      let content = `<div style="font-size: 12px;">
+                  ${failureContent}
                   <p>${this.$t('创建人')}: ${item.created_by || '--'}</p>
                   <p>${this.$t('修改人')}: ${item.updated_by || '--'}</p>
                   <p>${this.$t('更新时间')}: ${utcFormatDate(item.updated_at)}</p>
-                </div>`,
+                </div>`;
+
+      this.favoriteMessageInstance = this.$bkPopover(e.target, {
+        content,
         arrow: true,
         placement: 'top',
         onHidden: () => {
@@ -108,6 +152,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
     return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
   }
 
+  handleGroupIsHidden(hidden: boolean) {
+    this.isHiddenList = hidden;
+  }
   render() {
     const groupDropdownSlot = groupName => {
       return !this.isCannotChange ? (
@@ -131,7 +178,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve2-collect-group'>
         <div
           class={[
             'group-title fl-jcsb',
@@ -144,16 +191,22 @@ export default class CollectGroup extends tsc<ICollectProps> {
           onMouseleave={() => this.handleHoverTitle(false)}
         >
           <span
+            style='padding: 0px 12px'
             class='group-cur'
             onClick={() => (this.isHiddenList = !this.isHiddenList)}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span>
-            <span class={'bklog-icon bklog-folder-fill'}></span>
+            {/* <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span> */}
+            <span
+              class={`bklog-icon bklog-${this.collectItem.group_type === 'private' ? 'file-personal' : this.isHiddenList ? 'file-close' : 'folder-fill'}`}
+            ></span>
             <span class='group-str'>{this.collectItem.group_name}</span>
           </span>
-          {groupDropdownSlot(this.collectItem.group_name)}
+          <span style='padding-right:12px'> {groupDropdownSlot(this.collectItem.group_name)}</span>
         </div>
-        <div class={['group-list', { 'list-hidden': this.isHiddenList }]}>
+        <div
+          style='padding: 0px 12px;'
+          class={['group-list', { 'list-hidden': this.isHiddenList }]}
+        >
           {this.collectItem.favorites.map((item, index) => (
             <div
               key={index}
@@ -175,35 +228,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                   onMouseenter={e => this.handleHoverFavoriteName(e, item)}
                 >
                   <span>{item.name}</span>
-                  {this.isFailFavorite(item) ? (
-                    <Popover
-                      ext-cls='favorite-data-source'
-                      placement='bottom'
-                      theme='light'
-                    >
-                      <span class='bk-icon bklog-icon bklog-shixiao'></span>
-                      <div slot='content'>
-                        {this.isMultiIndex(item) ? (
-                          <ul>
-                            {item.index_set_names.map((setItem, setIndex) => (
-                              <li
-                                class={{
-                                  'index-fail': !item.is_actives[setIndex],
-                                }}
-                              >
-                                <span>
-                                  <span>{setItem}</span>
-                                  {!item.is_actives[setIndex] ? <span>({this.$t('已失效')})</span> : undefined}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>{this.$t('数据源不存在')}</p>
-                        )}
-                      </div>
-                    </Popover>
-                  ) : undefined}
+                  {this.isFailFavorite(item) ? <span class='bk-icon bklog-icon bklog-shixiao'></span> : null}
                   {this.isMultiIndex(item) ? (
                     <span
                       v-bk-tooltips={{

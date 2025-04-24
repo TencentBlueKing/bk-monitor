@@ -491,8 +491,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div style={{ display: 'none' }}>
         <StatisticsList
           ref='statisticsList'
+          fieldType={this.fieldTarget?.type}
           isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
           isShow={this.showStatisticsPopover}
+          isShowChart={false}
           popoverInstance={this.popoverInstance}
           selectField={this.fieldTarget?.sourceName}
           source={this.source}

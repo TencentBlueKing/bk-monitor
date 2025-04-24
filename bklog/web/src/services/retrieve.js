@@ -221,6 +221,11 @@ const generateQueryString = {
   method: 'post',
 };
 
+const setIndexSetCustomConfig = {
+  url: '/search/index_set/custom_config/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -266,4 +271,5 @@ export {
   getClusteringConfigStatus,
   updateUserFiledTableConfig,
   generateQueryString,
+  setIndexSetCustomConfig,
 };

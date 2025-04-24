@@ -1,22 +1,20 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
+
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
+
+  import jsCookie from 'js-cookie';
   // @ts-ignore
   import { debounce } from 'lodash';
-  // @ts-ignore
+
+  import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
-
-  import { excludesFields } from './const.common';
-  import jsCookie from 'js-cookie';
-
   import useFieldEgges from './use-field-egges';
-
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import { getOsCommandLabel } from '@/common/util';
 
   const props = defineProps({
     value: {
@@ -24,10 +22,13 @@
       default: '',
       required: true,
     },
+    focusPosition: {
+      type: Number,
+      default: null,
+    },
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
-  const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -130,7 +131,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = null;
+    activeIndex.value = 0;
   };
 
   /**
@@ -151,6 +152,7 @@
   const setValueList = (fieldName: string, value: string) => {
     const fieldInfo = store.state.indexFieldInfo.fields.find(item => item.field_name === fieldName);
     if (fieldInfo && isValidateEgges(fieldInfo)) {
+      valueList.value = [];
       requestFieldEgges(fieldInfo, value, resp => {
         if (typeof resp === 'boolean') {
           valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
@@ -184,6 +186,27 @@
     showWhichDropdown(showVal);
   };
 
+  /**
+   * @description 获取当前输入框左侧内容
+   */
+  const getFocusLeftValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(0, props.focusPosition);
+    }
+
+    return props.value;
+  };
+
+  const emitValueChange = (appendValue: string, retrieve = false, replace = false, type = undefined) => {
+    emits('change', appendValue, retrieve, replace, type);
+  };
+
+  // 如果是当前位置 AND | OR | AND NOT 结尾
+  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)\s*$/i;
+
+  // 如果当前位置是 : 结尾，说明需要显示字段值列表
+  const regExpFieldValue = /(:\s*)$/;
+
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
     if (!originFieldList().length) {
@@ -193,77 +216,68 @@
     fieldList.value.length = 0;
     fieldList.value = [];
 
-    const value = props.value;
-    const trimValue = value.trim();
-    const lastFragments = value.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
-    // 以 name:"arman" OR age:18 为例，还没开始输入字段
-    if (
-      !trimValue ||
-      trimValue === '*' ||
-      /\s+AND\s+$/i.test(value) ||
-      /\s+OR\s+$/i.test(value) ||
-      /\s+AND\s+NOT\s+$/i.test(value)
-    ) {
+    const value = getFocusLeftValue();
+
+    if (!value.length) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
       return;
     }
-    // 开始输入字段【nam】
-    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
-    if (inputField) {
-      fieldList.value = originFieldList().filter(item => {
-        if (item.includes(inputField)) {
-          if (item === inputField) {
-            showColonOperator(inputField);
-          }
-          return true;
-        }
-      });
-      showWhichDropdown(fieldList.value.length ? OptionItemType.Fields : undefined);
+
+    const isEndOrNot = regExpAndOrNot.test(value);
+    const isEndWidthEmpty = /\s+$/.test(value);
+
+    // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
+    if (isEndOrNot) {
+      if (isEndWidthEmpty) {
+        showWhichDropdown('Fields');
+
+        fieldList.value.push(...originFieldList());
+        return;
+      }
+
+      showWhichDropdown();
       return;
     }
-    // 字段输入完毕【name 】
-    if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
+
+    // 如果是以 : 结尾，说明需要显示字段值列表
+    if (regExpFieldValue.test(value)) {
+      const lastFragments = value.split(separator);
+      const lastFragment = lastFragments[lastFragments.length - 1];
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
+
+      if (confirmField) {
+        showWhichDropdown(OptionItemType.Value);
+        setValueList(confirmField, '');
+        return;
+      }
+
+      showWhichDropdown();
+      return;
+    }
+
+    // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
+    if (/\S+\s+$/.test(value)) {
+      showWhichDropdown(OptionItemType.Continue);
+      return;
+    }
+
+    const lastFragments = value.split(separator);
+    const lastFragment = lastFragments[lastFragments.length - 1];
+
+    if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
       showColonOperator(lastFragment);
       return;
     }
 
-    // 准备输入值【name:】
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
-    if (confirmField) {
-      const valueMap = retrieveDropdownData.value[confirmField];
-      if (valueMap) {
-        showWhichDropdown(OptionItemType.Value);
-        setValueList(confirmField, '');
-        // valueList.value = getValueList(valueMap);
-      } else {
-        showWhichDropdown();
-        valueList.value.splice(0);
+    // 开始输入字段【nam】
+    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
+    if (inputField) {
+      fieldList.value = originFieldList().filter(item => item.includes(inputField));
+      if (fieldList.value.length) {
+        showWhichDropdown(OptionItemType.Fields);
+        return;
       }
-      return;
-    }
-    // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-    const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
-    if (valueResult) {
-      const confirmField = valueResult.groups?.field;
-      const valueMap = retrieveDropdownData.value[confirmField];
-      if (valueMap) {
-        const inputValue = valueResult.groups?.value ?? '';
-        setValueList(confirmField, inputValue);
-        // valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
-        showWhichDropdown(valueList.value.length ? OptionItemType.Value : undefined);
-      } else {
-        showWhichDropdown();
-        valueList.value.splice(0);
-      }
-      return;
-    }
-
-    // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>["']?.*["']?)$/.test(lastFragment)) {
-      showWhichDropdown(OptionItemType.Continue);
-      return;
     }
 
     showWhichDropdown();
@@ -274,24 +288,11 @@
    * @param {string} field
    */
   const handleClickField = (field: string) => {
-    const currentValue = props.value;
+    emitValueChange(field, false, false, 'field');
 
-    const trimValue = currentValue.trim();
-    if (!trimValue || trimValue === '*') {
-      emits('change', `${field} `);
-    } else {
-      const fragments = currentValue.split(separator);
-      if (!fragments[fragments.length - 1].trim()) {
-        // 可能的情况 【name:"arman" AND \s】
-        emits('change', `${currentValue}${field} `);
-      } else {
-        // 可能的情况【name:"arman" AND ag】【name】
-        emits('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
-      }
-    }
     showColonOperator(field as string);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -301,10 +302,15 @@
    * @param {string} type
    */
   const handleClickColon = (type: string) => {
-    emits('change', `${props.value + type} `);
+    let target = type;
+    if (type === ': *') {
+      target = `${target} `;
+    }
+    emitValueChange(target);
     calculateDropdown();
+
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -313,17 +319,11 @@
    * 选择某个字段可选值
    * @param {string} value
    */
-  const handleClickValue = (value: any) => {
+  const handleClickValue = (value: string) => {
     // 当前输入值可能的情况 【name:"a】【age:】
-    emits(
-      'change',
-      props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator} "${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
-      }),
-    );
-    showWhichDropdown(OptionItemType.Continue);
+    emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -333,11 +333,11 @@
    * @param {string} type
    */
   const handleClickContinue = (type: string) => {
-    emits('change', `${props.value + type} `);
+    emitValueChange(`${type} `);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
-      activeIndex.value = null;
+      activeIndex.value = 0;
       setOptionActive();
     });
   };
@@ -349,10 +349,30 @@
     }
   };
 
-  const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
+  const stopEventPreventDefault = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  const handleKeydown = (e: {
+    preventDefault?: any;
+    code?: any;
+    ctrlKey?: boolean;
+    metaKey: boolean;
+    keyCode: number;
+  }) => {
     const { code } = e;
-    if (code === 'Escape') {
-      emits('cancel');
+    const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
+
+    if (code === 'Escape' || !catchKeyCode.includes(code)) {
+      return;
+    }
+
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
+      stopEventPreventDefault(e);
+      handleRetrieve();
       return;
     }
 
@@ -362,13 +382,18 @@
     }
 
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
-      e.preventDefault();
+      stopEventPreventDefault(e);
+      if (hasHover && !activeIndex.value) {
+        activeIndex.value = 0;
+      }
+
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
-        emits('change', props.value);
+        emitValueChange(props.value, false, true);
         nextTick(() => {
           handleRetrieve();
         });
@@ -376,6 +401,12 @@
     }
 
     if (code === 'ArrowUp') {
+      stopEventPreventDefault(e);
+
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value) {
         activeIndex.value -= 1;
       } else {
@@ -384,6 +415,12 @@
     }
 
     if (code === 'ArrowDown') {
+      stopEventPreventDefault(e);
+
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
         activeIndex.value = 0;
       } else {
@@ -396,32 +433,35 @@
   };
 
   const beforeShowndFn = () => {
-    activeIndex.value = null;
-    document.addEventListener('keydown', handleKeydown);
-
     calculateDropdown();
     nextTick(() => {
       setOptionActive();
     });
 
-    return (
-      (showOption.value.showFields && fieldList.value.length) ||
-      (showOption.value.showValue && valueList.value.length) ||
+    const beforeShownValue =
+      showOption.value.showFields ||
+      showOption.value.showValue ||
       showOption.value.showColon ||
       showOption.value.showContinue ||
-      (showOption.value.showOperator && operatorSelectList.value.length)
-    );
+      (showOption.value.showOperator && operatorSelectList.value.length);
+
+    if (beforeShownValue) {
+      // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+      document.addEventListener('keydown', handleKeydown, {
+        capture: true,
+      });
+    }
+
+    return beforeShownValue;
   };
 
   const beforeHideFn = () => {
-    document.removeEventListener('keydown', handleKeydown);
+    document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
 
   // 查询语法按钮部分
   const isRetractShow = ref(true);
-  const handleRetract = () => {
-    isRetractShow.value = !isRetractShow.value;
-  };
+
   const matchList = ref([
     {
       name: $t('精确匹配(支持AND、OR):'),
@@ -450,7 +490,7 @@
   ]);
 
   const handleFavoriteClick = item => {
-    emits('change', item.params?.keyword, true);
+    emitValueChange(item.params?.keyword, true, true);
   };
 
   const handleSQLReadmeClick = () => {
@@ -461,18 +501,22 @@
     );
   };
 
+  const debounceUpdate = debounce(() => {
+    calculateDropdown();
+    nextTick(() => {
+      setOptionActive();
+    });
+  });
+
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
   });
 
   watch(
-    props,
+    () => [props.value, props.focusPosition],
     () => {
-      calculateDropdown();
-      nextTick(() => {
-        setOptionActive();
-      });
+      debounceUpdate();
     },
     { immediate: true, deep: true },
   );
@@ -487,8 +531,8 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
@@ -496,6 +540,7 @@
             <li
               v-for="item in fieldList"
               class="list-item field-list-item"
+              data-bklog-v3-pop-click-item
               :key="item"
               @click="handleClickField(item)"
             >
@@ -518,6 +563,7 @@
             <li
               v-for="item in valueList"
               class="list-item value-list-item"
+              data-bklog-v3-pop-click-item
               :key="item"
               @click="handleClickValue(item)"
             >
@@ -538,6 +584,7 @@
           <div class="control-list">
             <li
               class="list-item colon-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickColon(':')"
             >
               <div class="item-type-icon">
@@ -555,6 +602,7 @@
             </li>
             <li
               class="list-item colon-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickColon(': *')"
             >
               <div class="item-type-icon">
@@ -571,13 +619,14 @@
               </div>
             </li>
           </div>
-          <template
+          <div
             v-if="showOption.showOperator"
             class="control-list"
           >
             <li
               v-for="(item, key) in operatorSelectList"
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               :key="key"
               @click="handleClickColon(item.operator)"
             >
@@ -594,13 +643,14 @@
                 </i18n>
               </div>
             </li>
-          </template>
+          </div>
         </template>
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
           <div class="control-list">
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('AND')"
             >
               <div class="item-type-icon">
@@ -618,6 +668,7 @@
             </li>
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('OR')"
             >
               <div class="item-type-icon">
@@ -635,6 +686,7 @@
             </li>
             <li
               class="list-item continue-list-item"
+              data-bklog-v3-pop-click-item
               @click="handleClickContinue('AND NOT')"
             >
               <div class="item-type-icon">
@@ -652,38 +704,25 @@
             </li>
           </div>
         </template>
-        <!-- <template
-          v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
-        >
-          <bk-exception
-            style="height: 40px"
-            type="search-empty"
-            scene="part"
-          >
-            当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
-          </bk-exception>
-        </template> -->
       </ul>
       <FavoriteList
+        :search-value="value"
         @change="handleFavoriteClick"
-        :searchValue="value"
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+        <div class="ui-shortcut-item">
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
+          <span class="value">{{ $t('确认结果') }}</span>
+        </div>
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <span
-        class="sql-query-retract"
-        @click="handleRetract"
-      >
-        <span>{{ isRetractShow ? $t('收起') : $t('查询语法') }}</span>
-        <span
-          :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
-        ></span>
-      </span>
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -699,9 +738,10 @@
           <div
             v-for="item in matchList"
             class="sql-query-list"
+            :key="item.value"
           >
-            <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
-            <div>{{ item.value }}</div>
+            <div class="sql-query-name">{{ item.name }}</div>
+            <div class="sql-query-value">{{ item.value }}</div>
           </div>
         </div>
       </div>
@@ -712,46 +752,63 @@
   @import './sql-query-options.scss';
 
   div.sql-query-container {
+    position: relative;
     display: flex;
+    line-height: 1;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    line-height: 1;
-
-    position: relative;
 
     .sql-field-list {
-      width: 100%;
       position: relative;
-      padding-bottom: 38px;
+      width: 100%;
+      padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
-        padding: 9px 0 7px 15px;
-        background-color: #fafbfd;
-        border-top: 1px solid #ecedf2;
-        height: 38px;
         position: absolute;
         bottom: 0;
-        left: 0;
         width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        line-height: 48px;
+        background-color: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 0 0 0 2px;
 
-        span {
+        .ui-shortcut-item {
           display: inline-flex;
           align-items: center;
           margin-right: 24px;
           font-size: 12px;
-          line-height: 20px;
-          color: #63656e;
-          letter-spacing: 0;
+          line-height: 16px;
 
-          img {
+          .label {
             display: inline-flex;
-            width: 16px;
+            align-items: center;
+            justify-content: center;
             height: 16px;
-            margin-right: 4px;
-            background: #ffffff;
-            border: 1px solid #dcdee5;
+            padding: 0 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #a3b1cc;
+            background-color: #a3b1cc29;
+            border: 1px solid #a3b1cc4d;
             border-radius: 2px;
+
+            &.bklog-arrow-down-filled {
+              padding: 0;
+              font-size: 14px;
+            }
+
+            &.up {
+              margin-right: 2px;
+              transform: rotate(-180deg);
+            }
+          }
+
+          .value {
+            margin-left: 4px;
+            color: #7a8599;
           }
         }
       }
@@ -760,7 +817,8 @@
     .sql-syntax-tips {
       position: relative;
       width: 240px;
-      background: #fafbfd;
+      min-width: 240px;
+      background-color: #f5f7fa;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -785,15 +843,17 @@
         width: 100%;
         height: 100%;
         padding: 12px;
-        background: #fafbfd;
+        background: #f5f7fa;
         border-radius: 0 2px 2px 0;
         outline: 1px solid #dcdee5;
 
-        .sql-query-fold-title {
+        &-title {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 8px;
+          margin-bottom: 16px;
           font-size: 12px;
+          line-height: 20px;
+          color: #313238;
 
           .fold-title-right {
             display: flex;
@@ -810,9 +870,31 @@
         }
 
         .sql-query-list {
+          margin-bottom: 12px;
           overflow-y: auto;
           font-size: 12px;
           white-space: pre-line;
+
+          .sql-query-name {
+            margin-bottom: 2px;
+            font-weight: 700;
+            line-height: 16px;
+            color: #313238;
+          }
+
+          .sql-query-value {
+            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+            font-family: 'Roboto Mono', monospace;
+            line-height: 18px;
+            color: #4d4f56;
+            word-break: break-all;
+          }
+
+          &:first-child {
+            .sql-query-value {
+              line-height: 20px;
+            }
+          }
         }
       }
 
@@ -823,6 +905,15 @@
         .sql-query-fold {
           display: none;
         }
+      }
+    }
+  }
+</style>
+<style lang="scss">
+  .sql-query-options {
+    .bk-loading {
+      .bk-loading-wrapper {
+        left: 5%;
       }
     }
   }

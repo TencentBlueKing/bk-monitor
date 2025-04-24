@@ -938,6 +938,10 @@ class GetVariableValue(Resource):
     def perform_request(self, params):
         scenario = params["scenario"]
         scope_type = params["type"]
+        # 不支持promql的datasource,所以当"data_source_label": "prometheus" 直接返回空
+        if scope_type == "dimension" and params["params"].get("data_source_label") == "prometheus":
+            return []
+
         query_processor = {}
         if scenario == "os":
             query_cmdb = partial(self.query_cmdb, type=scope_type)

@@ -359,6 +359,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
   }
 
+  renderPercentage(row) {
+    if (row.percentage === undefined || row.percentage === null) {
+      return '--';
+    }
+    return <span>{row.percentage}%</span>;
+  }
+
   /** 绘制表格内容 */
   renderTableColumn() {
     const { time_compare = [] } = this.filterConfig.function;
@@ -368,7 +375,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         prop: 'operation',
         renderFn: row => this.renderOperation(row),
       },
-      { label: '占比', prop: 'percentage', sortable: true },
+      { label: '占比', prop: 'percentage', sortable: true, renderFn: row => this.renderPercentage(row) },
       { label: '当前值', prop: 'value', sortable: true, renderFn: row => this.renderValue(row, 'value') },
     ];
     let compareColumn: IColumnItem[] = [];

@@ -147,3 +147,17 @@ def fetch_request_username():
     else:
         request_username = get_request_username()
     return request_username
+
+
+def split_object_fields(fields_list: List[str]):
+    """
+    把列表中包含逗号的字符串进行分割
+    """
+    result_list = []
+    for field in fields_list:
+        result_list.append(field)
+        parts = field.split('.')
+        for i in range(1, len(parts)):
+            result_list.append('.'.join(parts[:i]))
+
+    return result_list

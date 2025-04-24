@@ -100,13 +100,16 @@ class CheckResult(Result):
         )
 
     # ----- Func of check_result_cache ----- #
-    def add_check_result_cache(self, **kwargs):
+    def add_check_result_cache(self, ttl: int = None, **kwargs):
         """Add check result cache"""
-
         ret = self.CHECK_RESULT.zadd(self.check_result_cache_key, kwargs)
         if ret:
-            self.CHECK_RESULT.expire(self.check_result_cache_key, key.CHECK_RESULT_CACHE_KEY.ttl)
+            self.expire_check_result_cache(ttl or key.CHECK_RESULT_CACHE_KEY.ttl)
         return ret
+
+    def expire_check_result_cache(self, ttl):
+        """Expire check result cache"""
+        return self.CHECK_RESULT.expire(self.check_result_cache_key, ttl)
 
     def remove_old_check_result_cache(self, point_remains=0):
         point_remains = point_remains or 0

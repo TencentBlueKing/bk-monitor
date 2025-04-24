@@ -283,7 +283,7 @@
         return this.$store.state.bkBizId;
       },
       showFieldAlias() {
-        return this.$store.state.showFieldAlias
+        return this.$store.state.storage.showFieldAlias
       },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);

@@ -1,22 +1,25 @@
 <template>
   <bk-popover
     ref="fieldsSettingPopperRef"
+    class="common-filter-popper"
+    :on-show="handlePopoverShow"
+    :tippy-options="tippyOptions"
     animation="slide-toggle"
     placement="bottom"
     theme="light bk-select-dropdown"
     trigger="click"
-    class="common-filter-popper"
-    :on-show="handlePopoverShow"
-    :tippy-options="tippyOptions"
   >
     <slot name="trigger">
       <div class="operation-icon">
-        <span :class="['bklog-icon bklog-log-setting']"></span>
+        <span :class="['bklog-icon bklog-shezhi setting-icon']"></span>
         设置筛选
       </div>
     </slot>
     <template #content>
-      <div class="bklog-common-field-filter fields-container">
+      <div
+        class="bklog-common-field-filter fields-container"
+        :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
+      >
         <div class="fields-list-container">
           <div class="total-fields-list">
             <div class="title">
@@ -27,34 +30,60 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
-            <div style="height: 40px; padding: 4px 8px">
+            <div class="common-filter-search">
               <bk-input
+                ref="commonFilterSearchInputRef"
+                v-model="searchKeyword"
+                :clearable="true"
+                :placeholder="$t('请输入关键字')"
                 behavior="simplicity"
                 left-icon="bk-icon icon-search"
-                v-model="searchKeyword"
-                :placeholder="$t('请输入关键字')"
-                :clearable="true"
               ></bk-input>
             </div>
-            <ul class="select-list">
-              <li
-                v-for="item in shadowTotal"
-                style="cursor: pointer"
-                class="select-item"
-                :key="item.field_name"
-                @click="addField(item)"
-                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+            <template>
+              <ul
+                v-if="shadowTotal.length"
+                class="select-list"
               >
-                <span
-                  :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
-                  :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                <li
+                  v-for="item in shadowTotal"
+                  style="cursor: pointer"
+                  class="select-item"
+                  :key="item.field_name"
+                  @click="addField(item)"
                 >
-                </span>
-                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-                <span class="field-name">({{ item.field_name }})</span>
-                <span class="icon bklog-icon bklog-filled-right-arrow"></span>
-              </li>
-            </ul>
+                  <span
+                    :style="{
+                      backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                      color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+                    }"
+                    :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                  >
+                  </span>
+                  <div
+                    class="display-container rtl-text"
+                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    :dir="textDir"
+                  >
+                    <bdi class="field-alias">{{ item.first_name }}</bdi>
+                    <bdi
+                      class="field-name"
+                      v-if="item.first_name !== item.last_name"
+                      >({{ item.last_name }})</bdi
+                    >
+                  </div>
+                  <span class="icon bklog-icon bklog-filled-right-arrow"></span>
+                </li>
+              </ul>
+              <bk-exception
+                v-else
+                style="justify-content: center; height: 260px"
+                scene="part"
+                type="500"
+              >
+                搜索为空
+              </bk-exception>
+            </template>
           </div>
           <div class="sort-icon">
             <span class="icon bklog-icon bklog-double-arrow"></span>
@@ -62,10 +91,10 @@
           <div class="visible-fields-list">
             <div class="title">
               <span>{{ $t('常驻筛选') + '(' + shadowVisible.length + ')' }}</span>
-              <span
+              <!-- <span
                 class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
-              ></span>
+              ></span> -->
               <span
                 class="clear-all text-action"
                 @click="deleteAllField"
@@ -74,7 +103,7 @@
             </div>
             <vue-draggable
               v-bind="dragOptions"
-              class="select-list"
+              class="select-list permanent-list"
               v-model="shadowVisible"
             >
               <transition-group>
@@ -82,16 +111,23 @@
                   v-for="(item, index) in shadowVisible"
                   class="select-item"
                   :key="item.field_name"
-                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 >
-                  <span class="icon bklog-icon bklog-drag-dots"></span>
+                  <span class="icon bklog-icon bklog-ketuodong"></span>
                   <span
-                    :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+                    :style="{
+                      backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                      color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+                    }"
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                   >
                   </span>
-                  <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
-                  <span class="field-name">({{ item.field_name }})</span>
+                  <div
+                    class="display-container rtl-text"
+                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                  >
+                    <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
+                    <span class="field-name">({{ item.field_name }})</span>
+                  </div>
                   <span
                     class="bk-icon icon-close-circle-shape delete"
                     @click="deleteField(item, index)"
@@ -105,12 +141,12 @@
       <div class="bklog-common-field-filter fields-button-container">
         <bk-button
           class="mr10"
-          :theme="'primary'"
           :loading="isLoading"
+          :theme="'primary'"
           type="submit"
           @click="confirmModifyFields"
         >
-          {{ $t('保存') }}
+          {{ $t('确定') }}
         </bk-button>
         <bk-button
           :theme="'default'"
@@ -124,13 +160,15 @@
   </bk-popover>
 </template>
 <script setup>
-  import { ref, computed, watch, set } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import useLocale from '@/hooks/use-locale';
+  import { ref, computed, nextTick } from 'vue';
 
-  import VueDraggable from 'vuedraggable';
-  import { excludesFields } from './const.common';
   import { getRegExp } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import VueDraggable from 'vuedraggable';
+
+  import { excludesFields } from './const.common';
+  import { getCommonFilterAddition } from '../../../store/helper';
 
   // 获取 store
   const store = useStore();
@@ -139,6 +177,7 @@
   const tippyOptions = {
     offset: '0, 4',
   };
+  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -154,6 +193,11 @@
     return [];
   });
 
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
   const shadowTotal = computed(() => {
     const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
@@ -162,7 +206,13 @@
       !excludesFields.includes(field.field_name) &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
 
-    return fieldList.value.filter(filterFn);
+    const mapFn = item =>
+      Object.assign({}, item, {
+        first_name: item.query_alias || item.field_alias || item.field_name,
+        last_name: item.field_name,
+      });
+
+    return fieldList.value.filter(filterFn).map(mapFn);
   });
 
   const shadowVisible = ref([]);
@@ -170,7 +220,7 @@
   const dragOptions = ref({
     animation: 150,
     tag: 'ul',
-    handle: '.bklog-drag-dots',
+    handle: '.bklog-ketuodong',
     'ghost-class': 'sortable-ghost-class',
   });
 
@@ -188,9 +238,13 @@
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
   };
 
+  const getFieldIconTextColor = type => {
+    return fieldTypeMap.value?.[type]?.textColor;
+  };
+
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { common_filter_addition } = store.getters;
+    const common_filter_addition = getCommonFilterAddition(store.state);
     const param = {
       filterSetting: shadowVisible.value,
       filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
@@ -237,8 +291,12 @@
     shadowVisible.value.push(...filterFieldsList.value);
   };
 
+  const commonFilterSearchInputRef = ref(null);
   const handlePopoverShow = () => {
     setDefaultFilterList();
+    nextTick(() => {
+      commonFilterSearchInputRef.value?.focus();
+    });
   };
 </script>
 
@@ -251,10 +309,9 @@
       padding: 0;
 
       .total-fields-list,
-      .visible-fields-list,
-      .sort-fields-list {
-        width: 350px;
-        height: 340px;
+      .visible-fields-list {
+        width: 320px;
+        height: 344px;
         border: 1px solid #dcdee5;
         border-bottom: none;
 
@@ -268,8 +325,9 @@
           position: relative;
           display: flex;
           align-items: center;
-          height: 41px;
+          height: 44px;
           padding: 0 16px;
+          font-weight: 700;
           line-height: 40px;
           color: #313238;
           background: #fafbfd;
@@ -288,36 +346,43 @@
             position: absolute;
             top: 0;
             right: 16px;
+            font-weight: normal;
+          }
+        }
+
+        .common-filter-search {
+          height: 32px;
+          padding: 0 8px;
+          margin-top: 5px;
+
+          .bk-form-control {
+            .left-icon {
+              color: #979ba5;
+            }
           }
         }
 
         .select-list {
           height: 255px;
-          padding: 4px 0;
+          padding: 8px 0;
           overflow: auto;
 
           @include scroller;
 
           .select-item {
-            display: inline-block;
+            display: flex;
             align-items: center;
             width: 100%;
             height: 32px;
-            padding: 0 12px;
-            overflow: hidden;
+            padding: 0 16px;
             line-height: 32px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             cursor: pointer;
 
-            span {
-              display: inline-flex;
-            }
-
-            .bklog-drag-dots {
+            .bklog-ketuodong {
+              margin-right: 4px;
               width: 18px;
               font-size: 14px;
-              color: #979ba5;
+              color: #4d4f56;
               text-align: left;
               cursor: move;
             }
@@ -358,21 +423,27 @@
               }
             }
 
-            .field-alias {
-              display: inline;
-              padding: 0 4px;
-              font-size: 12px;
-              line-height: 20px;
-              color: #63656e;
-              letter-spacing: 0;
-            }
+            .display-container {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
 
-            .field-name {
-              font-size: 12px;
-              font-weight: 400;
-              line-height: 20px;
-              color: #9b9da1;
-              letter-spacing: 0;
+              .field-alias {
+                display: inline;
+                padding: 0 4px;
+                font-size: 12px;
+                line-height: 20px;
+                color: #63656e;
+                letter-spacing: 0;
+              }
+
+              .field-name {
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 20px;
+                color: #9b9da1;
+                letter-spacing: 0;
+              }
             }
           }
         }
@@ -383,16 +454,21 @@
       }
 
       .visible-fields-list {
-        width: 380px;
+        width: 320px;
         border-left: none;
+
+        .permanent-list {
+          /* stylelint-disable-next-line declaration-no-important */
+          height: 290px !important;
+        }
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
       .total-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 16px);
         }
 
         .bklog-filled-right-arrow {
@@ -417,62 +493,12 @@
         }
       }
 
-      .sort-fields-list {
-        flex-shrink: 0;
-
-        .sort-list-header {
-          display: flex;
-          align-items: center;
-          height: 31px;
-          font-size: 12px;
-          line-height: 30px;
-          background: rgba(250, 251, 253, 1);
-          border-bottom: 1px solid rgba(221, 228, 235, 1);
-        }
-
-        /* stylelint-disable-next-line no-descending-specificity */
-        .select-list .select-item {
-          .field-name {
-            // 16 42 50 38
-            width: calc(100% - 146px);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .status {
-            font-weight: 700;
-
-            &.icon-arrows-down-line {
-              color: #ea3636;
-            }
-
-            &.icon-arrows-up-line {
-              color: #2dcb56;
-            }
-          }
-
-          .option {
-            width: 50px;
-            margin: 0 8px;
-            color: #3a84ff;
-          }
-
-          .delete {
-            font-size: 16px;
-            color: #c4c6cc;
-            text-align: right;
-            cursor: pointer;
-          }
-        }
-      }
-
       /* stylelint-disable-next-line no-descending-specificity */
       .visible-fields-list .select-list .select-item {
         position: relative;
 
-        .field-name {
-          display: inline;
+        .display-container {
+          width: calc(100% - 38px);
         }
 
         .delete {
@@ -488,6 +514,10 @@
 
         &:hover .delete {
           display: block;
+        }
+
+        .delete:hover {
+          color: #979ba5;
         }
       }
 
@@ -526,8 +556,14 @@
       height: 51px;
       padding: 0 24px;
       background-color: #fafbfd;
-      border-top: 1px solid #dcdee5;
+      border: 1px solid #dcdee5;
       border-radius: 0 0 2px 2px;
+    }
+  }
+
+  .common-filter-popper {
+    .setting-icon {
+      font-size: 16px;
     }
   }
 </style>

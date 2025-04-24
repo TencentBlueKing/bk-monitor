@@ -333,6 +333,6 @@ def render_image_task(task: RenderImageTask):
         task.status = RenderImageTask.Status.FAILED
     else:
         task.status = RenderImageTask.Status.SUCCESS
-        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.jpeg")
+        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.{config.image_format}")
 
     task.save()

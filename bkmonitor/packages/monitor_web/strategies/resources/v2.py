@@ -3254,7 +3254,7 @@ class ListIntelligentModelsResource(Resource):
                 }
             )
         # 默认is_default在最前面，除此外，按照ID降序排序
-        model_list = sorted(model_list, key=lambda x: (not x["is_default"], -int(x["id"])))
+        model_list = sorted(model_list, key=lambda x: (not x["is_default"], int(x["id"])))
         return model_list
 
 
@@ -3270,6 +3270,8 @@ class GetIntelligentModelResource(Resource):
     def perform_request(self, validated_request_data):
         plan_id = validated_request_data["id"]
         plan = AlgorithmChoiceConfig.objects.filter(id=plan_id).first()
+        if not plan:
+            raise ValidationError(_("未找到当前智能算法的方案配置，请联系系统管理员"))
         result = {
             "name": plan.alias,
             "id": plan.id,

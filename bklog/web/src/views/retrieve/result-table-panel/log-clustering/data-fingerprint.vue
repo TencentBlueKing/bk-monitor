@@ -521,7 +521,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.isLimitExpandView;
+        return this.$store.state.storage.isLimitExpandView;
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;

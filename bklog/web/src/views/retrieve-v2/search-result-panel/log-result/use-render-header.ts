@@ -29,7 +29,7 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
+import TimeFormatterSwitcher from '../../components/result-cell-element/time-formatter-switcher';
 
 export default () => {
   const store = useStore();
@@ -55,6 +55,7 @@ export default () => {
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
       const fieldIconColor = fieldTypeMap.value?.[fieldType]?.color ?? '#EAEBF0';
+      const fieldIconTextColor = fieldTypeMap.value?.[fieldType]?.textColor;
       const content = fieldTypeMap.value[fieldType]?.name;
       let unionContent = '';
       // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
@@ -108,6 +109,7 @@ export default () => {
                 marginRight: '4px',
               },
               backgroundColor: fieldIconColor,
+              color: fieldIconTextColor,
             },
 
             directives: [

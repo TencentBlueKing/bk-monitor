@@ -1,6 +1,6 @@
 .retrieve-v2.field-data {
   padding: 2px 0;
-  background-color: #FAFBFD00;
+  background-color: #fafbfd00;
 
   .title {
     padding: 0 12px 4px;
@@ -21,7 +21,7 @@
     justify-content: center;
     height: 34px;
     font-size: 12px;
-    color: #63656E;
+    color: #63656e;
   }
 
   .chart-list {
@@ -29,10 +29,11 @@
 
     .chart-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
 
       .chart-content {
-        width: calc(100% - 46px);
+        flex: 1;
+        min-width: 0;
 
         .text-container {
           display: flex;
@@ -41,7 +42,9 @@
           line-height: 20px;
 
           .text-value {
+            margin-bottom: 2px;
             overflow: hidden;
+            color: #313238;
             text-overflow: ellipsis;
             white-space: nowrap;
           }
@@ -49,7 +52,12 @@
           .percent-value {
             flex-shrink: 0;
             margin-left: 6px;
-            color: #2dcb56;
+            font-weight: 700;
+            color: var(--percent-text-color);
+
+            & > span {
+              font-weight: 400;
+            }
           }
         }
 
@@ -57,12 +65,14 @@
           position: relative;
           height: 6px;
           margin-bottom: 9px;
-          background-color: #dcdee5;
+          background: #f0f1f5;
+          border-radius: 4px;
 
           .percent-bar {
             position: absolute;
             height: 6px;
-            background-color: #2dcb56;
+            background-color: var(--bar-bg-color);
+            border-radius: 4px;
           }
         }
       }
@@ -70,9 +80,11 @@
       .operation-container {
         display: flex;
         flex-shrink: 0;
+        column-gap: 8px;
         justify-content: space-between;
-        width: 36px;
-        margin-left: 10px;
+        width: unset;
+        padding-right: 8px;
+        margin-left: 0px;
         transform: translateY(4px);
 
         .bk-icon {
@@ -107,26 +119,25 @@
       }
     }
   }
-
 }
 
-.agg-sides-header{
+.agg-sides-header {
   display: flex;
   justify-content: space-between;
-  
-  .distinct-num{
+
+  .distinct-num {
     display: flex;
     align-items: center;
   }
 
-  .distinct-count-num{
+  .distinct-count-num {
     min-width: 24px;
     height: 16px;
     padding: 0 4px;
     font-size: 12px;
     line-height: 16px;
     text-align: center;
-    background: #F0F1F5;
+    background: #f0f1f5;
     border-radius: 2px;
   }
 }

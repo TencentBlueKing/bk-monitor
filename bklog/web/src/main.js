@@ -45,26 +45,27 @@ import router from './router';
 import store from './store';
 
 import './static/style.css';
+import './static/font-face/index.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 
-try {
-  const id = window.TAM_AEGIS_KEY;
-  if (id) {
-    const aegis = new window.Aegis({
-      id, // 项目key
-      reportApiSpeed: true, // 接口测速
-      reportAssetSpeed: true, // 静态资源测速
-      spa: true,
-    });
-    window.__aegisInstance = aegis;
-    Vue.config.errorHandler = function (err, vm, info) {
-      aegis.error(`Error: ${err.toString()}\nInfo: ${info}`);
-    };
-  }
-} catch (e) {
-  console.warn('前端监控接入出错', e);
-}
+// try {
+//   const id = window.TAM_AEGIS_KEY;
+//   if (id) {
+//     const aegis = new window.Aegis({
+//       id, // 项目key
+//       reportApiSpeed: true, // 接口测速
+//       reportAssetSpeed: true, // 静态资源测速
+//       spa: true,
+//     });
+//     window.__aegisInstance = aegis;
+//     Vue.config.errorHandler = function (err, vm, info) {
+//       aegis.error(`Error: ${err.toString()}\nInfo: ${info}`);
+//     };
+//   }
+// } catch (e) {
+//   console.warn('前端监控接入出错', e);
+// }
 
 router.onError(err => {
   const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;

@@ -47,6 +47,7 @@ export default defineComponent({
       if (['default', '100%'].includes(props.width as string)) {
         return {
           width: '100%',
+          minWidth: `${props.minWidth}px`,
         };
       }
       return {

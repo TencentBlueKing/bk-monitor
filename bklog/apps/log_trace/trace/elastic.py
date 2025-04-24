@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+import json
 from logging import getLogger
 
 import elasticsearch
@@ -101,9 +101,9 @@ def _wrap_perform_request(tracer, span_name_prefix, request_hook=None, response_
                 if method:
                     attributes["elasticsearch.method"] = method
                 if body:
-                    attributes[SpanAttributes.DB_STATEMENT] = str(body)
+                    attributes[SpanAttributes.DB_STATEMENT] = json.dumps(body)
                 if params:
-                    attributes["elasticsearch.params"] = str(params)
+                    attributes["elasticsearch.params"] = json.dumps(params)
                 if doc_id:
                     attributes["elasticsearch.id"] = doc_id
                 if search_target:

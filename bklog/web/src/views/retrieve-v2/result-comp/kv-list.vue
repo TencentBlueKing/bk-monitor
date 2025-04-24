@@ -37,18 +37,43 @@
           class="field-label"
         >
           <span
+            v-if="hiddenFieldsSet.has(field)"
+            class="field-eye-icon bklog-icon bklog-eye-slash"
+            v-bk-tooltips="{ content: $t('隐藏') }"
+            @click="
+              e => {
+                e.stopPropagation();
+                handleShowOrHiddenItem(true, field);
+              }
+            "
+          ></span>
+          <span
+            v-else
+            class="field-eye-icon bklog-icon bklog-eye"
+            v-bk-tooltips="{ content: $t('展示') }"
+            @click="
+              e => {
+                e.stopPropagation();
+                handleShowOrHiddenItem(false, field);
+              }
+            "
+          ></span>
+          <span
+            :style="{
+              backgroundColor: getFieldIconColor(field.field_type),
+              color: getFieldIconTextColor(field.field_type),
+            }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
             :class="getFieldIcon(field.field_name)"
-            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
           ></span>
           <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
-              :jsonValue="formatterStr(data, field.field_name)"
               :fields="getFieldItem(field.field_name)"
+              :json-value="formatterStr(data, field.field_name)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </template>
@@ -63,10 +88,10 @@
           </span>
           <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
             <text-segmentation
+              :auto-width="true"
               :content="formatterStr(data, field.field_name)"
               :field="getFieldItem(field.field_name)"
-              :forceAll="true"
-              :autoWidth="true"
+              :force-all="true"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             />
           </template>
@@ -78,12 +103,13 @@
 
 <script>
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  import JsonFormatter from '@/global/json-formatter.vue';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
-  import JsonFormatter from '@/global/json-formatter.vue';
+
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -153,9 +179,9 @@
         retrieveParams: 'retrieveParams',
       }),
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
-        showFieldAlias: state => state.showFieldAlias ?? false,
-        isAllowEmptyField: state => state.tableAllowEmptyField,
+        formatJson: state => state.storage.tableJsonFormat,
+        showFieldAlias: state => state.storage.showFieldAlias,
+        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -188,6 +214,9 @@
       },
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+      },
+      hiddenFieldsSet() {
+        return new Set(this.hiddenFields);
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -248,8 +277,10 @@
         };
       },
       getFieldIconColor(type) {
-        const fieldType = this.getFieldType(type);
-        return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
+        return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
+      },
+      getFieldIconTextColor(type) {
+        return this.fieldTypeMap?.[type]?.textColor;
       },
       checkDisable(id, field) {
         const type = this.getFieldType(field);
@@ -273,7 +304,9 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
-        const trace_id =  String(this.data[field]).replace(/<mark>/g, '').replace(/<\/mark>/g, '')
+        const trace_id = String(this.data[field])
+          .replace(/<mark>/g, '')
+          .replace(/<\/mark>/g, '');
         let path = '';
         switch (key) {
           // trace检索
@@ -364,6 +397,23 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+      // 显示或隐藏字段
+      handleShowOrHiddenItem(visible, field) {
+        const displayFields = [];
+        this.visibleFields.forEach(child => {
+          if (field.field_name !== child.field_name) {
+            displayFields.push(child.field_name);
+          }
+        });
+
+        if (visible) {
+          displayFields.push(field.field_name);
+        }
+        this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
+          this.$store.commit('resetVisibleFields', displayFields);
+          this.$store.commit('updateIsSetDefaultTableColumn');
+        });
+      },
     },
   };
 </script>
@@ -374,27 +424,63 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
 
+    .log-item:nth-child(even) {
+      background-color: #f5f7fa;
+    }
+
+    .log-item:nth-child(odd) {
+      background-color: #ffffff;
+    }
+
     .log-item {
       display: flex;
-      align-items: start;
+      align-items: center;
+      justify-content: center;
       min-height: 24px;
+      padding-left: 8px;
+
+      .field-value {
+        :deep(.valid-text) {
+          &:hover {
+            text-decoration: underline; /* 悬停时添加下划线 */
+            text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+          }
+        }
+      }
 
       .field-label {
         display: flex;
         flex-shrink: 0;
         flex-wrap: nowrap;
-        align-items: baseline;
+        align-items: stretch;
         height: 100%;
+        margin: 5px 0;
         margin-right: 18px;
+        align-self: flex-start;
+
+        .field-eye-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 12px;
+          margin-right: 8px;
+          font-size: 12px;
+          color: #4d4f56;
+          border-radius: 2px;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
 
         .field-type-icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 16px;
           min-width: 16px;
-          height: 16px;
           margin: 0 5px 0 0;
-          font-size: 12px;
+          font-size: 14px;
           color: #63656e;
           background: #dcdee5;
           border-radius: 2px;
@@ -404,6 +490,8 @@
           display: block;
           width: auto;
           overflow: hidden;
+          font-family: Roboto-Regular;
+          color: #313238;
           word-break: normal;
           word-wrap: break-word;
         }
@@ -417,17 +505,28 @@
 
       .field-value {
         display: flex;
+        align-items: flex-start;
+        color: #16171a;
         word-break: break-all;
       }
     }
 
     .relation-monitor-btn {
+      display: flex;
+      column-gap: 2px;
+      align-items: center;
       min-width: fit-content;
+      padding-top: 1px;
       padding-right: 6px;
       // margin-left: 12px;
       font-size: 12px;
+      line-height: 22px;
       color: #3a84ff;
       cursor: pointer;
+
+      .bklog-jump {
+        font-size: 14px;
+      }
     }
   }
 </style>

@@ -498,9 +498,9 @@ class EventStatisticsGraphResource(Resource):
         """
         field = validated_request_data["field"]
         # keyword 类型，返回时序图
-        field_name = field["name"]
+        field_name = field["field_name"]
         values = field["values"]
-        if field["type"] == EventDimensionTypeEnum.KEYWORD.value:
+        if field["field_type"] == EventDimensionTypeEnum.KEYWORD.value:
             for query_config in validated_request_data["query_configs"]:
                 query_config["filter_dict"] = q_to_dict(
                     (dict_to_q(query_config["filter_dict"]) or Q()) & Q(**{f"{field_name}__eq": values})
@@ -623,7 +623,7 @@ class EventStatisticsInfoResource(Resource):
             "field_count": "count",
             "distinct_count": "cardinality",
         }
-        if field["type"] == EventDimensionTypeEnum.INTEGER.value:
+        if field["field_type"] == EventDimensionTypeEnum.INTEGER.value:
             # 数值类型，支持更多统计方法
             statistics_property_method_map.update({"max": "max", "min": "min", "median": "cp50", "avg": "avg"})
 
@@ -635,7 +635,7 @@ class EventStatisticsInfoResource(Resource):
                     args=(
                         get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
                         queries,
-                        field["name"],
+                        field["field_name"],
                         statistics_property,
                         method,
                         statistics_info,

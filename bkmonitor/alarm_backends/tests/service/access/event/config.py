@@ -778,7 +778,6 @@ GSE_PROCESS_EVENT_DATA_CLEAN = {
             'bk_target_ip',
             'bk_target_cloud_id',
             'agent_version',
-            'process_index',
             'process_group_id',
             'process_name',
         ],

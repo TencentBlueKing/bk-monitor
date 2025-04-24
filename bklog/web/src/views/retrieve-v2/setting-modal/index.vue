@@ -145,23 +145,10 @@
 <script>
   import FullTextIndex from './full-text-index';
   import LogCluster from './log-cluster';
-  // import FieldExtraction from './field-extraction';
-  // <setting-modal
-  //     :clean-config="cleanConfig"
-  //     :config-data="clusteringData"
-  //     :date-picker-value="datePickerValue"
-  //     :index-set-item="indexSetItem"
-  //     :is-show-dialog="isShowSettingModal"
-  //     :retrieve-params="retrieveParams"
-  //     :select-choice="clickSettingChoice"
-  //     :total-fields="totalFields"
-  //     @close-setting="isShowSettingModal = false"
-  //     @update-log-fields="requestFields"
-  //   />
+
   export default {
     components: {
       FullTextIndex,
-      // FieldExtraction,
       LogCluster,
     },
     model: {

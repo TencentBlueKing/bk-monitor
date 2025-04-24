@@ -20,12 +20,12 @@
       &.flex {
         .field-list-sticky {
           &.is-show {
-            height: calc(100% - var(--offset-search-bar) - 0);
+            height: calc(100% - var(--top-searchbar-height) - 0);
 
             .search-field-filter-new {
               .field-filter-box {
                 .field-filter-container-new {
-                  height: calc(100% - var(--offset-search-bar) - 128px);
+                  height: calc(100% - var(--top-searchbar-height) - 128px);
                 }
               }
             }
@@ -34,7 +34,6 @@
       }
     }
   }
-  
 
   .sub-head {
     position: relative;
@@ -134,10 +133,9 @@
       align-self: start;
       overflow: visible;
     }
-    
 
     .search-result-panel.flex .field-list-sticky.is-show {
-      height: calc(100% -  var(--offset-search-bar) - 48px);
+      height: calc(100% - var(--offset-search-bar) - 48px);
     }
   }
 
@@ -240,7 +238,6 @@
     cursor: col-resize;
   }
 }
-
 
 .title-overflow {
   overflow: hidden;

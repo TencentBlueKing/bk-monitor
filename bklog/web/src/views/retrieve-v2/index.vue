@@ -39,11 +39,9 @@
 
   import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
-  import useScroll from '../../hooks/use-scroll';
-  import $http from '@/api';
 
-  import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
   import useResizeObserve from '../../hooks/use-resize-observe';
+  import RetrieveHelper from '../retrieve-helper';
   import useRetrieveHook from './use-retrieve-hook';
 
   const store = useStore();
@@ -53,6 +51,9 @@
   const showFavorites = ref(false);
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
+
+  RetrieveHelper.setScrollSelector();
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -152,7 +153,6 @@
     favoriteRef.value.isShowManageDialog = true;
   };
 
-  const activeTab = ref('origin');
   const isRefreshList = ref(false);
   const searchBarHeight = ref(0);
   /** 刷新收藏夹列表 */
@@ -163,25 +163,26 @@
     searchBarHeight.value = height;
   };
 
-  const initIsShowClusterWatch = watch(
-    () => store.state.clusterParams,
-    () => {
-      if (!!store.state.clusterParams) {
-        activeTab.value = 'clustering';
-        initIsShowClusterWatch();
-      }
-    },
-    { deep: true },
-  );
+  const debounceUpdateTabValue = debounce(value => {
+    const isClustering = value === 'clustering';
+    router.replace({
+      params: { ...(route.params ?? {}) },
+      query: {
+        ...(route.query ?? {}),
+        tab: value,
+        ...(isClustering ? {} : { clusterParams: undefined }),
+      },
+    });
+  }, 60);
 
-  watch(
-    () => store.state.indexItem.isUnionIndex,
-    () => {
-      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
-        activeTab.value = 'origin';
-      }
+  const activeTab = computed({
+    get() {
+      return route.query.tab ?? 'origin';
     },
-  );
+    set(val) {
+      debounceUpdateTabValue(val);
+    },
+  });
 
   const stickyStyle = computed(() => {
     return {
@@ -194,26 +195,6 @@
       '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
     };
   });
-
-  const debounceUpdateTabValue = debounce(() => {
-    const isClustering = activeTab.value === 'clustering';
-    router.replace({
-      params: { ...(route.params ?? {}) },
-      query: {
-        ...(route.query ?? {}),
-        tab: activeTab.value,
-        ...(isClustering ? {} : { clusterParams: undefined }),
-      },
-    });
-  }, 60);
-
-  watch(
-    () => activeTab.value,
-    () => {
-      debounceUpdateTabValue();
-    },
-    { immediate: true },
-  );
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
   const activeFavorite = ref();
@@ -229,7 +210,7 @@
   // 滚动容器高度
   const scrollContainerHeight = ref(0);
 
-  useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = event.target.scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
   });
@@ -261,12 +242,12 @@
 </script>
 <template>
   <div
-    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
     :style="stickyStyle"
+    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
   >
     <div class="sub-head">
       <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
+        :style="{ width: `${showFavorites ? favoriteWidth : 42}px` }"
         class="box-favorites"
         @click="handleFavoritesClick"
       >
@@ -288,30 +269,36 @@
           ></span>
         </div>
         <template v-else>
-          <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
+          <div class="collection-box">
+            <span
+              style="font-size: 18px"
+              :class="['bklog-icon bklog-shoucangjia', { active: showFavorites }]"
+            ></span>
+          </div>
         </template>
       </div>
       <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px` }"
         show-favorites
       />
     </div>
     <div
-      :class="['retrieve-v2-body']"
       :style="contentStyle"
+      :class="['retrieve-v2-body']"
     >
       <CollectFavorites
         ref="favoriteRef"
+        :style="favoritesStlye"
         class="collect-favorites"
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-        :style="favoritesStlye"
         @update-active-favorite="updateActiveFavorite"
       ></CollectFavorites>
       <div class="retrieve-v2-content">
         <SearchBar
           :active-favorite="activeFavorite"
+          :show-favorites="showFavorites"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         >
@@ -332,4 +319,16 @@
 </style>
 <style lang="scss">
   @import './segment-pop.scss';
+
+  .retrieve-v2-index {
+    .collection-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+  }
 </style>

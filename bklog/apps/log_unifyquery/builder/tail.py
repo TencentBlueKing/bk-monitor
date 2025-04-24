@@ -28,8 +28,8 @@ from apps.log_search.models import LogIndexSetData
 
 def build_tail_params(params):
     time_now = arrow.utcnow()
-    params["start_time"] = int(time_now.timestamp())
-    params["end_time"] = int(time_now.shift(days=-1).timestamp())
+    params["end_time"] = int(time_now.timestamp())
+    params["start_time"] = int(time_now.shift(days=-3).timestamp())
     params["index_set_ids"] = [params["index_set_id"]]
     return params
 

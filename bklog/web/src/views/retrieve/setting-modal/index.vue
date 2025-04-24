@@ -145,12 +145,10 @@
 <script>
   import FullTextIndex from './full-text-index';
   import LogCluster from './log-cluster';
-  // import FieldExtraction from './field-extraction';
 
   export default {
     components: {
       FullTextIndex,
-      // FieldExtraction,
       LogCluster,
     },
     model: {

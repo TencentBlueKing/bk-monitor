@@ -96,7 +96,6 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => {} }) allDataPreview;
   @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
-  @Prop({ default: () => [] }) search: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
   @Prop({ default: () => new Map(), type: Map }) metricGroupsMap: Map<string, any>;
 
@@ -157,6 +156,8 @@ export default class IndicatorTable extends tsc<any, any> {
   groupWidth = 200;
   resizeObserver = null;
   rectHeight = 32;
+  /** 表格搜索 */
+  search = [];
 
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
@@ -599,7 +600,10 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   @Emit('searchChange')
-  handleSearchChange() {}
+  handleSearchChange(list) {
+    this.search = list;
+    return list;
+  }
 
   async updateCustomFields(k, v, metricName, showMsg = false) {
     try {

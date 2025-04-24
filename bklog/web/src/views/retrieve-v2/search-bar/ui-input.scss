@@ -9,52 +9,82 @@ ul.search-items {
   overflow: auto;
 
   li {
+    @keyframes changeBackgroundColor {
+      0% {
+        background-color: #f0f1f5;
+      }
+
+      20% {
+        background-color: #fdf4e8;
+      }
+
+      60% {
+        background-color: #f0f1f5;
+      }
+
+      90% {
+        background-color: #fdf4e8;
+      }
+
+      100% {
+        background-color: #f0f1f5;
+      }
+    }
+
     &.search-item {
       display: inline-flex;
       flex-direction: column;
       align-content: center;
       justify-content: center;
-      height: 48px;
+      height: 40px;
       margin-right: 4px;
       margin-bottom: 4px;
       cursor: pointer;
       border-radius: 2px;
 
       &:not(.is-focus-input) {
-        padding: 2px 8px;
+        padding: 4px 8px;
         padding-right: 48px;
         outline: none;
       }
 
       &.is-common-fixed {
-        animation: changeBackgroundColor 1.5s forwards;
         transition: background-color 1s ease-in-out;
+        animation: changeBackgroundColor 1.5s forwards;
+      }
+
+      &.is-focus-input {
+        position: relative;
+
+        &::after {
+          position: absolute;
+          right: 0;
+          font-size: 12px;
+          line-height: 20px;
+          color: #c4c6cc;
+          white-space: nowrap;
+          pointer-events: none;
+          content: attr(data-attr-txt);
+          transform: translateX(100%);
+        }
+
+        .tag-option-focus-input {
+          &:hover {
+            cursor: pointer;
+          }
+        }
       }
     }
 
-    @keyframes changeBackgroundColor {
-      0% {
-        background-color: #e1ecff;
-      }
-      10% {
-        background-color: #fdf4e8;
-      }
-      50% {
-        background-color: #e1ecff;
-      }
-      90% {
-        background-color: #fdf4e8;
-      }
-      100% {
-        background-color: #e1ecff;
-      }
-    }
     .tag-option-focus-input {
-      width: 8px;
       height: 38px;
       font-size: 12px;
       color: #63656e;
       border: none;
+
+      &::placeholder {
+        color: #c4c6cc;
+      }
     }
 
     &.btn-add {
@@ -75,8 +105,8 @@ ul.search-items {
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        height: 18px;
-        font-size: 16px;
+        font-size: 18px;
+        line-height: 18px;
       }
 
       .tag-text {
@@ -91,55 +121,54 @@ ul.search-items {
 
     &.tag-item {
       position: relative;
-      background: #f0f5ff;
-
-      &.disabled {
-        .tag-row {
-          &.match-value {
-            color: #c4c6cc;
-
-            span {
-              position: relative;
-
-              &::after {
-                position: absolute;
-                top: 50%;
-                left: 0;
-                width: 100%;
-                height: 1px;
-                content: '';
-                border-bottom: 1px solid #c4c6cc;
-              }
-            }
-          }
-        }
-      }
+      background: #eaebf0;
 
       &:hover {
-        background: #e1ecff;
-
         .tag-options {
-          display: flex;
+          display: inline-flex;
         }
       }
 
       .tag-options {
         position: absolute;
-        top: 0;
+        top: 2px;
         right: 0;
         bottom: 0;
         display: none;
-        align-items: center;
+        width: 40px;
+        height: 18px;
+        font-size: 16px;
 
-        justify-content: center;
-        width: 48px;
+        .bklog-icon,
+        .tag-options-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2px;
+          color: #4d4f56;
+          background-color: #ffffff;
+        }
 
-        span {
-          font-size: 16px;
-          color: #979ba5;
+        .bklog-icon {
+          width: 18px;
+          height: 18px;
+          font-size: 12px;
+          background: #ffffff;
+          border-radius: 2px;
+          box-shadow: 0 1px 2px 0 #00000014;
 
-          &.icon-close {
-            font-size: 18px;
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+
+        .tag-options-close {
+          margin-right: 0px;
+          margin-left: 2px;
+          font-size: 14px;
+
+          &:hover {
+            color: #ea3636;
           }
         }
       }
@@ -152,13 +181,19 @@ ul.search-items {
         font-size: 12px;
 
         &.match-name {
-          color: #979ba5;
+          .match-name-label {
+            font-family: var(--bklog-v3-row-lbl-font);
+            color: #757880;
+          }
 
           .symbol {
             padding: 0 4px;
             color: #3a84ff;
 
-            &[data-operator^='not contains'] {
+            &[data-operator^='not contains'],
+            &[data-operator^='does not exists'],
+            &[data-operator^='is false'],
+            &[data-operator^='!='] {
               color: #ea3636;
             }
           }
@@ -174,28 +209,70 @@ ul.search-items {
 
           > span {
             display: flex;
+            align-items: center;
 
             .match-value-text {
               display: inline-block;
-              max-width: 200px;
+              max-width: 140px;
               overflow: hidden;
+              font-family: var(--bklog-v3-row-ctx-font);
+              line-height: 16px;
               text-overflow: ellipsis;
               white-space: nowrap;
+
+              &.has-ellipsis {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
             }
 
             .match-value-relation {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              padding: 0 2px;
               margin: 0 4px;
+              font-family: 'Roboto Mono';
               font-size: 12px;
-              color: #ff9c01;
-              background: #fff3e1;
+              font-weight: 500;
+              color: #f59500;
               border-radius: 2px;
             }
           }
         }
+      }
+
+      &.disabled {
+        .tag-row {
+          &.match-value {
+            color: #979ba5;
+
+            .match-value-text {
+              position: relative;
+              text-decoration: line-through;
+
+              // &::after {
+              //   position: absolute;
+              //   top: 50%;
+              //   left: 0;
+              //   width: 100%;
+              //   height: 1px;
+              //   content: '';
+              //   border-bottom: 1px solid #c4c6cc;
+              // }
+            }
+          }
+        }
+
+        .tag-options {
+          .bklog-icon,
+          .tag-options-close {
+            color: #4d4f56;
+          }
+        }
+      }
+    }
+
+    &.search-item-focus {
+      &.hidden-pointer {
+        min-width: 1px;
       }
     }
 
@@ -205,7 +282,6 @@ ul.search-items {
 
       &.tag-add {
         font-size: 18px;
-        font-weight: 600;
         text-align: center;
       }
     }

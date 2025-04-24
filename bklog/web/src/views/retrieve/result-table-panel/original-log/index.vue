@@ -250,11 +250,7 @@
         this.handleAddNewConfig();
       },
     },
-    created() {
-      const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
-      this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
-      this.handleChangeExpandView(this.expandTextView);
-    },
+
     methods: {
       // 字段设置
       handleDropdownShow() {
@@ -340,7 +336,7 @@
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
       },
       handleChangeExpandView(val) {
-        this.$store.commit('updateIsLimitExpandView', val);
+        this.$store.commit('updateStorage', { isLimitExpandView: val });
       },
     },
   };

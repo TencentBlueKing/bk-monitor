@@ -294,8 +294,10 @@ class CreateSearchContextBodyCustomField:
         sort_fields: list = kwargs.get("sort_fields", [])
 
         params: dict = kwargs.get("params", {})
+        body_data = kwargs.get("body_data", {})
 
         self._body = None
+        and_conditions = []
 
         if not target_fields or not sort_fields:
             return
@@ -309,35 +311,29 @@ class CreateSearchContextBodyCustomField:
             else:
                 sort_fields_value.append(_field_value)
 
-        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT)
-        body_should_data = body_data["query"]["bool"]["should"]
-        order_use: str = "asc"
-
         # 根据排序方式构造查询语句
-        if order == "-":
-            order_use = "desc"
-            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
-        if order == "+":
-            create_context_should_query(order, body_should_data, sort_fields, sort_fields_value)
-
         sort = []
         for item in sort_fields:
-            sort.append({item: {"order": order_use}})
-        body_data["sort"] = sort
+            if order == "+":
+                sort.append(f"{item}")
+            else:
+                sort.append(f"-{item}")
+        body_data["order_by"] = sort
 
         for item in target_fields:
             item_value = params.get(item)
             if item_value:
-                body_data["query"]["bool"]["must"].append(
+                and_conditions.append(
                     {
-                        "match": {
-                            item: {
-                                "query": item_value,
-                                "operator": "and",
-                            }
-                        }
+                        "field_name": item,
+                        "op": "eq",
+                        "value": [str(item_value)]
                     }
                 )
+
+        # 根据排序方式构造查询条件
+        body_data["query_list"][0]["conditions"] = create_context_conditions(order, sort_fields, sort_fields_value,
+                                                                             and_conditions)
 
         body_data["limit"] = size
 

@@ -1979,6 +1979,9 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         "lte": "lte",
     }
 
+    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
+    FUNC_METHOD_MAPPING: Dict[str, str] = {"distinct": "cardinality"}
+
     PERCENTILES_AGG_TRANSLATE = {
         CpAggMethods["cp50"].vargs_list[0]: "50.0",
         CpAggMethods["cp90"].vargs_list[0]: "90.0",
@@ -2062,12 +2065,22 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             "order_by": [],
         }
 
+        metrics: List[Dict[str, Any]] = self.metrics
+        if self.distinct:
+            # 针对原始 Trace 检索（未开启预计算）场景，默认需要按指定时间字段进行排序。
+            # 后续如果有多字段排序的需求，也相应需要在这里进行调整扩展。
+            metrics = [{"method": "max", "field": self.time_field, "alias": "a"}]
+            group_by.append(self.distinct)
+
         query_list: List[Dict[str, Any]] = []
-        for metric in self.metrics:
+        for metric in metrics:
             query: Dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
-            function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
+            function: Dict[str, Any] = {
+                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
+                "dimensions": group_by,
+            }
             if method in CpAggMethods:
                 cp_agg_method = CpAggMethods[method]
                 function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]

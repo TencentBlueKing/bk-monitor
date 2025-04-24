@@ -26,16 +26,16 @@
     extendParams: {
       type: Object,
     },
-    activeFavorite:{
+    activeFavorite: {
       default: true,
       type: Boolean,
     },
-    matchSQLStr:{
+    matchSQLStr: {
       default: false,
       type: Boolean,
-    }
+    },
   });
-  const emit = defineEmits(['refresh','saveCurrentActiveFavorite']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -58,7 +58,7 @@
     space_uid: -1,
     index_set_id: -1,
     name: '',
-    group_id: undefined,
+    group_id: privateGroupID.value,
     created_by: '',
     params: {
       host_scopes: {
@@ -256,11 +256,11 @@
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
       });
-    }else{
+    } else {
       Object.assign(data, {
-      index_set_id: store.state.indexId,
-      index_set_type: 'single',
-    });
+        index_set_id: store.state.indexId,
+        index_set_type: 'single',
+      });
     }
 
     const requestStr = 'createFavorite';
@@ -283,8 +283,8 @@
     } catch (error) {}
   };
   const saveCurrentFavorite = () => {
-    emit('saveCurrentActiveFavorite');
-  }
+    emit('save-current-active-favorite');
+  };
   // 提交表单校验
   const handleSubmitFormData = () => {
     popoverFormRef.value.validate().then(() => {
@@ -305,6 +305,9 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
+    nextTick(() => {
+      popoverContentRef.value.clearError();
+    });
   };
   // popover组件Ref
   const popoverContentRef = ref();
@@ -322,9 +325,11 @@
     popoverShow.value = false;
     popoverContentRef.value.hideHandler();
   };
+  const favoriteNameInputRef = ref(null);
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
+      favoriteNameInputRef.value?.focus();
       if (!popoverShow.value) {
         popoverContentRef.value.hideHandler();
       }
@@ -354,26 +359,45 @@
     :tippy-options="tippyOptions"
   >
     <span
+      v-if="activeFavorite"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
       class="bklog-icon bklog-star-line"
-      @click="handleCollection"
-      v-if="activeFavorite"
       v-bk-tooltips="$t('收藏当前查询')"
+      @click="handleCollection"
       ><slot></slot
     ></span>
-    <bk-dropdown-menu :align="'center'" v-else>
-        <template slot="dropdown-trigger">
-            <div
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-            ></div>
-        </template>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
-            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">{{ $t('覆盖当前收藏') }}</a></li>
-            <li><a href="javascript:;" @click.stop="handleCollection">{{ $t('另存为新收藏') }}</a></li>
+    <bk-dropdown-menu
+      v-else
+      :align="'center'"
+    >
+      <template #dropdown-trigger>
+        <div
+          style="font-size: 18px"
+          class="icon bklog-icon bklog-save"
+          v-bk-tooltips="$t('收藏')"
+        ></div>
+      </template>
+      <template #dropdown-content>
+        <ul class="bk-dropdown-list">
+          <li>
+            <a
+              :class="matchSQLStr ? 'disabled' : ''"
+              href="javascript:;"
+              @click.stop="saveCurrentFavorite"
+              >{{ $t('覆盖当前收藏') }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="javascript:;"
+              @click.stop="handleCollection"
+              >{{ $t('另存为新收藏') }}</a
+            >
+          </li>
         </ul>
+      </template>
     </bk-dropdown-menu>
     <template #content>
       <div>
@@ -393,8 +417,8 @@
             required
           >
             <bk-input
+              ref="favoriteNameInputRef"
               v-model="favoriteData.name"
-              placeholder="请输入收藏名称"
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -405,6 +429,7 @@
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
               :popover-options="{ appendTo: 'parent' }"
+              :search-placeholder="$t('请输入关键字')"
               placeholder="未编组"
               searchable
               @change="handleSelectGroup"
@@ -413,9 +438,17 @@
                 v-for="item in collectGroupList"
                 :id="item.group_id"
                 :key="item.group_id"
-                :name="item.group_name"
-              ></bk-option>
-
+                :name="item.group_type === 'private' ? `${item.group_name} (${$t('仅个人可见')})` : item.group_name"
+              >
+                <span>{{ item.group_name }}</span>
+                <span
+                  v-if="item.group_type === 'private'"
+                  class="private-content"
+                >
+                  ({{ $t('仅个人可见)') }})
+                </span>
+              </bk-option>
+              <template #name> 4444 </template>
               <template #extension>
                 <div class="favorite-group-extension">
                   <div
@@ -423,7 +456,8 @@
                     class="select-add-new-group"
                     @click="isShowAddGroup = false"
                   >
-                    <div><i class="bk-icon icon-plus-circle"></i> {{ $t('新增') }}</div>
+                    <i class="bk-icon icon-plus-circle" />
+                    <span class="add-text">{{ $t('新增分组') }}</span>
                   </div>
                   <div
                     v-else
@@ -487,18 +521,19 @@
       <div class="popover-footer">
         <div class="footer-button">
           <bk-button
-            style="margin-right: 8px"
             size="small"
             theme="primary"
             @click.stop.prevent="handleSubmitFormData"
-            >{{ $t('确定') }}</bk-button
           >
+            {{ $t('确定') }}
+          </bk-button>
           <bk-button
             size="small"
             theme="default"
             @click.stop.prevent="handleCancelRequest"
-            >{{ $t('取消') }}</bk-button
           >
+            {{ $t('取消') }}
+          </bk-button>
         </div>
       </div>
     </template>

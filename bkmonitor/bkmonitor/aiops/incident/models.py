@@ -115,11 +115,11 @@ class IncidentGraphEntity:
         return data
 
     def logic_key(self):
-        """用于块划分的逻辑Key"""
+        """用于块划分的逻辑Key."""
         return (self.tags.get("BcsService", {}) or self.tags.get("BcsWorkload", {})).get("name", "")
 
-    def logic_content(self):
-        """用于块划分的逻辑Key的内容"""
+    def logic_dimensions(self):
+        """用于块划分的逻辑Key的维度."""
         return self.tags.get("BcsService", {}) or self.tags.get("BcsWorkload", {})
 
 
@@ -335,6 +335,25 @@ class IncidentSnapshot(object):
             for item in self.incident_snapshot_content["incident_alerts"]
             if item["entity_id"] == entity_id
         ]
+
+    def get_entity_alert_parent(self, entity_id: str) -> IncidentGraphEntity:
+        """获取实体父节点
+
+        :param entity_id: 实体ID
+        :return: 实体父节点
+        """
+        if len(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
+            return None
+
+        parent_entity = None
+        for parent_entity_id in self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
+            if self.incident_graph_entities[parent_entity_id].is_on_alert:
+                parent_entity = self.incident_graph_entities[parent_entity_id]
+                # 优先展示BcsService的有告警的父节点
+                if self.incident_graph_entities[parent_entity_id].entity_type == "BcsService":
+                    break
+
+        return parent_entity
 
     def generate_entity_sub_graph(self, entity_id: str) -> "IncidentSnapshot":
         """生成资源子图

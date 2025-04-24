@@ -157,6 +157,10 @@ class DetectMixin(object):
         last_checkpoints = {}
         anomaly_record_ids = {i.data_point.record_id for i in anomaly_records}
         latest_point_with_all = 0
+        try:
+            strategy_ttl = self.get_detect_result_expire_ttl()
+        except Exception:
+            strategy_ttl = None
         for d in records:
             # data_record 的record_id规则： {dimensions_md5}.{timestamp}
             dimensions_md5, timestamp = d.record_id.split(".")
@@ -175,7 +179,7 @@ class DetectMixin(object):
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
                 kwargs = {name: timestamp}
-                check_result.add_check_result_cache(**kwargs)
+                check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
 
                 # 2. 缓存最后checkpoint type:Hash，先放到内存里，最后再一次性写入redis
                 last_point = last_checkpoints.setdefault(dimensions_md5, 0)

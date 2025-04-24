@@ -1,13 +1,18 @@
 <script setup>
-  import { computed, ref, defineComponent, h } from 'vue';
+  import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
 
+  import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
+  import { throttle } from 'lodash';
+
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
+  // #endif
+
   // #else
   // #code const SearchResultChart = defineComponent(() => h('div'));
   // #code const FieldFilter = defineComponent(() => h('div'));
@@ -16,7 +21,7 @@
 
   import LogResult from './log-result/index';
 
-  const DEFAULT_FIELDS_WIDTH = 220;
+  const DEFAULT_FIELDS_WIDTH = 200;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
@@ -37,9 +42,12 @@
   const totalCount = ref(0);
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
-  const isShowFieldStatistics = ref(true);
-  const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
+
+  const fieldFilterWidth = computed(() => store.state.storage.fieldSetting.width);
+  const isShowFieldStatistics = computed(() => store.state.storage.fieldSetting.show);
+
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
   const changeTotalCount = count => {
     totalCount.value = count;
@@ -51,16 +59,33 @@
   const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
     heightNum.value = height + 4;
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
   };
 
   const handleFieldsShowChange = status => {
-    if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
-    isShowFieldStatistics.value = status;
+    if (status) {
+      RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
+    }
+    RetrieveHelper.setLeftFieldIsShown(!!status);
+    store.commit('updateStorage', {
+      fieldSetting: {
+        show: !!status,
+        width: DEFAULT_FIELDS_WIDTH,
+      },
+    });
   };
 
-  const handleFilterWidthChange = width => {
-    fieldFilterWidth.value = width;
-  };
+  const handleFilterWidthChange = throttle(width => {
+    if (width !== fieldFilterWidth.value) {
+      RetrieveHelper.setLeftFieldSettingWidth(width);
+      store.commit('updateStorage', {
+        fieldSetting: {
+          show: true,
+          width,
+        },
+      });
+    }
+  });
 
   const handleUpdateActiveTab = active => {
     emit('update:active-tab', active);
@@ -82,24 +107,21 @@
       padding: '8px 16px',
     };
   });
-
- 
-
 </script>
 
 <template>
-  <div :class="['search-result-panel', {'flex': !__IS_MONITOR_TRACE__}]">
+  <div :class="['search-result-panel', { flex: !__IS_MONITOR_TRACE__ }]">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
-          v-model="isShowFieldStatistics"
+          :value="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
             maxWidth: 500,
-            defaultWidth: DEFAULT_FIELDS_WIDTH,
+            defaultWidth: fieldFilterWidth,
             autoHidden: false,
             theme: 'dotted',
             placement: 'left',
@@ -108,15 +130,17 @@
             onWidthChange: handleFilterWidthChange,
           }"
           v-show="isOriginShow"
+          :width="fieldFilterWidth"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
       <div
-        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
+        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
+          :class="RetrieveHelper.randomTrendGraphClassName"
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"

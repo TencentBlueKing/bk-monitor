@@ -1085,8 +1085,8 @@
           return false;
         }
         if (!is_delete) {
-          if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(alias_name)) {
-            queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
+          if (!/^[A-Za-z0-9_]+$/g.test(alias_name)) {
+            queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_');
           } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
           } else if (alias_name === row.field_name) {

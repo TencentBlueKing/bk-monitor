@@ -139,7 +139,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.statisticsListRef.$refs.dimensionPopover,
       placement: 'right',
-      width: 400,
+      width: 405,
       distance: -5,
       boundary: 'viewport',
       trigger: 'manul',
@@ -337,10 +337,12 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
+          fieldType={this.slideField?.type}
           isDimensions={this.slideField?.is_dimensions}
           isShow={this.showStatisticsPopover}
+          isShowChart={true}
           popoverInstance={this.popoverInstance}
-          selectField={this.selectField}
+          selectField={this.slideField?.name}
           source={this.source}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}

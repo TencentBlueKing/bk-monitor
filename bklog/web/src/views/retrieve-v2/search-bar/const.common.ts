@@ -29,7 +29,7 @@
  * @param value
  * @returns
  */
-export const getInputQueryDefaultItem = (value = []) => {
+export const getInputQueryDefaultItem = (value: string[] = []) => {
   return {
     field: '*',
     operator: 'contains match phrase',

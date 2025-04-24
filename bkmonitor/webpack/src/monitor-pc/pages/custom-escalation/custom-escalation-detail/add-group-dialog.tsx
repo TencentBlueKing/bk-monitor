@@ -54,7 +54,6 @@ export default class AddGroupDialog extends tsc<any> {
   @Prop({ default: () => ({ name: '', rules: '' }), type: Object as PropType<IGroupInfo> }) groupInfo;
   @Prop({ default: () => [] }) nameList;
   @Prop({ default: () => [] }) metricList;
-  @Prop({ default: () => [] }) metricNameList;
   @Ref() groupRef;
   localGroupInfo: IGroupInfo = { name: '', rules: '', manualList: [] };
 
@@ -83,6 +82,13 @@ export default class AddGroupDialog extends tsc<any> {
 
   /** 预览按钮状态：未预览、需重新预览、已预览 */
   previewBtnFlag = EPreviewFlag.Preview_Not_Started;
+
+  /**
+   * 获取指标名称列表
+   */
+  get metricNameList(): Array<{ name: string; description: string }> {
+    return this.metricList.map(item => ({ name: item.name, description: item.description }));
+  }
 
   get disabled() {
     return (

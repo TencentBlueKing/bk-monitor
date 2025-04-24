@@ -64,6 +64,7 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
+from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
 from apps.utils.drf import custom_params_valid
@@ -318,6 +319,8 @@ class MappingHandlers(object):
             else:
                 # 检查display_fields每个字段是否存在
                 final_fields = [i["field_name"].lower() for i in final_fields_list]
+                # 对object类型的字段进行拆分
+                final_fields = split_object_fields(final_fields)
                 display_fields_list = [
                     _filed_obj for _filed_obj in display_fields if _filed_obj.lower() in final_fields
                 ]

@@ -1,8 +1,10 @@
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, inject } from 'vue';
+  import { ref, computed, watch, onBeforeUnmount, onMounted, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
+  import { getCommonFilterAddition } from '../../store/helper';
+  import RetrieveHelper, { RetrieveEvent } from '../../views/retrieve-helper';
   import axios from 'axios';
 
   import http from '@/api';
@@ -16,15 +18,15 @@
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
-
-  const chartKey = computed(() => store.state.retrieve.chartKey);
+  const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
 
   const refDataTrendCanvas = ref(null);
-
+  const dynamicHeight = ref(130);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
+    dynamicHeight,
   });
 
   const finishPolling = ref(false);
@@ -51,6 +53,8 @@
   };
 
   let runningInterval = 'auto';
+  let isInit = true;
+  let sumCount = 0;
 
   // 需要更新图表数据
   const getSeriesData = (startTimeStamp, endTimeStamp) => {
@@ -61,6 +65,8 @@
     requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
 
     if (!isStart.value) {
+      isInit = true;
+      sumCount = 0;
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
 
@@ -99,7 +105,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
-        addition: [...retrieveParams.value.addition, ...store.getters.common_filter_addition],
+        addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
@@ -111,6 +117,18 @@
           index_set_ids: unionIndexList.value,
         });
       }
+
+      if (
+        gradeOptions.value &&
+        !gradeOptions.value.disabled &&
+        gradeOptions.value.type === 'custom' &&
+        gradeOptions.value.field
+      ) {
+        Object.assign(queryData, {
+          group_field: gradeOptions.value.field,
+        });
+      }
+
       http
         .request(
           urlStr,
@@ -126,9 +144,9 @@
         )
         .then(res => {
           if (res?.data) {
-            const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-            const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-            const sumCount = setChartData(data);
+            sumCount += setChartData(res?.data?.aggs, gradeOptions.value?.field, isInit);
+            isInit = false;
+
             store.commit('retrieve/updateTrendDataCount', sumCount);
           }
 
@@ -157,43 +175,35 @@
   };
 
   let runningTimer = null;
+  const loadTrendData = () => {
+    logChartCancel?.();
+    setChartData(null, null, true);
 
-  watch(
-    () => chartKey.value,
-    () => {
-      logChartCancel?.();
+    runningTimer && clearTimeout(runningTimer);
+    runningTimer = setTimeout(() => {
+      finishPolling.value = false;
+      isStart.value = false;
+      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+    });
+  };
 
-      runningTimer && clearTimeout(runningTimer);
-      runningTimer = setTimeout(() => {
-        clearChartData();
-
-        finishPolling.value = false;
-        isStart.value = false;
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
-      });
-    },
-    {
-      immediate: true,
-    },
-  );
-
-  const isRenderLoading = ref(false);
-  watch(
-    () => isLoading.value,
-    () => {
-      if (isLoading.value) {
-        isRenderLoading.value = true;
-        return;
-      }
-
-      setTimeout(() => {
-        isRenderLoading.value = false;
-      }, 300);
-    },
+  RetrieveHelper.on(
+    [
+      RetrieveEvent.SEARCH_VALUE_CHANGE,
+      RetrieveEvent.SEARCH_TIME_CHANGE,
+      RetrieveEvent.TREND_GRAPH_SEARCH,
+      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      RetrieveEvent.INDEX_SET_ID_CHANGE,
+    ],
+    loadTrendData,
   );
 
   onBeforeUnmount(() => {
     logChartCancel?.();
+  });
+
+  onMounted(() => {
+    loadTrendData();
   });
 </script>
 <script>
@@ -203,12 +213,12 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isRenderLoading }"
+    v-bkloading="{ isLoading: isLoading }"
     class="monitor-echart-wrap"
   >
     <div
       ref="refDataTrendCanvas"
-      style="height: 110px"
+      :style="{ height: dynamicHeight + 'px' }"
     ></div>
   </div>
 </template>

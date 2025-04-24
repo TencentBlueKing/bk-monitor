@@ -362,6 +362,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-collapse:before {
 	content: "\e1dd";
 }
+.bklog-download:before {
+	content: "\e205";
+}
 .bklog-invisible:before {
 	content: "\e1e3";
 }
@@ -385,6 +388,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-circle-minus-filled:before {
 	content: "\e1ea";
+}
+.bklog-import:before {
+	content: "\e206";
 }
 .bklog-setting-line:before {
 	content: "\e1d4";
@@ -649,4 +655,19 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-yishixiao:before {
 	content: "\e202";
+}
+.bklog-buer-2:before {
+	content: "\e203";
+}
+.bklog-object-2:before {
+	content: "\e204";
+}
+.bklog-ai-mofabang:before {
+	content: "\e207";
+}
+.bklog-consola:before {
+	content: "\e208";
+}
+.bklog-highlight:before {
+	content: "\e209";
 }
