@@ -1,7 +1,7 @@
 [tool.black]
 line-length = 120
 include = '\.pyi?$'
-skip-string-normalization = 'true'
+skip-string-normalization = true
 exclude = '''
 /(
     \.git
@@ -36,3 +36,17 @@ max-complexity = 25
 format = "pylint"
 exclude = "*config*,*migrations*,*.pyc,.git,__pycache__.tox,docs,old,build,dist,*.egg-info,.cache,.eggs"
 
+[tool.ruff]
+src = ["bkmonitor", "bklog", "bkmonitor/packages"]
+line-length = 120
+exclude = [
+    ".git",
+    "venv",
+    ".venv",
+    "node_modules",
+    ".pytype",
+    ".ruff_cache",
+    ".pytest_cache",
+    "__pypackages__",
+    "__pycache__",
+]

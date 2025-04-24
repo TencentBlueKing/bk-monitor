@@ -12,7 +12,6 @@ exclude_lines = [
 ]
 skip_empty = true
 
-
 [tool.pytest.ini_options]
 console_output_style = "count"
 testpaths = [
@@ -36,4 +35,17 @@ env = [
     "D:django_find_project=false",
     "D:BK_MONITOR_APP_CODE=bk_monitorv3",
     "D:BK_MONITOR_APP_SECRET=secret"
+]
+
+[tool.ruff]
+src = [".", "packages"]
+line-length = 120
+exclude = [
+    ".git",
+    "venv",
+    ".venv",
+    "node_modules",
+    ".pytype",
+    ".ruff_cache",
+    "__pypackages__"
 ]
