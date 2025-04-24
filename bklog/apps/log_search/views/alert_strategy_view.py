@@ -147,11 +147,21 @@ class AlertStrategyViewSet(APIViewSet):
         query_string = query_config.get("query_string", "*")
         agg_condition = query_config.get("agg_condition", [])
         extra_info = alert_infos.get("extra_info", {})
-        dimensions = extra_info.get("origin_alarm", {}).get("data", {}).get("dimensions", [])
+        dimensions = extra_info.get("origin_alarm", {}).get("data", {}).get("dimensions", {})
+        # 把维度信息追加到agg_condition中
+        for key, value in dimensions.items():
+            agg_condition.append(
+                {
+                    "condition": "and",
+                    "method": "eq",
+                    "dimension_name": key,
+                    "value": [f"{value}"],
+                    "key": key,
+                }
+            )
         return Response(
             {
                 "query_string": query_string,
                 "agg_condition": agg_condition,
-                "dimensions": dimensions,
             }
         )
