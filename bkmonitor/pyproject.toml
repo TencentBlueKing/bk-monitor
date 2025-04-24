@@ -3,7 +3,7 @@ name = "bkmonitor"
 version = "3.11.0"
 description = "bkmonitor"
 readme = "README.md"
-requires-python = ">=3.11, <3.12"
+requires-python = "==3.11.*"
 dependencies = [
     "apigw-manager==3.1.2",
     "arrow==0.6.0",
