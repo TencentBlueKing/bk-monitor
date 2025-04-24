@@ -1124,9 +1124,7 @@ class CollectorHandler(object):
 
         return True
 
-    def run(self, params):
-        action = params.get("action")
-        scope = params.get("scope")
+    def run(self, action, scope):
         if self.data.subscription_id:
             return self._run_subscription_task(action=action, scope=scope)
         return True
@@ -1320,13 +1318,12 @@ class CollectorHandler(object):
             params["scope"]["bk_biz_id"] = self.data.bk_biz_id
 
         result = NodeApi.run_subscription_task(params)
-        if task_id := result.get("task_id"):
-            # 对指定nodes进行重试，合并任务
-            scope = scope or {}
-            if scope.get("nodes") is not None:
-                self.data.task_id_list.append(str(task_id))
-            else:
-                self.data.task_id_list = [str(task_id)]
+        task_id = result.get("task_id")
+        if task_id and scope is None:
+            # 带scope的不用添加任务ID
+            self.data.task_id_list.append(str(task_id))
+        elif scope:
+            self.data.task_id_list = [str(task_id)]
         self.data.save()
         return self.data.task_id_list
 

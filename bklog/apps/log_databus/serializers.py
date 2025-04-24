@@ -1715,7 +1715,7 @@ class UpdateAliasSettingsSerializers(serializers.Serializer):
     alias_settings = AliasSettingSerializer(many=True, required=True)
 
 
-class IPSubscriptionSerializer(serializers.Serializer):
+class RunIPSubscriptionSerializer(serializers.Serializer):
     class ScopeParams(serializers.Serializer):
         node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
         nodes = serializers.ListField(required=True, label="节点列表")

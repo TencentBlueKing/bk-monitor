@@ -66,7 +66,6 @@ from apps.log_databus.serializers import (
     FastContainerCollectorCreateSerializer,
     FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
-    IPSubscriptionSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
@@ -75,6 +74,7 @@ from apps.log_databus.serializers import (
     PreviewContainersSerializer,
     ProxyHostSerializer,
     RetrySerializer,
+    RunIPSubscriptionSerializer,
     RunSubscriptionSerializer,
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
@@ -172,7 +172,7 @@ class CollectorViewSet(ModelViewSet):
             "list": CollectorListSerializer,
             "retry": RetrySerializer,
             "list_collectors": CollectorListSerializer,
-            "run": IPSubscriptionSerializer,
+            "run": RunIPSubscriptionSerializer,
         }
         return action_serializer_map.get(self.action, serializers.Serializer)
 
@@ -1168,7 +1168,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.validated_data
-        result = CollectorHandler(collector_config_id).run(data)
+        result = CollectorHandler(collector_config_id).run(action=data.get("action"), scope=data.get("scope"))
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="start")
