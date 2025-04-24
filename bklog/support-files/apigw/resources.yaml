@@ -2102,6 +2102,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /databus_collectors/{collector_config_id}/run/:
+    post:
+      operationId: run_databus_collectors
+      description: 日志平台-订阅ip下发
+      tags:
+        - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/run/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: [ ]
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /databus_collectors/{collector_config_id}/start/:
     post:
       operationId: start_databus_collectors
