@@ -19,6 +19,7 @@ from django.db.models import Count, Q, QuerySet
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
+from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
@@ -31,7 +32,11 @@ class SpaceRelatedSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def validate_bk_biz_id(self, bk_biz_id):
-        return validate_bk_biz_id(bk_biz_id)
+        try:
+            bk_biz_id = validate_bk_biz_id(bk_biz_id)
+        except NoRelatedResourceError:
+            bk_biz_id = bk_biz_id
+        return bk_biz_id
 
 
 class ListBCSCluster(Resource):
