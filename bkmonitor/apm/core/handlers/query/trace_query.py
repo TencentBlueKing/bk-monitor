@@ -164,3 +164,33 @@ class TraceQuery(BaseQuery):
         q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
+
+    def query_topk(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        field: str,
+        limit: int,
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_topk(start_time, end_time, field, limit, filters, query_string)
+
+    def query_distinct_count(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        field: str,
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_distinct_count(start_time, end_time, field, filters, query_string)
+
+    def query_total(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_total(start_time, end_time, filters, query_string)

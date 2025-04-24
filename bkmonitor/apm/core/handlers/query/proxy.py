@@ -226,3 +226,12 @@ class QueryProxy:
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
+
+    def query_distinct_count(self, query_mode, start_time, end_time, field, filters, query_string):
+        return self.query_mode[query_mode].query_distinct_count(start_time, end_time, field, filters, query_string)
+
+    def query_topk(self, query_mode, start_time, end_time, limit, offset, filters, query_string):
+        return self.query_mode[query_mode].query_topk(start_time, end_time, limit, offset, filters, query_string)
+
+    def query_total(self, query_mode, start_time, end_time, filters, query_string):
+        return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)

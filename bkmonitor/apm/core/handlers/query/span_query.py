@@ -29,7 +29,6 @@ logger = logging.getLogger("apm")
 
 
 class SpanQuery(BaseQuery):
-
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
 
     @classmethod
@@ -78,3 +77,33 @@ class SpanQuery(BaseQuery):
             .filter(**{f"{OtlpKey.SPAN_ID}__eq": span_id})
         )
         return self.time_range_queryset().add_query(q).first()
+
+    def query_topk(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        field: str,
+        limit: int,
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_topk(start_time, end_time, field, limit, filters, query_string)
+
+    def query_distinct_count(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        field: str,
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_distinct_count(start_time, end_time, field, filters, query_string)
+
+    def query_total(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+    ):
+        return self._query_total(start_time, end_time, filters, query_string)

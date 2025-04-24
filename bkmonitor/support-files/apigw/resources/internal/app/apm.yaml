@@ -943,3 +943,57 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query ebpf service profile data
+  /app/apm/query_apm_fields_topk/:
+    post:
+      operationId: query_apm_fields_topk
+      description: 查询trace或span字段topk信息
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /apm_api/v1/application/query_fields_topk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query apm fields topk
+  /app/apm/query_apm_field_statistics_info/:
+    post:
+      operationId: query_apm_field_statistics_info
+      description: 查询trace或span字段的统计信息
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /apm_api/v1/application/query_field_statistics_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query apm field statistics info
+  /app/apm/query_apm_field_statistics_graph/:
+    post:
+      operationId: query_apm_field_statistics_graph
+      description: 查询trace或span字段的时序数据
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /apm_api/v1/application/query_field_statistics_graph/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query apm field statistics graph

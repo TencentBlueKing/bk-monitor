@@ -369,6 +369,61 @@ class BaseQuery:
 
         return ordering
 
+    def get_q_from_filters_and_query_string(self, filters, query_string) -> QueryConfigBuilder:
+        return (
+            self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
+        )
+
+    def _query_distinct_count(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="distinct", alias="a"
+        )
+        try:
+            return list(
+                self.time_range_queryset(start_time, end_time)
+                .add_query(q)
+                .scope(bk_biz_id=self.bk_biz_id)
+                .time_agg(False)
+                .instant()
+                .limit(1)
+            )[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query [%s] distinct, err -> %s", field, exc)
+            raise ValueError(_(f"{field} 去重数查询出错"))
+
+    def _query_topk(self, start_time, end_time, field, limit, filters, query_string):
+        q: QueryConfigBuilder = (
+            self.get_q_from_filters_and_query_string(filters, query_string)
+            .metric(field=field, method="COUNT", alias="a")
+            .group_by(field)
+            .order_by("-_value")
+        )
+        return list(
+            self.time_range_queryset(start_time, end_time)
+            .add_query(q)
+            .scope(bk_biz_id=self.bk_biz_id)
+            .time_agg(False)
+            .instant()
+            .limit(limit)
+        )
+
+    def _query_total(self, start_time, end_time, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field="_index", method="COUNT", alias="a"
+        )
+        try:
+            return list(
+                self.time_range_queryset(start_time, end_time)
+                .add_query(q)
+                .scope(bk_biz_id=self.bk_biz_id)
+                .time_agg(False)
+                .instant()
+                .limit(1)
+            )[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query total, err -> %s", exc)
+            raise ValueError(_("总记录数查询出错"))
+
 
 class FakeQuery:
     def list(self, *args, **kwargs):
