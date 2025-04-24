@@ -29,10 +29,11 @@ import { useI18n } from 'vue-i18n';
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 
+import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
-import type { ICommonParams } from '../../typing';
+import type { ExploreFieldMap, ICommonParams } from '../../typing';
 
 import './trace-explore-view.scss';
 
@@ -53,6 +54,13 @@ export default defineComponent({
     checkboxFilters: {
       type: Array as PropType<string[]>,
       default: () => [],
+    },
+    fieldMap: {
+      type: Object as PropType<ExploreFieldMap>,
+      default: () => ({
+        trace: {},
+        span: {},
+      }),
     },
   },
   emits: {
@@ -118,15 +126,15 @@ export default defineComponent({
     }
 
     return {
-      isSpanVisual,
+      mode,
       appName,
       timeRange,
       filtersCheckBoxGroupRender,
     };
   },
   render() {
-    const { commonParams } = this.$props;
-    const { isSpanVisual, appName, timeRange, filtersCheckBoxGroupRender } = this;
+    const { commonParams, fieldMap } = this.$props;
+    const { mode, appName, timeRange, filtersCheckBoxGroupRender } = this;
 
     return (
       <div class='trace-explore-view'>
@@ -139,10 +147,18 @@ export default defineComponent({
           <TraceExploreTable
             appName={appName}
             commonParams={commonParams}
-            isSpanVisual={isSpanVisual}
+            fieldMap={fieldMap}
+            mode={mode}
             timeRange={timeRange}
           />
         </div>
+        <BackTop
+          ref='backTopRef'
+          class='back-to-top'
+          scrollTop={100}
+        >
+          <i class='icon-monitor icon-BackToTop' />
+        </BackTop>
       </div>
     );
   },

@@ -31,8 +31,8 @@ import {
   type PropType,
   watch,
   TransitionGroup,
-  onBeforeMount,
   nextTick,
+  onBeforeUnmount,
 } from 'vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -44,15 +44,17 @@ import { Transfer, ArrowsRight, Close } from 'bkui-vue/lib/icon';
 import FieldTypeIcon from '../field-type-icon';
 
 import type { ExploreFieldMap } from '../../typing';
+import type { ExploreTableColumn } from '../trace-explore-table/typing';
 
 import './explore-field-setting.scss';
 
+export type FieldSettingItem = ExploreTableColumn & { fieldType: string };
 export default defineComponent({
   name: 'ExploreFieldSetting',
   props: {
     /** 穿梭框数据源（所有选项列表） */
     sourceList: {
-      type: Array as PropType<object[]>,
+      type: Array as PropType<FieldSettingItem[]>,
       default: () => [],
     },
     /** 已选择的数据（唯一标识 setting-key 的数组） */
@@ -158,7 +160,7 @@ export default defineComponent({
       }
     );
 
-    onBeforeMount(() => {
+    onBeforeUnmount(() => {
       removeDragListener();
     });
 
@@ -335,15 +337,17 @@ export default defineComponent({
       if (!sourceField || !field || field === draggingField.value) {
         return;
       }
-      selectedList.value = selectedList.value.map(v => {
-        if (v === sourceField) {
-          return field;
-        }
-        if (v === field) {
-          return sourceField;
-        }
-        return v;
-      });
+      const list = [...selectedList.value];
+      const targetIndex = list.indexOf(field);
+      const sourceIndex = list.indexOf(sourceField);
+      if (sourceIndex > targetIndex) {
+        list.splice(sourceIndex, 1);
+        list.splice(targetIndex, 0, sourceField);
+      } else {
+        list.splice(targetIndex + 1, 0, sourceField);
+        list.splice(sourceIndex, 1);
+      }
+      selectedList.value = list;
     }
     const debounceDragover = useThrottleFn(handleDragover, 300);
 
@@ -391,7 +395,9 @@ export default defineComponent({
           tag='ul'
         >
           {selectedList.value.map((field, index) => {
-            const label = sourceListMap.value[field]?.[props.displayKey];
+            const fieldItem = sourceListMap.value[field];
+            const label = fieldItem?.[props.displayKey];
+            const fieldType = fieldItem?.fieldType;
             return (
               <li
                 key={field}
@@ -408,7 +414,7 @@ export default defineComponent({
                   />
                   <FieldTypeIcon
                     class='item-prefix'
-                    type={props.fieldMap[field]?.type}
+                    type={fieldType}
                   />
                   <span class='item-label'>{label}</span>
                 </div>
@@ -437,6 +443,7 @@ export default defineComponent({
           {toBeChosenList.value.map(item => {
             const field = item[props.settingKey];
             const label = item[props.displayKey];
+            const fieldType = item.fieldType;
             return (
               <li
                 key={field}
@@ -446,7 +453,7 @@ export default defineComponent({
                 <div class='list-item-left'>
                   <FieldTypeIcon
                     class='item-prefix'
-                    type={props.fieldMap[field]?.type}
+                    type={fieldType}
                   />
                   <span class='item-label'>{label}</span>
                 </div>

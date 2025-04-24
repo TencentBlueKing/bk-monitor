@@ -32,7 +32,7 @@ import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode, type IWhereItem, type IGetValueFnParams } from '../../components/retrieval-filter/typing';
+import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
@@ -46,7 +46,7 @@ import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { getFilterByCheckboxFilter } from './utils';
 
-import type { ConditionChangeEvent, IApplicationItem, ICommonParams } from './typing';
+import type { ConditionChangeEvent, ExploreFieldMap, IApplicationItem, ICommonParams } from './typing';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -84,6 +84,23 @@ export default defineComponent({
     /** 维度字段列表 */
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
+    });
+    /** 字段类型 field 映射集合，用于在表格 列配置setting 中获取字段的类型 */
+    const fieldMap = computed<ExploreFieldMap>(() => {
+      const getFieldMap = (mode: 'span' | 'trace') =>
+        fieldListMap.value?.[mode].reduce((prev, curr) => {
+          prev[curr.name] = {
+            alias: curr.alias,
+            name: curr.name,
+            type: curr.type,
+          };
+          return prev;
+        }, {});
+
+      return {
+        trace: getFieldMap('trace'),
+        span: getFieldMap('span'),
+      };
     });
 
     const commonParams = shallowRef<ICommonParams>({
@@ -169,12 +186,17 @@ export default defineComponent({
     }
 
     function handleConditionChange(item: ConditionChangeEvent) {
-      const { key, method, value } = item;
+      const { key, method: operator, value } = item;
       if (filterMode.value === EMode.ui) {
-        where.value = mergeWhereList(where.value, [{ key, operator: method, value: [value || ''] }]);
-      } else {
+        const newWhere = mergeWhereList(where.value, [{ key, operator, value: [value || ''] }]);
+        handleWhereChange(newWhere);
+        return;
       }
-      handleQuery();
+      let endStr = `NOT ${key} : "${value || ''}"`;
+      if (operator === EMethod.eq) {
+        endStr = `${key} : "${value || ''}"`;
+      }
+      handleQueryStringChange(queryString.value ? `${queryString.value} AND ${endStr}` : `${endStr}`);
     }
 
     const handleQuery = useDebounceFn(() => {
@@ -384,6 +406,7 @@ export default defineComponent({
       checkboxFilters,
       defaultResidentSetting,
       appName,
+      fieldMap,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -455,6 +478,7 @@ export default defineComponent({
                     <TraceExploreView
                       checkboxFilters={this.checkboxFilters}
                       commonParams={this.commonParams}
+                      fieldMap={this.fieldMap}
                       onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
                     />
                   </div>
