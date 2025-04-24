@@ -1317,12 +1317,8 @@ class CollectorHandler(object):
             params["scope"] = scope
             params["scope"]["bk_biz_id"] = self.data.bk_biz_id
 
-        result = NodeApi.run_subscription_task(params)
-        task_id = result.get("task_id")
-        if task_id and scope is None:
-            # 带scope的不用添加任务ID
-            self.data.task_id_list.append(str(task_id))
-        elif scope:
+        task_id = str(NodeApi.run_subscription_task(params)["task_id"])
+        if scope is None:
             self.data.task_id_list = [str(task_id)]
         self.data.save()
         return self.data.task_id_list

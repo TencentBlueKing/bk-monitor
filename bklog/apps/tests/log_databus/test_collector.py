@@ -1159,10 +1159,8 @@ class TestCollector(TestCase):
 
         # 指定订阅节点
         collector1 = CollectorHandler(collector_config_id=collector_config_id)
-        task_id_one = copy.deepcopy(collector1.data.task_id_list)
-        task_id_one.append(str(LAST_TASK_ID))
         result1 = collector1._run_subscription_task(scope=scope)
-        self.assertEqual(result1, task_id_one)
+        self.assertEqual(result1, collector1.data.task_id_list)
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 6})
     def _test_start(self, collector_config_id):
