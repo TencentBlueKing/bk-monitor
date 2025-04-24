@@ -146,9 +146,12 @@ class AlertStrategyViewSet(APIViewSet):
         query_config = alert_infos.get("extend_info", {})
         query_string = query_config.get("query_string", "*")
         agg_condition = query_config.get("agg_condition", [])
+        extra_info = alert_infos.get("extra_info", {})
+        dimensions = extra_info.get("origin_alarm", {}).get("data", {}).get("dimensions", [])
         return Response(
             {
                 "query_string": query_string,
                 "agg_condition": agg_condition,
+                "dimensions": dimensions,
             }
         )
