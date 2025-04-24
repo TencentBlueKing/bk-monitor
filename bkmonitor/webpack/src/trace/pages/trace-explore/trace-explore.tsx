@@ -165,6 +165,7 @@ export default defineComponent({
         query_string,
         filters,
       };
+      setUrlParams();
     }, 100);
 
     async function getViewConfig() {

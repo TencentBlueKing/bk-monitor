@@ -59,10 +59,10 @@ export default defineComponent({
     const errMsg = shallowRef('');
 
     watch(
-      props.value,
+      () => props.value,
       val => {
-        if (val?.value) {
-          const [start, end] = val.value;
+        if (val.length > 1) {
+          const [start, end] = val;
           startValue.value = `${Number(start) / 1000}ms`;
           endValue.value = `${Number(end) / 1000}ms`;
           handleSetSlider(false);
@@ -73,11 +73,7 @@ export default defineComponent({
 
     const handleChangeDebounce = useDebounceFn(() => {
       const value = durationSlider.value.curValue.map(val => Number(val * 1000));
-      emit('change', {
-        key: props.fieldInfo.field,
-        value: value as any[],
-        method: 'between',
-      });
+      emit('change', value);
     }, 300);
 
     function handleInputChange(val: string, type: 'end' | 'start') {
@@ -163,6 +159,8 @@ export default defineComponent({
       startValue,
       endValue,
       durationSlider,
+      startError,
+      endError,
       handleInputChange,
       handleChangeDebounce,
       handleRangeChange,
@@ -170,13 +168,24 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='time-consuming-component'>
-        <span class='time-consuming-title'>{this.$t('耗时')}</span>
-        <div class='input-wrap'>
+      <div class={['time-consuming-component', this.styleType ? this.styleType : 'default']}>
+        {this.styleType !== 'form' && <span class='time-consuming-title'>{this.$t('耗时')}</span>}
+        <div
+          class={['input-wrap', { 'is-error': this.startError }]}
+          v-bk-tooltips={{
+            placement: 'bottom',
+            content: (
+              <div>
+                {this.$t('支持')}
+                ns, μs, ms, s, m, h, d
+              </div>
+            ),
+          }}
+        >
           <Input
             v-model={this.startValue}
             placeholder={'0ns'}
-            size='small'
+            size={this.styleType !== 'form' ? 'small' : 'default'}
             onChange={val => this.handleInputChange(val, 'start')}
           />
         </div>
@@ -193,11 +202,22 @@ export default defineComponent({
           />
         </div>
 
-        <div class='input-wrap'>
+        <div
+          class={['input-wrap', { 'is-error': this.endError }]}
+          v-bk-tooltips={{
+            placement: 'bottom',
+            content: (
+              <div>
+                {this.$t('支持')}
+                ns, μs, ms, s, m, h, d
+              </div>
+            ),
+          }}
+        >
           <Input
             v-model={this.endValue}
             placeholder={'1s'}
-            size='small'
+            size={this.styleType !== 'form' ? 'small' : 'default'}
             onChange={val => this.handleInputChange(val, 'end')}
           />
         </div>

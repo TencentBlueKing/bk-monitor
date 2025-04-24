@@ -32,6 +32,7 @@ import { Select, Checkbox, Input, Button } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
+import TimeConsuming from './time-consuming';
 import {
   ECondition,
   EFieldType,
@@ -43,7 +44,7 @@ import {
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
-import { fieldTypeMap, getTitleAndSubtitle, isNumeric } from './utils';
+import { DURATION_KEYS, fieldTypeMap, getTitleAndSubtitle, isNumeric } from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
@@ -92,6 +93,7 @@ export default defineComponent({
     const placeholderStr = computed(() => {
       return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
     });
+    const timeConsumingRange = computed(() => values.value.map(item => item.id));
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
       enterSelection(isFocus);
@@ -180,7 +182,6 @@ export default defineComponent({
           });
         }
       }
-      console.log(index);
       cursorIndex.value = index;
     }
 
@@ -219,6 +220,12 @@ export default defineComponent({
     }
     function handleValueChange(v: IValue[]) {
       values.value = v;
+    }
+    function handleTimeConsumingValueChange(v: number[]) {
+      values.value = v.map(item => ({
+        id: item,
+        name: item,
+      }));
     }
 
     function handleKeydownEvent(event: KeyboardEvent) {
@@ -355,8 +362,10 @@ export default defineComponent({
       cursorIndex,
       isMacSystem,
       placeholderStr,
+      timeConsumingRange,
       getValueFnProxy,
       handleValueChange,
+      handleTimeConsumingValueChange,
       handleValueSelectorBlur,
       handleSelectorFocus,
       handleSearchChangeDebounce,
@@ -431,18 +440,27 @@ export default defineComponent({
                 )}
               </div>
               <div class='form-item-content mt-6'>
-                <ValueTagSelector
-                  key={this.rightRefreshKey}
-                  ref='valueSelector'
-                  fieldInfo={this.valueSelectorFieldInfo}
-                  getValueFn={this.getValueFnProxy}
-                  placeholder={''}
-                  value={this.values}
-                  autoFocus
-                  onChange={this.handleValueChange}
-                  onSelectorBlur={this.handleValueSelectorBlur}
-                  onSelectorFocus={this.handleSelectorFocus}
-                />
+                {DURATION_KEYS.includes(this.checkedItem.name) ? (
+                  <TimeConsuming
+                    key={this.rightRefreshKey}
+                    styleType={'form'}
+                    value={this.timeConsumingRange}
+                    onChange={this.handleTimeConsumingValueChange}
+                  />
+                ) : (
+                  <ValueTagSelector
+                    key={this.rightRefreshKey}
+                    ref='valueSelector'
+                    fieldInfo={this.valueSelectorFieldInfo}
+                    getValueFn={this.getValueFnProxy}
+                    placeholder={''}
+                    value={this.values}
+                    autoFocus
+                    onChange={this.handleValueChange}
+                    onSelectorBlur={this.handleValueSelectorBlur}
+                    onSelectorFocus={this.handleSelectorFocus}
+                  />
+                )}
               </div>
               {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
             </div>,
@@ -462,7 +480,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior='simplicity'
                 placeholder={this.$t('请输入关键字')}
-                onChange={this.handleSearchChangeDebounce}
+                onInput={this.handleSearchChangeDebounce}
               >
                 {{
                   prefix: () => <span class='icon-monitor icon-mc-search' />,
