@@ -169,5 +169,7 @@ exclude = [
     ".ruff_cache",
     "__pypackages__"
 ]
+[tool.ruff.lint]
+extend-ignore = ["E402"]
 [tool.ruff.lint.extend-per-file-ignores]
 "config/**" = ["F405"]
