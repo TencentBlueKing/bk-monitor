@@ -39,7 +39,10 @@
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
-      <span class="icon bklog-icon bklog-xiazai"></span>
+      <span
+        class="icon bklog-icon bklog-download"
+        style="font-size: 16px"
+      ></span>
     </div>
 
     <div v-show="false">
@@ -279,30 +282,19 @@
         // queueStatus: true
       };
     },
-    watch: {
-      totalCount(val) {
-        if( val < 10000){
-          this.downloadType = 'sampling';
-        }else if(val < 2000000){
-          this.downloadType = 'all';
-        }else{
-          this.downloadType = 'quick';
-        }
-      }
-    },
     computed: {
       ...mapState({
         totalCount: state => {
           if (state.searchTotal > 0) {
             return state.searchTotal;
           }
-          
+
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.showFieldAlias ?? false,
+        showFieldAlias: state => state.storage.showFieldAlias,
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -323,6 +315,17 @@
       },
       routerIndexSet() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+      },
+    },
+    watch: {
+      totalCount(val) {
+        if (val < 10000) {
+          this.downloadType = 'sampling';
+        } else if (val < 2000000) {
+          this.downloadType = 'all';
+        } else {
+          this.downloadType = 'quick';
+        }
       },
     },
     beforeUnmount() {
@@ -386,7 +389,7 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data,{
+          .post(downRequestUrl, data, {
             originalResponse: true,
           })
           .then(res => {
@@ -514,13 +517,13 @@
     height: 32px;
     margin-left: 10px;
     cursor: pointer;
-    border: 1px solid #c4c6cc;
+    background-color: #f0f1f5;
     border-radius: 2px;
     outline: none;
     transition: boder-color 0.2s;
 
     &:hover {
-      border-color: #979ba5;
+      border-color: #4d4f56;
       transition: boder-color 0.2s;
     }
 
@@ -532,7 +535,7 @@
     .bklog-icon {
       width: 16px;
       font-size: 16px;
-      color: #979ba5;
+      color: #4d4f56;
     }
   }
 

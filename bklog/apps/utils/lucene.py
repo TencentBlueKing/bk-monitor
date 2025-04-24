@@ -656,6 +656,8 @@ def generate_query_string(params: dict) -> str:
     if additions:
         str_additions = []
         for addition in additions:
+            if not addition.get("field"):
+                continue
             if addition["operator"] in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
                 str_additions.append(f'{addition["field"]} {addition["operator"]}')
             else:
@@ -1528,6 +1530,10 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
         for char in field_value:
             if char in ["[", "]", "{", "}"]:
                 return True
+
+        if field_value.startswith('"') and field_value.endswith('"'):
+            # 截取引号中的内容
+            field_value = field_value[1:-1]
 
         # 检查字符串是否为整数
         if field_value.isdigit():

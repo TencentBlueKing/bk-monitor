@@ -105,11 +105,12 @@ export default class ResidentSettingTransfer extends tsc<
     const normalizedSearchValue = String(searchValue).toLocaleLowerCase();
     return fields.filter(item => {
       const { display_key: displayKey, key, display_value: displayValue, value } = item;
+      // displayValue、value可能有数值类型
       return (
         displayKey?.toLocaleLowerCase().includes(normalizedSearchValue) ||
-        displayValue?.toLocaleLowerCase().includes(normalizedSearchValue) ||
+        String(displayValue)?.toLocaleLowerCase().includes(normalizedSearchValue) ||
         key?.toLocaleLowerCase().includes(normalizedSearchValue) ||
-        value?.toLocaleLowerCase().includes(normalizedSearchValue)
+        String(value)?.toLocaleLowerCase().includes(normalizedSearchValue)
       );
     });
   }
@@ -140,9 +141,9 @@ export default class ResidentSettingTransfer extends tsc<
 
   // 单独添加到已选列表
   handleAdd(index: number) {
-    const item = JSON.parse(JSON.stringify(this.localFields[index]));
-    this.localFields.splice(index, 1);
+    const item = JSON.parse(JSON.stringify(this.searchLocalFields[index]));
     this.selectedFields.push(item);
+    this.handleSetLocalFields()
   }
 
   // 单独删除已选列表

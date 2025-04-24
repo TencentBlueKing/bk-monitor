@@ -28,8 +28,14 @@ import { Ref } from 'vue';
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
+import {
+  getClickTargetElement,
+  optimizedSplit,
+  setPointerCellClickTargetHandler,
+  setScrollLoadCell,
+} from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
-import { optimizedSplit, setScrollLoadCell } from './hooks-helper';
+import RetrieveHelper from '../views/retrieve-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -65,22 +71,40 @@ export default class UseJsonFormatter {
     return this.config.fields.find(item => item.field_name === fieldName);
   }
 
-  onSegmentEnumClick(val, isLink) {
+  getFieldNameValue() {
     const tippyInstance = segmentPopInstance.getInstance();
-    const currentValue = tippyInstance.reference.textContent;
-    const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
-    const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
+    const target = tippyInstance.reference;
+    let name = target.getAttribute('data-field-name');
+    let value = target.getAttribute('data-field-value');
+    let depth = target.getAttribute('data-field-dpth');
 
-    const fieldName = valueElement?.getAttribute('data-field-name');
-    const activeField = this.getField(fieldName);
+    if (value === undefined) {
+      value = target.textContent;
+    }
+
+    if (name === undefined) {
+      const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
+      name = valueElement?.getAttribute('data-field-name');
+    }
+
+    if (depth === undefined) {
+      depth = target.closest('[data-depth]')?.getAttribute('data-depth');
+    }
+
+    return { value, name, depth };
+  }
+
+  onSegmentEnumClick(val, isLink) {
+    const { name, value, depth } = this.getFieldNameValue();
+    const activeField = this.getField(name);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
-      : currentValue;
+      : value;
 
     const option = {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
-      value: target ?? currentValue,
+      value: target ?? value,
       depth,
     };
 
@@ -93,12 +117,24 @@ export default class UseJsonFormatter {
     return traceIdPattern.test(traceId);
   }
 
-  handleSegmentClick(e, value) {
+  handleSegmentClick(e: MouseEvent, value) {
     if (!value.toString() || value === '--') return;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
-    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
+
+    const { offsetX, offsetY } = getClickTargetElement(e);
+    const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
+
+    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const fieldName = valueElement?.getAttribute('data-field-name');
+    const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
+
+    target.setAttribute('data-field-value', value);
+    target.setAttribute('data-field-name', fieldName);
+    target.setAttribute('data-field-dpth', depth);
+
+    segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
   getCurrentFieldRegStr(field: any) {
@@ -167,13 +203,13 @@ export default class UseJsonFormatter {
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.textContent = item.text;
+      validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
 
     const textNode = document.createElement('span');
     textNode.classList.add('others-text');
-    textNode.textContent = item.text;
+    textNode.textContent = item.text?.length ? item.text : '""';
     return textNode;
   }
 

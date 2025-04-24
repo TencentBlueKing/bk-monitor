@@ -1931,4 +1931,7 @@ export default {
   字段显示: 'Field display',
   待选字段: 'Available fields',
   已选字段: 'Selected fields',
+  总行数: 'Total number of branches',
+  出现行数: 'Number of rows appearing',
+  日志条数: 'Number of logs',
 };

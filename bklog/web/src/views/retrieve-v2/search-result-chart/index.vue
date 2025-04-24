@@ -31,6 +31,7 @@
     data-test-id="retrieve_div_generalTrendEcharts"
   >
     <chart-title-v2
+      class="monitor-echarts-title"
       ref="chartTitle"
       :is-fold="isFold"
       :title="$t('总趋势')"
@@ -114,6 +115,10 @@
         return;
       }
 
+      store.commit('updateIndexSetQueryResult', {
+        origin_log_list: [],
+        list: [],
+      });
       store.commit('updateIsSetDefaultTableColumn', false);
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery', { formChartChange: false });

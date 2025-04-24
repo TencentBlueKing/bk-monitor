@@ -2,17 +2,19 @@
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
-  import { getCharLength, getRegExp, formatDateTimeField } from '@/common/util';
+  import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
+  import { bkIcon } from 'bk-magic-vue';
+  import { Props } from 'tippy.js';
+
+  import PopInstanceUtil from '../../../global/pop-instance-util';
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
-  import PopInstanceUtil from './pop-instance-util';
+  import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { Props } from 'tippy.js';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -36,11 +38,13 @@
   );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  const isArrowDown = ref(true);
 
   const store = useStore();
   const { t } = useLocale();
   const searchValue = ref('');
   const refConditionInput = ref(null);
+  const refFullTexarea = ref(null);
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
@@ -55,6 +59,7 @@
   const tippyOptions: Partial<Props> = {
     // flip: false,
     placement: 'bottom',
+    delay: [0, 300],
     popperOptions: {
       placement: 'bottom', // 或者其他你想要的位置
       modifiers: [
@@ -84,17 +89,31 @@
     return operator;
   };
 
+  const fieldOptionListInstance = new PopInstanceUtil({
+    refContent: '',
+    arrow: true,
+    newInstance: true,
+    tippyOptions: {
+      placement: 'auto',
+      theme: 'log-dark',
+      delay: [0, 300],
+    },
+  });
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
     arrow: false,
     newInstance: true,
     onHiddenFn: () => {
+      isArrowDown.value = true;
       operatorActiveIndex.value = 0;
       return true;
     },
     tippyOptions,
   });
+
+  let conditionBlurTimer = null;
 
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
@@ -102,11 +121,19 @@
     arrow: false,
     newInstance: true,
     watchElement: refConditionInput,
+    onShowFn: () => {
+      conditionBlurTimer && clearTimeout(conditionBlurTimer);
+      conditionBlurTimer = null;
+      return true;
+    },
     onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
       return true;
     },
-    tippyOptions,
+    tippyOptions: {
+      ...tippyOptions,
+      hideOnClick: false,
+    },
   });
 
   const fullTextField = ref({
@@ -130,7 +157,7 @@
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
 
-  const { requestFieldEgges, isRequesting } = useFieldEgges();
+  const { requestFieldEgges, isRequesting, setIsRequesting, isValidateEgges } = useFieldEgges();
 
   const getFieldWeight = field => {
     if (field.field_name === '*') {
@@ -148,6 +175,15 @@
     return 0;
   };
 
+  const isConditionValEmptyShow = computed(() => {
+    return (
+      isValidateEgges(activeFieldItem.value) &&
+      !activeItemMatchList.value.length &&
+      !isRequesting.value &&
+      !conditionValueInputVal.value.length
+    );
+  });
+
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -162,6 +198,11 @@
       });
     }
     return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
+  });
+
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
   // 判定当前选中条件是否需要设置Value
@@ -201,7 +242,14 @@
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
       (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
-    return fieldList.value.filter(filterFn);
+
+    const mapFn = item =>
+      Object.assign({}, item, {
+        first_name: item.query_alias || item.field_alias || item.field_name,
+        last_name: item.field_name,
+      });
+
+    return fieldList.value.filter(filterFn).map(mapFn);
   });
 
   const tagValidateFun = item => {
@@ -317,6 +365,10 @@
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
   };
 
+  const getFieldIconTextColor = type => {
+    return fieldTypeMap.value?.[type]?.textColor;
+  };
+
   const resetActiveFieldItem = () => {
     activeFieldItem.value = getFieldConditonItem();
     condition.value = getInputQueryDefaultItem();
@@ -330,13 +382,26 @@
     isConditionValueInputFocus.value = false;
   };
 
-  const handleFieldItemClick = (item, index) => {
+  const setFullTextFocus = () => {
+    if (activeFieldItem.value.field_name === '*' && !isConditionValueInputFocus.value) {
+      refFullTexarea?.value?.focus();
+    }
+  };
+
+  /**
+   * 字段列表点击事件
+   * @param item 当前字段信息
+   * @param index 当前字段索引信息
+   * @param activeCondition 是否自动激活匹配值
+   */
+  const handleFieldItemClick = (item, index, activeCondition = true) => {
+    conditionValueInputVal.value = '';
+
     // 避免重复提交设置
     if (!item || activeFieldItem.value.field_name === item?.field_name) {
       return;
     }
 
-    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
@@ -348,20 +413,42 @@
       restoreFieldAndCondition();
     }
 
-    if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
-      requestFieldEgges(item, null, () => {
-        if (!conditionValueInstance.repositionTippyInstance()) {
-          if (!isOperatorInstanceActive()) {
+    if (activeCondition) {
+      handleConditionValueClick({ target: refConditionInput.value }, true);
+
+      if (isValidateEgges(item)) {
+        setIsRequesting(true);
+
+        nextTick(() => {
+          if (!conditionValueInstance.isShown()) {
             const target = refConditionInput.value?.parentNode;
-            if (target) {
-              conditionValueInstance.show(target);
-            }
+            target && conditionValueInstance.show(target, true);
           }
+        });
+
+        if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+          requestFieldEgges(item, null, () => {
+            if (!conditionValueInstance.repositionTippyInstance()) {
+              if (!isOperatorInstanceActive()) {
+                if (!conditionValueInstance.isShown()) {
+                  const target = refConditionInput.value?.parentNode;
+                  target && conditionValueInstance.show(target, true);
+                }
+              }
+            }
+          });
+        } else {
+          conditionValueInstance.hide(100);
+          setIsRequesting(false);
         }
-      });
-    } else {
-      conditionValueInstance.hide();
+      }
     }
+
+    if (!isValidateEgges(item)) {
+      conditionValueInstance.hide(100);
+    }
+
+    setFullTextFocus();
   };
 
   const handleCancelBtnClick = () => {
@@ -427,8 +514,13 @@
   const conditionValueActiveIndex = ref(-1);
   const conditionValueInputVal = ref('');
 
+  /**
+   * 获取当前选中字段的匹配列表
+   */
   const activeItemMatchList = computed(() => {
-    return store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? [];
+    return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(
+      item => !(condition.value.value ?? []).includes(item),
+    );
   });
 
   /**
@@ -449,8 +541,17 @@
 
   const currentEditTagIndex = ref(null);
 
+  const handleConditonValueTagItemClick = () => {
+    isConditionValueInputFocus.value = true;
+
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
+  };
+
   const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
 
     currentEditTagIndex.value = tagIndex;
     setTimeout(() => {
@@ -458,23 +559,39 @@
     }, 500);
   };
 
-  const handleConditionValueClick = (e = null) => {
-    if (e?.target !== refConditionInput.value || !e) {
+  const handleConditionValueClick = (e = null, autoFocus = false) => {
+    conditionValueInstance.cancelHide();
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
+
+    // tag-item-input edit-input
+    if (!e || e.target?.classList?.contains('edit-input')) {
       return;
     }
 
-    refValueTagInput.value.focus();
     conditionValueActiveIndex.value = null;
+
+    if (autoFocus) {
+      refValueTagInput?.value?.focus();
+      conditionValueActiveIndex.value = 0;
+    }
 
     if (activeItemMatchList.value.length > 0) {
       if (!conditionValueInstance.isShown()) {
         const target = refConditionInput.value.parentNode;
-        conditionValueInstance.show(target);
+        conditionValueInstance.show(target, true);
       }
     }
   };
+
+  let tagInputTimer = null;
+
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';
+
+    tagInputTimer = setTimeout(() => {
+      isConditionValueInputFocus.value = false;
+    }, 300);
   };
 
   const handleTagInputEnter = () => {
@@ -488,32 +605,54 @@
     return isConditionValueInputFocus.value && instance?.state.isShown;
   };
 
-  /**
-   * 条件值下拉选择设置当前hover项
-   */
-  const activeConditionValueOption = () => {
-    const instance = conditionValueInstance.getTippyInstance();
-    if (instance?.state.isShown) {
-      instance.popper?.querySelector('li.is-hover')?.classList.remove('is-hover');
-      instance.popper?.querySelectorAll('li')[conditionValueActiveIndex.value]?.classList.add('is-hover');
-      instance.popper?.querySelector('li.is-hover')?.scrollIntoView({ block: 'nearest' });
-    }
-  };
-
-  const handleInputVlaueChange = e => {
+  const handleInputValueChange = e => {
     const input = e.target;
     const value = input.value;
-    const charLen = getCharLength(value);
+    const charLen = Math.max(getCharLength(value), 1);
+
     input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
     conditionValueInputVal.value = input.value;
+
+    // 如果当前输入框有值，此时设置当前Active Index为null
+    // 避免Enter时校验 conditionValueActiveIndex 所对应的值
+    if (conditionValueInputVal.value.length) {
+      conditionValueActiveIndex.value = null;
+    }
+
+    // 如果当前输入框没有值，此时设置当前Active Index为0， 默认选中第一个
+    if (conditionValueActiveIndex.value === null && conditionValueInputVal.value.length === 0) {
+      conditionValueActiveIndex.value = 0;
+    }
+
+    if (!isValidateEgges(activeFieldItem.value)) {
+      if (conditionValueInputVal.value.length) {
+        const target = refConditionInput.value?.parentNode;
+        if (target) {
+          conditionValueInstance.show(target, true);
+        }
+        return;
+      }
+
+      conditionValueInstance.hide(100);
+      return;
+    }
+
+    setIsRequesting(true);
+
+    const target = refConditionInput.value?.parentNode;
+    if (!operatorInstance.isShown() && target) {
+      nextTick(() => {
+        conditionValueInstance.show(target, true);
+      });
+    }
+
     requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
 
         if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
-          const target = refConditionInput.value?.parentNode;
           if (target) {
-            conditionValueInstance.show(target);
+            conditionValueInstance.show(target, true);
           }
         }
       }
@@ -522,17 +661,20 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleInputVlaueChange(e);
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
+
+    // handleConditionValueClick(e);
   };
 
-  const hanleDeleteTagItem = index => {
+  const handleDeleteTagItem = index => {
     condition.value.value.splice(index, 1);
   };
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
     setTimeout(() => {
-      conditionValueInstance.hide();
+      conditionValueInstance.hide(100);
     });
   };
 
@@ -554,6 +696,8 @@
   const handleTagItemClick = (value, index) => {
     refValueTagInput.value.value = '';
     conditionValueInputVal.value = '';
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
 
     if (!appendConditionValue(value)) {
       condition.value.value.splice(index, 1);
@@ -639,8 +783,14 @@
     ) {
       const instance = conditionValueInstance.getTippyInstance();
 
+      // 如果当前没有自动focus条件选择
+      if (!isConditionValueInputFocus.value) {
+        handleConditionValueClick({ target: refConditionInput.value }, true);
+        return;
+      }
+
       // 如果是条件选择下拉已经展开，查询当前选中项
-      if (instance?.state.isShown) {
+      if (instance?.state.isShown && conditionValueActiveIndex.value >= 0) {
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
           handleTagItemClick(val, conditionValueActiveIndex.value);
@@ -650,15 +800,9 @@
           setConditionValueActiveIndex(true);
 
           // 设置当前行样式，避免Vue实例渲染，这里直接操作DOM进行class赋值
-          activeConditionValueOption();
+          // activeConditionValueOption();
           return;
         }
-      }
-
-      // 如果当前没有自动focus条件选择
-      if (!isConditionValueInputFocus.value) {
-        handleConditionValueClick({ target: refConditionInput.value });
-        return;
       }
 
       // 如果有可以自动联想的内容 & 没有自动展开下拉提示
@@ -674,15 +818,10 @@
         refValueTagInput.value.value = '';
         return;
       }
-
-      if (condition.value.value.length) {
-        handelSaveBtnClick();
-      }
-
       return;
     }
 
-    handelSaveBtnClick();
+    setFullTextFocus();
   };
 
   /**
@@ -713,7 +852,7 @@
   const handleFieldListKeyupAndKeydown = () => {
     if (filterFieldList.value.length && !isConditionValueFocus() && !isOperatorInstanceActive()) {
       if (activeIndex.value < filterFieldList.value.length && activeIndex.value >= 0) {
-        handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value);
+        handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value, false);
         scrollActiveItemIntoView();
         return;
       }
@@ -723,7 +862,6 @@
   const handleArrowUpKeyEvent = () => {
     if (isConditionValueFocus()) {
       setConditionValueActiveIndex(false);
-      activeConditionValueOption();
       return;
     }
 
@@ -740,7 +878,6 @@
   const handleArrowDownKeyEvent = () => {
     if (isConditionValueFocus()) {
       setConditionValueActiveIndex(true);
-      activeConditionValueOption();
       return;
     }
 
@@ -753,25 +890,27 @@
     handleFieldListKeyupAndKeydown();
   };
 
-  const handleEscKeyEvent = () => {
+  const handleEscKeyEvent = e => {
     if (isConditionValueFocus()) {
-      conditionValueInstance.hide();
+      stopEventPreventDefault(e);
+      refValueTagInput?.value.blur();
+      conditionValueInstance.hide(100);
       return;
     }
 
     if (isOperatorInstanceActive()) {
+      stopEventPreventDefault(e);
       operatorInstance?.hide();
       return;
     }
 
-    emit('cancel');
     return;
   };
 
   const stopEventPreventDefault = e => {
-    e.stopPropagation();
-    e.preventDefault();
-    e.stopImmediatePropagation();
+    e.stopPropagation?.();
+    e.preventDefault?.();
+    e.stopImmediatePropagation?.();
   };
 
   const handleKeydownClick = e => {
@@ -789,6 +928,13 @@
       return;
     }
 
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
+      stopEventPreventDefault(e);
+      handelSaveBtnClick();
+      return;
+    }
+
     // key enter
     if (e.keyCode === 13 || e.code === 'NumpadEnter') {
       stopEventPreventDefault(e);
@@ -798,8 +944,7 @@
 
     // key esc
     if (e.keyCode === 27) {
-      stopEventPreventDefault(e);
-      handleEscKeyEvent();
+      handleEscKeyEvent(e);
       return;
     }
   };
@@ -808,14 +953,14 @@
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
     }
-
     operatorInstance.hide();
     afterOperatorValueEnter();
   };
 
   const beforeShowndFn = () => {
     setDefaultActiveIndex();
-    document.addEventListener('keydown', handleKeydownClick);
+    document.addEventListener('keydown', handleKeydownClick, { capture: true });
+    document.addEventListener('click', handleDocumentClick);
 
     restoreFieldAndCondition();
     scrollActiveItemIntoView();
@@ -826,32 +971,19 @@
         refFilterInput.value?.focus();
       }
     });
+
+    return true;
   };
 
   const afterHideFn = () => {
-    document.removeEventListener('keydown', handleKeydownClick);
-    handleFieldItemClick(filterFieldList.value[0], 0);
+    document.removeEventListener('keydown', handleKeydownClick, { capture: true });
+    document.removeEventListener('click', handleDocumentClick);
+
     resetParams();
   };
 
   const handleValueInputEnter = e => {
     stopEventPreventDefault(e);
-
-    if (e.target.value) {
-      const value = e.target.value;
-      e.target.value = '';
-      appendConditionValue(value);
-    }
-
-    handleInputVlaueChange(e);
-  };
-
-  const handleConditionValueInputBlur = e => {
-    if (conditionValueInstance.isShown() || conditionValueInstance.isInstanceShowing()) {
-      return;
-    }
-
-    isConditionValueInputFocus.value = false;
     conditionValueInputVal.value = '';
 
     if (e.target.value) {
@@ -859,6 +991,18 @@
       e.target.value = '';
       appendConditionValue(value);
     }
+
+    handleInputValueChange(e);
+  };
+
+  const handleConditionValueInputBlur = e => {
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = setTimeout(() => {
+      isConditionValueInputFocus.value = false;
+      conditionValueInputVal.value = '';
+      e.target.value = '';
+      conditionValueInstance.hide();
+    }, 180);
   };
 
   let needDeleteItem = false;
@@ -883,8 +1027,44 @@
     return filedValueMapping[fieldName] ?? t('检索内容');
   };
 
+  const handleOptionListMouseEnter = (e, item) => {
+    const { offsetWidth, scrollWidth } = e.target.lastElementChild;
+    if (offsetWidth < scrollWidth) {
+      fieldOptionListInstance.setContent(
+        `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      );
+      fieldOptionListInstance.show(e.target);
+    }
+  };
+  const handleOptionListMouseLeave = () => {
+    fieldOptionListInstance.uninstallInstance();
+  };
+
+  const handleCustomTagItemClick = () => {
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    handleValueInputEnter({ target: refValueTagInput.value });
+  };
+
+  const handleDocumentClick = e => {
+    if (
+      refSearchResultList?.value?.contains(e.target) ||
+      refConditionInput?.value?.contains(e.target) ||
+      refValueTagInputOptionList?.value?.contains(e.target) ||
+      refValueTagInputOptionList?.value?.contains(e.target)
+    ) {
+      return;
+    }
+
+    if (conditionValueInstance?.isShown()) {
+      conditionValueInstance?.hide(100);
+    }
+  };
+
   onBeforeUnmount(() => {
     afterHideFn();
+    fieldOptionListInstance.uninstallInstance();
+    operatorInstance.uninstallInstance();
+    conditionValueInstance.uninstallInstance();
   });
 
   defineExpose({
@@ -909,26 +1089,38 @@
         </div>
         <div
           ref="refSearchResultList"
-          class="ui-search-result"
+          class="ui-search-result bklog-v3-popover-tag"
         >
           <div
             v-for="(item, index) in filterFieldList"
             :class="['ui-search-result-row', { active: activeIndex === index }]"
             :data-tab-index="index"
             :key="item.field_name"
-            @click="() => handleFieldItemClick(item, index)"
+            @click="() => handleFieldItemClick(item, index, true)"
+            @mouseenter="e => handleOptionListMouseEnter(e, item)"
+            @mouseleave="handleOptionListMouseLeave"
           >
             <span
-              :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+              :style="{
+                backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+              }"
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-            <span
-              v-if="!item.is_full_text"
-              class="field-name"
-              >({{ item.field_name }})</span
+            <div
+              class="display-container rtl-text"
+              :dir="textDir"
             >
+              <bdi class="field-alias">
+                {{ item.first_name }}
+              </bdi>
+              <bdi
+                v-if="!item.is_full_text && item.first_name !== item.last_name"
+                class="field-name"
+                >({{ item.last_name }})</bdi
+              >
+            </div>
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
@@ -954,9 +1146,11 @@
           <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
             <div class="full-text-sub-title">
-              <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
+              <img :src="svgImg.imgEnterKey" /><span>{{ getOsCommandLabel() }}+ Enter</span>
             </div>
-            <div class="full-text-content">{{ $t('输入文本后按 [Enter] 键进行检索') }}</div>
+            <div class="full-text-content">
+              {{ $t('输入文本后按') }} [{{ getOsCommandLabel() }}+ Enter] {{ $t('键进行检索') }}
+            </div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
             </div>
@@ -985,7 +1179,10 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ getOperatorLable(activeOperator.label) }}
+                <span class="operator-content">
+                  {{ getOperatorLable(activeOperator.label) }}
+                </span>
+                <bk-icon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
               </div>
               <div style="display: none">
                 <div
@@ -997,7 +1194,7 @@
                     class="empty-section"
                   >
                     <bk-exception
-                      style="height: 100px"
+                      style="height: 94px"
                       :type="conditionValueEmptyType"
                       scene="part"
                     >
@@ -1029,8 +1226,11 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
+                ref="refFullTexarea"
+                class="ui-value-search-textarea"
                 v-model="condition.value[0]"
                 :rows="12"
+                maxlength="100"
                 type="textarea"
               ></bk-input>
             </template>
@@ -1040,8 +1240,9 @@
             >
               <ul
                 ref="refConditionInput"
+                :style="{ maxHeight: isConditionValueInputFocus ? '300px' : '90px' }"
                 class="condition-value-input"
-                @click.stop="handleConditionValueClick"
+                @click.stop="e => handleConditionValueClick(e, true)"
               >
                 <li
                   v-for="(item, index) in condition.value"
@@ -1051,64 +1252,75 @@
                 >
                   <template v-if="currentEditTagIndex === index">
                     <textarea
-                      class="tag-item-input"
+                      class="tag-item-input edit-input"
                       v-model="condition.value[index]"
                       type="text"
-                      @input="handleInputVlaueChange"
+                      @focus.stop="handleConditionValueInputFocus"
                       @blur.stop="handleTagInputBlur"
+                      @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
                   <template>
                     <span
                       class="tag-item-text"
+                      @click.stop="handleConditonValueTagItemClick"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
                     <span
                       class="tag-item-del bk-icon icon-close"
-                      @click.stop="e => hanleDeleteTagItem(index)"
+                      @click.stop="e => handleDeleteTagItem(index)"
                     ></span>
                   </template>
                 </li>
-                <li>
+                <li class="tag-item no-selected-tag-item">
                   <input
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
                     type="text"
-                    @blur.stop="handleConditionValueInputBlur"
-                    @focus.stop="handleConditionValueInputFocus"
-                    @input.stop="handleInputVlaueChange"
+                    @input="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
+                    @blur.stop="handleConditionValueInputBlur"
+                    @focus.stop="handleConditionValueInputFocus"
                   />
                 </li>
                 <div style="display: none">
                   <ul
                     ref="refValueTagInputOptionList"
                     class="condition-value-options"
-                    v-bkloading="{ isLoading: isRequesting }"
                   >
                     <li
-                      v-if="!activeItemMatchList.length"
-                      class="empty-section"
+                      v-show="conditionValueInputVal.length > 0"
+                      :class="{ active: conditionValueInputVal.length > 0, 'is-custom-tag': true }"
+                      @click.stop="handleCustomTagItemClick"
                     >
-                      <bk-exception
-                        style="height: 100px"
-                        :type="conditionValueEmptyType"
-                        scene="part"
-                      >
-                      </bk-exception>
+                      {{ $t('生成“{n}”标签', { n: conditionValueInputVal }) }}
                     </li>
                     <li
-                      v-for="(item, index) in activeItemMatchList"
-                      :class="{ active: (condition.value ?? []).includes(item) }"
-                      :key="`${item}-${index}`"
-                      :title="formatDateTimeField(item, activeFieldItem.field_type)"
-                      @click.stop="() => handleTagItemClick(item, index)"
+                      v-show="isRequesting || activeItemMatchList.length === 0"
+                      v-bkloading="{ isLoading: isRequesting, size: 'small' }"
+                      style="min-height: 32px"
                     >
-                      <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
+                      {{ $t('暂无数据') }}
                     </li>
+
+                    <template v-if="!isRequesting && activeItemMatchList.length > 0">
+                      <li
+                        v-for="(item, index) in activeItemMatchList"
+                        :class="{
+                          active: (condition.value ?? []).includes(item),
+                          'is-system-tag': true,
+                          'is-hover': index === conditionValueActiveIndex && isConditionValueInputFocus,
+                        }"
+                        :key="`${item}-${index}`"
+                        :title="formatDateTimeField(item, activeFieldItem.field_type)"
+                        @click.stop="() => handleTagItemClick(item, index)"
+                      >
+                        <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
+                      </li>
+                    </template>
                   </ul>
                 </div>
               </ul>
@@ -1141,18 +1353,34 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
-        <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
+        <div class="ui-shortcut-item">
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Enter</span>
+          <span class="value">{{ $t('选中') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">Esc</span>
+          <span class="value">{{ $t('收起查询') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
+          <span class="value">{{ $t('提交查询') }}</span>
+        </div>
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          style="padding: 0 4px; margin-right: 8px"
+          class="save-btn"
           :disabled="!isSaveBtnActive"
-          style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
-          >{{ $t('确定') }}</bk-button
         >
+          {{ $t('确定') }} {{ getOsCommandLabel() }} + Enter
+        </bk-button>
         <bk-button
           style="width: 64px"
           @click.stop="handleCancelBtnClick"
@@ -1167,4 +1395,5 @@
 </style>
 <style lang="scss">
   @import './theme-light.scss';
+  @import './theme-dark.scss';
 </style>

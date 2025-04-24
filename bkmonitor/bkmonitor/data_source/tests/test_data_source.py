@@ -1628,15 +1628,15 @@ class TestBkApmTraceDataSource:
             {
                 "driver": "influxdb",
                 "data_source": "bkapm",
-                "table_id": "2_bkapm_trace_app",
-                "reference_name": "a",
+                "table_id": "2_bkapm.trace_app",
+                "reference_name": "total_count",
                 "field_name": "span_name",
                 "time_field": "end_time",
                 "order_by": [],
                 "dimensions": ["span_name"],
                 'query_string': '*',
                 "conditions": {"field_list": [], "condition_list": []},
-                "function": [{"method": "count", "dimensions": ["span_name"]}],
+                "function": [{"method": "sum", "dimensions": ["span_name"]}],
                 "time_aggregation": {"function": "count_over_time", 'window': "0s"},
                 "keep_columns": [],
             }
@@ -1865,7 +1865,7 @@ class TestBkApmTraceDataSource:
             {
                 "driver": "influxdb",
                 "data_source": "bkapm",
-                "table_id": "2_bkapm_trace_app",
+                "table_id": "2_bkapm.trace_app",
                 "reference_name": "a",
                 "field_name": "",
                 "time_field": "end_time",
