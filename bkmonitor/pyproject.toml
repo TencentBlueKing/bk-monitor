@@ -1,10 +1,128 @@
+[project]
+name = "bkmonitor"
+version = "3.11.0"
+description = "bkmonitor"
+readme = "README.md"
+requires-python = ">=3.11, <3.12"
+dependencies = [
+    "apigw-manager==3.1.2",
+    "arrow==0.6.0",
+    "babel==2.14.0",
+    "betterproto==2.0.0b7",
+    "bk-audit==1.0.7",
+    "bk-crypto-python-sdk==2.0.1",
+    "bk-iam==1.3.6",
+    "bk-notice-sdk==1.3.2",
+    "bkstorages==1.1.1",
+    "blueapps==4.16rc1",
+    "celery==5.4.0",
+    "celery-redbeat==2.2.0",
+    "confluent-kafka==2.4.0",
+    "dill==0.3.7",
+    "django==3.2.25",
+    "django-celery-beat==2.7.0",
+    "django-celery-results==2.5.1",
+    "django-cors-headers==4.1.0",
+    "django-db-connection-pool==1.2.5",
+    "django-elasticsearch-dsl==7.4",
+    "django-filter==23.5",
+    "django-jinja==2.10.2",
+    "django-mysql==4.10.0",
+    "django-prometheus==2.3.1",
+    "django-redis==5.4.0",
+    "django-versionlog==1.8.0",
+    "djangorestframework==3.15.1",
+    "dnspython==2.3.0",
+    "drf-yasg==1.21.5",
+    "elasticsearch==7.17.12",
+    "elasticsearch-curator==7.0.1",
+    "elasticsearch-dsl==7.4.1",
+    "elasticsearch5==5.5.6",
+    "elasticsearch6==6.8.2",
+    "furl==2.1.3",
+    "gevent==22.10.2",
+    "google-auth==2.37.0",
+    "graphviz==0.19.2",
+    "gunicorn==23.0.0",
+    "humanize==4.6.0",
+    "influxdb==5.3.2",
+    "ipython==7.34.0",
+    "jinja2==3.1.5",
+    "jmespath==1.0.1",
+    "kafka-python==1.4.6",
+    "kubernetes==18.20.0",
+    "luqum==0.13.0",
+    "netifaces==0.11.0",
+    "networkx==2.6.3",
+    "opentelemetry-api==1.11.1",
+    "opentelemetry-exporter-otlp==1.11.1",
+    "opentelemetry-instrumentation-celery==0.30b1",
+    "opentelemetry-instrumentation-dbapi==0.30b1",
+    "opentelemetry-instrumentation-django==0.30b1",
+    "opentelemetry-instrumentation-elasticsearch==0.30b1",
+    "opentelemetry-instrumentation-kafka-python==0.30b1",
+    "opentelemetry-instrumentation-logging==0.30b1",
+    "opentelemetry-instrumentation-redis==0.30b1",
+    "opentelemetry-instrumentation-requests==0.30b1",
+    "opentelemetry-sdk==1.11.1",
+    "pika==1.3.2",
+    "pillow==9.5.0",
+    "ply==3.11",
+    "prometheus-client==0.17.1",
+    "protobuf==3.19.5",
+    "psutil==6.1.1",
+    "pycryptodome==3.18",
+    "pyinstrument==4.6.2",
+    "pymysql==1.1.1",
+    "pypinyin==0.53.0",
+    "pyppeteer==1.0.2",
+    "pyroscope-io==0.8.8",
+    "python-consul==1.1.0",
+    "python-dotenv==0.21.1",
+    "python-magic==0.4.27",
+    "pytz==2024.2",
+    "pyyaml==6.0.1",
+    "redis==4.6.0",
+    "requests==2.31.0",
+    "requests-toolbelt==1.0.0",
+    "schema==0.7.7",
+    "selenium==3.141.0",
+    "six==1.17.0",
+    "sqlparse==0.4.4",
+    "supervisor==4.2.5",
+    "typing-extensions==4.7.1",
+    "ujson==5.7.0",
+    "whitenoise==6.5.0",
+    "xxhash==3.5.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "coverage==7.6.12",
+    "elasticmock==1.8.1",
+    "fakeredis==2.27.0",
+    "mock==5.1.0",
+    "pytest==8.3.4",
+    "pytest-cov==6.0.0",
+    "pytest-django==4.8.0",
+    "pytest-dotenv==0.5.2",
+    "pytest-env==1.1.5",
+    "pytest-mock==3.14.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit==4.1.0",
+    "ruff==0.11.6",
+]
+
+# coverage
 [tool.coverage.run]
 omit = [
     "*/test*",
     "*/migrations*",
     "*/__init__.py"
 ]
-
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
@@ -12,6 +130,7 @@ exclude_lines = [
 ]
 skip_empty = true
 
+# pytest
 [tool.pytest.ini_options]
 console_output_style = "count"
 testpaths = [
@@ -37,6 +156,7 @@ env = [
     "D:BK_MONITOR_APP_SECRET=secret"
 ]
 
+# ruff
 [tool.ruff]
 src = [".", "packages"]
 line-length = 120
