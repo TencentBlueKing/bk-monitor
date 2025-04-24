@@ -433,6 +433,10 @@ class CreateActionProcessor:
                 return True
             return False
 
+        # 故障生成时，默认有效
+        if self.signal == ActionSignal.INCIDENT:
+            return True
+
         compared_status = EventStatus.ABNORMAL if self.signal == ActionSignal.NO_DATA else self.signal.upper()
         if alert.is_ack or (alert.status != compared_status):
             # 告警已经确认
