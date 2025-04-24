@@ -565,7 +565,7 @@
     conditionBlurTimer = null;
 
     // tag-item-input edit-input
-    if (!e || e.target.classList.contains('edit-input')) {
+    if (!e || e.target?.classList?.contains('edit-input')) {
       return;
     }
 
