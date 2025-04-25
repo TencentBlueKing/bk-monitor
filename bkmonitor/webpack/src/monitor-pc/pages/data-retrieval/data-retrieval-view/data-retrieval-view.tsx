@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
@@ -95,7 +95,6 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   /** 时区 */
   @Prop({ type: String, default: window.timezone }) timezone: string;
   @ProvideReactive('downSampleRange') downSampleRange = 'auto';
-  @Provide('csvFileValDbQuotes') csvFileValDbQuotes = true; // csv文件下载 value是否需要双引号
   @InjectReactive('onlyShowView') onlyShowView: boolean;
   loading = false;
 
