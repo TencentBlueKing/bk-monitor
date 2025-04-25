@@ -324,6 +324,8 @@ export abstract class K8sGroupDimension {
     switch (scene) {
       case SceneEnum.Network:
         return new K8sNetworkGroupDimension();
+      case SceneEnum.Capacity:
+        return new K8sCapacityGroupDimension();
       default:
         return new K8sPerformanceGroupDimension();
     }
@@ -331,8 +333,8 @@ export abstract class K8sGroupDimension {
   /** 默认填充值（该值不可删除的！） */
   // eslint-disable-next-line perfectionist/sort-classes
   private defaultGroupFilter: Set<K8sTableColumnKeysEnum>;
-  /** 默认排序字段 */
-  public abstract defaultSortContainer: Omit<K8sTableSortContainer, 'initDone'>;
+  /** 默认排序字段(为 {} 时自动以显示的第一个指标列为排序字段) */
+  public abstract defaultSortContainer: Partial<Omit<K8sTableSortContainer, 'initDone'>>;
   /** 实现类填充存在的 dimensions  */
   public abstract dimensions: K8sTableColumnKeysEnum[];
   /** 当前场景实现类填充groupBy选择器可选择的维度  */
@@ -482,10 +484,7 @@ export class K8sPerformanceGroupDimension extends K8sGroupDimension {
  * @description 网络 类型 GroupFilter 实现类
  * */
 export class K8sNetworkGroupDimension extends K8sGroupDimension {
-  readonly defaultSortContainer = {
-    prop: K8sTableColumnKeysEnum.CPU_USAGE as K8sTableColumnChartKey,
-    orderBy: 'desc' as K8sSortType,
-  };
+  readonly defaultSortContainer = {};
   readonly dimensions = [K8sTableColumnKeysEnum.CLUSTER, K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.POD];
   readonly groupByDimensions = [
     K8sTableColumnKeysEnum.NAMESPACE,
@@ -511,5 +510,21 @@ export class K8sNetworkGroupDimension extends K8sGroupDimension {
    */
   addGroupFilter(groupId: K8sTableColumnResourceKey) {
     this.setGroupFilters(this.groupByDimensionsMap[groupId] as K8sTableColumnResourceKey[]);
+  }
+}
+
+/**
+ * @description 容量 类型 GroupFilter 实现类
+ * */
+export class K8sCapacityGroupDimension extends K8sGroupDimension {
+  readonly defaultSortContainer = {};
+  readonly dimensions = [K8sTableColumnKeysEnum.CLUSTER, K8sTableColumnKeysEnum.NODE];
+  readonly groupByDimensions = [K8sTableColumnKeysEnum.NODE];
+  readonly groupByDimensionsMap = {
+    [K8sTableColumnKeysEnum.NODE]: [K8sTableColumnKeysEnum.NODE],
+  };
+  constructor(groupFilters: K8sTableColumnResourceKey[] = []) {
+    const defaultGroupFilters = [K8sTableColumnKeysEnum.NODE] as K8sTableColumnResourceKey[];
+    super([...defaultGroupFilters, ...groupFilters]);
   }
 }

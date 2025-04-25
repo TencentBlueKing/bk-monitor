@@ -409,7 +409,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   created() {
-    let sort: Omit<K8sTableSortContainer, 'initDone'> = this.groupInstance.defaultSortContainer;
+    let sort: Partial<Omit<K8sTableSortContainer, 'initDone'>> = this.groupInstance.defaultSortContainer;
     if (this.$route.query?.tableSort) {
       const { tableSort, tableOrder, tableMethod } = this.$route.query;
       sort = {
@@ -433,7 +433,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
-    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE } = K8sTableColumnKeysEnum;
+    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE, NODE } =
+      K8sTableColumnKeysEnum;
 
     return {
       [CLUSTER]: {
@@ -513,6 +514,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
+      [NODE]: {
+        id: NODE,
+        name: this.$t('node'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: true,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
     };
   }
 
@@ -531,7 +542,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 初始化排序
    * @param {string} orderBy 排序字段
    */
-  initSortContainer(sort: Omit<K8sTableSortContainer, 'initDone'>) {
+  initSortContainer(sort: Partial<Omit<K8sTableSortContainer, 'initDone'>> = {}) {
     this.sortContainer = {
       ...this.sortContainer,
       ...sort,
