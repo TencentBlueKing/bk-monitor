@@ -35,7 +35,7 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { statusMap } from './metric-table';
+import { statusMap } from './type';
 import {
   ALL_OPTION,
   CheckboxStatus,
