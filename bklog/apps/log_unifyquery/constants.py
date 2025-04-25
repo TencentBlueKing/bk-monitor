@@ -89,8 +89,8 @@ ADVANCED_OP_MAP = {
         "condition": "and",
         "is_wildcard": True,
     },
-    OperatorEnum.EXISTS["operator"]: {"operator": "eq", "condition": "or"},
-    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_TRUE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_FALSE["operator"]: {"operator": "eq", "condition": "or"},
 }
