@@ -32,7 +32,7 @@ import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { ECondition, EMode, type IWhereItem, type IGetValueFnParams } from '../../components/retrieval-filter/typing';
+import { EMode, type IWhereItem, type IGetValueFnParams } from '../../components/retrieval-filter/typing';
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
@@ -138,7 +138,7 @@ export default defineComponent({
     function handleConditionChange(item: ConditionChangeEvent) {
       const { key, method, value } = item;
       if (filterMode.value === EMode.ui) {
-        where.value = mergeWhereList(where.value, [{ condition: ECondition.and, key, method, value: [value || ''] }]);
+        where.value = mergeWhereList(where.value, [{ key, operator: method, value: [value || ''] }]);
       } else {
       }
       handleQuery();
@@ -226,8 +226,8 @@ export default defineComponent({
     function setUrlParams() {
       const query = {
         ...route.query,
-        from: store.timeRange[0],
-        to: store.timeRange[1],
+        start_time: store.timeRange[0],
+        end_time: store.timeRange[1],
         timezone: store.timezone,
         refreshInterval: String(store.refreshInterval),
         sceneMode: store.mode,

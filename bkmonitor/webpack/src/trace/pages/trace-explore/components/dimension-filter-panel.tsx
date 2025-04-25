@@ -233,7 +233,7 @@ export default defineComponent({
           theme: 'light',
           arrow: true,
           boundary: 'viewport',
-          extCls: 'statistics-dimension-popover-cls',
+          extCls: isDuration ? 'duration-popover-cls' : 'statistics-dimension-popover-cls',
           width: 405,
           distance: -5,
           onHide() {
@@ -242,8 +242,10 @@ export default defineComponent({
           },
         });
         setTimeout(() => {
+          if (!isDuration) {
+            showStatisticsPopover.value = true;
+          }
           popoverInstance.value.show();
-          showStatisticsPopover.value = true;
         }, 100);
       }
     }
@@ -363,12 +365,16 @@ export default defineComponent({
             ref='durationPopover'
             class='duration-popover'
           >
-            <ChartFiltering
-              filterList={this.filterTableList}
-              list={this.tableList}
-              listType={this.params.mode}
-              onFilterListChange={this.handleFilterListChange}
-            />
+            {this.tableList.length ? (
+              <ChartFiltering
+                filterList={this.filterTableList}
+                list={this.tableList}
+                listType={this.params.mode}
+                onFilterListChange={this.handleFilterListChange}
+              />
+            ) : (
+              <EmptyStatus type='empty' />
+            )}
           </div>
         </div>
       </div>

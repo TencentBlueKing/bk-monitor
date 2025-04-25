@@ -165,23 +165,9 @@ export enum ExploreEntitiesTypeEnum {
   K8S = 'k8s',
 }
 
-interface ExploreRequestParams {
-  limit: number;
-  offset: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-  app_name?: string;
-  service_name?: string;
-}
-
-export type ExploreTotalRequestParams = Omit<ExploreRequestParams, 'fields' | 'limit' | 'offset'>;
-export type ExploreTableRequestParams = Omit<ExploreRequestParams, 'fields'>;
-
 export type ExploreFieldMap = Record<string, Partial<IDimensionField> & { finalName?: string }>;
 // /**
-//  * @description 用于在表格 kv面板 中获取字段的类型
+//  * @description 用于在表格 kv面板 中获取字段的类型s
 //  * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
 //  **/
 // export interface ExploreFieldMap {
