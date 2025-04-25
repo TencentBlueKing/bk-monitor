@@ -31,7 +31,7 @@ import { $bkPopover } from 'bkui-vue';
 
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
-import { EQueryStringTokenType, type IFilterField, QS_SELECTOR_EMITS, QS_SELECTOR_PROPS } from './typing';
+import { EQueryStringTokenType, QS_SELECTOR_EMITS, QS_SELECTOR_PROPS } from './typing';
 import { onClickOutside } from './utils';
 
 import './qs-selector.scss';
@@ -42,7 +42,7 @@ export default defineComponent({
   emits: QS_SELECTOR_EMITS,
   setup(props, { emit }) {
     const selectRef = useTemplateRef<HTMLDivElement>('select');
-    const elRef = useTemplateRef<HTMLDivElement>('el');
+    const elRef = useTemplateRef<HTMLDivElement>('elRef');
     const elBRef = useTemplateRef<HTMLDivElement>('elB');
 
     const localValue = shallowRef('');
@@ -53,7 +53,7 @@ export default defineComponent({
     const curTokenField = shallowRef('');
     const queryStringEditor = shallowRef<QueryStringEditor>(null);
     const inputValue = shallowRef('');
-    const fieldsMap = shallowRef<Map<string, IFilterField>>(new Map());
+    // const fieldsMap = shallowRef<Map<string, IFilterField>>(new Map());
     let onClickOutsideFn = () => {};
     let cleanup = () => {};
 
@@ -138,16 +138,17 @@ export default defineComponent({
         },
       });
       popoverInstance.value.install();
-      await nextTick();
-      popoverInstance.value?.vm?.show();
-      showSelector.value = true;
-      onClickOutsideFn = onClickOutside(
-        [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
-        () => {
-          destroyPopoverInstance();
-        },
-        { once: true }
-      );
+      setTimeout(() => {
+        popoverInstance.value?.vm?.show();
+        showSelector.value = true;
+        onClickOutsideFn = onClickOutside(
+          [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
+          () => {
+            destroyPopoverInstance();
+          },
+          { once: true }
+        );
+      }, 200);
     }
 
     function destroyPopoverInstance() {
@@ -224,12 +225,13 @@ export default defineComponent({
      * @returns
      */
     function fieldFormatter(field: string) {
-      const fieldItem = fieldsMap.value.get(field);
-      const regex = /^dimensions\./;
-      if (fieldItem?.is_dimensions && !regex.test(field)) {
-        return `dimensions.${field}`;
-      }
       return field;
+      // const fieldItem = fieldsMap.value.get(field);
+      // const regex = /^dimensions\./;
+      // if (fieldItem?.is_dimensions && !regex.test(field)) {
+      //   return `dimensions.${field}`;
+      // }
+      // return field;
     }
     /**
    * @description 语句模式 : (等于) 某个值的时候需要将值用双引号包裹

@@ -197,15 +197,15 @@ export default defineComponent({
         <span
           key={'01'}
           style={{
-            background: fieldTypeMap[item.type].bgColor,
-            color: fieldTypeMap[item.type].color,
+            background: fieldTypeMap?.[item.type]?.bgColor,
+            color: fieldTypeMap?.[item.type]?.color,
           }}
           class='option-icon'
         >
           {item.name === '*' ? (
             <span class='option-icon-xing'>*</span>
           ) : (
-            <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
+            <span class={[fieldTypeMap?.[item.type]?.icon, 'option-icon-icon']} />
           )}
         </span>,
         <span
