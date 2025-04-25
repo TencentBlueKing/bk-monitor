@@ -58,13 +58,14 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializers import TraceFieldsTopkRequestSerializer
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
@@ -1861,3 +1862,93 @@ class StopApplicationSimpleResource(Resource):
         from apm_web.meta.resources import StopResource
 
         return StopResource().request(validated_request_data)
+
+
+class QueryFieldsTopkResource(Resource):
+    RequestSerializer = TraceFieldsTopkRequestSerializer
+
+    def perform_request(self, validated_data):
+        # 字段 topk 值字典
+        field_topk_map = {}
+        # 字段去重数字典
+        field_distinct_map = {}
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        fields = validated_data["fields"]
+        total = self.query_total(proxy, validated_data)
+        if total == 0:
+            return [{"field": field, "distinct_count": 0, "list": []} for field in fields]
+
+        # 查询字段去重数
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.query_distinct_count,
+                    args=(proxy, field, validated_data, field_distinct_map),
+                )
+                for field in fields
+            ]
+        )
+
+        # 查询字段 topk 值
+        if validated_data["limit"] != 0:
+            run_threads(
+                [
+                    InheritParentThread(
+                        target=self.query_topk,
+                        args=(proxy, field, validated_data, field_topk_map),
+                    )
+                    for field in fields
+                ]
+            )
+
+        # 组装 topk 返回结果
+        return [
+            {
+                "field": field,
+                "distinct_count": field_distinct_map.get(field, 0),
+                "list": [
+                    {
+                        "value": field_topk.get("field_value", ""),
+                        "count": int(field_topk.get("count", 0)),
+                        "proportions": round(100 * (field_topk.get("count", 0) / total), 2) if total > 0 else 0,
+                    }
+                    for field_topk in field_topk_map.get(field, [])
+                ],
+            }
+            for field in fields
+        ]
+
+    @classmethod
+    def query_distinct_count(cls, proxy, field, validated_data, field_distinct_map):
+        field_distinct_map[field] = proxy.query_distinct_count(
+            validated_data["mode"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            field,
+            validated_data["filters"],
+            validated_data["query_string"],
+        )
+
+    @classmethod
+    def query_topk(cls, proxy, field, validated_data, field_topk_map):
+        field_topk_map[field] = proxy.query_topk(
+            validated_data["mode"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            field,
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
+        )
+
+    @classmethod
+    def query_total(cls, proxy, validated_data):
+        return int(
+            proxy.query_total(
+                validated_data["mode"],
+                validated_data["start_time"],
+                validated_data["end_time"],
+                validated_data["filters"],
+                validated_data["query_string"],
+            )
+        )

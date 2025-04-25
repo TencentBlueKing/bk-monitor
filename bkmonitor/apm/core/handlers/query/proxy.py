@@ -20,6 +20,7 @@ from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -226,3 +227,23 @@ class QueryProxy:
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
+
+    def query_distinct_count(self, query_mode, start_time, end_time, field, filters, query_string):
+        return self.query_mode[query_mode].query_distinct_count(start_time, end_time, field, filters, query_string)
+
+    def query_topk(self, query_mode, start_time, end_time, field, limit, filters, query_string):
+        topk_values = []
+        for topk_item in self.query_mode[query_mode].query_topk(
+            start_time, end_time, field, limit, filters, query_string
+        ):
+            try:
+                field_value = topk_item[field]
+                count = topk_item["_result_"]
+            except (IndexError, KeyError) as exc:
+                logger.warning("failed to query %s topk, err -> %s", field, exc)
+                raise ValueError(_("{} topk 值查询出错".format(field)))
+            topk_values.append({"field_value": field_value, "count": count})
+        return topk_values
+
+    def query_total(self, query_mode, start_time, end_time, filters, query_string):
+        return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)

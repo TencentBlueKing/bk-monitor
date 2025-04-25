@@ -84,9 +84,15 @@ API_FIELDS_OPTION_VALUE_DATA = {
 
 API_TOPK_DATA = [
     {
-        "distinct_count": 0,
         "field": "resource.service.name",
-        "list": [{"value": "test_project", "alias": "test_project", "count": 121209, "proportions": 100}],
+        "distinct_count": 23,
+        "list": [
+            {"value": "test_project", "count": 527520, "proportions": 28.54},
+            {"value": "test_project2", "count": 333130, "proportions": 18.02},
+            {"value": "test_project3", "count": 252755, "proportions": 13.67},
+            {"value": "test_project4", "count": 201368, "proportions": 10.89},
+            {"value": "test_project5", "count": 157797, "proportions": 8.54},
+        ],
     }
 ]
 

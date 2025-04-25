@@ -369,6 +369,43 @@ class BaseQuery:
 
         return ordering
 
+    def get_q_from_filters_and_query_string(self, filters, query_string) -> QueryConfigBuilder:
+        return (
+            self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
+        )
+
+    def _query_distinct_count(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="distinct", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query [%s] distinct, err -> %s", field, exc)
+            raise ValueError(_("{} 去重数查询出错".format(field)))
+
+    def _query_topk(self, start_time, end_time, field, limit, filters, query_string):
+        q: QueryConfigBuilder = (
+            self.get_q_from_filters_and_query_string(filters, query_string)
+            .metric(field=field, method="COUNT", alias="a")
+            .group_by(field)
+            .order_by("-_value")
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
+        return list(queryset)
+
+    def _query_total(self, start_time, end_time, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field="_index", method="COUNT", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query total, err -> %s", exc)
+            raise ValueError(_("总记录数查询出错"))
+
 
 class FakeQuery:
     def list(self, *args, **kwargs):

@@ -428,3 +428,8 @@ class QueryProfileServicesDetail(ApmAPIGWResource):
 
     action = "/app/apm/profiling/services_detail/"
     method = "GET"
+
+
+class QueryFieldsTopkResource(ApmAPIGWResource):
+    action = "/app/apm/query_apm_fields_topk/"
+    method = "POST"

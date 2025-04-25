@@ -324,9 +324,8 @@ class EventTopKResource(Resource):
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {
-                        # TODO unifyquery 处理完空值问题会退这段代码
-                        "value": "" if not field_value or field_value == " " else field_value,
-                        "alias": "--" if not field_value or field_value == " " else field_value,
+                        "value": field_value or "",
+                        "alias": "--" if not field_value else field_value,
                         "count": field_count,
                         "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
