@@ -38,7 +38,7 @@ from apps.log_search.models import LogIndexSet
 class MonitorUtils(object):
     @classmethod
     def save_notice_group(cls, bk_biz_id: int, name: str, notice_way: dict, notice_receiver: list, message: str = ""):
-        if settings.NEW_MONITOR_APIGATEWAY_ROOT:
+        if settings.USE_NEW_MONITOR_APIGATEWAY:
             params = {
                 "bk_biz_id": bk_biz_id,
                 "name": name,

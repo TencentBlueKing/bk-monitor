@@ -442,7 +442,7 @@ class PatternHandler:
         if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
             return model_to_dict(remark_obj)
         # 更新告警组
-        if settings.NEW_MONITOR_APIGATEWAY_ROOT:
+        if settings.USE_NEW_MONITOR_APIGATEWAY:
             user_group = MonitorApi.search_user_groups(
                 {"bk_biz_ids": [self._clustering_config.bk_biz_id], "ids": [remark_obj.notice_group_id]}
             )[0]

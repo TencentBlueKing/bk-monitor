@@ -119,8 +119,6 @@ class _TransferApi(object):
     MODULE = _("Metadata元数据")
 
     def __init__(self):
-        self.base_url = MONITOR_APIGATEWAY_ROOT_NEW if settings.NEW_MONITOR_APIGATEWAY_ROOT else MONITOR_APIGATEWAY_ROOT
-
         self.create_data_id = DataAPI(
             method="POST",
             url=self._build_url("app/metadata/create_data_id/", "metadata_create_data_id/"),
@@ -470,12 +468,11 @@ class _TransferApi(object):
             before_request=add_esb_info_before_request,
         )
 
+    def use_gw(self):
+        return settings.USE_NEW_MONITOR_APIGATEWAY
+
     def _build_url(self, new_path, old_path):
-        return (
-            f"{self.base_url}{new_path}"
-            if self.base_url == MONITOR_APIGATEWAY_ROOT_NEW
-            else f"{self.base_url}{old_path}"
-        )
+        return f"{MONITOR_APIGATEWAY_ROOT_NEW}{new_path}" if self.use_gw() else f"{MONITOR_APIGATEWAY_ROOT}{old_path}"
 
 
 Transfer = _TransferApi()
