@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef, watch } from 'vue';
+import { defineComponent, reactive, shallowRef, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
+import { $bkPopover, Progress, Sideslider, OverflowTitle } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import {
   traceDownloadTopK,
@@ -103,6 +103,9 @@ export default defineComponent({
     const chartData = shallowRef([]);
     const downloadLoading = shallowRef(false);
 
+    /** 数值类型 */
+    const isInteger = computed(() => ['double', 'long', 'integer'].includes(props.fieldType));
+
     watch(
       () => props.isShow,
       val => {
@@ -139,9 +142,9 @@ export default defineComponent({
         }
       ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
       if (count !== getStatisticsListCount.value) return;
-      statisticsList.distinct_count = data[0].distinct_count;
-      statisticsList.field = data[0].field;
-      statisticsList.list = data[0].list;
+      statisticsList.distinct_count = data[0].distinct_count || 0;
+      statisticsList.field = data[0].field || '';
+      statisticsList.list = data[0].list || [];
       popoverLoading.value = false;
       await getStatisticsGraphData();
     }
@@ -167,10 +170,9 @@ export default defineComponent({
       statisticsInfo.value = info;
 
       const { min, max } = statisticsInfo.value.value_analysis || {};
-      const values =
-        props.fieldType === 'integer'
-          ? [min, max, statisticsInfo.value.distinct_count, 10]
-          : statisticsList.list.map(item => item.value);
+      const values = isInteger.value
+        ? [min, max, statisticsInfo.value.distinct_count, 10]
+        : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
       const data = await traceFieldStatisticsGraph(
         {
@@ -192,7 +194,7 @@ export default defineComponent({
       chartData.value = series.map(item => {
         const index = statisticsList.list.findIndex(i => item.dimensions?.[localField.value] === i.value) || 0;
         return {
-          color: props.fieldType === 'integer' ? '#5AB8A8' : topKColorList[index],
+          color: isInteger.value ? '#5AB8A8' : topKColorList[index],
           ...item,
         };
       });
@@ -230,10 +232,10 @@ export default defineComponent({
         end_time,
         limit: sliderListPage.value * 100,
         fields: [localField.value],
-      });
-      sliderDimensionList.distinct_count = data.distinct_count;
-      sliderDimensionList.field = data.field;
-      sliderDimensionList.list = data.list;
+      }).catch(() => []);
+      sliderDimensionList.distinct_count = data[0]?.distinct_count || 0;
+      sliderDimensionList.field = data[0]?.field || '';
+      sliderDimensionList.list = data[0]?.list || [];
       sliderLoadMoreLoading.value = false;
       sliderListPage.value += 1;
     }
@@ -305,15 +307,17 @@ export default defineComponent({
                   class='icon-monitor icon-a-sousuo'
                   v-bk-tooltips={{
                     content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} = ${item.value || '""'}`,
+                    boundary: 'parent',
                   }}
-                  onClick={() => handleConditionChange('eq', item)}
+                  onClick={() => handleConditionChange('equal', item)}
                 />
                 <i
                   class='icon-monitor icon-sousuo-'
                   v-bk-tooltips={{
                     content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} != ${item.value || '""'}`,
+                    boundary: 'parent',
                   }}
-                  onClick={() => handleConditionChange('ne', item)}
+                  onClick={() => handleConditionChange('not_equal', item)}
                 />
               </div>
               <div class='progress-content'>
@@ -323,15 +327,16 @@ export default defineComponent({
                     onMouseenter={e => topKItemMouseenter(e, item.alias)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    {item.alias}
+                    <OverflowTitle type='tips'>{item.alias}</OverflowTitle>
                   </span>
+
                   <span class='counts'>
                     <span class='total'>{t('{0}条', [item.count])}</span>
                     <span class='progress-count'>{item.proportions}%</span>
                   </span>
                 </div>
                 <Progress
-                  color={props.fieldType !== 'integer' && scene === 'popover' ? topKColorList[index] : '#5AB8A8'}
+                  color={isInteger.value || scene === 'slider' ? '#5AB8A8' : topKColorList[index]}
                   percent={item.proportions}
                   show-text={false}
                   stroke-width={6}
@@ -343,10 +348,10 @@ export default defineComponent({
       );
     }
 
-    function handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
+    function handleConditionChange(type: 'equal' | 'not_equal', item: ITopKField['list'][0]) {
       emit('conditionChange', {
         key: localField.value,
-        operator: type,
+        method: type,
         value: item.value,
       });
     }
@@ -370,6 +375,8 @@ export default defineComponent({
 
     return {
       t,
+      localField,
+      isInteger,
       timeRangeText,
       popoverLoading,
       infoLoading,
@@ -400,125 +407,129 @@ export default defineComponent({
           ref='dimensionPopover'
           class='trace-explore-dimension-statistics-popover'
         >
-          {this.infoLoading ? (
-            <div class='info-skeleton'>
-              <div class='total-skeleton'>
-                <div class='skeleton-element' />
-                <div class='skeleton-element' />
-                <div class='skeleton-element' />
-              </div>
-              {this.fieldType === 'integer' && (
+          {this.isShow && (
+            <div class='trace-explore-dimension-statistics-popover-content'>
+              {this.infoLoading ? (
                 <div class='info-skeleton'>
-                  <div class='skeleton-element' />
-                  <div class='skeleton-element' />
-                  <div class='skeleton-element' />
-                  <div class='skeleton-element' />
+                  <div class='total-skeleton'>
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                  </div>
+                  {this.isInteger && (
+                    <div class='info-skeleton'>
+                      <div class='skeleton-element' />
+                      <div class='skeleton-element' />
+                      <div class='skeleton-element' />
+                      <div class='skeleton-element' />
+                    </div>
+                  )}
+                  <div class='skeleton-element chart' />
+                </div>
+              ) : (
+                <div class='statistics-info'>
+                  <div class='top-k-info-header'>
+                    <div class='label-item'>
+                      <span class='label'>{this.t('总行数')}:</span>
+                      <span class='value'> {this.statisticsInfo.total_count}</span>
+                    </div>
+                    <div class='label-item'>
+                      <span class='label'>{this.t('出现行数')}:</span>
+                      <span class='value'> {this.statisticsInfo.field_count}</span>
+                    </div>
+                    <div class='label-item'>
+                      <span class='label'>{this.t('日志条数')}:</span>
+                      <span class='value'> {this.statisticsInfo.field_percent}%</span>
+                    </div>
+                  </div>
+
+                  {this.isInteger && (
+                    <div class='integer-statics-info'>
+                      <div class='integer-item'>
+                        <span class='label'>{this.t('最大值')}</span>
+                        <span class='value'>{this.statisticsInfo.value_analysis?.max || 0}</span>
+                      </div>
+
+                      <div class='integer-item'>
+                        <span class='label'>{this.t('最小值')}</span>
+                        <span class='value'>{this.statisticsInfo.value_analysis?.min || 0}</span>
+                      </div>
+                      <div class='integer-item'>
+                        <span class='label'>{this.t('平均值')}</span>
+                        <span class='value'>{this.statisticsInfo.value_analysis?.avg || 0}</span>
+                      </div>
+                      <div class='integer-item'>
+                        <span class='label'>{this.t('中位数')}</span>
+                        <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div class='top-k-chart-title'>
+                    <span class='title'>{this.t(this.isInteger ? '数值分布直方图' : 'TOP 5 时序图')}</span>
+                    {this.isInteger && (
+                      <span class='time-range'>
+                        {this.timeRangeText[0]} ～ {this.timeRangeText[1]}
+                      </span>
+                    )}
+                  </div>
+
+                  <DimensionEcharts
+                    data={this.chartData}
+                    seriesType={this.isInteger ? 'histogram' : 'line'}
+                  />
                 </div>
               )}
-              <div class='skeleton-element chart' />
-            </div>
-          ) : (
-            <div class='statistics-info'>
-              <div class='top-k-info-header'>
-                <div class='label-item'>
-                  <span class='label'>{this.t('总行数')}:</span>
-                  <span class='value'> {this.statisticsInfo.total_count}</span>
-                </div>
-                <div class='label-item'>
-                  <span class='label'>{this.t('出现行数')}:</span>
-                  <span class='value'> {this.statisticsInfo.field_count}</span>
-                </div>
-                <div class='label-item'>
-                  <span class='label'>{this.t('日志条数')}:</span>
-                  <span class='value'> {this.statisticsInfo.field_percent}%</span>
-                </div>
-              </div>
 
-              {this.fieldType === 'integer' && (
-                <div class='integer-statics-info'>
-                  <div class='integer-item'>
-                    <span class='label'>{this.t('最大值')}</span>
-                    <span class='value'>{this.statisticsInfo.value_analysis?.max || 0}</span>
-                  </div>
-
-                  <div class='integer-item'>
-                    <span class='label'>{this.t('最小值')}</span>
-                    <span class='value'>{this.statisticsInfo.value_analysis?.min || 0}</span>
-                  </div>
-                  <div class='integer-item'>
-                    <span class='label'>{this.t('平均值')}</span>
-                    <span class='value'>{this.statisticsInfo.value_analysis?.avg || 0}</span>
-                  </div>
-                  <div class='integer-item'>
-                    <span class='label'>{this.t('中位数')}</span>
-                    <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
-                  </div>
-                </div>
-              )}
-
-              <div class='top-k-chart-title'>
-                <span class='title'>{this.t(this.fieldType === 'integer' ? '数值分布直方图' : 'TOP 5 时序图')}</span>
-                {this.fieldType === 'integer' && (
-                  <span class='time-range'>
-                    {this.timeRangeText[0]} ～ {this.timeRangeText[1]}
+              <div class='top-k-list-header'>
+                <div class='dimension-top-k-title'>
+                  <OverflowTitle
+                    class='field-name'
+                    type='tips'
+                  >
+                    {this.localField}
+                  </OverflowTitle>
+                  <span class='divider' />
+                  <span class='desc'>
+                    {this.t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
                   </span>
+                </div>
+                {this.downloadLoading ? (
+                  <img
+                    class='loading-icon'
+                    alt=''
+                    src={loadingIcon}
+                  />
+                ) : (
+                  <div
+                    class='download-tool'
+                    v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
+                    onClick={this.handleDownload}
+                  >
+                    <i class='icon-monitor icon-xiazai2' />
+                  </div>
                 )}
               </div>
-
-              <DimensionEcharts
-                data={this.chartData}
-                seriesType={this.fieldType === 'integer' ? 'histogram' : 'line'}
-              />
+              {this.popoverLoading
+                ? this.renderSkeleton()
+                : [
+                    this.renderTopKField(this.statisticsList?.list, 'popover'),
+                    this.statisticsList?.distinct_count > 5 && (
+                      <div
+                        class='load-more'
+                        onClick={this.showMore}
+                      >
+                        {this.t('更多')}
+                      </div>
+                    ),
+                  ]}
             </div>
           )}
-
-          <div class='top-k-list-header'>
-            <div class='dimension-top-k-title'>
-              <span
-                class='field-name'
-                v-bk-overflow-tips
-              >
-                {this.selectField}
-              </span>
-              <span class='divider' />
-              <span class='desc'>
-                {this.$t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
-              </span>
-            </div>
-            {this.downloadLoading ? (
-              <img
-                class='loading-icon'
-                alt=''
-                src={loadingIcon}
-              />
-            ) : (
-              <div
-                class='download-tool'
-                onClick={this.handleDownload}
-              >
-                <i class='icon-monitor icon-xiazai2' />
-                <span class='text'>{this.$t('下载')}</span>
-              </div>
-            )}
-          </div>
-          {this.popoverLoading
-            ? this.renderSkeleton()
-            : [
-                this.renderTopKField(this.statisticsList?.list, 'popover'),
-                this.statisticsList?.distinct_count > 5 && (
-                  <div
-                    class='load-more'
-                    onClick={this.showMore}
-                  >
-                    {this.$t('更多')}
-                  </div>
-                ),
-              ]}
         </div>
 
         <Sideslider
           width='480'
-          ext-cls='dimension-top-k-slider'
+          ext-cls='trace-dimension-top-k-slider'
           is-show={this.sliderShow}
           // show-mask={false}
           transfer={true}
@@ -529,15 +540,15 @@ export default defineComponent({
             header: () => (
               <div class='dimension-slider-header'>
                 <div class='dimension-top-k-title'>
-                  <span
+                  <OverflowTitle
                     class='field-name'
-                    v-bk-overflow-tips
+                    type='tips'
                   >
-                    {this.selectField}
-                  </span>
+                    {this.localField}
+                  </OverflowTitle>
                   <span class='divider' />
                   <span class='desc'>
-                    {this.$t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
+                    {this.t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
                   </span>
                 </div>
                 {this.downloadLoading ? (
@@ -552,7 +563,7 @@ export default defineComponent({
                     onClick={this.handleDownload}
                   >
                     <i class='icon-monitor icon-xiazai2' />
-                    <span class='text'>{this.$t('下载')}</span>
+                    <span class='text'>{this.t('下载')}</span>
                   </div>
                 )}
               </div>
@@ -567,7 +578,7 @@ export default defineComponent({
                     class={['slider-load-more', { 'is-loading': this.sliderLoadMoreLoading }]}
                     onClick={this.loadMore}
                   >
-                    {this.$t(this.sliderLoadMoreLoading ? '正在加载...' : '加载更多')}
+                    {this.t(this.sliderLoadMoreLoading ? '正在加载...' : '加载更多')}
                   </div>
                 )}
               </div>

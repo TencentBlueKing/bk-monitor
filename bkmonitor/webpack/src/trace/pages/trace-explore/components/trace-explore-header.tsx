@@ -27,7 +27,7 @@
 import { defineComponent, shallowRef, computed, type PropType, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Select } from 'bkui-vue';
+import { OverflowTitle, Select } from 'bkui-vue';
 import { detectOS, random } from 'monitor-common/utils';
 
 import useUserConfig from '../../../hooks/useUserConfig';
@@ -242,12 +242,12 @@ export default defineComponent({
                   <div class='application-select-trigger'>
                     <span class='data-prefix'>{this.$t('应用')}：</span>
                     {this.store.currentApp && (
-                      <span
+                      <OverflowTitle
                         class='application-name'
-                        // v-bk-overflow-tips
+                        type='tips'
                       >
                         {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
-                      </span>
+                      </OverflowTitle>
                     )}
 
                     {!this.applicationToggle && (
@@ -263,18 +263,24 @@ export default defineComponent({
                       key={item.app_name}
                       name={item.app_name}
                     >
-                      <div class={['application-item-name', { is_top: item.isTop }]}>
-                        <i
-                          class={['icon-monitor', 'thumbtack', item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
-                          onClick={e => this.handleThumbtack(e, item)}
-                        />
-                        <span
-                          class='name-text'
-                          // v-bk-overflow-tips
-                        >
-                          {item.app_alias}({item.app_name})
-                        </span>
-                      </div>
+                      {this.applicationToggle && (
+                        <div class={['application-item-name', { is_top: item.isTop }]}>
+                          <i
+                            class={[
+                              'icon-monitor',
+                              'thumbtack',
+                              item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding',
+                            ]}
+                            onClick={e => this.handleThumbtack(e, item)}
+                          />
+                          <OverflowTitle
+                            class='name-text'
+                            type='tips'
+                          >
+                            {item.app_alias}({item.app_name})
+                          </OverflowTitle>
+                        </div>
+                      )}
                     </Select.Option>
                   )),
               }}

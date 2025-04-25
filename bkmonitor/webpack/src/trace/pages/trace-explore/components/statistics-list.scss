@@ -121,12 +121,10 @@
       .icon-xiazai2 {
         font-size: 14px;
         color: #4d4f56;
-      }
 
-      .text {
-        margin-left: 6px;
-        font-size: 12px;
-        color: #4d4f56;
+        &:hover {
+          color: #3A84FF;
+        }
       }
     }
   }
@@ -151,7 +149,15 @@
   }
 }
 
-.dimension-top-k-slider {
+.trace-dimension-top-k-slider {
+  .bk-modal-mask {
+    background-color: transparent;
+  }
+
+  .bk-sideslider-title {
+    overflow: hidden;
+  }
+
   .skeleton-wrap {
     .skeleton-element {
       height: 28px;
@@ -163,6 +169,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     padding-right: 24px;
 
     .field-name {
