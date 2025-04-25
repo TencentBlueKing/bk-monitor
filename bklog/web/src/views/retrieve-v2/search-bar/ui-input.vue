@@ -87,7 +87,12 @@
 
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     if (translateKeys.includes(operatorMapping[item.operator])) {
-      return $t(operatorMapping[item.operator] ?? item.operator);
+      const operator = operatorMapping[item.operator] ?? item.operator;
+      if (/[\u4e00-\u9fff]/.test(operator)) {
+        return $t(operator);
+      }
+
+      return operator;
     }
 
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
