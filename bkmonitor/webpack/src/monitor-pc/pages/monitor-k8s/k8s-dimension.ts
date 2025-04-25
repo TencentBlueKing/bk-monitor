@@ -49,6 +49,7 @@ export const sceneDimensionMap = {
     EDimensionKey.container,
   ],
   [SceneEnum.Network]: [EDimensionKey.namespace, EDimensionKey.ingress, EDimensionKey.service, EDimensionKey.pod],
+  [SceneEnum.Capacity]: [EDimensionKey.node],
 };
 
 /**
