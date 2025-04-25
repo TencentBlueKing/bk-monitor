@@ -10,20 +10,23 @@ specific language governing permissions and limitations under the License.
 """
 
 from metadata import models
-from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.data_link.constants import (
+    BKBASE_NAMESPACE_BK_LOG,
+    BKBASE_NAMESPACE_BK_MONITOR,
+    DataLinkKind,
+)
 
 # 计算平台V4链路KIND-STORAGE 映射关系
 BKBASE_V4_KIND_STORAGE_CONFIGS = [
     {
         "kind": DataLinkKind.get_choice_value(DataLinkKind.ELASTICSEARCH.value),
-        "namespace": "bklog",
+        "namespace": BKBASE_NAMESPACE_BK_LOG,
         "field_mappings": {"domain_name": "host", "port": "port", "username": "user", "password": "password"},
         "cluster_type": models.ClusterInfo.TYPE_ES,
-        "storage_name": "es",
     },
     {
         "kind": DataLinkKind.get_choice_value(DataLinkKind.VMSTORAGE.value),
-        "namespace": "bkmonitor",
+        "namespace": BKBASE_NAMESPACE_BK_MONITOR,
         "field_mappings": {
             "domain_name": "insertHost",
             "port": "insertPort",
@@ -31,11 +34,10 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
             "password": "password",
         },
         "cluster_type": models.ClusterInfo.TYPE_VM,
-        "storage_name": "vm",
     },
     {
         "kind": DataLinkKind.get_choice_value(DataLinkKind.DORIS.value),
-        "namespace": "bklog",
+        "namespace": BKBASE_NAMESPACE_BK_LOG,
         "field_mappings": {
             "domain_name": "host",
             "port": "port",
@@ -43,6 +45,5 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
             "password": "password",
         },
         "cluster_type": models.ClusterInfo.TYPE_DORIS,
-        "storage_name": "doris",
     },
 ]
