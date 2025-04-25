@@ -41,24 +41,14 @@ import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
 import DimensionTableSlide from './dimension-table-slide';
-import IndicatorTableSlide, { fuzzyMatch } from './metric-table-slide';
+import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
+import { ALL_LABEL, type IGroupListItem, NULL_LABEL } from './type';
+import { fuzzyMatch } from './utils';
 
 import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
-
-// 常量定义
-export const ALL_LABEL = '__all_label__';
-export const NULL_LABEL = '__null_label__';
-
-// 接口定义
-export interface IGroupListItem {
-  name: string; // 分组名称
-  matchRules: string[]; // 匹配规则
-  manualList: string[]; // 手动添加的指标
-  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
-}
 
 interface IMetricSearchObject {
   name: string[];
@@ -212,8 +202,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         // 过滤分组
         (length
           ? this.groupFilterList.some(
-              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            )
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          )
           : true) &&
         // 过滤名称
         (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
@@ -278,75 +268,75 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     // 构建JSON内容
     const dimensions = this.dimensions.length
       ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
+        name,
+        type,
+        description,
+        disabled,
+        common,
+      }))
+      : [
+        {
+          name: 'dimension1',
+          type: 'dimension',
+          description: '',
+          disabled: true,
+          common: true,
+        },
+      ];
+
+    const metrics = this.metricData.length
+      ? this.metricData.map(
+        ({
           name,
           type,
           description,
           disabled,
-          common,
-        }))
+          unit,
+          hidden,
+          aggregate_method,
+          interval,
+          label,
+          dimensions,
+          function: func,
+        }) => ({
+          type,
+          name,
+          description,
+          disabled,
+          unit,
+          hidden,
+          aggregate_method,
+          interval,
+          label,
+          dimensions,
+          function: func,
+        })
+      )
       : [
-          {
-            name: 'dimension1',
-            type: 'dimension',
-            description: '',
-            disabled: true,
-            common: true,
-          },
-        ];
-
-    const metrics = this.metricData.length
-      ? this.metricData.map(
-          ({
-            name,
-            type,
-            description,
-            disabled,
-            unit,
-            hidden,
-            aggregate_method,
-            interval,
-            label,
-            dimensions,
-            function: func,
-          }) => ({
-            type,
-            name,
-            description,
-            disabled,
-            unit,
-            hidden,
-            aggregate_method,
-            interval,
-            label,
-            dimensions,
-            function: func,
-          })
-        )
-      : [
-          {
-            name: 'metric1',
-            type: 'metric',
-            description: '',
-            disabled: false,
-            unit: '',
-            hidden: false,
-            aggregate_method: '',
-            function: {},
-            interval: 0,
-            label: [],
-            dimensions: ['dimension1'],
-          },
-        ];
+        {
+          name: 'metric1',
+          type: 'metric',
+          description: '',
+          disabled: false,
+          unit: '',
+          hidden: false,
+          aggregate_method: '',
+          function: {},
+          interval: 0,
+          label: [],
+          dimensions: ['dimension1'],
+        },
+      ];
 
     const groupRules = this.groupList
       ? this.groupList
       : [
-          {
-            name: '测试分组',
-            manual_list: ['metric1'],
-            auto_rules: ['rule1'],
-          },
-        ];
+        {
+          name: '测试分组',
+          manual_list: ['metric1'],
+          auto_rules: ['rule1'],
+        },
+      ];
 
     const template = {
       dimensions,
