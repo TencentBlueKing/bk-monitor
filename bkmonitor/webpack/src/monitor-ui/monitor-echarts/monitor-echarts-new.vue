@@ -1170,9 +1170,8 @@ export default class MonitorEcharts extends Vue {
     if (!!this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
-      // value是否需要添加双引号
       // csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
-      csvList.push(keys.map(key => key.replace(/=([^,}]+)/g, (match, p1) => `="${p1}_"`)).join(','));
+      csvList.push(keys.map(key => key.replace(/,/gim, "_").replace(/=(\S+)(?<=^|[^}])/g, '="\$1"')).join(','));
       this.tableData.forEach(item => {
         const list = [];
         keys.forEach(key => {
