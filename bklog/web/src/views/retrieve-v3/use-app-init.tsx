@@ -168,7 +168,7 @@ export default () => {
   /**
    * 拉取索引集列表
    */
-  const getIndexSetList = async () => {
+  const getIndexSetList = () => {
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
       .then(resp => {
@@ -180,8 +180,9 @@ export default () => {
           setDefaultIndexsetId();
           const type = route.params.indexId ? 'single' : 'union';
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+
           store.dispatch('requestIndexSetFieldInfo').then(() => {
-            store.dispatch('requestIndexSetQuery').then(resp => {
+            store.dispatch('requestIndexSetQuery').then(() => {
               RetrieveHelper.setSearchingValue(false);
             });
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
@@ -190,13 +191,13 @@ export default () => {
       });
   };
 
-  const handleSpaceIdChange = async () => {
+  const handleSpaceIdChange = () => {
     store.commit('resetIndexsetItemParams');
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
-    await getIndexSetList();
+    getIndexSetList();
     store.dispatch('requestFavoriteList');
   };
 

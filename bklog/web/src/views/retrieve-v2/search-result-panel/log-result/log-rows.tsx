@@ -785,7 +785,6 @@ export default defineComponent({
 
       if (hasMoreList.value) {
         isRequesting.value = true;
-
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
