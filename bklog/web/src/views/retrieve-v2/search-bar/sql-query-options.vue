@@ -373,6 +373,7 @@
     if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
       // stopEventPreventDefault(e);
       // handleRetrieve();
+      emits('cancel');
       return;
     }
 
