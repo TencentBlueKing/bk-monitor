@@ -113,12 +113,19 @@
     tippyOptions,
   });
 
+  let conditionBlurTimer = null;
+
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
     newInstance: true,
     watchElement: refConditionInput,
+    onShowFn: () => {
+      conditionBlurTimer && clearTimeout(conditionBlurTimer);
+      conditionBlurTimer = null;
+      return true;
+    },
     onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
       return true;
@@ -412,13 +419,20 @@
       if (isValidateEgges(item)) {
         setIsRequesting(true);
 
+        nextTick(() => {
+          if (!conditionValueInstance.isShown()) {
+            const target = refConditionInput.value?.parentNode;
+            target && conditionValueInstance.show(target, true);
+          }
+        });
+
         if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
           requestFieldEgges(item, null, () => {
             if (!conditionValueInstance.repositionTippyInstance()) {
               if (!isOperatorInstanceActive()) {
-                const target = refConditionInput.value?.parentNode;
-                if (target) {
-                  conditionValueInstance.show(target, true);
+                if (!conditionValueInstance.isShown()) {
+                  const target = refConditionInput.value?.parentNode;
+                  target && conditionValueInstance.show(target, true);
                 }
               }
             }
@@ -527,8 +541,17 @@
 
   const currentEditTagIndex = ref(null);
 
+  const handleConditonValueTagItemClick = () => {
+    isConditionValueInputFocus.value = true;
+
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
+  };
+
   const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
+    tagInputTimer && clearTimeout(tagInputTimer);
+    tagInputTimer = null;
 
     currentEditTagIndex.value = tagIndex;
     setTimeout(() => {
@@ -538,8 +561,11 @@
 
   const handleConditionValueClick = (e = null, autoFocus = false) => {
     conditionValueInstance.cancelHide();
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
 
-    if (e?.target !== refConditionInput.value || !e) {
+    // tag-item-input edit-input
+    if (!e || e.target?.classList?.contains('edit-input')) {
       return;
     }
 
@@ -557,8 +583,15 @@
       }
     }
   };
+
+  let tagInputTimer = null;
+
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';
+
+    tagInputTimer = setTimeout(() => {
+      isConditionValueInputFocus.value = false;
+    }, 300);
   };
 
   const handleTagInputEnter = () => {
@@ -571,18 +604,6 @@
     const instance = conditionValueInstance.getTippyInstance();
     return isConditionValueInputFocus.value && instance?.state.isShown;
   };
-
-  /**
-   * 条件值下拉选择设置当前hover项
-   */
-  // const activeConditionValueOption = () => {
-  //   const instance = conditionValueInstance.getTippyInstance();
-  //   if (instance?.state.isShown) {
-  //     instance.popper?.querySelector('li.is-hover')?.classList.remove('is-hover');
-  //     instance.popper?.querySelectorAll('li.is-system-tag')[conditionValueActiveIndex.value]?.classList.add('is-hover');
-  //     instance.popper?.querySelector('li.is-hover')?.scrollIntoView({ block: 'nearest' });
-  //   }
-  // };
 
   const handleInputValueChange = e => {
     const input = e.target;
@@ -617,12 +638,19 @@
     }
 
     setIsRequesting(true);
+
+    const target = refConditionInput.value?.parentNode;
+    if (!operatorInstance.isShown() && target) {
+      nextTick(() => {
+        conditionValueInstance.show(target, true);
+      });
+    }
+
     requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
 
         if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
-          const target = refConditionInput.value?.parentNode;
           if (target) {
             conditionValueInstance.show(target, true);
           }
@@ -633,7 +661,10 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleConditionValueClick(e);
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
+
+    // handleConditionValueClick(e);
   };
 
   const handleDeleteTagItem = index => {
@@ -665,6 +696,8 @@
   const handleTagItemClick = (value, index) => {
     refValueTagInput.value.value = '';
     conditionValueInputVal.value = '';
+    conditionBlurTimer && clearTimeout(conditionBlurTimer);
+    conditionBlurTimer = null;
 
     if (!appendConditionValue(value)) {
       condition.value.value.splice(index, 1);
@@ -962,7 +995,6 @@
     handleInputValueChange(e);
   };
 
-  let conditionBlurTimer = null;
   const handleConditionValueInputBlur = e => {
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     conditionBlurTimer = setTimeout(() => {
@@ -1220,9 +1252,10 @@
                 >
                   <template v-if="currentEditTagIndex === index">
                     <textarea
-                      class="tag-item-input"
+                      class="tag-item-input edit-input"
                       v-model="condition.value[index]"
                       type="text"
+                      @focus.stop="handleConditionValueInputFocus"
                       @blur.stop="handleTagInputBlur"
                       @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
@@ -1231,6 +1264,7 @@
                   <template>
                     <span
                       class="tag-item-text"
+                      @click.stop="handleConditonValueTagItemClick"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
@@ -1245,11 +1279,11 @@
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
                     type="text"
-                    @blur.stop="handleConditionValueInputBlur"
-                    @focus.stop="handleConditionValueInputFocus"
                     @input="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
+                    @blur.stop="handleConditionValueInputBlur"
+                    @focus.stop="handleConditionValueInputFocus"
                   />
                 </li>
                 <div style="display: none">
@@ -1258,17 +1292,6 @@
                     class="condition-value-options"
                   >
                     <li
-                      v-if="isConditionValEmptyShow"
-                      class="empty-section"
-                    >
-                      <bk-exception
-                        style="height: 94px"
-                        :type="conditionValueEmptyType"
-                        scene="part"
-                      >
-                      </bk-exception>
-                    </li>
-                    <li
                       v-show="conditionValueInputVal.length > 0"
                       :class="{ active: conditionValueInputVal.length > 0, 'is-custom-tag': true }"
                       @click.stop="handleCustomTagItemClick"
@@ -1276,11 +1299,14 @@
                       {{ $t('生成“{n}”标签', { n: conditionValueInputVal }) }}
                     </li>
                     <li
-                      v-if="isRequesting"
-                      style="display: 32px"
+                      v-show="isRequesting || activeItemMatchList.length === 0"
                       v-bkloading="{ isLoading: isRequesting, size: 'small' }"
-                    ></li>
-                    <template v-if="!isRequesting">
+                      style="min-height: 32px"
+                    >
+                      {{ $t('暂无数据') }}
+                    </li>
+
+                    <template v-if="!isRequesting && activeItemMatchList.length > 0">
                       <li
                         v-for="(item, index) in activeItemMatchList"
                         :class="{

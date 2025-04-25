@@ -1436,6 +1436,8 @@ KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS = 2
 # 计算平台&监控平台数据一致性Redis相关配置
 # 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"
+# 计算平台Redis单次SCAN数量
+BKBASE_REDIS_SCAN_COUNT = 1000
 # Redis Watch锁续约间隔(秒)
 BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS = 15
 # 计算平台Redis Watch锁过期时间(秒)

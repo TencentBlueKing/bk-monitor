@@ -239,11 +239,13 @@ def sync_bkbase_metadata_all():
 
     # 获取BkBase数据一致性Redis中符合模式的所有key
     bkbase_redis = bkbase_redis_client()
-    matching_keys = []
     cursor = 0
+    matching_keys = []
+
     while True:
-        cursor, keys = bkbase_redis.scan(cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*")
-        # 将bytes类型的key转换为字符串
+        cursor, keys = bkbase_redis.scan(
+            cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*", count=settings.BKBASE_REDIS_SCAN_COUNT
+        )
         decoded_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
         matching_keys.extend(decoded_keys)
         if cursor == 0:
@@ -260,6 +262,7 @@ def sync_bkbase_metadata_all():
     with ThreadPoolExecutor(max_workers=10) as executor:
         executor.map(_send_task, matching_keys)
 
+    logger.info("sync_bkbase_metadata_all: Finished syncing metadata from bkbase.")
     # 记录指标
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(

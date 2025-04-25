@@ -3,4 +3,4 @@
 -r requirements_test.txt
 
 pre-commit==4.1.0
-pyproject-flake8==7.0.0
+ruff==0.11.6

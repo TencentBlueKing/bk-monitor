@@ -30,12 +30,12 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
-import './index.scss';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import './index.scss';
 
 export default defineComponent({
   name: 'v3-container',
-  setup(_, { slots }) {
+  setup(_, {}) {
     const router = useRouter();
     const route = useRoute();
 
