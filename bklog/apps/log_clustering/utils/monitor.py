@@ -51,9 +51,10 @@ class MonitorUtils(object):
             params = {
                 "bk_biz_id": bk_biz_id,
                 "name": name,
-                "message": message,
-                "notice_way": notice_way,
-                "notice_receiver": notice_receiver,
+                "duty_arranges": [{"users": notice_receiver}],
+                "mention_list": DEFAULT_MENTION_LIST,
+                "alert_notice": DEFAULT_ALERT_NOTICE,
+                "action_notice": DEFAULT_ACTION_NOTICE,
             }
         return MonitorApi.save_notice_group(params=params)
 
@@ -72,9 +73,7 @@ class MonitorUtils(object):
         group = cls.save_notice_group(
             bk_biz_id=bk_biz_id,
             name=_("{}_{}聚类告警组").format(log_index_set_id, log_index_set.index_set_name),
-            message="",
             notice_receiver=notice_receiver,
-            notice_way=DEFAULT_NOTICE_WAY,
         )
         NoticeGroup.objects.get_or_create(
             index_set_id=log_index_set_id, notice_group_id=group["id"], bk_biz_id=bk_biz_id

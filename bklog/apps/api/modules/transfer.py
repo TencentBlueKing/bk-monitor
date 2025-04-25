@@ -27,7 +27,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
-from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
+from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
 def get_cluster_info_after(response_result):

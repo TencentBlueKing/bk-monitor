@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
-from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW  # noqa
+from config.domains import MONITOR_APIGATEWAY_ROOT  # noqa
 
 
 class _MonitorApi(object):
