@@ -463,7 +463,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
     this.initFilterBy();
-    this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
+    this.groupInstance.initGroupFilter();
     this.showCancelDrill = false;
     this.getScenarioMetricList();
     this.setRouteParams();
@@ -516,7 +516,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       to = 'now',
       refreshInterval = '-1',
       filterBy,
-      groupBy = '[]',
+      groupBy,
       cluster = '',
       scene = SceneEnum.Performance,
       activeTab = K8sNewTabEnum.LIST,
@@ -526,8 +526,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.cluster = cluster as string;
     this.scene = scene as SceneEnum;
     this.activeTab = activeTab as K8sNewTabEnum;
-    if (JSON.parse(groupBy as string).length) {
-      this.initGroupBy();
+    this.initGroupBy();
+    if (groupBy && Array.isArray(JSON.parse(groupBy as string))) {
       this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
     }
     if (!filterBy) {

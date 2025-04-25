@@ -302,7 +302,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     let iterationTarget = this.groupInstance.dimensions;
     let resourceColumnFixed = false;
     if (this.isListTab) {
-      iterationTarget = [...this.groupInstance.groupFilters].reverse();
+      iterationTarget = this.groupInstance.groupFilters?.length
+        ? [...this.groupInstance.groupFilters].reverse()
+        : [K8sTableColumnKeysEnum.CLUSTER];
       resourceColumnFixed = true;
     }
     for (const key of iterationTarget) {
