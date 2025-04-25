@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import json
 
 import pytz
-import six
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -37,6 +36,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer, ValidationError
 from rest_framework.utils import model_meta
 
+from apps.log_search.constants import DateFormat
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.time_handler import strftime_local
 
@@ -93,9 +93,9 @@ def format_serializer_errors(errors, fields, params, prefix="  "):
                     for index, error in enumerate(field_errors):  # pylint: disable=unused-variable
                         field_errors[index] = field_errors[index].format(**{key: params.get(key, "")})
                         # return field_errors[index]
-                        sub_message += "{index}.{error}".format(index=index + 1, error=field_errors[index])
+                        sub_message += f"{index + 1}.{field_errors[index]}"
                     sub_message += "\n"
-        message += "{prefix}{label} {message}".format(prefix=prefix, label=label, message=sub_message)
+        message += f"{prefix}{label} {sub_message}"
     return message
 
 
@@ -134,7 +134,7 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
     接受10位时间戳的 DateTimeField
     """
 
-    def __init__(self, format="%Y-%m-%d %H:%M:%S.%f", input_formats=None, default_timezone=None, **kwargs):
+    def __init__(self, format=DateFormat.datetime_format, input_formats=None, default_timezone=None, **kwargs):
         super().__init__(format=format, input_formats=input_formats, default_timezone=default_timezone, **kwargs)
 
     def to_internal_value(self, value):
@@ -167,11 +167,11 @@ class GeneralSerializer(ModelSerializer):
         except Exception:  # pylint: disable=broad-except
             pass
         self.serializer_field_mapping[models.DateTimeField] = CustomDateTimeField
-        super(GeneralSerializer, self).__init__(instance=instance, data=data, **kwargs)
+        super().__init__(instance=instance, data=data, **kwargs)
 
     def is_valid(self, raise_exception=False):
         try:
-            super(GeneralSerializer, self).is_valid(raise_exception=raise_exception)
+            super().is_valid(raise_exception=raise_exception)
         except ValidationError:
             if self._errors and raise_exception:
                 raise ValidationError(
@@ -238,10 +238,10 @@ class GeneralJSONRenderer(BaseRenderer):
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
         if data is None:
-            return bytes()
+            return b""
         ret = json.dumps(data, cls=DjangoJSONEncoder)
         # force return value to unicode
-        if isinstance(ret, six.text_type):
+        if isinstance(ret, str):
             return bytes(ret.encode("utf-8"))
         return ret
 
