@@ -40,10 +40,10 @@ export enum EFieldType {
 }
 
 export enum EMethod {
-  eq = 'eq',
+  eq = 'equal',
   exclude = 'exclude',
   include = 'include',
-  ne = 'ne',
+  ne = 'not_equal',
 }
 
 export const METHOD_MAP = {

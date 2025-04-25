@@ -26,6 +26,8 @@
 
 import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
 
+import type { ShallowRef } from 'vue';
+
 export const fieldTypeMap = {
   all: {
     name: window.i18n.tc('数字'),
@@ -195,3 +197,7 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
 export const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
 export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = ['trace_duration', 'resource.service.name', 'span_name'];
 export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['elapsed_time', 'resource.service.name', 'span_name'];
+
+export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
+  shallowRef.value = structuredClone(shallowRef.value);
+}

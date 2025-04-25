@@ -24,16 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  defineComponent,
-  shallowRef,
-  useTemplateRef,
-  computed,
-  onBeforeUnmount,
-  watch,
-  nextTick,
-  triggerRef,
-} from 'vue';
+import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
 import { onMounted } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
@@ -41,7 +32,7 @@ import { $bkPopover, Dropdown } from 'bkui-vue';
 
 import AutoWidthInput from './auto-width-input';
 import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
-import { onClickOutside } from './utils';
+import { onClickOutside, triggerShallowRef } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -186,7 +177,7 @@ export default defineComponent({
         popoverInstance.value?.vm?.show();
         showSelector.value = true;
         handleOnClickOutside();
-      }, 100);
+      }, 200);
     }
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
@@ -217,7 +208,7 @@ export default defineComponent({
       if (!isChecked.value || !showSelector.value) {
         if (!localValue.value.includes(inputValue.value) && inputValue.value) {
           localValue.value.push(inputValue.value);
-          triggerRef(localValue);
+          triggerShallowRef(localValue);
           handleChange();
         }
         inputValue.value = '';
@@ -237,7 +228,7 @@ export default defineComponent({
     function handleDeleteTag(e: MouseEvent, index: number) {
       e.stopPropagation();
       localValue.value.splice(index, 1);
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     function handleSelectOption(item: { id: string; name: string }) {
@@ -247,7 +238,7 @@ export default defineComponent({
       } else {
         localValue.value.push(item.id);
       }
-      triggerRef(localValue);
+      localValue.value = JSON.parse(JSON.stringify(localValue.value));
       handleChange();
     }
     function handleMethodChange(item: { id: string; name: string }) {
@@ -272,13 +263,13 @@ export default defineComponent({
       } else {
         localValue.value.splice(index, 1);
       }
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     function handleBackspaceNull() {
       if (!inputValue.value && localValue.value.length) {
         localValue.value.splice(localValue.value.length - 1, 1);
-        triggerRef(localValue);
+        triggerShallowRef(localValue);
       }
     }
 

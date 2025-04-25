@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, triggerRef, useTemplateRef, watch } from 'vue';
+import { defineComponent, useTemplateRef, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -36,6 +36,7 @@ import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import { ECondition, EFieldType, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
+import { triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
 
@@ -269,7 +270,7 @@ export default defineComponent({
           method: { id: EMethod.include, name: t('包含') },
           condition: { id: ECondition.and, name: 'AND' },
         });
-        triggerRef(localValue);
+        triggerShallowRef(localValue);
         inputValue.value = '';
         destroyPopoverInstance();
         setTimeout(() => {
@@ -283,7 +284,7 @@ export default defineComponent({
     }
     function handleDeleteTag(index: number) {
       localValue.value.splice(index, 1);
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
       handleCancel();
     }
@@ -298,7 +299,7 @@ export default defineComponent({
         ...localValue.value[index],
         hide,
       });
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     function handleUpdateTag(event: MouseEvent, index: number) {
