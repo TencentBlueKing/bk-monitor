@@ -28,7 +28,7 @@ import { Ref } from 'vue';
 import { random } from '../common/util';
 
 import OptimizedHighlighter from './optimized-highlighter';
-import { getRgbaColors } from './colors';
+import { getRGBAColors } from './colors';
 
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
@@ -138,6 +138,11 @@ export enum RetrieveEvent {
    * 索引集id 变化
    */
   INDEX_SET_ID_CHANGE = 'index-set-id-change',
+
+  /**
+   * 搜索中时间改变
+   */
+  SEARCHING_CHANGE = 'searching-change',
 }
 
 class RetrieveHelper {
@@ -191,6 +196,8 @@ class RetrieveHelper {
 
   RGBA_LIST: string[];
 
+  isSearching: boolean = false;
+
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
@@ -198,7 +205,7 @@ class RetrieveHelper {
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
-    this.RGBA_LIST = getRgbaColors(0.3);
+    this.RGBA_LIST = getRGBAColors(0.3);
   }
 
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
@@ -215,6 +222,15 @@ class RetrieveHelper {
     });
 
     return this;
+  }
+
+  /**
+   * 设置查询状态
+   * @param isSearching
+   */
+  setSearchingValue(isSearching: boolean) {
+    this.isSearching = isSearching;
+    this.runEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching);
   }
 
   /**

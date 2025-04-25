@@ -33,7 +33,7 @@
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
     if (inputValueLength.value === 0) {
-      return $t('快捷键 /，请输入...');
+      return `${$t('快捷键')} /，${$t('请输入')}...`;
     }
 
     return '';

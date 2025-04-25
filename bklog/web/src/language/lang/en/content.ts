@@ -1056,6 +1056,6 @@ export default {
   个收藏: 'favorite items',
   '暂无配置责任人，无法自动创建告警策略':
     'No configured responsible person, unable to automatically create alarm strategy',
-  '重命名只能包含a-z、A-Z、0-9和_':
-    'Rename can only contain a-z, A-Z, 0-9, and _',
+  '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
+  检索中: 'Searching',
 };
