@@ -197,3 +197,7 @@ build.yml
 
 pre-*-bkcodeai
 bkcodeai.json
+
+# ruff
+.ruff_cache/
+
