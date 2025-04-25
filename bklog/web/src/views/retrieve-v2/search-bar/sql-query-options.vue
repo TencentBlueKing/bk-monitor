@@ -371,8 +371,8 @@
 
     // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
     if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
-      stopEventPreventDefault(e);
-      handleRetrieve();
+      // stopEventPreventDefault(e);
+      // handleRetrieve();
       return;
     }
 
@@ -447,9 +447,7 @@
 
     if (beforeShownValue) {
       // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
-      document.addEventListener('keydown', handleKeydown, {
-        capture: true,
-      });
+      document.addEventListener('keydown', handleKeydown, { capture: true });
     }
 
     return beforeShownValue;
