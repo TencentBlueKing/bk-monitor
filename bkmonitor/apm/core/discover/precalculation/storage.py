@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import datetime
 import hashlib
 import json
@@ -34,7 +34,7 @@ from apm.models import DataLink
 from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
-from constants.apm import PreCalculateSpecificField
+from constants.apm import PreCalculateSpecificField, PRECALCULATE_RESULT_TABLE_OPTION
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
@@ -504,6 +504,8 @@ class PrecalculateStorage:
                 "default_storage_config": {
                     "cluster_id": storage_id,
                     "storage_cluster_id": storage_id,
+                    # 指定 UnifyQuery 查询索引。
+                    "index_set": table_name.replace(".", "_"),
                     "slice_size": settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE,
                     "retention": settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION,
                     "slice_gap": 60 * 24,
@@ -517,7 +519,7 @@ class PrecalculateStorage:
                 "field_list": cls.TABLE_SCHEMA,
                 "is_time_field_only": True,
                 "label": "application_check",
-                "option": {},
+                "option": PRECALCULATE_RESULT_TABLE_OPTION,
                 "time_option": {
                     "es_type": "date",
                     "es_format": "epoch_millis",

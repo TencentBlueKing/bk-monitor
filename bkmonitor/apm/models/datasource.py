@@ -39,7 +39,7 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import FlowType, OtlpKey, SpanKind
+from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
@@ -709,6 +709,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "default_storage_config": {
                 "cluster_id": option["es_storage_cluster"],
                 "storage_cluster_id": option["es_storage_cluster"],
+                # 指定 UnifyQuery 查询索引。
+                "index_set": self.table_id.replace(".", "_"),
                 "slice_size": option.get("es_slice_size", settings.APM_APP_DEFAULT_ES_SLICE_LIMIT),
                 "retention": option.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
                 # 默认1天区分一个index
@@ -724,9 +726,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",
-            "option": {
-                "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"]
-            },
+            "option": TRACE_RESULT_TABLE_OPTION,
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",
