@@ -600,3 +600,17 @@ class DiscoverRuleType(TextChoices):
     SYSTEM = "system", _("系统类型规则")
     PLATFORM = "platform", _("平台规则")
     SDK = "sdk", _("SDK 规则")
+
+
+class QueryMode:
+    """查询视角 Trace/Span"""
+
+    TRACE = "trace"
+    SPAN = "span"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.TRACE, "Trace视角"),
+            (cls.SPAN, "span视角"),
+        ]
