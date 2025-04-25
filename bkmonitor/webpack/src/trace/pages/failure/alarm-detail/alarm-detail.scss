@@ -2,6 +2,15 @@
 @import '../../../static/scss/mixin.scss';
 $statusColors: #ea3635 #ff9c00 #699df4;
 
+.alarm-detail-table {
+  --td-bg-color-secondarycontainer: #fafbfd;
+
+}
+
+.t-table-td--ellipsis {
+  --td-comp-paddingTB-m: 0px;
+}
+
 .tag-column-popover {
   padding: 3px 8px !important;
 
@@ -17,8 +26,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     margin: 2px;
     margin-right: 3px;
     overflow: hidden;
-    line-height: 22px;
     text-overflow: ellipsis;
+    line-height: 22px;
     white-space: nowrap;
     background: #f0f1f5;
     border-radius: 2px;
@@ -62,8 +71,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       margin: 2px;
       margin-right: 3px;
       overflow: hidden;
-      line-height: 22px;
       text-overflow: ellipsis;
+      line-height: 22px;
       white-space: nowrap;
       background: #f0f1f5;
       border-radius: 2px;
@@ -127,7 +136,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       display: flex;
       align-items: center;
       width: 100%;
-      height: 100%;
+      height: 46px;
 
       .status-label {
         display: flex;
