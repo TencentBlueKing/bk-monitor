@@ -31,22 +31,22 @@ import {
   onBeforeMount,
   onMounted,
   reactive,
-  ref,
+  ref as deepRef,
   watch,
   onUnmounted,
   shallowRef,
-  shallowReactive,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Table } from '@blueking/table';
 import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
+import { PrimaryTable } from 'tdesign-vue-next';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
+import ExploreFieldSetting from '../../trace-explore/components/explore-field-setting/explore-field-setting';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
@@ -58,14 +58,10 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 
 import type { IFilterSearch, IIncident } from '../types';
-import type { ISettings } from '@blueking/table/typings/components/setting-column/Index.vue';
-import type { VxeTableDefines } from '@blueking/vxe-table';
-import type { Column } from 'bkui-vue/lib/table/props';
-import type { VxeColumnProps } from 'vxe-pc-ui/types/components/column';
 
 import './alarm-detail.scss';
 
-type TableColumn = VxeColumnProps & Column;
+type TableColumn = Record<string, any>;
 
 type PopoverInstance = {
   show: () => void;
@@ -107,14 +103,14 @@ export default defineComponent({
     const bkzIds = inject<Ref<string[]>>('bkzIds');
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
-    const scrollLoading = ref(false);
+    const scrollLoading = deepRef(false);
     const incidentId = useIncidentInject();
-    const tableLoading = ref(false);
-    const tableData = ref([]);
-    const alertData = ref([]);
-    const currentData = ref({});
-    const currentIds = ref([]);
-    const currentBizIds = ref([]);
+    const tableLoading = deepRef(false);
+    const tableData = deepRef([]);
+    const alertData = deepRef([]);
+    const currentData = deepRef({});
+    const currentIds = deepRef([]);
+    const currentBizIds = deepRef([]);
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -170,15 +166,15 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
-    const collapseId = ref('');
-    const moreItems = ref<HTMLDivElement>();
-    const popoperOperateInstance = ref<PopoverInstance>(null);
-    const opetateRow = ref<IOpetateRow>({});
-    const popoperOperateIndex = ref(-1);
-    const hoverRowIndex = ref(999999);
-    const tableToolList = ref([]);
-    const enableCreateChatGroup = ref((window as any).enable_create_chat_group || false);
-    const alertIdsData = ref(props.alertIdsObject);
+    const collapseId = deepRef('');
+    const moreItems = deepRef<HTMLDivElement>();
+    const popoperOperateInstance = deepRef<PopoverInstance>(null);
+    const opetateRow = deepRef<IOpetateRow>({});
+    const popoperOperateIndex = deepRef(-1);
+    const hoverRowIndex = deepRef(999999);
+    const tableToolList = deepRef([]);
+    const enableCreateChatGroup = deepRef((window as any).enable_create_chat_group || false);
+    const alertIdsData = deepRef(props.alertIdsObject);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
@@ -239,6 +235,13 @@ export default defineComponent({
       chatGroupDialog.alertIds.splice(0, chatGroupDialog.alertIds.length, id);
       chatGroupShowChange(true);
       handleHideMoreOperate();
+    };
+    /**
+     * @description 表格列显示配置项变更回调
+     *
+     */
+    const handleDisplayColumnFieldsChange = (displayFields: string[]) => {
+      displayColumnFields.value = displayFields;
     };
     /**
      * @description: 一键拉群弹窗关闭/显示
@@ -308,8 +311,8 @@ export default defineComponent({
       setDialogData(v);
       handleAlarmDispatchShowChange(true);
     };
-    const handleEnter = (val: VxeTableDefines.CellMouseenterEventParams<any>) => {
-      hoverRowIndex.value = val.rowIndex;
+    const handleEnter = ({ index }) => {
+      hoverRowIndex.value = index;
     };
     /* 告警确认文案 */
     const askTipMsg = (isAak, status, ackOperator) => {
@@ -322,18 +325,14 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
+    const tableRowKeyField = shallowRef('id');
     const columns = shallowRef<TableColumn[]>([
       {
-        label: '#',
-        type: 'seq',
-        field: 'serial',
-        minWidth: 40,
-      },
-      {
-        label: t('告警ID'),
-        field: 'id',
+        title: t('告警ID'),
+        colKey: 'id',
         minWidth: 134,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           return (
             <div
               class='name-column'
@@ -355,10 +354,11 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警名称'),
-        field: 'alert_name',
+        title: t('告警名称'),
+        colKey: 'alert_name',
         minWidth: 134,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
           return (
@@ -378,30 +378,31 @@ export default defineComponent({
         },
       },
       {
-        label: t('业务名称'),
-        field: 'project',
+        title: t('业务名称'),
+        colKey: 'project',
         width: 157,
+        ellipsis: true,
         minWidth: 60,
-        showOverflow: 'tooltip',
-        render: ({ data }) => {
+        cell: (_, { row: data }) => {
           return data.bk_biz_name || '--';
         },
       },
       {
-        label: t('分类'),
-        field: 'category_display',
+        title: t('分类'),
+        colKey: 'category_display',
         width: 134,
         minWidth: 60,
-        showOverflow: 'tooltip',
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           return data.category_display;
         },
       },
       {
-        label: t('告警指标'),
-        field: 'index',
+        title: t('告警指标'),
+        colKey: 'index',
         minWidth: 134,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
           const key = random(10);
@@ -439,10 +440,11 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警状态'),
-        field: 'status',
+        title: t('告警状态'),
+        colKey: 'status',
         minWidth: 134,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           const { status } = data;
           return (
             <div class='status-column'>
@@ -452,28 +454,22 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警阶段'),
-        field: 'stage_display',
+        title: t('告警阶段'),
+        colKey: 'stage_display',
         minWidth: 80,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           return data?.stage_display ?? '--';
         },
       },
       {
-        label: t('告警开始/结束时间'),
-        field: 'time',
+        title: t('告警开始/结束时间'),
+        colKey: 'time',
         minWidth: 145,
-        render: ({ data }) => {
+        ellipsis: true,
+        cell: (_, { row: data }) => {
           return (
-            <span
-              class='time-column'
-              v-bk-tooltips={{
-                content: `${formatterTime(data.begin_time)}\n${formatterTime(data.end_time)}`,
-                delay: 200,
-                boundary: 'window',
-                extCls: 'alarm-detail-table-tooltip',
-              }}
-            >
+            <span class='time-column'>
               {formatterTime(data.begin_time)} / <br />
               {formatterTime(data.end_time)}
             </span>
@@ -481,13 +477,16 @@ export default defineComponent({
         },
       },
       {
-        label: t('持续时间'),
-        field: 'duration',
-        width: 105,
-        minWidth: 105,
+        title: t('持续时间'),
+        colKey: 'duration',
+        width: 155,
+        minWidth: 155,
+        ellipsis: (_, { row: data }) => {
+          return data.duration;
+        },
         resizable: false,
         className: 'duration-class',
-        render: ({ data, index: $index }) => {
+        cell: (_, { row: data, rowIndex: $index }) => {
           return (
             <div class='status-column'>
               <span>{data.duration}</span>
@@ -539,20 +538,12 @@ export default defineComponent({
         },
       },
     ]);
-
-    const settings = shallowReactive<ISettings>({
-      fields: columns.value.map(data => {
-        const { label, field } = data as { label: string; field: string };
-        return {
-          label,
-          title: field === 'serial' ? t('序号') : label,
-          field,
-          disabled: field === 'id',
-        };
-      }),
-      checked: columns.value.map(({ field }) => field as string),
-      disabled: ['id'],
-      size: 'small',
+    /** table 显示列配置 */
+    const displayColumnFields = deepRef<string[]>(columns.value.map(column => column.colKey));
+    const tableDisplayColumns = computed(() => {
+      return displayColumnFields.value.map(colKey => {
+        return { ...columns.value.find(column => column.colKey === colKey) };
+      });
     });
 
     const getMoreOperate = () => {
@@ -753,10 +744,6 @@ export default defineComponent({
       collapseId.value = id;
     };
 
-    const handleSettingChange = (val: ISettings) => {
-      settings.checked = val.checked;
-      settings.size = val.size;
-    };
     const handleFeedbackChange = (val: boolean) => {
       dialog.rootCauseConfirm.show = val;
     };
@@ -777,6 +764,9 @@ export default defineComponent({
     );
     return {
       t,
+      tableRowKeyField,
+      displayColumnFields,
+      tableDisplayColumns,
       alertData,
       moreItems,
       collapseId,
@@ -788,7 +778,6 @@ export default defineComponent({
       tableData,
       scrollLoading,
       chatGroupDialog,
-      settings,
       quickShieldChange,
       getMoreOperate,
       handleChangeCollapse,
@@ -796,6 +785,7 @@ export default defineComponent({
       quickShieldSucces,
       handleConfirmAfter,
       handleFeedbackChange,
+      handleDisplayColumnFieldsChange,
       handleRootCauseConfirm,
       handleAlarmDispatchShowChange,
       manualProcessShowChange,
@@ -813,7 +803,6 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
-      handleSettingChange,
     };
   },
   render() {
@@ -898,25 +887,48 @@ export default defineComponent({
                   onChangeCollapse={this.handleChangeCollapse}
                 >
                   <div class='alarm-detail-table'>
-                    <Table
+                    <PrimaryTable
                       key={item.id}
-                      autoResize={true}
-                      border='inner'
-                      columns={this.columns}
-                      darkHeader={true}
+                      // autoResize={true}
+                      // bordered={true}
+                      columns={[
+                        {
+                          title: '#',
+                          type: 'seq',
+                          colKey: 'serial-number',
+                          minWidth: 40,
+                        },
+                        ...this.tableDisplayColumns,
+                        {
+                          width: '32px',
+                          minWidth: '32px',
+                          fixed: 'right',
+                          align: 'center',
+                          resizable: false,
+                          thClassName: '__table-custom-setting-col__',
+                          colKey: '__col_setting__',
+                          title: () => {
+                            return (
+                              <ExploreFieldSetting
+                                class='table-field-setting'
+                                fieldMap={{}}
+                                fixedDisplayList={[this.tableRowKeyField]}
+                                sourceList={this.columns}
+                                targetList={this.displayColumnFields}
+                                onConfirm={this.handleDisplayColumnFieldsChange}
+                              />
+                            );
+                          },
+                          cell: () => undefined,
+                        },
+                      ]}
                       data={item.alerts}
                       max-height={616}
-                      pagination={false}
-                      // scroll-loading={this.scrollLoading}
-                      settings={this.settings}
-                      showSettings={true}
                       tooltip-config={{ showAll: false }}
-                      onCellMouseenter={this.handleEnter}
-                      onCellMouseleave={() => {
+                      onRowMouseenter={this.handleEnter}
+                      onRowMouseleave={() => {
                         this.hoverRowIndex = -1;
                       }}
-                      onSettingChange={this.handleSettingChange}
-                      // onScrollBottom={this.handleLoadData}
                     />
                   </div>
                 </Collapse>
