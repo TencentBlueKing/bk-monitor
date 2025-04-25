@@ -572,7 +572,7 @@ export default defineComponent({
             </div>
           </div>
         </div>
-        {this.showResidentSetting && (
+        {this.showResidentSetting && this.mode !== EMode.queryString && (
           <ResidentSetting
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}

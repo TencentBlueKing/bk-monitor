@@ -168,7 +168,8 @@ export default defineComponent({
       } else if (props.type === EQueryStringTokenType.value) {
         if (fieldItem?.is_option_enabled) {
           if (!loading.value) {
-            const data = await getValueData(false, !!fieldItem?.is_dimensions);
+            // const data = await getValueData(false, !!fieldItem?.is_dimensions);
+            const data = await getValueData(false);
             localOptions.value = data;
           }
         } else {
@@ -248,7 +249,7 @@ export default defineComponent({
 
       if (props.field) {
         const limit = page.value * pageSize.value;
-        const data = await getValueFn({
+        const data = await props.getValueFn({
           queryString: `${isDimensions ? 'dimensions.' : ''}${props.field} : ${props.search || '*'}`,
           fields: [props.field],
           limit: limit,
