@@ -26,6 +26,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
+from apps.utils.apigw import use_gw
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 
 
@@ -120,77 +121,79 @@ class _TransferApi(object):
     def __init__(self):
         self.create_data_id = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_data_id/",
+            url=self._build_url("app/metadata/create_data_id/", "metadata_create_data_id/"),
             module=self.MODULE,
             description=_("创建数据源"),
             before_request=add_esb_info_before_request,
         )
         self.modify_data_id = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_data_id/",
+            url=self._build_url("app/metadata/modify_data_id/", "metadata_modify_data_id/"),
             module=self.MODULE,
             description=_("修改数据源"),
             before_request=add_esb_info_before_request,
         )
         self.modify_datasource_result_table = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_datasource_result_table/",
+            url=self._build_url(
+                "app/metadata/modify_datasource_result_table/", "metadata_modify_datasource_result_table/"
+            ),
             module=self.MODULE,
             description=_("修改数据源与结果表的关系"),
             before_request=add_esb_info_before_request,
         )
         self.create_result_table = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_result_table/",
+            url=self._build_url("app/metadata/create_result_table/", "metadata_create_result_table/"),
             module=self.MODULE,
             description=_("创建结果表"),
             before_request=add_esb_info_before_request,
         )
         self.delete_cluster_info = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_delete_cluster_info/",
+            url=self._build_url("app/metadata/metadata_delete_cluster_info/", "metadata_delete_cluster_info/"),
             module=self.MODULE,
             description=_("删除存储集群"),
             before_request=add_esb_info_before_request,
         )
         self.modify_result_table = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_result_table/",
+            url=self._build_url("app/metadata/modify_result_table/", "metadata_modify_result_table/"),
             module=self.MODULE,
             description=_("修改结果表"),
             before_request=modify_result_table_before,
         )
         self.switch_result_table = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_result_table/",
+            url=self._build_url("app/metadata/modify_result_table/", "metadata_modify_result_table/"),
             module=self.MODULE,
             description=_("结果表起停"),
             before_request=add_esb_info_before_request,
         )
         self.get_label = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_label/",
+            url=self._build_url("app/metadata/list_label/", "metadata_list_label/"),
             module=self.MODULE,
             description=_("获取数据源标签"),
             before_request=add_esb_info_before_request,
         )
         self.get_data_id = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_data_id/",
+            url=self._build_url("app/metadata/get_data_id/", "metadata_get_data_id/"),
             module=self.MODULE,
             description=_("查询一个数据源的ID"),
             before_request=add_esb_info_before_request,
         )
         self.get_result_table = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_result_table/",
+            url=self._build_url("app/metadata/get_result_table/", "metadata_get_result_table/"),
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
         )
         self.get_result_table_storage = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_result_table_storage/",
+            url=self._build_url("app/metadata/get_result_table_storage/", "metadata_get_result_table_storage/"),
             module=self.MODULE,
             description=_("查询一个结果表的存储信息"),
             before_request=add_esb_info_before_request,
@@ -198,7 +201,7 @@ class _TransferApi(object):
         )
         self.get_cluster_info = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_cluster_info/",
+            url=self._build_url("app/metadata/get_cluster_info/", "metadata_get_cluster_info/"),
             module=self.MODULE,
             description=_("查询存储集群列表"),
             before_request=add_esb_info_before_request,
@@ -206,28 +209,28 @@ class _TransferApi(object):
         )
         self.create_cluster_info = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_cluster_info/",
+            url=self._build_url("app/metadata/create_cluster_info/", "metadata_create_cluster_info/"),
             module=self.MODULE,
             description=_("创建存储集群"),
             before_request=create_cluster_info_before,
         )
         self.modify_cluster_info = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_cluster_info/",
+            url=self._build_url("app/metadata/modify_cluster_info/", "metadata_modify_cluster_info/"),
             module=self.MODULE,
             description=_("修改存储集群"),
             before_request=create_cluster_info_before,
         )
         self.list_result_table = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_result_table/",
+            method="GET",
+            url=self._build_url("app/metadata/list_result_table/", "metadata_list_result_table/"),
             module=self.MODULE,
-            description=_("创建存储集群"),
+            description=_("查询监控结果表"),
             before_request=add_esb_info_before_request,
         )
         self.list_transfer_cluster = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_transfer_cluster/",
+            url=self._build_url("app/metadata/list_transfer_cluster/", "metadata_list_transfer_cluster/"),
             module=self.MODULE,
             description=_("获取所有transfer集群信息"),
             before_request=add_esb_info_before_request,
@@ -235,119 +238,142 @@ class _TransferApi(object):
 
         self.create_es_snapshot_repository = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_es_snapshot_repository/",
+            url=self._build_url(
+                "app/metadata/create_es_snapshot_repository/", "metadata_create_es_snapshot_repository/"
+            ),
             module=self.MODULE,
             description=_("创建ES快照仓库"),
             before_request=add_esb_info_before_request,
         )
         self.modify_es_snapshot_repository = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_es_snapshot_repository/",
+            url=self._build_url(
+                "app/metadata/modify_es_snapshot_repository/", "metadata_modify_es_snapshot_repository/"
+            ),
             module=self.MODULE,
             description=_("修改ES快照仓库"),
             before_request=add_esb_info_before_request,
         )
         self.delete_es_snapshot_repository = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_delete_es_snapshot_repository/",
+            url=self._build_url(
+                "app/metadata/delete_es_snapshot_repository/", "metadata_delete_es_snapshot_repository/"
+            ),
             module=self.MODULE,
             description=_("删除ES快照仓库"),
             before_request=add_esb_info_before_request,
         )
         self.verify_es_snapshot_repository = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_verify_es_snapshot_repository/",
+            url=self._build_url(
+                "app/metadata/verify_es_snapshot_repository/", "metadata_verify_es_snapshot_repository/"
+            ),
             module=self.MODULE,
             description=_("验证ES快照仓库"),
             before_request=add_esb_info_before_request,
         )
         self.es_snapshot_repository = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_es_snapshot_repository/",
+            url=self._build_url("app/metadata/es_snapshot_repository/", "metadata_es_snapshot_repository/"),
             module=self.MODULE,
             description=_("查看指定ES快照仓库"),
             before_request=add_esb_info_before_request,
         )
         self.list_es_snapshot_repository = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_es_snapshot_repository/",
+            url=self._build_url("app/metadata/list_es_snapshot_repository/", "metadata_list_es_snapshot_repository/"),
             module=self.MODULE,
             description=_("所有快照仓库列表"),
             before_request=add_esb_info_before_request,
         )
         self.create_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_result_table_snapshot/",
+            url=self._build_url("app/metadata/create_result_table_snapshot/", "metadata_create_result_table_snapshot/"),
             module=self.MODULE,
             description=_("创建结果表快照配置"),
             before_request=add_esb_info_before_request,
         )
         self.modify_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_result_table_snapshot/",
+            url=self._build_url("app/metadata/modify_result_table_snapshot/", "metadata_modify_result_table_snapshot/"),
             module=self.MODULE,
             description=_("修改结果表快照配置"),
             before_request=add_esb_info_before_request,
         )
         self.delete_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_delete_result_table_snapshot/",
+            url=self._build_url("app/metadata/delete_result_table_snapshot/", "metadata_delete_result_table_snapshot/"),
             module=self.MODULE,
             description=_("删除结果表快照配置"),
             before_request=add_esb_info_before_request,
         )
         self.list_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_result_table_snapshot/",
+            url=self._build_url("app/metadata/list_result_table_snapshot/", "metadata_list_result_table_snapshot/"),
             module=self.MODULE,
             description=_("结果表快照配置列表"),
             before_request=add_esb_info_before_request,
         )
         self.list_result_table_snapshot_indices = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_result_table_snapshot_indices/",
+            url=self._build_url(
+                "app/metadata/list_result_table_snapshot_indices/", "metadata_list_result_table_snapshot_indices/"
+            ),
             module=self.MODULE,
             description=_("结果表快照配置列表含物理索引"),
             before_request=add_esb_info_before_request,
         )
         self.get_result_table_snapshot_state = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_result_table_snapshot_state/",
+            url=self._build_url(
+                "app/metadata/get_result_table_snapshot_state/", "metadata_get_result_table_snapshot_state/"
+            ),
             module=self.MODULE,
             description=_("获取结果表快照状态"),
             before_request=add_esb_info_before_request,
         )
         self.restore_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_restore_result_table_snapshot/",
+            url=self._build_url(
+                "app/metadata/restore_result_table_snapshot/", "metadata_restore_result_table_snapshot/"
+            ),
             module=self.MODULE,
             description=_("快照回溯"),
             before_request=add_esb_info_before_request,
         )
         self.modify_restore_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_restore_result_table_snapshot/",
+            url=self._build_url(
+                "app/metadata/modify_restore_result_table_snapshot/", "metadata_modify_restore_result_table_snapshot/"
+            ),
             module=self.MODULE,
             description=_("修改快照回溯"),
             before_request=add_esb_info_before_request,
         )
         self.delete_restore_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_delete_restore_result_table_snapshot/",
+            url=self._build_url(
+                "app/metadata/delete_restore_result_table_snapshot/", "metadata_delete_restore_result_table_snapshot/"
+            ),
             module=self.MODULE,
             description=_("删除快照回溯"),
             before_request=add_esb_info_before_request,
         )
         self.list_restore_result_table_snapshot = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_restore_result_table_snapshot/",
+            url=self._build_url(
+                "app/metadata/list_restore_result_table_snapshot/", "metadata_list_restore_result_table_snapshot/"
+            ),
             module=self.MODULE,
             description=_("快照回溯列表"),
             before_request=add_esb_info_before_request,
         )
         self.get_restore_result_table_snapshot_state = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_restore_result_table_snapshot_state/",
+            url=self._build_url(
+                "app/metadata/get_restore_result_table_snapshot_state/",
+                "metadata_get_restore_result_table_snapshot_state/",
+            ),
             module=self.MODULE,
             description=_("快照回溯状态"),
             before_request=add_esb_info_before_request,
@@ -356,21 +382,21 @@ class _TransferApi(object):
         # bcs operate
         self.register_bcs_cluster = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "register_bcs_cluster/",
+            url=self._build_url("app/metadata/register_bcs_cluster/", "register_bcs_cluster/"),
             module=self.MODULE,
             description=_("注册bcs集群"),
             before_request=register_bcs_cluster_info_before_request,
         )
         self.list_bcs_cluster_info = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "list_bcs_cluster_info/",
+            url=self._build_url("app/metadata/list_bcs_cluster_info/", "list_bcs_cluster_info/"),
             module=self.MODULE,
             description=_("list bcs集群"),
             before_request=add_esb_info_before_request,
         )
         self.apply_yaml_to_bcs_cluster = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "apply_yaml_to_bcs_cluster/",
+            url=self._build_url("app/metadata/apply_yaml_to_bcs_cluster/", "apply_yaml_to_bcs_cluster/"),
             module=self.MODULE,
             description=_("apply yaml to bcs"),
             before_request=add_esb_info_before_request,
@@ -379,28 +405,28 @@ class _TransferApi(object):
         # space
         self.list_space_types = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_space_types/",
+            url=self._build_url("app/metadata/list_space_types/", "metadata_list_space_types/"),
             module=self.MODULE,
             description=_("查询空间类型列表"),
             before_request=add_esb_info_before_request,
         )
         self.list_spaces = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_spaces/",
+            url=self._build_url("app/metadata/list_spaces/", "metadata_list_spaces/"),
             module=self.MODULE,
             description=_("查询空间实例列表"),
             before_request=add_esb_info_before_request,
         )
         self.get_space_detail = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_space_detail/",
+            url=self._build_url("app/metadata/get_space_detail/", "metadata_get_space_detail/"),
             module=self.MODULE,
             description=_("查看具体空间实例详情"),
             before_request=add_esb_info_before_request,
         )
         self.list_sticky_spaces = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_list_sticky_spaces/",
+            url=self._build_url("app/metadata/list_sticky_spaces/", "metadata_list_sticky_spaces/"),
             module=self.MODULE,
             description=_("查询置顶空间实例列表"),
             before_request=add_esb_info_before_request,
@@ -408,39 +434,42 @@ class _TransferApi(object):
         )
         self.create_log_group = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_create_log_group/",
+            url=self._build_url("app/metadata/create_log_group/", "metadata_create_log_group/"),
             module=self.MODULE,
             description=_("创建自定义日志组"),
             before_request=add_esb_info_before_request,
         )
         self.modify_log_group = DataAPI(
             method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_modify_log_group/",
+            url=self._build_url("app/metadata/modify_log_group/", "metadata_modify_log_group/"),
             module=self.MODULE,
             description=_("修改自定义日志组"),
             before_request=add_esb_info_before_request,
         )
         self.get_log_group = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT + "metadata_get_log_group/",
+            url=self._build_url("app/metadata/get_log_group/", "metadata_get_log_group/"),
             module=self.MODULE,
             description=_("获取自定义日志组"),
             before_request=add_esb_info_before_request,
         )
         self.create_or_update_es_router = DataAPI(
             method="POST",
-            url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "metadata_create_or_update_es_router/",
+            url=self._build_url("app/metadata/create_or_update_es_router/", "metadata_create_or_update_es_router/"),
             module=self.MODULE,
             description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
         )
         self.list_kafka_tail = DataAPI(
             method="GET",
-            url=MONITOR_APIGATEWAY_ROOT_NEW + "metadata_kafka_tail/",
+            url=self._build_url("app/metadata/kafka_tail/", "metadata_kafka_tail/"),
             module=self.MODULE,
             description=_("查询结果表MQ的最新数据"),
             before_request=add_esb_info_before_request,
         )
+
+    def _build_url(self, new_path, old_path):
+        return f"{MONITOR_APIGATEWAY_ROOT_NEW}{new_path}" if use_gw() else f"{MONITOR_APIGATEWAY_ROOT}{old_path}"
 
 
 Transfer = _TransferApi()

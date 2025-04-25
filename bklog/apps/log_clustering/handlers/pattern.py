@@ -31,6 +31,8 @@ from django.utils.functional import cached_property
 from apps.api import MonitorApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
+    DEFAULT_ACTION_NOTICE,
+    DEFAULT_ALERT_NOTICE,
     DEFAULT_LABEL,
     DOUBLE_PERCENTAGE,
     HOUR_MINUTES,
@@ -52,6 +54,7 @@ from apps.log_clustering.models import (
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
+from apps.utils.apigw import use_gw
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
@@ -439,12 +442,27 @@ class PatternHandler:
         if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
             return model_to_dict(remark_obj)
         # 更新告警组
-        MonitorApi.save_notice_group(
-            params={
-                "id": remark_obj.notice_group_id,
-                "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
-            }
-        )
+        if use_gw():
+            user_group = MonitorApi.search_user_groups(
+                {"bk_biz_ids": [self._clustering_config.bk_biz_id], "ids": [remark_obj.notice_group_id]}
+            )[0]
+            MonitorApi.save_notice_group(
+                params={
+                    "id": remark_obj.notice_group_id,
+                    "name": user_group["name"],
+                    "bk_biz_id": user_group["bk_biz_id"],
+                    "duty_arranges": [{"users": [{"type": "user", "id": name} for name in remark_obj.owners]}],
+                    "alert_notice": DEFAULT_ALERT_NOTICE,
+                    "action_notice": DEFAULT_ACTION_NOTICE,
+                }
+            )
+        else:
+            MonitorApi.save_notice_group(
+                params={
+                    "id": remark_obj.notice_group_id,
+                    "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
+                }
+            )
 
         return model_to_dict(remark_obj)
 

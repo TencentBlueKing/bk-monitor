@@ -23,26 +23,39 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api import MonitorApi
 from apps.log_clustering.constants import (
+    DEFAULT_ACTION_NOTICE,
+    DEFAULT_ALERT_NOTICE,
+    DEFAULT_MENTION_LIST,
     DEFAULT_NOTICE_WAY,
     DEFAULT_NOTIFY_RECEIVER_TYPE,
 )
 from apps.log_clustering.models import ClusteringConfig, NoticeGroup
 from apps.log_databus.constants import EMPTY_REQUEST_USER
 from apps.log_search.models import LogIndexSet
+from apps.utils.apigw import use_gw
 
 
 class MonitorUtils(object):
     @classmethod
     def save_notice_group(cls, bk_biz_id: int, name: str, notice_way: dict, notice_receiver: list, message: str = ""):
-        return MonitorApi.save_notice_group(
-            params={
+        if use_gw():
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "name": name,
+                "duty_arranges": [{"users": notice_receiver}],
+                "mention_list": DEFAULT_MENTION_LIST,
+                "alert_notice": DEFAULT_ALERT_NOTICE,
+                "action_notice": DEFAULT_ACTION_NOTICE,
+            }
+        else:
+            params = {
                 "bk_biz_id": bk_biz_id,
                 "name": name,
                 "message": message,
                 "notice_way": notice_way,
                 "notice_receiver": notice_receiver,
             }
-        )
+        return MonitorApi.save_notice_group(params=params)
 
     @classmethod
     def generate_notice_receiver(cls, receivers, notice_tye: str):
