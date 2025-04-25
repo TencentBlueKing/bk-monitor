@@ -111,7 +111,7 @@ def _wrap_perform_request(tracer, span_name_prefix, request_hook=None, response_
                         params = json.dumps(params)
                     except Exception:  # pylint: disable=broad-except
                         params = str(params)
-                    attributes["elasticsearch.params"] = json.dumps(params)
+                    attributes["elasticsearch.params"] = params
                 if doc_id:
                     attributes["elasticsearch.id"] = doc_id
                 if search_target:
