@@ -24,7 +24,6 @@ import re
 from typing import List
 
 import arrow
-from django.conf import settings
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -55,6 +54,7 @@ from apps.log_clustering.models import (
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
+from apps.utils.apigw import use_gw
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
@@ -442,7 +442,7 @@ class PatternHandler:
         if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
             return model_to_dict(remark_obj)
         # 更新告警组
-        if settings.USE_NEW_MONITOR_APIGATEWAY:
+        if use_gw():
             user_group = MonitorApi.search_user_groups(
                 {"bk_biz_ids": [self._clustering_config.bk_biz_id], "ids": [remark_obj.notice_group_id]}
             )[0]

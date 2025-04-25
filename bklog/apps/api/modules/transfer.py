@@ -22,11 +22,11 @@ the project delivered to anyone in the future.
 import base64
 import json
 
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
+from apps.utils.apigw import use_gw
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 
 
@@ -468,11 +468,8 @@ class _TransferApi(object):
             before_request=add_esb_info_before_request,
         )
 
-    def use_gw(self):
-        return settings.USE_NEW_MONITOR_APIGATEWAY
-
     def _build_url(self, new_path, old_path):
-        return f"{MONITOR_APIGATEWAY_ROOT_NEW}{new_path}" if self.use_gw() else f"{MONITOR_APIGATEWAY_ROOT}{old_path}"
+        return f"{MONITOR_APIGATEWAY_ROOT_NEW}{new_path}" if use_gw() else f"{MONITOR_APIGATEWAY_ROOT}{old_path}"
 
 
 Transfer = _TransferApi()
