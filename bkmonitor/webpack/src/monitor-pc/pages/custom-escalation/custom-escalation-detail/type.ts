@@ -44,6 +44,14 @@ export const ALL_LABEL = '__all_label__';
 /** 未分组 */
 export const NULL_LABEL = '__null_label__';
 
+/** 状态 */
+export const statusMap = new Map([
+  [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
+  [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
+]);
+/** 默认高度偏移量 */
+export const DEFAULT_HEIGHT_OFFSET = 8;
+
 /** 分组列表 */
 export interface IGroupListItem {
   name: string; // 分组名称

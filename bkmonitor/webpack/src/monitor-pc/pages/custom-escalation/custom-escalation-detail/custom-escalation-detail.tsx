@@ -466,6 +466,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       this.dimensions = metricData?.dimensions || [];
 
       await this.getGroupList();
+      await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       this.handleDetailData(this.detailData);
     } catch (error) {
       console.error('获取详情数据失败:', error);
@@ -579,6 +580,16 @@ g.set_to_current_time()
 push_to_gateway('\${PROXY_IP}:4318', job='batchA',
 registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
+  }
+
+  /* 获取所有数据预览数据 */
+  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
+    const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
+    const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
+      result_table_id: tableId,
+      fields_list: fieldList,
+    });
+    this.allDataPreview = data?.fields_value || {};
   }
 
   /**
