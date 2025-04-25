@@ -170,7 +170,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   /** 检索 */
-  @Emit('filterByChange')
   handleGroupSearch({ id, isSelect }, dimension: EDimensionKey) {
     this.$emit('filterByChange', id, dimension, isSelect);
   }

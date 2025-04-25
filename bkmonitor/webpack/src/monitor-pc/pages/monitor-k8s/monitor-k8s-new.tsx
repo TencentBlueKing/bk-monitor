@@ -438,7 +438,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项 */
+    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项一致直接初始化 */
     if (
       this.scene === SceneEnum.Network &&
       this.hideMetrics.length === networkDefaultHideMetrics.length &&
