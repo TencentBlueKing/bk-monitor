@@ -500,6 +500,8 @@ class PrecalculateStorage:
                 "table_name_zh": f"APM预计算结果表: {table_name}",
                 "is_custom_table": True,
                 "schema_type": "free",
+                # 默认情况下，预计算表需要按业务 ID 进行隔离查询。
+                "bk_biz_id_alias": PreCalculateSpecificField.BIZ_ID.value,
                 "default_storage": "elasticsearch",
                 "default_storage_config": {
                     "cluster_id": storage_id,
