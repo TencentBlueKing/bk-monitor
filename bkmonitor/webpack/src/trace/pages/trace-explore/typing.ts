@@ -97,6 +97,14 @@ export interface IStatisticsInfo {
   };
 }
 
+export interface IStatisticsGraph {
+  name: string;
+  color: string;
+  datapoints: number[];
+  type: 'bar' | 'line';
+  [key: string]: any;
+}
+
 /**
  * @description 事件检索 table表格列类型 枚举
  */

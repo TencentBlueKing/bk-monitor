@@ -36,6 +36,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import BaseEchart from '../../../plugins/base-echart';
 import { useChartResize } from '../../../plugins/hooks';
 
+import type { IStatisticsGraph } from '../typing';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './dimension-echarts.scss';
@@ -48,7 +49,7 @@ export default defineComponent({
       default: 'line',
     },
     data: {
-      type: Array as PropType<any[]>,
+      type: Array as PropType<IStatisticsGraph[]>,
       default: () => [],
     },
   },
