@@ -25,7 +25,6 @@
  */
 
 import type { IWhereItem } from '../../components/retrieval-filter/typing';
-import type { TranslateResult } from 'vue-i18n';
 
 export interface IApplicationItem {
   app_alias: string;
@@ -105,113 +104,17 @@ export interface IStatisticsGraph {
   [key: string]: any;
 }
 
+type FieldMap = Record<string, Partial<IDimensionField>>;
 /**
- * @description 事件检索 table表格列类型 枚举
- */
-export enum ExploreTableColumnTypeEnum {
-  /** 事件 -- 内容列 */
-  CONTENT = 'content',
-  /** 事件 -- 目标列 */
-  LINK = 'link',
-  /** 事件 -- 来源列 */
-  PREFIX_ICON = 'prefix-icon',
-  /** 事件 -- 名称列  */
-  TEXT = 'text',
-  /** 事件 -- 发生时间列 */
-  TIME = 'time',
-}
-
-/**
- * @description 事件检索 事件来源 枚举
- */
-export enum ExploreSourceTypeEnum {
-  ALL = 'ALL',
-  /** Kubernetes/BCS */
-  BCS = 'BCS',
-  /** BKCI/蓝盾 */
-  BKCI = 'BKCI',
-  /** 其他类型事件来源 */
-  DEFAULT = 'DEFAULT',
-  /** 系统/主机 */
-  HOST = 'HOST',
-}
-
-/**
- * @description 事件type类型枚举
- */
-export enum DimensionsTypeEnum {
-  DEFAULT = 'Default',
-  NORMAL = 'Normal',
-  WARNING = 'Warning',
-}
-
-/** 检索表格列配置类型 */
-export interface EventExploreTableColumn {
-  /** 字段类型 */
-  type?: ExploreTableColumnTypeEnum;
-  /** 字段id */
-  id: string;
-  /** 字段名称（渲染指标列时为指标名称） */
-  name: TranslateResult;
-  /** 列宽 */
-  width?: number;
-  /** 最小列宽 */
-  min_width?: number;
-  /** 是否固定列 */
-  fixed?: 'left' | 'right' | boolean;
-  /** 自定义列表头类型 */
-  customHeaderCls?: string;
-  /** 自定义列表头内容 */
-  renderHeader?: (column: EventExploreTableColumn) => any;
-}
-
-/** 事件检索 kv 面板跳转其他页面 类型枚举 */
-export enum ExploreEntitiesTypeEnum {
-  /** 主机 */
-  HOST = 'ip',
-  /** 容器 */
-  K8S = 'k8s',
-}
-
-export type ExploreFieldMap = Record<string, Partial<IDimensionField> & { finalName?: string }>;
-// /**
-//  * @description 用于在表格 kv面板 中获取字段的类型s
-//  * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
-//  **/
-// export interface ExploreFieldMap {
-//   source: ExploreFieldTransform;
-//   target: ExploreFieldTransform;
-// }
-
-export interface ExploreEntitiesItem {
-  alias: string;
-  dependent_fields?: string[];
-  fields: string[];
-  type: ExploreEntitiesTypeEnum;
-}
-
-/**
- * @description 用于判断在表格 kv面板 中字段是否为提供跳转功能
- * @description 将接口中的 entities 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
+ * @description 用于在表格 列配置setting 中获取字段的类型
+ * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
  **/
-export type ExploreEntitiesMap = Record<string, ExploreEntitiesItem>;
+export type ExploreFieldMap = {
+  trace: FieldMap;
+  span: FieldMap;
+};
 
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
-
-/**
- * @description 分词枚举
- */
-export enum KVSplitEnum {
-  /** 分词符号 */
-  SEGMENTS = 'segments',
-  /** 单词 */
-  WORD = 'word',
-}
-
-export interface KVSplitItem {
-  value: string;
-  type: KVSplitEnum;
-}
 
 export const EventExploreFeatures = [
   /** 收藏 */

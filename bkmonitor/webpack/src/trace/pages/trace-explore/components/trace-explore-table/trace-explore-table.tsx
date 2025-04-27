@@ -45,7 +45,7 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
-import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
+import ExploreFieldSetting, { type FieldSettingItem } from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
 import ExploreTableEmpty from './explore-table-empty';
@@ -63,7 +63,7 @@ import {
   TABLE_DEFAULT_CONFIG,
 } from './utils';
 
-import type { ICommonParams } from '../../typing';
+import type { ExploreFieldMap, ICommonParams } from '../../typing';
 
 import './trace-explore-table.scss';
 
@@ -73,9 +73,8 @@ export default defineComponent({
   name: 'TraceExploreTable',
   props: {
     /** 当前视角是否为 Span 视角 */
-    isSpanVisual: {
-      type: Boolean,
-      default: false,
+    mode: {
+      type: String as PropType<'span' | 'trace'>,
     },
     /** 当前选中的应用 Name */
     appName: {
@@ -89,6 +88,13 @@ export default defineComponent({
     commonParams: {
       type: Object as PropType<ICommonParams>,
       default: () => ({}),
+    },
+    fieldMap: {
+      type: Object as PropType<ExploreFieldMap>,
+      default: () => ({
+        trace: {},
+        span: {},
+      }),
     },
   },
   setup(props) {
@@ -105,8 +111,6 @@ export default defineComponent({
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
 
-    /** table 数据总条数 */
-    const tableTotal = shallowRef(0);
     /** table 显示列配置 */
     const displayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
@@ -115,6 +119,8 @@ export default defineComponent({
     const activeSliderId = shallowRef('');
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = shallowRef('trace_id');
+    /** 判断当前数据是否需要触底加载更多 */
+    const tableHasScrollLoading = shallowRef(false);
     /** table loading 配置 */
     const tableLoading = reactive({
       /** table 骨架屏 loading */
@@ -148,24 +154,38 @@ export default defineComponent({
       'status.code': [],
     });
 
+    /** 当前视角是否为 Span 视角 */
+    const isSpanVisual = computed(() => props.mode === 'span');
     /** table 列配置本地缓存时的 key */
     const displayColumnFieldsCacheKey = computed(() =>
-      props.isSpanVisual ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
+      isSpanVisual.value ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
     );
     /** table 数据（所有请求返回的数据） */
     const tableData = computed(() => store.tableList);
     /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
     const tableViewData = computed(() => (store?.filterTableList?.length ? store.filterTableList : store.tableList));
-    /** 判断当前数据是否需要触底加载更多 */
-    const tableHasScrollLoading = computed(() => tableData.value?.length < tableTotal.value);
     /** table 所有列配置(字段设置使用) */
-    const tableColumns = computed(() => {
-      const columnMap = getTableColumnMapByVisualMode();
-      return Object.values(columnMap);
+    const tableColumns = computed<{
+      columnsMap: Record<string, ExploreTableColumn>;
+      fieldsList: FieldSettingItem[];
+    }>(() => {
+      const columnsMap = getTableColumnMapByVisualMode();
+      const fieldsList = Object.values(columnsMap).map(column => {
+        const colKey = column.colKey;
+        const visualMode = props.mode;
+        const fieldType = props.fieldMap?.[visualMode]?.[colKey]?.type;
+        const colTitle = props.fieldMap?.[visualMode]?.[colKey]?.alias;
+        column.title = colTitle ? colTitle : column.title;
+        return { ...column, fieldType };
+      });
+      return {
+        columnsMap,
+        fieldsList,
+      };
     });
     /** table 显示列配置 */
     const tableDisplayColumns = computed<ExploreTableColumn[]>(() => {
-      const columnMap = getTableColumnMapByVisualMode();
+      const columnMap = tableColumns.value.columnsMap;
       return displayColumnFields.value.map(colKey => columnMap[colKey]).filter(Boolean);
     });
 
@@ -211,7 +231,7 @@ export default defineComponent({
     });
 
     watch(
-      () => props.isSpanVisual,
+      () => isSpanVisual.value,
       v => {
         tableLoading[ExploreTableLoadingEnum.REFRESH] = true;
         store.updateTableList([]);
@@ -288,7 +308,7 @@ export default defineComponent({
      *
      */
     function getTableColumnMapByVisualMode(): Record<string, ExploreTableColumn> {
-      if (props.isSpanVisual) {
+      if (isSpanVisual.value) {
         return {
           span_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -604,7 +624,7 @@ export default defineComponent({
      *
      */
     function getDisplayColumnFields() {
-      const defaultColumnsConfig = props.isSpanVisual ? spanConfig : traceConfig;
+      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
       const cacheColumns = JSON.parse(localStorage.getItem(displayColumnFieldsCacheKey.value)) as string[];
       // 需要展示的字段列名数组
       displayColumnFields.value = cacheColumns?.length
@@ -649,7 +669,7 @@ export default defineComponent({
         offset: tableData.value?.length || 0,
       };
       abortController = new AbortController();
-      const res = await getTableList(requestParam, props.isSpanVisual, {
+      const res = await getTableList(requestParam, isSpanVisual.value, {
         signal: abortController.signal,
       });
       if (res?.isAborted) {
@@ -657,8 +677,8 @@ export default defineComponent({
       }
       tableLoading[loadingType] = false;
 
-      tableTotal.value = res.total;
       updateTableDataFn(res.data);
+      tableHasScrollLoading.value = res.data?.length === limit;
     }
 
     /**
@@ -679,7 +699,7 @@ export default defineComponent({
         app_name: appName,
         start_time: start_time,
         end_time: end_time,
-        mode: props.isSpanVisual ? 'span' : 'trace',
+        mode: props.mode,
       };
       filterAbortController = new AbortController();
       listOptionValues(params, {
@@ -1102,9 +1122,8 @@ export default defineComponent({
                 return (
                   <ExploreFieldSetting
                     class='table-field-setting'
-                    fieldMap={{}}
                     fixedDisplayList={[this.tableRowKeyField]}
-                    sourceList={this.tableColumns}
+                    sourceList={this.tableColumns.fieldsList}
                     targetList={this.displayColumnFields}
                     onConfirm={this.handleDisplayColumnFieldsChange}
                   />
