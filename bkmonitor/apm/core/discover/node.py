@@ -253,7 +253,7 @@ class NodeDiscover(DiscoverBase):
         for span in origin_data:
             topo_key = None
 
-            # 先进行  类型的规则发现
+            # 先进行 category 类型的规则发现
             # 类型为: category | 作用: 推断出 span 的服务、组件、自定义服务
             match_rule = self.get_match_rule(span, category_rules[0], category_rules[1])
             if match_rule:
