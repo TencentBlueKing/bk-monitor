@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,19 +9,20 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional
 
 from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
+from gunicorn_config import logger
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.service.space_redis import (
     push_and_publish_es_aliases,
-    push_and_publish_es_space_router,
+    push_and_publish_log_space_router,
     push_and_publish_es_table_id,
+    push_and_publish_doris_table_id_detail,
 )
 
 
@@ -38,8 +38,8 @@ class ParamsSerializer(serializers.Serializer):
     options = serializers.ListField(required=False, child=RtOption(), default=list)
 
 
-class BaseEsRouter(Resource):
-    def create_or_update_options(self, table_id: str, options: List[Dict]):
+class BaseLogRouter(Resource):
+    def create_or_update_options(self, table_id: str, options: list[dict]):
         """创建或者更新结果表 option"""
         # 查询结果表下的option
         exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
@@ -75,15 +75,15 @@ class BaseEsRouter(Resource):
             )
 
 
-class CreateEsRouter(BaseEsRouter):
+class CreateEsRouter(BaseLogRouter):
     """同步es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
-        table_id = serializers.CharField(required=True, label="ES 结果表 ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=True, label="ES 集群 ID")
+        cluster_id = serializers.IntegerField(required=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
@@ -117,7 +117,7 @@ class CreateEsRouter(BaseEsRouter):
                 need_create_index=need_create_index,
             )
         # 推送空间数据
-        push_and_publish_es_space_router(space_type=data["space_type"], space_id=data["space_id"])
+        push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
         # 推送别名到结果表数据
         push_and_publish_es_aliases(data_label=data["data_label"])
         # 推送结果表ID详情数据
@@ -130,13 +130,70 @@ class CreateEsRouter(BaseEsRouter):
         )
 
 
-class UpdateEsRouter(BaseEsRouter):
+class CreateDorisRouter(BaseLogRouter):
+    """同步doris路由信息"""
+
+    class RequestSerializer(ParamsSerializer):
+        space_type = serializers.CharField(required=True, label="空间类型")
+        space_id = serializers.CharField(required=True, label="空间ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
+        data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
+        cluster_id = serializers.IntegerField(required=True, label="集群ID")
+        index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
+        source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+
+    def perform_request(self, data: OrderedDict):
+        # 创建结果表和ES存储记录
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
+        logger.info(
+            "CreateDorisRouter: try to create doris router,table_id->[%s],bkbase_table_id->[%s],bk_biz_id->[%s]",
+            data["table_id"],
+            data.get("bkbase_table_id"),
+            biz_id,
+        )
+
+        # 创建结果表
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            models.ResultTable.objects.create(
+                table_id=data["table_id"],
+                table_name_zh=data["table_id"],
+                is_custom_table=True,
+                default_storage=models.ClusterInfo.TYPE_DORIS,
+                creator="system",
+                bk_biz_id=biz_id,
+                data_label=data.get("data_label", ""),
+            )
+            # 创建结果表 option
+            if data["options"]:
+                self.create_or_update_options(data["table_id"], data["options"])
+
+            # 创建doris存储记录
+            models.DorisStorage.create_table(
+                table_id=data["table_id"],
+                is_sync_db=False,
+                source_type=data.get("source_type"),
+                bkbase_table_id=data.get("bkbase_table_id"),
+                index_set=data.get("index_set"),
+                storage_cluster_id=data["cluster_id"],
+            )
+
+        logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
+
+        # 推送路由 空间路由+结果表详情路由
+        push_and_publish_doris_table_id_detail(table_id=data["table_id"])
+        push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
+
+        logger.info("CreateDorisRouter: push doris datalink router success")
+
+
+class UpdateEsRouter(BaseLogRouter):
     """更新es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
-        table_id = serializers.CharField(required=True, label="ES 结果表 ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, label="ES 集群 ID")
+        cluster_id = serializers.IntegerField(required=False, label="集群ID")
         index_set = serializers.CharField(required=False, label="索引集规则")
         source_type = serializers.CharField(required=False, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
@@ -193,29 +250,120 @@ class UpdateEsRouter(BaseEsRouter):
             )
 
 
-class CreateOrUpdateEsRouter(Resource):
+class UpdateDorisRouter(BaseLogRouter):
+    class RequestSerializer(ParamsSerializer):
+        space_type = serializers.CharField(required=True, label="空间类型")
+        space_id = serializers.CharField(required=True, label="空间ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
+        data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
+        cluster_id = serializers.IntegerField(required=True, label="集群ID")
+        index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
+        source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+
+    def perform_request(self, data: OrderedDict):
+        table_id = data["table_id"]
+        doris_storage = models.DorisStorage.objects.get(table_id=table_id)
+        result_table = models.ResultTable.objects.get(table_id=table_id)
+        logger.info("UpdateDorisRouter: try to update doris router for table_id->[%s]", table_id)
+
+        update_doris_fields = []
+        need_refresh_table_id_detail = False
+
+        try:
+            # data_label
+            if data.get("data_label") and data["data_label"] != result_table.data_label:
+                result_table.data_label = data["data_label"]
+                result_table.save(update_fields=["data_label"])
+            # index_set
+            if data.get("index_set") and data["index_set"] != doris_storage.index_set:
+                doris_storage.index_set = data["index_set"]
+                update_doris_fields.append("index_set")
+            # bkbase_table_id
+            if data.get("bkbase_table_id") and data["bkbase_table_id"] != doris_storage.bkbase_table_id:
+                doris_storage.bkbase_table_id = data["bkbase_table_id"]
+                update_doris_fields.append("bkbase_table_id")
+            # storage_cluster_id
+            if data.get("cluster_id") and data["cluster_id"] != doris_storage.storage_cluster_id:
+                doris_storage.storage_cluster_id = data["cluster_id"]
+                update_doris_fields.append("storage_cluster_id")
+            if update_doris_fields:
+                need_refresh_table_id_detail = True
+                doris_storage.save(update_fields=update_doris_fields)
+        except Exception as e:  # pylint:disable=broad-except
+            logger.error("UpdateDorisRouter: failed to update doris router for table_id->[%s],error->[%s]", table_id, e)
+            raise e
+
+        # 更新options
+        if data.get("options"):
+            self.create_or_update_options(table_id, data["options"])
+            need_refresh_table_id_detail = True
+
+        logger.info(
+            "UpdateDorisRouter:update doris router for table_id->[%s] successfully,now try to push router", table_id
+        )
+
+        if need_refresh_table_id_detail:
+            # 推送结果表详情路由
+            push_and_publish_doris_table_id_detail(table_id=table_id)
+
+        logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
+
+
+class CreateOrUpdateLogRouter(Resource):
     """更新或者创建es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
         space_type = serializers.CharField(required=False, label="空间类型")
         space_id = serializers.CharField(required=False, label="空间ID")
-        table_id = serializers.CharField(required=True, label="ES 结果表 ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="ES 集群 ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+        bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         need_create_index = serializers.BooleanField(required=False, label="是否需要创建索引")
+        storage_type = serializers.ChoiceField(
+            required=False,
+            choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+            label="存储类型",
+            default=models.ClusterInfo.TYPE_ES,
+        )
 
     def perform_request(self, validated_request_data):
         # 根据结果表判断是创建或更新
-        tableObj = self.get_table_id(validated_request_data["table_id"])
-        # 如果结果表不存在，则进行创建，如果存在，则进行更新
-        if not tableObj:
-            CreateEsRouter().request(validated_request_data)
-        else:
-            UpdateEsRouter().request(validated_request_data)
+        table_id = validated_request_data["table_id"]
+        tableObj = self.get_table_id(table_id)
+        logger.info(
+            "CreateOrUpdateLogRouter: try to create or update log router for table id->[%s],with storage_type->[%s]",
+            table_id,
+            validated_request_data["storage_type"],
+        )
 
-    def get_table_id(self, table_id: str) -> Optional[models.ResultTable]:
+        # 定义创建器和更新器的映射
+        create_router_map = {
+            models.ClusterInfo.TYPE_DORIS: CreateDorisRouter,
+            models.ClusterInfo.TYPE_ES: CreateEsRouter,
+        }
+
+        update_router_map = {
+            models.ClusterInfo.TYPE_DORIS: UpdateDorisRouter,
+            models.ClusterInfo.TYPE_ES: UpdateEsRouter,
+        }
+
+        # 根据是否存在tableObj决定是创建还是更新
+        if not tableObj:
+            router_class = create_router_map.get(validated_request_data["storage_type"])
+        else:
+            router_class = update_router_map.get(validated_request_data["storage_type"])
+
+        # 调用对应的router
+        if router_class:
+            router_class().request(validated_request_data)
+        else:
+            raise ValueError(f"Unsupported storage type: {validated_request_data['storage_type']}")
+
+    def get_table_id(self, table_id: str) -> models.ResultTable | None:
         """检测结果表是否存在"""
         try:
             return models.ResultTable.objects.get(table_id=table_id)
