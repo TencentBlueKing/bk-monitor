@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -16,7 +15,7 @@ import logging
 import traceback
 from abc import ABC
 from collections import defaultdict
-from typing import List, NamedTuple, Tuple, Union
+from typing import NamedTuple
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -35,7 +34,7 @@ logger = logging.getLogger("apm")
 
 
 def get_topo_instance_key(
-    keys: List[Tuple[str, str]],
+    keys: list[tuple[str, str]],
     kind: str,
     category: str,
     item,
@@ -67,7 +66,7 @@ def get_topo_instance_key(
     return ":".join(instance_keys)
 
 
-def exists_field(predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]], item) -> bool:
+def exists_field(predicate_key: tuple[str, str] | list[tuple[str, str]], item) -> bool:
     if item is None:
         return False
 
@@ -83,7 +82,7 @@ def exists_field(predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]], i
     return all(all_exists)
 
 
-def extract_field_value(key: Union[List[Tuple[str, str]], Tuple[str, str]], item):
+def extract_field_value(key: list[tuple[str, str]] | tuple[str, str], item):
     if key and isinstance(key, list):
         # 忽略 predicate_key 为多个的情况 直接取第一个
         key = key[0]
@@ -93,11 +92,11 @@ def extract_field_value(key: Union[List[Tuple[str, str]], Tuple[str, str]], item
 
 
 class ApmTopoDiscoverRuleCls(NamedTuple):
-    instance_keys: List[Tuple[str, str]]
+    instance_keys: list[tuple[str, str]]
     topo_kind: str
     category_id: str
-    predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]]
-    endpoint_key: Union[Tuple[str, str], None]
+    predicate_key: tuple[str, str] | list[tuple[str, str]]
+    endpoint_key: tuple[str, str] | None
     type: str
     sort: int
 
@@ -182,8 +181,11 @@ class DiscoverBase(ABC):
     def get_service_name(self, span):
         return extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
 
-    def get_match_rule(self, span, rules, other_rule=None):
-        res = next((rule for rule in rules if exists_field(rule.predicate_key, span)), None)
+    def get_match_rule(self, span, rules, other_rule=None, exclude=None):
+        exclude = exclude or []
+        res = next(
+            (rule for rule in rules if exists_field(rule.predicate_key, span) and rule.category_id not in exclude), None
+        )
 
         return res if res else other_rule
 
