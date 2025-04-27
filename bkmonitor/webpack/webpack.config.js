@@ -126,8 +126,7 @@ module.exports = async (baseConfig, { production, app }) => {
     resolve: {
       ...config.resolve,
       alias: {
-        ...config.resolve.alias,
-        '@': appDir,
+        '@': path.resolve(__dirname, appDir),
         '@router': path.resolve(`./src/${appDirName}/router/`),
         '@store': path.resolve(`./src/${appDirName}/store/`),
         '@page': path.resolve(`./src/${appDirName}/pages/`),

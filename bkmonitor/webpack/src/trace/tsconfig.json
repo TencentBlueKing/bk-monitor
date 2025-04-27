@@ -11,6 +11,7 @@
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
     "noImplicitThis": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
       "@router/*": ["./router/*"],
