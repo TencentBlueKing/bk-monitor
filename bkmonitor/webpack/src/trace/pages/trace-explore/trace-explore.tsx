@@ -97,6 +97,8 @@ export default defineComponent({
     const queryString = shallowRef('');
     const queryStringInput = shallowRef('');
 
+    let axiosController = new AbortController();
+
     const residentSettingOnlyId = computed(() => {
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
       return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
@@ -307,6 +309,7 @@ export default defineComponent({
     }
     function handleFilterModeChange(filterModeP: EMode) {
       filterMode.value = filterModeP;
+      handleQuery();
     }
     function handleFilterSearch() {
       handleQuery();
@@ -323,22 +326,29 @@ export default defineComponent({
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
+      axiosController?.abort?.();
+      axiosController = new AbortController();
       const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
-      return getFieldsOptionValues({
-        app_name: store.appName,
-        start_time: startTime,
-        end_time: endTime,
-        fields: params?.fields || [],
-        limit: params?.limit || 5,
-        filters:
-          params?.where?.map(item => ({
-            key: item.key,
-            operator: item.method,
-            value: item.value || [],
-          })) || [],
-        query_string: params?.queryString || '',
-        mode: store.mode,
-      })
+      return getFieldsOptionValues(
+        {
+          app_name: store.appName,
+          start_time: startTime,
+          end_time: endTime,
+          fields: params?.fields || [],
+          limit: params?.limit || 5,
+          filters:
+            params?.where?.map(item => ({
+              key: item.key,
+              operator: item.method,
+              value: item.value || [],
+            })) || [],
+          query_string: params?.queryString || '',
+          mode: store.mode,
+        },
+        {
+          signal: axiosController.signal,
+        }
+      )
         .then(res => {
           const data = res?.[params?.fields?.[0]] || [];
           return {

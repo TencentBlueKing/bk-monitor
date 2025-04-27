@@ -201,3 +201,9 @@ export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['elapsed_time', 'resource.serv
 export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
   shallowRef.value = structuredClone(shallowRef.value);
 }
+
+export function getDurationDisplay(value: Array<number | string>) {
+  const start = value[0] ? `${Number(value[0]) / 1000}ms` : '0ms';
+  const end = value[1] ? `${Number(value[1]) / 1000}ms` : '0ms';
+  return `${start}~${end}`;
+}

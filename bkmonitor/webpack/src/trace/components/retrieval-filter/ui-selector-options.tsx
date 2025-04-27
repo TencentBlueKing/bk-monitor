@@ -75,18 +75,22 @@ export default defineComponent({
     const wildcardItem = computed(
       () => checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.options
     );
+    /* 是否为数字类型 */
     const isTypeInteger = computed(() => checkedItem.value?.type === EFieldType.integer);
+    /* 是否输入了非数字 */
     const isIntegerError = computed(() => (isTypeInteger.value ? values.value.some(v => !isNumeric(v.id)) : false));
     const valueSelectorFieldInfo = computed(() => {
       return {
         field: checkedItem.value?.name,
         alias: checkedItem.value?.alias,
         isEnableOptions: !!checkedItem.value?.is_option_enabled || !!checkedItem.value?.is_dimensions,
-        methods: checkedItem.value.supported_operations.map(item => ({
-          id: item.value,
-          name: item.alias,
-          placeholder: item?.placeholder || '',
-        })),
+        methods:
+          checkedItem.value?.supported_operations?.map(item => ({
+            id: item.value,
+            name: item.alias,
+            placeholder: item?.placeholder || '',
+            wildcardOperator: item?.wildcard_operator || '',
+          })) || [],
         type: checkedItem.value?.type,
       };
     });
@@ -317,6 +321,41 @@ export default defineComponent({
     function handleSelectorFocus() {
       rightFocus.value = true;
     }
+    /**
+     * 获取通配符操作符
+     * @param {boolean} isSearch - 是否为搜索模式
+     * @returns {string} 返回通配符操作符
+     * @description 根据搜索模式获取对应的通配符操作符:
+     * - 非搜索模式: 返回 method.value 或默认值 'equal'
+     * - 搜索模式: 从 valueSelectorFieldInfo 中匹配对应方法的 wildcardOperator,
+     *   如未找到则返回第一个方法的 wildcardOperator 或默认值 'equal'
+     */
+    function getWildcardOperator(isSearch = false) {
+      let operator = '';
+      if (!isSearch) {
+        operator = method.value || 'equal';
+        return operator;
+      }
+      for (const m of valueSelectorFieldInfo.value.methods) {
+        if (method.value === m.id) {
+          operator = m?.wildcardOperator;
+          break;
+        }
+      }
+      if (!operator) {
+        operator = valueSelectorFieldInfo.value.methods?.[0]?.wildcardOperator || 'equal';
+      }
+      return operator;
+    }
+    /**
+     * 代理获取值的函数，用于处理搜索查询和数据过滤
+     * @param {Object} params - 查询参数对象
+     * @param {string} params.search - 搜索关键词
+     * @param {number} params.limit - 限制返回结果数量
+     * @param {string} params.field - 查询字段名
+     * @returns {Promise<any>} 返回一个Promise，解析为查询结果数据
+     *                         如果查询失败，返回空结果 {count: 0, list: []}
+     */
     function getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
@@ -324,7 +363,7 @@ export default defineComponent({
             where: [
               {
                 key: params.field,
-                method: 'equal',
+                method: getWildcardOperator(!!params.search),
                 value: params.search ? [params.search] : [],
                 condition: ECondition.and,
                 options: {
@@ -407,8 +446,8 @@ export default defineComponent({
                 <Select
                   ext-cls={'method-select'}
                   v-model={this.method}
-                  popover-options={{
-                    appendTo: 'parent',
+                  popoverOptions={{
+                    boundary: 'parent',
                   }}
                   clearable={false}
                 >
@@ -480,6 +519,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior='simplicity'
                 placeholder={this.$t('请输入关键字')}
+                stopPropagation={false}
                 onInput={this.handleSearchChangeDebounce}
               >
                 {{
