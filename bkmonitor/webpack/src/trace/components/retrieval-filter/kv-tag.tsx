@@ -139,23 +139,29 @@ export default defineComponent({
             <span class={['key-method', this.localValue.method.id]}>{this.localValue.method.name}</span>
           </div>
           <div class={['value-wrap', { 'hide-value': this.isHide }]}>
-            {this.localValue.value.map((item, index) => [
-              index > 0 && (
-                <span
-                  key={`${index}_condition`}
-                  class='value-condition'
-                >
-                  OR
-                </span>
-              ),
-              <span
-                key={`${index}_key`}
-                class='value-name'
-              >
-                {item.name || '""'}
-              </span>,
-            ])}
-            {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
+            {this.$slots?.value ? (
+              this.$slots.value()
+            ) : (
+              <>
+                {this.localValue.value.map((item, index) => [
+                  index > 0 && (
+                    <span
+                      key={`${index}_condition`}
+                      class='value-condition'
+                    >
+                      OR
+                    </span>
+                  ),
+                  <span
+                    key={`${index}_key`}
+                    class='value-name'
+                  >
+                    {item.name || '""'}
+                  </span>,
+                ])}
+                {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
+              </>
+            )}
           </div>
           <div class='btn-wrap'>
             <div

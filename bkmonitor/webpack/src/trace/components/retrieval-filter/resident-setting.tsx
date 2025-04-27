@@ -164,6 +164,7 @@ export default defineComponent({
           valueNameMap.value[item.name] || {
             key: item.name,
             value: [],
+            method: fieldNameMap.value[item.name]?.supported_operations?.[0]?.value || EMethod.eq,
           }
         ),
       }));
@@ -204,6 +205,46 @@ export default defineComponent({
         type: item.type,
       };
     }
+    /**
+     * 获取通配符操作符
+     * @param field - 字段名称
+     * @param isSearch - 是否为搜索模式,默认为 false
+     * @returns 返回操作符字符串
+     * @description 根据字段名称和搜索模式获取对应的通配符操作符:
+     * - 非搜索模式下返回字段对应的 method 值或默认值 'equal'
+     * - 搜索模式下根据 supported_operations 匹配 wildcard_operator,若无匹配则返回第一个支持的操作符或默认值 'equal'
+     */
+    function getWildcardOperator(field: string, isSearch = false) {
+      let operator = '';
+      const tempLocalValue = localValue.value.find(item => item.field.name === field);
+      if (!tempLocalValue) {
+        return 'equal';
+      }
+      if (!isSearch) {
+        operator = tempLocalValue.value?.method || 'equal';
+        return operator;
+      }
+      for (const m of tempLocalValue.field?.supported_operations || []) {
+        if (tempLocalValue.value?.method === m.value) {
+          operator = m?.wildcard_operator;
+          break;
+        }
+      }
+      if (!operator) {
+        operator = tempLocalValue.field?.supported_operations?.[0]?.wildcard_operator || 'equal';
+      }
+      return operator;
+    }
+    /**
+     * 代理获取值的函数，用于处理搜索查询并返回结果
+     * @param params 查询参数对象
+     * @param params.search 搜索关键字
+     * @param params.limit 限制返回结果数量
+     * @param params.field 查询字段名称
+     * @returns 返回Promise，解析为查询结果数据
+     * @description 该函数将搜索参数转换为查询条件，通过props.getValueFn执行查询
+     * 支持通配符搜索，并在发生错误时返回空结果集
+     */
     function getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
@@ -211,7 +252,7 @@ export default defineComponent({
             where: [
               {
                 key: params.field,
-                method: 'equal',
+                method: getWildcardOperator(params.field, !!params.search),
                 value: params.search ? [params.search] : [],
                 condition: ECondition.and,
                 options: {

@@ -76,6 +76,7 @@ export interface IFilterField {
     value: EMethod;
     placeholder?: string;
     operator?: string;
+    wildcard_operator?: string;
     label?: string;
     options?: {
       label: string;

@@ -36,7 +36,7 @@ import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import { ECondition, EFieldType, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { triggerShallowRef } from './utils';
+import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
 
@@ -352,7 +352,13 @@ export default defineComponent({
             onDelete={() => this.handleDeleteTag(index)}
             onHide={() => this.handleHideTag(index)}
             onUpdate={event => this.handleUpdateTag(event, index)}
-          />
+          >
+            {{
+              value: DURATION_KEYS.includes(item.key.id)
+                ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
+                : undefined,
+            }}
+          </KvTag>
         ))}
         <div class={['kv-placeholder', { 'is-en': isEn }]}>
           <AutoWidthInput

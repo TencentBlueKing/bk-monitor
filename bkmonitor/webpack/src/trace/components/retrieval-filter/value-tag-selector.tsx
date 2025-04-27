@@ -141,6 +141,8 @@ export default defineComponent({
       if (!isShowDropDown.value) {
         handleShowShowDropDown(true);
       }
+      console.log(value);
+      emit('selectorFocus');
       isChecked.value = false;
     }
     /**
