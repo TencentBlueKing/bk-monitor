@@ -1250,8 +1250,8 @@ DEFAULT_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
 
-# 预查询时间, -1代表禁用
-PRE_SEARCH_SECONDS = os.getenv("PRE_SEARCH_SECONDS", "-1")
+# 预查询时间, 默认6h小时, 0代表禁用
+PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", "21600"))
 
 """
 以下为框架代码 请勿修改

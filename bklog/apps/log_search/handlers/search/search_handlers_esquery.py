@@ -622,14 +622,9 @@ class SearchHandler:
             once_size = MAX_RESULT_WINDOW
             self.size = MAX_RESULT_WINDOW
 
-        perform_full_search = True
-        pre_search_seconds = settings.PRE_SEARCH_SECONDS
-        if pre_search_seconds != "-1":
-            # 预查询
-            result = self._multi_search(once_size=once_size, pre_search_seconds=int(pre_search_seconds))
-            if len(result["hits"]["hits"]) == self.size:
-                perform_full_search = False
-        if perform_full_search:
+        # 预查询
+        result = self._multi_search(once_size=once_size, pre_search=True)
+        if len(result["hits"]["hits"]) != self.size:
             # 全量查询
             result = self._multi_search(once_size=once_size)
 
@@ -747,7 +742,7 @@ class SearchHandler:
         data = custom_params_valid(EsQueryScrollAttrSerializer, params)
         return EsQuery(data).scroll()
 
-    def _multi_search(self, once_size: int, pre_search_seconds: int = None):
+    def _multi_search(self, once_size: int, pre_search: bool = False):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
         """
@@ -776,13 +771,6 @@ class SearchHandler:
             "include_nested_fields": self.include_nested_fields,
             "track_total_hits": self.track_total_hits,
         }
-        first_field, order = self.sort_list[0] if self.sort_list else [None, None]
-        if pre_search_seconds and first_field == self.time_field:
-            date_format = DateFormat.arrow_format
-            _start_time = arrow.get(self.start_time).shift(seconds=pre_search_seconds).format(date_format)
-            _end_time = arrow.get(self.end_time).shift(seconds=-pre_search_seconds).format(date_format)
-            if (order == "desc" and self.start_time < _end_time) or (order == "asc" and self.end_time > _start_time):
-                params.update({"start_time": _end_time})
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
@@ -796,6 +784,22 @@ class SearchHandler:
                 storage_cluster_record_objs = StorageClusterRecord.objects.filter(
                     index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
                 ).exclude(storage_cluster_id=self.storage_cluster_id)
+
+                # 预查询处理
+                pre_search_seconds = settings.PRE_SEARCH_SECONDS
+                first_field, order = self.sort_list[0] if self.sort_list else [None, None]
+                if pre_search and pre_search_seconds and first_field == self.time_field:
+                    date_format = DateFormat.arrow_format
+                    pre_search_start_time = (
+                        arrow.get(self.start_time).shift(seconds=pre_search_seconds).format(date_format)
+                    )
+                    pre_search_end_time = (
+                        arrow.get(self.end_time).shift(seconds=-pre_search_seconds).format(date_format)
+                    )
+                    if (order == "desc" and self.start_time < pre_search_end_time) or (
+                        order == "asc" and self.end_time > pre_search_start_time
+                    ):
+                        params.update({"start_time": pre_search_end_time})
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
