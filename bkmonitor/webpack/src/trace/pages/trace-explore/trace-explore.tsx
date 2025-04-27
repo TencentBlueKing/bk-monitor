@@ -100,6 +100,7 @@ export default defineComponent({
     const defaultResidentSetting = computed(() => {
       return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
+    const appName = computed(() => store.appName);
 
     watch(
       [
@@ -338,6 +339,7 @@ export default defineComponent({
       filterMode,
       checkboxFilters,
       defaultResidentSetting,
+      appName,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -370,6 +372,7 @@ export default defineComponent({
             ) : (
               <RetrievalFilter
                 commonWhere={this.commonWhere}
+                dataId={this.appName}
                 defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
                 fields={this.fieldList}

@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, useTemplateRef, watch, triggerRef } from 'vue';
+import { defineComponent, shallowRef, computed, useTemplateRef, watch } from 'vue';
 
 import { promiseTimeout, onClickOutside } from '@vueuse/core';
 
 import AutoWidthInput from './auto-width-input';
 import { EFieldType, type IValue, VALUE_TAG_SELECTOR_EMITS, VALUE_TAG_SELECTOR_PROPS } from './typing';
-import { isNumeric } from './utils';
+import { isNumeric, triggerShallowRef } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -88,7 +88,6 @@ export default defineComponent({
           onClickOutside(
             elRef.value,
             () => {
-              console.log('aaaaa');
               isShowDropDown.value = false;
               isFocus.value = false;
               handleSelectorBlur();
@@ -114,7 +113,7 @@ export default defineComponent({
       activeIndex.value = -1;
       if (localValue.value.some(v => v.id === item.id)) return;
       localValue.value.push(item);
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     /**
@@ -172,7 +171,7 @@ export default defineComponent({
         return;
       }
       localValue.value.push({ id: inputValue.value, name: inputValue.value });
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       activeIndex.value += 1;
       inputValue.value = '';
       handleChange();
@@ -204,7 +203,7 @@ export default defineComponent({
      */
     function handleDelete(index: number) {
       localValue.value.splice(index, 1);
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     /**
@@ -227,7 +226,7 @@ export default defineComponent({
       } else {
         localValue.value.splice(index, 1);
       }
-      triggerRef(localValue);
+      triggerShallowRef(localValue);
       handleChange();
     }
     function handleIsChecked(v: boolean) {

@@ -34,6 +34,7 @@ import SettingKvSelector from './setting-kv-selector';
 import TimeConsuming from './time-consuming';
 import {
   ECondition,
+  EMethod,
   type IFieldItem,
   type IFilterField,
   type IWhereItem,
@@ -99,9 +100,10 @@ export default defineComponent({
               fields.push({
                 field: fieldNameMap.value[key],
                 value: defaultWhereItem(
-                  fieldNameMap.value[key] || {
-                    key: fieldNameMap.value[key].name,
-                    value: fieldNameMap.value[key]?.value || [],
+                  valueNameMap.value[key] || {
+                    key: fieldNameMap.value[key]?.name,
+                    value: valueNameMap.value[key]?.value || [],
+                    method: fieldNameMap.value[key]?.supported_operations?.[0]?.value || EMethod.eq,
                   }
                 ),
               });
@@ -186,7 +188,7 @@ export default defineComponent({
     function handleChange() {
       emit(
         'change',
-        localValue.value.map(item => item.value)
+        localValue.value.filter(item => item?.value?.key && item?.value?.value?.length).map(item => item.value)
       );
     }
     function getFieldInfo(item: IFilterField): IFieldItem {
@@ -210,7 +212,7 @@ export default defineComponent({
               {
                 key: params.field,
                 method: 'equal',
-                value: [params.search || ''],
+                value: params.search ? [params.search] : [],
                 condition: ECondition.and,
                 options: {
                   is_wildcard: true,

@@ -325,7 +325,7 @@ export default defineComponent({
               {
                 key: params.field,
                 method: 'equal',
-                value: [params.search || ''],
+                value: params.search ? [params.search] : [],
                 condition: ECondition.and,
                 options: {
                   is_wildcard: true,
