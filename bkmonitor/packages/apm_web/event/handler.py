@@ -36,7 +36,7 @@ class EventHandler:
             workloads: list[dict[str, Any]] = ServiceHandler.list_nodes(bk_biz_id, app_name, service_name)[0][
                 "platform"
             ]["workloads"]
-        except Exception as e:  # # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             # 打印异常代替页面报错。
             logger.warning("[fetch_relations] get workloads failed: %s", e)
             return list(table_relation_map.values())
