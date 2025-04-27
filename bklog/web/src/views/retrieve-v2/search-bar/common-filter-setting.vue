@@ -247,7 +247,7 @@
     const common_filter_addition = getCommonFilterAddition(store.state);
     const param = {
       filterSetting: shadowVisible.value,
-      filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
+      filterAddition: [], //common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
     };
     isLoading.value = true;
 

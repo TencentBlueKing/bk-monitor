@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -16,7 +15,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 from django.conf import settings
 from django.db import models, transaction
@@ -33,8 +32,8 @@ from metadata.utils.basic import getitems
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
-from .space import SpaceDataSource
-from .space.constants import EtlConfigs
+from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
+from .space.constants import EtlConfigs, SpaceTypes
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -119,7 +118,7 @@ class ResultTable(models.Model):
         info_list = cls.objects.filter(default_storage=InfluxDBStorage.STORAGE_TYPE)
 
         total_count = info_list.count()
-        logger.debug("total find->[{}] influxdb table info to refresh".format(total_count))
+        logger.debug(f"total find->[{total_count}] influxdb table info to refresh")
 
         # 2. 构建需要刷新的字典信息
         refresh_dict = {}
@@ -169,7 +168,7 @@ class ResultTable(models.Model):
                     "influxdb_version": "1.7",
                 },
             )
-            logger.debug("consul path->[{}] is refresh with value->[{}] success.".format(consul_path, refresh_dict))
+            logger.debug(f"consul path->[{consul_path}] is refresh with value->[{refresh_dict}] success.")
 
         hash_consul.put(key=cls.CONSUL_INFLUXDB_INFO_VERSION_PATH, value={"time": time.time()})
 
@@ -230,7 +229,7 @@ class ResultTable(models.Model):
         return False
 
     @classmethod
-    def get_table_id_cutter(cls, table_ids: Union[List, Set]) -> Dict:
+    def get_table_id_cutter(cls, table_ids: list | set) -> dict:
         """获取结果表是否禁用切分模块"""
         table_id_data_id_map = {
             dr["table_id"]: dr["bk_data_id"]
@@ -282,8 +281,9 @@ class ResultTable(models.Model):
         time_alias_name=None,
         time_option=None,
         create_storage=True,
-        data_label: Optional[str] = None,
+        data_label: str | None = None,
         is_builtin=False,
+        bk_biz_id_alias=None,
     ):
         """
         创建一个结果表
@@ -309,13 +309,16 @@ class ResultTable(models.Model):
         :param create_storage: 是否创建存储，默认为 True
         :param data_label: 数据标签
         :param is_builtin: 是否为系统内置的结果表
+        :param bk_biz_id_alias: 结果表所属业务名称
         :return: result_table instance | raise Exception
         """
         logger.info(
-            "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s]," "bk_biz_id->[%s]",
+            "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s],"
+            "bk_biz_id_alias->[%s]",
             bk_data_id,
             table_id,
             bk_biz_id,
+            bk_biz_id_alias,
         )
         # 判断label是否真实存在的配置
         if not Label.exists_label(label_id=label, label_type=Label.LABEL_TYPE_RESULT_TABLE):
@@ -458,7 +461,20 @@ class ResultTable(models.Model):
             label=label,
             data_label=data_label,
             is_builtin=is_builtin,
+            bk_biz_id_alias=bk_biz_id_alias,
         )
+
+        # TODO: 短期内需要创建SpaceTypeToResultTableFilterAlias记录对应的bk_biz_id_alias,待空间路由整体优化后统一下沉到ResultTable
+        if bk_biz_id_alias:
+            logger.info(
+                "create_result_table: table_id->[%s] need to create filter alias record,bk_biz_id_alias->[%s]",
+                table_id,
+                bk_biz_id_alias,
+            )
+
+            SpaceTypeToResultTableFilterAlias.objects.create(
+                table_id=table_id, space_type=SpaceTypes.BKCC.value, filter_alias=bk_biz_id_alias
+            )
 
         # 创建结果表的option内容如果option为非空
         if option is not None:
@@ -492,9 +508,7 @@ class ResultTable(models.Model):
 
         # 4. 创建data_id和该结果表的关系
         DataSourceResultTable.objects.create(bk_data_id=bk_data_id, table_id=table_id, creator=operator)
-        logger.info(
-            "create_result_table: result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id)
-        )
+        logger.info(f"create_result_table: result_table->[{result_table}] now has relate to bk_data->[{bk_data_id}]")
 
         # 5. 创建实际结果表
         if default_storage_config is None:
@@ -541,9 +555,9 @@ class ResultTable(models.Model):
     def check_and_create_storage(
         self,
         is_sync_db: bool,
-        external_storage: Optional[Dict] = None,
-        option: Optional[Dict] = None,
-        default_storage_config: Optional[Dict] = None,
+        external_storage: dict | None = None,
+        option: dict | None = None,
+        default_storage_config: dict | None = None,
     ) -> bool:
         """检测并创建存储
         NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
@@ -647,12 +661,13 @@ class ResultTable(models.Model):
 
         # 2. 使用业务ID及结果表ID来查询获取结果表对象
         try:
-            table_id_with_biz = "{}_{}".format(bk_biz_id, table_id)
+            table_id_with_biz = f"{bk_biz_id}_{table_id}"
             return cls.objects.get(bk_biz_id=bk_biz_id, table_id=table_id_with_biz, is_deleted=False)
         except cls.DoesNotExist:
             logger.info(
-                "table_id->[{}] is search as biz->[{}] result table and found nothing, "
-                "will try to all biz.".format(table_id_with_biz, bk_biz_id)
+                "table_id->[{}] is search as biz->[{}] result table and found nothing, will try to all biz.".format(
+                    table_id_with_biz, bk_biz_id
+                )
             )
 
         # 如果不能命中，尝试使用退回到全局的结果表查询
@@ -661,8 +676,9 @@ class ResultTable(models.Model):
             return cls.objects.get(bk_biz_id=0, table_id=table_id, is_deleted=False)
         except cls.DoesNotExist:
             logger.info(
-                "table_id->[{}] is search as all biz failed in old style , "
-                "will try to all biz in new style.".format(table_id_with_biz)
+                "table_id->[{}] is search as all biz failed in old style , will try to all biz in new style.".format(
+                    table_id_with_biz
+                )
             )
         # 如果使用单指标单表的结果表查询会查询不到真实的结果表
         database_name, _, _ = query_table_id.rpartition(".")
@@ -779,7 +795,7 @@ class ResultTable(models.Model):
         if self.default_storage == ClusterInfo.TYPE_ES:
             storage_config["enable_create_index"] = False
         real_storage.create_table(table_id=self.table_id, is_sync_db=is_sync_db, **storage_config)
-        logger.info("result_table->[{}] has create real storage on type->[{}]".format(self.table_id, storage))
+        logger.info(f"result_table->[{self.table_id}] has create real storage on type->[{storage}]")
 
         # 3. 判断是否需要存在额外存储的配置支持
         if external_storage is not None:
@@ -798,9 +814,7 @@ class ResultTable(models.Model):
                 if ex_storage_type == ClusterInfo.TYPE_ES:
                     storage_config["enable_create_index"] = False
                 ex_storage.create_table(self.table_id, is_sync_db=is_sync_db, **ex_storage_config)
-                logger.info(
-                    "result_table->[{}] has create real ex_storage on type->[{}]".format(self.table_id, ex_storage_type)
-                )
+                logger.info(f"result_table->[{self.table_id}] has create real ex_storage on type->[{ex_storage_type}]")
 
         # 刷新最新版本的ETL配置到consul中
         if is_sync_db:
@@ -817,9 +831,9 @@ class ResultTable(models.Model):
 
     def bulk_create_fields(
         self,
-        field_data: List[Dict[str, Any]],
-        is_etl_refresh: Optional[bool] = True,
-        is_force_add: Optional[bool] = False,
+        field_data: list[dict[str, Any]],
+        is_etl_refresh: bool | None = True,
+        is_force_add: bool | None = False,
     ) -> True:
         """批量创建新的字段
 
@@ -844,7 +858,7 @@ class ResultTable(models.Model):
         # NOTE: 先不处理日志长度，如果后续观察太长，在进行截断处理
         logger.info(
             "new field(name:type)->[%s] for result_table->[%s] now is created.",
-            ",".join([f'{field["field_name"]}:{field["field_type"]}' for field in field_data]),
+            ",".join([f"{field['field_name']}:{field['field_type']}" for field in field_data]),
             self.table_id,
         )
 
@@ -995,6 +1009,7 @@ class ResultTable(models.Model):
         time_option=None,
         data_label=None,
         need_delete_storages=None,
+        bk_biz_id_alias=None,
     ):
         """
         修改结果表的配置
@@ -1012,6 +1027,7 @@ class ResultTable(models.Model):
         :param time_option: 时间字段配置
         :param data_label: 数据标签
         :param need_delete_storages 需要删除额外存储配置
+        :param bk_biz_id_alias: 结果表业务ID别名
         :return: True | raise Exception
         """
 
@@ -1185,7 +1201,7 @@ class ResultTable(models.Model):
         if is_enable is not None:
             self.is_enable = is_enable
             self.save()  # 这里需要保存下，下面的es索引创建逻辑会依赖is_enable的判断
-            logger.info("table_id->[{}] is change to is_enable->[{}]".format(self.table_id, self.is_enable))
+            logger.info(f"table_id->[{self.table_id}] is change to is_enable->[{self.is_enable}]")
 
             # 如果启用结果表，需要创建结果表的实际存储依赖
             if is_enable:
@@ -1211,6 +1227,15 @@ class ResultTable(models.Model):
         # 是否需要修改数据标签
         if data_label is not None:
             self.data_label = data_label
+
+        if bk_biz_id_alias is not None:
+            logger.info(
+                "modify_result_table: table_id->[%s] got new_bk_biz_id_alias->[%s]", self.table_id, bk_biz_id_alias
+            )
+            self.bk_biz_id_alias = bk_biz_id_alias
+            SpaceTypeToResultTableFilterAlias.objects.update_or_create(
+                table_id=self.table_id, defaults={"space_type": SpaceTypes.BKCC.value, "filter_alias": bk_biz_id_alias}
+            )
 
         self.last_modify_user = operator
         self.save()
@@ -1269,8 +1294,9 @@ class ResultTable(models.Model):
         # 1. 判断结果表是否已经是全业务
         if self.bk_biz_id == 0 or self.is_deleted:
             logger.error(
-                "user->[{}] result_table->[{}] is already deleted or all business table, nothing will "
-                "do.".format(operator, self.table_id)
+                "user->[{}] result_table->[{}] is already deleted or all business table, nothing will do.".format(
+                    operator, self.table_id
+                )
             )
             raise ValueError(_("结果表不可操作，请确认后重试"))
 
@@ -1281,14 +1307,14 @@ class ResultTable(models.Model):
         self.last_modify_time = datetime.datetime.now()
         # 必须在此时就save，否则后面改了table_id(主键)就不能修改已有数据了
         self.save()
-        logger.info("result_table->[{}] now is marked deleted.".format(self.table_id))
+        logger.info(f"result_table->[{self.table_id}] now is marked deleted.")
 
         new_table_id = re.match(r"\d+_(?P<table_id>(\w|_|\.)+)", self.table_id).group("table_id")
 
         # 3. 结果表已有信息迁移
         # 3.1 字段迁移
         ResultTableField.objects.filter(table_id=self.table_id).update(table_id=new_table_id)
-        logger.info("result_table->[{}] all fields is set to result_table->[{}]".format(self.table_id, new_table_id))
+        logger.info(f"result_table->[{self.table_id}] all fields is set to result_table->[{new_table_id}]")
 
         # 3.2 新建存储记录
         for storage_str in list(self.REAL_STORAGE_DICT.keys()):
@@ -1321,7 +1347,7 @@ class ResultTable(models.Model):
         # 3.4 复制自身数据到新结果表
         self.table_id = new_table_id
         self.save()
-        logger.info("new_result_table->[{}] now is update success.".format(new_table_id))
+        logger.info(f"new_result_table->[{new_table_id}] now is update success.")
 
         return True
 
@@ -1347,9 +1373,7 @@ class ResultTable(models.Model):
 
         # 如果不允许全局创建CMDB_LEVEL，而且data_id是小于10000的，禁止创建
         if not settings.IS_ALLOW_ALL_CMDB_LEVEL and data_id < 10000:
-            logger.error(
-                "cannot split data_id->[{}] table_id->[{}] as it is under 10000.".format(data_id, self.table_id)
-            )
+            logger.error(f"cannot split data_id->[{data_id}] table_id->[{self.table_id}] as it is under 10000.")
             raise ValueError(_("公共数据源不允许配置拆分任务"))
 
         # 1. 判断是否存在已有该拆分任务
@@ -1405,7 +1429,7 @@ class ResultTable(models.Model):
             # 否则创建一个新的kafka结果表
             else:
                 storage = KafkaStorage.create_table(table_id=self.table_id)
-                logger.info("result_table->[{}] create new kafka storage for cmdb_level.".format(self.table_id))
+                logger.info(f"result_table->[{self.table_id}] create new kafka storage for cmdb_level.")
 
             data_source.mq_config.topic = storage.topic
             data_source.mq_config.partition = storage.partition
@@ -1433,21 +1457,19 @@ class ResultTable(models.Model):
         """
         # 1. 判断是否存在该metric的拆分记录
         if not CMDBLevelRecord.objects.filter(source_table_id=self.table_id, cmdb_level=cmdb_level).exists():
-            logger.error(
-                "try to delete cmdb_level->[{}] for table->[{}] but is not exist.".format(cmdb_level, self.table_id)
-            )
+            logger.error(f"try to delete cmdb_level->[{cmdb_level}] for table->[{self.table_id}] but is not exist.")
             raise ValueError(_("结果表不存在该字段拆分记录"))
 
         # 2. 去掉cmdb_level信息
         record = CMDBLevelRecord.objects.get(source_table_id=self.table_id, cmdb_level=cmdb_level)
         record.delete()
-        logger.info("cmdb level->[{}] for table->[{}] now is deleted.".format(cmdb_level, self.table_id))
+        logger.info(f"cmdb level->[{cmdb_level}] for table->[{self.table_id}] now is deleted.")
 
         # 3. 重新覆盖option的记录
         # 注意，这里清理后，并没有进一步的清理数据源或者结果表
         # 原因是，Transfer如果发现这个cmdb_level为空后，会不再对该结果表入库，没有存储消耗问题
         ResultTableOption.sync_cmdb_level_option(table_id=record.target_table_id, operator=operator)
-        logger.info("update table_id->[{}] result_table cmdb_level option success.".format(self.table_id))
+        logger.info(f"update table_id->[{self.table_id}] result_table cmdb_level option success.")
 
         return True
 
@@ -1515,7 +1537,7 @@ class ResultTable(models.Model):
         raise NotImplementedError("no storage support get_tag_values")
 
     @classmethod
-    def get_table_id_and_data_id(cls, bk_biz_id: int) -> List[Dict]:
+    def get_table_id_and_data_id(cls, bk_biz_id: int) -> list[dict]:
         """获取结果表和数据源 ID"""
         table_id_list = cls.objects.filter(bk_biz_id=bk_biz_id).values_list("table_id", flat=True)
         # 过滤 table_id 对应的数据源 ID
@@ -1625,7 +1647,7 @@ class ResultTableField(models.Model):
         verbose_name_plural = "结果表字段表"
 
     def __unicode__(self):
-        return "table->[{}]: field->[{}]".format(self.table_id, self.field_name)
+        return f"table->[{self.table_id}]: field->[{self.field_name}]"
 
     @property
     def is_dimension(self):
@@ -1639,10 +1661,10 @@ class ResultTableField(models.Model):
     def bulk_create_default_fields(
         cls,
         table_id: str,
-        include_cmdb_level: Optional[bool] = False,
-        is_time_field_only: Optional[bool] = False,
-        time_alias_name: Optional[str] = None,
-        time_option: Optional[str] = None,
+        include_cmdb_level: bool | None = False,
+        is_time_field_only: bool | None = False,
+        time_alias_name: str | None = None,
+        time_option: str | None = None,
     ) -> None:
         """批量创建默认字段， 包含 time，bk_biz_id，bk_supplier_id，bk_cloud_id，ip，bk_cmdb_level
 
@@ -1791,7 +1813,7 @@ class ResultTableField(models.Model):
             option=time_option,
         )
         if is_time_field_only:
-            logger.info("table->[{}] is need time only, no more fields will create.".format(table_id))
+            logger.info(f"table->[{table_id}] is need time only, no more fields will create.")
             return
 
         # 业务ID
@@ -1904,9 +1926,9 @@ class ResultTableField(models.Model):
             description=_("CMDB层级ID"),
             is_reserved_check=False,
         )
-        logger.info("table->[{}] now has created default cmdb field.".format(table_id))
+        logger.info(f"table->[{table_id}] now has created default cmdb field.")
 
-    def _check_reserved_fields(self, uppercase_field_names: List[str]):
+    def _check_reserved_fields(self, uppercase_field_names: list[str]):
         """校验字段是否为保留字段"""
         # TODO: 确认是否可以 `RT_RESERVED_WORD_EXACT` 小写处理，因为在配置中有小写字段
         same_field_names = set(uppercase_field_names) & set(config.RT_RESERVED_WORD_EXACT)
@@ -1918,7 +1940,7 @@ class ResultTableField(models.Model):
         logger.error("try to create filed [%s] which are reserved fields, nothing will added.", joined_names)
         raise ValueError(_("字段[{}]为保留字段，不可创建").format(joined_names))
 
-    def _check_existed_fields(self, table_id: str, field_names: List[str]):
+    def _check_existed_fields(self, table_id: str, field_names: list[str]):
         """校验字段是否已经创建"""
         existed_field_names = ResultTableField.objects.filter(
             table_id=table_id, field_name__in=field_names
@@ -1930,7 +1952,7 @@ class ResultTableField(models.Model):
         logger.error("field->[%s] is exists under table->[%s], nothing will be added.", joined_names, table_id)
         raise ValueError(_("字段[{}]已在表[{}]中存在，请确认").format(joined_names, table_id))
 
-    def _compose_data(self, table_id: str, field_data: List[Dict[str, Any]]) -> Tuple[List, List, List]:
+    def _compose_data(self, table_id: str, field_data: list[dict[str, Any]]) -> tuple[list, list, list]:
         """组装数据"""
         fields, field_names, option_data = [], [], []
         for field in field_data:
@@ -1964,7 +1986,7 @@ class ResultTableField(models.Model):
         return (fields, field_names, option_data)
 
     @classmethod
-    def bulk_create_fields(cls, table_id: str, field_data: List[Dict[str, Any]]) -> bool:
+    def bulk_create_fields(cls, table_id: str, field_data: list[dict[str, Any]]) -> bool:
         """批量创建 fields
 
         # 分为下面几步处理
@@ -2037,7 +2059,7 @@ class ResultTableField(models.Model):
                 raise ValueError(_("字段[%s]为保留字段，不可创建") % field_name)
 
         if cls.objects.filter(table_id=table_id, field_name=field_name).exists():
-            logger.error("field->[{}] is exists under table->[{}], nothing will be added.".format(field_name, table_id))
+            logger.error(f"field->[{field_name}] is exists under table->[{table_id}], nothing will be added.")
             raise ValueError(_("字段[{}]已在表[{}]中存在，请确认").format(field_name, table_id))
 
         cls.objects.create(
@@ -2053,11 +2075,11 @@ class ResultTableField(models.Model):
             alias_name=alias_name,
             is_disabled=is_disabled,
         )
-        logger.info("new field->[{}] type->[{}] is create for table->[{}]".format(field_name, field_type, table_id))
+        logger.info(f"new field->[{field_name}] type->[{field_type}] is create for table->[{table_id}]")
 
         # 如果不存在option配置，直接返回
         if option is None:
-            logger.info("new field->[{}] got no option config, jump it.".format(field_name))
+            logger.info(f"new field->[{field_name}] got no option config, jump it.")
             return True
 
         for option_name, option_value in list(option.items()):
@@ -2149,7 +2171,7 @@ class ResultTableField(models.Model):
         return result
 
     @classmethod
-    def batch_get_fields(cls, table_id_list: List[str], is_consul_config: Optional[bool] = False) -> Dict:
+    def batch_get_fields(cls, table_id_list: list[str], is_consul_config: bool | None = False) -> dict:
         table_field_option_dict = ResultTableFieldOption.batch_field_option(table_id_list)
         qs = cls.objects.filter(table_id__in=table_id_list)
         # 组装数据
@@ -2317,13 +2339,9 @@ class CMDBLevelRecord(models.Model):
                 for field_info in field_list
             ]
 
-            logger.debug(
-                "result_table->[{}] going to create with field_list->[{}]".format(target_table_id, field_dict_list)
-            )
+            logger.debug(f"result_table->[{target_table_id}] going to create with field_list->[{field_dict_list}]")
 
-            logger.info(
-                "result_table->[{}] is going to create field count->[{}]".format(target_table_id, len(field_dict_list))
-            )
+            logger.info(f"result_table->[{target_table_id}] is going to create field count->[{len(field_dict_list)}]")
 
             # 创建结果表
             ResultTable.create_result_table(
@@ -2341,9 +2359,7 @@ class CMDBLevelRecord(models.Model):
                 # 需要将CMDB拆分层级的字段增加上
                 include_cmdb_level=True,
             )
-            logger.info(
-                "result_table->[{}] datasource->[{}] for cmdb split is create".format(target_table_id, bk_data_id)
-            )
+            logger.info(f"result_table->[{target_table_id}] datasource->[{bk_data_id}] for cmdb split is create")
 
         # 3. 增加CMDB拆分记录
         record = cls.objects.create(
@@ -2355,7 +2371,7 @@ class CMDBLevelRecord(models.Model):
 
         # 2. 增加一个新的结果表option配置
         ResultTableOption.sync_cmdb_level_option(target_table_id, operator)
-        logger.info("target_table_id->[{}] cmdb_level option added success.".format(target_table_id))
+        logger.info(f"target_table_id->[{target_table_id}] cmdb_level option added success.")
 
         logger.info(
             "source_rt->[{}] target_rt->[{}] for cmdb_level->[{}] via data_id->[{}] is  create new record".format(
@@ -2485,7 +2501,7 @@ class ResultTableOption(OptionBase):
         record.value = json.dumps(value)
         record.save()
 
-        logger.info("result_table->[{}] cmdb_level option->[{}] is updated to->[{}]".format(table_id, record.id, value))
+        logger.info(f"result_table->[{table_id}] cmdb_level option->[{record.id}] is updated to->[{value}]")
 
         return True
 
@@ -2500,7 +2516,7 @@ class ResultTableOption(OptionBase):
         :return: object
         """
         if cls.objects.filter(table_id=table_id, name=name).exists():
-            logger.error("table_id->[{}] already has option->[{}], maybe something go wrong?".format(table_id, name))
+            logger.error(f"table_id->[{table_id}] already has option->[{name}], maybe something go wrong?")
             raise ValueError(_("结果表已存在[{}]选项").format(name))
 
         new_record = cls._create_option(value=value, creator=creator)
@@ -2509,12 +2525,12 @@ class ResultTableOption(OptionBase):
         new_record.name = name
         new_record.save()
 
-        logger.info("table_id->[{}] now has create option->[{}]".format(table_id, name))
+        logger.info(f"table_id->[{table_id}] now has create option->[{name}]")
 
         return new_record
 
     @classmethod
-    def bulk_create_options(cls, table_id: str, option_data: Dict[str, Any], creator: str):
+    def bulk_create_options(cls, table_id: str, option_data: dict[str, Any], creator: str):
         """批量创建结果表级别的选项内容
 
         :param table_id: 结果表ID
@@ -2619,7 +2635,7 @@ class ResultTableFieldOption(OptionBase):
         return record
 
     @classmethod
-    def bulk_create_options(cls, table_id: str, option_data: List[Dict]):
+    def bulk_create_options(cls, table_id: str, option_data: list[dict]):
         """批量写入字段选项
 
         :param table_id: 结果表ID
@@ -2769,7 +2785,7 @@ class ESFieldQueryAliasOption(BaseModel):
 
             # 获取ResultTableField中的所有field_name
             existing_field_names = set(
-                ResultTableField.objects.filter(table_id=table_id).values_list('field_name', flat=True)
+                ResultTableField.objects.filter(table_id=table_id).values_list("field_name", flat=True)
             )
 
             path_type_map = {
@@ -2777,7 +2793,8 @@ class ESFieldQueryAliasOption(BaseModel):
                     "type": record.path_type,
                 }
                 for record in alias_records
-                if record.field_path not in existing_field_names  # 只包括那些field_path不在ResultTableField中作为field_name的记录
+                if record.field_path
+                not in existing_field_names  # 只包括那些field_path不在ResultTableField中作为field_name的记录
             }
             return path_type_map
         except Exception as e:  # pylint: disable=broad-except
@@ -2794,8 +2811,7 @@ class ESFieldQueryAliasOption(BaseModel):
         :param operator: 操作者
         """
         logger.info(
-            "manage_query_alias_settings: try to manage alias settings for table_id->[%s],"
-            "query_alias_settings->[%s]",
+            "manage_query_alias_settings: try to manage alias settings for table_id->[%s],query_alias_settings->[%s]",
             table_id,
             query_alias_settings,
         )
@@ -2805,8 +2821,7 @@ class ESFieldQueryAliasOption(BaseModel):
 
         if not query_alias_settings:
             logger.info(
-                "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old "
-                "records",
+                "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old records",
                 table_id,
             )
             ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)

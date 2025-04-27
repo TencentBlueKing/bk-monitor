@@ -230,3 +230,6 @@ conf/platform/ieod.py
 
 # ai_agent link
 ai_agent
+
+# ruff
+.ruff_cache/
