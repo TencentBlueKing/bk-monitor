@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -445,6 +444,10 @@ class SwitchKafkaClusterViewSet(MetaViewSet):
 
 class NotifyDataLinkVmChangeViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.NotifyDataLinkVmChange)]
+
+
+class QueryMetaInfoByVmrtViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryMetaInfoByVmrt)]
 
 
 class QueryVmRtBySpaceViewSet(MetaViewSet):
