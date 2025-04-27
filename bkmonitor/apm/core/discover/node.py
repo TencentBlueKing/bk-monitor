@@ -263,7 +263,10 @@ class NodeDiscover(DiscoverBase):
                 # topo_key 为空表明发现的是组件类型的节点，服务、组件等类别不一定互斥，比如一个 RPC 服务的 DB 请求 Span。
                 # 此处排除已匹配的规则，进行再一次发现，避免节点类别直接设置 other 后不再更新 SDK、框架等信息。
                 match_rule = self.get_match_rule(
-                    span, category_rules[0], category_rules[1], exclude=[match_rule.category_id]
+                    span,
+                    category_rules[0],
+                    category_rules[1],
+                    extra_cond=lambda _rule: _rule.category_id != match_rule.category_id,
                 )
                 topo_key = get_topo_instance_key(
                     match_rule.instance_keys,

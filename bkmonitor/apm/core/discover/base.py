@@ -16,6 +16,7 @@ import traceback
 from abc import ABC
 from collections import defaultdict
 from typing import NamedTuple
+from collections.abc import Callable
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -181,11 +182,10 @@ class DiscoverBase(ABC):
     def get_service_name(self, span):
         return extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
 
-    def get_match_rule(self, span, rules, other_rule=None, exclude=None):
-        exclude = exclude or []
-        res = next(
-            (rule for rule in rules if exists_field(rule.predicate_key, span) and rule.category_id not in exclude), None
-        )
+    def get_match_rule(
+        self, span, rules, other_rule=None, extra_cond: Callable[[ApmTopoDiscoverRuleCls], bool] = lambda x: True
+    ):
+        res = next((rule for rule in rules if exists_field(rule.predicate_key, span) and extra_cond(rule)), None)
 
         return res if res else other_rule
 
