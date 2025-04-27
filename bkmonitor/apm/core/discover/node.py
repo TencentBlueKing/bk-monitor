@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 from future.backports.datetime import timedelta
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -62,7 +62,7 @@ class NodeDiscover(DiscoverBase):
         except NoRelatedResourceError:
             return bk_biz_id
 
-    def get_pod_workload_mapping(self, pod_tuples: Tuple[str, ...]) -> Dict[Tuple[str, ...], Dict[str, str]]:
+    def get_pod_workload_mapping(self, pod_tuples: tuple[str, ...]) -> dict[tuple[str, ...], dict[str, str]]:
         """获取 pod 和 workload 的映射关系
         Q：为什么不直接使用 Pod 关联信息？
         - k8s 的设计理念是「控制器」，Pod 是当前存活的实例，而工作负载是 Pod 的模板。
@@ -73,23 +73,23 @@ class NodeDiscover(DiscoverBase):
         if not pod_tuples:
             return {}
 
-        pod_names: Set[str] = set()
-        namespaces: Set[str] = set()
-        bcs_cluster_ids: Set[str] = set()
+        pod_names: set[str] = set()
+        namespaces: set[str] = set()
+        bcs_cluster_ids: set[str] = set()
         for pod_tuple in pod_tuples:
             bcs_cluster_id, namespace, pod_name = pod_tuple
             pod_names.add(pod_name)
             namespaces.add(namespace)
             bcs_cluster_ids.add(bcs_cluster_id)
 
-        pods: List[Dict[str, str]] = BCSPod.objects.filter(
+        pods: list[dict[str, str]] = BCSPod.objects.filter(
             bk_biz_id=self._validate_bk_biz_id(self.bk_biz_id),
             bcs_cluster_id__in=bcs_cluster_ids,
             namespace__in=namespaces,
             name__in=pod_names,
         ).values("bcs_cluster_id", "namespace", "workload_type", "workload_name", "name")
 
-        pod_workload_mapping: Dict[Tuple[str, ...], Dict[str, str]] = {}
+        pod_workload_mapping: dict[tuple[str, ...], dict[str, str]] = {}
         for pod in pods:
             pod_workload_mapping[(pod["bcs_cluster_id"], pod["namespace"], pod["name"])] = {
                 "bcs_cluster_id": pod["bcs_cluster_id"],
@@ -147,7 +147,7 @@ class NodeDiscover(DiscoverBase):
 
         # update
         update_combine_instances = []
-        pod_workload_mapping: Dict[Tuple[str, ...], Dict[str, str]] = self.get_pod_workload_mapping(pod_tuples)
+        pod_workload_mapping: dict[tuple[str, ...], dict[str, str]] = self.get_pod_workload_mapping(pod_tuples)
         for topo_key, topo_value in update_instances.items():
             # 合并数组字段: platform | system
             exist_instance = exists_instances.get(topo_key)
@@ -185,19 +185,25 @@ class NodeDiscover(DiscoverBase):
 
     @classmethod
     def combine_workloads(
-        cls, pod_workload_mapping: Dict[Tuple[str, ...], Dict[str, str]], target: Dict[str, Any], source: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        cls,
+        pod_workload_mapping: dict[tuple[str, ...], dict[str, str]],
+        target: dict[str, Any] | None,
+        source: dict[str, Any],
+    ) -> dict[str, Any]:
         if source.get("name") != ApmTopoDiscoverRule.APM_TOPO_PLATFORM_K8S:
             return source
 
-        merged_workload_mapping: Dict[frozenset, Dict[str, Union[int, str]]] = {}
+        # 当指标（apm/core/discover/metric/service.py）发现早于节点发现时，可能会出现 target 为 None 的情况。
+        # 将空值的 target 设置为一个空字典，继续对 workloads 进行格式处理。
+        target = target or {}
+        merged_workload_mapping: dict[frozenset, dict[str, int | str]] = {}
         for workload in target.get("workloads", []):
             updated_at: int = workload.pop("updated_at", 0)
             merged_workload_mapping[frozenset(workload.items())] = {**workload, "updated_at": updated_at}
 
         now: int = int(datetime.now().timestamp())
         for pod_tuple in source.pop("pod_tuples", set()):
-            workload: Optional[Dict[str, Union[int, str]]] = pod_workload_mapping.get(pod_tuple)
+            workload: dict[str, int | str] | None = pod_workload_mapping.get(pod_tuple)
             if not workload:
                 continue
             # 更新存活时间，便于判断 Workload 时效性
@@ -342,16 +348,16 @@ class NodeDiscover(DiscoverBase):
         for i in match_rule.instance_keys:
             extra_data[self.join_keys(i)] = extract_field_value(i, span)
 
-        platform_metadata: Dict[str, Any] = {"name": match_rule.category_id, "extra_data": extra_data}
+        platform_metadata: dict[str, Any] = {"name": match_rule.category_id, "extra_data": extra_data}
         if match_rule.category_id != ApmTopoDiscoverRule.APM_TOPO_PLATFORM_K8S:
             instance_mapping[topo_key]["platform"] = platform_metadata
             return
 
         # 获取 pod 相关信息
-        pod_name: Optional[str] = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_POD_NAME_KEY)
-        namespace: Optional[str] = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_NAMESPACE_KEY)
-        bcs_cluster_id: Optional[str] = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_CLUSTER_ID_KEY)
-        pod_tuples: Set[Tuple[str, ...]] = instance_mapping[topo_key].get("platform", {}).get("pod_tuples", set())
+        pod_name: str | None = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_POD_NAME_KEY)
+        namespace: str | None = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_NAMESPACE_KEY)
+        bcs_cluster_id: str | None = extra_data.get(ApmTopoDiscoverRule.PLATFORM_K8S_CLUSTER_ID_KEY)
+        pod_tuples: set[tuple[str, ...]] = instance_mapping[topo_key].get("platform", {}).get("pod_tuples", set())
         if pod_name and namespace and bcs_cluster_id:
             pod_tuples.add((bcs_cluster_id, namespace, pod_name))
 
