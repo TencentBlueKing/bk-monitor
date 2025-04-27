@@ -1755,6 +1755,5 @@ class DateFormat:
     """
     datetime库和arrow库的日期时间格式
     """
-
-    datetime_format = "%Y-%m-%d %H:%M:%S.%f"
-    arrow_format = "YYYY-MM-DD HH:mm:ss.SSSSSS"
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+    ARROW_FORMAT = "YYYY-MM-DD HH:mm:ss.SSSSSS"

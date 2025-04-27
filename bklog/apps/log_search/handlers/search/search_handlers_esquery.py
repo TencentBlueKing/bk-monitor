@@ -779,8 +779,10 @@ class SearchHandler:
                 tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
                 if type(self.start_time) in [int, float]:
                     start_time = arrow.get(self.start_time).to(tz=tz_info).datetime
+                    end_time = arrow.get(self.end_time).to(tz=tz_info).datetime
                 else:
                     start_time = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
+                    end_time = arrow.get(self.end_time).replace(tzinfo=tz_info).datetime
                 storage_cluster_record_objs = StorageClusterRecord.objects.filter(
                     index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
                 ).exclude(storage_cluster_id=self.storage_cluster_id)
@@ -789,17 +791,13 @@ class SearchHandler:
                 pre_search_seconds = settings.PRE_SEARCH_SECONDS
                 first_field, order = self.sort_list[0] if self.sort_list else [None, None]
                 if pre_search and pre_search_seconds and first_field == self.time_field:
-                    date_format = DateFormat.arrow_format
-                    pre_search_start_time = (
-                        arrow.get(self.start_time).shift(seconds=pre_search_seconds).format(date_format)
-                    )
-                    pre_search_end_time = (
-                        arrow.get(self.end_time).shift(seconds=-pre_search_seconds).format(date_format)
-                    )
-                    if (order == "desc" and self.start_time < pre_search_end_time) or (
-                        order == "asc" and self.end_time > pre_search_start_time
-                    ):
-                        params.update({"start_time": pre_search_end_time})
+                    date_format = DateFormat.ARROW_FORMAT
+                    pre_search_start_time = arrow.get(start_time).shift(seconds=pre_search_seconds)
+                    pre_search_end_time = arrow.get(end_time).shift(seconds=-pre_search_seconds)
+                    if order == "desc" and start_time < pre_search_end_time.datetime:
+                        params.update({"start_time": pre_search_end_time.format(date_format)})
+                    elif order == "asc" and end_time > pre_search_start_time.datetime:
+                        params.update({"end_time": pre_search_start_time.format(date_format)})
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 

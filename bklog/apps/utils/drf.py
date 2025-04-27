@@ -134,7 +134,7 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
     接受10位时间戳的 DateTimeField
     """
 
-    def __init__(self, format=DateFormat.datetime_format, input_formats=None, default_timezone=None, **kwargs):
+    def __init__(self, format=DateFormat.DATETIME_FORMAT, input_formats=None, default_timezone=None, **kwargs):
         super().__init__(format=format, input_formats=input_formats, default_timezone=default_timezone, **kwargs)
 
     def to_internal_value(self, value):

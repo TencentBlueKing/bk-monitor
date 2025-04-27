@@ -1251,7 +1251,10 @@ DEFAULT_TENANT_ID = "system"
 INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
 
 # 预查询时间, 默认6h小时, 0代表禁用
-PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", "21600"))
+try:
+    PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
+except ValueError:
+    PRE_SEARCH_SECONDS = 6 * 60 * 6
 
 """
 以下为框架代码 请勿修改
