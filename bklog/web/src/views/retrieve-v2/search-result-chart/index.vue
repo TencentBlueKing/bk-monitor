@@ -107,27 +107,6 @@
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });
   });
-
-  watch(
-    () => chartKey.value,
-    () => {
-      if (isResultLoading.value) {
-        return;
-      }
-
-      store.commit('updateIndexSetQueryResult', {
-        origin_log_list: [],
-        list: [],
-      });
-      store.commit('updateIsSetDefaultTableColumn', false);
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
-        store.dispatch('requestIndexSetQuery', { formChartChange: false });
-      });
-    },
-    {
-      immediate: true,
-    },
-  );
 </script>
 
 <style scoped lang="scss">

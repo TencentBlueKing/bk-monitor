@@ -18,7 +18,7 @@
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
-  import RetrieveHelper from '../../retrieve-helper';
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
   const props = defineProps({
     showFavorites: {
@@ -139,6 +139,7 @@
     setRouteQuery();
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
     });
   };
 
@@ -178,7 +179,10 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <WarningSetting v-if="!isExternal"  class="custom-border-right"></WarningSetting>
+      <WarningSetting
+        v-if="!isExternal"
+        class="custom-border-right"
+      ></WarningSetting>
       <ClusterSetting
         class="custom-border-right"
         v-model="isShowClusterSetting"

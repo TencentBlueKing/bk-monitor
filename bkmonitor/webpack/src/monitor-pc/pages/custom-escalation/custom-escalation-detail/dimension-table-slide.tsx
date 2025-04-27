@@ -35,34 +35,21 @@ import {
   ALL_OPTION,
   CheckboxStatus,
   CHECKED_OPTION,
-  fuzzyMatch,
+  type DimensionHeaderKeys,
   type IColumnConfig,
+  type IDimensionItem,
   type PopoverChildRef,
   RADIO_OPTIONS,
-} from './metric-table-slide';
+} from './type';
+import { fuzzyMatch } from './utils';
 
 import './dimension-table-slide.scss';
-
-interface IDimensionItem {
-  name: string;
-  description?: string;
-  disabled?: boolean;
-  isNew?: boolean;
-  error?: string;
-  common?: boolean;
-  type?: string;
-  selection?: boolean;
-  hidden?: boolean;
-}
 
 const initMap = {
   disabled: false,
   hidden: false,
   common: false,
 };
-
-type ValidHeaderKeys = keyof Pick<IDimensionItem, 'common' | 'hidden'>;
-
 @Component
 export default class DimensionTableSlide extends tsc<any> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -95,8 +82,6 @@ export default class DimensionTableSlide extends tsc<any> {
   };
   /** 维度搜索 */
   search = '';
-  /** 表格宽度 */
-  width = 1400;
   /** 表格数据 */
   localTable: IDimensionItem[] = [];
   /** 删除的维度名称列表 */
@@ -104,7 +89,7 @@ export default class DimensionTableSlide extends tsc<any> {
   /** 全选标志位 */
   allCheckValue: 0 | 1 | 2 = CheckboxStatus.UNCHECKED;
   /** 当前的 Popover Key 值 */
-  currentPopoverKey: ValidHeaderKeys = null;
+  currentPopoverKey: DimensionHeaderKeys = null;
   /** Ref 实例 */
   popoverRef = [];
   popoverChildRef: PopoverChildRef[] = [];
@@ -121,6 +106,11 @@ export default class DimensionTableSlide extends tsc<any> {
   };
   /** 编辑模式：全量 | 勾选项 */
   editModo: typeof ALL_OPTION | typeof CHECKED_OPTION = ALL_OPTION;
+
+  /** 抽屉宽度 */
+  get width() {
+    return window.innerWidth * 0.75;
+  }
 
   get refMap() {
     switch (this.currentPopoverKey) {

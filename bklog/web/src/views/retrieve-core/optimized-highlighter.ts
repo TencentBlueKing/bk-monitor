@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Mark from 'mark.js';
-import { getTargetElement } from '../hooks/hooks-helper';
+import { getTargetElement } from '../../hooks/hooks-helper';
 import { Ref } from 'vue';
 // types.ts
 export type ChunkStrategy = 'auto' | 'fixed' | 'custom';
