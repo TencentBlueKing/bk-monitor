@@ -88,6 +88,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { $t } = useLocale();
+    const router = useRouter();
+    const route = useRoute();
+
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
@@ -109,6 +112,7 @@ export default defineComponent({
 
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
+    const isPageLoading = ref(RetrieveHelper.isSearching);
 
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -142,9 +146,9 @@ export default defineComponent({
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
-
-    const router = useRouter();
-    const route = useRoute();
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+      isPageLoading.value = isSearching;
+    });
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -781,7 +785,6 @@ export default defineComponent({
 
       if (hasMoreList.value) {
         isRequesting.value = true;
-
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
@@ -1029,12 +1032,14 @@ export default defineComponent({
     };
 
     const isTableLoading = computed(() => {
-      return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
+      return (
+        tableDataSize.value === 0 && (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
+      );
     });
 
     const getExceptionRender = () => {
       if (tableDataSize.value === 0) {
-        if (isRequesting.value || isLoading.value) {
+        if (isRequesting.value || isLoading.value || isPageLoading.value) {
           return (
             <bk-exception
               style='margin-top: 100px;'
@@ -1042,7 +1047,7 @@ export default defineComponent({
               scene='part'
               type='search-empty'
             >
-              loading...
+              {$t('检索中')}...
             </bk-exception>
           );
         }
@@ -1184,7 +1189,6 @@ export default defineComponent({
       hasScrollX,
       showHeader,
       isRequesting,
-      isLoading,
       exceptionMsg,
     };
   },
