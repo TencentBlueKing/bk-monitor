@@ -1171,7 +1171,7 @@ export default class MonitorEcharts extends Vue {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
       // csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
-      csvList.push(keys.map(key => key.replace(/,/gim, "_").replace(/=(\S+)(?<=^|[^}])/g, '="\$1"')).join(','));
+      csvList.push(keys.map(key => `"${key.replace(/=(.*?)(?=[,}])/g, '="\$1"').replace(/"/g, '""')}"`).join(','));
       this.tableData.forEach(item => {
         const list = [];
         keys.forEach(key => {
