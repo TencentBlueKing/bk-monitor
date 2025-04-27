@@ -332,8 +332,31 @@ def test_sync_bkbase_clusters(create_or_delete_records):
             "spec": {"insertHost": "vm.example.com", "insertPort": 8480, "user": "vm_user", "password": "vm_password"},
         }
     ]
+
+    mock_doris_data = [
+        {
+            'kind': 'Doris',
+            'metadata': {'namespace': 'bklog', 'name': 'doris_test', 'labels': {}, 'annotations': {}},
+            'spec': {
+                'host': 'doris_test.test',
+                'port': 9030,
+                'write_port': 8030,
+                'user': 'testuser',
+                'password': 'testpwd',
+                'table_bucket_num': None,
+                'shard_minutes': 1,
+                'v3_rename': None,
+            },
+            'status': {
+                'phase': 'Ok',
+                'start_time': '2035-03-18 06:30:34.245777341 UTC',
+                'update_time': '2035-03-18 06:30:39.630946716 UTC',
+                'message': '',
+            },
+        }
+    ]
     with patch("core.drf_resource.api.bkdata.list_data_bus_raw_data") as mock_api:
-        mock_api.side_effect = [mock_es_data, mock_vm_data]
+        mock_api.side_effect = [mock_es_data, mock_vm_data, mock_doris_data]
         sync_bkbase_cluster_info()
 
         es_cluster = models.ClusterInfo.objects.get(domain_name='es.example.com')
@@ -345,3 +368,8 @@ def test_sync_bkbase_clusters(create_or_delete_records):
         assert vm_cluster.username == 'vm_user'
         assert vm_cluster.password == 'vm_password'
         assert vm_cluster.cluster_type == models.ClusterInfo.TYPE_VM
+
+        doris_cluster = models.ClusterInfo.objects.get(domain_name='doris_test.test')
+        assert doris_cluster.username == 'testuser'
+        assert doris_cluster.password == 'testpwd'
+        assert doris_cluster.cluster_type == models.ClusterInfo.TYPE_DORIS
