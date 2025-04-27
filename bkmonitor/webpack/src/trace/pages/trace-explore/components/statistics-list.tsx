@@ -44,7 +44,7 @@ import { useTraceExploreStore } from '../../../store/modules/explore';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
 
-import type { DimensionType, ICommonParams, IStatisticsInfo, ITopKField } from '../typing';
+import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../typing';
 import type { PropType } from 'vue';
 
 import './statistics-list.scss';
@@ -100,7 +100,7 @@ export default defineComponent({
     let topKInfoCancelFn = null;
     let topKCancelFn = null;
     let topKChartCancelFn = null;
-    const chartData = shallowRef([]);
+    const chartData = shallowRef<IStatisticsGraph[]>([]);
     const downloadLoading = shallowRef(false);
 
     /** 数值类型 */
@@ -192,9 +192,11 @@ export default defineComponent({
 
       const series = data.series || [];
       chartData.value = series.map(item => {
-        const index = statisticsList.list.findIndex(i => item.dimensions?.[localField.value] === i.value) || 0;
+        const name = item.dimensions?.[localField.value];
+        const index = statisticsList.list.findIndex(i => name === i.value) || 0;
         return {
           color: isInteger.value ? '#5AB8A8' : topKColorList[index],
+          name,
           ...item,
         };
       });
@@ -324,10 +326,10 @@ export default defineComponent({
                 <div class='info-text'>
                   <span
                     class='field-name'
-                    onMouseenter={e => topKItemMouseenter(e, item.alias)}
+                    onMouseenter={e => topKItemMouseenter(e, item.value)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    <OverflowTitle type='tips'>{item.alias}</OverflowTitle>
+                    <OverflowTitle type='tips'>{item.value}</OverflowTitle>
                   </span>
 
                   <span class='counts'>

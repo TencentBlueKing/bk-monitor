@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
@@ -58,10 +58,14 @@ export default defineComponent({
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
 
+    /** 自动查询定时器 */
+    let autoQueryTimer = null;
     /** 应用列表 */
     const applicationList = shallowRef<IApplicationItem[]>([]);
     /** 是否展示收藏夹 */
     const isShowFavorite = shallowRef(true);
+    /** 视角切换查询 */
+    const cacheSceneQuery = new Map<string, Record<string, any>>();
 
     function handleFavoriteShowChange(isShow: boolean) {
       isShowFavorite.value = isShow;
@@ -103,26 +107,51 @@ export default defineComponent({
     const appName = computed(() => store.appName);
 
     watch(
-      [
-        () => store.appName,
-        () => store.mode,
-        () => store.timeRange,
-        () => store.refreshImmediate,
-        () => store.refreshInterval,
-      ],
+      [() => store.appName, () => store.mode, () => store.timeRange, () => store.refreshImmediate],
       async (val, oldVal) => {
         loading.value = true;
         if (val[0] !== oldVal[0]) {
           await getViewConfig();
         }
         if (val[1] !== oldVal[1]) {
-          checkboxFilters.value = [];
+          handelSceneChange(val[1], oldVal[1]);
         }
         loading.value = false;
         handleQuery();
       }
     );
 
+    watch(
+      () => store.refreshInterval,
+      val => {
+        autoQueryTimer && clearInterval(autoQueryTimer);
+        if (val !== -1) {
+          autoQueryTimer = setInterval(() => {
+            handleQuery();
+          }, val);
+        }
+      }
+    );
+
+    /** 视角切换 */
+    function handelSceneChange(val: ICommonParams['mode'], oldVal: ICommonParams['mode']) {
+      checkboxFilters.value = [];
+      cacheSceneQuery.set(
+        `${oldVal}_${appName.value}`,
+        structuredClone({
+          where: where.value,
+          query_string: queryString.value,
+          commonWhere: commonWhere.value,
+        })
+      );
+
+      const cacheQuery = cacheSceneQuery.get(`${val}_${appName.value}`);
+      where.value = cacheQuery?.where || [];
+      queryString.value = cacheQuery?.query_string || '';
+      commonWhere.value = cacheQuery?.commonWhere || [];
+    }
+
+    /** 获取应用列表 */
     async function getApplicationList() {
       const data = await listApplicationInfo().catch(() => []);
       applicationList.value = data;
@@ -132,6 +161,7 @@ export default defineComponent({
       }
     }
 
+    /** 关闭维度列表 */
     function handleCloseDimensionPanel() {
       traceExploreLayoutRef.value.handleClickShrink(false);
     }
@@ -188,6 +218,10 @@ export default defineComponent({
       setUrlParams();
     });
 
+    onUnmounted(() => {
+      autoQueryTimer && clearInterval(autoQueryTimer);
+    });
+
     function getUrlParams() {
       const {
         start_time,
@@ -214,7 +248,7 @@ export default defineComponent({
         });
         where.value = JSON.parse((queryWhere as string) || '[]');
         commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
-        showResidentBtn.value = Boolean(queryShowResidentBtn);
+        showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
