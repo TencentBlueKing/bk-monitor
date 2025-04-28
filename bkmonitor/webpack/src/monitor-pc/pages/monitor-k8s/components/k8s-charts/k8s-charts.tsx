@@ -280,6 +280,8 @@ export default class K8SCharts extends tsc<
     switch (this.scene) {
       case SceneEnum.Network:
         return this.createNetworkPanelPromql(metric);
+      case SceneEnum.Capacity:
+        return this.createCapacityPanelPromql(metric);
       default:
         return this.createPerformancePanelPromql(metric);
     }
@@ -289,6 +291,7 @@ export default class K8SCharts extends tsc<
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) return '$method by(pod_name,container_name)';
     if (this.groupByField === K8sTableColumnKeysEnum.INGRESS) return '$method by(ingress,namespace)';
     if (this.groupByField === K8sTableColumnKeysEnum.SERVICE) return '$method by(service,namespace)';
+    if (this.groupByField === K8sTableColumnKeysEnum.NODE) return '$method by(node)';
     return `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`;
     // return this.resourceLength > 1
     //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
@@ -317,6 +320,7 @@ export default class K8SCharts extends tsc<
         break;
       case K8sTableColumnKeysEnum.INGRESS:
       case K8sTableColumnKeysEnum.SERVICE:
+      case K8sTableColumnKeysEnum.NODE:
         content += `,${this.groupByField}=~"^(${this.resourceMap.get(this.groupByField)})$"`;
         break;
       default:
@@ -512,6 +516,60 @@ export default class K8SCharts extends tsc<
         return '';
     }
   }
+  createCapacityPanelPromql(metricId: string) {
+    // const metric = metricId.replace('node_', '');
+    const clusterId = this.filterCommonParams.bcs_cluster_id;
+    switch (metricId) {
+      case 'node_cpu_seconds_total': // 节点 CPU 使用量
+        return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()}}[$interval])[$interval:] $time_shift))`;
+      case 'node_cpu_capacity_ratio': // 节点CPU装箱率
+        return `
+        ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        /
+        sum by (node) (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+      `;
+      case 'node_cpu_usage_ratio': // 节点CPU使用率
+        return `(1 - (${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()}}[$interval])[$interval:] $time_shift)))) * 100`;
+      case 'node_memory_working_set_bytes': // 节点内存使用量
+        return ` ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemTotal_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        -
+       ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemAvailable_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))`;
+
+      case 'node_memory_capacity_ratio': // 节点内存装箱率
+        return ` ${this.createCommonPromqlMethod()} (last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()},resource="memory"}[$interval:] $time_shift))
+        /
+        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()},resource="memory"}[$interval:] $time_shift))`;
+      case 'node_memory_usage_ratio': // 节点内存使用率
+        return ` (
+        1 - (
+          ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemAvailable_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+          /
+          ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemTotal_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+          )
+        )`;
+      case 'master_node_count': // 集群Master节点计数
+        return `count(${this.createCommonPromqlMethod()}(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+      case 'worker_node_count': // 集群Worker节点计数
+        return `count(kube_node_labels{bcs_cluster_id="${clusterId}"} $time_shift)
+         -
+         count(sum by (node)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+
+      case 'node_pod_usage': // 节点Pod个数使用率
+        return `${this.createCommonPromqlMethod()} (last_over_time(kubelet_running_pods{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        /
+        ${this.createCommonPromqlMethod()}  (last_over_time(kube_node_status_capacity_pods{${this.createCommonPromqlContent()}}[$interval:] $time_shift))`;
+      case 'node_network_receive_bytes_total': // 节点网络入带宽
+        return `${this.createCommonPromqlMethod()} (last_over_time(rate(node_network_receive_bytes_total{${this.createCommonPromqlContent()},device!~"lo|veth.*"}[$interval])[$interval:] $time_shift))`;
+      case 'node_network_transmit_bytes_total': // 节点网络出带宽
+        return `${this.createCommonPromqlMethod()} (last_over_time(rate(node_network_transmit_bytes_total{${this.createCommonPromqlContent()},device!~"lo|veth.*"}[$interval])[$interval:] $time_shift))`;
+      case 'node_network_receive_packets_total': // 节点网络入包量
+        return `${this.createCommonPromqlMethod()} (last_over_time(rate(node_network_receive_packets_total{${this.createCommonPromqlContent()},device!~"lo|veth.*"}[$interval])[$interval:] $time_shift))`;
+      case 'node_network_transmit_packets_total': // 节点网络出包量
+        return `${this.createCommonPromqlMethod()} (last_over_time(rate(node_network_transmit_packets_total{${this.createCommonPromqlContent()},device!~"lo|veth.*"}[$interval])[$interval:] $time_shift))`;
+      default:
+        return '';
+    }
+  }
   createPerformanceDetailPanelPromql(metric: string) {
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
@@ -585,6 +643,7 @@ export default class K8SCharts extends tsc<
       [K8sTableColumnKeysEnum.CONTAINER, ''],
       [K8sTableColumnKeysEnum.INGRESS, ''],
       [K8sTableColumnKeysEnum.NAMESPACE, ''],
+      [K8sTableColumnKeysEnum.NODE, ''],
       [K8sTableColumnKeysEnum.POD, ''],
       [K8sTableColumnKeysEnum.SERVICE, ''],
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
@@ -625,6 +684,7 @@ export default class K8SCharts extends tsc<
         const namespace = new Set<string>();
         const ingress = new Set<string>();
         const service = new Set<string>();
+        const node = new Set<string>();
         const list = data.slice(0, this.limit);
         for (const item of list) {
           item.container && container.add(item.container);
@@ -637,6 +697,7 @@ export default class K8SCharts extends tsc<
           item.namespace && namespace.add(item.namespace);
           item.ingress && ingress.add(item.ingress);
           item.service && service.add(item.service);
+          item.node && node.add(item.node);
         }
         resourceMap.set(K8sTableColumnKeysEnum.CONTAINER, Array.from(container).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
@@ -645,6 +706,7 @@ export default class K8SCharts extends tsc<
         resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.INGRESS, Array.from(ingress).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.SERVICE, Array.from(service).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.NODE, Array.from(node).filter(Boolean).join('|'));
       }
     }
     this.resourceList = new Set(data);
