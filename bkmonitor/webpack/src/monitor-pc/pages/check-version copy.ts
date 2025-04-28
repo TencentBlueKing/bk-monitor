@@ -49,7 +49,7 @@ const fetchStaticVersion = async (clearInterval = true) => {
   const urlPrefix = process.env.APP === 'external' ? 'external' : 'monitor';
   const response = await fetch(`${window.static_url}/${urlPrefix}/static_version.txt`.replace(/\/\//g, '/'));
   const newVersion = await response.text();
-  // return await promptForReload();
+  return await promptForReload();
 
   if (!staticVersion) {
     staticVersion = newVersion;
@@ -67,86 +67,25 @@ const promptForReload = async () => {
   removeVisibilityChangeListener();
   hasShownConfirm = true;
   return await new Promise(resolve => {
-    const vm = new Vue();
-    const h = vm.$createElement;
-    const confirmFn = () => {
-      window.location.reload();
-    };
-    const cancelFn = () => {
-      const close = document.querySelector('.check-version-wrapper .icon-close');
-      close?.click();
-      hasShownConfirm = false;
-      addVisibilityChangeListener();
-      resolve(true);
-    };
-    Vue.prototype.$bkNotify({
-      title: window.i18n.tc('版本更新'),
-      message: h(
-        'div',
-        {
-          class: {
-            'check-version-txt': true,
-          },
-        },
-        [
-          h('div', window.i18n.tc('建议「刷新页面」体验新的特性，「暂不刷新」可能会遇到未知异常，可手动刷新解决。')),
-          h(
-            'div',
-            {
-              class: {
-                'check-version-btn': true,
-              },
-            },
-            [
-              h(
-                'bk-button',
-                {
-                  props: {
-                    theme: 'primary',
-                    size: 'small',
-                  },
-                  on: {
-                    click: confirmFn,
-                  },
-                },
-                window.i18n.tc('刷新页面')
-              ),
-              h(
-                'bk-button',
-                {
-                  props: {
-                    size: 'small',
-                  },
-                  on: {
-                    click: cancelFn,
-                  },
-                },
-                window.i18n.tc('暂不刷新')
-              ),
-              h(
-                'bk-button',
-                {
-                  props: {
-                    outline: true,
-                    theme: 'primary',
-                    size: 'small',
-                  },
-                  on: {
-                    click: () => {
-                      cancelFn();
-                      /** 跳转到wiki */
-                    },
-                  },
-                },
-                window.i18n.tc('查看新特性')
-              ),
-            ]
-          ),
-        ]
-      ),
-      delay: 0,
-      offsetY: 46,
+    Vue.prototype.$bkInfo({
+      title: window.i18n.tc('检测到蓝鲸监控版本更新'),
+      subTitle: window.i18n.tc('请点击“确定”刷新页面，保证数据准确性。'),
+      maskClose: false,
       extCls: 'check-version-wrapper',
+      width: '480px',
+      confirmFn: () => {
+        window.location.reload();
+      },
+      cancelFn: () => {
+        hasShownConfirm = false;
+        addVisibilityChangeListener();
+        resolve(true);
+      },
+      closeFn: () => {
+        hasShownConfirm = false;
+        addVisibilityChangeListener();
+        resolve(true);
+      },
     });
   });
   // return true;
