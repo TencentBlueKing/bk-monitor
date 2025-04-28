@@ -30,6 +30,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
+import pinyin from 'tiny-pinyin';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
@@ -46,7 +47,7 @@ import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { getFilterByCheckboxFilter } from './utils';
 
-import type { ConditionChangeEvent, ExploreFieldMap, IApplicationItem, ICommonParams } from './typing';
+import type { ConditionChangeEvent, ExploreFieldMap, IApplicationItem, ICommonParams, IDimensionField } from './typing';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -78,7 +79,7 @@ export default defineComponent({
     /** 是否展示常驻筛选 */
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
-    const fieldListMap = shallowRef({ trace: [], span: [] });
+    const fieldListMap = shallowRef<{ trace: IDimensionField[]; span: IDimensionField[] }>({ trace: [], span: [] });
     /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
@@ -126,21 +127,6 @@ export default defineComponent({
     const appName = computed(() => store.appName);
 
     watch(
-      [() => store.appName, () => store.mode, () => store.timeRange, () => store.refreshImmediate],
-      async (val, oldVal) => {
-        loading.value = true;
-        if (val[0] !== oldVal[0]) {
-          await getViewConfig();
-        }
-        if (val[1] !== oldVal[1]) {
-          handelSceneChange(val[1], oldVal[1]);
-        }
-        loading.value = false;
-        handleQuery();
-      }
-    );
-
-    watch(
       () => store.refreshInterval,
       val => {
         autoQueryTimer && clearInterval(autoQueryTimer);
@@ -163,11 +149,16 @@ export default defineComponent({
           commonWhere: commonWhere.value,
         })
       );
-
       const cacheQuery = cacheSceneQuery.get(`${val}_${appName.value}`);
       where.value = cacheQuery?.where || [];
       queryString.value = cacheQuery?.query_string || '';
       commonWhere.value = cacheQuery?.commonWhere || [];
+    }
+
+    /** 应用切换 */
+    async function handleAppNameChange() {
+      await getViewConfig();
+      handleQuery();
     }
 
     /** 获取应用列表 */
@@ -226,12 +217,13 @@ export default defineComponent({
     async function getViewConfig() {
       if (!store.appName) return;
       loading.value = true;
-      const data = await listTraceViewConfig({
+      const { trace_config = [], span_config = [] } = await listTraceViewConfig({
         app_name: store.appName,
       }).catch(() => ({ trace_config: [], span_config: [] }));
+
       fieldListMap.value = {
-        trace: data.trace_config,
-        span: data.span_config,
+        trace: trace_config.map(item => ({ ...item, pinyinStr: pinyin.convertToPinyin(item.alias, '', true) })),
+        span: span_config.map(item => ({ ...item, pinyinStr: pinyin.convertToPinyin(item.alias, '', true) })),
       };
       loading.value = false;
     }
@@ -239,7 +231,8 @@ export default defineComponent({
     onMounted(async () => {
       getUrlParams();
       await getApplicationList();
-      setUrlParams();
+      handleQuery();
+      await getViewConfig();
     });
 
     onUnmounted(() => {
@@ -276,7 +269,6 @@ export default defineComponent({
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
-        handleQuery();
       } catch (error) {
         console.log('route query:', error);
       }
@@ -344,7 +336,6 @@ export default defineComponent({
     function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
       checkboxFilters.value = checkboxGroupEvent;
       handleQuery();
-      setUrlParams();
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
@@ -407,6 +398,9 @@ export default defineComponent({
       defaultResidentSetting,
       appName,
       fieldMap,
+      handleQuery,
+      handleAppNameChange,
+      handelSceneChange,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -430,7 +424,11 @@ export default defineComponent({
             <TraceExploreHeader
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
+              onAppNameChange={this.handleAppNameChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
+              onImmediateRefreshChange={this.handleQuery}
+              onSceneModeChange={this.handelSceneChange}
+              onTimeRangeChange={this.handleQuery}
             />
           </div>
           <div class='trace-explore-content'>
