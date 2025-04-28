@@ -27,9 +27,6 @@ import { defineComponent, provide, reactive, ref as deepRef, shallowRef } from '
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
-import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import {
   type FilterValue,
   PrimaryTable,
@@ -37,7 +34,10 @@ import {
   type TableFilterChangeContext,
   type TableRowData,
   type TableSort,
-} from 'tdesign-vue-next';
+} from '@blueking/tdesign-ui';
+import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
+import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -700,6 +700,9 @@ export default defineComponent({
                       onOperation={this.handleEmptyOperation}
                     />
                   ),
+                }}
+                bkUiSettings={{
+                  checked: this.columns.map(item => item.id),
                 }}
                 columns={this.columns.map(item => ({
                   title: item.name,

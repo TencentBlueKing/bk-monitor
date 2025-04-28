@@ -29,18 +29,17 @@ import { computed, type ComputedRef, defineComponent, inject, onMounted, ref, wa
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import {
+  PrimaryTable,
+  type SortInfo,
+  type TableProps,
+  type PrimaryTableCol,
+  type FilterValue,
+} from '@blueking/tdesign-ui';
 import { Loading, Message, Popover, Table } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
 import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
-import {
-  PrimaryTable,
-  type SortInfo,
-  TableSort,
-  type TableProps,
-  type PrimaryTableCol,
-  type FilterValue,
-} from 'tdesign-vue-next';
 import { debounce } from 'throttle-debounce';
 
 import { statisticDiffTableSetting, statisticTableSetting } from '../../pages/main/inquire-content/table-settings';
@@ -162,794 +161,800 @@ export default defineComponent({
     // 20230620 勿删
 
     /** 表格列配置 */
-    const tempTableColumns: ComputedRef<StaticTableCol[]> = computed(() => [
-      {
-        isUseShow: true,
-        title: t('接口'),
-        colKey: 'span_name',
-        filter: {
-          ...createCommonTableColumnFilter(endpointNameFilterList.value),
-        },
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='link-column'
-            onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
-          >
-            <Popover
-              content={row.span_name}
-              popoverDelay={[200, 0]}
-            >
-              <span class='link-text'>{row.span_name}</span>
-            </Popover>
-            <i class='icon-monitor icon-fenxiang' />
-          </div>
-        ),
-      },
-      {
-        isUseShow: true,
-        title: t('服务'),
-        colKey: 'resource.service.name',
-        filter: {
-          ...createCommonTableColumnFilter(serviceNameFilterList.value),
-        },
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='link-column classify-column'
-            onClick={() => handleToService(row?.['resource.service.name']?.value)}
-          >
-            <img
-              alt=''
-              src={row?.['resource.service.name']?.icon}
-            />
-            <Popover
-              content={row?.['resource.service.name']?.value}
-              popoverDelay={[200, 0]}
-            >
-              <span class='link-text'>{row?.['resource.service.name']?.value}</span>
-            </Popover>
-            <i class='icon-monitor icon-fenxiang' />
-          </div>
-        ),
-      },
-      {
-        isUseShow: true,
-        title: t('数据来源'),
-        colKey: 'resource.sdk.name',
-        filter: {
-          ...createCommonTableColumnFilter(sourceList.value),
-        },
-      },
-      {
-        isUseShow: true,
-        title: t('Span类型'),
-        colKey: 'kind',
-        filter: {
-          ...createCommonTableColumnFilter(categoryList.value),
-        },
+    const tempTableColumns = computed(
+      () =>
+        [
+          {
+            isUseShow: true,
+            title: t('接口'),
+            colKey: 'span_name',
+            filter: {
+              ...createCommonTableColumnFilter(endpointNameFilterList.value),
+            },
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='link-column'
+                onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
+              >
+                <Popover
+                  content={row.span_name}
+                  popoverDelay={[200, 0]}
+                >
+                  <span class='link-text'>{row.span_name}</span>
+                </Popover>
+                <i class='icon-monitor icon-fenxiang' />
+              </div>
+            ),
+          },
+          {
+            isUseShow: true,
+            title: t('服务'),
+            colKey: 'resource.service.name',
+            filter: {
+              ...createCommonTableColumnFilter(serviceNameFilterList.value),
+            },
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='link-column classify-column'
+                onClick={() => handleToService(row?.['resource.service.name']?.value)}
+              >
+                <img
+                  alt=''
+                  src={row?.['resource.service.name']?.icon}
+                />
+                <Popover
+                  content={row?.['resource.service.name']?.value}
+                  popoverDelay={[200, 0]}
+                >
+                  <span class='link-text'>{row?.['resource.service.name']?.value}</span>
+                </Popover>
+                <i class='icon-monitor icon-fenxiang' />
+              </div>
+            ),
+          },
+          {
+            isUseShow: true,
+            title: t('数据来源'),
+            colKey: 'resource.sdk.name',
+            filter: {
+              ...createCommonTableColumnFilter(sourceList.value),
+            },
+          },
+          {
+            isUseShow: true,
+            title: t('Span类型'),
+            colKey: 'kind',
+            filter: {
+              ...createCommonTableColumnFilter(categoryList.value),
+            },
 
-        cell: (_, { row }) => (
-          <div class='classify-column'>
-            <img
-              alt=''
-              src={row.kind?.icon}
-            />
-            <span class='link-text'>{row.kind?.text}</span>
-          </div>
-        ),
-      },
-      {
-        title: `${t('最大时间')}（μs）`,
-        colKey: 'max_duration',
-        sorter: true,
-        width: 140,
-      },
-      {
-        title: `${t('最小时间')}（μs）`,
-        colKey: 'min_duration',
-        sorter: true,
-        width: 140,
-      },
-      {
-        title: `${t('总时间')}（μs）`,
-        colKey: 'sum_duration',
-        sorter: true,
-        width: 140,
-      },
-      {
-        title: 'CP95（μs）',
-        colKey: 'P95',
-        sorter: true,
-        width: 140,
-      },
-      {
-        title: t('数量'),
-        colKey: 'count',
-        sorter: true,
-        width: 90,
-      },
-      {
-        title: t('操作'),
-        width: 90,
-        colKey: 'operation',
-        cell: (_, { row }) => (
-          <div style='display: flex;'>
-            {/* TODO: 这里需要带什么参数去跳转页面 */}
-            <div
-              style='width: 70px;'
-              class='link-column'
-              onClick={() => handleToTraceQuery(row)}
-            >
-              <span
-                class='link-text'
-                title={t('Span检索')}
-              >
-                {t('Span检索')}
-              </span>
-              <i class='icon-monitor icon-fenxiang' />
-            </div>
-          </div>
-        ),
-      },
-    ]);
+            cell: (_, { row }) => (
+              <div class='classify-column'>
+                <img
+                  alt=''
+                  src={row.kind?.icon}
+                />
+                <span class='link-text'>{row.kind?.text}</span>
+              </div>
+            ),
+          },
+          {
+            title: `${t('最大时间')}（μs）`,
+            colKey: 'max_duration',
+            sorter: true,
+            width: 140,
+          },
+          {
+            title: `${t('最小时间')}（μs）`,
+            colKey: 'min_duration',
+            sorter: true,
+            width: 140,
+          },
+          {
+            title: `${t('总时间')}（μs）`,
+            colKey: 'sum_duration',
+            sorter: true,
+            width: 140,
+          },
+          {
+            title: 'CP95（μs）',
+            colKey: 'P95',
+            sorter: true,
+            width: 140,
+          },
+          {
+            title: t('数量'),
+            colKey: 'count',
+            sorter: true,
+            width: 90,
+          },
+          {
+            title: t('操作'),
+            width: 90,
+            colKey: 'operation',
+            cell: (_, { row }) => (
+              <div style='display: flex;'>
+                {/* TODO: 这里需要带什么参数去跳转页面 */}
+                <div
+                  style='width: 70px;'
+                  class='link-column'
+                  onClick={() => handleToTraceQuery(row)}
+                >
+                  <span
+                    class='link-text'
+                    title={t('Span检索')}
+                  >
+                    {t('Span检索')}
+                  </span>
+                  <i class='icon-monitor icon-fenxiang' />
+                </div>
+              </div>
+            ),
+          },
+        ] as StaticTableCol[]
+    );
     /** DIFF表格列配置 */
-    const tempDiffTableColumns: ComputedRef<StaticTableCol[]> = computed(() => [
-      {
-        isUseShow: true,
-        title: t('接口'),
-        colKey: 'span_name',
-        filter: {
-          ...createCommonTableColumnFilter(endpointNameFilterList.value),
-        },
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='link-column'
-            onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
-          >
-            <Popover
-              content={row.span_name}
-              popoverDelay={[200, 0]}
-            >
-              <span class='link-text'>{row.span_name}</span>
-            </Popover>
-            <i class='icon-monitor icon-fenxiang' />
-          </div>
-        ),
-      },
-      {
-        isUseShow: true,
-        title: t('服务'),
-        colKey: 'resource.service.name',
-        filter: {
-          ...createCommonTableColumnFilter(serviceNameFilterList.value),
-        },
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='link-column classify-column'
-            onClick={() => handleToService(row?.['resource.service.name']?.value)}
-          >
-            <img
-              alt=''
-              src={row?.['resource.service.name']?.icon}
-            />
-            <Popover
-              content={row?.['resource.service.name']?.value}
-              popoverDelay={[200, 0]}
-            >
-              <span class='link-text'>{row?.['resource.service.name']?.value}</span>
-            </Popover>
-            <i class='icon-monitor icon-fenxiang' />
-          </div>
-        ),
-      },
-      {
-        isUseShow: true,
-        title: t('数据来源'),
-        colKey: 'resource.sdk.name',
-        filter: {
-          ...createCommonTableColumnFilter(sourceList.value),
-        },
-      },
-      {
-        isUseShow: true,
-        title: t('Span类型'),
-        colKey: 'kind',
-        filter: {
-          ...createCommonTableColumnFilter(categoryList.value),
-        },
-        cell: (_, { row }: { row: ITableDataItem }) => (
-          <div class='classify-column'>
-            <img
-              alt=''
-              src={row.kind?.icon}
-            />
-            <span class='link-text'>{row.kind?.text}</span>
-          </div>
-        ),
-      },
-      {
-        title: () => (
-          <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${t('最大时间')}（μs）`}</div>
-            <div class='custom-header-row-bottom'>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('max_duration', 'current')}
-                >
-                  {`${t('当前')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'current', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'current', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('max_duration', 'refer')}
-                >
-                  {`${t('参照')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('max_duration', 'difference')}
-                >
-                  {`${t('差异值')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'max_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'desc')}
-                  />
-                </span>
-              </div>
-            </div>
-          </div>
-        ),
-        colKey: 'max_duration',
-        width: 181,
-        cell: (_, { row }: { cell: Record<string, string>; row: ITableDataItem }) => (
-          <div
-            key={random(6)}
-            class='custom-cell'
-          >
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.max_duration))}</div>
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.max_duration))}</div>
-            <div class='custom-cell-child'>{getDiffValue(row, 'max_duration')}</div>
-          </div>
-        ),
-      },
-      {
-        title: () => (
-          <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${t('最小时间')}（μs）`}</div>
-            <div class='custom-header-row-bottom'>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('min_duration', 'current')}
-                >
-                  {`${t('当前')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'current', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'current', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('min_duration', 'refer')}
-                >
-                  {`${t('参照')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('min_duration', 'difference')}
-                >
-                  {`${t('差异值')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'min_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'desc')}
-                  />
-                </span>
-              </div>
-            </div>
-          </div>
-        ),
-        colKey: 'min_duration',
-        width: 181,
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='custom-cell'
-          >
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.min_duration))}</div>
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.min_duration))}</div>
-            <div class='custom-cell-child'>{getDiffValue(row, 'min_duration')}</div>
-          </div>
-        ),
-      },
-      {
-        title: () => (
-          <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${t('总时间')}（ms）`}</div>
-            <div class='custom-header-row-bottom'>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('sum_duration', 'current')}
-                >
-                  {`${t('当前')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('sum_duration', 'refer')}
-                >
-                  {`${t('参照')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('sum_duration', 'difference')}
-                >
-                  {`${t('差异值')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'sum_duration' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'desc')}
-                  />
-                </span>
-              </div>
-            </div>
-          </div>
-        ),
-        colKey: 'sum_duration',
-        width: 181,
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='custom-cell'
-          >
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.sum_duration))}</div>
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.sum_duration))}</div>
-            <div class='custom-cell-child'>{getDiffValue(row, 'sum_duration')}</div>
-          </div>
-        ),
-      },
-      {
-        title: () => (
-          <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${t('CP95')}（ms）`}</div>
-            <div class='custom-header-row-bottom'>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('P95', 'current')}
-                >
-                  {`${t('当前')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('P95', 'current', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('P95', 'current', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('P95', 'refer')}
-                >
-                  {`${t('参照')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('P95', 'refer', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('P95', 'refer', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('P95', 'difference')}
-                >
-                  {`${t('差异值')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('P95', 'difference', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'P95' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('P95', 'difference', 'desc')}
-                  />
-                </span>
-              </div>
-            </div>
-          </div>
-        ),
-        colKey: 'P95',
-        width: 181,
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='custom-cell'
-          >
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.P95))}</div>
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.P95))}</div>
-            <div class='custom-cell-child'>{getDiffValue(row, 'P95')}</div>
-          </div>
-        ),
-      },
-      {
-        title: () => (
-          <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${t('总数')}（ms）`}</div>
-            <div class='custom-header-row-bottom'>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('count', 'current')}
-                >
-                  {`${t('当前')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('count', 'current', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'current' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('count', 'current', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('count', 'refer')}
-                >
-                  {`${t('参照')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('count', 'refer', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'refer' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('count', 'refer', 'desc')}
-                  />
-                </span>
-              </div>
-              <div class='custom-header-row-bottom-child'>
-                <span
-                  class='custom-label-text'
-                  onClick={() => handleCustomHeaderSort('count', 'difference')}
-                >
-                  {`${t('差异值')}`}
-                </span>
-                <span class='sort-icon'>
-                  <AngleDownFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'asc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-up'
-                    onClick={() => handleCustomHeaderSort('count', 'difference', 'asc')}
-                  />
-                  <AngleUpFill
-                    style={
-                      selectedField.value === 'count' &&
-                      selectedChildField.value === 'difference' &&
-                      selectedSortType.value === 'desc' &&
-                      'color: #3a84ff;'
-                    }
-                    class='icon-down'
-                    onClick={() => handleCustomHeaderSort('count', 'difference', 'desc')}
-                  />
-                </span>
-              </div>
-            </div>
-          </div>
-        ),
-        colKey: 'count',
-        width: 181,
-        cell: (_, { row }) => (
-          <div
-            key={random(6)}
-            class='custom-cell'
-          >
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.count))}</div>
-            <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.count))}</div>
-            <div class='custom-cell-child'>{getDiffValue(row, 'count')}</div>
-          </div>
-        ),
-      },
-      {
-        title: t('操作'),
-        cell: (_, { row }) => (
-          <div style='display: flex;'>
-            {/* TODO: 这里需要带什么参数去跳转页面 */}
-            <div
-              style='width: 70px;'
-              class='link-column'
-              onClick={() => handleToTraceQuery(row)}
-            >
-              <span
-                class='link-text'
-                title={t('Span检索')}
+    const tempDiffTableColumns = computed(
+      () =>
+        [
+          {
+            isUseShow: true,
+            title: t('接口'),
+            colKey: 'span_name',
+            filter: {
+              ...createCommonTableColumnFilter(endpointNameFilterList.value),
+            },
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='link-column'
+                onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
               >
-                {t('Span检索')}
-              </span>
-              <i class='icon-monitor icon-fenxiang' />
-            </div>
-          </div>
-        ),
-        colKey: 'operation',
-        fixed: 'right',
-        width: 91,
-      },
-    ]);
+                <Popover
+                  content={row.span_name}
+                  popoverDelay={[200, 0]}
+                >
+                  <span class='link-text'>{row.span_name}</span>
+                </Popover>
+                <i class='icon-monitor icon-fenxiang' />
+              </div>
+            ),
+          },
+          {
+            isUseShow: true,
+            title: t('服务'),
+            colKey: 'resource.service.name',
+            filter: {
+              ...createCommonTableColumnFilter(serviceNameFilterList.value),
+            },
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='link-column classify-column'
+                onClick={() => handleToService(row?.['resource.service.name']?.value)}
+              >
+                <img
+                  alt=''
+                  src={row?.['resource.service.name']?.icon}
+                />
+                <Popover
+                  content={row?.['resource.service.name']?.value}
+                  popoverDelay={[200, 0]}
+                >
+                  <span class='link-text'>{row?.['resource.service.name']?.value}</span>
+                </Popover>
+                <i class='icon-monitor icon-fenxiang' />
+              </div>
+            ),
+          },
+          {
+            isUseShow: true,
+            title: t('数据来源'),
+            colKey: 'resource.sdk.name',
+            filter: {
+              ...createCommonTableColumnFilter(sourceList.value),
+            },
+          },
+          {
+            isUseShow: true,
+            title: t('Span类型'),
+            colKey: 'kind',
+            filter: {
+              ...createCommonTableColumnFilter(categoryList.value),
+            },
+            cell: (_, { row }: { row: ITableDataItem }) => (
+              <div class='classify-column'>
+                <img
+                  alt=''
+                  src={row.kind?.icon}
+                />
+                <span class='link-text'>{row.kind?.text}</span>
+              </div>
+            ),
+          },
+          {
+            title: () => (
+              <div style='width: 100%;'>
+                <div class='custom-header-row-top'>{`${t('最大时间')}（μs）`}</div>
+                <div class='custom-header-row-bottom'>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('max_duration', 'current')}
+                    >
+                      {`${t('当前')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'current', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'current', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('max_duration', 'refer')}
+                    >
+                      {`${t('参照')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('max_duration', 'difference')}
+                    >
+                      {`${t('差异值')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'max_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'desc')}
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ),
+            colKey: 'max_duration',
+            minWidth: 181,
+            cell: (_, { row }: { cell: Record<string, string>; row: ITableDataItem }) => (
+              <div
+                key={random(6)}
+                class='custom-cell'
+              >
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.max_duration))}</div>
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.max_duration))}</div>
+                <div class='custom-cell-child'>{getDiffValue(row, 'max_duration')}</div>
+              </div>
+            ),
+          },
+          {
+            title: () => (
+              <div style='width: 100%;'>
+                <div class='custom-header-row-top'>{`${t('最小时间')}（μs）`}</div>
+                <div class='custom-header-row-bottom'>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('min_duration', 'current')}
+                    >
+                      {`${t('当前')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'current', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'current', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('min_duration', 'refer')}
+                    >
+                      {`${t('参照')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('min_duration', 'difference')}
+                    >
+                      {`${t('差异值')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'min_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'desc')}
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ),
+            colKey: 'min_duration',
+            minWidth: 181,
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='custom-cell'
+              >
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.min_duration))}</div>
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.min_duration))}</div>
+                <div class='custom-cell-child'>{getDiffValue(row, 'min_duration')}</div>
+              </div>
+            ),
+          },
+          {
+            title: () => (
+              <div style='width: 100%;'>
+                <div class='custom-header-row-top'>{`${t('总时间')}（ms）`}</div>
+                <div class='custom-header-row-bottom'>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('sum_duration', 'current')}
+                    >
+                      {`${t('当前')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('sum_duration', 'refer')}
+                    >
+                      {`${t('参照')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('sum_duration', 'difference')}
+                    >
+                      {`${t('差异值')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'sum_duration' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'desc')}
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ),
+            colKey: 'sum_duration',
+            minWidth: 181,
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='custom-cell'
+              >
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.sum_duration))}</div>
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.sum_duration))}</div>
+                <div class='custom-cell-child'>{getDiffValue(row, 'sum_duration')}</div>
+              </div>
+            ),
+          },
+          {
+            title: () => (
+              <div style='width: 100%;'>
+                <div class='custom-header-row-top'>{`${t('CP95')}（ms）`}</div>
+                <div class='custom-header-row-bottom'>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('P95', 'current')}
+                    >
+                      {`${t('当前')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('P95', 'current', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('P95', 'current', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('P95', 'refer')}
+                    >
+                      {`${t('参照')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('P95', 'refer', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('P95', 'refer', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('P95', 'difference')}
+                    >
+                      {`${t('差异值')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('P95', 'difference', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'P95' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('P95', 'difference', 'desc')}
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ),
+            colKey: 'P95',
+            minWidth: 181,
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='custom-cell'
+              >
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.P95))}</div>
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.P95))}</div>
+                <div class='custom-cell-child'>{getDiffValue(row, 'P95')}</div>
+              </div>
+            ),
+          },
+          {
+            title: () => (
+              <div style='width: 100%;'>
+                <div class='custom-header-row-top'>{`${t('总数')}（ms）`}</div>
+                <div class='custom-header-row-bottom'>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('count', 'current')}
+                    >
+                      {`${t('当前')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('count', 'current', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'current' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('count', 'current', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('count', 'refer')}
+                    >
+                      {`${t('参照')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('count', 'refer', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'refer' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('count', 'refer', 'desc')}
+                      />
+                    </span>
+                  </div>
+                  <div class='custom-header-row-bottom-child'>
+                    <span
+                      class='custom-label-text'
+                      onClick={() => handleCustomHeaderSort('count', 'difference')}
+                    >
+                      {`${t('差异值')}`}
+                    </span>
+                    <span class='sort-icon'>
+                      <AngleDownFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'asc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-up'
+                        onClick={() => handleCustomHeaderSort('count', 'difference', 'asc')}
+                      />
+                      <AngleUpFill
+                        style={
+                          selectedField.value === 'count' &&
+                          selectedChildField.value === 'difference' &&
+                          selectedSortType.value === 'desc' &&
+                          'color: #3a84ff;'
+                        }
+                        class='icon-down'
+                        onClick={() => handleCustomHeaderSort('count', 'difference', 'desc')}
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ),
+            colKey: 'count',
+            minWidth: 181,
+            cell: (_, { row }) => (
+              <div
+                key={random(6)}
+                class='custom-cell'
+              >
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.count))}</div>
+                <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.count))}</div>
+                <div class='custom-cell-child'>{getDiffValue(row, 'count')}</div>
+              </div>
+            ),
+          },
+          {
+            title: t('操作'),
+            cell: (_, { row }) => (
+              <div style='display: flex;'>
+                {/* TODO: 这里需要带什么参数去跳转页面 */}
+                <div
+                  style='width: 70px;'
+                  class='link-column'
+                  onClick={() => handleToTraceQuery(row)}
+                >
+                  <span
+                    class='link-text'
+                    title={t('Span检索')}
+                  >
+                    {t('Span检索')}
+                  </span>
+                  <i class='icon-monitor icon-fenxiang' />
+                </div>
+              </div>
+            ),
+            colKey: 'operation',
+            fixed: 'right',
+            width: 91,
+          },
+        ] as StaticTableCol[]
+    );
 
     const tableColumns = computed(() => {
       if (isLoading.value) return [];
@@ -1358,7 +1363,7 @@ export default defineComponent({
           sortData = sortList.sort((pre, next) => pre[field] - next[field]);
         }
       }
-      const entries = Object.entries(filterValue.value || {});
+      const entries = Object.entries(filterValue.value || {}).filter(([key, value]) => value.length > 0);
       let list = [];
       if (entries.length > 0) {
         for (const item of sortData) {
@@ -1423,11 +1428,11 @@ export default defineComponent({
           height='100%'
           class={`statistics-table ${this.isCompareView ? 'statistics-diff-table' : ''}`}
           v-slots={{ empty: () => emptyContent() }}
+          bkUiSettings={this.isCompareView ? this.diffTableSettings : this.tableSettings}
           columns={this.tableColumns}
           data={this.tableData}
           filterValue={this.filterValue}
           rowKey='span_name'
-          settings={this.isCompareView ? this.diffTableSettings : this.tableSettings}
           sort={this.sortInfo}
           showSortColumnBgColor
           onFilterChange={this.filterValueChange}

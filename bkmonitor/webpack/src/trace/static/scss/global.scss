@@ -252,49 +252,6 @@ body {
   z-index: 2000;
 }
 
-// @blueking/table css 部分变量设计有问题 没有设置默认变量 导出 shadowRoot无法获取到变量值
-:root {
-  --vxe-ui-font-color: #606266;
-  --vxe-ui-font-primary-color: #409eff;
-  --vxe-ui-font-lighten-color: #797b80;
-  --vxe-ui-font-darken-color: #47494c;
-  --vxe-ui-font-disabled-color: #bfbfbf;
-  --vxe-ui-base-popup-border-color: #dadce0;
-  --vxe-ui-base-popup-box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.16);
-  --vxe-ui-layout-background-color: #fff;
-  --vxe-ui-input-border-color: #dcdfe6;
-  --vxe-ui-input-placeholder-color: #c0c4cc;
-  --vxe-ui-input-disabled-background-color: #f3f3f3;
-  --vxe-ui-loading-background-color: hsla(0, 0%, 100%, 0.5);
-  --vxe-ui-table-header-background-color: #f8f8f9;
-  --vxe-ui-table-border-color: #e8eaec;
-  --vxe-ui-table-row-hover-background-color: #f5f7fa;
-  --vxe-ui-table-row-striped-background-color: #fafafa;
-  --vxe-ui-table-row-hover-striped-background-color: #f5f7fa;
-  --vxe-ui-table-row-radio-checked-background-color: #fff3e0;
-  --vxe-ui-table-row-hover-radio-checked-background-color: #ffebbc;
-  --vxe-ui-table-row-checkbox-checked-background-color: #fff3e0;
-  --vxe-ui-table-row-hover-checkbox-checked-background-color: #ffebbc;
-  --vxe-ui-table-row-current-background-color: #e6f7ff;
-  --vxe-ui-table-row-hover-current-background-color: #d7effb;
-  --vxe-ui-table-fixed-scrolling-box-shadow-color: rgba(0, 0, 0, 0.12);
-  --vxe-ui-table-drag-over-background-color: rgba(255, 255, 200, 0.3);
-  --table-head-font-color: #313238;
-  --primary-color: #3a84ff;
-  --table-body-font-color: #63656E;
-  --table-row-active-bg-color: #f0f1f5;
-  --component-size-small: 26px;
-  --component-size-small-padding: 0 12px;
-  --font-size-base: 12px;
-  --default-color: #63656e;
-  --white-color: white;
-  --light-gray: #c4c6cc;
-  --border-radius-base: 2px;
-  --button-primary-hover-color: #5594fa;
-  --disable-color: #dcdee5;
-  --button-default-hover-border-color: #979ba5;
-}
-
 .bk-popover.bk-pop2-content {
   &.padding-0 {
     padding: 0;

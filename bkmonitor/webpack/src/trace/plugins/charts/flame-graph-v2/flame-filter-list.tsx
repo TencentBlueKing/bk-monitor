@@ -25,9 +25,9 @@
  */
 import { computed, defineComponent, ref, shallowRef } from 'vue';
 
+import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
 import { Select } from 'bkui-vue';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
-import { PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
 import './flame-filter-list.scss';
 

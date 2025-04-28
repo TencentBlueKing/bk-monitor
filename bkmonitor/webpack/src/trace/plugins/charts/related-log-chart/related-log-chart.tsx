@@ -37,6 +37,7 @@ import {
 import { type TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
+import { PrimaryTable, type TableProps } from '@blueking/tdesign-ui';
 import { Alert, Button, Exception, Input, Popover, Select } from 'bkui-vue';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -52,7 +53,6 @@ import { debounce } from 'monitor-common/utils/utils';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
-import { PrimaryTable, type TableProps } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 

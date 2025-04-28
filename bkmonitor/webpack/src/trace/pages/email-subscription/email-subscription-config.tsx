@@ -28,6 +28,7 @@ import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { PrimaryTable, type SortInfo, type TableProps, type FilterValue } from '@blueking/tdesign-ui';
 import {
   Button,
   Dialog,
@@ -55,7 +56,6 @@ import {
 } from 'monitor-api/modules/new_report';
 import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
-import { PrimaryTable, type SortInfo, type TableProps, type FilterValue } from 'tdesign-vue-next';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -1291,14 +1291,6 @@ export default defineComponent({
                   />
                 ),
               }}
-              columnController={{
-                placement: 'top-right',
-                buttonProps: {
-                  content: '',
-                  size: 'small',
-                },
-                hideTriggerButton: true,
-              }}
               columns={this.table.columns.map(item => {
                 return {
                   colKey: item.field,
@@ -1326,9 +1318,8 @@ export default defineComponent({
                 sortBy: this.order?.replace(/^-/, '') || '',
                 descending: this.order?.startsWith('-') || false,
               }}
+              bkUiSettings={this.table.settings}
               data={this.table.data}
-              settings={this.table.settings}
-              showSettings={true}
               showSortColumnBgColor={true}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 const conditions = [];
@@ -1348,10 +1339,10 @@ export default defineComponent({
                 this.pageSize = pageInfo.pageSize;
                 this.fetchSubscriptionList();
               }}
-              onSettingChange={({ checked, size }) => {
-                this.table.settings.size = size;
-                window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
-              }}
+              // onSettingChange={({ checked, size }) => {
+              //   this.table.settings.size = size;
+              //   window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
+              // }}
               onSortChange={(sort: SortInfo) => {
                 if (sort) {
                   this.order = `${!sort.descending ? '' : '-'}${sort.sortBy}`;
@@ -1386,17 +1377,16 @@ export default defineComponent({
                   : undefined,
                 sorter: item.sortable,
               }))}
+              bkUiSettings={this.tableForSelf.settings}
               data={this.computedTableDataForSelf}
               filterValue={this.filterConfig}
-              settings={this.tableForSelf.settings}
-              showSettings={true}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 this.filterConfig = filters;
               }}
-              onSettingChange={({ checked, size }) => {
-                this.tableForSelf.settings.size = size;
-                window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
-              }}
+              // onSettingChange={({ checked, size }) => {
+              //   this.tableForSelf.settings.size = size;
+              //   window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
+              // }}
             />
           </Loading>
           <Dialog

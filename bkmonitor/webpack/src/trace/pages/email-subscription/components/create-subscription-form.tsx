@@ -26,6 +26,7 @@
 import { type PropType, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { PrimaryTable } from '@blueking/tdesign-ui';
 import {
   Alert,
   Button,
@@ -45,7 +46,6 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
 import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
-import { PrimaryTable } from 'tdesign-vue-next';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';

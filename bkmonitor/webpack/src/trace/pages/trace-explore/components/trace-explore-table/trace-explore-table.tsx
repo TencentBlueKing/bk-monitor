@@ -36,10 +36,9 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
 import { Loading, OverflowTitle } from 'bkui-vue';
-import { AngleUpFill, Funnel } from 'bkui-vue/lib/icon';
 import { listOptionValues } from 'monitor-api/modules/apm_trace';
-import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -1079,8 +1078,6 @@ export default defineComponent({
         <PrimaryTable
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
-            filterIcon: () => <Funnel />,
-            sortIcon: () => <AngleUpFill />,
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
             lastFullRow: () => (
               <Loading

@@ -47,8 +47,7 @@ import 'monitor-pc/common/global-login';
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
-import 'tdesign-vue-next/es/style/index.css';
-import './theme/t-design.scss';
+import '@blueking/tdesign-ui/vue3/index.css';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';

@@ -27,10 +27,10 @@
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { PrimaryTable } from '@blueking/tdesign-ui';
 import { listAlertTags } from 'monitor-api/modules/alert';
 // import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
-import { PrimaryTable } from 'tdesign-vue-next';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useAppStore } from '../../store/modules/app';

@@ -38,7 +38,6 @@ import { useAppStore } from '../store/modules/app';
 import { useAppReadonlyProvider } from './provider';
 
 import './app.scss';
-import '@blueking/table/vue3/vue3.css';
 import 'tippy.js/dist/tippy.css';
 import 'tippy.js/themes/light.css';
 

@@ -38,12 +38,12 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
-import { PrimaryTable } from 'tdesign-vue-next';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import ExploreFieldSetting from '../../trace-explore/components/explore-field-setting/explore-field-setting';

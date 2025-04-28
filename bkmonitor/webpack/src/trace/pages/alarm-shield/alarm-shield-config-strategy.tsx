@@ -26,6 +26,7 @@
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Checkbox, Loading, Select } from 'bkui-vue';
 import {
   getMetricListV2,
@@ -35,7 +36,6 @@ import {
   promqlToQueryConfig,
 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
-import { PrimaryTable } from 'tdesign-vue-next';
 
 import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 import DimensionConditionInput from './components/dimension-input/dimension-input';

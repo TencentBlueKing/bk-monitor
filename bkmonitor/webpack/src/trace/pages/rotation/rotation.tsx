@@ -24,15 +24,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
+import { defineComponent, provide, reactive, shallowRef } from 'vue';
 import { shallowReactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from 'tdesign-vue-next';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -173,16 +173,6 @@ export default defineComponent({
       descending: false,
     });
     const tableFilters = shallowRef<FilterValue>({});
-    /* 表格设置 */
-    const settings = shallowReactive({
-      checked: tableColumns.value.map(item => item.field),
-      size: 'small',
-      fields: tableColumns.value.map(item => ({
-        label: item.title,
-        field: item.field,
-        disabled: item.disabled,
-      })),
-    });
     const searchData = reactive({
       data: [
         {
@@ -202,7 +192,7 @@ export default defineComponent({
     });
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
-    const loading = ref(false);
+    const loading = shallowRef(false);
 
     provide('authority', authority);
 
@@ -422,10 +412,7 @@ export default defineComponent({
      * @description 表格设置
      * @param opt
      */
-    function handleSettingChange(opt) {
-      settings.checked = opt.checked;
-      settings.size = opt.size;
-    }
+    function handleSettingChange() {}
     /**
      * @description 分页
      * @param page
@@ -657,7 +644,6 @@ export default defineComponent({
       tableData,
       tableColumns,
       tablePagination,
-      settings,
       searchData,
       detailData,
       loading,
@@ -713,6 +699,9 @@ export default defineComponent({
                         />
                       ),
                     }}
+                    bkUiSettings={{
+                      checked: this.tableColumns.map(item => item.field),
+                    }}
                     columns={this.tableColumns.map(column => ({
                       colKey: column.field,
                       cell: (_, { row }) => this.handleSetFormatter(row, column.field),
@@ -731,12 +720,8 @@ export default defineComponent({
                     data={this.tableData}
                     resizable={true}
                     rowKey='name'
-                    settings={this.settings}
-                    showSettings={true}
                     showSortColumnBgColor={true}
-                    size={this.settings.size}
                     onFilterChange={this.handleColumnFilter}
-                    onSettingChange={this.handleSettingChange}
                     onSortChange={this.handleColumnSort}
                   />,
                   <Pagination
