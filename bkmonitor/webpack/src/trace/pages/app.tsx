@@ -38,8 +38,6 @@ import { useAppStore } from '../store/modules/app';
 import { useAppReadonlyProvider } from './provider';
 
 import './app.scss';
-import 'tippy.js/dist/tippy.css';
-import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   setup() {
