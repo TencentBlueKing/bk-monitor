@@ -13,6 +13,7 @@ import datetime
 import json
 import logging
 import time
+from typing import Any, Dict
 
 import pytz
 from django.conf import settings
@@ -21,7 +22,12 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
+from apm.constants import (
+    GLOBAL_CONFIG_BK_BIZ_ID,
+    ConfigTypes,
+    EnabledStatisticsDimension,
+    VisibleEnum,
+)
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
@@ -58,9 +64,10 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
-from apm.serializers import TraceFieldsTopkRequestSerializer
+from apm.serializers import TraceFieldStatisticsInfoRequestSerializer
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
+from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -1920,7 +1927,7 @@ class QueryFieldsTopkResource(Resource):
 
     @classmethod
     def query_distinct_count(cls, proxy, field, validated_data, field_distinct_map):
-        field_distinct_map[field] = proxy.query_distinct_count(
+        field_distinct_map[field] = proxy.query_field_distinct_count(
             validated_data["mode"],
             validated_data["start_time"],
             validated_data["end_time"],
@@ -1931,7 +1938,7 @@ class QueryFieldsTopkResource(Resource):
 
     @classmethod
     def query_topk(cls, proxy, field, validated_data, field_topk_map):
-        field_topk_map[field] = proxy.query_topk(
+        field_topk_map[field] = proxy.query_field_topk(
             validated_data["mode"],
             validated_data["start_time"],
             validated_data["end_time"],
@@ -1952,3 +1959,79 @@ class QueryFieldsTopkResource(Resource):
                 validated_data["query_string"],
             )
         )
+
+
+class QueryFieldStatisticsInfoResource(Resource):
+    RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_data):
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        statistics_properties = ["total_count", "field_count", "distinct_count"]
+        if validated_data["field"]["field_type"] in [
+            EnabledStatisticsDimension.LONG.value,
+            EnabledStatisticsDimension.DOUBLE.value,
+            EnabledStatisticsDimension.INTEGER.value,
+        ]:
+            statistics_properties.extend(["max", "min", "median", "avg"])
+
+        statistics_info = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.query_statistics_info,
+                    args=(
+                        proxy,
+                        validated_data,
+                        property_name,
+                        statistics_info,
+                    ),
+                )
+                for property_name in statistics_properties
+            ]
+        )
+        # 格式化统计信息
+        return self.process_statistics_info(statistics_info)
+
+    @classmethod
+    def query_statistics_info(cls, proxy, validated_data, property_name, statistics_info) -> None:
+        query_property_method_map = {
+            "total_count": proxy.query_field_count,
+            "field_count": proxy.query_field_not_empty_count,
+            "distinct_count": proxy.query_field_distinct_count,
+            "avg": proxy.query_field_avg,
+            "max": proxy.query_field_max,
+            "min": proxy.query_field_min,
+            "median": proxy.query_field_median,
+        }
+
+        if property_name in query_property_method_map:
+            statistics_info[property_name] = query_property_method_map[property_name](
+                validated_data["mode"],
+                validated_data["start_time"],
+                validated_data["end_time"],
+                validated_data["field"]["field_name"],
+                validated_data["filters"],
+                validated_data["query_string"],
+            )
+        else:
+            raise ValueError(_("未知的字段统计属性: {}".format(property_name)))
+
+    @classmethod
+    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+        processed_statistics_info = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            # 平均值取两位小数
+            if statistics_property == "avg":
+                value = round(value, 2)
+            if statistics_property in ["max", "min", "median", "avg"]:
+                processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            processed_statistics_info[statistics_property] = value
+        # 计算百分比
+        processed_statistics_info["field_percent"] = (
+            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
+            if statistics_info["total_count"] > 0
+            else 0
+        )
+        return processed_statistics_info

@@ -8,9 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apm.constants import QueryMode
+from apm.constants import EnabledStatisticsDimension, QueryMode
 
 
 class FilterSerializer(serializers.Serializer):
@@ -36,3 +37,18 @@ class BaseTraceFilterSerializer(serializers.Serializer):
 class TraceFieldsTopkRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
     limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+
+
+class TraceStatisticsFieldSerializer(serializers.Serializer):
+    field_type = serializers.CharField(label="字段类型")
+    field_name = serializers.CharField(label="字段名称")
+    values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
+
+    def validate(self, attrs):
+        if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
+            raise ValueError(_("不支持的字段类型"))
+        return attrs
+
+
+class TraceFieldStatisticsInfoRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
+    field = TraceStatisticsFieldSerializer(label="字段")

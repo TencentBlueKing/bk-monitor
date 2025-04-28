@@ -374,7 +374,7 @@ class BaseQuery:
             self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
         )
 
-    def _query_distinct_count(self, start_time, end_time, field, filters, query_string):
+    def _query_field_distinct_count(self, start_time, end_time, field, filters, query_string):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
             field=field, method="distinct", alias="a"
         )
@@ -385,7 +385,7 @@ class BaseQuery:
             logger.warning("failed to query [%s] distinct, err -> %s", field, exc)
             raise ValueError(_("{} 去重数查询出错".format(field)))
 
-    def _query_topk(self, start_time, end_time, field, limit, filters, query_string):
+    def _query_field_topk(self, start_time, end_time, field, limit, filters, query_string):
         q: QueryConfigBuilder = (
             self.get_q_from_filters_and_query_string(filters, query_string)
             .metric(field=field, method="COUNT", alias="a")
@@ -405,6 +405,74 @@ class BaseQuery:
         except (IndexError, KeyError) as exc:
             logger.warning("failed to query total, err -> %s", exc)
             raise ValueError(_("总记录数查询出错"))
+
+    def _query_field_count(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="COUNT", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s count, err -> %s", field, exc)
+            raise ValueError(_("{} 总行数查询出错".format(field)))
+
+    def _query_field_not_empty_count(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = (
+            self.get_q_from_filters_and_query_string(filters, query_string)
+            .filter(**{f"{field}__ne": ""})
+            .metric(field=field, method="COUNT", alias="a")
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s count, err -> %s", field, exc)
+            raise ValueError(_("{} 值不为空行数查询出错".format(field)))
+
+    def _query_max(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="max", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s max, err -> %s", field, exc)
+            raise ValueError(_("{} 最大值查询出错".format(field)))
+
+    def _query_min(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="min", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s min, err -> %s", field, exc)
+            raise ValueError(_("{} 最小值查询出错".format(field)))
+
+    def _query_median(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="cp50", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s median, err -> %s", field, exc)
+            raise ValueError(_("{} 中位值查询出错".format(field)))
+
+    def _query_avg(self, start_time, end_time, field, filters, query_string):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
+            field=field, method="avg", alias="a"
+        )
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query %s avg, err -> %s", field, exc)
+            raise ValueError(_("{} 平均值查询出错".format(field)))
 
 
 class FakeQuery:

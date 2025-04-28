@@ -34,6 +34,7 @@ from apm.resources import (
     QueryEsResource,
     QueryEventResource,
     QueryFieldsResource,
+    QueryFieldStatisticsInfoResource,
     QueryFieldsTopkResource,
     QueryHostInstanceResource,
     QueryLogRelationByIndexSetIdResource,
@@ -116,6 +117,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", CreateOrUpdateBkdataFlowResource, endpoint="create_or_update_bkdata_flow"),
         ResourceRoute("POST", OperateApmDataIdResource, endpoint="operate_apm_dataid"),
         ResourceRoute("POST", QueryFieldsTopkResource, endpoint="query_fields_topk"),
+        ResourceRoute("POST", QueryFieldStatisticsInfoResource, endpoint="query_field_statistics_info"),
     ]
 
 
