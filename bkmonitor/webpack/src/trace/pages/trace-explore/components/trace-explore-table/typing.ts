@@ -34,6 +34,8 @@ export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = Explo
   extends PrimaryTableCol {
   /** 字段类型 */
   renderType?: T;
+  /** 列描述(popover形式展现) **/
+  headerDescription?: string;
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */

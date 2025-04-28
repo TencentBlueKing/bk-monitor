@@ -37,7 +37,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
-import { Loading, OverflowTitle } from 'bkui-vue';
+import { Loading, OverflowTitle, Popover } from 'bkui-vue';
 import { listOptionValues } from 'monitor-api/modules/apm_trace';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -118,8 +118,8 @@ export default defineComponent({
     const activeSliderId = shallowRef('');
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = shallowRef('trace_id');
-    /** 判断当前数据是否需要触底加载更多 */
-    const tableHasScrollLoading = shallowRef(false);
+    /** 判断table数据是否还有数据可以获取 */
+    const tableHasMoreData = shallowRef(false);
     /** table loading 配置 */
     const tableLoading = reactive({
       /** table 骨架屏 loading */
@@ -159,10 +159,14 @@ export default defineComponent({
     const displayColumnFieldsCacheKey = computed(() =>
       isSpanVisual.value ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
     );
+    /** 当前是否进行了本地 "耗时" 的筛选操作 */
+    const isLocalFilterMode = computed(() => store?.filterTableList?.length);
     /** table 数据（所有请求返回的数据） */
     const tableData = computed(() => store.tableList);
     /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
-    const tableViewData = computed(() => (store?.filterTableList?.length ? store.filterTableList : store.tableList));
+    const tableViewData = computed(() => (isLocalFilterMode.value ? store.filterTableList : store.tableList));
+    /** 判断当前数据是否需要触底加载更多 */
+    const tableHasScrollLoading = computed(() => !isLocalFilterMode.value && tableHasMoreData.value);
     /** table 所有列配置(字段设置使用) */
     const tableColumns = computed<{
       columnsMap: Record<string, ExploreTableColumn>;
@@ -185,7 +189,16 @@ export default defineComponent({
     /** table 显示列配置 */
     const tableDisplayColumns = computed<ExploreTableColumn[]>(() => {
       const columnMap = tableColumns.value.columnsMap;
-      return displayColumnFields.value.map(colKey => columnMap[colKey]).filter(Boolean);
+      return displayColumnFields.value
+        .map(colKey => {
+          const column = columnMap[colKey];
+          if (!column) return null;
+          const tableHeaderTitle = column.headerDescription
+            ? tableDescriptionHeaderRender(column.title, column.headerDescription)
+            : column.title;
+          return { ...column, title: tableHeaderTitle };
+        })
+        .filter(Boolean);
     });
 
     /** 请求时间范围 */
@@ -312,6 +325,7 @@ export default defineComponent({
           span_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
             colKey: 'span_id',
+            headerDescription: 'span_id',
             title: t('Span ID'),
             width: 160,
             sorter: true,
@@ -320,6 +334,7 @@ export default defineComponent({
           span_name: {
             renderType: ExploreTableColumnTypeEnum.TEXT,
             colKey: 'span_name',
+            headerDescription: 'span_name',
             title: t('接口名称'),
             width: 200,
             filter: {
@@ -329,6 +344,7 @@ export default defineComponent({
           start_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'start_time',
+            headerDescription: 'start_time',
             title: t('开始时间'),
             width: 140,
             sorter: true,
@@ -336,6 +352,7 @@ export default defineComponent({
           end_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'end_time',
+            headerDescription: 'end_time',
             title: t('结束时间'),
             width: 140,
             sorter: true,
@@ -343,6 +360,7 @@ export default defineComponent({
           elapsed_time: {
             renderType: ExploreTableColumnTypeEnum.DURATION,
             colKey: 'elapsed_time',
+            headerDescription: 'elapsed_time',
             title: t('耗时'),
             width: 100,
             sorter: true,
@@ -350,6 +368,7 @@ export default defineComponent({
           'status.code': {
             renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
             colKey: 'status.code',
+            headerDescription: 'kind',
             title: t('状态'),
             width: 100,
             filter: {
@@ -367,6 +386,7 @@ export default defineComponent({
           kind: {
             renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
             colKey: 'kind',
+            headerDescription: 'kind',
             title: t('类型'),
             width: 100,
             filter: {
@@ -377,6 +397,7 @@ export default defineComponent({
           'resource.service.name': {
             renderType: ExploreTableColumnTypeEnum.LINK,
             colKey: 'resource.service.name',
+            headerDescription: 'resource.service.name',
             title: t('所属服务'),
             width: 160,
             filter: {
@@ -387,6 +408,7 @@ export default defineComponent({
           'resource.bk.instance.id': {
             renderType: ExploreTableColumnTypeEnum.TEXT,
             colKey: 'resource.bk.instance.id',
+            headerDescription: 'resource.bk.instance.id',
             title: t('实例 ID'),
             width: 160,
             filter: {
@@ -397,6 +419,7 @@ export default defineComponent({
           'resource.telemetry.sdk.name': {
             renderType: ExploreTableColumnTypeEnum.TEXT,
             colKey: 'resource.telemetry.sdk.name',
+            headerDescription: 'resource.telemetry.sdk.name',
             title: t('SDK 名称'),
             width: 160,
             getRenderValue: row => row?.resource?.['telemetry.sdk.name'],
@@ -404,6 +427,7 @@ export default defineComponent({
           'resource.telemetry.sdk.version': {
             renderType: ExploreTableColumnTypeEnum.TEXT,
             colKey: 'resource.telemetry.sdk.version',
+            headerDescription: 'resource.telemetry.sdk.version',
             title: t('SDK 版本'),
             width: 160,
             filter: {
@@ -414,6 +438,7 @@ export default defineComponent({
           trace_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
             colKey: 'trace_id',
+            headerDescription: 'trace_id',
             title: t('所属Trace'),
             width: 240,
             clickCallback: row => handleSliderShowChange('trace', row.trace_id),
@@ -424,6 +449,7 @@ export default defineComponent({
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
           colKey: 'trace_id',
+          headerDescription: 'trace_id',
           title: t('Trace ID'),
           width: 240,
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
@@ -431,12 +457,14 @@ export default defineComponent({
         min_start_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'min_start_time',
+          headerDescription: 'min_start_time',
           title: t('开始时间'),
           width: 140,
         },
         root_span_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_span_name',
+          headerDescription: t('整个Trace的第一个Span'),
           title: t('根Span'),
           width: 160,
           filter: {
@@ -447,6 +475,7 @@ export default defineComponent({
         root_service: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_service',
+          headerDescription: t('服务端进程的第一个Service'),
           title: t('入口服务'),
           width: 160,
           filter: {
@@ -457,6 +486,7 @@ export default defineComponent({
         root_service_span_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_service_span_name',
+          headerDescription: t('入口服务的第一个接口'),
           title: t('入口接口'),
           width: 160,
           filter: {
@@ -467,6 +497,7 @@ export default defineComponent({
         root_service_category: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'root_service_category',
+          headerDescription: 'root_service_category',
           title: t('调用类型'),
           width: 120,
           filter: {
@@ -477,6 +508,7 @@ export default defineComponent({
         root_service_status_code: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
           colKey: 'root_service_status_code',
+          headerDescription: 'root_service_status_code',
           title: t('状态码'),
           width: 100,
           filter: {
@@ -497,6 +529,7 @@ export default defineComponent({
         trace_duration: {
           renderType: ExploreTableColumnTypeEnum.DURATION,
           colKey: 'trace_duration',
+          headerDescription: 'trace_duration',
           title: t('耗时'),
           width: 100,
           sorter: true,
@@ -504,6 +537,7 @@ export default defineComponent({
         'kind_statistics.sync': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'kind_statistics.sync',
+          headerDescription: 'kind_statistics.sync',
           title: t('同步Span数量'),
           width: 130,
           sorter: true,
@@ -513,6 +547,7 @@ export default defineComponent({
         'kind_statistics.async': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'kind_statistics.async',
+          headerDescription: 'kind_statistics.async',
           title: t('异步Span数量'),
           width: 130,
           sorter: true,
@@ -522,6 +557,7 @@ export default defineComponent({
         'kind_statistics.interval': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'kind_statistics.interval',
+          headerDescription: 'kind_statistics.interval',
           title: t('内部Span数量'),
           width: 130,
           sorter: true,
@@ -531,6 +567,7 @@ export default defineComponent({
         'kind_statistics.unspecified': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'kind_statistics.unspecified',
+          headerDescription: 'kind_statistics.unspecified',
           title: t('未知Span数量'),
           width: 130,
           sorter: true,
@@ -540,6 +577,7 @@ export default defineComponent({
         'category_statistics.db': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.db',
+          headerDescription: 'category_statistics.db',
           title: t('DB 数量'),
           width: 100,
           sorter: true,
@@ -549,6 +587,7 @@ export default defineComponent({
         'category_statistics.messaging': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.messaging',
+          headerDescription: 'category_statistics.messaging',
           title: t('Messaging 数量'),
           width: 136,
           sorter: true,
@@ -558,6 +597,7 @@ export default defineComponent({
         'category_statistics.http': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.http',
+          headerDescription: 'category_statistics.http',
           title: t('HTTP 数量'),
           width: 110,
           sorter: true,
@@ -567,6 +607,7 @@ export default defineComponent({
         'category_statistics.rpc': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.rpc',
+          headerDescription: 'category_statistics.rpc',
           title: t('RPC 数量'),
           width: 100,
           sorter: true,
@@ -576,6 +617,7 @@ export default defineComponent({
         'category_statistics.async_backend': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.async_backend',
+          headerDescription: 'category_statistics.async_backend',
           title: t('Async 数量'),
           width: 110,
           sorter: true,
@@ -585,6 +627,7 @@ export default defineComponent({
         'category_statistics.other': {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'category_statistics.other',
+          headerDescription: 'category_statistics.other',
           title: t('Other 数量'),
           width: 110,
           sorter: true,
@@ -594,6 +637,7 @@ export default defineComponent({
         span_count: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'span_count',
+          headerDescription: 'span_count',
           title: t('Span 数量'),
           width: 110,
           sorter: true,
@@ -602,6 +646,7 @@ export default defineComponent({
         hierarchy_count: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'hierarchy_count',
+          headerDescription: 'hierarchy_count',
           title: t('Span 层数'),
           width: 110,
           sorter: true,
@@ -610,6 +655,7 @@ export default defineComponent({
         service_count: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'service_count',
+          headerDescription: 'service_count',
           title: t('服务数量'),
           width: 100,
           sorter: true,
@@ -677,7 +723,7 @@ export default defineComponent({
       tableLoading[loadingType] = false;
 
       updateTableDataFn(res.data);
-      tableHasScrollLoading.value = res.data?.length === limit;
+      tableHasMoreData.value = res.data?.length === limit;
     }
 
     /**
@@ -837,6 +883,26 @@ export default defineComponent({
           spanId={activeSliderId.value}
           onSliderClose={() => handleSliderShowChange('', '')}
         />
+      );
+    }
+
+    /**
+     * @description table 带有列描述的表头渲染方法
+     * @param title 列名
+     * @param tipText 列描述
+     *
+     */
+    function tableDescriptionHeaderRender(title, tipText) {
+      // TODO 临时使用，后续需改为 单例 popover 实现
+      return () => (
+        <Popover
+          content={tipText}
+          placement='right'
+          popoverDelay={[500, 0]}
+          theme='light'
+        >
+          <span class='th-label'>{title}</span>
+        </Popover>
       );
     }
 
@@ -1078,7 +1144,6 @@ export default defineComponent({
         <PrimaryTable
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
-            empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
             lastFullRow: () => (
               <Loading
                 style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
@@ -1140,6 +1205,7 @@ export default defineComponent({
           }}
           activeRowType='single'
           data={this.tableViewData}
+          empty={() => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />}
           filterValue={this.filtersValue}
           hover={true}
           resizable={true}
