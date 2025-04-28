@@ -614,8 +614,8 @@ importers:
         specifier: 1.0.0-beta.12
         version: 1.0.0-beta.12
       '@blueking/tdesign-ui':
-        specifier: 0.0.1-beta.16
-        version: 0.0.1-beta.16(vue@3.5.13(typescript@5.8.3))
+        specifier: 0.0.1-beta.17
+        version: 0.0.1-beta.17(vue@3.5.13(typescript@5.8.3))
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.4
@@ -1535,8 +1535,8 @@ packages:
   '@blueking/stylelint-config@0.0.3':
     resolution: {integrity: sha512-8Yqwcg/dZmeY4ptnobq1H3Z0r0UzGXm2bD4rc18a/b7AvcJDFe7Z+RIPYYvNtbg4cXzzSAGu73ImbSiFi1c8jw==}
 
-  '@blueking/tdesign-ui@0.0.1-beta.16':
-    resolution: {integrity: sha512-IcrBsnG/0Xesb44HAH+x1cEWKEmo6XDiSwv4HOs8NmvpktChc/xqrWKeXzOStSLyeJYFHamMkTX1KADYKlOzqA==}
+  '@blueking/tdesign-ui@0.0.1-beta.17':
+    resolution: {integrity: sha512-3mrGUOI49E8ZBKTx+2zos+geRFy4FzRe7FzAXn+nac7DD61tjo1v5savfIWl7MhOZ73MziR6pLefPq/HvyLcJA==}
     peerDependencies:
       vue: ^3
 
@@ -9743,7 +9743,7 @@ snapshots:
       - postcss-markdown
       - supports-color
 
-  '@blueking/tdesign-ui@0.0.1-beta.16(vue@3.5.13(typescript@5.8.3))':
+  '@blueking/tdesign-ui@0.0.1-beta.17(vue@3.5.13(typescript@5.8.3))':
     dependencies:
       '@babel/runtime': 7.27.0
       '@popperjs/core': 2.11.8
