@@ -1,0 +1,91 @@
+.bklog-v3-index-set-list {
+  .index-set-item {
+    height: 32px;
+    line-height: 32px;
+    font-size: 12px;
+    color: #4d4f56;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding-left: 3px;
+
+    .favorite-icon {
+      visibility: hidden;
+
+      &.is-favorite {
+        visibility: visible;
+        color: #f8b64f;
+      }
+    }
+
+    .index-set-name {
+      position: relative;
+      padding-left: 12px;
+
+      &.no-data {
+        padding-left: 26px;
+        &::before {
+          content: '';
+          position: absolute;
+          width: 8px;
+          height: 8px;
+          background: #ffdddd;
+          border: 1px solid #ea3636;
+          left: 12px;
+          top: 4px;
+          border-radius: 50%;
+        }
+      }
+    }
+
+    .index-set-tags {
+      max-width: 200px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+
+      .index-set-tag-item {
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+
+        background: #f0f1f5;
+        border-radius: 2px;
+        padding: 0 8px;
+        font-size: 12px;
+        color: #4d4f56;
+        margin-right: 4px;
+      }
+    }
+
+    &:hover {
+      background: #ebeff5;
+      color: #4d4f56;
+
+      .favorite-icon {
+        &:not(.is-favorite) {
+          visibility: visible;
+          color: #c4c6cc;
+        }
+      }
+
+      .index-set-tags {
+        .index-set-tag-item {
+          background: #ffffff;
+        }
+      }
+    }
+
+    &.active {
+      background: #e1ecff;
+      color: #3a84ff;
+
+      .index-set-tags {
+        .index-set-tag-item {
+          background: #ffffff;
+        }
+      }
+    }
+  }
+}

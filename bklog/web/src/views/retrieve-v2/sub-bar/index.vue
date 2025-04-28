@@ -11,6 +11,7 @@
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
+  import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
   import TimeSetting from './time-setting';
@@ -34,11 +35,25 @@
 
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
+
+  // 索引集列表
+  const indexSetList = computed(() => store.state.retrieve.indexSetList);
+
+  // 索引集选择结果
+  const indexSetValue = computed(() => store.state.indexItem.ids);
+
+  // 索引集类型
+  const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
-    const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    const currentIndexSet = indexSetList.value.find(item => item.index_set_id == indexSetId);
     return currentIndexSet?.collector_config_id;
   });
 
@@ -143,6 +158,10 @@
     });
   };
 
+  const handleIndexSetValueChange = values => {
+    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
+  };
+
   /**
    * @description: 打开 索引集配置 抽屉页
    */
@@ -163,12 +182,13 @@
       :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
       class="box-biz-select"
     >
-      <SelectIndexSet
-        style="min-width: 500px"
-        :popover-options="{ offset: '-6,10' }"
-        @selected="handleIndexSetSelected"
-      ></SelectIndexSet>
-      <!-- <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div> -->
+      <IndexSetChoice
+        :index-set-list="indexSetList"
+        :index-set-value="indexSetValue"
+        :index-set-type="indexSetType"
+        :text-dir="textDir"
+        @value-change="handleIndexSetValueChange"
+      ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
 

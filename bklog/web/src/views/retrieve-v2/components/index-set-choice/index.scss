@@ -1,0 +1,217 @@
+.bklog-v3-indexset-container {
+  height: var(--indexset-root-h);
+  width: var(--indexset-root-w);
+  display: flex;
+  justify-content: space-between;
+  background: #f0f1f5;
+  border: solid 1px #f0f1f5;
+  position: relative;
+  padding: 0 4px 0 8px;
+  cursor: pointer;
+
+  .indexset-value-list {
+    font-size: 14px;
+    color: #313238;
+
+    .index-set-lighten-name {
+      margin-left: 8px;
+      font-family: Roboto-Regular;
+      font-weight: 400;
+      font-size: 12px;
+      color: #757880;
+    }
+  }
+
+  &.is-opened {
+    border: 1px solid #3a84ff;
+    background: #ffffff;
+
+    .bklog-icon {
+      transform: rotate(180deg);
+    }
+
+    &::after {
+      display: none;
+    }
+  }
+
+  &::after {
+    content: attr(data-shortcut-key);
+    position: absolute;
+    padding: 0 4px;
+    height: 16px;
+    background: #ffffff;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    right: 22px;
+    font-family: roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    color: #a3b1cc;
+    pointer-events: none;
+  }
+
+  &:hover {
+    &::after {
+      display: none;
+    }
+  }
+}
+
+.bklog-v3-content-root {
+  cursor: default;
+
+  .content-header {
+    width: 100%;
+    height: 40px;
+    background: #f0f1f5;
+    border-radius: 2px 2px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+
+    .bklog-v3-tabs {
+      display: inline-flex;
+
+      .tab-item {
+        width: 76px;
+        height: 32px;
+        background: #dcdee5;
+        border-radius: 4px 4px 0 0;
+        margin-left: 12px;
+        color: #313238;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &.is-active {
+          background-color: #fff;
+          color: #3a84ff;
+          font-weight: 700;
+        }
+      }
+    }
+
+    .bklog-v3-keys {
+      display: flex;
+      align-self: center;
+      align-items: center;
+      justify-content: flex-end;
+      margin-right: 12px;
+      height: 16px;
+
+      .key-item {
+        margin-left: 16px;
+        display: inline-flex;
+        align-items: center;
+
+        .key-code {
+          display: inline-flex;
+          align-items: center;
+          background: #ffffff;
+          border-radius: 2px;
+          height: 16px;
+          font-weight: 700;
+          font-size: 11px;
+          color: #a3b1cc;
+
+          &.text {
+            padding: 0 4px;
+            font-size: 12px;
+            color: #7a8599;
+          }
+
+          &.bklog-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+
+            &.up-icon {
+              transform: rotate(180deg);
+              margin-right: 2px;
+            }
+          }
+        }
+
+        .key-name {
+          font-size: 12px;
+          color: #7a8599;
+          margin-left: 4px;
+        }
+      }
+    }
+  }
+
+  .bklog-v3-content-filter {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+    position: relative;
+
+    .bklog-v3-search-input {
+      display: flex;
+      align-items: center;
+
+      .hidden-empty-icon {
+        width: 8px;
+        height: 8px;
+        background: #ffdddd;
+        border: 1px solid #ea3636;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 2px;
+      }
+    }
+    .bklog-v3-tag-list {
+      display: flex;
+      align-items: center;
+      padding-top: 8px;
+
+      .tag-item {
+        padding: 0 8px;
+        height: 22px;
+        background: #f0f1f5;
+        border-radius: 2px;
+        font-size: 12px;
+        color: #4d4f56;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 4px;
+      }
+    }
+  }
+
+  .bklog-v3-content-body {
+    min-height: 200px;
+    position: relative;
+    display: flex;
+
+    .bklog-v3-content-list {
+      width: 490px;
+      max-height: 442px;
+      overflow-y: auto;
+      padding-top: 6px;
+    }
+
+    .bklog-v3-item-info {
+      width: 310px;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 8px;
+      transform: scaleY(-1);
+      background-image: linear-gradient(180deg, #00000000 0%, #00000014 99%);
+      pointer-events: none;
+    }
+  }
+}
