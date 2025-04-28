@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from io import StringIO
-from urllib import parse
 
-from django.http import HttpResponse
 from rest_framework.decorators import action
 
 from apm_web.decorators import user_visit_record
@@ -43,9 +39,13 @@ from apm_web.trace.resources import (
     TraceStatisticsResource,
 )
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
+from apm_web.utils import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from packages.apm_web.handlers.trace_handler.dimension_statistics import (
+    DimensionStatisticsAPIHandler,
+)
 
 from .mock_data import API_TOPK_DATA
 
@@ -150,20 +150,20 @@ class TraceQueryViewSet(ResourceViewSet):
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
     def download_topk(self, request, *args, **kwargs):
-        # TODO 和数据探索侧的事件逻辑重合，这里需要抽象公共逻辑。
         s = TraceFieldsTopkRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         validated_data: dict = s.validated_data
+        api_topk_data = DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
-        output = StringIO()
-        for item in API_TOPK_DATA[0]["list"]:
-            output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
+        file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['fields'][0]}.csv"
+        if validated_data.get("is_mock"):
+            file_content = (
+                [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in API_TOPK_DATA[0]["list"]
+            )
+        else:
+            file_content = (
+                [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_data[0]["list"]
+            )
+        response = generate_csv_file_download_response(file_name, file_content)
 
-        file_name = f'topk_{validated_data["bk_biz_id"]}_{validated_data["app_name"]}_{validated_data["fields"][0]}.txt'
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
         return response
