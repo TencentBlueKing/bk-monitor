@@ -195,13 +195,15 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                 )}
                 <div
                   class='tag-wrapper'
+                  v-bk-tooltips={{ content: item.key || this.dimensionAliasNameMap[item.key] }}
                   onClick={(event: Event) => this.handleShowEditPanel(item, event)}
                 >
                   <div class='dimension-header'>
                     <div class='dimension-key'>
-                      {this.dimensionAliasNameMap[item.key]
+                      {this.dimensionAliasNameMap[item.key] || item.key}
+                      {/* {this.dimensionAliasNameMap[item.key]
                         ? `${this.dimensionAliasNameMap[item.key]} (${item.key})`
-                        : item.key}
+                        : item.key} */}
                     </div>
                     <div class='dimension-method'>{methodMap[item.method]}</div>
                   </div>
