@@ -44,7 +44,7 @@ import {
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
-import { DURATION_KEYS, fieldTypeMap, getTitleAndSubtitle, isNumeric } from './utils';
+import { DURATION_KEYS, fieldTypeMap, isNumeric } from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
@@ -123,7 +123,9 @@ export default defineComponent({
         if (val) {
           if (props.value) {
             const id = props.value.key.id;
+            let index = -1;
             for (const item of props.fields) {
+              index += 1;
               if (item.name === id) {
                 const checkedItem = JSON.parse(JSON.stringify(item));
                 handleCheck(
@@ -133,6 +135,10 @@ export default defineComponent({
                   !!props.value?.options?.is_wildcard,
                   true
                 );
+                setTimeout(() => {
+                  updateSelection(index);
+                }, 300);
+
                 break;
               }
             }
@@ -254,7 +260,7 @@ export default defineComponent({
           if (cursorIndex.value < 0) {
             cursorIndex.value = searchLocalFields.value.length - 1;
           }
-          updateSelection();
+          updateSelection(cursorIndex.value);
           enterSelectionDebounce();
           break;
         }
@@ -265,7 +271,7 @@ export default defineComponent({
           if (cursorIndex.value > searchLocalFields.value.length) {
             cursorIndex.value = 0;
           }
-          updateSelection();
+          updateSelection(cursorIndex.value);
           enterSelectionDebounce();
           break;
         }
@@ -276,10 +282,10 @@ export default defineComponent({
         }
       }
     }
-    function updateSelection() {
+    function updateSelection(index: number) {
       nextTick(() => {
         const listEl = elRef.value.querySelector('.component-top-left .options-wrap');
-        const el = listEl?.children?.[cursorIndex.value];
+        const el = listEl?.children?.[index];
         if (el) {
           el.scrollIntoView(false);
         }
@@ -529,7 +535,9 @@ export default defineComponent({
             </div>
             <div class='options-wrap'>
               {this.searchLocalFields.map((item, index) => {
-                const { title, subtitle } = getTitleAndSubtitle(item.alias);
+                // const { title, subtitle } = getTitleAndSubtitle(item.alias);
+                const title = item.alias;
+                const subtitleStr = item.name;
                 return (
                   <div
                     key={item.name}
@@ -552,7 +560,7 @@ export default defineComponent({
                       <span class={[fieldTypeMap[item.type]?.icon || fieldTypeMap.other.icon, 'option-icon-icon']} />
                     </span>
                     <span class='option-name-title'>{title}</span>
-                    {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}
+                    {!!subtitleStr && <span class='option-name-subtitle'>（{subtitleStr}）</span>}
                   </div>
                 );
               })}

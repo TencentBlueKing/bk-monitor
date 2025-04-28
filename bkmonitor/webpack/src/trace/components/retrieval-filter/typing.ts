@@ -616,6 +616,23 @@ export const SETTING_KV_SELECTOR_PROPS = {
 export const SETTING_KV_SELECTOR_EMITS = {
   change: (_v: IWhereItem) => true,
 } as const;
+export const SETTING_KV_INPUT_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
+  value: {
+    type: Object as PropType<IWhereItem>,
+    default: () => null,
+  },
+  maxWidth: {
+    type: Number,
+    default: 560,
+  },
+};
+export const SETTING_KV_INPUT_EMITS = {
+  change: (_v: IWhereItem) => true,
+} as const;
 export const RESIDENT_SETTING_PROPS = {
   fields: {
     type: Array as PropType<IFilterField[]>,

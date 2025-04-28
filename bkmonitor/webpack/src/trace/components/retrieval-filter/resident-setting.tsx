@@ -30,6 +30,7 @@ import { $bkPopover } from 'bkui-vue';
 
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
+import SettingKvInput from './setting-kv-input';
 import SettingKvSelector from './setting-kv-selector';
 import TimeConsuming from './time-consuming';
 import {
@@ -42,7 +43,7 @@ import {
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
 } from './typing';
-import { defaultWhereItem, DURATION_KEYS } from './utils';
+import { defaultWhereItem, DURATION_KEYS, INPUT_TAG_KEYS } from './utils';
 
 import './resident-setting.scss';
 
@@ -304,15 +305,29 @@ export default defineComponent({
         </span>
         <div class='right-content'>
           {this.localValue.length ? (
-            this.localValue.map((item, index) =>
-              DURATION_KEYS.includes(item.field.name) ? (
-                <TimeConsuming
-                  key={index}
-                  class='mb-4 mr-4'
-                  value={item.value.value as any}
-                  onChange={v => this.handleTimeConsumingValueChange(v, index)}
-                />
-              ) : (
+            this.localValue.map((item, index) => {
+              if (DURATION_KEYS.includes(item.field.name)) {
+                return (
+                  <TimeConsuming
+                    key={index}
+                    class='mb-4 mr-4'
+                    value={item.value.value as any}
+                    onChange={v => this.handleTimeConsumingValueChange(v, index)}
+                  />
+                );
+              }
+              if (INPUT_TAG_KEYS.includes(item.field.name)) {
+                return (
+                  <SettingKvInput
+                    key={index}
+                    class='mb-4 mr-4'
+                    fieldInfo={this.getFieldInfo(item.field)}
+                    value={item.value}
+                    onChange={v => this.handleValueChange(v, index)}
+                  />
+                );
+              }
+              return (
                 <SettingKvSelector
                   key={index}
                   class='mb-4 mr-4'
@@ -321,8 +336,8 @@ export default defineComponent({
                   value={item.value}
                   onChange={v => this.handleValueChange(v, index)}
                 />
-              )
-            )
+              );
+            })
           ) : (
             <span class='placeholder-text'>{`（${this.$t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
           )}

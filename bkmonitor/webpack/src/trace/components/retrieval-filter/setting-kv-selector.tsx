@@ -132,7 +132,7 @@ export default defineComponent({
         }
         if (hasHide && i > 1) {
           const preItem = valueWrap.children[i - 1] as any;
-          if (preItem.offsetLeft + preItem.offsetWidth + 4 > valueWrap.offsetWidth - 68) {
+          if (preItem.offsetLeft + preItem.offsetWidth + 4 > valueWrap.offsetWidth - 72) {
             hideIndex.value = i - 1;
             return;
           }
@@ -314,11 +314,11 @@ export default defineComponent({
           <span
             class='key-wrap'
             v-bk-overflow-tips={{
-              content: this.fieldInfo?.alias || this.value?.key,
+              content: `${this.fieldInfo?.alias} (${this.fieldInfo?.field})`,
               placement: 'top',
             }}
           >
-            {this.fieldInfo?.alias || this.value?.key}
+            {`${this.fieldInfo?.alias} (${this.fieldInfo?.field})`}
           </span>
           <span class='method-wrap'>
             <Dropdown

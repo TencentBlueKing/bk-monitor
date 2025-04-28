@@ -135,7 +135,7 @@ export default defineComponent({
           }}
         >
           <div class='key-wrap'>
-            <span class='key-name'>{this.localValue.key.name}</span>
+            <span class='key-name'>{`${this.localValue.key.name} (${this.localValue.key.id})`}</span>
             <span class={['key-method', this.localValue.method.id]}>{this.localValue.method.name}</span>
           </div>
           <div class={['value-wrap', { 'hide-value': this.isHide }]}>
