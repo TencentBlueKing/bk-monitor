@@ -187,7 +187,6 @@ def sync_bkbase_cluster_info():
             cluster_list=clusters,
             field_mappings=config["field_mappings"],
             cluster_type=config["cluster_type"],
-            storage_name=config["storage_name"],
         )
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -200,7 +199,7 @@ def sync_bkbase_cluster_info():
     logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
 
 
-def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str, storage_name: str):
+def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str):
     """通用集群信息同步函数"""
     for cluster_data in cluster_list:
         try:
@@ -210,7 +209,7 @@ def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: s
             # 动态获取字段映射（支持不同存储类型的字段差异）
             domain_name = cluster_auth_info.get(field_mappings["domain_name"])
             if not models.ClusterInfo.objects.filter(domain_name=domain_name).exists():
-                logger.info(f"sync_bkbase_cluster_info: create {storage_name} cluster, domain_name->[{domain_name}]")
+                logger.info(f"sync_bkbase_cluster_info: create {cluster_type} cluster, domain_name->[{domain_name}]")
                 with transaction.atomic():
                     models.ClusterInfo.objects.create(
                         domain_name=domain_name,
@@ -222,7 +221,7 @@ def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: s
                         cluster_type=cluster_type,
                     )
         except Exception as e:
-            logger.error(f"sync_bkbase_cluster_info: failed to sync {storage_name} cluster info, error->[{e}]")
+            logger.error(f"sync_bkbase_cluster_info: failed to sync {cluster_type} cluster info, error->[{e}]")
             continue
 
 

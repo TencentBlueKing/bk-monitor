@@ -124,8 +124,6 @@ class IncidentBaseResource(Resource):
             if entity.entity_type in ("BcsWorkload", "BcsService"):
                 continue
 
-            bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
-            bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
             dependency_parent = snapshot.get_entity_alert_parent(entity.entity_id)
             nodes.append(
                 {
@@ -137,8 +135,6 @@ class IncidentBaseResource(Resource):
                     else {},
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
                     "total_count": len(entity.aggregated_entities) + 1,
-                    "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": bk_biz_name,
                     **self.generate_entity_node_info(incident, snapshot, entity),
                 }
             )
@@ -154,10 +150,14 @@ class IncidentBaseResource(Resource):
         :param entity: 实体
         :return: 节点信息
         """
+        bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
+        bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
         alert_ids = snapshot.entity_alerts(entity.entity_id)
         return {
             "entity": {key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"},
             "anomaly_count": self.get_anomaly_entity_count(entity),
+            "bk_biz_id": bk_biz_id,
+            "bk_biz_name": bk_biz_name,
             "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
             "is_on_alert": entity.is_on_alert,
             "alert_all_recorved": all(
