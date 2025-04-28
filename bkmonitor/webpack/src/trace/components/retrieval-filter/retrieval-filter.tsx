@@ -96,6 +96,9 @@ export default defineComponent({
         ? traceWhereFormatter(props.selectFavorite?.config?.queryConfig?.commonWhere || [])
         : props.selectFavorite?.config?.queryConfig?.commonWhere || [];
     });
+    const propsCommonWhere = computed(() => {
+      return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+    });
 
     init();
 
@@ -164,8 +167,8 @@ export default defineComponent({
      */
     function handleShowResidentSetting() {
       showResidentSetting.value = !showResidentSetting.value;
-      if (!showResidentSetting.value && props.commonWhere.some(item => item.value.length)) {
-        cacheCommonWhere.value = deepClone(props.commonWhere);
+      if (!showResidentSetting.value && propsCommonWhere.value.some(item => item.value.length)) {
+        cacheCommonWhere.value = deepClone(propsCommonWhere.value);
         uiValue.value = residentSettingToUiValue();
         handleCommonWhereChange([]);
         handleChange();

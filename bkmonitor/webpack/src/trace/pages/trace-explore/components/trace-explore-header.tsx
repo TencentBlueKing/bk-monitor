@@ -63,7 +63,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['favoriteShowChange'],
+  emits: ['favoriteShowChange', 'sceneModeChange'],
 
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -156,6 +156,7 @@ export default defineComponent({
     }
 
     function handleSceneModelChange(mode: 'span' | 'trace') {
+      emit('sceneModeChange', mode, store.mode);
       store.updateMode(mode);
     }
 

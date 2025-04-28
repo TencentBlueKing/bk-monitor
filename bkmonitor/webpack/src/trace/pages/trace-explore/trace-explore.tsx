@@ -132,9 +132,6 @@ export default defineComponent({
         if (val[0] !== oldVal[0]) {
           await getViewConfig();
         }
-        if (val[1] !== oldVal[1]) {
-          handelSceneChange(val[1], oldVal[1]);
-        }
         loading.value = false;
         handleQuery();
       }
@@ -419,6 +416,7 @@ export default defineComponent({
       handleFilterModeChange,
       handleFilterSearch,
       handleCheckboxFiltersChange,
+      handelSceneChange,
     };
   },
   render() {
@@ -431,6 +429,7 @@ export default defineComponent({
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
               onFavoriteShowChange={this.handleFavoriteShowChange}
+              onSceneModeChange={this.handelSceneChange}
             />
           </div>
           <div class='trace-explore-content'>

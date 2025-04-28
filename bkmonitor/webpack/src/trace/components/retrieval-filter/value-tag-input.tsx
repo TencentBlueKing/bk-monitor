@@ -123,7 +123,9 @@ export default defineComponent({
       }
     }
     function handleChangeEmit() {
-      emit('change', localValue.value);
+      if (props.value !== localValue.value) {
+        emit('change', localValue.value);
+      }
     }
     function handleComponentClick(event) {
       event.stopPropagation();
