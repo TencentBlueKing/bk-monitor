@@ -1144,17 +1144,20 @@ export default defineComponent({
         <PrimaryTable
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
-            lastFullRow: () => (
-              <Loading
-                style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
-                class='scroll-end-loading'
-                loading={true}
-                mode='spin'
-                size='mini'
-                theme='primary'
-                title={window.i18n.t('加载中…')}
-              />
-            ),
+            lastFullRow: this.tableViewData.length
+              ? () => (
+                  <Loading
+                    style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
+                    class='scroll-end-loading'
+                    loading={true}
+                    mode='spin'
+                    size='mini'
+                    theme='primary'
+                    title={window.i18n.t('加载中…')}
+                  />
+                )
+              : undefined,
+            empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
           columns={[
             ...this.tableDisplayColumns.map(column => {
@@ -1205,7 +1208,6 @@ export default defineComponent({
           }}
           activeRowType='single'
           data={this.tableViewData}
-          empty={() => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />}
           filterValue={this.filtersValue}
           hover={true}
           resizable={true}
