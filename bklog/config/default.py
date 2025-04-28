@@ -1254,7 +1254,7 @@ INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
 try:
     PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
 except ValueError:
-    PRE_SEARCH_SECONDS = 6 * 60 * 6
+    PRE_SEARCH_SECONDS = 6 * 60 * 60
 
 """
 以下为框架代码 请勿修改

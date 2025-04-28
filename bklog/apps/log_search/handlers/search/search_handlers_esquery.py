@@ -624,7 +624,11 @@ class SearchHandler:
 
         # 预查询
         result = self._multi_search(once_size=once_size, pre_search=True)
-        if len(result["hits"]["hits"]) != self.size:
+        time_difference = 0
+        if self.start_time and self.end_time:
+            # 计算时间差
+            time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
+        if len(result["hits"]["hits"]) != self.size and time_difference >= settings.PRE_SEARCH_SECONDS:
             # 全量查询
             result = self._multi_search(once_size=once_size)
 
@@ -791,13 +795,13 @@ class SearchHandler:
                 pre_search_seconds = settings.PRE_SEARCH_SECONDS
                 first_field, order = self.sort_list[0] if self.sort_list else [None, None]
                 if pre_search and pre_search_seconds and first_field == self.time_field:
-                    date_format = DateFormat.ARROW_FORMAT
-                    pre_search_start_time = arrow.get(start_time).shift(seconds=pre_search_seconds)
-                    pre_search_end_time = arrow.get(end_time).shift(seconds=-pre_search_seconds)
-                    if order == "desc" and start_time < pre_search_end_time.datetime:
-                        params.update({"start_time": pre_search_end_time.format(date_format)})
-                    elif order == "asc" and end_time > pre_search_start_time.datetime:
-                        params.update({"end_time": pre_search_start_time.format(date_format)})
+                    date_format = DateFormat.DATETIME_FORMAT
+                    pre_search_end_time = start_time + datetime.timedelta(seconds=pre_search_seconds)
+                    pre_search_start_time = end_time - datetime.timedelta(seconds=pre_search_seconds)
+                    if order == "desc" and start_time < pre_search_start_time:
+                        params.update({"start_time": pre_search_start_time.strftime(date_format)})
+                    elif order == "asc" and end_time > pre_search_end_time:
+                        params.update({"end_time": pre_search_end_time.strftime(date_format)})
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
