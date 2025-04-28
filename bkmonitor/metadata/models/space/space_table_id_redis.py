@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import datetime
 import json
 import logging
-from typing import Dict, List, Optional, Set
 
 from django.conf import settings
 from django.db.models import Q
@@ -63,7 +61,7 @@ class SpaceTableIDRedis:
     """空间路由结果表数据推送 redis 相关功能"""
 
     def push_space_table_ids(
-        self, space_type: str, space_id: str, is_publish: Optional[bool] = False, can_push_data: Optional[bool] = True
+        self, space_type: str, space_id: str, is_publish: bool | None = False, can_push_data: bool | None = True
     ):
         """推送空间及对应的结果表和过滤条件"""
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
@@ -85,9 +83,9 @@ class SpaceTableIDRedis:
 
     def push_data_label_table_ids(
         self,
-        data_label_list: Optional[List] = None,
-        table_id_list: Optional[List] = None,
-        is_publish: Optional[bool] = False,
+        data_label_list: list | None = None,
+        table_id_list: list | None = None,
+        is_publish: bool | None = False,
     ):
         """推送 data_label 及对应的结果表"""
         logger.info(
@@ -120,14 +118,14 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
-    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = True):
+    def push_es_table_id_detail(self, table_id_list: list | None = None, is_publish: bool | None = True):
         """
         推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
         @param table_id_list: 结果表列表
         @param is_publish: 是否执行推送
         """
         logger.info(
-            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %s" "is_publish->[%s]",
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %sis_publish->[%s]",
             json.dumps(table_id_list),
             is_publish,
         )
@@ -184,9 +182,9 @@ class SpaceTableIDRedis:
 
     def push_table_id_detail(
         self,
-        table_id_list: Optional[List] = None,
-        is_publish: Optional[bool] = False,
-        include_es_table_ids: Optional[bool] = False,
+        table_id_list: list | None = None,
+        is_publish: bool | None = False,
+        include_es_table_ids: bool | None = False,
     ):
         """推送结果表的详细信息"""
         logger.info(
@@ -262,7 +260,7 @@ class SpaceTableIDRedis:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push_table_id_detail： push redis result_table_detail")
 
-    def _compose_record_rule_table_id_detail(self) -> Dict:
+    def _compose_record_rule_table_id_detail(self) -> dict:
         """组装预计算结果表的详情"""
         from metadata.models.record_rule.rules import RecordRule
 
@@ -294,7 +292,7 @@ class SpaceTableIDRedis:
             )
         return _table_id_detail
 
-    def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
+    def _compose_es_table_id_detail(self, table_id_list: list[str] | None = None):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
         # 这里要过来的结果表不会太多
@@ -357,9 +355,9 @@ class SpaceTableIDRedis:
                     "measurement": DEFAULT_MEASUREMENT,
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
-                    'storage_type': models.ESStorage.STORAGE_TYPE,
-                    'storage_cluster_records': storage_record,
-                    'data_label': data_label_map_dict.get(tid, ""),
+                    "storage_type": models.ESStorage.STORAGE_TYPE,
+                    "storage_cluster_records": storage_record,
+                    "data_label": data_label_map_dict.get(tid, ""),
                 }
             )
         return data
@@ -368,8 +366,8 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-        from_authorization: Optional[bool] = None,
-        can_push_data: Optional[bool] = True,
+        from_authorization: bool | None = None,
+        can_push_data: bool | None = True,
     ):
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -378,6 +376,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         # 追加ES结果表
         _values.update(self._compose_es_table_ids(space_type, space_id))
+        # 追加Doris结果表
+        _values.update(self._compose_doris_table_ids(space_type, space_id))
         # 追加关联的BKCI的ES结果表，适配ES多空间功能
         _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
 
@@ -405,7 +405,7 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-        can_push_data: Optional[bool] = True,
+        can_push_data: bool | None = True,
     ):
         """推送 bcs 类型空间下的关联业务的数据"""
         logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -419,6 +419,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
+        # 追加Doris结果表
+        _values.update(self._compose_doris_table_ids(space_type, space_id))
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
@@ -443,8 +445,8 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-        table_id_list: Optional[List] = None,
-        can_push_data: Optional[bool] = True,
+        table_id_list: list | None = None,
+        can_push_data: bool | None = True,
     ):
         """推送 bksaas 类型空间下的数据"""
         logger.info("start to push bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -455,7 +457,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type, space_id))
-
+        # 追加Doris结果表
+        _values.update(self._compose_doris_table_ids(space_type, space_id))
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
 
@@ -475,7 +478,7 @@ class SpaceTableIDRedis:
         )
         return _values
 
-    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> Dict:
+    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
@@ -497,7 +500,7 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-    ) -> Dict:
+    ) -> dict:
         """推送 bcs 类型空间下的集群数据"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 获取空间的集群数据
@@ -543,7 +546,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str) -> Dict:
+    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str) -> dict:
         """组装 bkci 全局下的结果表"""
         logger.info("start to push bkci level table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 过滤空间级的数据源
@@ -565,7 +568,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str) -> Dict:
+    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         table_id_data_id = get_space_table_id_data_id(
@@ -590,7 +593,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_cross_table_ids(self, space_type: str, space_id: str) -> Dict:
+    def _compose_bkci_cross_table_ids(self, space_type: str, space_id: str) -> dict:
         """组装跨空间类型的结果表数据"""
         logger.info(
             "start to push bkci space cross space_type table_id, space_type: %s, space_id: %s", space_type, space_id
@@ -607,7 +610,7 @@ class SpaceTableIDRedis:
         tid_filters.update({tid: {"filters": [{"devops_id": space_id}]} for tid in p4_tids})
         return tid_filters
 
-    def _compose_all_type_table_ids(self, space_type: str, space_id: str) -> Dict:
+    def _compose_all_type_table_ids(self, space_type: str, space_id: str) -> dict:
         """组装非业务类型的全空间类型的结果表数据"""
         logger.info("start to push all space type table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 转换空间对应的bk_biz_id
@@ -621,7 +624,7 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-        table_id_list: Optional[List] = None,
+        table_id_list: list | None = None,
     ):
         logger.info(
             "start to push cluster of bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id
@@ -669,7 +672,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bksaas_other_table_ids(self, space_type: str, space_id: str, table_id_list: Optional[List] = None):
+    def _compose_bksaas_other_table_ids(self, space_type: str, space_id: str, table_id_list: list | None = None):
         """组装蓝鲸应用非集群数据
         TODO: 暂时不考虑全局的数据源信息
         """
@@ -702,11 +705,11 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
-        table_id_list: Optional[List] = None,
-        include_platform_data_id: Optional[bool] = True,
-        from_authorization: Optional[bool] = None,
-        default_filters: Optional[List] = None,
-    ) -> Dict:
+        table_id_list: list | None = None,
+        include_platform_data_id: bool | None = True,
+        from_authorization: bool | None = None,
+        default_filters: list | None = None,
+    ) -> dict:
         logger.info(
             "_push_bkcc_space_table_ids,start to _compose_data for space_type: %s, space_id: %s", space_type, space_id
         )
@@ -793,7 +796,7 @@ class SpaceTableIDRedis:
                 continue
             _data_id_detail = data_id_detail.get(data_id)
             is_exist_space = data_id in _space_data_ids
-            bk_biz_id_alias = bk_biz_id_alias_dict.get(tid, '')  # 获取业务ID别名
+            bk_biz_id_alias = bk_biz_id_alias_dict.get(tid, "")  # 获取业务ID别名
             # 拼装过滤条件, 如果有指定，则按照指定数据设置过滤条件
             if default_filters:
                 _values[tid] = {"filters": default_filters}
@@ -831,6 +834,16 @@ class SpaceTableIDRedis:
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
+    def _compose_doris_table_ids(self, space_type: str, space_id: str):
+        """
+        组装Doris链路结果表
+        """
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
+        tids = models.ResultTable.objects.filter(
+            bk_biz_id=biz_id, default_storage=models.ClusterInfo.TYPE_DORIS, is_deleted=False, is_enable=True
+        ).values_list("table_id", flat=True)
+        return {tid: {"filters": []} for tid in tids}
+
     def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str):
         """
         组装关联的BKCI类型的ES结果表
@@ -849,8 +862,8 @@ class SpaceTableIDRedis:
         measurement_type: str,
         space_type: str,
         space_id: str,
-        data_id_detail: Optional[Dict] = None,
-        is_exist_space: Optional[bool] = True,
+        data_id_detail: dict | None = None,
+        is_exist_space: bool | None = True,
     ) -> bool:
         """针对业务类型空间判断是否需要添加过滤条件"""
         if not data_id_detail:
@@ -902,8 +915,8 @@ class SpaceTableIDRedis:
         return True
 
     def _refine_available_data_label(
-        self, table_id_list: Optional[List] = None, data_label_list: Optional[List] = None
-    ) -> List:
+        self, table_id_list: list | None = None, data_label_list: list | None = None
+    ) -> list:
         """获取可以使用的结果表"""
         tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True).values("table_id", "data_label")
         if table_id_list:
@@ -912,7 +925,7 @@ class SpaceTableIDRedis:
             tids = tids.filter(data_label__in=data_label_list)
         return [tid["data_label"] for tid in tids if tid["data_label"]]
 
-    def _refine_table_ids(self, table_id_list: Optional[List] = None) -> Set:
+    def _refine_table_ids(self, table_id_list: list | None = None) -> set:
         """提取写入到influxdb或vm的结果表数据"""
         # 过滤写入 influxdb 的结果表
         influxdb_table_ids = models.InfluxDBStorage.objects.values_list("table_id", flat=True)
@@ -943,7 +956,7 @@ class SpaceTableIDRedis:
 
         return table_ids
 
-    def _filter_ts_info(self, table_ids: Set) -> Dict:
+    def _filter_ts_info(self, table_ids: set) -> dict:
         """根据结果表获取对应的时序数据"""
         if not table_ids:
             return {}
@@ -977,7 +990,7 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(self, table_ids: Optional[Set] = None) -> Dict:
+    def _compose_table_id_fields(self, table_ids: set | None = None) -> dict:
         """组装结果表对应的指标数据"""
         # 过滤到对应的结果表
         table_id_fields_qs = models.ResultTableField.objects.filter(

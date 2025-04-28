@@ -139,12 +139,12 @@ class CreateDorisRouter(BaseLogRouter):
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=True, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
     def perform_request(self, data: OrderedDict):
-        # 创建结果表和ES存储记录
+        # 创建结果表和存储记录
         biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
         logger.info(
             "CreateDorisRouter: try to create doris router,table_id->[%s],bkbase_table_id->[%s],bk_biz_id->[%s]",
@@ -175,7 +175,7 @@ class CreateDorisRouter(BaseLogRouter):
                 source_type=data.get("source_type"),
                 bkbase_table_id=data.get("bkbase_table_id"),
                 index_set=data.get("index_set"),
-                storage_cluster_id=data["cluster_id"],
+                storage_cluster_id=data.get("cluster_id"),
             )
 
         logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
@@ -257,7 +257,7 @@ class UpdateDorisRouter(BaseLogRouter):
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=True, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
