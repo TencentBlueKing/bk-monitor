@@ -76,6 +76,13 @@ export const fieldTypeMap = {
     color: '#cb7979',
     bgColor: '#F5E1E1',
   },
+  other: {
+    name: window.i18n.tc('其他'),
+    icon: 'icon-monitor icon-Others',
+    fontSize: '10px',
+    color: '#B59D8D',
+    bgColor: '#EBE0D9',
+  },
 };
 
 export const topKColorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];

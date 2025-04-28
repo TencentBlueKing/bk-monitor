@@ -129,7 +129,7 @@ export default defineComponent({
         emptyStatus.value = 'empty';
       } else {
         emptyStatus.value = 'search-empty';
-        searchResultList.value = props.list.filter(item => item.alias.includes(searchVal.value));
+        searchResultList.value = props.list.filter(item => item.pinyinStr.includes(searchVal.value.toLowerCase()));
       }
       dimensionTreeList.value = convertToTree(searchResultList.value);
     }, 100);
