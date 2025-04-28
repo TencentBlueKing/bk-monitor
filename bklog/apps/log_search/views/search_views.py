@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 import math
@@ -30,7 +30,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
-from six import StringIO
+from io import StringIO
 
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -164,7 +164,7 @@ class SearchViewSet(APIViewSet):
     )
     def list(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/?space_uid=$space_uid 01_搜索-索引集列表
+        @api {get} /search/index_set/?space_uid=$space_uid&is_group=False 01_搜索-索引集列表
         @apiDescription 用户有权限的索引集列表
         @apiName search_index_set
         @apiGroup 11_Search
@@ -201,7 +201,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchIndexSetScopeSerializer)
-        return Response(IndexSetHandler().get_user_index_set(data["space_uid"]))
+        return Response(IndexSetHandler().get_user_index_set(data["space_uid"], data["is_group"]))
 
     @detail_route(methods=["GET"], url_path="bizs")
     def bizs(self, request, *args, **kwargs):
@@ -612,7 +612,7 @@ class SearchViewSet(APIViewSet):
         file_name = f"bk_log_search_{index}.log"
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+        response["Content-Disposition"] = f'attachment;filename="{file_name}"'
         AsyncTask.objects.create(
             request_param=request_data,
             scenario_id=data["scenario_id"],
@@ -759,7 +759,9 @@ class SearchViewSet(APIViewSet):
         return Response(
             {
                 "task_id": task_id,
-                "prompt": _("任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！").format(
+                "prompt": _(
+                    "任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！"
+                ).format(
                     time=math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME),
                     notify_type_name=notify_type_name,
                 ),
@@ -1557,7 +1559,7 @@ class SearchViewSet(APIViewSet):
         file_name = "bk_log_union_search_{}.txt".format("_".join([str(i) for i in index_set_ids]))
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+        response["Content-Disposition"] = f'attachment;filename="{file_name}"'
 
         # 保存下载历史
         AsyncTask.objects.create(

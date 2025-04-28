@@ -187,7 +187,7 @@ class IndexSetHandler(APIModel):
         return space_uids
 
     @classmethod
-    def get_user_index_set(cls, space_uid, group=False, scenarios=None):
+    def get_user_index_set(cls, space_uid, is_group=False, scenarios=None):
         space_uids = cls.get_all_related_space_uids(space_uid)
         index_sets = LogIndexSet.get_index_set(scenarios=scenarios, space_uids=space_uids)
         # 补充采集场景
@@ -204,7 +204,7 @@ class IndexSetHandler(APIModel):
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
         # 不分组，直接返回
-        if not group:
+        if not is_group:
             return index_sets
 
         remove_list = []
