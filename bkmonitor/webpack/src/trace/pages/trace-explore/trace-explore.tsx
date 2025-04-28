@@ -126,21 +126,6 @@ export default defineComponent({
     const appName = computed(() => store.appName);
 
     watch(
-      [() => store.appName, () => store.mode, () => store.timeRange, () => store.refreshImmediate],
-      async (val, oldVal) => {
-        loading.value = true;
-        if (val[0] !== oldVal[0]) {
-          await getViewConfig();
-        }
-        if (val[1] !== oldVal[1]) {
-          handelSceneChange(val[1], oldVal[1]);
-        }
-        loading.value = false;
-        handleQuery();
-      }
-    );
-
-    watch(
       () => store.refreshInterval,
       val => {
         autoQueryTimer && clearInterval(autoQueryTimer);
@@ -163,11 +148,16 @@ export default defineComponent({
           commonWhere: commonWhere.value,
         })
       );
-
       const cacheQuery = cacheSceneQuery.get(`${val}_${appName.value}`);
       where.value = cacheQuery?.where || [];
       queryString.value = cacheQuery?.query_string || '';
       commonWhere.value = cacheQuery?.commonWhere || [];
+    }
+
+    /** 应用切换 */
+    async function handleAppNameChange() {
+      await getViewConfig();
+      handleQuery();
     }
 
     /** 获取应用列表 */
@@ -239,7 +229,8 @@ export default defineComponent({
     onMounted(async () => {
       getUrlParams();
       await getApplicationList();
-      setUrlParams();
+      handleQuery();
+      await getViewConfig();
     });
 
     onUnmounted(() => {
@@ -276,7 +267,6 @@ export default defineComponent({
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
-        handleQuery();
       } catch (error) {
         console.log('route query:', error);
       }
@@ -344,7 +334,6 @@ export default defineComponent({
     function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
       checkboxFilters.value = checkboxGroupEvent;
       handleQuery();
-      setUrlParams();
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
@@ -407,6 +396,9 @@ export default defineComponent({
       defaultResidentSetting,
       appName,
       fieldMap,
+      handleQuery,
+      handleAppNameChange,
+      handelSceneChange,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
       handleConditionChange,
@@ -430,7 +422,11 @@ export default defineComponent({
             <TraceExploreHeader
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
+              onAppNameChange={this.handleAppNameChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
+              onImmediateRefreshChange={this.handleQuery}
+              onSceneModeChange={this.handelSceneChange}
+              onTimeRangeChange={this.handleQuery}
             />
           </div>
           <div class='trace-explore-content'>

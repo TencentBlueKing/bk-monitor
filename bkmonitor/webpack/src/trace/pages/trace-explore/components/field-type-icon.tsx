@@ -40,7 +40,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const info = computed(() => fieldTypeMap[props.type]);
+    const info = computed(() => fieldTypeMap[props.type] || fieldTypeMap.other);
     return {
       info,
     };
@@ -48,7 +48,7 @@ export default defineComponent({
   render() {
     return (
       <i
-        style={{ color: this.info?.color, background: this.info?.bgColor }}
+        style={{ color: this.info?.color, background: this.info?.bgColor, fontSize: this.info?.fontSize || '14px' }}
         class={[this.info?.icon, 'field-type-icon']}
       />
     );

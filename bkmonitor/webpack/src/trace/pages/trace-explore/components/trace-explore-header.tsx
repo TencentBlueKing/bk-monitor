@@ -63,7 +63,15 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['favoriteShowChange'],
+  emits: [
+    'favoriteShowChange',
+    'sceneModeChange',
+    'timeRangeChange',
+    'timezoneChange',
+    'immediateRefreshChange',
+    'refreshChange',
+    'appNameChange',
+  ],
 
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -114,23 +122,28 @@ export default defineComponent({
 
     function handleTimeRangeChange(val: TimeRangeType) {
       store.updateTimeRange(val);
+      emit('timeRangeChange', val);
     }
 
     function handleTimezoneChange(v: string) {
       store.updateTimezone(v);
+      emit('timezoneChange', v);
     }
 
     function handleImmediateRefresh() {
       store.updateRefreshImmediate(random(4));
+      emit('immediateRefreshChange');
     }
 
     function handleRefreshChange(v: number) {
       store.updateRefreshInterval(v);
+      emit('refreshChange', v);
     }
 
     function handleApplicationChange(val: string) {
       const application = props.list.find(item => item.app_name === val);
       store.updateAppName(application.app_name);
+      emit('appNameChange', val);
     }
 
     function handleDocumentClick(e: KeyboardEvent) {
@@ -151,12 +164,13 @@ export default defineComponent({
       } else {
         thumbtackList.value = [item.app_name, ...thumbtackList.value];
       }
-      console.log(thumbtackList.value);
       await handleSetUserConfig(JSON.stringify(thumbtackList.value));
     }
 
     function handleSceneModelChange(mode: 'span' | 'trace') {
+      const oldMode = store.mode;
       store.updateMode(mode);
+      emit('sceneModeChange', mode, oldMode);
     }
 
     onMounted(() => {
