@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import copy
 
 from django.utils.functional import cached_property
@@ -164,7 +164,7 @@ class TraceFieldsHandler:
     def get_field_alias(self, field_name: str) -> str:
         """获取字段别名"""
 
-        return TRACE_FIELD_ALIAS.get(field_name, field_name)
+        return TRACE_FIELD_ALIAS.get(field_name) or field_name
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:
         """获取字段类型"""
