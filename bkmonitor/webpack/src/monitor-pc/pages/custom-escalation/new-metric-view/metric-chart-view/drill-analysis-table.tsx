@@ -180,10 +180,18 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         />
       );
     }
-    const baseView = (item: IDimensionItem) => [
-      <span>{item.alias || item.name}</span>,
-      <span class='item-name'>{item.alias ? item.name : ''}</span>,
-    ];
+    // const baseView = (item: IDimensionItem) => [
+    //   <span>{item.alias || item.name}</span>,
+    //   <span class='item-name'>{item.alias ? item.name : ''}</span>,
+    // ];
+    const baseView = (item: IDimensionItem) => (
+      <span
+        class='item-alias'
+        v-bk-tooltips={{ content: item.name || item.alias, placement: 'right' }}
+      >
+        {item.alias || item.name}
+      </span>
+    );
     /** 单选 */
     if (!this.isMultiple) {
       return this.showDimensionsList.map((item: IDimensionItem) => (

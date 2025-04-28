@@ -83,7 +83,11 @@
 
   const getOperatorLable = operator => {
     if (translateKeys.includes(operator)) {
-      return t(operator);
+      if (/[\u4e00-\u9fff]/.test(operator)) {
+        return t(operator);
+      }
+
+      return operator;
     }
 
     return operator;
@@ -1207,7 +1211,7 @@
                       :key="option.operator"
                       @click="() => handleUiValueOptionClick(option)"
                     >
-                      {{ $t(option.label) }}
+                      {{ getOperatorLable(option.label) }}
                     </div>
                   </template>
                 </div>

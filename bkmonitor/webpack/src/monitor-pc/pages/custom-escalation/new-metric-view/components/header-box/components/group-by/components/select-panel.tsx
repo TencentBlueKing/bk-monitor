@@ -154,11 +154,12 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           class='item'
         >
           <bk-checkbox
+            v-bk-tooltips={{ content: dimensionData.name || dimensionData.alias, placement: 'left' }}
             checked={isChecked}
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
             {dimensionData.alias || dimensionData.name}
-            {dimensionData.alias && <span class='dimension-name'>{dimensionData.name}</span>}
+            {/* {dimensionData.alias && <span class='dimension-name'>{dimensionData.name}</span>} */}
           </bk-checkbox>
           {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>

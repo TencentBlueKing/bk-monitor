@@ -131,7 +131,7 @@ class DiffChart extends Mixins<ResizeMixin>(ResizeMixin) {
             return v;
           },
         },
-        splitNumber: 4,
+        splitNumber: 2,
         minInterval: 1,
         position: 'left',
       },

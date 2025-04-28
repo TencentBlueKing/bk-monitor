@@ -214,9 +214,14 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
 
   render() {
     const renderField = (data: { field: string }) => {
-      return this.dimensionAliasNameMap[data.field]
-        ? `${this.dimensionAliasNameMap[data.field]} (${data.field})`
-        : data.field;
+      return (
+        <span v-bk-tooltips={{ content: data.field || this.dimensionAliasNameMap[data.field], placement: 'bottom' }}>
+          {this.dimensionAliasNameMap[data.field] || data.field}
+        </span>
+      );
+      // return this.dimensionAliasNameMap[data.field]
+      //   ? `${this.dimensionAliasNameMap[data.field]} (${data.field})`
+      //   : data.field;
     };
     return (
       <div
