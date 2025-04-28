@@ -46,7 +46,6 @@ import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from
 import { random } from 'monitor-common/utils/utils.js';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
-import ExploreFieldSetting from '../../trace-explore/components/explore-field-setting/explore-field-setting';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
@@ -237,13 +236,6 @@ export default defineComponent({
       handleHideMoreOperate();
     };
     /**
-     * @description 表格列显示配置项变更回调
-     *
-     */
-    const handleDisplayColumnFieldsChange = (displayFields: string[]) => {
-      displayColumnFields.value = displayFields;
-    };
-    /**
      * @description: 一键拉群弹窗关闭/显示
      * @param {boolean} show
      * @return {*}
@@ -325,13 +317,21 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
-    const tableRowKeyField = shallowRef('id');
     const columns = shallowRef<TableColumn[]>([
+      {
+        title: '#',
+        type: 'seq',
+        colKey: 'serial-number',
+        minWidth: 40,
+        disabled: true,
+        checked: true,
+      },
       {
         title: t('告警ID'),
         colKey: 'id',
         minWidth: 134,
         ellipsis: true,
+        disabled: true,
         cell: (_, { row: data }) => {
           return (
             <div
@@ -538,13 +538,6 @@ export default defineComponent({
         },
       },
     ]);
-    /** table 显示列配置 */
-    const displayColumnFields = deepRef<string[]>(columns.value.map(column => column.colKey));
-    const tableDisplayColumns = computed(() => {
-      return displayColumnFields.value.map(colKey => {
-        return { ...columns.value.find(column => column.colKey === colKey) };
-      });
-    });
 
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
@@ -690,7 +683,7 @@ export default defineComponent({
      * @param {boolean} v
      * @return {*}
      */
-    const quickShieldSucces = (v: boolean) => {
+    const quickShieldSuccess = (v: boolean) => {
       if (v) {
         // tableData.value.value.forEach(item => {
         //   if (dialog.quickShield.ids.includes(item.id)) {
@@ -764,9 +757,6 @@ export default defineComponent({
     );
     return {
       t,
-      tableRowKeyField,
-      displayColumnFields,
-      tableDisplayColumns,
       alertData,
       moreItems,
       collapseId,
@@ -782,10 +772,9 @@ export default defineComponent({
       getMoreOperate,
       handleChangeCollapse,
       alarmConfirmChange,
-      quickShieldSucces,
+      quickShieldSuccess,
       handleConfirmAfter,
       handleFeedbackChange,
-      handleDisplayColumnFieldsChange,
       handleRootCauseConfirm,
       handleAlarmDispatchShowChange,
       manualProcessShowChange,
@@ -845,7 +834,7 @@ export default defineComponent({
               show={this.dialog.quickShield.show}
               onChange={this.quickShieldChange}
               onRefresh={this.refresh}
-              onSuccess={this.quickShieldSucces}
+              onSuccess={this.quickShieldSuccess}
             />
             <ManualProcess
               alertIds={this.currentIds}
@@ -889,39 +878,12 @@ export default defineComponent({
                   <div class='alarm-detail-table'>
                     <PrimaryTable
                       key={item.id}
+                      bkUiSettings={{
+                        checked: this.columns.map(item => item.colKey),
+                      }}
                       // autoResize={true}
                       // bordered={true}
-                      columns={[
-                        {
-                          title: '#',
-                          type: 'seq',
-                          colKey: 'serial-number',
-                          minWidth: 40,
-                        },
-                        ...this.tableDisplayColumns,
-                        {
-                          width: '32px',
-                          minWidth: '32px',
-                          fixed: 'right',
-                          align: 'center',
-                          resizable: false,
-                          thClassName: '__table-custom-setting-col__',
-                          colKey: '__col_setting__',
-                          title: () => {
-                            return (
-                              <ExploreFieldSetting
-                                class='table-field-setting'
-                                fieldMap={{}}
-                                fixedDisplayList={[this.tableRowKeyField]}
-                                sourceList={this.columns}
-                                targetList={this.displayColumnFields}
-                                onConfirm={this.handleDisplayColumnFieldsChange}
-                              />
-                            );
-                          },
-                          cell: () => undefined,
-                        },
-                      ]}
+                      columns={this.columns}
                       data={item.alerts}
                       max-height={616}
                       tooltip-config={{ showAll: false }}
