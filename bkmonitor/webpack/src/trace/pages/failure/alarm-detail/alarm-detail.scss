@@ -165,11 +165,12 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       .operate-panel {
         position: absolute;
         top: 0;
-        right: 0;
         bottom: 0;
+        left: 0;
         display: flex;
         align-items: center;
         justify-content: flex-start;
+        width: 100%;
         padding: 0 15px;
         margin: 0 -15px;
         background-color: #f0f1f5;
