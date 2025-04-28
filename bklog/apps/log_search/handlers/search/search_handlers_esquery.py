@@ -628,7 +628,7 @@ class SearchHandler:
         if self.start_time and self.end_time:
             # 计算时间差
             time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
-        if len(result["hits"]["hits"]) != self.size and time_difference >= settings.PRE_SEARCH_SECONDS:
+        if len(result["hits"]["hits"]) != self.size and time_difference > settings.PRE_SEARCH_SECONDS:
             # 全量查询
             result = self._multi_search(once_size=once_size)
 
