@@ -113,7 +113,7 @@ class TestResourceTrendResourceWithCapacity:
 
 @pytest.mark.django_db
 class TestListK8SResourcesWithCapacity:
-    def test_left_default_node(self):
+    def test_node_exclude_history(self):
         mock_node_names = [f"master-{i}" for i in range(5)]
         [create_node(name) for name in mock_node_names]
         validated_request_data = {
@@ -136,7 +136,7 @@ class TestListK8SResourcesWithCapacity:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_node_with_query_string(self):
+    def test_node_with_query_string_exclude_history(self):
         name = "master-127-0-0-1"
         create_node(name)
 
@@ -161,7 +161,7 @@ class TestListK8SResourcesWithCapacity:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_default(self, graph_unify_query):
+    def test_node_with_history(self, graph_unify_query):
         """
         容量场景只有 node 资源
         所以 column 的值意义不大，后端通过 node_boot_time_seconds 获取 node 列表
@@ -213,7 +213,7 @@ class TestListK8SResourcesWithCapacity:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_node_with_filter(self, graph_unify_query):
+    def test_right_node_with_history_and_filter(self, graph_unify_query):
         node_name = "master-127-0-0-1"
         validated_request_data = {
             "scenario": SCENARIO,

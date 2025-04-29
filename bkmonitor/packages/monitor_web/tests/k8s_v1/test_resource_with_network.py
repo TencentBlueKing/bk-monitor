@@ -361,7 +361,7 @@ class TestResourceTrendResourceWithNetwork:
 
 @pytest.mark.django_db
 class TestListK8SResourcesWithNetwork:
-    def test_left_default_namespace(self):
+    def test_namespace_exclude_history(self):
         """获取左侧默认namespace列表"""
         mock_namespace_names = [
             "aiops-default",
@@ -400,7 +400,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_ingress(self):
+    def test_ingress_exclude_history(self):
         mock_ingress_list = [
             ("bcs-ui", "bcs-system"),
             ("stack-bcs-api-gateway-http", "bcs-system"),
@@ -429,7 +429,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_service(self):
+    def test_service_exclude_history(self):
         mock_service_list = [
             ("service-0238ac93f359ac407d5ceccc599655b4", "aiops-default"),
             ("service-0238d26ae5c36675c65f07fea9f32273", "aiops-default"),
@@ -458,7 +458,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_pod(self):
+    def test_pod_exclude_history(self):
         mock_pod_list = [
             (
                 "python-backend--0--session-default---experiment-clear-backbvcgm",
@@ -518,7 +518,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_namespace(self):
+    def test_next_page_namespace_exclude_history(self):
         mock_namespace_list = [
             "aiops-default",
             "apm-demo",
@@ -555,7 +555,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_ingress(self):
+    def test_next_page_ingress_exclude_history(self):
         mock_ingress_list = [
             ("bcs-ui", "bcs-system"),
             ("stack-bcs-api-gateway-http", "bcs-system"),
@@ -589,7 +589,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_service(self):
+    def test_next_page_service_exclude_history(self):
         namespace = "aiops-default"
         mock_service_list = [f"service-{i}" for i in range(10)]
         [create_service(name=name, namespace=namespace) for name in mock_service_list]
@@ -613,7 +613,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_pod(self):
+    def test_next_page_pod_exclude_history(self):
         mock_pod_list = [
             (
                 "python-backend--0--session-default---experiment-clear-backbvcgm",
@@ -698,7 +698,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_namespace_with_query_string(self):
+    def test_namespace_with_query_string_exclude_history(self):
         namespace_name = "bcs-op"
         create_namespace(name=namespace_name)
         validated_request_data = {
@@ -721,7 +721,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_ingress_with_query_string(self):
+    def test_ingress_with_query_string_exclude_history(self):
         create_ingress(name="bcs-ui", namespace="bcs-system")
         validated_request_data = {
             "scenario": "network",
@@ -740,7 +740,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_service_with_query_string(self):
+    def test_service_with_query_string_exclude_history(self):
         create_service(name="bcs-ui", namespace="bcs-system")
         validated_request_data = {
             "scenario": "network",
@@ -759,7 +759,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_pod_with_query_string(self):
+    def test_pod_with_query_string_exclude_history(self):
         create_pod(
             name="bcs-ui-687c796845-452tc", namespace="bcs-system", workload_type="Deployment", workload_name="bcs-ui"
         )
@@ -784,7 +784,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_namespace_default(self, graph_unify_query):
+    def test_namespace_with_history(self, graph_unify_query):
         mock_namespace_list = [
             "kube-system",
             "bkmonitor-operator",
@@ -842,7 +842,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_namespace_with_filter(self, graph_unify_query):
+    def test_namespace_with_history_and_filter(self, graph_unify_query):
         mock_namespace_list = ["kube-system"]
         validated_request_data = {
             "scenario": "network",
@@ -884,7 +884,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_ingress_default(self, graph_unify_query):
+    def test_ingress_with_history(self, graph_unify_query):
         mock_ingress_list = [
             ("bk-ingress-rule", "blueking"),
             ("bk-apigateway-apigateway", "blueking"),
@@ -938,7 +938,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_ingress_with_filter(self, graph_unify_query):
+    def test_ingress_with_history_and_filter(self, graph_unify_query):
         namespace = "blueking"
         mock_ingress_list = [
             "bk-ingress-rule",
@@ -995,7 +995,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_service_default(self, graph_unify_query):
+    def test_service_with_history(self, graph_unify_query):
         mock_service_list = [
             ("bkmonitor-operator-prometheus-node-exporter", "bkmonitor-operator"),
             ("bkmonitor-operator-bkmonit-kube-proxy", "kube-system"),
@@ -1048,7 +1048,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_service_with_filter(self, graph_unify_query):
+    def test_service_with_history_and_filter(self, graph_unify_query):
         namespace = "blueking"
         mock_service_list = [
             "bk-gse-data-headless",
@@ -1111,7 +1111,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_pod_with_default(self, graph_unify_query):
+    def test_pod_with_with_history(self, graph_unify_query):
         mock_pod_list = [
             ("kube-flannel-ds-5rqbl", "kube-system"),
             ("kube-flannel-ds-kpcpv", "kube-system"),
@@ -1164,7 +1164,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_pod_with_filter(self, graph_unify_query):
+    def test_pod_with_history_and_filter(self, graph_unify_query):
         namespace = "blueking"
         mock_pod_list = [
             "bk-ingress-nginx-6bc4765cc4-xzswrbk-gse-data-6558cbfd9-gtg2r",
@@ -1219,7 +1219,7 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_default(self, graph_unify_query):
+    def test_namespace_with_history_1(self, graph_unify_query):
         """
         获取右侧默认数据
 

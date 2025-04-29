@@ -461,7 +461,7 @@ class TestResourceTrendResourceWithPerformance:
 
 @pytest.mark.django_db
 class TestListK8SResourcesWithPerformance:
-    def test_left_default_namespace(self):
+    def test_namespace_exclude_history(self):
         """获取左侧默认namespace列表"""
         mock_namespace_names = [
             "base",
@@ -500,7 +500,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_workload(self):
+    def test_workload_exclude_history(self):
         workload_names = [
             "aasagent",
             "access",
@@ -529,7 +529,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_pod(self):
+    def test_pod_exclude_history(self):
         mock_pods = [
             (
                 "bcs-argocd-controller-7c776dcc5c-88tqm",
@@ -598,7 +598,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_container(self):
+    def test_container_exclude_history(self):
         mock_containers = [
             "account-service",
             "add-pod-eni-ip-limit-webhook",
@@ -628,7 +628,7 @@ class TestListK8SResourcesWithPerformance:
         resutlt = ListK8SResources()(validated_request_data)  # noqa
         assert mock_result["items"] == resutlt["items"]
 
-    def test_left_next_page_namespace(self):
+    def test_next_page_namespace_exclude_history(self):
         mock_namespace_names = [
             "base",
             "bcs-op-yunwei-frodomei",
@@ -670,7 +670,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_workload(self):
+    def test_next_page_workload_exclude_history(self):
         mock_workloads = [
             "aasagent",
             "access",
@@ -706,7 +706,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_pod(self):
+    def test_next_page_pod_exclude_history(self):
         mock_pods = [
             (
                 "bcs-argocd-controller-7c776dcc5c-88tqm",
@@ -806,7 +806,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_next_page_container(self):
+    def test_next_page_container_exclude_history(self):
         mock_containers = [
             "account-service",
             "add-pod-eni-ip-limit-webhook",
@@ -852,7 +852,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_namespace_with_query_string(self):
+    def test_namespace_with_query_string_exclude_history(self):
         """
         添加 query_string 模糊查询 namespace 列表
         """
@@ -885,7 +885,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_workload_with_query_string(self):
+    def test_workload_with_query_string_exclude_history(self):
         """
         添加 query_string 模糊查询 namespace 列表
         """
@@ -910,7 +910,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result == mock_result
 
-    def test_left_pod_with_query_string(self):
+    def test_pod_with_query_string_exclude_history(self):
         """
         添加 query_string 模糊查询 namespace 列表
         """
@@ -982,7 +982,7 @@ class TestListK8SResourcesWithPerformance:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_container_with_query_string(self):
+    def test_container_with_query_string_exclude_history(self):
         """
         添加 query_string 模糊查询 namespace 列表
         """
@@ -1021,7 +1021,7 @@ class TestListK8SResourcesWithPerformance:
         assert result == mock_result
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_namespace(self, graph_unify_query):
+    def test_namespace_with_history(self, graph_unify_query):
         """
         获取右侧默认数据
 
@@ -1111,7 +1111,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_namespace_with_filter(self, graph_unify_query):
+    def test_namespace_with_history_and_filter(self, graph_unify_query):
         namespace = "aiops-default"
         mock_namespace_list = ["aiops-default"]
         validated_request_data = {
@@ -1154,7 +1154,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_workload(self, graph_unify_query):
+    def test_workload_with_history(self, graph_unify_query):
         """
         获取workload维度的数据
 
@@ -1223,7 +1223,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_workload_with_filter(self, graph_unify_query):
+    def test_workload_with_history_and_filter(self, graph_unify_query):
         """
         获取workload维度的数据
         追加过滤条件
@@ -1298,7 +1298,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_pod(self, graph_unify_query):
+    def test_pod_with_history(self, graph_unify_query):
         """
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
         """
@@ -1383,7 +1383,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_pod_with_filter(self, graph_unify_query):
+    def test_pod_with_history_and_filter(self, graph_unify_query):
         """
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bcs-system',workload_kind='Deployment',workload_name='bcs-services-stack-bk-micro-gateway'}[1m:])))"  # noqa
         """
@@ -1455,7 +1455,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_container(self, graph_unify_query):
+    def test_container_with_history(self, graph_unify_query):
         """
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
         """
@@ -1577,7 +1577,7 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_container_with_filter(self, graph_unify_query):
+    def test_container_with_history_and_filter(self, graph_unify_query):
         """
         PromQL: "topk(40, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bkbase',container_name='queryengine',pod_name='bkbase-queryengine-bkmonitor-6f495fd54-pfjpq'}[1m:])))"  # noqa
         """
