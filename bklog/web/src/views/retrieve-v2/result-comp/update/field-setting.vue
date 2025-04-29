@@ -39,9 +39,15 @@
               <div
                 class="display-container rtl-text"
                 v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                :dir="textDir"
               >
-                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-                <span class="field-name">({{ item.field_name }})</span>
+                <bdi>
+                  <span class="field-alias">{{ item.first_name }}</span>
+                  <span class="field-name"  
+                    v-if="item.first_name !== item.last_name">
+                    ({{ item.last_name }})
+                  </span>
+                </bdi>
               </div>
               <span class="icon bklog-icon bklog-filled-right-arrow"></span>
             </li>
@@ -95,10 +101,16 @@
                 </span>
                 <div
                   class="display-container rtl-text"
+                  :dir="textDir"
                   v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 >
-                  <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
-                  <span class="field-name">({{ item.field_name }})</span>
+                  <bdi>
+                    <span class="field-alias">{{ item.first_name }}</span>
+                    <span class="field-name"  
+                      v-if="item.first_name !== item.last_name">
+                      ({{ item.last_name }})
+                    </span>
+                  </bdi>
                 </div>
                 <span class="bk-icon icon-close-circle-shape delete"></span>
               </li>
@@ -148,8 +160,13 @@
       !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
       field.field_type !== '__virtual__' &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
+    const mapFn = item =>
+    Object.assign({}, item, {
+      first_name: item.query_alias || item.field_name,
+      last_name: item.field_name,
+    });
 
-    return fieldList.value.filter(filterFn);
+    return fieldList.value.filter(filterFn).map(mapFn);
   });
 
   const emptyType = computed(() => {
@@ -174,6 +191,11 @@
   // 计算属性
   const toSelectLength = computed(() => {
     return shadowTotal.value.length;
+  });
+
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -216,7 +238,12 @@
     () => props.initData,
     val => {
       if (val.length) {
-        shadowVisible.value = val.map(fieldName => fieldListMap.value[fieldName]).filter(Boolean);
+        const mapFn = item =>
+        Object.assign({}, item, {
+          first_name: item.query_alias || item.field_name,
+          last_name: item.field_name,
+        });
+        shadowVisible.value = val.map(fieldName => fieldListMap.value[fieldName]).filter(Boolean).map(mapFn);
       } else {
         shadowVisible.value = [];
       }

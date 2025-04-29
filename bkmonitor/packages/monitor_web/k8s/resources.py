@@ -656,7 +656,8 @@ class ResourceTrendResource(Resource):
                 [resource_meta.filter.remove(filter_obj) for filter_obj in tmp_filter_chain]
             promql = " or ".join(promql_list)
         else:
-            resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
+            if resource_type != "cluster":
+                resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
 
