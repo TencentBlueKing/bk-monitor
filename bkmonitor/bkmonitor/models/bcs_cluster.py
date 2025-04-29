@@ -70,7 +70,7 @@ class BCSCluster(BCSBase):
         index_together = ["bk_biz_id", "bcs_cluster_id"]
 
     def to_meta_dict(self):
-        return {"cluster": self.name}
+        return {"cluster": self.bcs_cluster_id}
 
     @staticmethod
     def hash_unique_key(bk_biz_id, bcs_cluster_id):
