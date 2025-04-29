@@ -147,7 +147,7 @@ class StatisticsQuery(BaseQuery):
         params_key: str,
         logic_fields: List[str],
     ):
-        #  满足任一条件直接分组获取指标数据：不包含根 span、服务入口 span；查询统计视角为 service
+        #  满足任一个条件直接分组获取指标数据：不包含根 span、服务入口 span；查询统计视角为 service
         if not logic_fields or query_mode == QueryStatisticsMode.SERVICE:
             return self._query_metric_data(query_mode, q, queryset, offset, params_key)
 
