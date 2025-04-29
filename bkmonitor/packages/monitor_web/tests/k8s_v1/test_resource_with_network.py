@@ -18,9 +18,9 @@ from monitor_web.k8s.resources import (
     ResourceTrendResource,
 )
 from monitor_web.tests.k8s_v1.conftest import (
-    create_container,
     create_ingress,
     create_namespace,
+    create_pod,
     create_service,
 )
 from packages.monitor_web.k8s.scenario import Scenario
@@ -400,7 +400,7 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
-    def test_right_ingress_with_filter(self):
+    def test_left_default_ingress(self):
         mock_ingress_list = [
             ("bcs-ui", "bcs-system"),
             ("stack-bcs-api-gateway-http", "bcs-system"),
@@ -416,8 +416,8 @@ class TestListK8SResourcesWithNetwork:
             "query_string": "",
             "page_size": 5,
             "page_type": "scrolling",
-            "start_time": 1745284082,
-            "end_time": 1745287682,
+            "start_time": 1745387225,
+            "end_time": 1745390825,
             "resource_type": "ingress",
             "page": 1,
             "bk_biz_id": 2,
@@ -429,30 +429,68 @@ class TestListK8SResourcesWithNetwork:
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_right_service_with_filter(self):
+    def test_left_default_service(self):
         mock_service_list = [
-            (
-                "service-0238ac93f359ac407d5ceccc599655b4",
-                "aiops-default",
-            ),
-            (
-                "service-0238d26ae5c36675c65f07fea9f32273",
-                "aiops-default",
-            ),
-            (
-                "service-029f77b8bb2517480e2a2377a66c3670",
-                "aiops-default",
-            ),
-            (
-                "service-07efbaabe7ea713a9ebc7a222b24084d",
-                "aiops-default",
-            ),
-            (
-                "service-0852a0955d7531c0eb0df994303037bf",
-                "aiops-default",
-            ),
+            ("service-0238ac93f359ac407d5ceccc599655b4", "aiops-default"),
+            ("service-0238d26ae5c36675c65f07fea9f32273", "aiops-default"),
+            ("service-029f77b8bb2517480e2a2377a66c3670", "aiops-default"),
+            ("service-07efbaabe7ea713a9ebc7a222b24084d", "aiops-default"),
+            ("service-0852a0955d7531c0eb0df994303037bf", "aiops-default"),
         ]
         [create_service(name, namespace) for name, namespace in mock_service_list]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745387225,
+            "end_time": 1745390825,
+            "resource_type": "service",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 598,
+            "items": [{"service": service, "namespace": namespace} for service, namespace in mock_service_list],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_left_default_pod(self):
+        mock_pod_list = [
+            (
+                "python-backend--0--session-default---experiment-clear-backbvcgm",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---experiment-clear-backend---owned",
+            ),
+            (
+                "python-backend--0--session-default---scene-service-period-d2cn7",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---scene-service-period-close-outdated-version-session---owned",  # noqa
+            ),
+            (
+                "python-backend--0--session-default---scene-service-plan-prrnm9l",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---scene-service-plan-preview---owned",
+            ),
+            (
+                "python-backend--0--session-default---serving-status---owne6585s",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---serving-status---owned",
+            ),
+            ("apm-demo-6df7f957c9-68gzc", "apm-demo", "Deployment:apm-demo"),
+        ]
+        [
+            create_pod(
+                name=pod,
+                namespace=namespace,
+                workload_type=workload.split(":")[0],
+                workload_name=workload.split(":")[1],
+            )
+            for pod, namespace, workload in mock_pod_list
+        ]
         validated_request_data = {
             "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
@@ -460,10 +498,584 @@ class TestListK8SResourcesWithNetwork:
             "query_string": "",
             "page_size": 5,
             "page_type": "scrolling",
-            "start_time": 1745284082,
-            "end_time": 1745287682,
+            "start_time": 1745387225,
+            "end_time": 1745390825,
+            "resource_type": "pod",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 2351,
+            "items": [
+                {
+                    "pod": pod,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_left_next_page_namespace(self):
+        mock_namespace_list = [
+            "aiops-default",
+            "apm-demo",
+            "bcs-op",
+            "bcs-system",
+            "bk-bscp",
+            "bk-system",
+            "bkapp-agent-plugin-prod",
+            "bkapp-bk-fw-demo-stag",
+            "bkapp-bk-nodeman2-stag",
+            "bkapp-bk-notice-prod",
+        ]
+        [create_namespace(name) for name in mock_namespace_list]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745388702,
+            "end_time": 1745392302,
+            "resource_type": "namespace",
+            "page": 2,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 78,
+            "items": [
+                {"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": namespace}
+                for namespace in mock_namespace_list
+            ],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_left_next_page_ingress(self):
+        mock_ingress_list = [
+            ("bcs-ui", "bcs-system"),
+            ("stack-bcs-api-gateway-http", "bcs-system"),
+            ("bk-bscp-apiserver", "bk-bscp"),
+            ("bk-bscp-ui", "bk-bscp"),
+            ("agent-plugin-subpath", "bkapp-agent-plugin-prod"),
+            ("bk-fw-demo-subpath", "bkapp-bk-fw-demo-stag"),
+            ("bk-nodeman2-m-webserver-subpath", "bkapp-bk-nodeman2-stag"),
+            ("bk-notice-subpath", "bkapp-bk-notice-prod"),
+            ("custom-bk-notice-bknotice.bkop.woa.com-5", "bkapp-bk-notice-prod"),
+            ("bk-notice-subpath", "bkapp-bk-notice-stag"),
+        ]
+        [create_ingress(name=name, namespace=namespace) for name, namespace in mock_ingress_list]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745388807,
+            "end_time": 1745392407,
+            "resource_type": "ingress",
+            "page": 2,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 197,
+            "items": [{"ingress": ingress, "namespace": namespace} for ingress, namespace in mock_ingress_list],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_left_next_page_service(self):
+        namespace = "aiops-default"
+        mock_service_list = [f"service-{i}" for i in range(10)]
+        [create_service(name=name, namespace=namespace) for name in mock_service_list]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745388858,
+            "end_time": 1745392458,
+            "resource_type": "service",
+            "page": 2,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 598,
+            "items": [{"service": service, "namespace": namespace} for service in mock_service_list],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_left_next_page_pod(self):
+        mock_pod_list = [
+            (
+                "python-backend--0--session-default---experiment-clear-backbvcgm",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---experiment-clear-backend---owned",
+            ),
+            (
+                "python-backend--0--session-default---scene-service-period-d2cn7",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---scene-service-period-close-outdated-version-session---owned",  # noqa
+            ),
+            (
+                "python-backend--0--session-default---scene-service-plan-prrnm9l",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---scene-service-plan-preview---owned",
+            ),
+            (
+                "python-backend--0--session-default---serving-status---owne6585s",
+                "aiops-default",
+                "Deployment:python-backend--0--session-default---serving-status---owned",
+            ),
+            ("apm-demo-6df7f957c9-68gzc", "apm-demo", "Deployment:apm-demo"),
+            (
+                "bcs-api-gateway-migration-czpv7",
+                "bcs-system",
+                "Job:bcs-api-gateway-migration",
+            ),
+            (
+                "bcs-bkcmdb-synchronizer-0",
+                "bcs-system",
+                "StatefulSet:bcs-bkcmdb-synchronizer",
+            ),
+            (
+                "bcs-cluster-manager-5f889c4b55-56xdg",
+                "bcs-system",
+                "Deployment:bcs-cluster-manager",
+            ),
+            (
+                "bcs-cluster-manager-migration-9g2j6",
+                "bcs-system",
+                "Job:bcs-cluster-manager-migration",
+            ),
+            (
+                "bcs-cluster-resources-6b977c5b84-j2vxm",
+                "bcs-system",
+                "Deployment:bcs-cluster-resources",
+            ),
+        ]
+        [
+            create_pod(
+                name=pod,
+                namespace=namespace,
+                workload_type=workload.split(":")[0],
+                workload_name=workload.split(":")[1],
+            )
+            for pod, namespace, workload in mock_pod_list
+        ]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745388904,
+            "end_time": 1745392504,
+            "resource_type": "pod",
+            "page": 2,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 2354,
+            "items": [
+                {
+                    "pod": pod,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_left_namespace_with_query_string(self):
+        namespace_name = "bcs-op"
+        create_namespace(name=namespace_name)
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": namespace_name,
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745389011,
+            "end_time": 1745392611,
+            "resource_type": "namespace",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": namespace_name}],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_left_ingress_with_query_string(self):
+        create_ingress(name="bcs-ui", namespace="bcs-system")
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "bcs-ui",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745389052,
+            "end_time": 1745392652,
+            "resource_type": "ingress",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {"count": 1, "items": [{"ingress": "bcs-ui", "namespace": "bcs-system"}]}
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_left_service_with_query_string(self):
+        create_service(name="bcs-ui", namespace="bcs-system")
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "bcs-ui",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745389052,
+            "end_time": 1745392652,
             "resource_type": "service",
             "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {"count": 1, "items": [{"service": "bcs-ui", "namespace": "bcs-system"}]}
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_left_pod_with_query_string(self):
+        create_pod(
+            name="bcs-ui-687c796845-452tc", namespace="bcs-system", workload_type="Deployment", workload_name="bcs-ui"
+        )
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "bcs-ui",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745389052,
+            "end_time": 1745392652,
+            "resource_type": "pod",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"pod": "bcs-ui-687c796845-452tc", "namespace": "bcs-system", "workload": "Deployment:bcs-ui"}],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_namespace_default(self, graph_unify_query):
+        mock_namespace_list = [
+            "kube-system",
+            "bkmonitor-operator",
+            "bkmonitor-operator-bkte",
+            "blueking",
+            "bkbase",
+            "bkbase-flink",
+            "deepflow",
+            "bcs-system",
+            "bkapp-bk0us0itsm-prod",
+            "bkapp-bk0us0sops-m-pipeline-prod",
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745391390,
+            "end_time": 1745394990,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "namespace",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 79,
+            "items": [
+                {"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": namespace}
+                for namespace in mock_namespace_list
+            ],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list
+            ],
+            "metrics": [],
+        }
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_namespace_with_filter(self, graph_unify_query):
+        mock_namespace_list = ["kube-system"]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"namespace": ["kube-system"]},
+            "start_time": 1745391428,
+            "end_time": 1745395028,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "namespace",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "kube-system"}],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_ingress_default(self, graph_unify_query):
+        mock_ingress_list = [
+            ("bk-ingress-rule", "blueking"),
+            ("bk-apigateway-apigateway", "blueking"),
+            ("stack-bcs-api-gateway-http", "bcs-system"),
+            ("bcs-ui", "bcs-system"),
+            ("bkunifyquery-test", "blueking"),
+            ("bk-dbm", "blueking"),
+            ("default-bkapp-bk0us0itsm-prod--direct", "bkapp-bk0us0itsm-prod"),
+            ("default-bkapp-bk0us0itsm-prod--subpath", "bkapp-bk0us0itsm-prod"),
+            ("custom-itsm-bkop.woa.com", "bkapp-bk0us0itsm-prod"),
+            ("default-bkapp-bk0us0itsm-prod", "bkapp-bk0us0itsm-prod"),
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745391264,
+            "end_time": 1745394864,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "ingress",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 197,
+            "items": [{"ingress": ingress, "namespace": namespace} for ingress, namespace in mock_ingress_list],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"ingress": ingress, "namespace": namespace},
+                    "target": f"{{ingress={ingress}, namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for ingress, namespace in mock_ingress_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_ingress_with_filter(self, graph_unify_query):
+        namespace = "blueking"
+        mock_ingress_list = [
+            "bk-ingress-rule",
+            "bk-apigateway-apigateway",
+            "stack-bcs-api-gateway-http",
+            "bcs-ui",
+            "bkunifyquery-test",
+            "bk-dbm",
+            "default-bkapp-bk0us0itsm-prod--direct",
+            "default-bkapp-bk0us0itsm-prod--subpath",
+            "custom-itsm-bkop.woa.com",
+            "default-bkapp-bk0us0itsm-prod",
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"namespace": [namespace]},
+            "start_time": 1745391482,
+            "end_time": 1745395082,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "ingress",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 197,
+            "items": [{"ingress": ingress, "namespace": namespace} for ingress in mock_ingress_list],
+        }
+
+        {"count": 31, "items": [{"ingress": ingress, "namespace": namespace} for ingress in mock_ingress_list]}
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"ingress": ingress, "namespace": namespace},
+                    "target": f"{{ingress={ingress}, namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for ingress in mock_ingress_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_service_default(self, graph_unify_query):
+        mock_service_list = [
+            ("bkmonitor-operator-prometheus-node-exporter", "bkmonitor-operator"),
+            ("bkmonitor-operator-bkmonit-kube-proxy", "kube-system"),
+            ("bkmonitor-operator-stack-b-kube-proxy", "kube-system"),
+            ("bk-gse-data", "blueking"),
+            ("bk-gse-data-headless", "blueking"),
+            ("bk-gse-file-headless", "blueking"),
+            ("bk-gse-file", "blueking"),
+            ("bk-monitor-transfer-http", "blueking"),
+            ("bk-ingress-nginx", "blueking"),
+            ("bkbase-clean-kafka-bkbase-metric-bcs1-service", "bkbase"),
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745391307,
+            "end_time": 1745394907,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "service",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 608,
+            "items": [{"service": service, "namespace": namespace} for service, namespace in mock_service_list],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"service": service, "namespace": namespace},
+                    "target": f"{{service={service}, namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for service, namespace in mock_service_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_service_with_filter(self, graph_unify_query):
+        namespace = "blueking"
+        mock_service_list = [
+            "bk-gse-data-headless",
+            "bk-gse-data",
+            "bk-gse-file-headless",
+            "bk-gse-file",
+            "bk-monitor-transfer-http",
+            "bk-ingress-nginx",
+            "ingress-nginx-controller-metrics",
+            "ingress-nginx-controller",
+            "ingress-nginx-controller-admission",
+            "bk-gse-cluster-headless",
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"namespace": [namespace]},
+            "start_time": 1745391553,
+            "end_time": 1745395153,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "service",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
             "bk_biz_id": 2,
         }
 
@@ -474,41 +1086,137 @@ class TestListK8SResourcesWithNetwork:
                     "service": service,
                     "namespace": namespace,
                 }
-                for service, namespace in mock_service_list
+                for service in mock_service_list
             ],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"service": service, "namespace": namespace},
+                    "target": f"{{service={service}, namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for service in mock_service_list
+            ],
+            "metrics": [],
+        }
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_pod_with_default(self, graph_unify_query):
+        mock_pod_list = [
+            ("kube-flannel-ds-5rqbl", "kube-system"),
+            ("kube-flannel-ds-kpcpv", "kube-system"),
+            ("csi-cosplugin-xcr55", "kube-system"),
+            ("csi-coslauncher-rf7zz", "kube-system"),
+            ("bkm-daemonset-worker-sc4wm", "bkmonitor-operator-bkte"),
+            ("kube-proxy-k2g6b", "kube-system"),
+            ("bkm-prometheus-node-exporter-xgrp2", "bkmonitor-operator"),
+            ("kube-proxy-4bnk7", "kube-system"),
+            ("csi-cosplugin-pvxrt", "kube-system"),
+            ("csi-cosplugin-5j5t4", "kube-system"),
+        ]
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745391630,
+            "end_time": 1745395230,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "pod",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 2377,
+            "items": [{"pod": pod, "namespace": namespace} for pod, namespace in mock_pod_list],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace, "pod": pod, "pod_name": pod},
+                    "target": f"{{namespace={namespace}, pod_name={pod}, pod={pod}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for pod, namespace in mock_pod_list
+            ],
+            "metrics": [],
         }
         result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
-    def test_left_default_container(self):
-        mock_containers = [
-            "account-service",
-            "add-pod-eni-ip-limit-webhook",
-            "alertmanager",
-            "analyzer",
-            "api",
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_pod_with_filter(self, graph_unify_query):
+        namespace = "blueking"
+        mock_pod_list = [
+            "bk-ingress-nginx-6bc4765cc4-xzswrbk-gse-data-6558cbfd9-gtg2r",
+            "bk-gse-data-6558cbfd9-ph75g",
+            "bk-gse-file-7b48cf45db-dwg25",
+            "bk-gse-data-6558cbfd9-6bgdf",
+            "ingress-nginx-controller-5f95bb657-64mcz",
+            "bk-gse-cluster-5bf94b8d79-wcj7g",
+            "bk-gse-data-6558cbfd9-4r44n",
+            "bk-gse-data-6558cbfd9-2sz57",
+            "bk-gse-data-6558cbfd9-qchs9",
         ]
-        [create_container(name=container) for container in mock_containers]
-
         validated_request_data = {
-            "scenario": SCENARIO,
+            "scenario": "network",
             "bcs_cluster_id": "BCS-K8S-00000",
-            "filter_dict": {},
-            "query_string": "",
-            "page_size": 5,
+            "filter_dict": {"namespace": [namespace]},
+            "start_time": 1745391585,
+            "end_time": 1745395185,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "pod",
+            "with_history": True,
             "page_type": "scrolling",
-            "start_time": 1744957564,
-            "end_time": 1744961164,
-            "resource_type": "container",
-            "page": 1,
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
             "bk_biz_id": 2,
         }
         mock_result = {
-            "count": 400,
-            "items": [{"container": item} for item in mock_containers],
+            "count": 940,
+            "items": [{"pod": pod, "namespace": namespace} for pod in mock_pod_list],
         }
-        resutlt = ListK8SResources()(validated_request_data)  # noqa
-        assert mock_result["items"] == resutlt["items"]
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace, "pod": pod, "pod_name": pod},
+                    "target": f"{{namespace={namespace}, pod={pod}, pod_name={pod}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for pod in mock_pod_list
+            ],
+            "metrics": [],
+        }
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_right_default(self, graph_unify_query):

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import mock
-import pytest  # noqa
+import pytest
 
 from monitor_web.k8s.resources import (
     GetScenarioMetric,
@@ -136,6 +136,30 @@ class TestListK8SResourcesWithCapacity:
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
 
+    def test_left_node_with_query_string(self):
+        name = "master-127-0-0-1"
+        create_node(name)
+
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "master-127-0-0-1",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745200006,
+            "end_time": 1745203606,
+            "resource_type": "node",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"node": name, "ip": name}],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_right_default(self, graph_unify_query):
         """
@@ -185,5 +209,50 @@ class TestListK8SResourcesWithCapacity:
         }
         [create_node(name) for name in mock_node_list[4:]]
 
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_node_with_filter(self, graph_unify_query):
+        node_name = "master-127-0-0-1"
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"node": [node_name]},
+            "start_time": 1745315249,
+            "end_time": 1745318849,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "node",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"node": node_name, "ip": node_name}],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "node": node_name,
+                        "ip": node_name,
+                    },
+                    "target": f"{{node={node_name}, ip={node_name}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+            ],
+            "metrics": [],
+        }
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]
