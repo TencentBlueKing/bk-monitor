@@ -7,7 +7,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "date",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": False,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
@@ -18,7 +18,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "keyword",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": False,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
@@ -29,7 +29,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "keyword",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": True,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
@@ -44,7 +44,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "date",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": True,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
@@ -55,7 +55,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "keyword",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": True,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
@@ -66,7 +66,7 @@ API_VIEW_CONFIG_DATA = {
                 "type": "integer",
                 "is_searched": True,
                 "is_dimensions": True,
-                "is_option_enabled": True,
+                "can_displayed": True,
                 "supported_operations": [
                     {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
                 ],
