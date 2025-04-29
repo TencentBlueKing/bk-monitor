@@ -166,7 +166,7 @@ export default defineComponent({
           desc: item.name,
         }));
       } else if (props.type === EQueryStringTokenType.value) {
-        if (fieldItem?.is_option_enabled) {
+        if (fieldItem?.is_dimensions) {
           if (!loading.value) {
             // const data = await getValueData(false, !!fieldItem?.is_dimensions);
             const data = await getValueData(false);

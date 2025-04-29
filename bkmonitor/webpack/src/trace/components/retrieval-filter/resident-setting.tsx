@@ -197,7 +197,7 @@ export default defineComponent({
       return {
         field: item.name,
         alias: item.alias,
-        isEnableOptions: !!item?.is_option_enabled,
+        isEnableOptions: !!item?.is_dimensions,
         methods:
           item?.supported_operations?.map(o => ({
             id: o.value,

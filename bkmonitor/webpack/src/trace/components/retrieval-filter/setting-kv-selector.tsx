@@ -28,7 +28,8 @@ import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount,
 import { onMounted } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
-import { $bkPopover, Dropdown } from 'bkui-vue';
+import { Dropdown } from 'bkui-vue';
+import tippy from 'tippy.js';
 
 import AutoWidthInput from './auto-width-input';
 import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
@@ -140,8 +141,8 @@ export default defineComponent({
         hideIndex.value = hasHide ? i : -1;
       });
     }
-    function handleClickValueWrap(event) {
-      event.stopPropagation();
+    function handleClickValueWrap() {
+      // event.stopPropagation();
       if (!expand.value) {
         expand.value = true;
         isFocus.value = true;
@@ -157,31 +158,29 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = $bkPopover({
-        target: event.target,
+      popoverInstance.value = tippy(event.target as any, {
         content: selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: false,
-        boundary: 'window',
+        appendTo: document.body,
         zIndex: 998,
-        padding: 0,
-        offset: 4,
-        onHide: () => {
+        interactive: true,
+        offset: [0, 4],
+        onHidden: () => {
           destroyPopoverInstance();
         },
       });
-      popoverInstance.value.install();
+      popoverInstance.value.show();
+      showSelector.value = true;
       setTimeout(() => {
-        popoverInstance.value?.vm?.show();
-        showSelector.value = true;
         handleOnClickOutside();
       }, 200);
     }
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
-      popoverInstance.value?.close();
+      popoverInstance.value?.destroy();
       popoverInstance.value = null;
       showSelector.value = false;
     }
