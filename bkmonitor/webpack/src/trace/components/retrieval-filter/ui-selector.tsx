@@ -29,23 +29,16 @@ import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useEventListener } from '@vueuse/core';
-import { $bkPopover } from 'bkui-vue';
+import tippy from 'tippy.js';
 
 import { isEn } from '../../i18n/i18n';
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
-import { ECondition, EFieldType, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { ECondition, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
 import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
-
-type PopoverInstance = {
-  show: () => void;
-  hide: () => void;
-  close: () => void;
-  [key: string]: any;
-};
 
 export default defineComponent({
   name: 'UiSelector',
@@ -59,7 +52,7 @@ export default defineComponent({
 
     const showSelector = shallowRef(false);
     const localValue = shallowRef<IFilterItem[]>([]);
-    const popoverInstance = shallowRef<PopoverInstance>(null);
+    const popoverInstance = shallowRef(null);
     const updateActive = shallowRef(-1);
     const inputValue = shallowRef('');
     const inputFocus = shallowRef(false);
@@ -88,51 +81,34 @@ export default defineComponent({
       cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
     }
 
-    /**
-     * 处理显示选择器的点击事件
-     * @param {MouseEvent} event - 鼠标事件对象
-     * @description
-     * 1. 如果已存在 popover 实例则更新目标和内容
-     * 2. 否则创建新的 popover 实例并配置相关属性
-     * 3. popover 隐藏时销毁实例并重新绑定键盘事件
-     * 4. 延迟 100ms 显示 popover
-     * @private
-     */
     async function handleShowSelect(event: MouseEvent) {
       if (popoverInstance.value) {
-        // popoverInstance.value.update(event.target, {
-        //   target: event.target as any,
-        //   content: selectorRef.value,
-        // });
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = $bkPopover({
-        target: event.target as any,
+      popoverInstance.value = tippy(event.target as any, {
         content: selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: true,
-        boundary: 'window',
+        appendTo: document.body,
         zIndex: 998,
-        padding: 0,
-        offset: 10,
-        onHide: () => {
+        maxWidth: 720,
+        offset: [0, 4],
+        interactive: true,
+        onHidden: () => {
           destroyPopoverInstance();
           cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
         },
       });
-      popoverInstance.value.install();
-      setTimeout(() => {
-        popoverInstance.value?.vm?.show();
-      }, 100);
+      popoverInstance.value?.show();
       showSelector.value = true;
     }
 
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
-      popoverInstance.value?.close();
+      popoverInstance.value?.destroy();
       popoverInstance.value = null;
       showSelector.value = false;
     }
@@ -338,12 +314,11 @@ export default defineComponent({
         class='vue3_retrieval-filter__ui-selector-component'
         onClick={this.handleClickComponent}
       >
-        <div
-          class='add-btn'
-          onClick={this.handleAdd}
-        >
-          <span class='icon-monitor icon-mc-add' />
-          <span class='add-text'>{this.$t('添加条件')}</span>
+        <div onClick={this.handleAdd}>
+          <div class='add-btn'>
+            <span class='icon-monitor icon-mc-add' />
+            <span class='add-text'>{this.$t('添加条件')}</span>
+          </div>
         </div>
         {this.localValue.map((item, index) => (
           <KvTag
@@ -374,16 +349,7 @@ export default defineComponent({
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
-              fields={[
-                {
-                  type: EFieldType.all,
-                  name: '*',
-                  alias: this.$tc('全文检索'),
-                  is_option_enabled: false,
-                  supported_operations: [],
-                },
-                ...this.fields,
-              ]}
+              fields={this.fields}
               getValueFn={this.getValueFn}
               keyword={this.inputValue}
               show={this.showSelector}

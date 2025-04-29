@@ -67,7 +67,7 @@ export interface IFilterField {
   name: string;
   alias: string;
   type: EFieldType;
-  is_option_enabled: boolean; // 是否可自定选项
+  // is_option_enabled: boolean;
   is_dimensions?: boolean;
   is_searched?: boolean;
   can_displayed?: boolean;

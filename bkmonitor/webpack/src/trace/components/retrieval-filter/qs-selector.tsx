@@ -27,7 +27,7 @@
 import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch } from 'vue';
 
 import { watchDebounced, useEventListener } from '@vueuse/core';
-import { $bkPopover } from 'bkui-vue';
+import tippy from 'tippy.js';
 
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
@@ -123,37 +123,61 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = $bkPopover({
-        target: event.target as any,
+      popoverInstance.value = tippy(event.target as any, {
         content: selectRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
-        arrow: true,
-        boundary: 'window',
+        arrow: false,
+        appendTo: document.body,
         zIndex: 998,
-        padding: 0,
-        onHide: () => {
+        maxWidth: props.qsSelectorOptionsWidth || 1600,
+        offset: [0, 5],
+        interactive: true,
+        onHidden: () => {
           destroyPopoverInstance();
         },
       });
-      popoverInstance.value.install();
-      setTimeout(() => {
-        popoverInstance.value?.vm?.show();
-        showSelector.value = true;
-        onClickOutsideFn = onClickOutside(
-          [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
-          () => {
-            destroyPopoverInstance();
-          },
-          { once: true }
-        );
-      }, 200);
+      popoverInstance.value?.show();
+      showSelector.value = true;
+      onClickOutsideFn = onClickOutside(
+        [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
+        () => {
+          destroyPopoverInstance();
+        },
+        { once: true }
+      );
+      // popoverInstance.value = $bkPopover({
+      //   target: event.target as any,
+      //   content: selectRef.value,
+      //   trigger: 'click',
+      //   placement: 'bottom-start',
+      //   theme: 'light common-monitor padding-0',
+      //   arrow: true,
+      //   boundary: 'window',
+      //   zIndex: 998,
+      //   padding: 0,
+      //   onHide: () => {
+      //     destroyPopoverInstance();
+      //   },
+      // });
+      // popoverInstance.value.install();
+      // setTimeout(() => {
+      //   popoverInstance.value?.vm?.show();
+      //   showSelector.value = true;
+      //   onClickOutsideFn = onClickOutside(
+      //     [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
+      //     () => {
+      //       destroyPopoverInstance();
+      //     },
+      //     { once: true }
+      //   );
+      // }, 200);
     }
 
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
-      popoverInstance.value?.close();
+      popoverInstance.value?.destroy();
       popoverInstance.value = null;
       showSelector.value = false;
       onClickOutsideFn?.();
