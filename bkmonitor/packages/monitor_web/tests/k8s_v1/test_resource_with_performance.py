@@ -511,7 +511,7 @@ class TestListK8SResourcesWithPerformance:
         [create_workload(name, type="Deployment") for name in workload_names]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"workload": "Deployment:"},
             "query_string": "",
@@ -572,7 +572,7 @@ class TestListK8SResourcesWithPerformance:
             for pod, namespace, workload_type, workload_name in mock_pods
         ]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -609,7 +609,7 @@ class TestListK8SResourcesWithPerformance:
         [create_container(name=container) for container in mock_containers]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",

@@ -17,7 +17,14 @@ import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from bkmonitor.models import BCSCluster, BCSContainer, BCSPod, BCSWorkload
+from bkmonitor.models import (
+    BCSCluster,
+    BCSContainer,
+    BCSIngress,
+    BCSPod,
+    BCSService,
+    BCSWorkload,
+)
 
 pytestsmark = pytest.mark.django_db
 
@@ -72,6 +79,42 @@ def create_namespaces():
             last_synced_at=timezone.now(),
             pod_count=0,
         ).save()
+
+
+def create_ingress(
+    name: str,
+    namespace: str,
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    created_at=timezone.now(),
+    last_synced_at=timezone.now(),
+):
+    BCSIngress(
+        name=name,
+        namespace=namespace,
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        created_at=created_at,
+        last_synced_at=last_synced_at,
+    ).save()
+
+
+def create_service(
+    name: str,
+    namespace: str,
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    created_at=timezone.now(),
+    last_synced_at=timezone.now(),
+):
+    BCSService(
+        name=name,
+        namespace=namespace,
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        created_at=created_at,
+        last_synced_at=last_synced_at,
+    ).save()
 
 
 def create_namespace(

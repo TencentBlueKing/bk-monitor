@@ -12,8 +12,17 @@ specific language governing permissions and limitations under the License.
 import mock
 import pytest  # noqa
 
-from monitor_web.k8s.resources import GetScenarioMetric, ResourceTrendResource
-from monitor_web.tests.k8s_v1.conftest import create_namespace
+from monitor_web.k8s.resources import (
+    GetScenarioMetric,
+    ListK8SResources,
+    ResourceTrendResource,
+)
+from monitor_web.tests.k8s_v1.conftest import (
+    create_container,
+    create_ingress,
+    create_namespace,
+    create_service,
+)
 from packages.monitor_web.k8s.scenario import Scenario
 
 SCENARIO: Scenario = "network"
@@ -348,3 +357,155 @@ class TestResourceTrendResourceWithNetwork:
         result = ResourceTrendResource()(validated_request_data)
 
         assert result == mock_expected_result
+
+
+@pytest.mark.django_db
+class TestListK8SResourcesWithNetwork:
+    def test_left_default_namespace(self):
+        """获取左侧默认namespace列表"""
+        mock_namespace_names = [
+            "aiops-default",
+            "apm-demo",
+            "bcs-op",
+            "bcs-system",
+            "bk-bscp",
+        ]
+        [create_namespace(name) for name in mock_namespace_names]
+
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745284082,
+            "end_time": 1745287682,
+            "resource_type": "namespace",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+
+        mock_result = {
+            "count": 90,
+            "items": [
+                {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": name,
+                }
+                for name in mock_namespace_names
+            ],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    def test_right_ingress_with_filter(self):
+        mock_ingress_list = [
+            ("bcs-ui", "bcs-system"),
+            ("stack-bcs-api-gateway-http", "bcs-system"),
+            ("bk-bscp-apiserver", "bk-bscp"),
+            ("bk-bscp-ui", "bk-bscp"),
+            ("agent-plugin-subpath", "bkapp-agent-plugin-prod"),
+        ]
+        [create_ingress(name, namespace) for name, namespace in mock_ingress_list]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745284082,
+            "end_time": 1745287682,
+            "resource_type": "ingress",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 197,
+            "items": [{"ingress": ingress, "namespace": namespace} for ingress, namespace in mock_ingress_list],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_right_service_with_filter(self):
+        mock_service_list = [
+            (
+                "service-0238ac93f359ac407d5ceccc599655b4",
+                "aiops-default",
+            ),
+            (
+                "service-0238d26ae5c36675c65f07fea9f32273",
+                "aiops-default",
+            ),
+            (
+                "service-029f77b8bb2517480e2a2377a66c3670",
+                "aiops-default",
+            ),
+            (
+                "service-07efbaabe7ea713a9ebc7a222b24084d",
+                "aiops-default",
+            ),
+            (
+                "service-0852a0955d7531c0eb0df994303037bf",
+                "aiops-default",
+            ),
+        ]
+        [create_service(name, namespace) for name, namespace in mock_service_list]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1745284082,
+            "end_time": 1745287682,
+            "resource_type": "service",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+
+        mock_result = {
+            "count": 598,
+            "items": [
+                {
+                    "service": service,
+                    "namespace": namespace,
+                }
+                for service, namespace in mock_service_list
+            ],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    def test_left_default_container(self):
+        mock_containers = [
+            "account-service",
+            "add-pod-eni-ip-limit-webhook",
+            "alertmanager",
+            "analyzer",
+            "api",
+        ]
+        [create_container(name=container) for container in mock_containers]
+
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "container",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 400,
+            "items": [{"container": item} for item in mock_containers],
+        }
+        resutlt = ListK8SResources()(validated_request_data)  # noqa
+        assert mock_result["items"] == resutlt["items"]
