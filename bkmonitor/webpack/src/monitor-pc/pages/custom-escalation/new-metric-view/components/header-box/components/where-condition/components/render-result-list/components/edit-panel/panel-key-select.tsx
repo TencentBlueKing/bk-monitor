@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../../../../../metric-chart-view/utils';
+
 import type { IMetrics } from './index';
 
 import './panel-key-select.scss';
@@ -226,7 +228,10 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
                       'key-item': true,
                       'is-selected': this.value === dimensionItem.name,
                     }}
-                    v-bk-tooltips={{ content: dimensionItem.name || dimensionItem.alias, placement: 'left' }}
+                    v-bk-tooltips={{
+                      content: formatTipsContent(dimensionItem.name, dimensionItem.alias),
+                      placement: 'left',
+                    }}
                     onClick={() => this.handleChange(dimensionItem.name)}
                   >
                     {dimensionItem.alias || dimensionItem.name}

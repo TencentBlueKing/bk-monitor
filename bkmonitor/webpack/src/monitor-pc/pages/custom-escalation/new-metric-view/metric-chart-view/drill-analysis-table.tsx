@@ -32,7 +32,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { generateTimeStrings, handleGetMinPrecision } from './utils';
+import { generateTimeStrings, handleGetMinPrecision, formatTipsContent } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -187,7 +187,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     const baseView = (item: IDimensionItem) => (
       <span
         class='item-alias'
-        v-bk-tooltips={{ content: item.name || item.alias, placement: 'right' }}
+        v-bk-tooltips={{
+          content: formatTipsContent(item.name, item.alias),
+          placement: 'right',
+        }}
       >
         {item.alias || item.name}
       </span>
@@ -284,10 +287,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               <li
                 key={option.key}
                 class={['table-drill-down-item', { active: isActive }]}
+                v-bk-tooltips={{
+                  content: formatTipsContent(option.name, option.alias),
+                  placement: 'right',
+                }}
                 onClick={() => this.chooseDrill(option, row)}
               >
                 {option.alias || option.name}
-                {option.alias ? ` (${option.name})` : ''}
+                {/* {option.alias ? ` (${option.name})` : ''} */}
               </li>
             );
           })}
@@ -465,6 +472,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.showDimensionKeys.map(key => {
       this.drillList.push({
         key,
+        alias: this.showDimensionsList.find(ele => ele.name === key).alias,
         value: row.dimensions[key],
       });
     });
@@ -535,10 +543,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
                 <bk-tag
                   key={item.key}
                   class='drill-tag'
+                  v-bk-tooltips={{
+                    content: formatTipsContent(item.key, item.alias),
+                  }}
                   closable
                   onClose={() => this.clearDrillFilter(item)}
                 >
-                  <span>{item.key}</span>
+                  <span>{item.alias || item.key}</span>
                   <span class='tag-eq'>=</span>
                   <span class='tag-value'>{item.value}</span>
                 </bk-tag>

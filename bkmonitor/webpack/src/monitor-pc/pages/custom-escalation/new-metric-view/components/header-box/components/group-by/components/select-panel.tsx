@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../../metric-chart-view/utils';
+
 import './select-panel.scss';
 
 interface IProps {
@@ -154,7 +156,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           class='item'
         >
           <bk-checkbox
-            v-bk-tooltips={{ content: dimensionData.name || dimensionData.alias, placement: 'left' }}
+            v-bk-tooltips={{ content: formatTipsContent(dimensionData.name, dimensionData.alias), placement: 'left' }}
             checked={isChecked}
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
