@@ -208,7 +208,7 @@
 
     const mapFn = item =>
       Object.assign({}, item, {
-        first_name: item.query_alias || item.field_alias || item.field_name,
+        first_name: item.query_alias || item.field_name,
         last_name: item.field_name,
       });
 
