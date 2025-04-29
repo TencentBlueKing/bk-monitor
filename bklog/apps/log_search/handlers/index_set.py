@@ -222,9 +222,7 @@ class IndexSetHandler(APIModel):
                 if index["index_set_name"].startswith("[采集项]") and index["scenario_id"] == Scenario.LOG:
                     result_table_id_list = [ind["result_table_id"] for ind in log_index_set["indices"]]
                     if index["indices"][0]["result_table_id"] in result_table_id_list:
-                        # 标记
-                        if index["index_set_id"] not in remove_ids:
-                            remove_ids.add(index["index_set_id"])
+                        remove_ids.add(index["index_set_id"])
                         log_index_set.setdefault("children", []).append(index)
         index_sets[:] = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
         return index_sets
