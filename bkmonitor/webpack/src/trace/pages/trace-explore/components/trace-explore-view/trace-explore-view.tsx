@@ -33,7 +33,7 @@ import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
-import type { ExploreFieldMap, ICommonParams } from '../../typing';
+import type { ExploreFieldList, ICommonParams } from '../../typing';
 
 import './trace-explore-view.scss';
 
@@ -55,11 +55,12 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
-    fieldMap: {
-      type: Object as PropType<ExploreFieldMap>,
+    /** 不同视角下维度字段的列表 */
+    fieldListMap: {
+      type: Object as PropType<ExploreFieldList>,
       default: () => ({
-        trace: {},
-        span: {},
+        trace: [],
+        span: [],
       }),
     },
   },
@@ -133,7 +134,7 @@ export default defineComponent({
     };
   },
   render() {
-    const { commonParams, fieldMap } = this.$props;
+    const { commonParams, fieldListMap } = this.$props;
     const { mode, appName, timeRange, filtersCheckBoxGroupRender } = this;
 
     return (
@@ -147,7 +148,7 @@ export default defineComponent({
           <TraceExploreTable
             appName={appName}
             commonParams={commonParams}
-            fieldMap={fieldMap}
+            fieldListMap={fieldListMap}
             mode={mode}
             timeRange={timeRange}
           />

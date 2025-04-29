@@ -38,14 +38,6 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     },
     align: 'left',
     emptyPlaceholder: '--',
-    filter: {
-      showConfirmAndReset: true,
-      listFilterConfig: true,
-      type: 'multiple',
-      popupProps: {
-        destroyOnClose: true,
-      },
-    },
   },
   traceConfig: {
     displayFields: [
@@ -74,6 +66,9 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     ],
   },
 } as const);
+
+/** 可以进行排序的字段类型 */
+export const CAN_TABLE_SORT_FIELD_TYPES = new Set(['integer', 'long', 'double', 'date']);
 
 /** trace检索table 状态码(status.code)列 不同类型显示 tag color 配置 */
 export const SERVICE_STATUS_COLOR_MAP = {

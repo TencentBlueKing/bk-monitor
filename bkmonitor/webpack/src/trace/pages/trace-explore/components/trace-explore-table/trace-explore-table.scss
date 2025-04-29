@@ -50,6 +50,8 @@
       align-items: center;
 
       .tag-item {
+        display: flex;
+        align-items: center;
         height: 18px;
         padding: 0 10px;
         color: var(--tag-color);
@@ -149,7 +151,7 @@
 
   .t-table {
     height: 100%;
-    --td-comp-paddingTB-s: var(--td-size-3);
+    --td-comp-paddingTB-s: var(--td-size-2);
     --td-comp-margin-s: var(--td-size-2);
     --td-text-color-primary: #313238;
 

@@ -43,12 +43,11 @@ import { Transfer, ArrowsRight, Close } from 'bkui-vue/lib/icon';
 
 import FieldTypeIcon from '../field-type-icon';
 
-import type { ExploreFieldMap } from '../../typing';
-import type { ExploreTableColumn } from '../trace-explore-table/typing';
+import type { IDimensionField } from '../../typing';
 
 import './explore-field-setting.scss';
 
-export type FieldSettingItem = ExploreTableColumn & { fieldType: string };
+export type FieldSettingItem = { [key in string]: any } | Pick<IDimensionField, 'alias' | 'name' | 'type'>;
 export default defineComponent({
   name: 'ExploreFieldSetting',
   props: {
@@ -70,17 +69,16 @@ export default defineComponent({
     /** 具有唯一标识的 key 值 */
     settingKey: {
       type: String,
-      default: 'colKey',
+      default: 'name',
     },
     /** 展示的 key 值 */
     displayKey: {
       type: String,
-      default: 'title',
+      default: 'alias',
     },
-    /** 字段类型字段名key映射集合(prefix icon 需要) */
-    fieldMap: {
-      type: Object as PropType<ExploreFieldMap>,
-      default: () => {},
+    /** 数据源kv结构集合（性能优化方案，非必填） */
+    sourceMap: {
+      type: Object as PropType<{ [key: string]: FieldSettingItem }>,
     },
   },
   emits: {
@@ -146,12 +144,14 @@ export default defineComponent({
           removeDragListener();
           return;
         }
-        sourceListMap.value = props.sourceList.reduce((prev, curr) => {
-          const field = curr[props.settingKey];
-          if (prev[field]) return prev;
-          prev[field] = curr;
-          return prev;
-        }, {});
+        sourceListMap.value = props.sourceMap
+          ? props.sourceMap
+          : props.sourceList.reduce((prev, curr) => {
+              const field = curr[props.settingKey];
+              if (prev[field]) return prev;
+              prev[field] = curr;
+              return prev;
+            }, {});
         selectedList.value = props.targetList.filter(v => sourceListMap.value[v]);
 
         nextTick(() => {
@@ -397,7 +397,7 @@ export default defineComponent({
           {selectedList.value.map((field, index) => {
             const fieldItem = sourceListMap.value[field];
             const label = fieldItem?.[props.displayKey];
-            const fieldType = fieldItem?.fieldType;
+            const fieldType = fieldItem.type;
             return (
               <li
                 key={field}
@@ -443,7 +443,7 @@ export default defineComponent({
           {toBeChosenList.value.map(item => {
             const field = item[props.settingKey];
             const label = item[props.displayKey];
-            const fieldType = item.fieldType;
+            const fieldType = item.type;
             return (
               <li
                 key={field}
