@@ -209,6 +209,8 @@ export const getStorageOptions = () => {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,
       },
+      // 索引集激活的tab
+      indexSetActiveTab: 'single',
     },
     storage,
   );

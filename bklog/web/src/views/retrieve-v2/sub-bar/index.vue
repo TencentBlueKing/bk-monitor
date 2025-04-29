@@ -43,7 +43,13 @@
   const indexSetValue = computed(() => store.state.indexItem.ids);
 
   // 索引集类型
-  const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+  const indexSetType = computed(() => {
+    if (store.state.storage.indexSetActiveTab) {
+      return store.state.storage.indexSetActiveTab;
+    }
+
+    return store.state.indexItem.isUnionIndex ? 'union' : 'single';
+  });
 
   const textDir = computed(() => {
     const textEllipsisDir = store.state.storage.textEllipsisDir;
@@ -158,6 +164,17 @@
     });
   };
 
+  const handleActiveTypeChange = type => {
+    store.commit('updateStorage', { indexSetActiveTab: type });
+
+    if (['union', 'single'].includes(type)) {
+      RetrieveHelper.setIndexsetId(indexSetParams.value.ids, type);
+      store.commit('updateIndexItem', {
+        isUnionIndex: type === 'union',
+      });
+    }
+  };
+
   const handleIndexSetValueChange = values => {
     handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
@@ -185,9 +202,11 @@
       <IndexSetChoice
         :index-set-list="indexSetList"
         :index-set-value="indexSetValue"
-        :index-set-type="indexSetType"
+        :active-type="indexSetType"
         :text-dir="textDir"
+        width="100%"
         @value-change="handleIndexSetValueChange"
+        @type-change="handleActiveTypeChange"
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>

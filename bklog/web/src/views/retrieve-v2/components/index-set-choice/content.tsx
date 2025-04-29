@@ -28,6 +28,8 @@ import { computed, defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useIndexSet from './use-index-set';
 import IndexSetList from './index-set-list';
+import './content.scss';
+import useChoice from './use-choice';
 
 export default defineComponent({
   props: {
@@ -55,7 +57,7 @@ export default defineComponent({
     const hiddenEmptyItem = ref(true);
 
     const tagItem = ref({
-      id: undefined,
+      tag_id: undefined,
       name: undefined,
       color: undefined,
     });
@@ -64,11 +66,18 @@ export default defineComponent({
     const list = computed(() => props.indexSetList);
 
     const { indexSetTagList } = useIndexSet({ indexSetList: list });
+    const { handleIndexSetItemCheck } = useChoice(props, { emit });
 
     const noDataReg = /^No\sData$/i;
     const filterList = computed(() =>
       props.indexSetList
-        .filter((item: any) => item.tags.some(tag => tag.id === tagItem.value.id))
+        .filter((item: any) => {
+          if (tagItem.value.tag_id === undefined) {
+            return true;
+          }
+
+          return item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+        })
         .filter((item: any) => {
           if (hiddenEmptyItem.value) {
             return (
@@ -79,6 +88,12 @@ export default defineComponent({
           return item.index_set_name.indexOf(searchText.value) !== -1;
         }),
     );
+
+    const valueList = computed(() => props.indexSetList.filter((item: any) => props.value.includes(item.index_set_id)));
+
+    const handleUnCheckItem = item => {
+      handleIndexSetItemCheck(item, false);
+    };
 
     const handleValueChange = val => emit('value-change', val);
 
@@ -96,9 +111,48 @@ export default defineComponent({
       ];
     };
 
+    const renderMultiContentBody = () => {
+      return (
+        <div class='content-body-multi'>
+          <div class='body'>{renderContentBody()}</div>
+          <div class='footer'>
+            <div class='row-lable'>
+              <div>
+                <i18n
+                  style='font-size: 12px; color: #4d4f56;'
+                  path='已选择{0}个索引集'
+                >
+                  <span style='color: #3A84FF; font-weight: 700;'>{props.value.length}</span>
+                </i18n>
+                , <span style='color: #3A84FF;font-size: 12px;cursor: pointer;'>清空选择</span>
+              </div>
+              <div>
+                <span
+                  class='bklog-icon bklog-lc-star-shape'
+                  style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
+                ></span>
+                <span style='font-size: 12px;color: #3A84FF;'>收藏该组合</span>
+              </div>
+            </div>
+            <div class='row-item-list'>
+              {valueList.value.map((item: any) => (
+                <span class='row-value-item'>
+                  {item.index_set_name}
+                  <span
+                    class='bklog-icon bklog-close'
+                    onClick={() => handleUnCheckItem(item)}
+                  ></span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const tabList = computed(() => [
       { name: $t('单选'), id: 'single', render: renderContentBody },
-      { name: $t('多选'), id: 'union', render: renderContentBody },
+      { name: $t('多选'), id: 'union', render: renderMultiContentBody },
       { name: $t('历史记录'), id: 'history' },
       { name: $t('我的收藏'), id: 'favorite' },
     ]);
@@ -113,7 +167,12 @@ export default defineComponent({
       emit('type-change', item.id);
     };
 
-    const handleTagItemClick = (tag: { id: number; name: string; color: string }) => {
+    const handleTagItemClick = (tag: { tag_id: number; name: string; color: string }) => {
+      if (tagItem.value.tag_id === tag.tag_id) {
+        Object.assign(tagItem.value, { tag_id: undefined, name: undefined, color: '' });
+        return;
+      }
+
       Object.assign(tagItem.value, tag);
     };
 
@@ -170,7 +229,7 @@ export default defineComponent({
           <div class='bklog-v3-tag-list'>
             {indexSetTagList.value.map(item => (
               <span
-                class='tag-item'
+                class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
                 onClick={() => handleTagItemClick(item)}
               >
                 {item.name}

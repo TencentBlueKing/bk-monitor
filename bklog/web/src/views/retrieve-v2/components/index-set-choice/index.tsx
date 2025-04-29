@@ -39,6 +39,14 @@ export default defineComponent({
       default: 32,
     },
     width: {
+      type: [Number, String],
+      default: 400,
+    },
+    maxWidth: {
+      type: Number,
+      default: 600,
+    },
+    minWidth: {
       type: Number,
       default: 400,
     },
@@ -46,8 +54,8 @@ export default defineComponent({
       type: String,
       default: 'ltr',
     },
-    // 索引集类型：单选-single | 联合索引-union
-    indexSetType: {
+    // 索引集类型：单选-single | 联合索引-union | history-历史记录 | favorite-收藏
+    activeType: {
       type: String,
       default: 'single',
     },
@@ -72,7 +80,8 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(props, {}) {
+  emits: ['type-change', 'value-change'],
+  setup(props, { emit }) {
     const isOpened = ref(false);
     const refRootElement: Ref<HTMLElement | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
@@ -90,7 +99,9 @@ export default defineComponent({
     const rootStyle = computed(() => {
       return {
         '--indexset-root-h': `${props.height}px`,
-        '--indexset-root-w': `${props.width}px`,
+        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`) ? `${props.width}px` : props.width,
+        '--indexset-root-max-w': `${props.maxWidth}px`,
+        '--indexset-root-min-w': `${props.minWidth}px`,
       };
     });
 
@@ -98,26 +109,47 @@ export default defineComponent({
       props.indexSetValue.map(v => props.indexSetList.find((i: any) => i.index_set_id === v)),
     );
 
+    const handleTabChange = (type: string) => {
+      emit('type-change', type);
+    };
+
+    const handleValueChange = (value: any) => {
+      emit('value-change', value);
+    };
+
     return () => {
       return (
         <BklogPopover
-          class={['bklog-v3-indexset-container', { 'is-opened': isOpened.value }]}
+          class={[
+            'bklog-v3-indexset-container',
+            { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
+          ]}
           data-shortcut-key={shortcutKey}
           style={rootStyle.value}
           ref={refRootElement}
           options={tippyOptions}
           {...{
             scopedSlots: {
-              content: () => <Content indexSetList={props.indexSetList}></Content>,
+              content: () => (
+                <Content
+                  indexSetList={props.indexSetList}
+                  type={props.activeType}
+                  value={props.indexSetValue}
+                  on-type-change={handleTabChange}
+                  on-value-change={handleValueChange}
+                ></Content>
+              ),
             },
           }}
         >
-          <div class='indexset-value-list'>
-            {selectedValues.value.map((v: any) => [
-              <bid class='index-set-name'>{v.index_set_name}</bid>,
-              <bid class='index-set-lighten-name'>{v.lightenName}</bid>,
-            ])}
-          </div>
+          <bdi class='indexset-value-list'>
+            {selectedValues.value.map((v: any) => (
+              <span class='index-set-value-item'>
+                <span class='index-set-name'>{v.index_set_name}</span>
+                <span class='index-set-lighten-name'>{v.lightenName}</span>
+              </span>
+            ))}
+          </bdi>
           <span class='bklog-icon bklog-arrow-down-filled-2'></span>
         </BklogPopover>
       );
