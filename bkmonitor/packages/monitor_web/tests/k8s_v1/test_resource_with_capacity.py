@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+
 import mock
 import pytest
 
@@ -168,7 +169,7 @@ class TestListK8SResourcesWithCapacity:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_node_with_history(self, graph_unify_query):
+    def test_node_with_history(self, graph_unify_query, get_end_time):
         """
         查询带历史数据的 node 列表
 
@@ -180,7 +181,7 @@ class TestListK8SResourcesWithCapacity:
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745283797,
-            "end_time": 1745287397,
+            "end_time": get_end_time,
             "page_size": 10,
             "page": 1,
             "resource_type": "node",

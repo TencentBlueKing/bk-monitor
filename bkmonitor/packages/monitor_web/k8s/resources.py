@@ -544,6 +544,7 @@ class ListK8SResources(Resource):
             record = rs.to_meta_dict()
             resource_list.append(record)
             resource_id_set.add(tuple(sorted(record.items())))
+
         # promql 查询数据量不足，从db中补充
         try:
             meta_resource_list: list[dict] = [
@@ -559,7 +560,6 @@ class ListK8SResources(Resource):
                 meta_resource_list = resource_meta.distinct(resource_meta.retry_get_from_meta())
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
-
         if len(resource_list) < page_count:
             # 基于需要返回的数量，进行分页
             # 3.1 promql上报数据包含了meta数据，需要去重
