@@ -108,7 +108,7 @@ export default defineComponent({
       app_name: '',
       query_string: '',
       filters: [],
-      mode: 'trace',
+      mode: store.mode,
     });
 
     const loading = shallowRef(false);
