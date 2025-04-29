@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import datetime
 import gzip
 import json
 import logging
 import time
-from typing import Dict
 
 from django.conf import settings
 from django.db import models
@@ -54,7 +53,9 @@ class BCSCluster(BCSBase):
 
     labels = models.ManyToManyField(BCSLabel, through="BCSClusterLabels", through_fields=("resource", "label"))
 
-    bkmonitor_operator_deployed = models.BooleanField(verbose_name="bkmonitor operator部署状态", default=False, null=True)
+    bkmonitor_operator_deployed = models.BooleanField(
+        verbose_name="bkmonitor operator部署状态", default=False, null=True
+    )
     bkmonitor_operator_version = models.CharField(verbose_name="bkmonitor operator版本", max_length=64, null=True)
     bkmonitor_operator_first_deployed = models.DateTimeField(verbose_name="bkmonitor operator首次部署时间", null=True)
     bkmonitor_operator_last_deployed = models.DateTimeField(verbose_name="bkmonitor operator最后部署时间", null=True)
@@ -67,6 +68,9 @@ class BCSCluster(BCSBase):
 
     class Meta:
         index_together = ["bk_biz_id", "bcs_cluster_id"]
+
+    def to_meta_dict(self):
+        return {"cluster": self.name}
 
     @staticmethod
     def hash_unique_key(bk_biz_id, bcs_cluster_id):
@@ -328,7 +332,7 @@ class BCSCluster(BCSBase):
         return result
 
     @classmethod
-    def update_monitor_status(cls, params: Dict) -> None:
+    def update_monitor_status(cls, params: dict) -> None:
         """更新采集器状态 ."""
         # 获得资源使用率
         bk_biz_id = params["bk_biz_id"]
