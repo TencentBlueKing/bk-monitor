@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import time
-from typing import Literal
+from typing import Literal, Optional
 
 import pytest
 from django.test import TestCase
@@ -21,6 +21,7 @@ from bkmonitor.models import (
     BCSCluster,
     BCSContainer,
     BCSIngress,
+    BCSNode,
     BCSPod,
     BCSService,
     BCSWorkload,
@@ -216,6 +217,26 @@ def create_container(
         image=image,
         created_at=timezone.now(),
         last_synced_at=timezone.now(),
+    ).save()
+
+
+def create_node(
+    name: str,
+    ip: Optional[str] = None,
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    endpoint_count: int = 0,
+    pod_count: int = 0,
+):
+    BCSNode(
+        name=name,
+        ip=name if not ip else ip,
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        created_at=timezone.now(),
+        last_synced_at=timezone.now(),
+        endpoint_count=endpoint_count,
+        pod_count=pod_count,
     ).save()
 
 

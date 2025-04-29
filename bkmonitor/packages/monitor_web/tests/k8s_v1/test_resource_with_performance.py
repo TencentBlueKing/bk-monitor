@@ -748,7 +748,7 @@ class TestListK8SResourcesWithPerformance:
                 "bcs-gamestatefulset-operator-644ffbbdf-pcnnc",
                 "bcs-system",
                 "Deployment",
-                "bcs-gamestatefulset-operator",
+                "bcs-gamestatefulset-operator-1",
             },
             {
                 "bcs-general-pod-autoscaler-78cc6465cd-9hxnb",
@@ -760,7 +760,7 @@ class TestListK8SResourcesWithPerformance:
                 "bcs-general-pod-autoscaler-78cc6465cd-wjxjk",
                 "bcs-system",
                 "Deployment",
-                "bcs-general-pod-autoscaler",
+                "bcs-general-pod-autoregister",
             },
             {
                 "bcs-hook-operator-7bc6d76-r4vzx",
@@ -1016,6 +1016,632 @@ class TestListK8SResourcesWithPerformance:
                 {"container": "bkmonitorbeat"},
                 {"container": "dbm-bkmonitor-init"},
             ],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result == mock_result
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_namespace(self, graph_unify_query):
+        """
+        获取右侧默认数据
+
+        场景: promql 查询数据不足，还需要从 db 中查询补充数据
+        """
+        mock_namespace_list = [
+            "bkbase",
+            "blueking",
+            "bkbase-flink",
+            "deepflow",
+            "kube-system",
+            "aiops-default",
+            "bcs-system",
+            "bk-bscp",
+            "bkmonitor-operator",
+            "default",
+            "new_namespace",
+        ]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745283797,
+            "end_time": 1745287397,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "namespace",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_cpu_usage_seconds_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 79,
+            "items": [
+                {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": namespace,
+                }
+                for namespace in mock_namespace_list[:-1]
+            ],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list[:5]
+            ],
+            "metrics": [],
+        }
+
+        [create_namespace(name=namespace) for namespace in mock_namespace_list[4:]]  # 第 5 - 10 个
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+        # 当 PromQL 查询的数据大于 page_size 取 result[:page_size]
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_namespace_with_filter(self, graph_unify_query):
+        namespace = "aiops-default"
+        mock_namespace_list = ["aiops-default"]
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"namespace": [namespace]},
+            "start_time": 1745315249,
+            "end_time": 1745318849,
+            "page_size": 20,
+            "page": 2,
+            "resource_type": "namespace",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": namespace}],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_workload(self, graph_unify_query):
+        """
+        获取workload维度的数据
+
+        数据来源于 PromQL
+        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        """
+        mock_workload_list = [
+            ("bkbase", "StatefulSet", "bkbase-clean-outer-inland-bcs1"),
+            ("bkbase", "StatefulSet", "bkbase-vmraw-outer-inland-bcs1"),
+            ("bkbase", "StatefulSet", "bkbase-doris-inner-inland-bcs2"),
+            ("bkbase", "Deployment", "bkbase-vmraw-kafka-inland-bcs1-deployment"),
+            ("bkbase", "StatefulSet", "bkbase-puller-kafka-pulsar-bcs1"),
+            ("bcs-system", "StatefulSet", "bcs-bkcmdb-synchronizer"),
+            ("bkbase", "Deployment", "bkbase-queryengine-default"),
+            ("bkbase", "StatefulSet", "bkbase-hdfsiceberg-inner-inland-bcs1"),
+            ("bkbase", "Deployment", "bkbase-vmraw-kafka-inland-bcs2-deployment"),
+            ("bkbase", "Deployment", "bkbase-queryengine-bkmonitor"),
+        ]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745303090,
+            "end_time": 1745306690,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "workload",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "namespace": namespace,
+                        "workload_kind": workload_kind,
+                        "workload_name": workload_name,
+                    },
+                    "target": f"{{namespace={namespace}, workload_kind={workload_kind}, workload_name={workload_name}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace, workload_kind, workload_name in mock_workload_list
+            ],
+            "metrics": [],
+        }
+
+        mock_result = {
+            "count": 1422,
+            "items": [
+                {"namespace": namespace, "workload": f"{workload_type}:{workload_name}"}
+                for namespace, workload_type, workload_name in mock_workload_list
+            ],
+        }
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_workload_with_filter(self, graph_unify_query):
+        """
+        获取workload维度的数据
+        追加过滤条件
+
+        PromQL: 'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default"}[1m:])))'  # noqa
+        """
+        namespace = "aiops-default"
+        mock_workload_list = [
+            ("Deployment", "service--1--session-default-incident-task-runner-owned"),
+            ("Deployment", "service--0--session-default-incident-task-runner-owned"),
+            ("Deployment", "service--0--session-default---incident-status-tracker---owned"),
+            (
+                "Deployment",
+                "service--0--session-default---scene-service-period-scene-application-status-metrics-upload-session---owned",  # noqa
+            ),
+            ("Deployment", "service--0--session-default-api-serving-2-metric-recommendation-owned"),
+            ("Deployment", "service--1--session-default-api-serving-2-metric-recommendation-owned"),
+            ("Deployment", "service--0--session-default-auto-scheduler-serving-stream-ci-13-owned"),
+            ("Deployment", "python-backend--0--session-default---inner-session---owned"),
+            ("Deployment", "service--0--session-default-auto-scheduler-serving-stream-ci-12-owned"),
+            ("Deployment", "service--0--session-default-auto-scheduler-serving-stream-ci-11-owned"),
+        ]
+
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {"namespace": ["aiops-default"]},
+            "start_time": 1745303283,
+            "end_time": 1745306883,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "workload",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+
+        mock_result = {
+            "count": 46,
+            "items": [
+                {
+                    "namespace": namespace,
+                    "workload": f"{workload_kind}:{workload_name}",
+                }
+                for workload_kind, workload_name in mock_workload_list
+            ],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "namespace": namespace,
+                        "workload_kind": workload_kind,
+                        "workload_name": workload_name,
+                    },
+                    "target": f"{{namespace={namespace}, workload_kind={workload_kind}, workload_name={workload_name}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for workload_kind, workload_name in mock_workload_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_pod(self, graph_unify_query):
+        """
+        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        """
+        mock_pod_list = [
+            ("bcs-bkcmdb-synchronizer-0", "bcs-system", "StatefulSet:bcs-bkcmdb-synchronizer"),
+            (
+                "vm-sql-58ec3c53525d4209a2a44e6a00c02402-0",
+                "bkbase-flink",
+                "StatefulSet:vm-sql-58ec3c53525d4209a2a44e6a00c02402",
+            ),
+            ("bkbase-queryengine-default-7785d74fc7-trs9s", "bkbase", "Deployment:bkbase-queryengine-default"),
+            ("bkbase-queryengine-default-7785d74fc7-h4mdl", "bkbase", "Deployment:bkbase-queryengine-default"),
+            (
+                "bkbase-vmraw-kafka-inland-bcs2-deployment-56d658c54b-g2k59",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs2-deployment",
+            ),
+            (
+                "bkbase-vmraw-kafka-inland-bcs1-deployment-68c79cd785-4rgv9",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs1-deployment",
+            ),
+            (
+                "bkbase-vmraw-kafka-inland-bcs1-deployment-68c79cd785-d5499",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs1-deployment",
+            ),
+            ("bkbase-vmraw-outer-inland-bcs1-0", "bkbase", "StatefulSet:bkbase-vmraw-outer-inland-bcs1"),
+            ("bkbase-vmraw-outer-inland-bcs1-1", "bkbase", "StatefulSet:bkbase-vmraw-outer-inland-bcs1"),
+            ("bkbase-vmraw-outer-inland-bcs1-2", "bkbase", "StatefulSet:bkbase-vmraw-outer-inland-bcs1"),
+        ]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745303638,
+            "end_time": 1745307238,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "pod",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+
+        mock_result = {
+            "count": 2321,
+            "items": [
+                {
+                    "pod": pod,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "namespace": namespace,
+                        "pod_name": pod,
+                        "workload_kind": workload.split(":")[0],
+                        "workload_name": workload.split(":")[1],
+                    },
+                    "target": f"{{namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_pod_with_filter(self, graph_unify_query):
+        """
+        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bcs-system',workload_kind='Deployment',workload_name='bcs-services-stack-bk-micro-gateway'}[1m:])))"  # noqa
+        """
+        mock_pod_list = [
+            (
+                "bcs-services-stack-bk-micro-gateway-5fdf9488dd-j5hcv",
+                "bcs-system",
+                "Deployment:bcs-services-stack-bk-micro-gateway",
+            ),
+            (
+                "bcs-services-stack-bk-micro-gateway-5fdf9488dd-4vnll",
+                "bcs-system",
+                "Deployment:bcs-services-stack-bk-micro-gateway",
+            ),
+        ]
+
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {
+                "namespace": ["bcs-system"],
+                "workload": ["Deployment:bcs-services-stack-bk-micro-gateway"],
+            },
+            "start_time": 1745303835,
+            "end_time": 1745307435,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "pod",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 2,
+            "items": [
+                {
+                    "pod": pod,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "namespace": namespace,
+                        "pod_name": pod,
+                        "workload_kind": workload.split(":")[0],
+                        "workload_name": workload.split(":")[1],
+                    },
+                    "target": f"{{namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for pod, namespace, workload in mock_pod_list
+            ],
+            "metrics": [],
+        }
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_container(self, graph_unify_query):
+        """
+        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        """
+        mock_container_list = [
+            (
+                "bcs-bkcmdb-synchronizer-0",
+                "bcs-bkcmdb-synchronizer-server",
+                "bcs-system",
+                "StatefulSet:bcs-bkcmdb-synchronizer",
+            ),
+            (
+                "vm-sql-58ec3c53525d4209a2a44e6a00c02402-0",
+                "victoria-metrics-single-server",
+                "bkbase-flink",
+                "StatefulSet:vm-sql-58ec3c53525d4209a2a44e6a00c02402",
+            ),
+            (
+                "bkbase-queryengine-default-7785d74fc7-trs9s",
+                "queryengine",
+                "bkbase",
+                "Deployment:bkbase-queryengine-default",
+            ),
+            (
+                "bkbase-queryengine-default-7785d74fc7-h4mdl",
+                "queryengine",
+                "bkbase",
+                "Deployment:bkbase-queryengine-default",
+            ),
+            (
+                "bkbase-vmraw-kafka-inland-bcs2-deployment-56d658c54b-g2k59",
+                "bkbase-vmraw-kafka-inland-bcs2-container",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs2-deployment",
+            ),
+            (
+                "bkbase-vmraw-kafka-inland-bcs1-deployment-68c79cd785-4rgv9",
+                "bkbase-vmraw-kafka-inland-bcs1-container",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs1-deployment",
+            ),
+            (
+                "bkbase-vmraw-kafka-inland-bcs1-deployment-68c79cd785-d5499",
+                "bkbase-vmraw-kafka-inland-bcs1-container",
+                "bkbase",
+                "Deployment:bkbase-vmraw-kafka-inland-bcs1-deployment",
+            ),
+            (
+                "bkbase-vmraw-outer-inland-bcs1-0",
+                "bkbase-vmraw-outer-inland-bcs1-container",
+                "bkbase",
+                "StatefulSet:bkbase-vmraw-outer-inland-bcs1",
+            ),
+            (
+                "bkbase-vmraw-outer-inland-bcs1-1",
+                "bkbase-vmraw-outer-inland-bcs1-container",
+                "bkbase",
+                "StatefulSet:bkbase-vmraw-outer-inland-bcs1",
+            ),
+            (
+                "bkbase-vmraw-outer-inland-bcs1-2",
+                "bkbase-vmraw-outer-inland-bcs1-container",
+                "bkbase",
+                "StatefulSet:bkbase-vmraw-outer-inland-bcs1",
+            ),
+        ]
+
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745304052,
+            "end_time": 1745307652,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "container",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 2579,
+            "items": [
+                {
+                    "pod": pod,
+                    "container": container,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for pod, container, namespace, workload in mock_container_list
+            ],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "container_name": container,
+                        "namespace": namespace,
+                        "pod_name": pod,
+                        "workload_kind": workload.split(':')[0],
+                        "workload_name": workload.split(':')[1],
+                    },
+                    "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for pod, container, namespace, workload in mock_container_list
+            ],
+            "metrics": [],
+        }
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_container_with_filter(self, graph_unify_query):
+        """
+        PromQL: "topk(40, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bkbase',container_name='queryengine',pod_name='bkbase-queryengine-bkmonitor-6f495fd54-pfjpq'}[1m:])))"  # noqa
+        """
+        mock_container_list = [
+            (
+                "bkbase-queryengine-bkmonitor-6f495fd54-pfjpq",
+                "queryengine",
+                "bkbase",
+                "Deployment:bkbase-queryengine-bkmonitor",
+            )
+        ]
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {
+                "namespace": ["bkbase"],
+                "pod": ["bkbase-queryengine-bkmonitor-6f495fd54-pfjpq"],
+                "container": ["queryengine"],
+            },
+            "start_time": 1745304141,
+            "end_time": 1745307741,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "container",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_memory_working_set_bytes",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 1,
+            "items": [
+                {
+                    "pod": pod,
+                    "container": container,
+                    "namespace": namespace,
+                    "workload": workload,
+                }
+                for container, namespace, pod, workload in mock_container_list
+            ],
+        }
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "container_name": container,
+                        "namespace": namespace,
+                        "pod_name": pod,
+                        "workload_kind": workload.split(':')[0],
+                        "workload_name": workload.split(':')[1],
+                    },
+                    "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for container, namespace, pod, workload in mock_container_list
+            ],
+            "metrics": [],
         }
         result = ListK8SResources()(validated_request_data)
         assert result == mock_result

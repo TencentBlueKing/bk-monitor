@@ -12,7 +12,12 @@ specific language governing permissions and limitations under the License.
 import mock
 import pytest  # noqa
 
-from monitor_web.k8s.resources import GetScenarioMetric, ResourceTrendResource
+from monitor_web.k8s.resources import (
+    GetScenarioMetric,
+    ListK8SResources,
+    ResourceTrendResource,
+)
+from monitor_web.tests.k8s_v1.conftest import create_node
 from packages.monitor_web.k8s.scenario import Scenario
 
 SCENARIO: Scenario = "capacity"
@@ -104,3 +109,81 @@ class TestResourceTrendResourceWithCapacity:
         result = ResourceTrendResource()(validated_request_data)
 
         assert result == mock_expected_result
+
+
+@pytest.mark.django_db
+class TestListK8SResourcesWithCapacity:
+    def test_left_default_node(self):
+        mock_node_names = [f"master-{i}" for i in range(5)]
+        [create_node(name) for name in mock_node_names]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 5,
+            "page_type": "scrolling",
+            "start_time": 1744957564,
+            "end_time": 1744961164,
+            "resource_type": "node",
+            "page": 1,
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 90,
+            "items": [{"node": name, "ip": name} for name in mock_node_names],
+        }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_default(self, graph_unify_query):
+        """
+        容量场景只有 node 资源
+        所以 column 的值意义不大，后端通过 node_boot_time_seconds 获取 node 列表
+        """
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745283797,
+            "end_time": 1745287397,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "node",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_cpu_usage_seconds_total",  # 不关心该值
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_node_list = [f"master-{i}" for i in range(10)]
+        mock_result = {
+            "count": 90,
+            "items": [{"node": name, "ip": name} for name in mock_node_list],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {
+                        "node": node,
+                        "ip": node,
+                    },
+                    "target": f"{{node={node}, ip={node}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for node in mock_node_list[:5]
+            ],
+            "metrics": [],
+        }
+        [create_node(name) for name in mock_node_list[4:]]
+
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]

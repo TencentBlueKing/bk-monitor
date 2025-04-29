@@ -509,3 +509,72 @@ class TestListK8SResourcesWithNetwork:
         }
         resutlt = ListK8SResources()(validated_request_data)  # noqa
         assert mock_result["items"] == resutlt["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_right_default(self, graph_unify_query):
+        """
+        获取右侧默认数据
+
+        覆盖promql 查询不足，还需要从db中补充的场景，以及需要进行去重操作
+        """
+        mock_namespace_list = [
+            "bkbase",
+            "blueking",
+            "bkbase-flink",
+            "deepflow",
+            "kube-system",
+            "aiops-default",
+            "bcs-system",
+            "bk-bscp",
+            "bkmonitor-operator",
+            "default",
+        ]
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745283797,
+            "end_time": 1745287397,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "namespace",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "nw_container_network_receive_bytes_total",
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {
+            "count": 79,
+            "items": [
+                {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": namespace,
+                }
+                for namespace in mock_namespace_list
+            ],
+        }
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"namespace": namespace},
+                    "target": f"{{namespace={namespace}}}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+                for namespace in mock_namespace_list[:5]
+            ],
+            "metrics": [],
+        }
+
+        [create_namespace(name=namespace) for namespace in mock_namespace_list[4:]]
+
+        result = ListK8SResources()(validated_request_data)
+        assert result["items"] == mock_result["items"]
