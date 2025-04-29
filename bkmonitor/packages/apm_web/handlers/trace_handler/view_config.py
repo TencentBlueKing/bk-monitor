@@ -154,7 +154,7 @@ class TraceFieldsHandler:
     def can_displayed(self, field_type: str) -> bool:
         """判断字段是否可以显示"""
 
-        return field_type not in {"nested"}
+        return field_type not in {"object", "nested"}
 
     def get_supported_operations(self, field_type: str) -> list[str]:
         """获取字段支持的运算符"""
