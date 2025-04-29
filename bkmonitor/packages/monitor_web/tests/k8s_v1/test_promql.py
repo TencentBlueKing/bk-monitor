@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -135,7 +134,7 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (namespace) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1',  # noqa
+            "topk(10, sum by (namespace) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1",  # noqa
         ),
         # - filter_dict = {"namespace": ["aiops-default", "bcs-op"]}
         (
@@ -212,6 +211,7 @@ class TestPromQL:
             "node",
             CAPACITY_DEFAULT_COLUMN,
             {"node": "master-127-0-0-1"},
+            "",
             'topk(10, sum by (node) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node="master-127-0-0-1"}[1m:])) * -1) * -1',  # noqa
         ),
         # - filter_dcit = {"node": ["master-127-0-0-1", "master-127-0-0-2"]}
@@ -219,7 +219,17 @@ class TestPromQL:
             "node",
             CAPACITY_DEFAULT_COLUMN,
             {"node": ["master-127-0-0-1", "master-127-0-0-2"]},
+            "",
             'topk(10, sum by (node) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node=~"^(master-127-0-0-1|master-127-0-0-2)$"}[1m:])) * -1) * -1',  # noqa
+        ),
+        # cluster
+        # - nothing
+        (
+            "cluster",
+            CAPACITY_DEFAULT_COLUMN,
+            {},
+            "",
+            'topk(10, sum by (bcs_cluster_id) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m:])) * -1) * -1',
         ),
     ]
 
@@ -227,7 +237,7 @@ class TestPromQL:
         order_by = "asc"
         page_size = 10
 
-        order_by = column if order_by == "asc" else "-{}".format(column)
+        order_by = column if order_by == "asc" else f"-{column}"
 
         # 默认属性配置
         meta = load_resource_meta(resource_type, 2, "BCS-K8S-00000")
@@ -243,7 +253,7 @@ class TestPromQL:
         actual_promql = meta.meta_prom_by_sort(order_by=order_by, page_size=page_size)
 
         # 去掉多余的空格和回车
-        actual_promql = re.sub(r'\n\s+', '', actual_promql)
+        actual_promql = re.sub(r"\n\s+", "", actual_promql)
         assert actual_promql == expected_promql
 
     @pytest.mark.parametrize(
@@ -270,7 +280,7 @@ class TestPromQL:
         ["resource_type", "column", "filter_dict", "query_string", "expected_promql"],
         [
             pytest.param(*item, id=" | ".join(["capacity", *item[:2], str(item[2]), item[3]]))
-            for item in NETWORK_ARGVALUES
+            for item in CAPACITY_ARGVALUES
         ],
     )
     def test_with_capacity(self, resource_type, column, filter_dict, query_string, expected_promql):

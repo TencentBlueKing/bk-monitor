@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import mock
+from unittest import mock
 import pytest
 
 from monitor_web.k8s.resources import (
@@ -96,6 +94,90 @@ class TestResourceTrendResourceWithCapacity:
                 {
                     "dimensions": {"node": "master-127-0-0-1"},
                     "target": "{node=master-127-0-0-1}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+            ],
+            "metrics": [],
+        }
+
+        result = ResourceTrendResource()(validated_request_data)
+
+        assert result == mock_expected_result
+
+    @pytest.mark.parametrize(
+        ["column"],
+        [
+            pytest.param("node_cpu_seconds_total"),
+            pytest.param("node_cpu_capacity_ratio"),
+            pytest.param("node_cpu_usage_ratio"),
+            pytest.param("node_memory_working_set_bytes"),
+            pytest.param("node_memory_capacity_ratio"),
+            pytest.param("node_memory_usage_ratio"),
+            pytest.param("master_node_count"),
+            pytest.param("worker_node_count"),
+            pytest.param("node_pod_usage"),
+            pytest.param("node_network_receive_bytes_total"),
+            pytest.param("node_network_transmit_bytes_total"),
+            pytest.param("node_network_receive_packets_total"),
+            pytest.param("node_network_transmit_packets_total"),
+        ],
+    )
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_with_cluster(
+        self,
+        graph_unify_query,
+        column,
+        get_start_time,
+        get_end_time,
+    ):
+        """
+        PromQL: 'topk(40, sum by (bcs_cluster_id) (last_over_time(node_boot_time_seconds{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))'  # noqa
+        """
+        resource_type = "cluster"
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": get_start_time,
+            "end_time": get_end_time,
+            "column": column,
+            "method": "sum",
+            "resource_type": resource_type,
+            "resource_list": ["BCS-K8S-00000"],
+            "bk_biz_id": 2,
+        }
+
+        metric = GetScenarioMetric()(
+            metric_id=column,
+            scenario=SCENARIO,
+            bk_biz_id=2,
+        )
+        mock_expected_result = [
+            {
+                column: {
+                    "datapoints": [
+                        [
+                            265.1846,
+                            1744874940000,
+                        ],
+                    ],
+                    "unit": metric["unit"],
+                    "value_title": metric["name"],
+                },
+                "resource_name": "BCS-K8S-00000",
+            },
+        ]
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"bcs_cluster_id": "BCS-K8S-00000"},
+                    "target": "{bcs_cluster_id=BCS-K8S-00000}",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -223,7 +305,7 @@ class TestListK8SResourcesWithCapacity:
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
-    def test_right_node_with_history_and_filter(self, graph_unify_query):
+    def test_node_with_history_and_filter(self, graph_unify_query):
         """
         查询带历史数据和过滤条件的 node 列表
 
@@ -268,5 +350,49 @@ class TestListK8SResourcesWithCapacity:
             ],
             "metrics": [],
         }
+        result = ListK8SResources()(validated_request_data)  # noqa
+        assert result["items"] == mock_result["items"]
+
+    @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
+    def test_cluster_with_history(self, graph_unify_query, get_end_time, create_bcs_cluster):
+        """
+        查询带历史数据的 cluster 列表
+
+        因为是单业务单集群，所以只会有一个 cluster
+        """
+        validated_request_data = {
+            "scenario": SCENARIO,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "filter_dict": {},
+            "start_time": 1745283797,
+            "end_time": get_end_time,
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "cluster",
+            "with_history": True,
+            "page_type": "scrolling",
+            "column": "container_cpu_usage_seconds_total",  # 不关心该值
+            "order_by": "desc",
+            "method": "sum",
+            "bk_biz_id": 2,
+        }
+        mock_result = {"count": 1, "items": [{"cluster": "BCS-K8S-00000"}]}
+
+        graph_unify_query.return_value = {
+            "series": [
+                {
+                    "dimensions": {"bcs_cluster_id": "BCS-K8S-00000"},
+                    "target": "{bcs_cluster_id=BCS-K8S-00000}",
+                    "metric_field": "_result_",
+                    "datapoints": [[265.1846, 1744874940000]],
+                    "alias": "_result_",
+                    "type": "line",
+                    "dimensions_translation": {},
+                    "unit": "",
+                }
+            ],
+            "metrics": [],
+        }
+
         result = ListK8SResources()(validated_request_data)  # noqa
         assert result["items"] == mock_result["items"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import mock
+from unittest import mock
 import pytest
 
 from monitor_web.k8s.resources import (
@@ -744,51 +743,9 @@ class TestListK8SResourcesWithPerformance:
             (
                 "bcs-argocd-example-plugin-8579c7bc99-25xhd",
                 "bcs-system",
-                "Deployment",
+                "DaemonSet",
                 "bcs-argocd-example-plugin",
             ),
-            (
-                "bcs-argocd-server-f84dd95b-mlvqh",
-                "bcs-system",
-                "Deployment",
-                "bcs-argocd-server",
-            ),
-            (
-                "bcs-egress-operator-7c658d6674-hd49f",
-                "bcs-system",
-                "Deployment",
-                "bcs-egress-operator",
-            ),
-            {
-                "bcs-gamedeployment-operator-847b879d69-xldv8",
-                "bcs-system",
-                "Deployment",
-                "bcs-gamedeployment-operator",
-            },
-            {
-                "bcs-gamestatefulset-operator-644ffbbdf-pcnnc",
-                "bcs-system",
-                "Deployment",
-                "bcs-gamestatefulset-operator-1",
-            },
-            {
-                "bcs-general-pod-autoscaler-78cc6465cd-9hxnb",
-                "bcs-system",
-                "Deployment",
-                "bcs-general-pod-autoscaler",
-            },
-            {
-                "bcs-general-pod-autoscaler-78cc6465cd-wjxjk",
-                "bcs-system",
-                "Deployment",
-                "bcs-general-pod-autoregister",
-            },
-            {
-                "bcs-hook-operator-7bc6d76-r4vzx",
-                "bcs-system",
-                "Deployment",
-                "bcs-hook-operator",
-            },
         ]
         [
             create_pod(
@@ -1588,8 +1545,8 @@ class TestListK8SResourcesWithPerformance:
                         "container_name": container,
                         "namespace": namespace,
                         "pod_name": pod,
-                        "workload_kind": workload.split(':')[0],
-                        "workload_name": workload.split(':')[1],
+                        "workload_kind": workload.split(":")[0],
+                        "workload_name": workload.split(":")[1],
                     },
                     "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
                     "metric_field": "_result_",
@@ -1661,8 +1618,8 @@ class TestListK8SResourcesWithPerformance:
                         "container_name": container,
                         "namespace": namespace,
                         "pod_name": pod,
-                        "workload_kind": workload.split(':')[0],
-                        "workload_name": workload.split(':')[1],
+                        "workload_kind": workload.split(":")[0],
+                        "workload_name": workload.split(":")[1],
                     },
                     "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
                     "metric_field": "_result_",
