@@ -223,7 +223,6 @@ class IndexSetHandler(APIModel):
                         remove_list.append(index)
                         children = log_index_set.setdefault("children", [])
                         children.append(index)
-                        print("测试")
         for index_set in remove_list:
             index_sets.remove(index_set)
         return index_sets
