@@ -141,8 +141,8 @@ export default defineComponent({
         hideIndex.value = hasHide ? i : -1;
       });
     }
-    function handleClickValueWrap(event) {
-      event.stopPropagation();
+    function handleClickValueWrap() {
+      // event.stopPropagation();
       if (!expand.value) {
         expand.value = true;
         isFocus.value = true;
@@ -174,7 +174,9 @@ export default defineComponent({
       });
       popoverInstance.value.show();
       showSelector.value = true;
-      handleOnClickOutside();
+      setTimeout(() => {
+        handleOnClickOutside();
+      }, 200);
     }
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
