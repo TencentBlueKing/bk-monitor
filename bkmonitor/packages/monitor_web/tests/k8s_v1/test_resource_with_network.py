@@ -362,7 +362,9 @@ class TestResourceTrendResourceWithNetwork:
 @pytest.mark.django_db
 class TestListK8SResourcesWithNetwork:
     def test_namespace_exclude_history(self):
-        """获取左侧默认namespace列表"""
+        """
+        查询不带历史数据的 namepsace 列表
+        """
         mock_namespace_names = [
             "aiops-default",
             "apm-demo",
@@ -401,6 +403,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_ingress_exclude_history(self):
+        """
+        查询不带历史数据的 ingress 列表
+        """
         mock_ingress_list = [
             ("bcs-ui", "bcs-system"),
             ("stack-bcs-api-gateway-http", "bcs-system"),
@@ -430,6 +435,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_service_exclude_history(self):
+        """
+        查询不带历史数据的 service 列表
+        """
         mock_service_list = [
             ("service-0238ac93f359ac407d5ceccc599655b4", "aiops-default"),
             ("service-0238d26ae5c36675c65f07fea9f32273", "aiops-default"),
@@ -439,7 +447,7 @@ class TestListK8SResourcesWithNetwork:
         ]
         [create_service(name, namespace) for name, namespace in mock_service_list]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -459,6 +467,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_pod_exclude_history(self):
+        """
+        查询不带历史数据的 pod 列表
+        """
         mock_pod_list = [
             (
                 "python-backend--0--session-default---experiment-clear-backbvcgm",
@@ -519,6 +530,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_namespace_exclude_history(self):
+        """
+        查询下一页不带历史数据的 namespace 列表
+        """
         mock_namespace_list = [
             "aiops-default",
             "apm-demo",
@@ -533,7 +547,7 @@ class TestListK8SResourcesWithNetwork:
         ]
         [create_namespace(name) for name in mock_namespace_list]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -556,6 +570,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_ingress_exclude_history(self):
+        """
+        查询下一页不带历史数据的 ingress 列表
+        """
         mock_ingress_list = [
             ("bcs-ui", "bcs-system"),
             ("stack-bcs-api-gateway-http", "bcs-system"),
@@ -570,7 +587,7 @@ class TestListK8SResourcesWithNetwork:
         ]
         [create_ingress(name=name, namespace=namespace) for name, namespace in mock_ingress_list]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -590,11 +607,14 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_service_exclude_history(self):
+        """
+        查询下一页不带历史数据的 service 列表
+        """
         namespace = "aiops-default"
         mock_service_list = [f"service-{i}" for i in range(10)]
         [create_service(name=name, namespace=namespace) for name in mock_service_list]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -614,6 +634,9 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_pod_exclude_history(self):
+        """
+        查询下一页不带历史数据的 pod 列表
+        """
         mock_pod_list = [
             (
                 "python-backend--0--session-default---experiment-clear-backbvcgm",
@@ -699,10 +722,13 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_namespace_with_query_string_exclude_history(self):
+        """
+        模糊查询不带历史数据的 namespace 列表
+        """
         namespace_name = "bcs-op"
         create_namespace(name=namespace_name)
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": namespace_name,
@@ -722,9 +748,12 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_ingress_with_query_string_exclude_history(self):
+        """
+        模糊查询不带历史数据的 ingress 列表
+        """
         create_ingress(name="bcs-ui", namespace="bcs-system")
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bcs-ui",
@@ -741,9 +770,12 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_service_with_query_string_exclude_history(self):
+        """
+        模糊查询不带历史数据的 service 列表
+        """
         create_service(name="bcs-ui", namespace="bcs-system")
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bcs-ui",
@@ -760,11 +792,14 @@ class TestListK8SResourcesWithNetwork:
         assert result["items"] == mock_result["items"]
 
     def test_pod_with_query_string_exclude_history(self):
+        """
+        模糊查询不带历史数据的 pod 列表
+        """
         create_pod(
             name="bcs-ui-687c796845-452tc", namespace="bcs-system", workload_type="Deployment", workload_name="bcs-ui"
         )
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bcs-ui",
@@ -785,6 +820,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_namespace_with_history(self, graph_unify_query):
+        """
+        查询带历史数据的 namespace 列表
+        """
         mock_namespace_list = [
             "kube-system",
             "bkmonitor-operator",
@@ -798,7 +836,7 @@ class TestListK8SResourcesWithNetwork:
             "bkapp-bk0us0sops-m-pipeline-prod",
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745391390,
@@ -843,9 +881,12 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_namespace_with_history_and_filter(self, graph_unify_query):
+        """
+        查询带历史数据和过滤条件的 namespace 列表
+        """
         mock_namespace_list = ["kube-system"]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": ["kube-system"]},
             "start_time": 1745391428,
@@ -885,6 +926,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_ingress_with_history(self, graph_unify_query):
+        """
+        查询带历史数据的 ingress 列表
+        """
         mock_ingress_list = [
             ("bk-ingress-rule", "blueking"),
             ("bk-apigateway-apigateway", "blueking"),
@@ -898,7 +942,7 @@ class TestListK8SResourcesWithNetwork:
             ("default-bkapp-bk0us0itsm-prod", "bkapp-bk0us0itsm-prod"),
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745391264,
@@ -939,6 +983,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_ingress_with_history_and_filter(self, graph_unify_query):
+        """
+        查询带历史数据和过滤条件的 ingress 列表
+        """
         namespace = "blueking"
         mock_ingress_list = [
             "bk-ingress-rule",
@@ -953,7 +1000,7 @@ class TestListK8SResourcesWithNetwork:
             "default-bkapp-bk0us0itsm-prod",
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": [namespace]},
             "start_time": 1745391482,
@@ -996,6 +1043,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_service_with_history(self, graph_unify_query):
+        """
+        查询带历史数据的 service 列表
+        """
         mock_service_list = [
             ("bkmonitor-operator-prometheus-node-exporter", "bkmonitor-operator"),
             ("bkmonitor-operator-bkmonit-kube-proxy", "kube-system"),
@@ -1009,7 +1059,7 @@ class TestListK8SResourcesWithNetwork:
             ("bkbase-clean-kafka-bkbase-metric-bcs1-service", "bkbase"),
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745391307,
@@ -1049,6 +1099,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_service_with_history_and_filter(self, graph_unify_query):
+        """
+        查询带历史数据和过滤条件的 service 列表
+        """
         namespace = "blueking"
         mock_service_list = [
             "bk-gse-data-headless",
@@ -1063,7 +1116,7 @@ class TestListK8SResourcesWithNetwork:
             "bk-gse-cluster-headless",
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": [namespace]},
             "start_time": 1745391553,
@@ -1112,6 +1165,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_pod_with_with_history(self, graph_unify_query):
+        """
+        查询带历史数据的 pod 列表
+        """
         mock_pod_list = [
             ("kube-flannel-ds-5rqbl", "kube-system"),
             ("kube-flannel-ds-kpcpv", "kube-system"),
@@ -1125,7 +1181,7 @@ class TestListK8SResourcesWithNetwork:
             ("csi-cosplugin-5j5t4", "kube-system"),
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745391630,
@@ -1165,6 +1221,9 @@ class TestListK8SResourcesWithNetwork:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_pod_with_history_and_filter(self, graph_unify_query):
+        """
+        查询带历史数据和过滤条件的 pod 列表
+        """
         namespace = "blueking"
         mock_pod_list = [
             "bk-ingress-nginx-6bc4765cc4-xzswrbk-gse-data-6558cbfd9-gtg2r",
@@ -1178,7 +1237,7 @@ class TestListK8SResourcesWithNetwork:
             "bk-gse-data-6558cbfd9-qchs9",
         ]
         validated_request_data = {
-            "scenario": "network",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": [namespace]},
             "start_time": 1745391585,
@@ -1221,7 +1280,7 @@ class TestListK8SResourcesWithNetwork:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_namespace_with_history_1(self, graph_unify_query):
         """
-        获取右侧默认数据
+        查询带历史数据的 namespace 列表
 
         覆盖promql 查询不足，还需要从db中补充的场景，以及需要进行去重操作
         """

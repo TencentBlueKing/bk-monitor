@@ -462,7 +462,10 @@ class TestResourceTrendResourceWithPerformance:
 @pytest.mark.django_db
 class TestListK8SResourcesWithPerformance:
     def test_namespace_exclude_history(self):
-        """获取左侧默认namespace列表"""
+        """
+        查询不带历史数据的 namepsace 列表
+        """
+
         mock_namespace_names = [
             "base",
             "bcs-op-yunwei-frodomei",
@@ -501,6 +504,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_workload_exclude_history(self):
+        """
+        查询不带历史数据的 workload 列表
+        """
         workload_names = [
             "aasagent",
             "access",
@@ -530,6 +536,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_pod_exclude_history(self):
+        """
+        查询不带历史数据的 pod 列表
+        """
         mock_pods = [
             (
                 "bcs-argocd-controller-7c776dcc5c-88tqm",
@@ -599,6 +608,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_container_exclude_history(self):
+        """
+        查询不带历史数据的 container 列表
+        """
         mock_containers = [
             "account-service",
             "add-pod-eni-ip-limit-webhook",
@@ -629,6 +641,9 @@ class TestListK8SResourcesWithPerformance:
         assert mock_result["items"] == resutlt["items"]
 
     def test_next_page_namespace_exclude_history(self):
+        """
+        查询下一页不带历史数据的 namespace 列表
+        """
         mock_namespace_names = [
             "base",
             "bcs-op-yunwei-frodomei",
@@ -671,6 +686,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_workload_exclude_history(self):
+        """
+        查询下一页不带历史数据的 workload 列表
+        """
         mock_workloads = [
             "aasagent",
             "access",
@@ -686,7 +704,7 @@ class TestListK8SResourcesWithPerformance:
         [create_workload(name, type="Deployment") for name in mock_workloads]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"workload": "Deployment:"},
             "query_string": "",
@@ -707,6 +725,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_pod_exclude_history(self):
+        """
+        查询下一页不带历史数据的 pod 列表
+        """
         mock_pods = [
             (
                 "bcs-argocd-controller-7c776dcc5c-88tqm",
@@ -779,7 +800,7 @@ class TestListK8SResourcesWithPerformance:
             for pod, namespace, workload_type, workload_name in mock_pods
         ]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -807,6 +828,9 @@ class TestListK8SResourcesWithPerformance:
         assert result["items"] == mock_result["items"]
 
     def test_next_page_container_exclude_history(self):
+        """
+        查询下一页不带历史数据的 container 列表
+        """
         mock_containers = [
             "account-service",
             "add-pod-eni-ip-limit-webhook",
@@ -822,7 +846,7 @@ class TestListK8SResourcesWithPerformance:
         [create_container(name=container) for container in mock_containers]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "",
@@ -854,12 +878,12 @@ class TestListK8SResourcesWithPerformance:
 
     def test_namespace_with_query_string_exclude_history(self):
         """
-        添加 query_string 模糊查询 namespace 列表
+        模糊查询但不带历史数据的 namespace 列表
         """
         mock_namespaces = ["bkmonitor-operator", "bkmonitor-operator-bkop"]
         [create_namespace(name=namespace) for namespace in mock_namespaces]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bkmonitor",
@@ -887,11 +911,11 @@ class TestListK8SResourcesWithPerformance:
 
     def test_workload_with_query_string_exclude_history(self):
         """
-        添加 query_string 模糊查询 namespace 列表
+        模糊查询但不带历史数据的 workload 列表
         """
         create_workload(name="bk-datalink-unify-query-bkmonitor", type="Deployment")
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"workload": "Deployment:"},
             "query_string": "bkmonitor",
@@ -912,7 +936,7 @@ class TestListK8SResourcesWithPerformance:
 
     def test_pod_with_query_string_exclude_history(self):
         """
-        添加 query_string 模糊查询 namespace 列表
+        模糊查询但不带历史数据的 pod 列表
         """
         mock_pods = [
             (
@@ -956,7 +980,7 @@ class TestListK8SResourcesWithPerformance:
             for pod, namespace, workload_type, workload_name in mock_pods
         ]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bkmonitor",
@@ -984,7 +1008,7 @@ class TestListK8SResourcesWithPerformance:
 
     def test_container_with_query_string_exclude_history(self):
         """
-        添加 query_string 模糊查询 namespace 列表
+        模糊查询但不带历史数据的 container 列表
         """
         mock_containers = [
             "account-service",
@@ -996,7 +1020,7 @@ class TestListK8SResourcesWithPerformance:
         [create_container(name=container) for container in mock_containers]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "query_string": "bkmonitor",
@@ -1023,7 +1047,7 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_namespace_with_history(self, graph_unify_query):
         """
-        获取右侧默认数据
+        查询带历史数据的 namespace
 
         场景: promql 查询数据不足，还需要从 db 中查询补充数据
         """
@@ -1112,10 +1136,13 @@ class TestListK8SResourcesWithPerformance:
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_namespace_with_history_and_filter(self, graph_unify_query):
+        """
+        查询带历史数据和过滤条件的 namespace 列表
+        """
         namespace = "aiops-default"
         mock_namespace_list = ["aiops-default"]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": [namespace]},
             "start_time": 1745315249,
@@ -1156,9 +1183,8 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_workload_with_history(self, graph_unify_query):
         """
-        获取workload维度的数据
+        查询带历史数据的 workload 列表
 
-        数据来源于 PromQL
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
         """
         mock_workload_list = [
@@ -1225,8 +1251,7 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_workload_with_history_and_filter(self, graph_unify_query):
         """
-        获取workload维度的数据
-        追加过滤条件
+        查询带历史数据和过滤条件的 workload 列表
 
         PromQL: 'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default"}[1m:])))'  # noqa
         """
@@ -1300,6 +1325,8 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_pod_with_history(self, graph_unify_query):
         """
+        查询带历史数据的 pod 列表
+
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
         """
         mock_pod_list = [
@@ -1385,6 +1412,8 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_pod_with_history_and_filter(self, graph_unify_query):
         """
+        查询带历史数据和过滤条件的 pod 列表
+
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bcs-system',workload_kind='Deployment',workload_name='bcs-services-stack-bk-micro-gateway'}[1m:])))"  # noqa
         """
         mock_pod_list = [
@@ -1401,7 +1430,7 @@ class TestListK8SResourcesWithPerformance:
         ]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {
                 "namespace": ["bcs-system"],
@@ -1457,6 +1486,8 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_container_with_history(self, graph_unify_query):
         """
+        查询带历史数据的 container 列表
+
         PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
         """
         mock_container_list = [
@@ -1523,7 +1554,7 @@ class TestListK8SResourcesWithPerformance:
         ]
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": 1745304052,
@@ -1579,6 +1610,8 @@ class TestListK8SResourcesWithPerformance:
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
     def test_container_with_history_and_filter(self, graph_unify_query):
         """
+        查询带历史数据和过滤条件的 container 列表
+
         PromQL: "topk(40, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bkbase',container_name='queryengine',pod_name='bkbase-queryengine-bkmonitor-6f495fd54-pfjpq'}[1m:])))"  # noqa
         """
         mock_container_list = [
@@ -1590,7 +1623,7 @@ class TestListK8SResourcesWithPerformance:
             )
         ]
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {
                 "namespace": ["bkbase"],
