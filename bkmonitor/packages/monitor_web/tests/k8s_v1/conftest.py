@@ -17,7 +17,7 @@ import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from bkmonitor.models import BCSCluster, BCSWorkload
+from bkmonitor.models import BCSCluster, BCSContainer, BCSPod, BCSWorkload
 
 pytestsmark = pytest.mark.django_db
 
@@ -92,6 +92,87 @@ def create_namespace(
         created_at=created_at,
         last_synced_at=last_synced_at,
         pod_count=pod_count,
+    ).save()
+
+
+def create_workload(
+    name: str,
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    type: Literal["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"] = "Deployment",
+    created_at=timezone.now(),
+    last_synced_at=timezone.now(),
+    pod_count=0,
+):
+    BCSWorkload(
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        namespace=name,
+        type=type,
+        name=name,
+        created_at=created_at,
+        last_synced_at=last_synced_at,
+        pod_count=pod_count,
+    ).save()
+
+
+def create_pod(
+    name: str,
+    workload_name: str,
+    workload_type: Literal["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"] = "Deployment",
+    namespace: str = "blueking",
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    node_name: str = "node-127-0-0-1",
+    node_ip: str = "127.0.0.1",
+    pod_ip: str = "127.0.0.1",
+    total_container_count: int = 1,
+    ready_container_count: int = 1,
+    restarts: int = 0,
+):
+    BCSPod(
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        namespace=namespace,
+        name=name,
+        node_name=node_name,
+        node_ip=node_ip,
+        workload_type=workload_type,
+        workload_name=workload_name,
+        total_container_count=total_container_count,
+        ready_container_count=ready_container_count,
+        pod_ip=pod_ip,
+        restarts=restarts,
+        created_at=timezone.now(),
+        last_synced_at=timezone.now(),
+    ).save()
+
+
+def create_container(
+    bk_biz_id: int = 2,
+    bcs_cluster_id: str = "BCS-K8S-00000",
+    name: str = "bk-monitor-web",
+    namespace: str = "blueking",
+    pod_name: str = "bk-monitor-web-579f6bf4bc-nmld9",
+    workload_type: str = "Deployment",
+    workload_name: str = "bk-monitor-web",
+    node_ip: str = "127.0.0.1",
+    node_name: str = "node-127-0-0-1",
+    image: str = "",
+):
+    BCSContainer(
+        bk_biz_id=bk_biz_id,
+        bcs_cluster_id=bcs_cluster_id,
+        name=name,
+        namespace=namespace,
+        pod_name=pod_name,
+        workload_type=workload_type,
+        workload_name=workload_name,
+        node_ip=node_ip,
+        node_name=node_name,
+        image=image,
+        created_at=timezone.now(),
+        last_synced_at=timezone.now(),
     ).save()
 
 
