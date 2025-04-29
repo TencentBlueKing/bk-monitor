@@ -207,24 +207,26 @@ class IndexSetHandler(APIModel):
         if not is_group:
             return index_sets
 
-        remove_list = []
+        remove_ids = set()
         log_index_sets = []
         other_index_sets = []
         for index_set in index_sets:
-            if not index_set["collector_config_id"] and index_set["scenario_id"] == Scenario.LOG:
-                log_index_sets.append(index_set)
-            else:
-                other_index_sets.append(index_set)
+            target_list = (
+                log_index_sets
+                if (not index_set["collector_config_id"] and index_set["scenario_id"] == Scenario.LOG)
+                else other_index_sets
+            )
+            target_list.append(index_set)
         for log_index_set in log_index_sets:
             for index in other_index_sets:
                 if index["index_set_name"].startswith("[采集项]") and index["scenario_id"] == Scenario.LOG:
                     result_table_id_list = [ind["result_table_id"] for ind in log_index_set["indices"]]
                     if index["indices"][0]["result_table_id"] in result_table_id_list:
-                        remove_list.append(index)
-                        children = log_index_set.setdefault("children", [])
-                        children.append(index)
-        for index_set in remove_list:
-            index_sets.remove(index_set)
+                        # 避免重复标记
+                        if index["index_set_id"] not in remove_ids:
+                            remove_ids.add(index["index_set_id"])
+                        log_index_set.setdefault("children", []).append(index)
+        index_sets[:] = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
         return index_sets
 
     @classmethod
