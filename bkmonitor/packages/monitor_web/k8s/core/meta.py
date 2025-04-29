@@ -700,6 +700,14 @@ class K8sNodeMeta(K8sResourceMeta):
     column_mapping = {"node": "name"}
     only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]
 
+    def get_resource_name(self, series):
+        meta_field_list = []
+        for field, value in series["dimensions"].items():
+            if self.column_mapping.get(field) in self.resource_field_list:
+                meta_field_list.append(value)
+
+        return ":".join(meta_field_list)
+
     @property
     def meta_prom_with_node_cpu_seconds_total(self):
         filter_string = self.filter.filter_string()

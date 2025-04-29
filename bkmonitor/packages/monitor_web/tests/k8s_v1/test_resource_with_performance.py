@@ -97,7 +97,7 @@ class TestResourceTrendResourceWithPerformance:
         name = "bkbase"
         create_namespace(name)
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"namespace": [name]},
             "start_time": get_start_time,
@@ -180,7 +180,7 @@ class TestResourceTrendResourceWithPerformance:
         resource_type = "workload"
         create_namespace(name)
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {},
             "start_time": get_start_time,
@@ -268,7 +268,7 @@ class TestResourceTrendResourceWithPerformance:
         # create_namespace(name)
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"pod": [name]},
             "start_time": get_start_time,
@@ -355,7 +355,7 @@ class TestResourceTrendResourceWithPerformance:
         resource_type = "container"
 
         validated_request_data = {
-            "scenario": "performance",
+            "scenario": SCENARIO,
             "bcs_cluster_id": "BCS-K8S-00000",
             "filter_dict": {"container": [name]},
             "start_time": get_start_time,
