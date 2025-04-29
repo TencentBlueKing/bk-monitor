@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from io import StringIO
-from typing import Any, Dict, List
+
+from typing import Any
 
 from django.db.models import Q
 from django.http import Http404
@@ -48,12 +47,10 @@ from packages.monitor_web.data_explorer.event.resources import EventTopKResource
 from packages.monitor_web.data_explorer.event.serializers import (
     EventDownloadTopKRequestSerializer,
 )
-from packages.monitor_web.data_explorer.event.utils import (
-    generate_file_download_response,
-)
+from apm_web.utils import generate_csv_file_download_response
 
 
-def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
+def order_records_by_config(records: list[dict], order: list) -> list[dict]:
     """
     按排序配置对数据进行排序
     """
@@ -69,7 +66,7 @@ def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
     )
 
 
-def order_records_by_type(records: List[Dict], order_type: str) -> List[Dict]:
+def order_records_by_type(records: list[dict], order_type: str) -> list[dict]:
     """
     根据排序类型进行排序
     """
@@ -406,19 +403,9 @@ class DataExplorerViewSet(ResourceViewSet):
     def download_topk(self, request, *args, **kwargs):
         serializer = EventDownloadTopKRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data: Dict[str, Any] = serializer.validated_data
-        return generate_file_download_response(
-            DataExplorerViewSet.generate_topk_file_content(EventTopKResource().perform_request(validated_data)),
-            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+        validated_data: dict[str, Any] = serializer.validated_data
+        api_topk_response = EventTopKResource().perform_request(validated_data)
+        return generate_csv_file_download_response(
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.csv",
+            ([item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_response[0]["list"]),
         )
-
-    @classmethod
-    def generate_topk_file_content(cls, api_topk_response) -> str:
-        output = StringIO()
-        try:
-            for item in api_topk_response[0]["list"]:
-                output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
-            return output.getvalue()
-        finally:
-            # 确保资源被释放
-            output.close()

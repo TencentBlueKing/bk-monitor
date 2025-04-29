@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -420,7 +419,7 @@ DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 def redirect_func(request):
     login_page_url = reverse("account:login_page")
-    next_url = "{}?refer_url={}".format(login_page_url, request.path)
+    next_url = f"{login_page_url}?refer_url={request.path}"
     return HttpResponseRedirect(next_url)
 
 
@@ -1250,6 +1249,12 @@ IS_GLOBAL_TENANT = True
 DEFAULT_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
+
+# 预查询时间, 默认6h小时, 0代表禁用
+try:
+    PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
+except ValueError:
+    PRE_SEARCH_SECONDS = 6 * 60 * 60
 
 """
 以下为框架代码 请勿修改

@@ -174,11 +174,16 @@ class NodeDiscover(DiscoverBase):
         )
 
         # create
-        create_instances = [
-            TopoNode(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key, **topo_value)
-            for topo_key, topo_value in create_instances.items()
-        ]
-        TopoNode.objects.bulk_create(create_instances)
+        to_be_created_instances = []
+        for topo_key, topo_value in create_instances.items():
+            # 匹配 Pod 对应的 Workload。
+            topo_value["platform"] = self.combine_workloads(
+                pod_workload_mapping, None, topo_value.get("platform") or {}
+            )
+            to_be_created_instances.append(
+                TopoNode(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key, **topo_value)
+            )
+        TopoNode.objects.bulk_create(to_be_created_instances)
 
         self.clear_if_overflow()
         self.clear_expired()
@@ -255,16 +260,22 @@ class NodeDiscover(DiscoverBase):
                 topo_key = self.find_category(instance_mapping, match_rule, category_rules[1], span)
 
             if not topo_key:
-                # 如果 category 类型没有匹配规则 直接获取 other 规则的 topo_key 用于下面补充数据
-                # (因为可能存在不符合规则的但是可以发现 platform 等其他信息)
+                # topo_key 为空表明发现的是组件类型的节点，服务、组件等类别不一定互斥，比如一个 RPC 服务的 DB 请求 Span。
+                # 此处排除已匹配的规则，进行再一次发现，避免节点类别直接设置 other 后不再更新 SDK、框架等信息。
+                match_rule = self.get_match_rule(
+                    span,
+                    category_rules[0],
+                    category_rules[1],
+                    extra_cond=lambda _rule: _rule.category_id != match_rule.category_id,
+                )
                 topo_key = get_topo_instance_key(
-                    category_rules[1].instance_keys,
-                    category_rules[1].topo_kind,
-                    category_rules[1].category_id,
+                    match_rule.instance_keys,
+                    match_rule.topo_kind,
+                    match_rule.category_id,
                     span,
                 )
-                instance_mapping[topo_key]["extra_data"]["category"] = category_rules[1].category_id
-                instance_mapping[topo_key]["extra_data"]["kind"] = category_rules[1].topo_kind
+                instance_mapping[topo_key]["extra_data"]["category"] = match_rule.category_id
+                instance_mapping[topo_key]["extra_data"]["kind"] = match_rule.topo_kind
 
             if not topo_key:
                 continue
