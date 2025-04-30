@@ -27,17 +27,14 @@
 import { defineComponent, shallowRef, computed, type PropType, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { OverflowTitle, Select } from 'bkui-vue';
+import { Badge, OverflowTitle, Select } from 'bkui-vue';
 import { detectOS, random } from 'monitor-common/utils';
-
-import useUserConfig from '../../../hooks/useUserConfig';
-import { useTraceExploreStore } from '../../../store/modules/explore';
-
-// import GotoOldVersion from '../../monitor-k8s/components/k8s-nav-bar/goto-old';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
+import useUserConfig from '../../../hooks/useUserConfig';
+import { useTraceExploreStore } from '../../../store/modules/explore';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 import type { HideFeatures, IApplicationItem } from '../typing';
@@ -184,6 +181,8 @@ export default defineComponent({
       document.removeEventListener('keydown', handleDocumentClick);
     });
 
+    function handleGotoOld() {}
+
     return {
       t,
       store,
@@ -201,6 +200,7 @@ export default defineComponent({
       handleRefreshChange,
       handleTimeRangeChange,
       handleTimezoneChange,
+      handleGotoOld,
     };
   },
 
@@ -327,12 +327,29 @@ export default defineComponent({
           </div>
         )}
 
-        {/* {!this.needMenu ? null : (
-          <GotoOldVersion
-            tips={this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看')}
-            onClick={this.handleGotoOldVersion}
-          />
-        )} */}
+        <div class='goto-old'>
+          <div
+            class='goto-old-wrap'
+            v-bk-tooltips={{
+              content: this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看'),
+              placements: ['bottom-end'],
+              zIndex: 9999,
+            }}
+            onClick={() => this.handleGotoOld}
+          >
+            <div class='icon'>
+              <i class='icon-monitor icon-zhuanhuan' />
+            </div>
+            {this.$slots.default || (
+              <Badge
+                theme='warning'
+                val='!'
+              >
+                <span>{this.$t('回到旧版')}</span>
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
     );
   },
