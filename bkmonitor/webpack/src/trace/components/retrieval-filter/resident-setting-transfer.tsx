@@ -30,7 +30,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Button, Input } from 'bkui-vue';
 
 import { type IFilterField, RESIDENT_SETTING_TRANSFER_EMITS, RESIDENT_SETTING_TRANSFER_PROPS } from './typing';
-import { fieldTypeMap, getTitleAndSubtitle, triggerShallowRef } from './utils';
+import { fieldTypeMap, triggerShallowRef } from './utils';
 
 import './resident-setting-transfer.scss';
 
@@ -192,7 +192,6 @@ export default defineComponent({
   },
   render() {
     const optionRender = (item: IFilterField) => {
-      const { title, subtitle } = getTitleAndSubtitle(item.alias);
       return [
         <span
           key={'01'}
@@ -212,9 +211,9 @@ export default defineComponent({
           key={'02'}
           class='option-name-title'
         >
-          {title}
+          {item.alias}
         </span>,
-        !!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>,
+        !!item.name && <span class='option-name-subtitle'>（{item.name}）</span>,
       ];
     };
     return (

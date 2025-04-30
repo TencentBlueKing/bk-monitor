@@ -137,6 +137,15 @@ export default defineComponent({
         }
       }
     );
+    watch(
+      () => store.mode,
+      () => {
+        commonParams.value = {
+          ...commonParams.value,
+          mode: store.mode,
+        };
+      }
+    );
 
     /** 视角切换 */
     function handelSceneChange(val: ICommonParams['mode'], oldVal: ICommonParams['mode']) {
@@ -204,7 +213,6 @@ export default defineComponent({
       }
 
       filters = [...filters, ...checkboxFilters.value.map(v => getFilterByCheckboxFilter(store.mode, v))];
-
       commonParams.value = {
         app_name: store.appName,
         mode: store.mode,

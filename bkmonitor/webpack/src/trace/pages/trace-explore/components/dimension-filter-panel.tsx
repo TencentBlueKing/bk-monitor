@@ -102,6 +102,7 @@ export default defineComponent({
       }, []);
       if (!fields.length) return;
       topKCancelFn?.();
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       const list: ITopKField[] = await traceFieldsTopK(
         {
@@ -163,6 +164,7 @@ export default defineComponent({
               type='tips'
             >
               {item.levelName}
+              {item?.name ? <span class='subtitle'>({item.name})</span> : ''}
             </OverflowTitle>
             {item.children && [
               <span
@@ -184,7 +186,7 @@ export default defineComponent({
                   key={`${item.name}__count`}
                   class='dimension-count'
                 >
-                  {fieldListCount.value[item.name] || 0}
+                  {/* {fieldListCount.value[item.name] || 0} */}
                 </span>,
                 !item.children && (
                   <i
