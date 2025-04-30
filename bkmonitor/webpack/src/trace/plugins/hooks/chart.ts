@@ -79,7 +79,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     });
   }
   // 数据时间间隔
-  const timeRange = useTimeRanceInject();
+  const timeRange = useTimeRangeInject();
   let unWatchTimeRange: null | WatchStopHandle = null;
 
   /** 用于 profiling 趋势图注入的查询类型 */
@@ -162,7 +162,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
 export const useTimeRangeProvider = (timeRange: Ref<TimeRangeType>) => {
   provide(TIME_RANGE_KEY, timeRange);
 };
-export const useTimeRanceInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
+export const useTimeRangeInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
 
 export const useTimezoneProvider = (timezone: Ref<string>) => {
   provide(TIMEZONE_KEY, timezone);

@@ -31,6 +31,7 @@ import { storeToRefs } from 'pinia';
 
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
+import ChartWrapper from '../explore-chart/chart-wrapper';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
 import type { ExploreFieldMap, ICommonParams } from '../../typing';
@@ -138,7 +139,9 @@ export default defineComponent({
 
     return (
       <div class='trace-explore-view'>
-        <div class='trace-explore-view-chart'>chart</div>
+        <div class='trace-explore-view-chart'>
+          <ChartWrapper />
+        </div>
         <div class='trace-explore-view-filter'>
           <span class='filter-label'>{this.$t('包含')}：</span>
           {filtersCheckBoxGroupRender()}

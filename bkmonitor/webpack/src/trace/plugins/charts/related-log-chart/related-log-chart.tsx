@@ -67,7 +67,7 @@ import {
   useChartIntersection,
   useRefreshImmediateInject,
   useRefreshIntervalInject,
-  useTimeRanceInject,
+  useTimeRangeInject,
 } from '../../hooks';
 
 import type { ITableDataItem } from '../../typings/table-chart';
@@ -174,7 +174,7 @@ export default defineComponent({
     /** 是否配置初始化 */
     const initialized = ref(false);
     // 顶层注入数据
-    const timeRange = useTimeRanceInject();
+    const timeRange = useTimeRangeInject();
     const refreshInterval = useRefreshIntervalInject();
     /** 是否滚动到底部，用作判断加载完table数据后是否需要清空table数据还是添加数据 */
     let isScrollLoadTableData = false;

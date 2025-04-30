@@ -54,7 +54,7 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
-import { useTimeRanceInject } from '../../../plugins/hooks';
+import { useTimeRangeInject } from '../../../plugins/hooks';
 import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
@@ -177,7 +177,7 @@ export default defineComponent({
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
 
-    const timeRange = useTimeRanceInject();
+    const timeRange = useTimeRangeInject();
     provide('isFullscreen', isFullscreen);
 
     const selectedListType = computed(() => store.listType);

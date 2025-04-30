@@ -61,7 +61,7 @@ import {
   useChartResize,
   useCommonChartWatch,
   useTimeOffsetInject,
-  useTimeRanceInject,
+  useTimeRangeInject,
   useViewOptionsInject,
 } from '../../hooks';
 import {
@@ -169,7 +169,7 @@ export default defineComponent({
     const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
     const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
     const showRestore = inject<Ref>('showRestore') || ref(false);
-    const defaultTimeRange = useTimeRanceInject();
+    const defaultTimeRange = useTimeRangeInject();
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
