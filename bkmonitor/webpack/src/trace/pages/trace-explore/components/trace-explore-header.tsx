@@ -181,7 +181,11 @@ export default defineComponent({
       document.removeEventListener('keydown', handleDocumentClick);
     });
 
-    function handleGotoOld() {}
+    function handleGotoOld() {
+      // const queryStr = location.hash.match(/\?([^]*)/)?.[1] || '';
+      // const url = `${location.origin}${location.pathname}${location.search}#/trace/old${queryStr ? `?${queryStr}` : ''}`;
+      // location.href = url;
+    }
 
     return {
       t,
@@ -335,7 +339,7 @@ export default defineComponent({
               placements: ['bottom-end'],
               zIndex: 9999,
             }}
-            onClick={() => this.handleGotoOld}
+            onClick={() => this.handleGotoOld()}
           >
             <div class='icon'>
               <i class='icon-monitor icon-zhuanhuan' />

@@ -196,6 +196,10 @@
 
       .dimension-name {
         color: #C4C6CC;
+
+        .subtitle {
+          color: #C4C6CC;
+        }
       }
     }
 
@@ -226,6 +230,11 @@
       font-weight: 400;
       color: #16171a;
       white-space: nowrap;
+
+      .subtitle {
+        margin-left: 4px;
+        color: #757880;
+      }
     }
 
     .dimension-count {
