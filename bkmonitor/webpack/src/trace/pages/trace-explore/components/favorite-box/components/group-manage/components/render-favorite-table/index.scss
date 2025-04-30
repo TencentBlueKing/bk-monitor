@@ -1,0 +1,49 @@
+.favorite-box-group-manage-favorite-table {
+  display: flex;
+  height: 100%;
+  .layout-left {
+    flex: 1;
+    overflow: hidden;
+    padding: 12px;
+    .action-box {
+      display: flex;
+      margin-bottom: 12px;
+    }
+    .searach-input {
+      margin-left: auto;
+      width: 468px;
+    }
+    tr {
+      &.is-active {
+        td {
+          cursor: pointer;
+          background: #ebf2ff !important;
+        }
+      }
+    }
+  }
+  .layout-right {
+    background: #f5f7fa;
+    width: 540px;
+    flex: 0 0 540px;
+  }
+}
+
+.tippy-box[data-theme~='favorite-box-favorite-manage-batch-action-panel'] {
+  font-size: 12px;
+  color: #4d4f56;
+
+  .tippy-content {
+    padding: 0;
+  }
+  .action-item {
+    display: flex;
+    height: 32px;
+    padding: 0 12px;
+    align-items: center;
+    cursor: pointer;
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}
