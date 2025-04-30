@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useIndexSet from './use-index-set';
 import IndexSetList from './index-set-list';
 import './content.scss';
-import useChoice from './use-choice';
+import useChoice, { IndexSetType } from './use-choice';
+import HistoryList from './history-list';
 
 export default defineComponent({
   props: {
@@ -38,6 +39,10 @@ export default defineComponent({
       default: () => [],
     },
     type: {
+      type: String as PropType<IndexSetType>,
+      default: 'single',
+    },
+    activeId: {
       type: String,
       default: 'single',
     },
@@ -48,6 +53,10 @@ export default defineComponent({
     textDir: {
       type: String,
       default: 'ltr',
+    },
+    spaceUid: {
+      type: String,
+      default: '',
     },
   },
   emits: ['type-change', 'value-change'],
@@ -63,10 +72,19 @@ export default defineComponent({
     });
 
     const searchText = ref('');
+    const historyList = ref([]);
+
     const list = computed(() => props.indexSetList);
 
     const { indexSetTagList } = useIndexSet({ indexSetList: list });
-    const { handleIndexSetItemCheck } = useChoice(props, { emit });
+    const {
+      handleIndexSetItemCheck,
+      getHistoryList,
+      handleHistoryItemClick,
+      handleValueChange,
+      handleDeleteHistory,
+      historyLoading,
+    } = useChoice(props, { emit });
 
     const noDataReg = /^No\sData$/i;
     const filterList = computed(() =>
@@ -91,11 +109,13 @@ export default defineComponent({
 
     const valueList = computed(() => props.indexSetList.filter((item: any) => props.value.includes(item.index_set_id)));
 
-    const handleUnCheckItem = item => {
-      handleIndexSetItemCheck(item, false);
+    const handleDeleteHistoryItem = item => {
+      handleDeleteHistory(item).then(resp => {
+        if (resp !== undefined) {
+          historyList.value = resp;
+        }
+      });
     };
-
-    const handleValueChange = val => emit('value-change', val);
 
     const renderContentBody = () => {
       return [
@@ -140,7 +160,7 @@ export default defineComponent({
                   {item.index_set_name}
                   <span
                     class='bklog-icon bklog-close'
-                    onClick={() => handleUnCheckItem(item)}
+                    onClick={() => handleIndexSetItemCheck(item, false)}
                   ></span>
                 </span>
               ))}
@@ -150,20 +170,34 @@ export default defineComponent({
       );
     };
 
+    const renderHistoryList = () => (
+      <HistoryList
+        list={historyList.value}
+        isLoading={historyLoading.value}
+        on-value-click={handleHistoryItemClick}
+        on-delete={handleDeleteHistoryItem}
+      ></HistoryList>
+    );
+
     const tabList = computed(() => [
       { name: $t('单选'), id: 'single', render: renderContentBody },
       { name: $t('多选'), id: 'union', render: renderMultiContentBody },
-      { name: $t('历史记录'), id: 'history' },
+      { name: $t('历史记录'), id: 'history', render: renderHistoryList },
       { name: $t('我的收藏'), id: 'favorite' },
     ]);
 
-    const activeTab = computed(() => tabList.value.find(item => item.id === props.type));
+    const activeTab = computed(() => tabList.value.find(item => item.id === props.activeId));
 
     const handleHiddenEmptyItemChange = (val: boolean) => {
       hiddenEmptyItem.value = val;
     };
 
     const handleTabItemClick = (e: MouseEvent, item: { name: string; id: string }) => {
+      if (item.id === 'history') {
+        getHistoryList(props.type, props.spaceUid).then(resp => {
+          historyList.value = resp;
+        });
+      }
       emit('type-change', item.id);
     };
 
@@ -176,13 +210,21 @@ export default defineComponent({
       Object.assign(tagItem.value, tag);
     };
 
+    onMounted(() => {
+      if (props.activeId === 'history') {
+        getHistoryList(props.type, props.spaceUid).then(resp => {
+          historyList.value = resp;
+        });
+      }
+    });
+
     return () => (
       <div class='bklog-v3-content-root'>
         <div class='content-header'>
           <div class='bklog-v3-tabs'>
             {tabList.value.map(item => (
               <span
-                class={[{ 'is-active': props.type === item.id }, 'tab-item']}
+                class={[{ 'is-active': props.activeId === item.id }, 'tab-item']}
                 key={item.id}
                 onClick={e => handleTabItemClick(e, item)}
               >

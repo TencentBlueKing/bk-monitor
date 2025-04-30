@@ -43,13 +43,18 @@
   const indexSetValue = computed(() => store.state.indexItem.ids);
 
   // 索引集类型
-  const indexSetType = computed(() => {
+  const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+
+  // 索引集当前激活Tab
+  const indexSetTab = computed(() => {
     if (store.state.storage.indexSetActiveTab) {
       return store.state.storage.indexSetActiveTab;
     }
 
-    return store.state.indexItem.isUnionIndex ? 'union' : 'single';
+    return indexSetType.value;
   });
+
+  const spaceUid = computed(() => store.state.spaceUid);
 
   const textDir = computed(() => {
     const textEllipsisDir = store.state.storage.textEllipsisDir;
@@ -203,7 +208,9 @@
         :index-set-list="indexSetList"
         :index-set-value="indexSetValue"
         :active-type="indexSetType"
+        :active-tab="indexSetTab"
         :text-dir="textDir"
+        :spaceUid="spaceUid"
         width="100%"
         @value-change="handleIndexSetValueChange"
         @type-change="handleActiveTypeChange"

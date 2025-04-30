@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, PropType, Ref, ref } from 'vue';
 import BklogPopover from '../../../../components/bklog-popover';
 import { getOsCommandLabel } from '../../../../common/util';
 import { Props } from 'tippy.js';
 import Content from './content';
 
 import './index.scss';
+import { IndexSetType } from './use-choice';
 
 export default defineComponent({
   props: {
@@ -54,8 +55,13 @@ export default defineComponent({
       type: String,
       default: 'ltr',
     },
-    // 索引集类型：单选-single | 联合索引-union | history-历史记录 | favorite-收藏
+    // 索引集类型：单选-single | 联合索引-union
     activeType: {
+      type: String as PropType<IndexSetType>,
+      default: 'single',
+    },
+    // 单选-single | 联合索引-union | history-历史记录 | favorite-收藏
+    activeTab: {
       type: String,
       default: 'single',
     },
@@ -69,15 +75,17 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
-    // 历史记录列表
-    historyList: {
-      type: Array,
-      default: () => [],
-    },
+
     // 收藏列表
     favoriteList: {
       type: Array,
       default: () => [],
+    },
+
+    // 当前uid
+    spaceUid: {
+      type: String,
+      default: '',
     },
   },
   emits: ['type-change', 'value-change'],
@@ -135,6 +143,8 @@ export default defineComponent({
                   indexSetList={props.indexSetList}
                   type={props.activeType}
                   value={props.indexSetValue}
+                  spaceUid={props.spaceUid}
+                  activeId={props.activeTab}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
                 ></Content>
