@@ -42,7 +42,6 @@ import {
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
-import FavoriteBox from './components/favorite-box';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
@@ -410,17 +409,7 @@ export default defineComponent({
   render() {
     return (
       <div class='trace-explore'>
-        <div class='favorite-panel'>
-          <FavoriteBox
-            type='event'
-            onChange={(data: any) => {
-              console.log('favorit change', data);
-            }}
-            onOpenBlank={(data: any) => {
-              console.log('favorit open blank', data);
-            }}
-          />
-        </div>
+        <div class='favorite-panel' />
         <div class='main-panel'>
           <div class='header-panel'>
             <TraceExploreHeader
