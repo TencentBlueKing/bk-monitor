@@ -145,6 +145,10 @@ export default class MessageChart extends CommonSimpleChart {
   handleItemShow(item) {
     item.showAll = !item.showAll;
   }
+  handleTraceLinkClick(e, item) {
+    e.stopPropagation();
+    console.log(item, 'item');
+  }
   render() {
     return (
       <div class='message-chart'>
@@ -224,6 +228,13 @@ export default class MessageChart extends CommonSimpleChart {
                     <div class='collapse-item-title'>
                       <div class='item-title'>{item.title}</div>
                       <div class='item-subtitle'>{item.subtitle}</div>
+                      <span
+                        class='item-trace-link'
+                        onClick={e => this.handleTraceLinkClick(e, item)}
+                      >
+                        {this.$t('调用链')}
+                        <i class='icon-monitor icon-mc-goto' />
+                      </span>
                     </div>
                     <div
                       class='collapse-item-content'
