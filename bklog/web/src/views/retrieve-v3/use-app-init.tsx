@@ -168,32 +168,36 @@ export default () => {
   /**
    * 拉取索引集列表
    */
-  const getIndexSetList = async () => {
+  const getIndexSetList = () => {
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
       .then(resp => {
         isPreApiLoaded.value = true;
+        RetrieveHelper.setSearchingValue(true);
 
         // 拉取完毕根据当前路由参数回填默认选中索引集
         store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
           setDefaultIndexsetId();
           const type = route.params.indexId ? 'single' : 'union';
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+
           store.dispatch('requestIndexSetFieldInfo').then(() => {
-            store.dispatch('requestIndexSetQuery');
+            store.dispatch('requestIndexSetQuery').then(() => {
+              RetrieveHelper.setSearchingValue(false);
+            });
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         });
       });
   };
 
-  const handleSpaceIdChange = async () => {
+  const handleSpaceIdChange = () => {
     store.commit('resetIndexsetItemParams');
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
-    await getIndexSetList();
+    getIndexSetList();
     store.dispatch('requestFavoriteList');
   };
 

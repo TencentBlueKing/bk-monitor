@@ -363,7 +363,7 @@
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
-      setTimeout(() => this.requestMySpaceList(), 10);
+      this.requestMySpaceList();
       this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
@@ -374,12 +374,12 @@
     methods: {
       async getUserInfo() {
         try {
-          const res = await this.$http.request('userInfo/getUsername');
-          this.username = res.data.username;
-          this.$store.commit('updateUserMeta', res.data);
+          const res = this.$store.state.userMeta;
+          this.username = res.username;
+          // this.$store.commit('updateUserMeta', res.data);
           if (window.__aegisInstance) {
             window.__aegisInstance.setConfig({
-              uin: res.data.username,
+              uin: res.username,
             });
           }
         } catch (e) {
@@ -390,18 +390,30 @@
       },
       // 获取全局数据和 判断是否可以保存 已有的日志聚类
       getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
+        // if (Object.keys(this.globalsData).length) return;
+        // this.$http
+        //   .request('collect/globals')
+        //   .then(res => {
+        //     this.$store.commit('globals/setGlobalsData', res.data);
+        //   })
+        //   .catch(e => {
+        //     console.warn(e);
+        //   });
       },
       jumpToHome() {
         this.$store.commit('updateIsShowGlobalDialog', false);
+
+        if (window.IS_EXTERNAL) {
+          this.$router.push({
+            name: 'manage',
+            query: {
+              spaceUid: this.$store.state.spaceUid,
+              bizId: this.$store.state.bizId,
+            },
+          });
+
+          return;
+        }
         this.$router.push({
           name: 'retrieve',
           query: {
@@ -507,28 +519,6 @@
         }
       },
       async changeLanguage(value) {
-        // const domainList = location.hostname.split('.');
-
-        // // 本项目开发环境因为需要配置了 host 域名比联调环境多 1 级
-        // if (process.env.NODE_ENV === 'development') {
-        //   domainList.splice(0, 1);
-        // }
-
-        // // handle duplicate cookie names
-        // for (let i = 0; i < domainList.length - 1; i++) {
-        //   jsCookie.remove('blueking_language', {
-        //     domain: domainList.slice(i).join('.'),
-        //   });
-        // }
-
-        // jsCookie.set('blueking_language', value, {
-        //   expires: 30,
-        //   // 和平台保持一致，cookie 种在上级域名
-        //   domain: domainList.length > 2 ? domainList.slice(1).join('.') : domainList.join('.'),
-        // });
-
-        // window.location.reload();
-
         jsCookie.remove('blueking_language', { path: '' });
         jsCookie.set('blueking_language', value, {
           expires: 3600,

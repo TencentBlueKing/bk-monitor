@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict
+
+from typing import Any
 
 from rest_framework.decorators import action
 
@@ -19,10 +19,8 @@ from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from packages.monitor_web.data_explorer.event.utils import (
-    generate_file_download_response,
-)
-from packages.monitor_web.data_explorer.views import DataExplorerViewSet
+
+from apm_web.utils import generate_csv_file_download_response
 
 
 class EventViewSet(ResourceViewSet):
@@ -61,10 +59,9 @@ class EventViewSet(ResourceViewSet):
     def download_topk(self, request, *args, **kwargs):
         serializer = EventDownloadTopKRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data: Dict[str, Any] = serializer.validated_data
-        return generate_file_download_response(
-            DataExplorerViewSet.generate_topk_file_content(
-                resources.EventTopKResource().perform_request(validated_data)
-            ),
-            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.txt",
+        validated_data: dict[str, Any] = serializer.validated_data
+        api_topk_response = resources.EventTopKResource().perform_request(validated_data)
+        return generate_csv_file_download_response(
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.csv",
+            ([item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_response[0]["list"]),
         )

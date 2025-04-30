@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -17,13 +16,14 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+
 import base64
 import copy
 import datetime
 import json
 import re
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import arrow
 import yaml
@@ -100,7 +100,6 @@ from apps.log_databus.exceptions import (
     CollectorCreateOrUpdateSubscriptionException,
     CollectorIllegalIPException,
     CollectorResultTableIDDuplicateException,
-    CollectorTaskRunningStatusException,
     ContainerCollectConfigValidateYamlException,
     MissedNamespaceException,
     ModifyCollectorConfigException,
@@ -164,10 +163,10 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 
-COLLECTOR_RE = re.compile(r'.*\d{6,8}$')
+COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
 
-class CollectorHandler(object):
+class CollectorHandler:
     data: CollectorConfig
 
     def __init__(self, collector_config_id=None):
@@ -758,7 +757,7 @@ class CollectorHandler(object):
 
     @classmethod
     def update_or_create_data_id(
-        cls, instance: Union[CollectorConfig, CollectorPlugin], etl_processor: str = None, bk_data_id: int = None
+        cls, instance: CollectorConfig | CollectorPlugin, etl_processor: str = None, bk_data_id: int = None
     ) -> int:
         """
         创建或更新数据源
@@ -1035,13 +1034,6 @@ class CollectorHandler(object):
         try:
             self.data.subscription_id = collector_scenario.update_or_create_subscription(self.data, params)
             self.data.save()
-            subscription_status = self.get_subscription_status_by_list([self.data.collector_config_id])
-            if subscription_status[0]["status"] == CollectStatus.RUNNING:
-                logger.warning(
-                    f"nodeman get status aleady is ready， collector_config_id -> {self.data.collector_config_id}, "
-                    + f" subscription_id -> {self.data.subscription_id}"
-                )
-                raise CollectorTaskRunningStatusException
             if params.get("run_task", True):
                 self._run_subscription_task()
             # start nodeman subscription
@@ -1299,7 +1291,7 @@ class CollectorHandler(object):
 
         return res
 
-    def _run_subscription_task(self, action=None, scope: Dict[str, Any] = None):
+    def _run_subscription_task(self, action=None, scope: dict[str, Any] = None):
         """
         触发订阅事件
         :param: action 动作 [START, STOP, INSTALL, UNINSTALL]
@@ -2266,7 +2258,7 @@ class CollectorHandler(object):
             )
             if illegal_ips or illegal_bk_host_ids:
                 illegal_items = [str(item) for item in (illegal_ips + illegal_bk_host_ids)]
-                logger.error("cat illegal ip or bk_host_id: {illegal_ips}".format(illegal_ips=illegal_items))
+                logger.error(f"cat illegal ip or bk_host_id: {illegal_items}")
                 raise CollectorIllegalIPException(
                     CollectorIllegalIPException.MESSAGE.format(bk_biz_id=bk_biz_id, illegal_ips=illegal_items)
                 )
@@ -2328,7 +2320,7 @@ class CollectorHandler(object):
             "bk_biz_id": params["bk_biz_id"],
         }
         CleanStash.objects.filter(collector_config_id=self.collector_config_id).delete()
-        logger.info("delete clean stash {}".format(self.collector_config_id))
+        logger.info(f"delete clean stash {self.collector_config_id}")
         return model_to_dict(CleanStash.objects.create(**model_fields))
 
     def list_collector(self, bk_biz_id):
@@ -2944,7 +2936,7 @@ class CollectorHandler(object):
             collector_config_id__in=list(collectors.values_list("collector_config_id", flat=True)),
             collector_type__in=[ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT],
         ).all()
-        container_config_map: Dict[int, ContainerCollectorConfig] = {
+        container_config_map: dict[int, ContainerCollectorConfig] = {
             c.collector_config_id: c for c in container_collector_configs
         }
         return [
@@ -2958,7 +2950,7 @@ class CollectorHandler(object):
     @classmethod
     def format_bcs_container_config(
         cls, collector_config: CollectorConfig, container_config: ContainerCollectorConfig
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         enable_stdout = container_config.collector_type == ContainerCollectorType.STDOUT
         return {
             "created_by": collector_config.created_by,
@@ -2976,7 +2968,9 @@ class CollectorHandler(object):
             "add_pod_label": collector_config.add_pod_label,
             "rule_file_index_set_id": None,
             "rule_std_index_set_id": None,
-            "file_index_set_id": collector_config.index_set_id if not enable_stdout else None,  # TODO: 兼容代码4.8需删除
+            "file_index_set_id": collector_config.index_set_id
+            if not enable_stdout
+            else None,  # TODO: 兼容代码4.8需删除
             "std_index_set_id": collector_config.index_set_id if enable_stdout else None,  # TODO: 兼容代码4.8需删除
             "container_config": [
                 {
@@ -3328,13 +3322,17 @@ class CollectorHandler(object):
             "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else 0,
             "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,
             "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else 0,
-            "file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "file_index_set_id": path_collector_config.index_set_id
+            if path_collector_config
+            else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector_config.index_set_id
+            if std_collector_config
+            else 0,  # TODO: 兼容代码4.8需删除
             "bk_data_id": path_collector_config.bk_data_id if path_collector_config else 0,
             "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
-    def sync_bcs_container_task(self, data: Dict[str, Any]):
+    def sync_bcs_container_task(self, data: dict[str, Any]):
         """
         同步bcs容器采集项任务
         需要在create_bcs_container_config函数执行之后运行
@@ -3363,7 +3361,7 @@ class CollectorHandler(object):
             )
 
     @staticmethod
-    def sync_bcs_container_bkdata_id(data: Dict[str, Any]):
+    def sync_bcs_container_bkdata_id(data: dict[str, Any]):
         """同步bcs容器采集项bkdata_id"""
         if data["rule_file_collector_config_id"]:
             async_create_bkdata_data_id.delay(data["rule_file_collector_config_id"])
@@ -3717,7 +3715,7 @@ class CollectorHandler(object):
         try:
             bcs_rule = BcsRule.objects.get(id=rule_id)
         except BcsRule.DoesNotExist:
-            logger.info("[delete_bcs_config] rule_id({}) does not exist, skipped".format(rule_id))
+            logger.info(f"[delete_bcs_config] rule_id({rule_id}) does not exist, skipped")
             return {"rule_id": rule_id}
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
@@ -3938,7 +3936,7 @@ class CollectorHandler(object):
         return cluster_info
 
     @staticmethod
-    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
+    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> list[Any]:
         """
         获取共享集群有权限的namespace
         """
@@ -4034,13 +4032,13 @@ class CollectorHandler(object):
     def get_labels(self, topo_type, bcs_cluster_id, namespace, name):
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         if topo_type == TopoType.NODE.value:
-            nodes = api_instance.list_node(field_selector="metadata.name={}".format(name)).to_dict()
+            nodes = api_instance.list_node(field_selector=f"metadata.name={name}").to_dict()
             return self.generate_label(nodes)
         if topo_type == TopoType.POD.value:
             if not namespace:
                 raise MissedNamespaceException()
             pods = api_instance.list_namespaced_pod(
-                field_selector="metadata.name={}".format(name), namespace=namespace
+                field_selector=f"metadata.name={name}", namespace=namespace
             ).to_dict()
             return self.generate_label(pods)
 
@@ -4208,7 +4206,7 @@ class CollectorHandler(object):
 
         # match_labels 本质上是个字典，需要去重
         match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
-        match_labels_list = ["{} = {}".format(label[0], label[1]) for label in match_labels.items()]
+        match_labels_list = [f"{label[0]} = {label[1]}" for label in match_labels.items()]
 
         match_labels_list.extend(self.get_expr_list(match_expressions))
         label_expression = ", ".join(match_labels_list)
@@ -4358,16 +4356,16 @@ class CollectorHandler(object):
                     if isinstance(v, dict):
                         error_msg(v, results)
                     elif isinstance(v, list) and isinstance(v[0], ErrorDetail):
-                        results.append("{}: {}".format(k, v[0][:-1]))
+                        results.append(f"{k}: {v[0][:-1]}")
                     else:
                         for v_msg in v:
                             error_msg(v_msg, results)
 
             parse_result = []
 
-            def gen_err_topo_message(detail_item: Union[List, Dict, str], result_list: list, prefix: str = ""):
+            def gen_err_topo_message(detail_item: list | dict | str, result_list: list, prefix: str = ""):
                 if isinstance(detail_item, str):
-                    result_list.append("{}: {}".format(prefix, detail_item))
+                    result_list.append(f"{prefix}: {detail_item}")
 
                 elif isinstance(detail_item, list) and isinstance(detail_item[0], ErrorDetail):
                     gen_err_topo_message(detail_item=detail_item[0], result_list=result_list, prefix=prefix)
@@ -4422,7 +4420,10 @@ class CollectorHandler(object):
                         {
                             "start_line_number": 0,
                             "end_line_number": 0,
-                            "message": _("配置校验失败: namespaceSelector 共享集群下 any 不允许为 true，" "且 matchNames 不允许为空，请检查"),
+                            "message": _(
+                                "配置校验失败: namespaceSelector 共享集群下 any 不允许为 true，"
+                                "且 matchNames 不允许为空，请检查"
+                            ),
                         }
                     ],
                 }
@@ -4431,7 +4432,11 @@ class CollectorHandler(object):
                     "origin_text": yaml_config,
                     "parse_status": False,
                     "parse_result": [
-                        {"start_line_number": 0, "end_line_number": 0, "message": _("配置校验失败: {err}").format(err=e)}
+                        {
+                            "start_line_number": 0,
+                            "end_line_number": 0,
+                            "message": _("配置校验失败: {err}").format(err=e),
+                        }
                     ],
                 }
 
@@ -4805,7 +4810,7 @@ class CollectorHandler(object):
 
     @classmethod
     def container_dict_configs_to_yaml(
-        cls, container_configs: List[Dict], add_pod_label: bool, add_pod_annotation: bool, extra_labels: List
+        cls, container_configs: list[dict], add_pod_label: bool, add_pod_annotation: bool, extra_labels: list
     ) -> str:
         """
         将字典格式的容器采集配置转为yaml
@@ -4864,7 +4869,9 @@ class CollectorHandler(object):
         except Space.DoesNotExist:
             space_uid = collector_config.bk_biz_id
             space_name = collector_config.bk_biz_id
-        content = _("有新采集项创建，请关注！采集项ID: {}, 采集项名称: {}, 空间ID: {}, 空间名称: {}, 创建者: {}, 来源: {}").format(
+        content = _(
+            "有新采集项创建，请关注！采集项ID: {}, 采集项名称: {}, 空间ID: {}, 空间名称: {}, 创建者: {}, 来源: {}"
+        ).format(
             collector_config.collector_config_id,
             collector_config.collector_config_name,
             space_uid,

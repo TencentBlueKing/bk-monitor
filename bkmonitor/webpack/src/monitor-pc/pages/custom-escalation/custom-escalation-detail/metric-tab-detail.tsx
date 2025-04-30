@@ -27,9 +27,9 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AddGroupDialog from './add-group-dialog';
-import { ALL_LABEL, NULL_LABEL } from './custom-escalation-detail';
 import CustomGroupingList from './custom-grouping-list';
 import IndicatorTable from './metric-table';
+import { ALL_LABEL, NULL_LABEL } from './type';
 
 import './metric-tab-detail.scss';
 
@@ -83,7 +83,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   isSearchMode: boolean;
   delGroupName = '';
 
-  created() {}
+  created() { }
 
   // 过滤后的自定义分组
   get filteredCustomGroups() {
