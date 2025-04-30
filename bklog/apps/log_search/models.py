@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import hashlib
 import os
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -88,7 +88,7 @@ from apps.models import (
 )
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
-from apps.utils.local import get_request_app_code
+from apps.utils.local import get_request_app_code, get_request_tenant_id
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -183,7 +183,7 @@ class GlobalConfig(models.Model):
 # class TranslateRelationship
 
 
-class Scenario(object):
+class Scenario:
     """
     接入场景
     """
@@ -330,7 +330,7 @@ class AccessSourceConfig(SoftDeleteModel):
 
 
 class LogIndexSet(SoftDeleteModel):
-    class Status(object):
+    class Status:
         """
         审批状态
         """
@@ -362,7 +362,9 @@ class LogIndexSet(SoftDeleteModel):
     #  是否trace索引集
     is_trace_log = models.BooleanField(_("是否trace"), default=False)
 
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
 
     # 时间字段
     time_field = models.CharField(_("时间字段"), max_length=32, default=None, null=True)
@@ -656,7 +658,7 @@ class LogIndexSet(SoftDeleteModel):
 
 
 class LogIndexSetData(SoftDeleteModel):
-    class Status(object):
+    class Status:
         """
         审批状态维护
         """
@@ -735,7 +737,7 @@ class ResourceChange(OperateRecordModel):
     2. index_set.retrieve => project.flow_member
     """
 
-    class ChangeType(object):
+    class ChangeType:
         """
         变更类型
         """
@@ -748,7 +750,7 @@ class ResourceChange(OperateRecordModel):
             (RESOURCE, _("资源")),
         )
 
-    class SyncStatus(object):
+    class SyncStatus:
         """
         变更类型
         """
@@ -763,7 +765,7 @@ class ResourceChange(OperateRecordModel):
             (FAILED, _("同步失败")),
         )
 
-    class ResourceType(object):
+    class ResourceType:
         """
         资源类型
         """
@@ -818,13 +820,17 @@ class Favorite(OperateRecordModel):
     name = models.CharField(_("收藏名称"), max_length=255)
     group_id = models.IntegerField(_("收藏组ID"), db_index=True)
     params = JsonField(_("检索条件"), null=True, default=None)
-    visible_type = models.CharField(_("可见类型"), max_length=64, choices=FavoriteVisibleType.get_choices())  # 个人 | 公开
+    visible_type = models.CharField(
+        _("可见类型"), max_length=64, choices=FavoriteVisibleType.get_choices()
+    )  # 个人 | 公开
     search_mode = models.CharField(
         _("检索模式"), max_length=32, choices=SearchMode.get_choices(), default=SearchMode.UI.value
     )
     is_enable_display_fields = models.BooleanField(_("是否同时显示字段"), default=False)
     display_fields = models.JSONField(_("显示字段"), blank=True, default=None)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
@@ -928,7 +934,9 @@ class FavoriteGroup(OperateRecordModel):
     name = models.CharField(_("收藏组名称"), max_length=64)
     group_type = models.CharField(_("收藏组类型"), max_length=64, choices=FavoriteGroupType.get_choices())
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
 
     class Meta:
         verbose_name = _("检索收藏组")
@@ -960,7 +968,7 @@ class FavoriteGroup(OperateRecordModel):
         return obj
 
     @classmethod
-    def get_public_group(cls, space_uid: str) -> List["FavoriteGroup"]:
+    def get_public_group(cls, space_uid: str) -> list["FavoriteGroup"]:
         source_app_code = get_request_app_code()
         return list(
             cls.objects.filter(
@@ -971,7 +979,7 @@ class FavoriteGroup(OperateRecordModel):
         )
 
     @classmethod
-    def get_user_groups(cls, space_uid: str, username: str) -> List[Dict[str, Any]]:
+    def get_user_groups(cls, space_uid: str, username: str) -> list[dict[str, Any]]:
         """获取用户所有能看到的组"""
         groups = list()
         source_app_code = get_request_app_code()
@@ -1108,7 +1116,9 @@ class AsyncTask(OperateRecordModel):
     export_type = models.CharField(_("导出类型"), max_length=64, null=True, blank=True)
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     completed_at = models.DateTimeField(_("任务完成时间"), null=True, blank=True)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
@@ -1275,6 +1285,27 @@ class Space(SoftDeleteModel):
 
         return spaces
 
+    @classmethod
+    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0) -> str:
+        """
+        获取空间的租户ID
+        """
+        default_tenant_id = get_request_tenant_id()
+
+        if space_uid:
+            space = cls.objects.filter(space_uid=space_uid).first()
+            if not space:
+                return default_tenant_id
+            return space.bk_tenant_id
+
+        if bk_biz_id:
+            space = cls.objects.filter(bk_biz_id=bk_biz_id).first()
+            if not space:
+                return default_tenant_id
+            return space.bk_tenant_id
+
+        return default_tenant_id
+
 
 class SpaceApi(AbstractSpaceApi):
     """
@@ -1299,7 +1330,7 @@ class SpaceApi(AbstractSpaceApi):
         )
 
     @classmethod
-    def get_space_detail(cls, space_uid: str = "", id: int = 0) -> Union[None, SpaceDefine]:
+    def get_space_detail(cls, space_uid: str = "", id: int = 0) -> None | SpaceDefine:
         space = None
         if space_uid:
             space = Space.objects.filter(space_uid=space_uid).first()
@@ -1318,7 +1349,7 @@ class SpaceApi(AbstractSpaceApi):
             return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id, "no_request": True}))
 
     @classmethod
-    def list_spaces(cls) -> List[SpaceDefine]:
+    def list_spaces(cls) -> list[SpaceDefine]:
         return [cls._init_space(space) for space in Space.objects.all()]
 
 
@@ -1330,7 +1361,9 @@ class IndexSetFieldsConfig(models.Model):
     display_fields = JsonField(_("字段配置"))
     sort_list = JsonField(_("排序规则"), null=True, default=None)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True, default="")
     index_set_type = models.CharField(
@@ -1382,7 +1415,9 @@ class UserIndexSetFieldsConfig(models.Model):
     config_id = models.IntegerField(_("索引集配置ID"), db_index=True)
     username = models.CharField(_("用户名"), max_length=32, default="", db_index=True)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True, default="")
     index_set_type = models.CharField(
@@ -1451,10 +1486,10 @@ class UserIndexSetCustomConfig(models.Model):
     class Meta:
         verbose_name = _("用户索引集自定义配置")
         verbose_name_plural = _("用户索引集自定义配置")
-        unique_together = ('username', 'index_set_hash')
+        unique_together = ("username", "index_set_hash")
 
     @classmethod
-    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+    def get_index_set_hash(cls, index_set_id: list | int):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
 
 
@@ -1479,5 +1514,5 @@ class IndexSetCustomConfig(models.Model):
         verbose_name_plural = _("索引集自定义配置")
 
     @classmethod
-    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+    def get_index_set_hash(cls, index_set_id: list | int):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
