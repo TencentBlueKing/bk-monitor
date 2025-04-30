@@ -33,14 +33,14 @@ import { copyText } from 'monitor-common/utils';
 import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
-import { toPerformanceDetail } from '../../../common/go-link';
+import { toPerformanceDetail, toBcsDetail } from '../../../common/go-link';
 import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
 import type { IDetail } from './type';
 
 import './basic-info.scss';
-import 'vue-json-pretty/lib/styles.css'
+import 'vue-json-pretty/lib/styles.css';
 
 interface IBasicInfoProps {
   basicInfo: IDetail;
@@ -56,30 +56,69 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-  ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
+  ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
   operateDesc = null;
   showReason = false;
   get bizList() {
     return this.$store.getters.bizList;
   }
-
   get handleStatusString() {
+    // 从 this.basicInfo 中获取总计数，如果不存在则返回 '--'
     const total = this.basicInfo?.overview?.count;
     if (!total) return '--';
-    let successCount = 0;
-    let failCount = 0;
-    let partialFailureCount = 0;
-    successCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'success')?.count || 0;
-    failCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'failure')?.count || 0;
-    partialFailureCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'partial_failure')?.count || 0;
-    return `${this.$t(' {0} 次', [total])}(${successCount ? this.$t('{0}次成功', [successCount]) : ''}${
-      failCount ? `${successCount ? ', ' : ''}${this.$t('{0}次失败', [failCount])}` : ''
-    }${
-      partialFailureCount
-        ? `${successCount || failCount ? ', ' : ''}${this.$t('{0}次部分失败', [partialFailureCount])}`
-        : ''
-    })`;
+
+    // 定义需要统计的状态及其初始计数
+    const statusKeys = ['success', 'failure', 'partial_failure'];
+    const statusCounts = Object.fromEntries(statusKeys.map(key => [key, 0]));
+
+    // 遍历 children 数组，更新对应状态的计数
+    const children = this.basicInfo.overview?.children || [];
+    children.map(item => {
+      if (statusKeys.includes(item.id)) {
+        statusCounts[item.id] = item.count;
+      }
+    });
+
+    // 生成每种状态的描述字符串数组
+    const statusDescriptions = statusKeys
+      .map(key => {
+        const count = statusCounts[key];
+        if (count) {
+          const statusText = {
+            success: '次成功',
+            failure: '次失败',
+            partial_failure: '次部分失败',
+          }[key];
+          return this.$t(`{0}${statusText}`, [count]);
+        }
+        return null;
+      })
+      .filter(description => description !== null);
+    // 拼接所有状态描述字符串
+    const details = statusDescriptions.join(', ');
+
+    // 生成最终的状态字符串
+    return `${this.$t(' {0} 次', [total])}(${details})`;
   }
+
+  // get handleStatusString() {
+  //   const total = this.basicInfo?.overview?.count;
+  //   if (!total) return '--';
+  //   let successCount = 0;
+  //   let failCount = 0;
+  //   let partialFailureCount = 0;
+  //   successCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'success')?.count || 0;
+  //   failCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'failure')?.count || 0;
+  //   partialFailureCount =
+  //     this.basicInfo.overview?.children?.find?.(item => item.id === 'partial_failure')?.count || 0;
+  //   return `${this.$t(' {0} 次', [total])}(${successCount ? this.$t('{0}次成功', [successCount]) : ''}${
+  //     failCount ? `${successCount ? ', ' : ''}${this.$t('{0}次失败', [failCount])}` : ''
+  //   }${
+  //     partialFailureCount
+  //       ? `${successCount || failCount ? ', ' : ''}${this.$t('{0}次部分失败', [partialFailureCount])}`
+  //       : ''
+  //   })`;
+  // }
 
   get filterDimensions() {
     return this.basicInfo.dimensions?.filter(item => !(this.cloudIdMap.includes(item.key) && item.value === 0));
@@ -122,17 +161,53 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
-
   handleToPerformance(item) {
-    if (this.ipMap.includes(item.key)) {
-      if (item.key === 'bk_host_id') {
-        toPerformanceDetail(this.basicInfo.bk_biz_id, item.value);
-      } else {
-        const cloudId = this.basicInfo.dimensions.find(item => this.cloudIdMap.includes(item.key)).value;
-        toPerformanceDetail(this.basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
-      }
+    const { ipMap, cloudIdMap, basicInfo } = this;
+    const isKeyInIpMap = ipMap.includes(item.key);
+
+    if (!isKeyInIpMap) {
+      return;
     }
+
+    const handlers = {
+      /** 增加集群跳转到BCS */
+      'tags.bcs_cluster_id': () => {
+        const { project_name, value } = item;
+        toBcsDetail(project_name, value);
+      },
+      /** 跳转到主机监控 */
+      bk_host_id: () => {
+        toPerformanceDetail(basicInfo.bk_biz_id, item.value);
+      },
+      default: () => {
+        const cloudIdItem = basicInfo.dimensions.find(dim => cloudIdMap.includes(dim.key));
+        if (!cloudIdItem) {
+          return;
+        }
+        const cloudId = cloudIdItem.value;
+        toPerformanceDetail(basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
+      },
+    };
+
+    const handler = handlers[item.key] || handlers.default;
+    handler();
   }
+  // handleToPerformance(item) {
+  //   if (this.ipMap.includes(item.key)) {
+  //     /** 增加集群跳转到BCS */
+  //     if (item.key === 'tags.bcs_cluster_id') {
+  //       const { project_name, value } = item;
+  //       toBcsDetail(project_name, value);
+  //       return;
+  //     }
+  //     if (item.key === 'bk_host_id') {
+  //       toPerformanceDetail(this.basicInfo.bk_biz_id, item.value);
+  //     } else {
+  //       const cloudId = this.basicInfo.dimensions.find(item => this.cloudIdMap.includes(item.key)).value;
+  //       toPerformanceDetail(this.basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
+  //     }
+  //   }
+  // }
   // 头部彩色条形
   getHeaderBarComponent(eventStatus: string, isShielded: boolean, isAck: boolean) {
     const classList = {
@@ -198,7 +273,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       );
     } catch {
       return relationInfo;
-    };
+    }
   }
 
   // 关联日志的渲染方式
@@ -220,12 +295,12 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                 name: 'bk-tooltips',
                 value: this.$t('复制'),
                 arg: 'distance',
-                modifiers: { '5': true }
-              }
+                modifiers: { '5': true },
+              },
             ],
             on: {
               click: () => this.handleCopy(relationInfo),
-            }
+            },
           }),
           h(VueJsonPretty, {
             props: {
@@ -234,7 +309,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               deep: 5,
               showIcon: true,
               // showLine: false
-            }
+            },
           }),
         ]
       ),
@@ -327,21 +402,32 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       </span>
     );
     let alertInfoList: any = [];
+    const messageMap = {
+      failed_count: '{count}次失败',
+      partial_count: '{count}次部分失败',
+      success_count: '{count}次成功',
+      shielded_count: '{count}次被屏蔽',
+      empty_receiver_count: '{count}次通知状态为空',
+    };
     // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(alert_info || {}).forEach(key => {
       const count = alert_info[key];
       if (count > 0) {
-        if (key === 'failed_count') {
-          alertInfoList.push(this.$t('{count}次失败', { count }));
-        } else if (key === 'partial_count') {
-          alertInfoList.push(this.$t('{count}次部分失败', { count }));
-        } else if (key === 'success_count') {
-          alertInfoList.push(this.$t('{count}次成功', { count }));
-        } else if (key === 'shielded_count') {
-          alertInfoList.push(this.$t('{count}次被屏蔽', { count }));
-        } else if (key === 'empty_receiver_count') {
-          alertInfoList.push(this.$t('{count}次通知状态为空', { count }));
+        const message = messageMap[key];
+        if (message) {
+          alertInfoList.push(this.$t(message, { count }));
         }
+        // if (key === 'failed_count') {
+        //   alertInfoList.push(this.$t('{count}次失败', { count }));
+        // } else if (key === 'partial_count') {
+        //   alertInfoList.push(this.$t('{count}次部分失败', { count }));
+        // } else if (key === 'success_count') {
+        //   alertInfoList.push(this.$t('{count}次成功', { count }));
+        // } else if (key === 'shielded_count') {
+        //   alertInfoList.push(this.$t('{count}次被屏蔽', { count }));
+        // } else if (key === 'empty_receiver_count') {
+        //   alertInfoList.push(this.$t('{count}次通知状态为空', { count }));
+        // }
       }
     });
     alertInfoList = this.handleStatusString;
