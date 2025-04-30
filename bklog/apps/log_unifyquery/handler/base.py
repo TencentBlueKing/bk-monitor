@@ -26,7 +26,9 @@ from apps.log_esquery.exceptions import (
 )
 from apps.log_search.constants import (
     MAX_RESULT_WINDOW,
-    OperatorEnum, TimeFieldTypeEnum, TimeFieldUnitEnum,
+    OperatorEnum,
+    TimeFieldTypeEnum,
+    TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -40,11 +42,8 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
 )
-from apps.log_unifyquery.constants import (
-    BASE_OP_MAP,
-    REFERENCE_ALIAS, MAX_LEN_DICT,
-)
-from apps.log_unifyquery.utils import transform_advanced_addition, deal_time_format
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
+from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.ipchooser import IPChooser
@@ -235,22 +234,30 @@ class UnifyQueryHandler(object):
                     )
                 index_info["indices"] = index_info["origin_indices"] = ",".join(index_list)
                 index_info["origin_scenario_id"] = tmp_index_obj.scenario_id
+
+                # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
+                if "__dist_05" in self.search_params.get("keyword", ""):
+                    index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
+
                 for addition in self.search_params.get("addition", []):
                     # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
                     if addition.get("field", "").startswith("__dist"):
-                        clustering_config = ClusteringConfig.get_by_index_set_id(
-                            index_set_id=index_set_id, raise_exception=False
-                        )
-                        if clustering_config and clustering_config.clustered_rt:
-                            # 如果是查询bkbase端的表，即场景需要对应改为bkdata
-                            index_info["scenario_id"] = Scenario.BKDATA
-                            # 是否使用了聚类代理查询
-                            index_info["using_clustering_proxy"] = True
-                            index_info["indices"] = clustering_config.clustered_rt
+                        index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
                 index_info_list.append(index_info)
             else:
                 raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
         return index_info_list
+
+    @staticmethod
+    def _set_scenario_id_proxy_indices(index_set_id, index_info) -> dict:
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+        if clustering_config and clustering_config.clustered_rt:
+            # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+            index_info["scenario_id"] = Scenario.BKDATA
+            # 是否使用了聚类代理查询
+            index_info["using_clustering_proxy"] = True
+            index_info["indices"] = clustering_config.clustered_rt
+        return index_info
 
     @staticmethod
     def _deal_normal_addition(value, _operator: str) -> Union[str, list]:
@@ -387,9 +394,9 @@ class UnifyQueryHandler(object):
                     {
                         "field_name": addition["field"],
                         "op": BASE_OP_MAP[addition["operator"]],
-                        "value": addition["value"]
-                        if isinstance(addition["value"], list)
-                        else addition["value"].split(","),
+                        "value": (
+                            addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
+                        ),
                     }
                 )
             else:
@@ -726,7 +733,7 @@ class UnifyQueryHandler(object):
 
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
-        time_multiplicator = 10 ** 3
+        time_multiplicator = 10**3
         values = response["series"][0]["values"]
         for value in values:
             key_as_string = timestamp_to_timeformat(
@@ -792,7 +799,7 @@ class UnifyQueryHandler(object):
         }
         # 全局查询不记录
         if (not self.origin_query_string or self.origin_query_string == "*") and not self.search_params.get(
-                "addition", []
+            "addition", []
         ):
             return
         self._cache_history(
