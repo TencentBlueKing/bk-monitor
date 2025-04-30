@@ -17,7 +17,10 @@
 
       .option-icon-icon {
         font-size: 12px;
-        transform: scale(0.9);
+
+        &.icon-Others {
+          transform: scale(0.8);
+        }
       }
 
       .option-icon-xing {
