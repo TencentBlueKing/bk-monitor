@@ -72,10 +72,10 @@ export const fieldTypeMap = {
     bgColor: '#EDE7DB',
   },
   other: {
-    name: window.i18n.tc('未知'),
-    icon: 'icon-monitor icon-weizhi',
-    color: '#4d4f56',
-    bgColor: '#dcdee5',
+    name: window.i18n.tc('其他'),
+    icon: 'icon-monitor icon-Others',
+    color: '#B59D8D',
+    bgColor: '#EBE0D9',
   },
 };
 
