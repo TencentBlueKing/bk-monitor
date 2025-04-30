@@ -1242,7 +1242,7 @@ class Space(SoftDeleteModel):
 
     id = models.AutoField(_("空间自增ID"), primary_key=True)
 
-    space_uid = models.CharField(_("空间唯一标识"), max_length=256)
+    space_uid = models.CharField(_("空间唯一标识"), max_length=256, db_index=True)
     bk_biz_id = models.IntegerField(_("业务ID"), unique=True)
 
     space_type_id = models.CharField(_("空间类型英文名称"), max_length=64)
