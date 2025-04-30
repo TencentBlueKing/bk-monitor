@@ -48,7 +48,7 @@ import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { getFilterByCheckboxFilter } from './utils';
 
-import type { ConditionChangeEvent, ExploreFieldMap, IApplicationItem, ICommonParams, IDimensionField } from './typing';
+import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -80,29 +80,12 @@ export default defineComponent({
     /** 是否展示常驻筛选 */
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
-    const fieldListMap = shallowRef<{ trace: IDimensionField[]; span: IDimensionField[] }>({ trace: [], span: [] });
+    const fieldListMap = shallowRef<ExploreFieldList>({ trace: [], span: [] });
     /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
-    });
-    /** 字段类型 field 映射集合，用于在表格 列配置setting 中获取字段的类型 */
-    const fieldMap = computed<ExploreFieldMap>(() => {
-      const getFieldMap = (mode: 'span' | 'trace') =>
-        fieldListMap.value?.[mode].reduce((prev, curr) => {
-          prev[curr.name] = {
-            alias: curr.alias,
-            name: curr.name,
-            type: curr.type,
-          };
-          return prev;
-        }, {});
-
-      return {
-        trace: getFieldMap('trace'),
-        span: getFieldMap('span'),
-      };
     });
 
     const commonParams = shallowRef<ICommonParams>({
@@ -394,6 +377,7 @@ export default defineComponent({
       traceExploreLayoutRef,
       applicationList,
       isShowFavorite,
+      fieldListMap,
       where,
       fieldList,
       commonParams,
@@ -406,7 +390,6 @@ export default defineComponent({
       checkboxFilters,
       defaultResidentSetting,
       appName,
-      fieldMap,
       handleQuery,
       handleAppNameChange,
       handelSceneChange,
@@ -495,7 +478,7 @@ export default defineComponent({
                     <TraceExploreView
                       checkboxFilters={this.checkboxFilters}
                       commonParams={this.commonParams}
-                      fieldMap={this.fieldMap}
+                      fieldListMap={this.fieldListMap}
                       onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
                     />
                   </div>

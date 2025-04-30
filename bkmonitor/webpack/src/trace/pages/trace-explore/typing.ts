@@ -48,11 +48,17 @@ export interface IDimensionField {
   name: string;
   alias: string;
   type: DimensionType;
+  can_displayed: boolean;
   is_option_enabled: boolean;
   is_dimensions: boolean;
   support_operations: IDimensionOperation[];
   pinyinStr?: string;
 }
+
+export type ExploreFieldList = {
+  trace: IDimensionField[];
+  span: IDimensionField[];
+};
 
 /** 维度列表树形结构 */
 export interface IDimensionFieldTreeItem extends IDimensionField {
@@ -103,16 +109,6 @@ export interface IStatisticsGraph {
   type: 'bar' | 'line';
   [key: string]: any;
 }
-
-type FieldMap = Record<string, Partial<IDimensionField>>;
-/**
- * @description 用于在表格 列配置setting 中获取字段的类型
- * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
- **/
-export type ExploreFieldMap = {
-  trace: FieldMap;
-  span: FieldMap;
-};
 
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
