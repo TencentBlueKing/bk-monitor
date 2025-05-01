@@ -140,7 +140,7 @@ export default defineComponent({
             scopedSlots: {
               content: () => (
                 <Content
-                  indexSetList={props.indexSetList}
+                  list={props.indexSetList}
                   type={props.activeType}
                   value={props.indexSetValue}
                   spaceUid={props.spaceUid}

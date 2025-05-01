@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
-import './history-list.scss';
+import { computed, defineComponent, ref } from 'vue';
+import './common-list.scss';
 
 export default defineComponent({
   props: {
@@ -37,12 +37,54 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    type: {
+      type: String,
+      default: 'history',
+    },
+    itemIcon: {
+      type: Object,
+      default: () => ({
+        onClick: undefined,
+        icon: undefined,
+        color: undefined,
+      }),
+    },
+    showDelItem: {
+      type: Boolean,
+      default: true,
+    },
   },
-  emits: ['delete', 'value-click'],
+  emits: ['delete', 'value-click', 'icon-click'],
   setup(props, { emit }) {
+    const textMap = ref({
+      history: {
+        title: '搜索历史',
+        delLable: '清空历史',
+        itemIcon: 'bklog-history-2',
+      },
+      favorite: {
+        title: '我的收藏',
+        delLable: '清空收藏',
+        itemIcon: 'bklog-lc-star-shape',
+      },
+    });
+
+    const activeMap = computed(() => {
+      return textMap.value[props.type] ?? textMap.value.history;
+    });
+
+    const handleItemIconClick = (e: MouseEvent, item: any) => {
+      if (props.itemIcon?.onClick) {
+        props.itemIcon.onClick(e, item);
+      }
+
+      emit('icon-click', item);
+    };
+
     const handleItemClick = (itme: any) => {
       emit('value-click', itme);
     };
+
     const handleDeleteItem = (e: MouseEvent, item: any) => {
       e.stopPropagation();
       emit('delete', item);
@@ -52,38 +94,54 @@ export default defineComponent({
       if (item.index_set_names !== undefined) {
         return (
           <div
-            class='history-row multi'
+            class='common-row multi'
             onClick={() => handleItemClick(item)}
           >
             <span class='row-left'>
-              <span class='bklog-icon bklog-history-2'></span>
+              <span
+                class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
+                style={{
+                  color: props.itemIcon?.color,
+                }}
+                onClick={e => handleItemIconClick(e, item)}
+              ></span>
               <span class='row-item-list'>
                 {item.index_set_names.map(name => (
                   <span class='row-item'>{name}</span>
                 ))}
               </span>
             </span>
-            <span
-              class='bklog-icon bklog-log-delete'
-              onClick={e => handleDeleteItem(e, item)}
-            ></span>
+            {props.showDelItem && (
+              <span
+                class='bklog-icon bklog-log-delete'
+                onClick={e => handleDeleteItem(e, item)}
+              ></span>
+            )}
           </div>
         );
       }
 
       return (
         <div
-          class='history-row single'
+          class='common-row single'
           onClick={() => handleItemClick(item)}
         >
           <span class='row-left'>
-            <span class='bklog-icon bklog-history-2'></span>
+            <span
+              class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
+              style={{
+                color: props.itemIcon?.color,
+              }}
+              onClick={e => handleItemIconClick(e, item)}
+            ></span>
             <span class='row-item'>{item.index_set_name}</span>
           </span>
-          <span
-            class='bklog-icon bklog-log-delete'
-            onClick={e => handleDeleteItem(e, item)}
-          ></span>
+          {props.showDelItem && (
+            <span
+              class='bklog-icon bklog-log-delete'
+              onClick={e => handleDeleteItem(e, item)}
+            ></span>
+          )}
         </div>
       );
     };
@@ -103,19 +161,21 @@ export default defineComponent({
 
     return () => (
       <div
-        class='bklog-v3-index-set-history'
+        class='bklog-v3-index-set-common-list'
         v-bkloading={{ isLoading: props.isLoading }}
       >
-        <div class='history-header'>
-          <span>搜索历史（{props.list.length}/10）</span>
+        <div class='common-header'>
+          <span>
+            {activeMap.value.title}（{props.list.length}/10）
+          </span>
           <span
             class='bklog-icon bklog-saoba'
             onClick={e => handleDeleteItem(e, null)}
           >
-            清空历史
+            {activeMap.value.delLable}
           </span>
         </div>
-        <div class='history-list'>{getBodyRender()}</div>
+        <div class='common-list'>{getBodyRender()}</div>
       </div>
     );
   },

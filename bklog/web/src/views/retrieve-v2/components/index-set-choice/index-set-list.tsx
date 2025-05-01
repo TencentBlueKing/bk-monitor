@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import './index-set-list.scss';
 
 import * as authorityMap from '../../../../common/authority-map';
@@ -51,9 +51,39 @@ export default defineComponent({
   },
   emits: ['value-change'],
   setup(props, { emit }) {
-    const handleIndexSetTagItemClick = (item: any, tag: any) => {
-      console.log(item, tag);
-    };
+    const { handleIndexSetItemCheck, indexSetTagList } = useChoice(props, { emit });
+
+    const hiddenEmptyItem = ref(true);
+    const searchText = ref('');
+
+    const tagItem = ref({
+      tag_id: undefined,
+      name: undefined,
+      color: undefined,
+    });
+    const noDataReg = /^No\sData$/i;
+
+    const valueList = computed(() => props.list.filter((item: any) => props.value.includes(item.index_set_id)));
+
+    const filterList = computed(() =>
+      props.list
+        .filter((item: any) => {
+          if (tagItem.value.tag_id === undefined) {
+            return true;
+          }
+
+          return item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+        })
+        .filter((item: any) => {
+          if (hiddenEmptyItem.value) {
+            return (
+              !item.tags.some(tag => noDataReg.test(tag.name)) && item.index_set_name.indexOf(searchText.value) !== -1
+            );
+          }
+
+          return item.index_set_name.indexOf(searchText.value) !== -1;
+        }),
+    );
 
     /**
      * 索引集选中操作
@@ -67,8 +97,18 @@ export default defineComponent({
     };
 
     const handleFavoriteClick = (e: MouseEvent, item: any) => {};
+    const handleHiddenEmptyItemChange = (val: boolean) => {
+      hiddenEmptyItem.value = val;
+    };
 
-    const { handleIndexSetItemCheck } = useChoice(props, { emit });
+    const handleTagItemClick = (tag: { tag_id: number; name: string; color: string }) => {
+      if (tagItem.value.tag_id === tag.tag_id) {
+        Object.assign(tagItem.value, { tag_id: undefined, name: undefined, color: '' });
+        return;
+      }
+
+      Object.assign(tagItem.value, tag);
+    };
 
     const getCheckBoxRender = item => {
       if (props.type === 'single') {
@@ -84,12 +124,10 @@ export default defineComponent({
       );
     };
 
-    const noDataReg = /^No\sData$/i;
-
-    return () => {
+    const getMainRender = () => {
       return (
         <div class='bklog-v3-index-set-list'>
-          {props.list.map((item: any) => {
+          {filterList.value.map((item: any) => {
             return (
               <div
                 class={[
@@ -117,12 +155,7 @@ export default defineComponent({
                 </div>
                 <div class='index-set-tags'>
                   {item.tags.map((tag: any) => (
-                    <span
-                      class='index-set-tag-item'
-                      onClick={() => handleIndexSetTagItemClick(item, tag)}
-                    >
-                      {tag.name}
-                    </span>
+                    <span class='index-set-tag-item'>{tag.name}</span>
                   ))}
                 </div>
               </div>
@@ -131,5 +164,91 @@ export default defineComponent({
         </div>
       );
     };
+
+    const getSingleBody = () => {
+      return [getMainRender(), <div class='bklog-v3-item-info'></div>];
+    };
+
+    const getUnionBody = () => {
+      return (
+        <div class='content-body-multi'>
+          <div class='body'>{getSingleBody()}</div>
+          <div class='footer'>
+            <div class='row-lable'>
+              <div>
+                <i18n
+                  style='font-size: 12px; color: #4d4f56;'
+                  path='已选择{0}个索引集'
+                >
+                  <span style='color: #3A84FF; font-weight: 700;'>{props.value.length}</span>
+                </i18n>
+                , <span style='color: #3A84FF;font-size: 12px;cursor: pointer;'>清空选择</span>
+              </div>
+              <div>
+                <span
+                  class='bklog-icon bklog-lc-star-shape'
+                  style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
+                ></span>
+                <span style='font-size: 12px;color: #3A84FF;'>收藏该组合</span>
+              </div>
+            </div>
+            <div class='row-item-list'>
+              {valueList.value.map((item: any) => (
+                <span class='row-value-item'>
+                  {item.index_set_name}
+                  <span
+                    class='bklog-icon bklog-close'
+                    onClick={() => handleIndexSetItemCheck(item, false)}
+                  ></span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const getFilterRow = () => {
+      return (
+        <div class='bklog-v3-content-filter'>
+          <div class='bklog-v3-search-input'>
+            <bk-input
+              clearable
+              placeholder='请输入 索引集、采集项 搜索'
+              right-icon="'bk-icon icon-search'"
+              style='width: 650px; margin-right: 12px;'
+              value={searchText.value}
+              on-input={val => (searchText.value = val)}
+            ></bk-input>
+            <bk-checkbox
+              checked={hiddenEmptyItem.value}
+              true-value={true}
+              false-value={false}
+              on-change={handleHiddenEmptyItemChange}
+            >
+              <span class='hidden-empty-icon'></span>
+              <span>隐藏无数据</span>
+            </bk-checkbox>
+          </div>
+          <div class='bklog-v3-tag-list'>
+            {indexSetTagList.value.map(item => (
+              <span
+                class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
+                onClick={() => handleTagItemClick(item)}
+              >
+                {item.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    return () => (
+      <div class='bklog-v3-index-set-root'>
+        {getFilterRow()}
+        <div class='bklog-v3-content-list'>{props.type === 'single' ? getSingleBody() : getUnionBody()}</div>
+      </div>
+    );
   },
 });

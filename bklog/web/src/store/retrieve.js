@@ -77,6 +77,12 @@ export default {
       state.indexSetList = [];
       state.indexSetList.push(...payload);
     },
+    updateIndexSetItem(state, item) {
+      const index = state.indexSetList.findIndex(item => item.index_set_id === item.index_set_id);
+      if (index > -1) {
+        state.indexSetList.splice(index, 1, item);
+      }
+    },
     updateIndexSetLoading(state, payload) {
       state.isIndexSetLoading = payload;
     },

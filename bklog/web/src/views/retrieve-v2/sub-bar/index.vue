@@ -47,11 +47,7 @@
 
   // 索引集当前激活Tab
   const indexSetTab = computed(() => {
-    if (store.state.storage.indexSetActiveTab) {
-      return store.state.storage.indexSetActiveTab;
-    }
-
-    return indexSetType.value;
+    return store.state.storage.indexSetActiveTab ?? indexSetType.value;
   });
 
   const spaceUid = computed(() => store.state.spaceUid);

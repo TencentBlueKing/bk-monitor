@@ -1,5 +1,6 @@
 .bklog-v3-content-root {
   cursor: default;
+  width: 800px;
 
   .content-header {
     width: 100%;
@@ -83,130 +84,6 @@
           margin-left: 4px;
         }
       }
-    }
-  }
-
-  .bklog-v3-content-filter {
-    display: flex;
-    flex-direction: column;
-    padding: 8px 12px;
-    position: relative;
-
-    .bklog-v3-search-input {
-      display: flex;
-      align-items: center;
-
-      .hidden-empty-icon {
-        width: 8px;
-        height: 8px;
-        background: #ffdddd;
-        border: 1px solid #ea3636;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 2px;
-      }
-    }
-    .bklog-v3-tag-list {
-      display: flex;
-      align-items: center;
-      padding-top: 8px;
-
-      .tag-item {
-        padding: 0 8px;
-        height: 22px;
-        background: #f0f1f5;
-        border-radius: 2px;
-        font-size: 12px;
-        color: #4d4f56;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 4px;
-        cursor: pointer;
-
-        &.is-active {
-          background: #e1ecff;
-          border: 1px solid #a3c5fd;
-          color: #1768ef;
-        }
-      }
-    }
-  }
-
-  .bklog-v3-content-body {
-    min-height: 200px;
-    position: relative;
-    display: flex;
-    background: #fafcff;
-
-    .bklog-v3-content-list {
-      width: 490px;
-      max-height: 442px;
-      min-height: 150px;
-      overflow-y: auto;
-      padding-top: 6px;
-      padding-bottom: 12px;
-      border-right: solid 1px #dcdee5;
-    }
-
-    .bklog-v3-item-info {
-      width: 310px;
-      padding-top: 6px;
-      padding-bottom: 12px;
-    }
-
-    .content-body-multi {
-      width: 100%;
-
-      .body {
-        width: 100%;
-        display: flex;
-      }
-
-      .footer {
-        padding: 8px 12px;
-        border-top: solid 1px #dcdee5;
-        background: #fff;
-
-        .row-lable {
-          line-height: 20px;
-          font-size: 12px;
-          display: inline-flex;
-          width: 100%;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .row-item-list {
-          padding: 8px 0 12px 0;
-
-          .row-value-item {
-            padding: 2px 8px 4px 8px;
-            background: #f0f1f5;
-            border-radius: 2px;
-            font-size: 12px;
-            color: #4d4f56;
-            margin-right: 4px;
-            margin-top: 4px;
-
-            .bklog-icon {
-              margin-left: 4px;
-              cursor: pointer;
-            }
-          }
-        }
-      }
-    }
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 8px;
-      transform: scaleY(-1);
-      background-image: linear-gradient(180deg, #00000000 0%, #00000014 99%);
-      pointer-events: none;
     }
   }
 }

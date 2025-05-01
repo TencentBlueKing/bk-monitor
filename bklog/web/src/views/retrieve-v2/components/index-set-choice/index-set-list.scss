@@ -1,95 +1,220 @@
-.bklog-v3-index-set-list {
-  .index-set-item {
-    height: 32px;
-    line-height: 32px;
-    font-size: 12px;
-    color: #4d4f56;
+.bklog-v3-index-set-root {
+  width: 800px;
+
+  .bklog-v3-content-filter {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    padding-left: 3px;
+    flex-direction: column;
+    padding: 8px 12px;
+    position: relative;
 
-    .favorite-icon {
-      visibility: hidden;
+    .bklog-v3-search-input {
+      display: flex;
+      align-items: center;
 
-      &.is-favorite {
-        visibility: visible;
-        color: #f8b64f;
+      .hidden-empty-icon {
+        width: 8px;
+        height: 8px;
+        background: #ffdddd;
+        border: 1px solid #ea3636;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 2px;
       }
     }
+    .bklog-v3-tag-list {
+      display: flex;
+      align-items: center;
+      padding-top: 8px;
 
-    .group-icon {
-      padding: 2px;
-    }
-
-    .index-set-name {
-      position: relative;
-      padding-left: 12px;
-
-      &.no-data {
-        padding-left: 26px;
-        &::before {
-          content: '';
-          position: absolute;
-          width: 8px;
-          height: 8px;
-          background: #ffdddd;
-          border: 1px solid #ea3636;
-          left: 12px;
-          top: 4px;
-          border-radius: 50%;
-        }
-      }
-    }
-
-    .index-set-tags {
-      max-width: 200px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
-
-      .index-set-tag-item {
+      .tag-item {
+        padding: 0 8px;
         height: 22px;
-        display: inline-flex;
-        align-items: center;
-
         background: #f0f1f5;
         border-radius: 2px;
-        padding: 0 8px;
         font-size: 12px;
         color: #4d4f56;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin-right: 4px;
-      }
-    }
+        cursor: pointer;
 
-    &:hover {
-      background: #ebeff5;
-      color: #4d4f56;
-
-      .favorite-icon {
-        &:not(.is-favorite) {
-          visibility: visible;
-          color: #c4c6cc;
-        }
-      }
-
-      .index-set-tags {
-        .index-set-tag-item {
-          background: #ffffff;
+        &.is-active {
+          background: #e1ecff;
+          border: 1px solid #a3c5fd;
+          color: #1768ef;
         }
       }
     }
+  }
 
-    &.active {
-      background: #e1ecff;
-      color: #3a84ff;
+  .bklog-v3-content-list {
+    width: 100%;
+    padding-top: 6px;
+    position: relative;
+    display: flex;
+    background: #fafcff;
 
-      .index-set-tags {
-        .index-set-tag-item {
-          background: #ffffff;
+    .bklog-v3-index-set-list {
+      width: 490px;
+      max-height: 442px;
+      min-height: 150px;
+      overflow-y: auto;
+      border-right: solid 1px #dcdee5;
+
+      .index-set-item {
+        height: 32px;
+        line-height: 32px;
+        font-size: 12px;
+        color: #4d4f56;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding-left: 3px;
+
+        .favorite-icon {
+          visibility: hidden;
+
+          &.is-favorite {
+            visibility: visible;
+            color: #f8b64f;
+          }
+        }
+
+        .group-icon {
+          padding: 2px;
+        }
+
+        .index-set-name {
+          position: relative;
+          padding-left: 12px;
+
+          &.no-data {
+            padding-left: 26px;
+            &::before {
+              content: '';
+              position: absolute;
+              width: 8px;
+              height: 8px;
+              background: #ffdddd;
+              border: 1px solid #ea3636;
+              left: 12px;
+              top: 4px;
+              border-radius: 50%;
+            }
+          }
+        }
+
+        .index-set-tags {
+          max-width: 200px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+
+          .index-set-tag-item {
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+
+            background: #f0f1f5;
+            border-radius: 2px;
+            padding: 0 8px;
+            font-size: 12px;
+            color: #4d4f56;
+            margin-right: 4px;
+          }
+        }
+
+        &:hover {
+          background: #ebeff5;
+          color: #4d4f56;
+
+          .favorite-icon {
+            &:not(.is-favorite) {
+              visibility: visible;
+              color: #c4c6cc;
+            }
+          }
+
+          .index-set-tags {
+            .index-set-tag-item {
+              background: #ffffff;
+            }
+          }
+        }
+
+        &.active {
+          background: #e1ecff;
+          color: #3a84ff;
+
+          .index-set-tags {
+            .index-set-tag-item {
+              background: #ffffff;
+            }
+          }
         }
       }
+    }
+
+    .bklog-v3-item-info {
+      width: 310px;
+      padding-top: 6px;
+      padding-bottom: 12px;
+    }
+
+    .content-body-multi {
+      width: 100%;
+
+      .body {
+        width: 100%;
+        display: flex;
+      }
+
+      .footer {
+        padding: 8px 12px;
+        border-top: solid 1px #dcdee5;
+        background: #fff;
+
+        .row-lable {
+          line-height: 20px;
+          font-size: 12px;
+          display: inline-flex;
+          width: 100%;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .row-item-list {
+          padding: 8px 0 12px 0;
+
+          .row-value-item {
+            padding: 2px 8px 4px 8px;
+            background: #f0f1f5;
+            border-radius: 2px;
+            font-size: 12px;
+            color: #4d4f56;
+            margin-right: 4px;
+            margin-top: 4px;
+
+            .bklog-icon {
+              margin-left: 4px;
+              cursor: pointer;
+            }
+          }
+        }
+      }
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 8px;
+      transform: scaleY(-1);
+      background-image: linear-gradient(180deg, #00000000 0%, #00000014 99%);
+      pointer-events: none;
     }
   }
 }

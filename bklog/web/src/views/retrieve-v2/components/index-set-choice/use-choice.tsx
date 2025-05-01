@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { ref } from 'vue';
+import { computed, ComputedRef, ref } from 'vue';
 import $http from '../../../../api';
 import { messageError } from '@/common/bkmagic';
 export type IndexSetType = 'single' | 'union';
@@ -33,6 +33,38 @@ export default (props, { emit }) => {
   const singleHistoryList = ref([]);
   const unionHistoryList = ref([]);
   const historyLoading = ref(false);
+  const favoriteLoading = ref(false);
+
+  const unionFavoriteList = ref([]);
+  const singleFavoriteList = computed(() => {
+    if (props.type === 'single') {
+      return props.list.filter(item => item.is_favorite);
+    }
+
+    return [];
+  });
+
+  const favoriteList = computed(() => {
+    if (props.type === 'union') {
+      return unionFavoriteList.value;
+    }
+
+    return singleFavoriteList.value;
+  });
+
+  const indexSetTagList: ComputedRef<{ tag_id: number; name: string; color: string }[]> = computed(() => {
+    const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce((acc, item) => {
+      item.tags.forEach(tag => {
+        if (!acc.has(tag.tag_id)) {
+          acc.set(tag.tag_id, tag);
+        }
+      });
+
+      return acc;
+    }, new Map<number, { tag_id: number; name: string; color: string }>());
+
+    return Array.from(listMap.values());
+  });
 
   /**
    * 多选：选中操作
@@ -68,16 +100,16 @@ export default (props, { emit }) => {
    * @param space_uid
    * @returns
    */
-  const getHistoryList = (type: IndexSetType, space_uid: string) => {
+  const getHistoryList = () => {
     if (window?.__IS_MONITOR_TRACE__) {
       return;
     }
 
-    if (type === 'single' && singleHistoryList.value.length) {
+    if (props.type === 'single' && singleHistoryList.value.length) {
       return Promise.resolve(singleHistoryList);
     }
 
-    if (type === 'union' && unionHistoryList.value.length) {
+    if (props.type === 'union' && unionHistoryList.value.length) {
       return Promise.resolve(unionHistoryList);
     }
 
@@ -85,13 +117,13 @@ export default (props, { emit }) => {
     return $http
       .request('unionSearch/unionHistoryList', {
         data: {
-          space_uid,
-          index_set_type: type,
+          space_uid: props.spaceUid,
+          index_set_type: props.type,
         },
       })
       .then(res => {
         const result = res.data ?? [];
-        if (type === 'single') {
+        if (props.type === 'single') {
           singleHistoryList.value = result;
           return singleHistoryList;
         }
@@ -123,10 +155,19 @@ export default (props, { emit }) => {
     });
   };
 
+  /**
+   * 选中值改变抛出事件
+   * @param value
+   */
   const handleValueChange = (value: any) => {
     emit('value-change', value);
   };
 
+  /**
+   *  历史点击
+   * @param item
+   * @returns
+   */
   const handleHistoryItemClick = (item: any) => {
     if (props.type === 'single') {
       emit('value-change', [`${item.index_set_id}`]);
@@ -182,12 +223,105 @@ export default (props, { emit }) => {
       });
   };
 
+  const getUnionFavoriteList = () => {
+    if (props.type === 'union' && unionFavoriteList.value.length > 0) {
+      return Promise.resolve(unionFavoriteList.value);
+    }
+
+    favoriteLoading.value = true;
+
+    $http
+      .request('unionSearch/unionFavoriteList', {
+        params: {
+          space_uid: props.spaceUid,
+        },
+      })
+      .then(res => {
+        if (res.result) {
+          unionFavoriteList.value = res.data;
+          return unionFavoriteList.value;
+        }
+
+        messageError(res.message);
+        return [];
+      })
+      .finally(() => {
+        favoriteLoading.value = false;
+      });
+  };
+
+  /**
+   *  获取收藏列表
+   * @returns
+   */
+  const getFavoriteList = () => {
+    if (props.type === 'single') {
+      return Promise.resolve(singleFavoriteList.value);
+    }
+
+    return getUnionFavoriteList();
+  };
+
+  const cancelSingleFavorite = (item: any) => {
+    return $http.request('indexSet/cancelMark', {
+      params: {
+        index_set_id: item.index_set_id,
+      },
+    });
+  };
+
+  const cancelUnionFavorite = (item: any) => {
+    return $http.request('unionSearch/unionDeleteFavorite', {
+      params: {
+        favorite_union_id: item.id,
+      },
+    });
+  };
+
+  const cancelFavorite = (item: any) => {
+    favoriteLoading.value = true;
+
+    if (props.type === 'single') {
+      return cancelSingleFavorite(item)
+        .then(resp => {
+          if (resp.result) {
+            item.is_favorite = false;
+            return;
+          }
+
+          messageError(resp.message);
+        })
+        .finally(() => {
+          favoriteLoading.value = false;
+        });
+    }
+
+    return cancelUnionFavorite(item)
+      .then(resp => {
+        if (resp.result) {
+          const index = unionFavoriteList.value.findIndex(child => item.id === child.id);
+          unionFavoriteList.value.splice(index, 1);
+          return;
+        }
+
+        messageError(resp.message);
+      })
+      .finally(() => {
+        favoriteLoading.value = false;
+      });
+  };
+
   return {
     handleIndexSetItemCheck,
     getHistoryList,
+    getFavoriteList,
     handleDeleteHistory,
     handleHistoryItemClick,
     handleValueChange,
+    cancelFavorite,
+    indexSetTagList,
+    favoriteList,
     historyLoading,
+    favoriteLoading,
   };
 };

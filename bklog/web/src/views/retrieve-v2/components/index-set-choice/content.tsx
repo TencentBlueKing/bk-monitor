@@ -26,15 +26,14 @@
 
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
-import useIndexSet from './use-index-set';
 import IndexSetList from './index-set-list';
 import './content.scss';
 import useChoice, { IndexSetType } from './use-choice';
-import HistoryList from './history-list';
+import CommonList from './common-list';
 
 export default defineComponent({
   props: {
-    indexSetList: {
+    list: {
       type: Array,
       default: () => [],
     },
@@ -62,52 +61,19 @@ export default defineComponent({
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
     const { $t } = useLocale();
-
-    const hiddenEmptyItem = ref(true);
-
-    const tagItem = ref({
-      tag_id: undefined,
-      name: undefined,
-      color: undefined,
-    });
-
-    const searchText = ref('');
     const historyList = ref([]);
 
-    const list = computed(() => props.indexSetList);
-
-    const { indexSetTagList } = useIndexSet({ indexSetList: list });
     const {
-      handleIndexSetItemCheck,
       getHistoryList,
+      getFavoriteList,
       handleHistoryItemClick,
       handleValueChange,
       handleDeleteHistory,
+      cancelFavorite,
       historyLoading,
+      favoriteLoading,
+      favoriteList,
     } = useChoice(props, { emit });
-
-    const noDataReg = /^No\sData$/i;
-    const filterList = computed(() =>
-      props.indexSetList
-        .filter((item: any) => {
-          if (tagItem.value.tag_id === undefined) {
-            return true;
-          }
-
-          return item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
-        })
-        .filter((item: any) => {
-          if (hiddenEmptyItem.value) {
-            return (
-              !item.tags.some(tag => noDataReg.test(tag.name)) && item.index_set_name.indexOf(searchText.value) !== -1
-            );
-          }
-
-          return item.index_set_name.indexOf(searchText.value) !== -1;
-        }),
-    );
-
-    const valueList = computed(() => props.indexSetList.filter((item: any) => props.value.includes(item.index_set_id)));
 
     const handleDeleteHistoryItem = item => {
       handleDeleteHistory(item).then(resp => {
@@ -117,104 +83,84 @@ export default defineComponent({
       });
     };
 
-    const renderContentBody = () => {
-      return [
+    const indexSetActiveId = computed(() => {
+      if (['union', 'single'].includes(props.activeId)) {
+        return props.activeId;
+      }
+
+      return props.type;
+    });
+
+    const renderIndexSetList = () => {
+      return (
         <IndexSetList
-          class='bklog-v3-content-list'
-          list={filterList.value}
-          type={props.type}
+          list={props.list}
+          type={indexSetActiveId.value}
           value={props.value}
           textDir={props.textDir}
           on-value-change={handleValueChange}
-        ></IndexSetList>,
-        <div class='bklog-v3-item-info'></div>,
-      ];
-    };
-
-    const renderMultiContentBody = () => {
-      return (
-        <div class='content-body-multi'>
-          <div class='body'>{renderContentBody()}</div>
-          <div class='footer'>
-            <div class='row-lable'>
-              <div>
-                <i18n
-                  style='font-size: 12px; color: #4d4f56;'
-                  path='已选择{0}个索引集'
-                >
-                  <span style='color: #3A84FF; font-weight: 700;'>{props.value.length}</span>
-                </i18n>
-                , <span style='color: #3A84FF;font-size: 12px;cursor: pointer;'>清空选择</span>
-              </div>
-              <div>
-                <span
-                  class='bklog-icon bklog-lc-star-shape'
-                  style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
-                ></span>
-                <span style='font-size: 12px;color: #3A84FF;'>收藏该组合</span>
-              </div>
-            </div>
-            <div class='row-item-list'>
-              {valueList.value.map((item: any) => (
-                <span class='row-value-item'>
-                  {item.index_set_name}
-                  <span
-                    class='bklog-icon bklog-close'
-                    onClick={() => handleIndexSetItemCheck(item, false)}
-                  ></span>
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
+        ></IndexSetList>
       );
     };
 
     const renderHistoryList = () => (
-      <HistoryList
+      <CommonList
         list={historyList.value}
         isLoading={historyLoading.value}
+        type='history'
         on-value-click={handleHistoryItemClick}
         on-delete={handleDeleteHistoryItem}
-      ></HistoryList>
+      ></CommonList>
+    );
+
+    const renderFavoriteList = () => (
+      <CommonList
+        list={favoriteList.value}
+        isLoading={favoriteLoading.value}
+        showDelItem={false}
+        type='favorite'
+        itemIcon={{
+          color: '#F8B64F',
+          onClick: (e, item) => {
+            e.stopPropagation();
+            cancelFavorite(item);
+          },
+        }}
+      ></CommonList>
     );
 
     const tabList = computed(() => [
-      { name: $t('单选'), id: 'single', render: renderContentBody },
-      { name: $t('多选'), id: 'union', render: renderMultiContentBody },
+      { name: $t('单选'), id: 'single', render: renderIndexSetList },
+      { name: $t('多选'), id: 'union', render: renderIndexSetList },
       { name: $t('历史记录'), id: 'history', render: renderHistoryList },
-      { name: $t('我的收藏'), id: 'favorite' },
+      { name: $t('我的收藏'), id: 'favorite', render: renderFavoriteList },
     ]);
 
     const activeTab = computed(() => tabList.value.find(item => item.id === props.activeId));
 
-    const handleHiddenEmptyItemChange = (val: boolean) => {
-      hiddenEmptyItem.value = val;
-    };
-
     const handleTabItemClick = (e: MouseEvent, item: { name: string; id: string }) => {
       if (item.id === 'history') {
-        getHistoryList(props.type, props.spaceUid).then(resp => {
+        getHistoryList().then(resp => {
           historyList.value = resp;
         });
       }
-      emit('type-change', item.id);
-    };
 
-    const handleTagItemClick = (tag: { tag_id: number; name: string; color: string }) => {
-      if (tagItem.value.tag_id === tag.tag_id) {
-        Object.assign(tagItem.value, { tag_id: undefined, name: undefined, color: '' });
-        return;
+      if (item.id === 'favorite') {
+        getFavoriteList();
       }
 
-      Object.assign(tagItem.value, tag);
+      emit('type-change', item.id);
     };
 
     onMounted(() => {
       if (props.activeId === 'history') {
-        getHistoryList(props.type, props.spaceUid).then(resp => {
+        getHistoryList().then(resp => {
           historyList.value = resp;
         });
+      }
+
+      if (props.activeId === 'favorite') {
+        getFavoriteList();
       }
     });
 
@@ -248,39 +194,7 @@ export default defineComponent({
             </span>
           </div>
         </div>
-        <div class='bklog-v3-content-filter'>
-          <div class='bklog-v3-search-input'>
-            <bk-input
-              clearable
-              placeholder='请输入 索引集、采集项 搜索'
-              right-icon="'bk-icon icon-search'"
-              style='width: 650px; margin-right: 12px;'
-              value={searchText.value}
-              on-input={val => (searchText.value = val)}
-            ></bk-input>
-            <bk-checkbox
-              checked={hiddenEmptyItem.value}
-              true-value={true}
-              false-value={false}
-              on-change={handleHiddenEmptyItemChange}
-            >
-              <span class='hidden-empty-icon'></span>
-              <span>隐藏无数据</span>
-            </bk-checkbox>
-          </div>
-          <div class='bklog-v3-tag-list'>
-            {indexSetTagList.value.map(item => (
-              <span
-                class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
-                onClick={() => handleTagItemClick(item)}
-              >
-                {item.name}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div class='bklog-v3-content-body'>{activeTab.value.render?.()}</div>
+        {activeTab.value.render?.()}
       </div>
     );
   },

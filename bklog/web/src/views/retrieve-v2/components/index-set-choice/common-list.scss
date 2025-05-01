@@ -1,10 +1,10 @@
-.bklog-v3-index-set-history {
+.bklog-v3-index-set-common-list {
   padding: 12px 0;
   background: #ffffff;
   min-height: 200px;
   width: 100%;
 
-  .history-header {
+  .common-header {
     font-size: 12px;
     color: #4d4f56;
     height: 20px;
@@ -13,6 +13,7 @@
     justify-content: space-between;
     padding: 0 12px;
     align-items: center;
+    margin-bottom: 8px;
 
     .bklog-icon {
       color: #3a84ff;
@@ -22,8 +23,8 @@
     }
   }
 
-  .history-list {
-    .history-row {
+  .common-list {
+    .common-row {
       height: 32px;
       display: flex;
       align-items: center;
