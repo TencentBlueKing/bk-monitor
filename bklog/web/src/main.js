@@ -82,18 +82,6 @@ const mountedVueInstance = router => {
         App,
       },
       template: '<App/>',
-      mounted() {
-        const bkBizId = this.$store.state.bkBizId;
-        const spaceUid = this.$store.state.spaceUid;
-
-        this.$router.replace({
-          query: {
-            ...this.$route.query,
-            bizId: bkBizId,
-            spaceUid: spaceUid,
-          },
-        });
-      },
     });
   });
 };
@@ -108,6 +96,7 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
+    window.IS_EXTERNAL = true;
     window.bus = bus;
     const router = getRouter();
 

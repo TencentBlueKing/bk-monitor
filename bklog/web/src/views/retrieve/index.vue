@@ -602,13 +602,19 @@
     },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
-    },
-    // beforeUnmount() {
-    //   updateTimezone();
-    //   this.$store.commit('updateUnionIndexList', []);
-    //   window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
 
-    // },
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
+        query: {
+          bizId: bkBizId,
+          spaceUid: spaceUid,
+          ...this.$route.query,
+        },
+      });
+    },
+
     beforeDestroy() {
       this.isInDestroy = true;
       updateTimezone();
