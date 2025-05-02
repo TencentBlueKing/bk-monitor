@@ -135,35 +135,6 @@ export default () => {
   };
 
   setSearchMode();
-  // 解析默认URL为前端参数
-  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
-
-  const setDefaultIndexsetId = () => {
-    if (!route.params.indexId) {
-      const routeParams = store.getters.retrieveParams;
-
-      const resolver = new RetrieveUrlResolver({
-        ...routeParams,
-        datePickerValue: store.state.indexItem.datePickerValue,
-      });
-
-      if (store.getters.isUnionSearch) {
-        router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
-        return;
-      }
-
-      if (store.state.indexId) {
-        router.replace({
-          params: { indexId: store.state.indexId },
-          query: {
-            ...route.query,
-            ...resolver.resolveParamsToUrl(),
-          },
-        });
-      }
-    }
-  };
 
   /**
    * 拉取索引集列表
@@ -175,18 +146,14 @@ export default () => {
         isPreApiLoaded.value = true;
         RetrieveHelper.setSearchingValue(true);
 
-        // 拉取完毕根据当前路由参数回填默认选中索引集
-        store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-          setDefaultIndexsetId();
-          const type = route.params.indexId ? 'single' : 'union';
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+        const type = route.params.indexId ? 'single' : 'union';
+        RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
 
-          store.dispatch('requestIndexSetFieldInfo').then(() => {
-            store.dispatch('requestIndexSetQuery').then(() => {
-              RetrieveHelper.setSearchingValue(false);
-            });
-            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        store.dispatch('requestIndexSetFieldInfo').then(() => {
+          store.dispatch('requestIndexSetQuery').then(() => {
+            RetrieveHelper.setSearchingValue(false);
           });
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         });
       });
   };
@@ -200,8 +167,6 @@ export default () => {
     getIndexSetList();
     store.dispatch('requestFavoriteList');
   };
-
-  handleSpaceIdChange();
 
   watch(spaceUid, () => {
     handleSpaceIdChange();
@@ -271,6 +236,7 @@ export default () => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
+    getIndexSetList();
   });
 
   onUnmounted(() => {

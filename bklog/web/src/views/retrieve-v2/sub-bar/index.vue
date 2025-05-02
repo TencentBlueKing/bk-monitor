@@ -169,7 +169,7 @@
     store.commit('updateStorage', { indexSetActiveTab: type });
 
     if (['union', 'single'].includes(type)) {
-      RetrieveHelper.setIndexsetId(indexSetParams.value.ids, type);
+      // RetrieveHelper.setIndexsetId(indexSetParams.value.ids, type);
       store.commit('updateIndexItem', {
         isUnionIndex: type === 'union',
       });

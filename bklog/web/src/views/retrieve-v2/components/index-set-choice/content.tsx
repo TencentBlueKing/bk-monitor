@@ -57,6 +57,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    zIndex: {
+      type: Number,
+      default: 101,
+    },
   },
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
@@ -70,10 +74,30 @@ export default defineComponent({
       handleValueChange,
       handleDeleteHistory,
       cancelFavorite,
+      favoriteIndexSet,
       historyLoading,
       favoriteLoading,
       favoriteList,
+      unionListValue,
     } = useChoice(props, { emit });
+
+    /**
+     * 当前选中的索引集
+     * 根据type判断，如果当前是single，判断value是否只有一个
+     * 如果只有一个，返回这个值，否则说明是从多选Tab切换到单选，此时返回空数组
+     * 如果是union，返回 unionListValue
+     */
+    const currentValue = computed(() => {
+      if (props.type === 'single') {
+        if (props.value.length > 1) {
+          return [];
+        }
+
+        return props.value;
+      }
+
+      return unionListValue.value;
+    });
 
     const handleDeleteHistoryItem = item => {
       handleDeleteHistory(item).then(resp => {
@@ -81,6 +105,15 @@ export default defineComponent({
           historyList.value = resp;
         }
       });
+    };
+
+    const handleFavoriteItemClick = item => {
+      if (props.type === 'single') {
+        handleValueChange([`${item.index_set_id}`]);
+        return;
+      }
+
+      handleValueChange(item.index_set_ids.map(id => `${id}`));
     };
 
     const indexSetActiveId = computed(() => {
@@ -91,14 +124,25 @@ export default defineComponent({
       return props.type;
     });
 
+    const handleFavoriteChange = (args, isFavorite = true) => {
+      if (isFavorite) {
+        favoriteIndexSet(args);
+        return;
+      }
+
+      cancelFavorite(args);
+    };
+
     const renderIndexSetList = () => {
       return (
         <IndexSetList
           list={props.list}
           type={indexSetActiveId.value}
-          value={props.value}
+          value={currentValue.value}
           textDir={props.textDir}
+          spaceUid={props.spaceUid}
           on-value-change={handleValueChange}
+          on-favorite-change={handleFavoriteChange}
         ></IndexSetList>
       );
     };
@@ -107,7 +151,10 @@ export default defineComponent({
       <CommonList
         list={historyList.value}
         isLoading={historyLoading.value}
+        value={currentValue.value}
         type='history'
+        idField={props.type === 'single' ? 'index_set_id' : 'id'}
+        nameField={props.type === 'single' ? 'index_set_name' : 'index_set_names'}
         on-value-click={handleHistoryItemClick}
         on-delete={handleDeleteHistoryItem}
       ></CommonList>
@@ -119,6 +166,10 @@ export default defineComponent({
         isLoading={favoriteLoading.value}
         showDelItem={false}
         type='favorite'
+        idField={props.type === 'single' ? 'index_set_id' : 'id'}
+        nameField={props.type === 'single' ? 'index_set_name' : 'name'}
+        on-delete={() => alert('API not support')}
+        on-value-click={handleFavoriteItemClick}
         itemIcon={{
           color: '#F8B64F',
           onClick: (e, item) => {
@@ -165,7 +216,10 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='bklog-v3-content-root'>
+      <div
+        class='bklog-v3-content-root'
+        style={{ zIndex: props.zIndex }}
+      >
         <div class='content-header'>
           <div class='bklog-v3-tabs'>
             {tabList.value.map(item => (

@@ -25,7 +25,37 @@
  */
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import VueRouter from 'vue-router';
+import RouteUrlResolver from './url-resolver';
+import { RouteParams } from './store.type';
+
 const DEFAULT_FIELDS_WIDTH = 200;
+const getUrlArgs = () => {
+  const router = new VueRouter({
+    routes: [
+      {
+        path: '',
+        redirect: 'retrieve',
+        meta: {
+          title: '检索',
+          navId: 'retrieve',
+        },
+      },
+      {
+        name: 'retrieve',
+        path: '/retrieve/:indexId?',
+      },
+    ],
+  });
+
+  const hash = window.location.hash.replace(/^#/, '');
+  const route = router.resolve(hash);
+  const urlResulver = new RouteUrlResolver({ route: route.resolved });
+  urlResulver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+  return urlResulver.convertQueryToStore<RouteParams>();
+};
+
+export const URL_ARGS = getUrlArgs();
 
 export const getDefaultRetrieveParams = () => {
   return {
@@ -39,6 +69,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    ...URL_ARGS,
   };
 };
 
@@ -101,11 +132,11 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: [],
-  isUnionIndex: false,
+  ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
+  isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
-  selectIsUnionSearch: false,
+  selectIsUnionSearch: URL_ARGS.unionList?.length ?? false,
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',

@@ -31,7 +31,7 @@ import { Props } from 'tippy.js';
 import Content from './content';
 
 import './index.scss';
-import { IndexSetType } from './use-choice';
+import { IndexSetTabList, IndexSetType } from './use-choice';
 
 export default defineComponent({
   props: {
@@ -62,7 +62,7 @@ export default defineComponent({
     },
     // 单选-single | 联合索引-union | history-历史记录 | favorite-收藏
     activeTab: {
-      type: String,
+      type: String as PropType<IndexSetTabList>,
       default: 'single',
     },
     // 索引集值
@@ -87,20 +87,34 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    zIndex: {
+      type: Number,
+      default: 101,
+    },
   },
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
     const isOpened = ref(false);
     const refRootElement: Ref<HTMLElement | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
+
+    let unionListValue = [];
+
     const tippyOptions: Props = {
       hideOnClick: false,
       arrow: false,
+      zIndex: props.zIndex,
+      appendTo: document.body,
+
       onShow: () => {
         isOpened.value = true;
       },
       onHide: () => {
         isOpened.value = false;
+
+        if (props.activeType === 'union') {
+          emit('value-change', unionListValue);
+        }
       },
     } as any;
 
@@ -114,15 +128,32 @@ export default defineComponent({
     });
 
     const selectedValues = computed(() =>
-      props.indexSetValue.map(v => props.indexSetList.find((i: any) => i.index_set_id === v)),
+      props.indexSetValue
+        .map(v => props.indexSetList.find((i: any) => i.index_set_id === v))
+        .filter(c => c !== undefined),
     );
 
     const handleTabChange = (type: string) => {
       emit('type-change', type);
     };
 
+    /**
+     * 处理索引选中事件
+     * @param value
+     * @returns
+     */
     const handleValueChange = (value: any) => {
-      emit('value-change', value);
+      // 如果是单选操作直接抛出事件
+      if (['single', 'history', 'favorite'].includes(props.activeTab)) {
+        emit('value-change', value);
+        return;
+      }
+
+      // 如果是联合索引操作，暂时缓存选中结果
+      // 在弹出关闭时抛出事件，触发外部事件监听
+      if (props.activeTab === 'union') {
+        unionListValue = value;
+      }
     };
 
     return () => {
@@ -145,6 +176,7 @@ export default defineComponent({
                   value={props.indexSetValue}
                   spaceUid={props.spaceUid}
                   activeId={props.activeTab}
+                  zIndex={props.zIndex}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
                 ></Content>

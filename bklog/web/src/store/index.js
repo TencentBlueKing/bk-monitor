@@ -57,6 +57,7 @@ import {
   getDefaultRetrieveParams,
   getStorageOptions,
   BkLogGlobalStorageKey,
+  URL_ARGS,
 } from './default-values.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
@@ -82,12 +83,12 @@ const stateTpl = {
   iframeQuery: {},
   // 当前项目及Id
   space: {},
-  spaceUid: '',
-  indexId: '',
+  spaceUid: URL_ARGS.spaceUid ?? '',
+  indexId: URL_ARGS.index_id ?? '',
   indexItem: { ...IndexItem },
   operatorDictionary: {},
   /** 联合查询ID列表 */
-  unionIndexList: [],
+  unionIndexList: URL_ARGS.union_index_list ?? [],
   /** 联合查询元素列表 */
   unionIndexItemList: [],
 
@@ -109,7 +110,7 @@ const stateTpl = {
   },
   traceIndexId: '',
   // 业务Id
-  bkBizId: '',
+  bkBizId: URL_ARGS.bizId ?? '',
   // 我的项目列表
   mySpaceList: [],
   currentMenu: {},
@@ -961,21 +962,21 @@ const store = new Vuex.Store({
      */
     updateIndexItemByRoute({ commit, state }, { route, list = [] }) {
       const ids = [];
-      let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
       const resolver = new RouteUrlResolver({ route });
       const result = resolver.convertQueryToStore();
+      let isUnionIndex = result?.unionList?.length;
 
-      if ((result?.unionList?.length ?? 0) > 0) {
-        isUnionIndex = true;
-        ids.push(...result?.unionList);
-        commit('updateUnionIndexList', ids);
-      } else {
-        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
-        if (indexId) {
-          ids.push(indexId);
-        }
-      }
+      // if ((result?.unionList?.length ?? 0) > 0) {
+      //   isUnionIndex = true;
+      //   ids.push(...result?.unionList);
+      //   commit('updateUnionIndexList', ids);
+      // } else {
+      //   const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
+      //   if (indexId) {
+      //     ids.push(indexId);
+      //   }
+      // }
 
       if (!isUnionIndex && !ids.length && list?.length) {
         ids.push(getStorageIndexItem(list));

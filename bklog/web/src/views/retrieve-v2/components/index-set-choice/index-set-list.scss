@@ -161,6 +161,9 @@
       width: 310px;
       padding-top: 6px;
       padding-bottom: 12px;
+      max-height: 442px;
+      min-height: 150px;
+      overflow-y: auto;
     }
 
     .content-body-multi {
@@ -195,6 +198,7 @@
             color: #4d4f56;
             margin-right: 4px;
             margin-top: 4px;
+            display: inline-block;
 
             .bklog-icon {
               margin-left: 4px;

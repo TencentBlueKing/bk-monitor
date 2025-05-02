@@ -28,13 +28,14 @@
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
+import { Route } from 'vue-router';
 
 class RouteUrlResolver {
   private route;
   private resolver: Map<string, (str) => unknown>;
   private resolveFieldList: string[];
 
-  constructor({ route, resolveFieldList }) {
+  constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
     this.resolver = new Map<string, (str) => unknown>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
@@ -96,6 +97,10 @@ class RouteUrlResolver {
       'ip_chooser',
       'search_mode',
       'clusterParams',
+      'bizId',
+      'spaceUid',
+      'format',
+      'index_id',
     ];
   }
 

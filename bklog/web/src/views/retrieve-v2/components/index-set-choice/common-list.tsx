@@ -41,6 +41,15 @@ export default defineComponent({
       type: String,
       default: 'history',
     },
+    idField: {
+      type: String,
+      default: 'id',
+    },
+    nameField: {
+      type: String,
+      default: 'name',
+    },
+
     itemIcon: {
       type: Object,
       default: () => ({
@@ -52,6 +61,10 @@ export default defineComponent({
     showDelItem: {
       type: Boolean,
       default: true,
+    },
+    value: {
+      type: Array,
+      default: () => [],
     },
   },
   emits: ['delete', 'value-click', 'icon-click'],
@@ -67,6 +80,10 @@ export default defineComponent({
         delLable: '清空收藏',
         itemIcon: 'bklog-lc-star-shape',
       },
+    });
+
+    const stringValue = computed(() => {
+      return props.value.map(v => `${v}`);
     });
 
     const activeMap = computed(() => {
@@ -90,11 +107,15 @@ export default defineComponent({
       emit('delete', item);
     };
 
+    const isActiveItem = (item: any) => {
+      return stringValue.value.includes(`${item[props.idField]}`);
+    };
+
     const listItemRender = (item: any) => {
-      if (item.index_set_names !== undefined) {
+      if (Array.isArray(item?.[props.nameField])) {
         return (
           <div
-            class='common-row multi'
+            class={['common-row multi', { active: isActiveItem(item) }]}
             onClick={() => handleItemClick(item)}
           >
             <span class='row-left'>
@@ -106,7 +127,7 @@ export default defineComponent({
                 onClick={e => handleItemIconClick(e, item)}
               ></span>
               <span class='row-item-list'>
-                {item.index_set_names.map(name => (
+                {item[props.nameField].map(name => (
                   <span class='row-item'>{name}</span>
                 ))}
               </span>
@@ -123,7 +144,7 @@ export default defineComponent({
 
       return (
         <div
-          class='common-row single'
+          class={['common-row single', { active: isActiveItem(item) }]}
           onClick={() => handleItemClick(item)}
         >
           <span class='row-left'>
@@ -134,7 +155,7 @@ export default defineComponent({
               }}
               onClick={e => handleItemIconClick(e, item)}
             ></span>
-            <span class='row-item'>{item.index_set_name}</span>
+            <span class='row-item'>{item[props.nameField]}</span>
           </span>
           {props.showDelItem && (
             <span
@@ -162,7 +183,7 @@ export default defineComponent({
     return () => (
       <div
         class='bklog-v3-index-set-common-list'
-        v-bkloading={{ isLoading: props.isLoading }}
+        v-bkloading={{ isLoading: props.isLoading, size: 'mini' }}
       >
         <div class='common-header'>
           <span>

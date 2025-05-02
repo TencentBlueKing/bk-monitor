@@ -2,7 +2,7 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver'
 import { useRoute, useRouter } from 'vue-router/composables';
 import useStore from '@/hooks/use-store';
 import $http from '@/api';
-import { ConsitionItem } from '../../store/condition-operator';
+import { ConsitionItem } from '../../store/store.type';
 
 export default () => {
   const store = useStore();

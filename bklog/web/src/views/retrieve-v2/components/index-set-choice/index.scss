@@ -20,7 +20,6 @@
 
     .index-set-value-item {
       display: inline-block;
-      max-width: 140px;
       text-overflow: ellipsis;
       white-space: nowrap;
       overflow: hidden;
@@ -40,6 +39,10 @@
 
     .indexset-value-list {
       text-overflow: inherit;
+
+      .index-set-value-item {
+        max-width: 140px;
+      }
     }
   }
 

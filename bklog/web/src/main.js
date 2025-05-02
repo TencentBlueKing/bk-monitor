@@ -82,18 +82,6 @@ const mountedVueInstance = router => {
         App,
       },
       template: '<App/>',
-      mounted() {
-        const bkBizId = this.$store.state.bkBizId;
-        const spaceUid = this.$store.state.spaceUid;
-
-        this.$router.replace({
-          query: {
-            ...this.$route.query,
-            bizId: bkBizId,
-            spaceUid: spaceUid,
-          },
-        });
-      },
     });
   });
 };

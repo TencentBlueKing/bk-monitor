@@ -24,16 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, ref } from 'vue';
+import { computed, ComputedRef, nextTick, ref } from 'vue';
 import $http from '../../../../api';
 import { messageError } from '@/common/bkmagic';
 export type IndexSetType = 'single' | 'union';
+export type IndexSetTabList = 'single' | 'union' | 'history' | 'favorite';
 
 export default (props, { emit }) => {
   const singleHistoryList = ref([]);
   const unionHistoryList = ref([]);
   const historyLoading = ref(false);
   const favoriteLoading = ref(false);
+
+  // 联合查询本地存储数据
+  const unionListValue = ref(props.value);
 
   const unionFavoriteList = ref([]);
   const singleFavoriteList = computed(() => {
@@ -51,48 +55,6 @@ export default (props, { emit }) => {
 
     return singleFavoriteList.value;
   });
-
-  const indexSetTagList: ComputedRef<{ tag_id: number; name: string; color: string }[]> = computed(() => {
-    const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce((acc, item) => {
-      item.tags.forEach(tag => {
-        if (!acc.has(tag.tag_id)) {
-          acc.set(tag.tag_id, tag);
-        }
-      });
-
-      return acc;
-    }, new Map<number, { tag_id: number; name: string; color: string }>());
-
-    return Array.from(listMap.values());
-  });
-
-  /**
-   * 多选：选中操作
-   * @param item
-   * @param value
-   */
-  const handleIndexSetItemCheck = (item, value) => {
-    const targetValue = [];
-
-    // 如果是选中
-    if (value) {
-      props.value.forEach((v: any) => {
-        targetValue.push(v);
-      });
-      targetValue.push(item.index_set_id);
-      emit('value-change', targetValue);
-      return;
-    }
-
-    // 如果是取消选中
-    props.value.forEach((v: any) => {
-      if (v !== item.index_set_id) {
-        targetValue.push(v);
-      }
-    });
-
-    emit('value-change', targetValue);
-  };
 
   /**
    * 获取历史列表
@@ -160,6 +122,7 @@ export default (props, { emit }) => {
    * @param value
    */
   const handleValueChange = (value: any) => {
+    unionListValue.value = value;
     emit('value-change', value);
   };
 
@@ -170,14 +133,13 @@ export default (props, { emit }) => {
    */
   const handleHistoryItemClick = (item: any) => {
     if (props.type === 'single') {
+      unionListValue.value = [`${item.index_set_id}`];
       emit('value-change', [`${item.index_set_id}`]);
       return;
     }
 
-    emit(
-      'value-change',
-      item.index_set_ids.map(id => `${id}`),
-    );
+    unionListValue.value = item.index_set_ids.map(id => `${id}`);
+    emit('value-change', unionListValue.value);
   };
 
   /**
@@ -223,6 +185,10 @@ export default (props, { emit }) => {
       });
   };
 
+  /**
+   * 联合查询：获取收藏列表
+   * @returns
+   */
   const getUnionFavoriteList = () => {
     if (props.type === 'union' && unionFavoriteList.value.length > 0) {
       return Promise.resolve(unionFavoriteList.value);
@@ -262,6 +228,11 @@ export default (props, { emit }) => {
     return getUnionFavoriteList();
   };
 
+  /**
+   * 单选取消收藏
+   * @param item
+   * @returns
+   */
   const cancelSingleFavorite = (item: any) => {
     return $http.request('indexSet/cancelMark', {
       params: {
@@ -270,6 +241,11 @@ export default (props, { emit }) => {
     });
   };
 
+  /**
+   * 联合查询取消收藏
+   * @param item
+   * @returns
+   */
   const cancelUnionFavorite = (item: any) => {
     return $http.request('unionSearch/unionDeleteFavorite', {
       params: {
@@ -278,6 +254,11 @@ export default (props, { emit }) => {
     });
   };
 
+  /**
+   *  取消收藏
+   * @param item
+   * @returns
+   */
   const cancelFavorite = (item: any) => {
     favoriteLoading.value = true;
 
@@ -311,17 +292,64 @@ export default (props, { emit }) => {
       });
   };
 
+  /**
+   * 联合查询收藏
+   * @param name
+   */
+  const unionFavoriteGroup = (name: string) => {
+    return $http
+      .request('unionSearch/unionCreateFavorite', {
+        data: {
+          name,
+          space_uid: props.spaceUid,
+          index_set_ids: unionListValue.value,
+        },
+      })
+      .then(resp => {
+        if (resp.result) {
+          if (unionFavoriteList.value.length > 0) {
+            if (!unionFavoriteList.value.some(item => item.id === resp.data.id)) {
+              unionFavoriteList.value.push(resp.data);
+            }
+          }
+        }
+      });
+  };
+
+  /** 单选情况下的收藏 */
+  const singleFavorite = item => {
+    $http
+      .request('/indexSet/mark', {
+        params: {
+          index_set_id: item.index_set_id,
+        },
+      })
+      .then(() => {
+        item.is_favorite = true;
+      });
+  };
+
+  const favoriteIndexSet = (args: string | any) => {
+    if (props.activeId === 'single') {
+      return singleFavorite(args);
+    }
+
+    if (props.activeId === 'union') {
+      return unionFavoriteGroup(args);
+    }
+  };
+
   return {
-    handleIndexSetItemCheck,
     getHistoryList,
     getFavoriteList,
     handleDeleteHistory,
     handleHistoryItemClick,
     handleValueChange,
     cancelFavorite,
-    indexSetTagList,
+    favoriteIndexSet,
     favoriteList,
     historyLoading,
     favoriteLoading,
+    unionListValue,
   };
 };

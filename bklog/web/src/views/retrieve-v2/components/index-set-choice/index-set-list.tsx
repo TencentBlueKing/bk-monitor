@@ -28,7 +28,10 @@ import { computed, defineComponent, ref } from 'vue';
 import './index-set-list.scss';
 
 import * as authorityMap from '../../../../common/authority-map';
-import useChoice from './use-choice';
+import BklogPopover from '../../../../components/bklog-popover';
+import useLocale from '@/hooks/use-locale';
+import useIndexSetList from './use-index-set-list';
+import ObjectView from '../../../../components/object-view';
 
 export default defineComponent({
   props: {
@@ -48,13 +51,23 @@ export default defineComponent({
       type: String,
       default: 'ltr',
     },
+    spaceUid: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['value-change'],
+  emits: ['value-change', 'favorite-change'],
   setup(props, { emit }) {
-    const { handleIndexSetItemCheck, indexSetTagList } = useChoice(props, { emit });
+    const { indexSetTagList, clearAllValue, handleIndexSetItemCheck } = useIndexSetList(props, { emit });
+
+    const { $t } = useLocale();
 
     const hiddenEmptyItem = ref(true);
     const searchText = ref('');
+    const refFavoriteItemName = ref(null);
+    const favoriteFormData = ref({
+      name: '',
+    });
 
     const tagItem = ref({
       tag_id: undefined,
@@ -85,6 +98,18 @@ export default defineComponent({
         }),
     );
 
+    const activeValueItems = computed(() => {
+      return props.value.map((item: any) => {
+        return props.list.find((indexSet: any) => indexSet.index_set_id === item);
+      });
+    });
+
+    const objectShowList = [
+      { fieldName: 'index_set_name', label: $t('索引集名称') },
+      { fieldName: 'index_set_id', label: $t('索引集ID') },
+      { fieldName: 'index_set_id', label: $t('关联采集项') },
+    ];
+
     /**
      * 索引集选中操作
      * @param e
@@ -93,10 +118,35 @@ export default defineComponent({
     const handleIndexSetItemClick = (e: MouseEvent, item: any) => {
       if (props.type === 'single') {
         emit('value-change', [item.index_set_id]);
+        return;
+      }
+
+      if (props.type === 'union') {
+        handleIndexSetItemCheck(item, !props.value.includes(`${item.index_set_id}`));
       }
     };
 
-    const handleFavoriteClick = (e: MouseEvent, item: any) => {};
+    const handleFavoriteClick = (e: MouseEvent, item: any) => {
+      e.stopPropagation();
+      emit('favorite-change', item, !item.is_favorite);
+    };
+
+    /**
+     * 收藏该组合操作
+     * @param e
+     */
+    const handleFavoriteGroupClick = (e: MouseEvent) => {
+      e.stopPropagation();
+
+      if (favoriteFormData.value.name === '') {
+        refFavoriteItemName.value.validator.state = 'error';
+        refFavoriteItemName.value.validator.content = '收藏名称不能为空';
+        return;
+      }
+
+      emit('favorite-change', favoriteFormData.value.name, true);
+    };
+
     const handleHiddenEmptyItemChange = (val: boolean) => {
       hiddenEmptyItem.value = val;
     };
@@ -110,6 +160,16 @@ export default defineComponent({
       Object.assign(tagItem.value, tag);
     };
 
+    const handleDeleteCheckedItem = (e: MouseEvent, item) => {
+      e.stopPropagation();
+      handleIndexSetItemCheck(item, false);
+    };
+
+    const handleClearValues = (e: MouseEvent) => {
+      e.stopPropagation();
+      clearAllValue();
+    };
+
     const getCheckBoxRender = item => {
       if (props.type === 'single') {
         return null;
@@ -119,7 +179,7 @@ export default defineComponent({
         <bk-checkbox
           style='margin-right: 4px'
           checked={props.value.includes(item.index_set_id)}
-          on-change={value => handleIndexSetItemCheck(item, value)}
+          // on-change={value => handleIndexSetItemCheck(item, value)}
         ></bk-checkbox>
       );
     };
@@ -140,10 +200,12 @@ export default defineComponent({
                 onClick={e => handleIndexSetItemClick(e, item)}
               >
                 <div dir={props.textDir}>
-                  <span
-                    class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
-                    onClick={e => handleFavoriteClick(e, item)}
-                  ></span>
+                  {props.type === 'single' && (
+                    <span
+                      class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
+                      onClick={e => handleFavoriteClick(e, item)}
+                    ></span>
+                  )}
                   <span class='group-icon'></span>
 
                   <bdi
@@ -166,7 +228,18 @@ export default defineComponent({
     };
 
     const getSingleBody = () => {
-      return [getMainRender(), <div class='bklog-v3-item-info'></div>];
+      return [
+        getMainRender(),
+        <div class='bklog-v3-item-info'>
+          {activeValueItems.value.map((item: any) => (
+            <ObjectView
+              object={item}
+              showList={objectShowList}
+              labelWidth={120}
+            ></ObjectView>
+          ))}
+        </div>,
+      ];
     };
 
     const getUnionBody = () => {
@@ -182,15 +255,61 @@ export default defineComponent({
                 >
                   <span style='color: #3A84FF; font-weight: 700;'>{props.value.length}</span>
                 </i18n>
-                , <span style='color: #3A84FF;font-size: 12px;cursor: pointer;'>清空选择</span>
+                ,{' '}
+                <span
+                  style='color: #3A84FF;font-size: 12px;cursor: pointer;'
+                  onClick={handleClearValues}
+                >
+                  {$t('清空选择')}
+                </span>
               </div>
-              <div>
+              <BklogPopover
+                trigger='click'
+                {...{
+                  scopedSlots: {
+                    content: () => (
+                      <bk-form
+                        label-width={200}
+                        form-type='vertical'
+                        style='padding: 16px; width: 300px;'
+                      >
+                        <bk-form-item
+                          label={$t('收藏名称')}
+                          required={true}
+                          property='name'
+                          ref={refFavoriteItemName}
+                        >
+                          <bk-input
+                            value={favoriteFormData.value.name}
+                            on-change={val => (favoriteFormData.value.name = val)}
+                          ></bk-input>
+                        </bk-form-item>
+                        <bk-form-item style='text-align: right;'>
+                          <bk-button
+                            style='margin-right: 3px;'
+                            theme='primary'
+                            onClick={handleFavoriteGroupClick}
+                          >
+                            {$t('确定')}
+                          </bk-button>
+                          <bk-button
+                            ext-cls='mr5'
+                            theme='default'
+                          >
+                            {$t('取消')}
+                          </bk-button>
+                        </bk-form-item>
+                      </bk-form>
+                    ),
+                  },
+                }}
+              >
                 <span
                   class='bklog-icon bklog-lc-star-shape'
                   style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
                 ></span>
-                <span style='font-size: 12px;color: #3A84FF;'>收藏该组合</span>
-              </div>
+                <span style='font-size: 12px;color: #3A84FF;'>{$t('收藏该组合')}</span>
+              </BklogPopover>
             </div>
             <div class='row-item-list'>
               {valueList.value.map((item: any) => (
@@ -198,7 +317,7 @@ export default defineComponent({
                   {item.index_set_name}
                   <span
                     class='bklog-icon bklog-close'
-                    onClick={() => handleIndexSetItemCheck(item, false)}
+                    onClick={e => handleDeleteCheckedItem(e, item)}
                   ></span>
                 </span>
               ))}
@@ -234,7 +353,7 @@ export default defineComponent({
             {indexSetTagList.value.map(item => (
               <span
                 class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
-                onClick={() => handleTagItemClick(item)}
+                onClick={e => handleTagItemClick(item)}
               >
                 {item.name}
               </span>

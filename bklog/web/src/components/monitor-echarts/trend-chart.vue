@@ -213,7 +213,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isLoading }"
+    v-bkloading="{ isLoading: isLoading, zIndex: 10, size: 'mini' }"
     class="monitor-echart-wrap"
   >
     <div
