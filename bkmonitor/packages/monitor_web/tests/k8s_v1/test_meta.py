@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import re
 
 import pytest
 
@@ -74,5 +75,19 @@ class TestFilterCollection:
 
     def test_filter_queryset(self):
         meta = load_resource_meta("pod", 2, "BCS-K8S-00000")
-        query_orm = 'SELECT `bkmonitor_bcspod`.`id`, `bkmonitor_bcspod`.`bk_biz_id`, `bkmonitor_bcspod`.`bcs_cluster_id`, `bkmonitor_bcspod`.`name`, `bkmonitor_bcspod`.`namespace`, `bkmonitor_bcspod`.`workload_type`, `bkmonitor_bcspod`.`workload_name` FROM `bkmonitor_bcspod` WHERE (`bkmonitor_bcspod`.`bcs_cluster_id` = BCS-K8S-00000 AND `bkmonitor_bcspod`.`bk_biz_id` = 2) ORDER BY `bkmonitor_bcspod`.`id` ASC'  # noqa
-        assert str(meta.filter.filter_queryset.query) == query_orm
+        query_orm = """SELECT
+            `bkmonitor_bcspod`.`id`,
+            `bkmonitor_bcspod`.`bk_biz_id`,
+            `bkmonitor_bcspod`.`bcs_cluster_id`,
+            `bkmonitor_bcspod`.`name`,
+            `bkmonitor_bcspod`.`namespace`,
+            `bkmonitor_bcspod`.`workload_type`,
+            `bkmonitor_bcspod`.`workload_name`
+        FROM
+            `bkmonitor_bcspod`
+        WHERE
+            (`bkmonitor_bcspod`.`bcs_cluster_id` = BCS-K8S-00000
+                AND `bkmonitor_bcspod`.`bk_biz_id` = 2)
+        ORDER BY
+            `bkmonitor_bcspod`.`id` ASC"""
+        assert str(meta.filter.filter_queryset.query) == re.sub(r"\n\s+", " ", query_orm)

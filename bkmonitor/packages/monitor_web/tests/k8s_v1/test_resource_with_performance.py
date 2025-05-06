@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from unittest import mock
+
 import pytest
 
 from monitor_web.k8s.resources import (
@@ -97,7 +98,21 @@ class TestResourceTrendResourceWithPerformance:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="bkbase"}[1m])[1m:]))'    # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (namespace) (
+          last_over_time(
+            rate(
+              container_cpu_usage_seconds_total{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                namespace="bkbase"
+              }[1m]
+            )[1m:]
+          )
+        )
+        ```
         """
         name = "bkbase"
         create_namespace(name)
@@ -178,7 +193,23 @@ class TestResourceTrendResourceWithPerformance:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (workload_kind, workload_name, namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",workload_kind="Deployment",workload_name="bk-datalink-transfer-default",namespace="blueking"}[1m])[1m:]))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (workload_kind, workload_name, namespace) (
+          last_over_time(
+            rate(
+              container_cpu_usage_seconds_total{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                namespace="blueking",
+                workload_kind="Deployment",
+                workload_name="bk-datalink-transfer-default"
+              }[1m]
+            )[1m:]
+          )
+        )
+        ```
         """
 
         name = "blueking|Deployment:bk-datalink-transfer-default"
@@ -226,7 +257,11 @@ class TestResourceTrendResourceWithPerformance:
                         "workload_kind": "Deployment",
                         "workload_name": "bk-datalink-transfer-default",
                     },
-                    "target": "{namespace=blueking, workload_kind=Deployment, workload_name=bk-datalink-transfer-default}",  # noqa
+                    "target": """{
+                        namespace=blueking,
+                        workload_kind=Deployment,
+                        workload_name=bk-datalink-transfer-default
+                    }""",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -265,7 +300,20 @@ class TestResourceTrendResourceWithPerformance:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",pod_name="python-backend--0--session-default---experiment-clear-backbvcgm"}[1m])[1m:]))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (workload_kind, workload_name, namespace, pod_name) (
+          last_over_time(
+            rate(
+              container_cpu_usage_seconds_total{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                pod_name="python-backend--0--session-default---experiment-clear-backbvcgm"
+              }[1m]
+            )[1m:]
+          )
+        )        ```
         """
 
         name = "python-backend--0--session-default---experiment-clear-backbvcgm"
@@ -315,7 +363,12 @@ class TestResourceTrendResourceWithPerformance:
                         "workload_kind": "Deployment",
                         "workload_name": "python-backend--0--session-default---experiment-clear-backend---owned",
                     },
-                    "target": "{namespace=aiops-default, pod_name=python-backend--0--session-default---experiment-clear-backbvcgm, workload_kind=Deployment, workload_name=python-backend--0--session-default---experiment-clear-backend---owned}",  # noqa
+                    "target": """{
+                        namespace=aiops-default,
+                        pod_name=python-backend--0--session-default---experiment-clear-backbvcgm,
+                        workload_kind=Deployment,
+                        workload_name=python-backend--0--session-default---experiment-clear-backend---owned
+                    }""",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -352,7 +405,21 @@ class TestResourceTrendResourceWithPerformance:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",container_name="aiops"}[1m])[1m:]))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (workload_kind, workload_name, namespace, container_name, pod_name) (
+          last_over_time(
+            rate(
+              container_cpu_usage_seconds_total{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                container_name="aiops"
+              }[1m]
+            )[1m:]
+          )
+        )
+        ```
         """
 
         name = "aiops"
@@ -404,7 +471,13 @@ class TestResourceTrendResourceWithPerformance:
                         "workload_kind": "Deployment",
                         "workload_name": "python-backend--0--session-default---experiment-clear-backend---owned",
                     },
-                    "target": "{container_name=aiops, namespace=aiops-default, pod_name=python-backend--0--session-default---experiment-clear-backbvcgm, workload_kind=Deployment, workload_name=python-backend--0--session-default---experiment-clear-backend---owned}",  # noqa
+                    "target": """{
+                        container_name=aiops,
+                        namespace=aiops-default,
+                        pod_name=python-backend--0--session-default---experiment-clear-backbvcgm,
+                        workload_kind=Deployment,
+                        workload_name=python-backend--0--session-default---experiment-clear-backend---owned
+                    }""",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -499,7 +572,7 @@ class TestListK8SResourcesWithPerformance:
                 for name in mock_namespace_names
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_workload_exclude_history(self):
@@ -531,7 +604,7 @@ class TestListK8SResourcesWithPerformance:
             "count": 425,
             "items": [{"workload": f"Deployment:{name}"} for name in workload_names],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_pod_exclude_history(self):
@@ -603,7 +676,7 @@ class TestListK8SResourcesWithPerformance:
                 for pod, namespace, workload_type, workload_name in mock_pods
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_container_exclude_history(self):
@@ -636,7 +709,7 @@ class TestListK8SResourcesWithPerformance:
             "count": 400,
             "items": [{"container": item} for item in mock_containers],
         }
-        resutlt = ListK8SResources()(validated_request_data)  # noqa
+        resutlt = ListK8SResources()(validated_request_data)
         assert mock_result["items"] == resutlt["items"]
 
     def test_next_page_namespace_exclude_history(self):
@@ -1142,7 +1215,21 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据的 workload 列表
 
-        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          10,
+          sum by (workload_kind, workload_name, namespace) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD"
+              }[1m:]
+            )
+          )
+        )
+        ```
         """
         mock_workload_list = [
             ("bkbase", "StatefulSet", "bkbase-clean-outer-inland-bcs1"),
@@ -1181,7 +1268,11 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload_kind,
                         "workload_name": workload_name,
                     },
-                    "target": f"{{namespace={namespace}, workload_kind={workload_kind}, workload_name={workload_name}}}",  # noqa
+                    "target": f"""{{
+                        namespace={namespace},
+                        workload_kind={workload_kind},
+                        workload_name={workload_name}
+                    }}""",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -1210,7 +1301,22 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据和过滤条件的 workload 列表
 
-        PromQL: 'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default"}[1m:])))'  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          10,
+          sum by (workload_kind, workload_name, namespace) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                namespace="aiops-default"
+              }[1m:]
+            )
+          )
+        )
+        ```
         """
         namespace = "aiops-default"
         mock_workload_list = [
@@ -1219,7 +1325,7 @@ class TestListK8SResourcesWithPerformance:
             ("Deployment", "service--0--session-default---incident-status-tracker---owned"),
             (
                 "Deployment",
-                "service--0--session-default---scene-service-period-scene-application-status-metrics-upload-session---owned",  # noqa
+                "service--0--session-default---scene-service-period-scene-session---owned",
             ),
             ("Deployment", "service--0--session-default-api-serving-2-metric-recommendation-owned"),
             ("Deployment", "service--1--session-default-api-serving-2-metric-recommendation-owned"),
@@ -1264,7 +1370,12 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload_kind,
                         "workload_name": workload_name,
                     },
-                    "target": f"{{namespace={namespace}, workload_kind={workload_kind}, workload_name={workload_name}}}",  # noqa
+                    "target": f"""{{
+                        namespace={namespace}, 
+                        workload_kind={workload_kind},
+                        workload_name={workload_name}
+                    }}
+                    """,
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -1284,7 +1395,21 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据的 pod 列表
 
-        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          10,
+          sum by (workload_kind, workload_name, namespace, pod_name) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD"
+              }[1m:]
+            )
+          )
+        )
+        ```
         """
         mock_pod_list = [
             ("bcs-bkcmdb-synchronizer-0", "bcs-system", "StatefulSet:bcs-bkcmdb-synchronizer"),
@@ -1351,7 +1476,12 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload.split(":")[0],
                         "workload_name": workload.split(":")[1],
                     },
-                    "target": f"{{namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "target": f"""{{
+                        namespace={namespace},
+                        pod_name={pod},
+                        workload_kind={workload.split(":")[0]},
+                        workload_name={workload.split(":")[1]}}}
+                    """,
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -1371,7 +1501,23 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据和过滤条件的 pod 列表
 
-        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bcs-system',workload_kind='Deployment',workload_name='bcs-services-stack-bk-micro-gateway'}[1m:])))"  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          10,
+          sum by (workload_kind, workload_name, namespace, pod_name) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                namespace="bcs-system",
+                workload_kind="Deployment",
+                workload_name="bcs-services-stack-bk-micro-gateway"
+              }[1m:]
+            )
+          )
+        )
         """
         mock_pod_list = [
             (
@@ -1425,7 +1571,12 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload.split(":")[0],
                         "workload_name": workload.split(":")[1],
                     },
-                    "target": f"{{namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "target": f"""{{
+                        namespace={namespace},
+                        pod_name={pod},
+                        workload_kind={workload.split(":")[0]},
+                        workload_name={workload.split(":")[1]}}}
+                    """,
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -1445,7 +1596,21 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据的 container 列表
 
-        PromQL: "topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))"  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          10,
+          sum by (workload_kind, workload_name, namespace, container_name, pod_name) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD"
+              }[1m:]
+            )
+          )
+        )
+        ```
         """
         mock_container_list = [
             (
@@ -1548,7 +1713,13 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload.split(":")[0],
                         "workload_name": workload.split(":")[1],
                     },
-                    "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "target": f"""{{
+                        container_name={container},
+                        namespace={namespace},
+                        pod_name={pod},
+                        workload_kind={workload.split(":")[0]},
+                        workload_name={workload.split(":")[1]}}}
+                    """,
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",
@@ -1569,7 +1740,24 @@ class TestListK8SResourcesWithPerformance:
         """
         查询带历史数据和过滤条件的 container 列表
 
-        PromQL: "topk(40, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time (container_memory_working_set_bytes{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD',namespace='bkbase',container_name='queryengine',pod_name='bkbase-queryengine-bkmonitor-6f495fd54-pfjpq'}[1m:])))"  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          40,
+          sum by (workload_kind, workload_name, namespace, container_name, pod_name) (
+            last_over_time(
+              container_memory_working_set_bytes{
+                bcs_cluster_id="BCS-K8S-00000",
+                bk_biz_id="2",
+                container_name!="POD",
+                container_name="queryengine",
+                namespace="bkbase",
+                pod_name="bkbase-queryengine-bkmonitor-6f495fd54-pfjpq"
+              }[1m:]
+            )
+          )
+        )
+        ```
         """
         mock_container_list = [
             (
@@ -1621,7 +1809,13 @@ class TestListK8SResourcesWithPerformance:
                         "workload_kind": workload.split(":")[0],
                         "workload_name": workload.split(":")[1],
                     },
-                    "target": f"{{container_name={container}, namespace={namespace}, pod_name={pod}, workload_kind={workload.split(':')[0]}, workload_name={workload.split(':')[1]}}}",  # noqa
+                    "target": f"""{{
+                        container_name={container}, 
+                        namespace={namespace}, 
+                        pod_name={pod}, 
+                        workload_kind={workload.split(":")[0]}, 
+                        workload_name={workload.split(":")[1]}}}
+                    """,
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",

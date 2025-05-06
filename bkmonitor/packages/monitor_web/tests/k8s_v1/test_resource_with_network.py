@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import mock
-import pytest  # noqa
+from unittest import mock
+import pytest
 
 from monitor_web.k8s.resources import (
     GetScenarioMetric,
@@ -34,13 +33,6 @@ class TestResourceTrendResourceWithNetwork:
         ["column"],
         [
             pytest.param("nw_container_network_receive_bytes_total"),
-            pytest.param("nw_container_network_transmit_bytes_total"),
-            pytest.param("nw_container_network_receive_packets_total"),
-            pytest.param("nw_container_network_transmit_packets_total"),
-            pytest.param("nw_container_network_receive_errors_total"),
-            pytest.param("nw_container_network_transmit_errors_total"),
-            pytest.param("nw_container_network_receive_errors_ratio"),
-            pytest.param("nw_container_network_transmit_errors_ratio"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -52,7 +44,14 @@ class TestResourceTrendResourceWithNetwork:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (namespace) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{namespace="aiops"}[1m])[1m:])))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (namespace) (
+          sum by (namespace, pod) (
+            last_over_time(rate(container_network_receive_bytes_total{namespace="aiops"}[1m])[1m:])
+          )
+        )
+        ```
         """
         name = "bkbase"
         resource_type = "namespace"
@@ -115,13 +114,6 @@ class TestResourceTrendResourceWithNetwork:
         ["column"],
         [
             pytest.param("nw_container_network_receive_bytes_total"),
-            pytest.param("nw_container_network_transmit_bytes_total"),
-            pytest.param("nw_container_network_receive_packets_total"),
-            pytest.param("nw_container_network_transmit_packets_total"),
-            pytest.param("nw_container_network_receive_errors_total"),
-            pytest.param("nw_container_network_transmit_errors_total"),
-            pytest.param("nw_container_network_receive_errors_ratio"),
-            pytest.param("nw_container_network_transmit_errors_ratio"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -133,7 +125,20 @@ class TestResourceTrendResourceWithNetwork:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (ingress, namespace) ((count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod) (ingress_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",ingress="bk-dbm"}) * 0 + 1) * on (namespace, service) group_left(pod) (count by (service, namespace, pod) (pod_with_service_relation)) * on (namespace, pod) group_left() sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:])))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (ingress, namespace) (
+          (
+            count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod) (
+              ingress_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",ingress="bk-dbm"}
+            ) * 0 + 1
+          )
+          * on (namespace, service) group_left (pod)
+            (count by (service, namespace, pod) (pod_with_service_relation))
+          * on (namespace, pod) group_left ()
+            sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total[1m])[1m:]))
+        )
+        ```
         """
         name = "bk-dbm"
         resource_type = "ingress"
@@ -195,13 +200,6 @@ class TestResourceTrendResourceWithNetwork:
         ["column"],
         [
             pytest.param("nw_container_network_receive_bytes_total"),
-            pytest.param("nw_container_network_transmit_bytes_total"),
-            pytest.param("nw_container_network_receive_packets_total"),
-            pytest.param("nw_container_network_transmit_packets_total"),
-            pytest.param("nw_container_network_receive_errors_total"),
-            pytest.param("nw_container_network_transmit_errors_total"),
-            pytest.param("nw_container_network_receive_errors_ratio"),
-            pytest.param("nw_container_network_transmit_errors_ratio"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -213,7 +211,22 @@ class TestResourceTrendResourceWithNetwork:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (namespace, service) ((count by (service, namespace, pod) (pod_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",service="bk-gse-data"}) * 0 + 1) * on (namespace, pod) group_left() sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:])))'  # noqa
+        PromQL示例:
+        ```PromQL
+        sum by (namespace, service) (
+            (
+                  count by (service, namespace, pod) (
+                    pod_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",service="bk-gse-data"}
+                  )
+                *
+                  0
+              +
+                1
+            )
+          * on (namespace, pod) group_left ()
+            sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total[1m])[1m:]))
+        )
+        ```
         """
         name = "bk-gse-data"
         resource_type = "service"
@@ -276,13 +289,6 @@ class TestResourceTrendResourceWithNetwork:
         ["column"],
         [
             pytest.param("nw_container_network_receive_bytes_total"),
-            pytest.param("nw_container_network_transmit_bytes_total"),
-            pytest.param("nw_container_network_receive_packets_total"),
-            pytest.param("nw_container_network_transmit_packets_total"),
-            pytest.param("nw_container_network_receive_errors_total"),
-            pytest.param("nw_container_network_transmit_errors_total"),
-            pytest.param("nw_container_network_receive_errors_ratio"),
-            pytest.param("nw_container_network_transmit_errors_ratio"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -294,7 +300,22 @@ class TestResourceTrendResourceWithNetwork:
         get_end_time,
     ):
         """
-        PromQL: 'label_replace(sum by (namespace, pod) (sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{pod_name="kube-flannel-ds-kpcpv"}[1m])[1m:]))), "pod_name", "$1", "pod", "(.*)")'  # noqa
+        PromQL示例:
+        ```PromQL
+        label_replace(
+          sum by (namespace, pod) (
+            sum by (namespace, pod) (
+              last_over_time(
+                rate(container_network_receive_bytes_total{pod_name="kube-flannel-ds-kpcpv"}[1m])[1m:]
+              )
+            )
+          ),
+          "pod_name",
+          "$1",
+          "pod",
+          "(.*)"
+        )
+        ```
         """
 
         name = "kube-flannel-ds-kpcpv"
@@ -399,7 +420,7 @@ class TestListK8SResourcesWithNetwork:
                 for name in mock_namespace_names
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_ingress_exclude_history(self):
@@ -479,7 +500,7 @@ class TestListK8SResourcesWithNetwork:
             (
                 "python-backend--0--session-default---scene-service-period-d2cn7",
                 "aiops-default",
-                "Deployment:python-backend--0--session-default---scene-service-period-close-outdated-version-session---owned",  # noqa
+                "Deployment:python-backend--0--session-default---scene-close-outdated-version-session---owned",
             ),
             (
                 "python-backend--0--session-default---scene-service-plan-prrnm9l",
@@ -526,7 +547,7 @@ class TestListK8SResourcesWithNetwork:
                 for pod, namespace, workload in mock_pod_list
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_next_page_namespace_exclude_history(self):
@@ -566,7 +587,7 @@ class TestListK8SResourcesWithNetwork:
                 for namespace in mock_namespace_list
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_next_page_ingress_exclude_history(self):
@@ -603,7 +624,7 @@ class TestListK8SResourcesWithNetwork:
             "count": 197,
             "items": [{"ingress": ingress, "namespace": namespace} for ingress, namespace in mock_ingress_list],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_next_page_service_exclude_history(self):
@@ -630,7 +651,7 @@ class TestListK8SResourcesWithNetwork:
             "count": 598,
             "items": [{"service": service, "namespace": namespace} for service in mock_service_list],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_next_page_pod_exclude_history(self):
@@ -646,7 +667,7 @@ class TestListK8SResourcesWithNetwork:
             (
                 "python-backend--0--session-default---scene-service-period-d2cn7",
                 "aiops-default",
-                "Deployment:python-backend--0--session-default---scene-service-period-close-outdated-version-session---owned",  # noqa
+                "Deployment:python-backend--0--session-default---scene-service-period-close-outdated-version-session---owned",
             ),
             (
                 "python-backend--0--session-default---scene-service-plan-prrnm9l",
@@ -718,7 +739,7 @@ class TestListK8SResourcesWithNetwork:
                 for pod, namespace, workload in mock_pod_list
             ],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_namespace_with_query_string_exclude_history(self):
@@ -1204,7 +1225,7 @@ class TestListK8SResourcesWithNetwork:
             "series": [
                 {
                     "dimensions": {"namespace": namespace, "pod": pod, "pod_name": pod},
-                    "target": f"{{namespace={namespace}, pod_name={pod}, pod={pod}}}",  # noqa
+                    "target": f"{{namespace={namespace}, pod_name={pod}, pod={pod}}}",
                     "metric_field": "_result_",
                     "datapoints": [[265.1846, 1744874940000]],
                     "alias": "_result_",

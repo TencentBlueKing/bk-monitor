@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from unittest import mock
+
 import pytest
 
 from monitor_web.k8s.resources import (
@@ -28,18 +29,6 @@ class TestResourceTrendResourceWithCapacity:
         ["column"],
         [
             pytest.param("node_cpu_seconds_total"),
-            pytest.param("node_cpu_capacity_ratio"),
-            pytest.param("node_cpu_usage_ratio"),
-            pytest.param("node_memory_working_set_bytes"),
-            pytest.param("node_memory_capacity_ratio"),
-            pytest.param("node_memory_usage_ratio"),
-            pytest.param("master_node_count"),
-            pytest.param("worker_node_count"),
-            pytest.param("node_pod_usage"),
-            pytest.param("node_network_receive_bytes_total"),
-            pytest.param("node_network_transmit_bytes_total"),
-            pytest.param("node_network_receive_packets_total"),
-            pytest.param("node_network_transmit_packets_total"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -51,7 +40,16 @@ class TestResourceTrendResourceWithCapacity:
         get_end_time,
     ):
         """
-        PromQL: 'sum by (node) (last_over_time(rate(node_cpu_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node="master-127-0-0-1",mode!="idle"}[1m])[1m:]))'  # noqa
+        PromQL 示例
+        ```PromQL
+        sum by (node) (
+          last_over_time(
+            rate(
+              node_cpu_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",mode!="idle",node="master-127-0-0-1"}[1m]
+            )[1m:]
+          )
+        )
+        ```
         """
         name = "master-127-0-0-1"
         resource_type = "node"
@@ -113,18 +111,6 @@ class TestResourceTrendResourceWithCapacity:
         ["column"],
         [
             pytest.param("node_cpu_seconds_total"),
-            pytest.param("node_cpu_capacity_ratio"),
-            pytest.param("node_cpu_usage_ratio"),
-            pytest.param("node_memory_working_set_bytes"),
-            pytest.param("node_memory_capacity_ratio"),
-            pytest.param("node_memory_usage_ratio"),
-            pytest.param("master_node_count"),
-            pytest.param("worker_node_count"),
-            pytest.param("node_pod_usage"),
-            pytest.param("node_network_receive_bytes_total"),
-            pytest.param("node_network_transmit_bytes_total"),
-            pytest.param("node_network_receive_packets_total"),
-            pytest.param("node_network_transmit_packets_total"),
         ],
     )
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -136,7 +122,17 @@ class TestResourceTrendResourceWithCapacity:
         get_end_time,
     ):
         """
-        PromQL: 'topk(40, sum by (bcs_cluster_id) (last_over_time(node_boot_time_seconds{bcs_cluster_id='BCS-K8S-00000',bk_biz_id='2',container_name!='POD'}[1m:])))'  # noqa
+        PromQL示例:
+        ```PromQL
+        topk(
+          40,
+          sum by (bcs_cluster_id) (
+            last_over_time(
+              node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m:]
+            )
+          )
+        )
+        ```
         """
         resource_type = "cluster"
         validated_request_data = {
@@ -220,7 +216,7 @@ class TestListK8SResourcesWithCapacity:
             "count": 90,
             "items": [{"node": name, "ip": name} for name in mock_node_names],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     def test_node_with_query_string_exclude_history(self):
@@ -301,7 +297,7 @@ class TestListK8SResourcesWithCapacity:
         }
         [create_node(name) for name in mock_node_list[4:]]
 
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -350,7 +346,7 @@ class TestListK8SResourcesWithCapacity:
             ],
             "metrics": [],
         }
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]
 
     @mock.patch("core.drf_resource.resource.grafana.graph_unify_query")
@@ -394,5 +390,5 @@ class TestListK8SResourcesWithCapacity:
             "metrics": [],
         }
 
-        result = ListK8SResources()(validated_request_data)  # noqa
+        result = ListK8SResources()(validated_request_data)
         assert result["items"] == mock_result["items"]

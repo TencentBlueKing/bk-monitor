@@ -32,7 +32,22 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - column = container_memory_working_set_bytes
         (
@@ -40,7 +55,20 @@ class TestPromQL:
             "container_memory_working_set_bytes",
             {},
             "",
-            'topk(10, sum by (namespace) (last_over_time(container_memory_working_set_bytes{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace) (
+                last_over_time(
+                  container_memory_working_set_bytes{
+                    bcs_cluster_id="BCS-K8S-00000",
+                    bk_biz_id="2",
+                    container_name!="POD"
+                  }[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {namespace: ["aiops-default"]}
         (
@@ -48,7 +76,23 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {"namespace": ["aiops-default"]},
             "",
-            'topk(10, sum by (namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      namespace="aiops-default"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # workload
         # - nothing
@@ -57,7 +101,22 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"workload": "Deployment:"}
         (
@@ -65,7 +124,23 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {"workload": "Deployment:"},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",workload_kind="Deployment"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      workload_kind="Deployment"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"namespace": ["aiops-default"], "workload": ["Deployment:agent-plugin--web"]}
         (
@@ -73,7 +148,25 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {"namespace": ["aiops-default"], "workload": ["Deployment:agent-plugin--web"]},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default",workload_kind="Deployment",workload_name="agent-plugin--web"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      namespace="aiops-default",
+                      workload_kind="Deployment",
+                      workload_name="agent-plugin--web"
+                    }[1m]
+                  )[1m:]
+                )
+              )* -1
+            ) * -1
+            """,
         ),
         # - query_dict = "Deployment:"
         (
@@ -81,7 +174,23 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {},
             "Deployment:",
-            'topk(10, sum by (workload_kind, workload_name, namespace) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",workload_name=~"Deployment:"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      workload_name=~"Deployment:"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # pod
         # - nothing
@@ -90,9 +199,28 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace, pod_name) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
-        # - filter_dict = {{"namespace": "aiops-default"],"workload": ["Deployment:agent-plugin--web"], "pod": ["pod-1", "pod-2"]}}  # noqa
+        # - filter_dict = {
+        #     "namespace": ["aiops-default"],
+        #     "workload": ["Deployment:agent-plugin--web"],
+        #     "pod": ["pod-1", "pod-2"]
+        # }
         (
             "pod",
             PERFORMANCE_DEFAULT_COLUMN,
@@ -100,12 +228,31 @@ class TestPromQL:
                 "namespace": ["aiops-default"],
                 "workload": ["Deployment:agent-plugin--web"],
                 "pod": [
-                    "python-backend--0--session-default---experiment-clear-backbvcgm",
-                    "python-backend--0--session-default---scene-service-period-d2cn7",
+                    "experiment-clear-backbvcgm",
+                    "scene-service-period-d2cn7",
                 ],
             },
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",namespace="aiops-default",workload_kind="Deployment",workload_name="agent-plugin--web",pod_name=~"^(python-backend--0--session-default---experiment-clear-backbvcgm|python-backend--0--session-default---scene-service-period-d2cn7)$"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace, pod_name) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      namespace="aiops-default",
+                      workload_kind="Deployment",
+                      workload_name="agent-plugin--web",
+                      pod_name=~"^(experiment-clear-backbvcgm|scene-service-period-d2cn7)$"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # container
         # - nothing
@@ -114,7 +261,22 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace, container_name, pod_name) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # -filter_dict = {"container": ["aiops", "apisix"]}
         (
@@ -122,7 +284,23 @@ class TestPromQL:
             PERFORMANCE_DEFAULT_COLUMN,
             {"container": ["aiops", "apisix"]},
             "",
-            'topk(10, sum by (workload_kind, workload_name, namespace, container_name, pod_name) (last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",container_name=~"^(aiops|apisix)$"}[1m])[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (workload_kind, workload_name, namespace, container_name, pod_name) (
+                last_over_time(
+                  rate(
+                    container_cpu_usage_seconds_total{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      container_name!="POD",
+                      container_name=~"^(aiops|apisix)$"
+                    }[1m]
+                  )[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
     ]
 
@@ -134,7 +312,14 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {},
             "",
-            "topk(10, sum by (namespace) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1",  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace) (
+                sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"namespace": ["aiops-default", "bcs-op"]}
         (
@@ -142,7 +327,20 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {"namespace": ["aiops-default", "bcs-op"]},
             "",
-            'topk(10, sum by (namespace) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{namespace=~"^(aiops-default|bcs-op)$"}[1m])[1m:]))) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace) (
+                sum by (namespace, pod) (
+                  last_over_time(
+                    rate(container_network_receive_bytes_total{
+                      namespace=~"^(aiops-default|bcs-op)$"
+                    }[1m])[1m:]
+                  )
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # ingress
         # - nothing
@@ -151,7 +349,25 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (ingress, namespace) ((count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)(ingress_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}) * 0 + 1)* on (namespace, service) group_left(pod)(count by (service, namespace, pod) (pod_with_service_relation))* on (namespace, pod) group_left()sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (ingress, namespace) (
+                (
+                  count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod) (
+                    ingress_with_service_relation{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2"
+                    }
+                  ) * 0 + 1
+                )
+                * on (namespace, service) group_left (pod)
+                (count by (service, namespace, pod) (pod_with_service_relation))
+                * on (namespace, pod) group_left ()
+                  sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"ingress": "stack-bcs-api-gateway-http","agent-plugin-subpath"]}
         (
@@ -159,7 +375,26 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {"ingress": ["stack-bcs-api-gateway-http", "agent-plugin-subpath"]},
             "",
-            'topk(10, sum by (ingress, namespace) ((count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)(ingress_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",ingress=~"^(agent-plugin-subpath|stack-bcs-api-gateway-http)$"}) * 0 + 1)* on (namespace, service) group_left(pod)(count by (service, namespace, pod) (pod_with_service_relation))* on (namespace, pod) group_left()sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (ingress, namespace) (
+                (
+                  count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod) (
+                    ingress_with_service_relation{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      ingress=~"^(agent-plugin-subpath|stack-bcs-api-gateway-http)$"
+                    }
+                  ) * 0 + 1
+                )
+                * on (namespace, service) group_left (pod)
+                  (count by (service, namespace, pod) (pod_with_service_relation))
+                * on (namespace, pod) group_left ()
+                  sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))
+              ) * -1
+            ) * -1
+            """,
         ),
         # service
         # - nothing
@@ -168,7 +403,23 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (namespace, service) ((count by (service, namespace, pod) (pod_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}) * 0 + 1) * on (namespace, pod) group_left()sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace, service) (
+                (
+                  count by (service, namespace, pod) (
+                    pod_with_service_relation{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2"
+                    }
+                  ) * 0 + 1
+                )
+                * on (namespace, pod) group_left ()
+                  sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"namespace": ["aiops-default"], "service": ["service-1"]}
         (
@@ -176,7 +427,27 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {"namespace": ["aiops-default"], "service": ["service-1"]},
             "",
-            'topk(10, sum by (namespace, service) ((count by (service, namespace, pod) (pod_with_service_relation{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",namespace="aiops-default",service="service-1"}) * 0 + 1) * on (namespace, pod) group_left()sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{namespace="aiops-default"}[1m])[1m:]))) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (namespace, service) (
+                (
+                  count by (service, namespace, pod) (
+                    pod_with_service_relation{
+                      bcs_cluster_id="BCS-K8S-00000",
+                      bk_biz_id="2",
+                      namespace="aiops-default",
+                      service="service-1"
+                    }
+                  ) * 0 + 1
+                )
+                * on (namespace, pod) group_left ()
+                  sum by (namespace, pod) (
+                    last_over_time(rate(container_network_receive_bytes_total{namespace="aiops-default"}[1m])[1m:])
+                  )
+              ) * -1
+            ) * -1
+            """,
         ),
         # pod
         # - nothing
@@ -185,7 +456,22 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, label_replace(sum by (namespace, pod) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:]))),"pod_name", "$1", "pod", "(.*)") * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              label_replace(
+                sum by (namespace, pod) (
+                  sum by (namespace, pod) (
+                    last_over_time(rate(container_network_receive_bytes_total{}[1m])[1m:])
+                  )
+                ),
+                "pod_name",
+                "$1",
+                "pod",
+                "(.*)"
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"pod": ["pod-1", "pod-2"]}
         (
@@ -193,7 +479,24 @@ class TestPromQL:
             NETWORK_DEFAULT_COLUMN,
             {"pod": ["pod-1", "pod-2"]},
             "",
-            'topk(10, label_replace(sum by (namespace, pod) (sum by (namespace, pod)(last_over_time(rate(container_network_receive_bytes_total{pod_name=~"^(pod-1|pod-2)$"}[1m])[1m:]))),"pod_name", "$1", "pod", "(.*)") * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              label_replace(
+                sum by (namespace, pod) (
+                  sum by (namespace, pod) (
+                    last_over_time(rate(container_network_receive_bytes_total{
+                      pod_name=~"^(pod-1|pod-2)$"
+                    }[1m])[1m:])
+                  )
+                ),
+                "pod_name",
+                "$1",
+                "pod",
+                "(.*)"
+              ) * -1
+            ) * -1
+            """,
         ),
     ]
     CAPACITY_ARGVALUES = [
@@ -204,7 +507,20 @@ class TestPromQL:
             CAPACITY_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (node) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (node) (
+                last_over_time(
+                  node_boot_time_seconds{
+                    bcs_cluster_id="BCS-K8S-00000",
+                    bk_biz_id="2",
+                    container_name!="POD"
+                  }[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dict = {"node": "master-127-0-0-1"}
         (
@@ -212,7 +528,21 @@ class TestPromQL:
             CAPACITY_DEFAULT_COLUMN,
             {"node": "master-127-0-0-1"},
             "",
-            'topk(10, sum by (node) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node="master-127-0-0-1"}[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (node) (
+                last_over_time(
+                  node_boot_time_seconds{
+                    bcs_cluster_id="BCS-K8S-00000",
+                    bk_biz_id="2",
+                    container_name!="POD",
+                    node="master-127-0-0-1"
+                  }[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # - filter_dcit = {"node": ["master-127-0-0-1", "master-127-0-0-2"]}
         (
@@ -220,7 +550,21 @@ class TestPromQL:
             CAPACITY_DEFAULT_COLUMN,
             {"node": ["master-127-0-0-1", "master-127-0-0-2"]},
             "",
-            'topk(10, sum by (node) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD",node=~"^(master-127-0-0-1|master-127-0-0-2)$"}[1m:])) * -1) * -1',  # noqa
+            """
+            topk(
+              10,
+              sum by (node) (
+                last_over_time(
+                  node_boot_time_seconds{
+                    bcs_cluster_id="BCS-K8S-00000",
+                    bk_biz_id="2",
+                    container_name!="POD",
+                    node=~"^(master-127-0-0-1|master-127-0-0-2)$"
+                  }[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
         # cluster
         # - nothing
@@ -229,7 +573,20 @@ class TestPromQL:
             CAPACITY_DEFAULT_COLUMN,
             {},
             "",
-            'topk(10, sum by (bcs_cluster_id) (last_over_time(node_boot_time_seconds{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m:])) * -1) * -1',
+            """
+            topk(
+              10, 
+              sum by (bcs_cluster_id) (
+                last_over_time(
+                  node_boot_time_seconds{
+                    bcs_cluster_id="BCS-K8S-00000",
+                    bk_biz_id="2",
+                    container_name!="POD"
+                  }[1m:]
+                )
+              ) * -1
+            ) * -1
+            """,
         ),
     ]
 
@@ -253,7 +610,8 @@ class TestPromQL:
         actual_promql = meta.meta_prom_by_sort(order_by=order_by, page_size=page_size)
 
         # 去掉多余的空格和回车
-        actual_promql = re.sub(r"\n\s+", "", actual_promql)
+        actual_promql = re.sub(r"\n?\s+", "", actual_promql)
+        expected_promql = re.sub(r"\n?\s+", "", expected_promql)
         assert actual_promql == expected_promql
 
     @pytest.mark.parametrize(
