@@ -1,9 +1,16 @@
 <p align="center">
   <img src="docs/logo.png" alt="BkMonitor" style="vertical-align: middle;"/>
 </p>
-<p align="center">
-    <em>蓝鲸监控是蓝鲸智云推出的监控平台</em>
-</p>
+
+![Verson](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fversion.yaml&query=version&label=version)
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fpyproject.toml)
+[![license](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/TencentBlueKing/bk-monitor/blob/master/LICENSE.txt)
+
+---
+
+蓝鲸监控平台(BLUEKING-MONITOR)是蓝鲸智云官方推出的一款监控平台产品，除了具有丰富的数据采集能力，大规模的数据处理能力，简单易用，还提供更多的平台扩展能力。依托于蓝鲸 PaaS，有别于传统的 CS 结构，在整个蓝鲸生态中可以形成监控的闭环能力。
+
+致力于满足不同的监控场景需求和能力，提高监控的及时性、准确性、智能化，为在线业务保驾护航。
 
 ---
 
