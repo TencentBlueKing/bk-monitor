@@ -11,7 +11,7 @@
 
 ### 依赖管理
 
-项目使用 [uv](https://docs.astral.sh/uv/getting-started/) 管理项目依赖。
+项目使用 <a href="https://docs.astral.sh/uv/getting-started/" target="_blank">uv</a> 管理项目依赖。
 
 除了默认依赖外，项目依赖有三个额外的分组。
 
@@ -68,13 +68,13 @@ uv remove <package>
 
 #### Ruff
 
-项目使用 [Ruff](https://beta.ruff.rs/docs/configuration/) 进行代码格式化及自动修复。
+项目使用 <a href="https://beta.ruff.rs/docs/configuration/" target="_blank">Ruff</a> 进行代码格式化及自动修复。
 
 在本地开发时，可以根据自己使用IDE进行对应的配置
 
-* [VS Code](https://docs.astral.sh/ruff/editors/setup/#vs-code)
-* [Pycharm](https://docs.astral.sh/ruff/editors/setup/#pycharm)
-* [More](https://docs.astral.sh/ruff/editors/setup/)
+* <a href="https://docs.astral.sh/ruff/editors/setup/#vs-code" target="_blank">VS Code</a>
+* <a href="https://docs.astral.sh/ruff/editors/setup/#pycharm" target="_blank">Pycharm</a>
+* <a href="https://docs.astral.sh/ruff/editors/setup/" target="_blank">More</a>
 
 #### pre-commit
 
@@ -92,4 +92,4 @@ pre-commit install
 
 ### 单元测试
 
-项目使用 [pytest](https://docs.pytest.org/) 进行单元测试。
+项目使用 <a href="https://docs.pytest.org/" target="_blank">pytest</a> 进行单元测试。
