@@ -23,8 +23,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -38,8 +40,8 @@ type ProcessMatcher struct {
 }
 
 type ProcessMatchResult struct {
-	ProcessName string
-	Dimensions  map[string]string
+	ProcessName string				`json:"process_name"`
+	Dimensions  map[string]string	`json:"dimensions"`
 }
 
 func NewProcessMatcher(matchPattern, excludePattern, extractDimensionsPattern, extractProcessNamePattern string) *ProcessMatcher {
@@ -70,6 +72,10 @@ func (c *ProcessMatcher) Match(processStr string) []*ProcessMatchResult {
 
 	// iterate over each line and check for matches
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		if c.match(line) {
 			// extract dimensions and process name
 			dims := c.ExtractDimensions(line)
@@ -163,7 +169,5 @@ func main() {
 
 	matcher := NewProcessMatcher(matchPattern, excludePattern, extractDimensionsPattern, extractProcessNamePattern)
 	results := matcher.Match(processes)
-	for _, result := range results {
-		slog.Info("matched process", "name", result.ProcessName, "dimensions", result.Dimensions)
-	}
+	json.NewEncoder(os.Stdout).Encode(results)
 }
