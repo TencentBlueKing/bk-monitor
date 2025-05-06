@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import re
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Q
@@ -151,7 +150,7 @@ class SQLCompiler(compiler.SQLCompiler):
         return self.query.table_name, dsl
 
     def _parser_order_by(self):
-        sort_list: List[Dict[str, str]] = []
+        sort_list: list[dict[str, str]] = []
         for ordering in self.query.order_by:
             if len(ordering.split()) == 1:
                 field, order = ordering, "asc"
@@ -217,12 +216,12 @@ class SQLCompiler(compiler.SQLCompiler):
 
         return result
 
-    def _parser_select(self) -> Tuple[List[str], List[Dict[str, str]]]:
+    def _parser_select(self) -> tuple[list[str], list[dict[str, str]]]:
         if not self.query.select:
             return [], []
 
-        return_fields: List[str] = []
-        select_fields: List[Dict[str, str]] = []
+        return_fields: list[str] = []
+        select_fields: list[dict[str, str]] = []
         for select_field in self.query.select:
             if "(" in select_field and ")" in select_field:
                 match_result = self.SELECT_RE.match(select_field)
@@ -248,7 +247,7 @@ class SQLCompiler(compiler.SQLCompiler):
     def _get_bucket_size(self) -> int:
         return (min(1440, self.query.high_mark or 0 - self.query.low_mark), 1440)[self.query.high_mark is None]
 
-    def _get_dimensions(self) -> Tuple[int, List[str]]:
+    def _get_dimensions(self) -> tuple[int, list[str]]:
         second = 60
         group_by_fields = self.query.group_by
         group_by = sorted(set(group_by_fields), key=group_by_fields.index)
@@ -262,8 +261,8 @@ class SQLCompiler(compiler.SQLCompiler):
                 break
         return second, dimensions
 
-    def _get_agg_method_dict(self, select_fields) -> Dict[str, Dict[str, Any]]:
-        agg_method_dict: Dict[str, Dict[str, Any]] = {}
+    def _get_agg_method_dict(self, select_fields) -> dict[str, dict[str, Any]]:
+        agg_method_dict: dict[str, dict[str, Any]] = {}
         for field in select_fields:
             method: str = str(field["agg_method"]).lower()
             if method in CpAggMethods:
@@ -280,8 +279,8 @@ class SQLCompiler(compiler.SQLCompiler):
         return agg_method_dict
 
     def _get_aggregations(
-        self, agg_interval: int, dimensions: List[str], select_fields: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, agg_interval: int, dimensions: list[str], select_fields: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         if self.query.search_after_key is None:
             return self._get_normal_aggregations(agg_interval, dimensions, select_fields)
         else:
@@ -347,7 +346,7 @@ class SQLCompiler(compiler.SQLCompiler):
         if not select_fields:
             return {}
 
-        aggregations: Dict[str, Dict] = self._get_agg_method_dict(select_fields)
+        aggregations: dict[str, dict] = self._get_agg_method_dict(select_fields)
         # 每个分组获取原始数据记录
         if self.query.group_hits_size > 0:
             aggregations["latest_hits"] = {
@@ -372,14 +371,16 @@ class SQLCompiler(compiler.SQLCompiler):
 
         # dimension aggregation
         for dimension in dimensions:
-            _aggregations = {dimension: {"terms": {"field": dimension, "size": self._get_bucket_size()}}}
+            # missing="" 用于聚合出不存在某个字段的日志条数，和 series 的行为对齐。
+            # 此处行为和 UnifyQuery 保持一致，从而确保切换前后查询语句、返回结果等价。
+            _aggregations = {dimension: {"terms": {"field": dimension, "missing": "", "size": self._get_bucket_size()}}}
             _aggregations[dimension]["aggregations"] = aggregations
             aggregations = _aggregations
 
         return aggregations
 
     @classmethod
-    def _fill_values_to_record(cls, aggs: Dict[str, Any], record: Dict[str, Any], select_fields: List[Dict[str, Any]]):
+    def _fill_values_to_record(cls, aggs: dict[str, Any], record: dict[str, Any], select_fields: list[dict[str, Any]]):
         for field in select_fields:
             alias: str = field["metric_alias"]
             method: str = str(field["agg_method"]).lower()
@@ -395,11 +396,11 @@ class SQLCompiler(compiler.SQLCompiler):
                 record[alias] = aggs.get(alias, {}).get("value")
 
     @classmethod
-    def _handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_middle_bucket(cls, dimension: str, bucket: dict[str, Any]) -> dict[str, Any]:
         return bucket
 
     @classmethod
-    def _extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_dimension_buckets(cls, dimension: str, aggs: dict[str, Any]) -> list[dict[str, Any]]:
         try:
             return aggs[dimension]["buckets"]
         except KeyError:
@@ -416,11 +417,11 @@ class SQLCompiler(compiler.SQLCompiler):
 
     def _get_agg_buckets(
         self,
-        records: List[Dict[str, Any]],
-        dimensions: List[str],
-        aggs: Dict[str, Any],
+        records: list[dict[str, Any]],
+        dimensions: list[str],
+        aggs: dict[str, Any],
         select_fields,
-        record: Optional[Dict[str, Any]] = None,
+        record: dict[str, Any] | None = None,
         idx: int = 0,
     ):
         if record is None:
@@ -451,7 +452,7 @@ class SQLCompiler(compiler.SQLCompiler):
     def _get_composite_buckets(self, records, dimensions, aggs, select_fields):
         aggs = aggs[self.COMPOSITE_AGG_NAME]
         for bucket in aggs["buckets"]:
-            record: Dict[str, Any] = {"_after_key_": aggs["after_key"]}
+            record: dict[str, Any] = {"_after_key_": aggs["after_key"]}
             record.update({dimension: bucket["key"].get(dimension) for dimension in dimensions})
             self._fill_values_to_record(bucket, record, select_fields)
 
@@ -536,9 +537,9 @@ class SQLCompiler(compiler.SQLCompiler):
                 field, operator = key.split("__")
                 if not isinstance(values, list):
                     values = [values]
-                func = getattr(self, "_operate_{}".format(operator), None)
+                func = getattr(self, f"_operate_{operator}", None)
                 if func is None:
-                    raise Exception(_("不支持的条件({})".format(operator)))
+                    raise Exception(_(f"不支持的条件({operator})"))
                 func(and_map, field, values)
             ret["should"].append({"bool": and_map})
         return ret
@@ -554,13 +555,13 @@ class SQLCompiler(compiler.SQLCompiler):
     @staticmethod
     def _operate_include(and_map, field, values):
         for value in values:
-            and_map.setdefault("should", []).append({"wildcard": {field: "*{}*".format(value)}})
+            and_map.setdefault("should", []).append({"wildcard": {field: f"*{value}*"}})
 
     @staticmethod
     def _operate_nested(and_map, field: str, values):
         field, path, lookup = field.rsplit("__", 2)
 
-        def _nested_query(_query: Dict[str, Any]):
+        def _nested_query(_query: dict[str, Any]):
             return {"nested": {"path": path, "query": _query}}
 
         if lookup == "qs":
@@ -581,7 +582,7 @@ class SQLCompiler(compiler.SQLCompiler):
     @staticmethod
     def _operate_exclude(and_map, field, values):
         for value in values:
-            and_map.setdefault("must_not", []).append({"wildcard": {field: "*{}*".format(value)}})
+            and_map.setdefault("must_not", []).append({"wildcard": {field: f"*{value}*"}})
 
     @staticmethod
     def _operate_gt(and_map, field, values):
