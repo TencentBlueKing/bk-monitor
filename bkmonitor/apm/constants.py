@@ -627,6 +627,10 @@ class EnabledStatisticsDimension(Enum):
     LONG = "long"
     DOUBLE = "double"
 
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
 
 class AggregatedMethod(Enum):
     """
