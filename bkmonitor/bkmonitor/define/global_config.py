@@ -341,6 +341,7 @@ ADVANCED_OPTIONS = OrderedDict(
             "SYNC_BKBASE_META_BLACK_BIZ_ID_LIST",
             slz.ListField(label="同步计算平台RT元信息时的黑名单业务ID列表", default=[]),
         ),
+        ("ENABLE_SYNC_BKBASE_META_TASK", slz.BooleanField(label="是否开启计算平台RT元信息同步任务", default=False)),
         (
             "SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES",
             slz.ListField(label="同步计算平台RT元信息时支持的存储类型", default=["mysql", "tspider", "hdfs"]),

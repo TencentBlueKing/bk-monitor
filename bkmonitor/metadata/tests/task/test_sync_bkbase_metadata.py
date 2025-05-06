@@ -567,6 +567,7 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
         "core.drf_resource.api.bkdata.bulk_list_result_table",
         return_value=bkbase_rt_meta_api_return_data,
     )
+    mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_META_TASK", True)
 
     sync_bkbase_rt_meta_info_all()
 
@@ -617,5 +618,3 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
     assert not models.ResultTableField.objects.filter(
         table_id="2_test_ss_entry_61_INPUT.__default__", field_name="timestamp"
     ).exists()
-
-    sync_bkbase_rt_meta_info_all()

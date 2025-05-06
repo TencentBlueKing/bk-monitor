@@ -17,23 +17,28 @@ from metadata.models import ClusterInfo
 logger = logging.getLogger("metadata")
 
 
-def _sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list):
+def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
     """
     同步BkBase RT元信息至Metadata
     @param round_iter: 当前任务轮次
     @param bkbase_rt_meta_list: BkBase RT元信息列表
+    @param biz_id_list: 本轮处理的业务ID列表
     """
     logger.info(
-        "sync_bkbase_result_table_meta: start syncing bkbase rt meta,round->[%s],data_size->[%s]",
+        "sync_bkbase_result_table_meta: start syncing bkbase rt meta,round->[%s],data_size->[%s],biz_id_list->[%s]",
         round_iter,
         len(bkbase_rt_meta_list),
+        biz_id_list,
     )
 
     start_time = time.time()
     try:
+        # 这里指定业务ID列表作为过滤条件,避免全量拉取数据可能导致的性能问题
         existing_bkbase_result_tables = {
             result_table.table_id: result_table
-            for result_table in models.ResultTable.objects.filter(default_storage=ClusterInfo.TYPE_BKDATA)
+            for result_table in models.ResultTable.objects.filter(
+                default_storage=ClusterInfo.TYPE_BKDATA, bk_biz_id__in=biz_id_list
+            )
         }
         existing_bkbase_table_ids = list(existing_bkbase_result_tables)
         existing_bkbase_rt_fields = {

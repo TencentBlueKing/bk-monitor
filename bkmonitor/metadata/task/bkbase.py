@@ -29,7 +29,7 @@ from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.task.utils import chunk_list
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.tools.redis_lock import DistributedLock
-from metadata.utils.bkbase import _sync_bkbase_result_table_meta
+from metadata.utils.bkbase import sync_bkbase_result_table_meta
 from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
 logger = logging.getLogger("metadata")
@@ -280,6 +280,10 @@ def sync_bkbase_rt_meta_info_all():
     """
     全量同步计算平台RT元信息(调度)
     """
+    if not settings.ENABLE_SYNC_BKBASE_META_TASK:
+        logger.info("sync_bkbase_rt_meta_info_all: disabled by setting")
+        return
+
     logger.info("sync_bkbase_rt_meta_info_all: start syncing bkbase rt meta info.")
     start_time = time.time()
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -313,7 +317,9 @@ def sync_bkbase_rt_meta_info_all():
         logger.info("sync_bkbase_rt_meta_info_all: start syncing,round->[%s]", idx)
         try:
             bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=biz_id_batch, storages=storages)
-            _sync_bkbase_result_table_meta(round_iter=idx, bkbase_rt_meta_list=bkbase_rt_meta_list)
+            sync_bkbase_result_table_meta(
+                round_iter=idx, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=biz_id_batch
+            )
         except Exception as e:  # pylint:disable=broad-except
             logger.error(
                 "sync_bkbase_rt_meta_info_all: round->[%s] failed,biz_ids->[%s],error->[%s]", idx, biz_id_batch, e
