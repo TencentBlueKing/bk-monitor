@@ -13,6 +13,7 @@ import pytest
 from metadata import models
 from unittest.mock import patch, call
 
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.resources import CreateOrUpdateLogRouter
 
 non_exist_doris_table_id = "2_bklog.test_doris_non_exists"
@@ -111,6 +112,47 @@ def test_create_or_update_log_router_resource_for_bkcc(create_or_delete_records)
             assert result_table_ins.data_label == "bkdata_index_set_7839"
             assert result_table_ins.default_storage == "doris"
             assert result_table_ins.bk_biz_id == 2
+
+    # 空间路由推送 后台任务方式
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            space_client = SpaceTableIDRedis()
+            space_client.push_space_table_ids("bkcc", "2", is_publish=True)
+            expected_space_router = {"bkcc__2": '{"2_bklog.test_doris_non_exists":{"filters":[]}}'}
+
+            mock_hmset_to_redis.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:space_to_result_table", expected_space_router),
+                ]
+            )
+
+            mock_publish.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:space_to_result_table:channel", ["bkcc__2"]),
+                ]
+            )
+
+    # 结果表详情路由推送 后台任务方式
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            space_client = SpaceTableIDRedis()
+            space_client.push_doris_table_id_detail(table_id_list=[non_exist_doris_table_id], is_publish=True)
+            expected_rt_detail_router = {
+                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+            }
+
+            mock_hmset_to_redis.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
+                ]
+            )
+
+            mock_publish.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_doris_table_id]),
+                ]
+            )
 
     modify_params = dict(
         space_type="bkcc",
