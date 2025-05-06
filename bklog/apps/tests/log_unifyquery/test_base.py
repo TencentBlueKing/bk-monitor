@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -142,7 +143,7 @@ CREATE_CLUSTERING_CONFIG_PARAMS = {
     'regex_template_id': 0,
 }
 
-DATA = {
+KEYWORD_DATA = {
     'addition': [],
     'aggs': {},
     'begin': 0,
@@ -276,6 +277,150 @@ DATA = {
     'trace_type': None,
     'track_total_hits': False,
 }
+
+FIELD_DATA = {
+    'addition': [
+        {
+            'field': '__dist_00',
+            'operator': 'contains',
+            'value': [
+                '11333151',
+            ],
+        },
+    ],
+    'aggs': {},
+    'begin': 0,
+    'bk_biz_id': 2,
+    'custom_indices': '',
+    'default_sort_tag': True,
+    'end_time': '2025-04-29 14:24:48.780000',
+    'fields_from_es': [
+        {
+            'es_doc_values': False,
+            'field': '__ext',
+            'field_alias': '',
+            'field_name': '__ext',
+            'field_type': 'object',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'metric',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'bk_host_id',
+            'field_alias': '',
+            'field_name': 'bk_host_id',
+            'field_type': 'integer',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'cloudId',
+            'field_alias': '',
+            'field_name': 'cloudId',
+            'field_type': 'integer',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'dtEventTimeStamp',
+            'field_alias': '',
+            'field_name': 'dtEventTimeStamp',
+            'field_type': 'date',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'timestamp',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'gseIndex',
+            'field_alias': '',
+            'field_name': 'gseIndex',
+            'field_type': 'long',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'iterationIndex',
+            'field_alias': '',
+            'field_name': 'iterationIndex',
+            'field_type': 'integer',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': False,
+            'field': 'log',
+            'field_alias': '',
+            'field_name': 'log',
+            'field_type': 'text',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'metric',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'path',
+            'field_alias': '',
+            'field_name': 'path',
+            'field_type': 'keyword',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'serverIp',
+            'field_alias': '',
+            'field_name': 'serverIp',
+            'field_type': 'keyword',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'dimension',
+        },
+        {
+            'es_doc_values': True,
+            'field': 'time',
+            'field_alias': '',
+            'field_name': 'time',
+            'field_type': 'date',
+            'is_display': False,
+            'is_editable': True,
+            'tag': 'timestamp',
+        },
+    ],
+    'from_favorite_id': 0,
+    'include_nested_fields': False,
+    'index_set_id': '1',
+    'index_set_ids': ['1'],
+    'indices': '2_bklog.dataname1',
+    'ip_chooser': {},
+    'is_desensitize': True,
+    'is_return_doc_id': False,
+    'is_scroll_search': False,
+    'keyword': '',
+    'scenario_id': 'log',
+    'scroll_id': None,
+    'search_mode': 'sql',
+    'size': 50,
+    'sort_list': [],
+    'start_time': '2025-04-29 14:09:48.780000',
+    'storage_cluster_id': 6,
+    'time_field': 'dtEventTimeStamp',
+    'time_field_type': 'date',
+    'time_field_unit': 'second',
+    'time_range': None,
+    'trace_type': None,
+    'track_total_hits': False,
+}
+
 CREATE_SET_DATA_PARAMS = {
     'created_by': 'admin',
     'updated_by': 'admin',
@@ -335,11 +480,34 @@ class TestUnifyQueryHandler(TestCase):
     def setUp(self) -> None:
         LogIndexSet.objects.create(**CREATE_SET_PARAMS)
         LogIndexSetData.objects.create(**CREATE_SET_DATA_PARAMS)
-        ClusteringConfig.objects.create(**CREATE_CLUSTERING_CONFIG_PARAMS)
-        self.query_handler = UnifyQueryHandler(DATA)
 
-    def test_init_index_info_list(self):
+    @patch.object(UnifyQueryHandler, "init_base_dict", return_value={})
+    def test_init_index_info_list(self, mock_init_base_dict):
+        # 查询条件中包含__dist_xx,且无聚类场景
+        self.query_handler = UnifyQueryHandler(FIELD_DATA)
+        index_info_dict = self.query_handler._init_index_info_list(INDEX_SET_IDS)[0]
+        self.assertEqual(index_info_dict["scenario_id"], "log")
+        self.assertEqual(index_info_dict.get("using_clustering_proxy", ''), '')
+        self.assertEqual(index_info_dict["indices"], "2_bklog.dataname1")
+
+        # 查询条件中keyword字符串包含"__dist_05,且无聚类场景
+        self.query_handler = UnifyQueryHandler(KEYWORD_DATA)
         index_info_list = self.query_handler._init_index_info_list(INDEX_SET_IDS)[0]
-        self.assertEqual(index_info_list["scenario_id"], SCENARIO_ID)
-        self.assertEqual(index_info_list["using_clustering_proxy"], USING_CLUSTERING_PROXY)
-        self.assertEqual(index_info_list["indices"], INDICES)
+        self.assertEqual(index_info_list["scenario_id"], "log")
+        self.assertEqual(index_info_dict.get("using_clustering_proxy", ''), '')
+        self.assertEqual(index_info_dict["indices"], "2_bklog.dataname1")
+
+        # 查询条件中包含__dist_xx,且有聚类场景
+        ClusteringConfig.objects.create(**CREATE_CLUSTERING_CONFIG_PARAMS)
+        self.query_handler = UnifyQueryHandler(FIELD_DATA)
+        index_info_list = self.query_handler._init_index_info_list(INDEX_SET_IDS)[0]
+        self.assertEqual(index_info_list["scenario_id"], "bkdata")
+        self.assertEqual(index_info_list["using_clustering_proxy"], True)
+        self.assertEqual(index_info_list["indices"], "2_bklog_1_clustered")
+
+        # 查询条件中keyword字符串包含"__dist_05,且有聚类场景
+        self.query_handler = UnifyQueryHandler(KEYWORD_DATA)
+        index_info_list = self.query_handler._init_index_info_list(INDEX_SET_IDS)[0]
+        self.assertEqual(index_info_list["scenario_id"], "bkdata")
+        self.assertEqual(index_info_list["using_clustering_proxy"], True)
+        self.assertEqual(index_info_list["indices"], "2_bklog_1_clustered")

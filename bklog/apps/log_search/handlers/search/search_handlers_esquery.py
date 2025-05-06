@@ -1851,12 +1851,14 @@ class SearchHandler(object):
             self.origin_scenario_id = self.index_set.scenario_id
             # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
             if "__dist_05" in self.search_dict.get("keyword", ""):
-                return self._get_clustering_config_clustered_rt()
+                if clustered_rt := self._get_clustering_config_clustered_rt():
+                    return clustered_rt
 
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
                 if addition.get("field", "").startswith("__dist"):
-                    return self._get_clustering_config_clustered_rt()
+                    if clustered_rt := self._get_clustering_config_clustered_rt():
+                        return clustered_rt
             return self.origin_indices
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id))
 

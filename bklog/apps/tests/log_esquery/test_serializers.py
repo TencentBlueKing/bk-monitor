@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -27,8 +28,14 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 
+INDEX_INFO = {
+    'indices': '2_bklog_1_clustered',
+    'scenario_id': 'bkdata',
+    'storage_cluster_id': 6,
+    'time_field': 'dtEventTimeStamp',
+}
+
 ESQUERY_PARAMS = {
-    # 'index_set_id': 1,
     'aggs': {},
     'collapse': None,
     'end_time': '2025-04-29 14:24:48.780000',
@@ -335,6 +342,10 @@ class TestEsQuerySearchAttrSerializer(TestCase):
         self._serializer = EsQuerySearchAttrSerializer(ESQUERY_PARAMS)
         self._serializer.initial_data = INITIAL_DATA
 
+    @patch(
+        "apps.log_esquery.serializers._get_index_info",
+        lambda index_set_id, is_clustered_fields: INDEX_INFO,
+    )
     def test_validate(self):
         attrs = self._serializer.validate(ATTRS_PARAMS)
         self.assertEqual(attrs, TARGET_ATTRS)

@@ -238,6 +238,8 @@ class UnifyQueryHandler(object):
                 # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
                 if "__dist_05" in self.search_params.get("keyword", ""):
                     index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
+                    index_info_list.append(index_info)
+                    return index_info_list
 
                 for addition in self.search_params.get("addition", []):
                     # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
