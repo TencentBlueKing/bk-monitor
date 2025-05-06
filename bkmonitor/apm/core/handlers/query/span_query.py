@@ -89,16 +89,6 @@ class SpanQuery(BaseQuery):
     ):
         return self._query_field_topk(start_time, end_time, field, limit, filters, query_string)
 
-    def query_field_distinct_count(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_field_distinct_count(start_time, end_time, field, filters, query_string)
-
     def query_total(
         self,
         start_time: Optional[int],
@@ -108,62 +98,17 @@ class SpanQuery(BaseQuery):
     ):
         return self._query_total(start_time, end_time, filters, query_string)
 
-    def query_field_count(
+    def query_field_aggregated_value(
         self,
         start_time: Optional[int],
         end_time: Optional[int],
         field: str,
+        method: str,
         filters: Optional[List[types.Filter]] = None,
         query_string: Optional[str] = None,
+        need_empty: bool = True,
     ):
-        return self._query_field_count(start_time, end_time, field, filters, query_string)
-
-    def query_field_max(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_max(start_time, end_time, field, filters, query_string)
-
-    def query_field_min(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_min(start_time, end_time, field, filters, query_string)
-
-    def query_field_avg(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_avg(start_time, end_time, field, filters, query_string)
-
-    def query_field_median(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_median(start_time, end_time, field, filters, query_string)
-
-    def query_field_not_empty_count(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_field_not_empty_count(start_time, end_time, field, filters, query_string)
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string)
+        if not need_empty:
+            q = q.filter(**{f"{field}__ne": ""})
+        return self._query_field_aggregated_value(start_time, end_time, field, method, q)

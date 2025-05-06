@@ -626,3 +626,30 @@ class EnabledStatisticsDimension(Enum):
     INTEGER = "integer"
     LONG = "long"
     DOUBLE = "double"
+
+
+class AggregatedMethod(Enum):
+    """
+    聚合方法枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    COUNT = "count"
+    DISTINCT = "distinct"
+    CP50 = "cp50"
+
+
+class StatisticsProperty(Enum):
+    """
+    统计属性枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    TOTAL_COUNT = "total_count"
+    DISTINCT_COUNT = "distinct_count"
+    FIELD_COUNT = "field_count"
+    MEDIAN = "median"

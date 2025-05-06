@@ -228,11 +228,6 @@ class QueryProxy:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
 
-    def query_field_distinct_count(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_distinct_count(
-            start_time, end_time, field, filters, query_string
-        )
-
     def query_field_topk(self, query_mode, start_time, end_time, field, limit, filters, query_string):
         topk_values = []
         for topk_item in self.query_mode[query_mode].query_field_topk(
@@ -250,30 +245,17 @@ class QueryProxy:
     def query_total(self, query_mode, start_time, end_time, filters, query_string):
         return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)
 
-    def query_field_count(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_count(start_time, end_time, field, filters, query_string)
-
-    def query_field_max(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_max(start_time, end_time, field, filters, query_string)
-
-    def query_field_min(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_min(start_time, end_time, field, filters, query_string)
-
-    def query_field_avg(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_avg(start_time, end_time, field, filters, query_string)
-
-    def query_field_median(self, query_mode, start_time, end_time, field, filters, query_string):
-        return self.query_mode[query_mode].query_field_median(start_time, end_time, field, filters, query_string)
-
-    def query_field_not_empty_count(
+    def query_field_aggregated_value(
         self,
         query_mode,
         start_time: Optional[int],
         end_time: Optional[int],
         field: str,
+        method: str,
         filters: Optional[List[types.Filter]] = None,
         query_string: Optional[str] = None,
+        need_empty: bool = True,
     ):
-        return self.query_mode[query_mode].query_field_not_empty_count(
-            start_time, end_time, field, filters, query_string
+        return self.query_mode[query_mode].query_field_aggregated_value(
+            start_time, end_time, field, method, filters, query_string, need_empty
         )
