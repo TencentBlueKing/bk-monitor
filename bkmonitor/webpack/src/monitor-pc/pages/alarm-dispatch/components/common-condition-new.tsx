@@ -103,6 +103,8 @@ interface ITagItem {
   condition: ICondtionItem;
   tags: ITag[];
   isReplace?: boolean;
+  max?: number;
+  isExpanded?: boolean;
 }
 
 const defaultCondition: ICondtionItem = {
@@ -170,6 +172,7 @@ export default class CommonCondition extends tsc<IProps> {
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('secondWrap') secondWrapRef: HTMLDivElement;
   @Ref('settingsMsg') settingsMsgRef: HTMLDivElement;
+  @Ref('commonConditionNew') commonConditionNewRef: HTMLDivElement;
 
   /* 当前条件数据 */
   locaLValue: ICondtionItem[] = [];
@@ -226,6 +229,8 @@ export default class CommonCondition extends tsc<IProps> {
   searchLoading = false;
   connectorMethods = [...METHODS, { id: 'issuperset', name: '⊇' }];
 
+  tagContainerWidth = 0;
+
   /* 是否不可点击(只读状态) */
   get canNotClick() {
     return this.readonly || this.loading;
@@ -245,11 +250,15 @@ export default class CommonCondition extends tsc<IProps> {
     });
   }
 
-  created() {
+  mounted() {
     this.componentId = random(8);
     this.locaLValue = [...this.value];
-    this.handleConditionToTagList();
-    this.validateConditionsRepeatKey();
+    this.$nextTick(() => {
+      this.tagContainerWidth = this.commonConditionNewRef?.offsetWidth || 500;
+      this.handleConditionToTagList();
+      this.validateConditionsRepeatKey();
+      console.log(this.commonConditionNewRef?.offsetWidth, '===');
+    });
   }
 
   /* condition => tags */
@@ -331,6 +340,10 @@ export default class CommonCondition extends tsc<IProps> {
           tags: tempTags,
         });
       }
+    });
+    tagList.map(item => {
+      item.max = this.calculateTagNum(item.tags);
+      item.isExpanded = item.tags.length <= item.max;
     });
     if (!this.locaLValue.length) {
       tagList.push({
@@ -1272,10 +1285,34 @@ export default class CommonCondition extends tsc<IProps> {
     }
   }
 
+  /** 计算3行内可以展示的tag个数 */
+  calculateTagNum(tagList) {
+    let lineWidth = 0;
+    let lineCount = 0;
+    let count = 0;
+    for (const tag of tagList) {
+      const tagWidth = Math.min(tag.name.length * 8, 300);
+      if (lineWidth + tagWidth > this.tagContainerWidth) {
+        lineCount++;
+        lineWidth = tagWidth;
+      } else {
+        lineWidth += tagWidth;
+      }
+
+      if (lineCount < 4) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  }
+
   render() {
     return (
       <div
         id={this.componentId}
+        ref='commonConditionNew'
         class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
         v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', theme: 'primary', zIndex: 10 }}
         onClick={this.handleComponentClick}
@@ -1296,129 +1333,143 @@ export default class CommonCondition extends tsc<IProps> {
             <span class='icon-monitor icon-mind-fill' />
           </div>
         )}
-        {this.tagList.map((item, index) => (
-          <div
-            key={index}
-            style={{ height: this.tagList.length > 1 ? 'auto' : '100%' }}
-            class='line-wrap'
-            onClick={(event: MouseEvent) => this.handleClickLineWrap(event, index)}
-          >
-            <div class={['rule-line-item', { 'is-replace': item.isReplace }]}>
-              {item.tags.map((tag, tagIndex) => {
-                switch (tag.type) {
-                  // case TypeEnum.condition: {
-                  //   return <div key={`${index}_${tagIndex}`}
-                  //     class="common-tag tag-condition"
-                  //     v-bk-tooltips={{
-                  //       content: tag.id,
-                  //       placements: ['top'],
-                  //       delay: [500, 0]
-                  //     }}>
-                  //     <span>{tag.name}</span>
-                  //   </div>;
-                  // }
-                  case TypeEnum.key: {
-                    return (
-                      <div
-                        key={`${index}_${tagIndex}`}
-                        class='common-tag tag-key'
-                        v-bk-tooltips={{
-                          content: tag.id,
-                          placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false,
-                        }}
-                        onClick={e => this.handleClickKeyTag(e, index, tagIndex)}
-                      >
-                        <span>{tag?.alias || tag.name}</span>
-                      </div>
-                    );
-                  }
-                  case TypeEnum.method: {
-                    return (
-                      <div
-                        key={`${index}_${tagIndex}`}
-                        class='common-tag tag-method'
-                        v-bk-tooltips={{
-                          content: tag.id,
-                          placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false,
-                        }}
-                        onClick={e => this.handleClickTagMethod(e, index, tagIndex)}
-                      >
-                        <span>{tag.name}</span>
-                      </div>
-                    );
-                  }
-                  case TypeEnum.value: {
-                    return (
-                      <div
-                        key={`${index}_${tagIndex}`}
-                        class='common-tag tag-value'
-                        v-bk-tooltips={{
-                          content: item.condition.field === 'dynamic_group' ? tag.name : tag.id,
-                          placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false,
-                        }}
-                        onClick={e => this.handleClickTagValue(e, index, tagIndex)}
-                      >
-                        <span class='tag-value-name'>{tag.name}</span>
-                        {tag.name !== NULL_NAME && !this.readonly && (
-                          <span
-                            class='icon-monitor icon-mc-close'
-                            onClick={e => this.handDelValue(e, index, tagIndex)}
+        {this.tagList.map((item, index) => {
+          const list = item.tags.slice(0, !item.isExpanded ? item.max : item.tags.length);
+          return (
+            <div
+              key={index}
+              ref='tagList'
+              style={{ height: this.tagList.length > 1 ? 'auto' : '100%' }}
+              class='line-wrap'
+              onClick={(event: MouseEvent) => this.handleClickLineWrap(event, index)}
+            >
+              <div class={['rule-line-item', { 'is-replace': item.isReplace }]}>
+                {list.map((tag, tagIndex) => {
+                  switch (tag.type) {
+                    // case TypeEnum.condition: {
+                    //   return <div key={`${index}_${tagIndex}`}
+                    //     class="common-tag tag-condition"
+                    //     v-bk-tooltips={{
+                    //       content: tag.id,
+                    //       placements: ['top'],
+                    //       delay: [500, 0]
+                    //     }}>
+                    //     <span>{tag.name}</span>
+                    //   </div>;
+                    // }
+                    case TypeEnum.key: {
+                      return (
+                        <div
+                          key={`${index}_${tagIndex}`}
+                          class='common-tag tag-key'
+                          v-bk-tooltips={{
+                            content: tag.id,
+                            placements: ['top'],
+                            delay: [500, 0],
+                            allowHTML: false,
+                          }}
+                          onClick={e => this.handleClickKeyTag(e, index, tagIndex)}
+                        >
+                          <span>{tag?.alias || tag.name}</span>
+                        </div>
+                      );
+                    }
+                    case TypeEnum.method: {
+                      return (
+                        <div
+                          key={`${index}_${tagIndex}`}
+                          class='common-tag tag-method'
+                          v-bk-tooltips={{
+                            content: tag.id,
+                            placements: ['top'],
+                            delay: [500, 0],
+                            allowHTML: false,
+                          }}
+                          onClick={e => this.handleClickTagMethod(e, index, tagIndex)}
+                        >
+                          <span>{tag.name}</span>
+                        </div>
+                      );
+                    }
+                    case TypeEnum.value: {
+                      return (
+                        <div
+                          key={`${index}_${tagIndex}`}
+                          class='common-tag tag-value'
+                          v-bk-tooltips={{
+                            content: item.condition.field === 'dynamic_group' ? tag.name : tag.id,
+                            placements: ['top'],
+                            delay: [500, 0],
+                            allowHTML: false,
+                          }}
+                          onClick={e => this.handleClickTagValue(e, index, tagIndex)}
+                        >
+                          <span class='tag-value-name'>{tag.name}</span>
+                          {tag.name !== NULL_NAME && !this.readonly && (
+                            <span
+                              class='icon-monitor icon-mc-close'
+                              onClick={e => this.handDelValue(e, index, tagIndex)}
+                            />
+                          )}
+                        </div>
+                      );
+                    }
+                    case TypeEnum.input: {
+                      return (
+                        <div
+                          key={`${index}_input`}
+                          class='input-wrap'
+                        >
+                          <span class='input-value'>{this.inputValue}</span>
+                          <input
+                            ref='input'
+                            class='input'
+                            v-model={this.inputValue}
+                            onBlur={() => this.handBlur(index, tagIndex)}
+                            onInput={this.handleInput}
+                            onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
                           />
-                        )}
-                      </div>
-                    );
+                        </div>
+                      );
+                    }
+                    default: {
+                      return undefined;
+                    }
                   }
-                  case TypeEnum.input: {
-                    return (
-                      <div
-                        key={`${index}_input`}
-                        class='input-wrap'
-                      >
-                        <span class='input-value'>{this.inputValue}</span>
-                        <input
-                          ref='input'
-                          class='input'
-                          v-model={this.inputValue}
-                          onBlur={() => this.handBlur(index, tagIndex)}
-                          onInput={this.handleInput}
-                          onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
-                        />
-                      </div>
-                    );
-                  }
-                  default: {
+                })}
+                {(() => {
+                  if (this.readonly) {
                     return undefined;
                   }
-                }
-              })}
-              {(() => {
-                if (this.readonly) {
-                  return undefined;
-                }
-                if (this.tagList.length <= 1 && !this.tagList?.[0]?.condition) {
-                  if (this.isFormMode) {
-                    return !this.inputValue && <span class='placeholder-txt'>{this.$t('选择条件')}</span>;
+                  if (this.tagList.length <= 1 && !this.tagList?.[0]?.condition) {
+                    if (this.isFormMode) {
+                      return !this.inputValue && <span class='placeholder-txt'>{this.$t('选择条件')}</span>;
+                    }
+                    return (
+                      <div
+                        class={['tag-add no-dispaly-none', { active: this.addActive }]}
+                        onClick={this.handleAddFirst}
+                      >
+                        <span class='icon-monitor icon-plus-line' />
+                      </div>
+                    );
                   }
-                  return (
-                    <div
-                      class={['tag-add no-dispaly-none', { active: this.addActive }]}
-                      onClick={this.handleAddFirst}
-                    >
-                      <span class='icon-monitor icon-plus-line' />
-                    </div>
-                  );
-                }
-                return undefined;
-              })()}
-            </div>
-
-            {/* {!!item.condition?.field && !this.readonly && <div class="common-tag tag-del" key="del" v-bk-tooltips={{
+                  return undefined;
+                })()}
+                {item.max < item.tags.length && (
+                  <span
+                    class='common-tag tag-more'
+                    onClick={e => {
+                      e.stopPropagation();
+                      item.isExpanded = !item.isExpanded;
+                    }}
+                  >
+                    {item.isExpanded ? '收起' : `+${item.tags.length - item.max}`}
+                    <span class={`icon-monitor more-icon icon-arrow-${item.isExpanded ? 'up' : 'down'}`} />
+                  </span>
+                )}
+              </div>
+              {/* {!!item.condition?.field && !this.readonly && <div class="common-tag tag-del" key="del" v-bk-tooltips={{
             content: this.$t('删除当前条件'),
             placements: ['top'],
             delay: [500, 0]
@@ -1426,8 +1477,9 @@ export default class CommonCondition extends tsc<IProps> {
           onClick={e => this.handleDelCondition(e, index)}>
             <span class="icon-monitor icon-mc-delete-line"></span>
           </div>} */}
-          </div>
-        ))}
+            </div>
+          );
+        })}
         {!!this.tagList[this.tagList.length - 1]?.condition?.value?.length && !this.readonly && (
           <div
             key='add'
