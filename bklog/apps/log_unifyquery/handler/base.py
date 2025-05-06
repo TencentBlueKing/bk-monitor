@@ -239,6 +239,7 @@ class UnifyQueryHandler:
                 if "__dist_05" in self.search_params.get("keyword", ""):
                     index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
                     index_info_list.append(index_info)
+                    continue
 
                 for addition in self.search_params.get("addition", []):
                     # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
