@@ -9,7 +9,7 @@
 
 ## 开发环境
 
-### 依赖安装与管理
+### 依赖管理
 
 项目使用 [uv](https://docs.astral.sh/uv/getting-started/) 管理项目依赖。
 
@@ -46,8 +46,6 @@ uv sync --all-groups
 ```
 
 #### 添加依赖
-
-添加依赖
 
 ```bash
 # 添加默认依赖
