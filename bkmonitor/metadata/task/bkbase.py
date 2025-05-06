@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
 import threading
@@ -23,10 +23,13 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
+from metadata.models.space.constants import SpaceTypes, SpaceStatus
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
+from metadata.task.utils import chunk_list
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.tools.redis_lock import DistributedLock
+from metadata.utils.bkbase import _sync_bkbase_result_table_meta
 from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
 logger = logging.getLogger("metadata")
@@ -56,7 +59,7 @@ def watch_bkbase_meta_redis_task():
 
     try:
         bkbase_redis = bkbase_redis_client()
-        key_pattern = f'{settings.BKBASE_REDIS_PATTERN}:*'
+        key_pattern = f"{settings.BKBASE_REDIS_PATTERN}:*"
         runtime_limit = settings.BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS  # 任务运行时间限制为一天
 
         # 启动锁续约线程
@@ -121,14 +124,14 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                     return
 
                 # 仅处理匹配模式的消息
-                if message['type'] != 'pmessage':
+                if message["type"] != "pmessage":
                     continue
 
                 # 解码消息内容
                 channel = (
-                    message['channel'].decode('utf-8') if isinstance(message['channel'], bytes) else message['channel']
+                    message["channel"].decode("utf-8") if isinstance(message["channel"], bytes) else message["channel"]
                 )
-                event = message['data'].decode('utf-8') if isinstance(message['data'], bytes) else message['data']
+                event = message["data"].decode("utf-8") if isinstance(message["data"], bytes) else message["data"]
 
                 # 使用正则表达式验证频道格式
                 if not channel_regex.match(channel):
@@ -245,7 +248,7 @@ def sync_bkbase_metadata_all():
         cursor, keys = bkbase_redis.scan(
             cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*", count=settings.BKBASE_REDIS_SCAN_COUNT
         )
-        decoded_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
+        decoded_keys = [k.decode("utf-8") if isinstance(k, bytes) else k for k in keys]
         matching_keys.extend(decoded_keys)
         if cursor == 0:
             break
@@ -270,3 +273,60 @@ def sync_bkbase_metadata_all():
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_metadata_all", process_target=None).observe(
         cost_time
     )
+
+
+@share_lock(identify="metadata_SyncBkBaseRtMetaInfoAll", ttl=10800)
+def sync_bkbase_rt_meta_info_all():
+    """
+    全量同步计算平台RT元信息(调度)
+    """
+    logger.info("sync_bkbase_rt_meta_info_all: start syncing bkbase rt meta info.")
+    start_time = time.time()
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_rt_meta_info_all", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    # 1. 获取全部仍处于活跃状态的业务ID列表
+    # Q: 为什么需要屏蔽掉一些业务？
+    # A：在计算平台自身的业务ID下，存在大量非监控平台使用的RT元信息，这些RT无需关注和同步
+    active_biz_ids = list(
+        models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, status=SpaceStatus.NORMAL.value)
+        .exclude(space_id__in=settings.SYNC_BKBASE_META_BLACK_BIZ_ID_LIST)
+        .values_list("space_id", flat=True)
+    )
+
+    # 2. 按指定batch_size分片
+    # Q:为什么要分批处理？
+    # A:计算平台老Meta接口存在性能问题,全量拉取会超时且全量存放在内存中可能导致OOM
+    biz_id_batches = chunk_list(data=active_biz_ids, size=settings.SYNC_BKBASE_META_BIZ_BATCH_SIZE)
+    storages = settings.SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES
+    logger.info(
+        "sync_bkbase_rt_meta_info_all: start syncing bkbase rt meta serially,total rounds->[%s],support_storages->[%s]",
+        len(biz_id_batches),
+        storages,
+    )
+
+    # 3. 串行按业务批次拉取元信息列表并调用同步逻辑
+    # Q:为什么不将全业务的全部元信息都拉出来然后再统一进行同步操作？
+    # A:若全量取出至内存,大概率会导致OOM
+    for idx, biz_id_batch in enumerate(biz_id_batches, start=1):
+        logger.info("sync_bkbase_rt_meta_info_all: start syncing,round->[%s]", idx)
+        try:
+            bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=biz_id_batch, storages=storages)
+            _sync_bkbase_result_table_meta(round_iter=idx, bkbase_rt_meta_list=bkbase_rt_meta_list)
+        except Exception as e:  # pylint:disable=broad-except
+            logger.error(
+                "sync_bkbase_rt_meta_info_all: round->[%s] failed,biz_ids->[%s],error->[%s]", idx, biz_id_batch, e
+            )
+            logger.exception(e)
+            continue
+        logger.info("sync_bkbase_rt_meta_info_all: end syncing,round->[%s]", idx)
+
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_rt_meta_info_all", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="sync_bkbase_rt_meta_info_all", process_target=None
+    ).observe(cost_time)
+    logger.info("sync_bkbase_rt_meta_info_all: finished syncing bkbase rt meta info,cost->[%s]", cost_time)

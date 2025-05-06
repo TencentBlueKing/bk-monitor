@@ -1471,6 +1471,13 @@ ES_STORAGE_OFFSET_HOURS = 8
 # ES请求默认超时时间（秒）
 METADATA_REQUEST_ES_TIMEOUT_SECONDS = 10
 
+# 同步计算平台RT元信息时的黑名单业务ID列表(计算平台自身业务ID）
+SYNC_BKBASE_META_BLACK_BIZ_ID_LIST = []
+# 同步计算平台RT元信息时的单轮拉取业务ID个数
+SYNC_BKBASE_META_BIZ_BATCH_SIZE = 10
+# 同步计算平台RT元信息时支持的存储类型
+SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
+
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
