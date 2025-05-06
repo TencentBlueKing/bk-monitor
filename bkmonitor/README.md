@@ -2,9 +2,17 @@
   <img src="docs/logo.png" alt="BkMonitor" style="vertical-align: middle;"/>
 </p>
 
-![Verson](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fversion.yaml&query=version&label=version)
-![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fpyproject.toml)
-[![license](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/TencentBlueKing/bk-monitor/blob/master/LICENSE.txt)
+<p align="center">
+<a href="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fversion.yaml&query=version&label=version" target="_blank">
+  <img src="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fversion.yaml&query=version&label=version" alt="Version"/>
+</a>
+<a href="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fpyproject.toml" target="_blank">
+  <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FTencentBlueKing%2Fbk-monitor%2Frefs%2Fheads%2Fmaster%2Fbkmonitor%2Fpyproject.toml" alt="Python Version from PEP 621 TOML"/>
+</a>
+<a href="https://github.com/TencentBlueKing/bk-monitor/blob/master/LICENSE.txt" target="_blank">
+  <img src="https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat" alt="license"/>
+</a>
+</p>
 
 ---
 
