@@ -1935,3 +1935,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata get data_labels mapping
+  /app/metadata/query_meta_info_by_vmrt/:
+    post:
+      operationId: metadata_query_meta_info_by_vmrt
+      description: 根据VMRT查询关联元数据信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/query_meta_info_by_vmrt/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata query meta info by vmrt

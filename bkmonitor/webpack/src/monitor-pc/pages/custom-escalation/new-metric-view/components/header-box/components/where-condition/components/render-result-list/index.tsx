@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../../../metric-chart-view/utils';
 import EditPanel, { type IValue, type IMetrics, methodMap } from './components/edit-panel/index';
 
 import './index.scss';
@@ -195,13 +196,15 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                 )}
                 <div
                   class='tag-wrapper'
+                  v-bk-tooltips={{ content: formatTipsContent(item.key, this.dimensionAliasNameMap[item.key]) }}
                   onClick={(event: Event) => this.handleShowEditPanel(item, event)}
                 >
                   <div class='dimension-header'>
                     <div class='dimension-key'>
-                      {this.dimensionAliasNameMap[item.key]
+                      {this.dimensionAliasNameMap[item.key] || item.key}
+                      {/* {this.dimensionAliasNameMap[item.key]
                         ? `${this.dimensionAliasNameMap[item.key]} (${item.key})`
-                        : item.key}
+                        : item.key} */}
                     </div>
                     <div class='dimension-method'>{methodMap[item.method]}</div>
                   </div>

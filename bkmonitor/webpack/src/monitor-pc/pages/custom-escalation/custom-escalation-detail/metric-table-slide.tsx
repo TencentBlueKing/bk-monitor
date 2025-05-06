@@ -35,23 +35,23 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { statusMap } from './metric-table';
+import { statusMap } from './type';
+import {
+  ALL_OPTION,
+  CheckboxStatus,
+  CHECKED_OPTION,
+  type IColumnConfig,
+  type PopoverChildRef,
+  RADIO_OPTIONS,
+  type IMetricItem,
+  type MetricHeaderKeys,
+} from './type';
+import { fuzzyMatch } from './utils';
 
 import './metric-table-slide.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 // 常量定义
-export const ALL_OPTION = 'allOption';
-export const CHECKED_OPTION = 'checkedOption';
-export const RADIO_OPTIONS = [
-  { id: ALL_OPTION, label: window.i18n.tc('全量') },
-  { id: CHECKED_OPTION, label: window.i18n.tc('勾选项') },
-];
-export enum CheckboxStatus {
-  ALL_CHECKED = 2, // 全选
-  INDETERMINATE = 1, // 半选
-  UNCHECKED = 0, // 未选
-}
 
 // 默认分页大小
 const DEFAULT_PAGE_SIZE = 20;
@@ -59,50 +59,6 @@ const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_CELL_HEIGHT = 40;
 // 加载延迟时间(ms)
 const LOAD_DELAY = 300;
-
-interface IMetricItem {
-  name: string;
-  description?: string;
-  unit?: string;
-  aggregate_method?: string;
-  interval?: number;
-  function?: string[];
-  hidden?: boolean;
-  disabled?: boolean;
-  isNew?: boolean;
-  dimensions?: string[];
-  error?: string;
-  selection?: boolean;
-}
-
-export interface IColumnConfig {
-  label: string;
-  width: number;
-  type?: string;
-  renderFn: (props: any, key?: any) => any;
-  renderHeaderFn?: (config: any) => any;
-}
-
-interface PopoverInstance extends Vue {
-  $el: HTMLDivElement;
-  hideHandler: () => void;
-}
-
-export type PopoverChildRef = Vue & {
-  $refs: {
-    refDropdownContent?: PopoverInstance;
-    selectDropdown?: any;
-  };
-};
-
-type ValidHeaderKeys = keyof Pick<IMetricItem, 'aggregate_method' | 'dimensions' | 'function' | 'interval' | 'unit'>;
-
-// 模糊匹配
-export const fuzzyMatch = (str: string, pattern: string) => {
-  const lowerStr = String(str || '').toLowerCase();
-  const lowerPattern = String(pattern || '').toLowerCase();
-  return lowerStr.includes(lowerPattern);
-};
 
 const initMap = {
   unit: '',
@@ -127,7 +83,7 @@ export default class IndicatorTableSlide extends tsc<any> {
 
   localTable: IMetricItem[] = [];
   units: any[] = [];
-  width = 1400;
+
   currentPage = 1;
   pageSize = DEFAULT_PAGE_SIZE;
   cellHeight = DEFAULT_CELL_HEIGHT;
@@ -148,26 +104,10 @@ export default class IndicatorTableSlide extends tsc<any> {
     hidden: false,
     disabled: false,
   };
+  /** 编辑模式：全量 | 勾选项 */
   editModo: typeof ALL_OPTION | typeof CHECKED_OPTION = ALL_OPTION;
-
-  // 表格配置
-  tableConfig = {
-    loading: false,
-    fieldsSettings: {
-      name: { checked: true, disable: false },
-      description: { checked: true, disable: false },
-      unit: { checked: true, disable: false },
-      aggregate_method: { checked: true, disable: false },
-      interval: { checked: true, disable: false },
-      dimensions: { checked: true, disable: false },
-      function: { checked: true, disable: false },
-      disabled: { checked: false, disable: false },
-      hidden: { checked: true, disable: false },
-      operate: { checked: true, disable: false },
-    },
-    search: [],
-  };
-
+  /** 表格搜索 */
+  search = [];
   /* 筛选条件(简化) */
   metricSearchObj = {
     name: [],
@@ -177,7 +117,6 @@ export default class IndicatorTableSlide extends tsc<any> {
     aggregate: [],
     show: [],
   };
-
   /** 删除的行name列表 */
   delArray: Array<{ type: string; name: string }> = [];
 
@@ -224,12 +163,12 @@ export default class IndicatorTableSlide extends tsc<any> {
       renderHeaderFn: row => this.renderPopoverHeader(row),
       renderFn: props => this.renderDimension(props.row, props.$index),
     },
-    disabled: {
-      label: '启/停',
-      width: 80,
-      renderHeaderFn: row => this.renderPopoverHeader(row),
-      renderFn: (props, key) => this.renderSwitch(props.row, key as 'disabled' | 'hidden'),
-    },
+    // disabled: {
+    //   label: '启/停',
+    //   width: 80,
+    //   renderHeaderFn: row => this.renderPopoverHeader(row),
+    //   renderFn: (props, key) => this.renderSwitch(props.row, key as 'disabled' | 'hidden'),
+    // },
     hidden: {
       label: '显示',
       width: 80,
@@ -242,7 +181,7 @@ export default class IndicatorTableSlide extends tsc<any> {
       renderFn: props => this.renderOperations(props),
     },
   };
-  currentPopoverKey: ValidHeaderKeys = null;
+  currentPopoverKey: MetricHeaderKeys = null;
   triggerElements = [];
   popoverRef = [];
   popoverChildRef: PopoverChildRef[] = [];
@@ -250,6 +189,11 @@ export default class IndicatorTableSlide extends tsc<any> {
   /** 全选标志位 */
   allCheckValue: 0 | 1 | 2 = CheckboxStatus.UNCHECKED;
   searchKey = '';
+
+  /** 抽屉宽度 */
+  get width() {
+    return window.innerWidth * 0.75;
+  }
 
   get dimensions() {
     const newDimension = this.searchKey ? [{ id: this.searchKey, name: this.searchKey, isNew: true }] : [];
@@ -317,7 +261,7 @@ export default class IndicatorTableSlide extends tsc<any> {
    */
   @Debounce(LOAD_DELAY)
   handleSearchChange(list = []) {
-    this.tableConfig.search = list;
+    this.search = list;
     const search = {
       name: [],
       description: [],
@@ -327,7 +271,7 @@ export default class IndicatorTableSlide extends tsc<any> {
       show: [],
     };
 
-    for (const item of this.tableConfig.search) {
+    for (const item of this.search) {
       if (item.type === 'text') {
         item.id = 'name';
         item.values = [{ id: item.name, name: item.name }];
@@ -391,7 +335,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     this.localTable = deepClone(this.metricTable);
     this.localTable.map(row => (row.selection = false));
     this.initTableData();
-    this.tableConfig.search = [];
+    this.search = [];
     this.allCheckValue = CheckboxStatus.UNCHECKED;
     return false;
   }
@@ -467,7 +411,7 @@ export default class IndicatorTableSlide extends tsc<any> {
           <div class='slider-search'>
             <SearchSelect
               data={this.metricSearchData}
-              modelValue={this.tableConfig.search}
+              modelValue={this.search}
               placeholder={this.$t('搜索指标')}
               show-popover-tag-change
               on-change={this.handleSearchChange}
@@ -475,7 +419,6 @@ export default class IndicatorTableSlide extends tsc<any> {
           </div>
           <div class='slider-table'>
             <bk-table
-              v-bkloading={{ isLoading: this.tableConfig.loading }}
               data={this.showTableData}
               empty-text={this.$t('无数据')}
               max-height={window.innerHeight - 240}
@@ -494,7 +437,7 @@ export default class IndicatorTableSlide extends tsc<any> {
                       <span class='empty-text'>{this.$t('暂无数据')}</span>
                     </bk-exception>
                   </div>
-                  {this.tableConfig.search.length ? (
+                  {this.search.length ? (
                     <div
                       class='add-row'
                       onClick={this.handleClearSearch}
@@ -512,8 +455,6 @@ export default class IndicatorTableSlide extends tsc<any> {
                 </div>
               </div>
               {Object.entries(this.fieldsSettings).map(([key, config]) => {
-                if (!this.tableConfig.fieldsSettings[key].checked) return null;
-
                 const hasRenderHeader = 'renderHeaderFn' in config;
 
                 return (
@@ -554,7 +495,7 @@ export default class IndicatorTableSlide extends tsc<any> {
   }
 
   handleClearSearch() {
-    this.tableConfig.search = [];
+    this.search = [];
     this.handleSearchChange();
   }
 
