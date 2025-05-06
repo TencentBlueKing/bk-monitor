@@ -71,8 +71,23 @@ interface IEventFavoriteConfig {
     commonWhere?: any[];
   };
 }
+export interface ITraceFavoriteConfig {
+  bk_biz_id: number;
+  componentData: {
+    mode: string;
+    filterMode: string;
+  };
+  queryParams: {
+    app_name: string;
+    filters: any[];
+    query: string;
+    start_time: string;
+    end_time: string;
+    mode: string;
+  };
+}
 
-export type IFavorite = 'event' | 'metric';
+export type IFavorite = 'event' | 'metric' | 'trace';
 
 export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
   editable: string;

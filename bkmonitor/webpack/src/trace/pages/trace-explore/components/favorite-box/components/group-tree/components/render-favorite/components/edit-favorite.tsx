@@ -25,11 +25,12 @@
  */
 import { defineComponent, type PropType, reactive, watch } from 'vue';
 import { shallowRef } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Dialog, Form, Input, Select, Button, Tag } from 'bkui-vue';
 import _ from 'lodash';
-import { updateFavorite } from 'monitor-api/modules/model';
+import { createFavorite, updateFavorite } from 'monitor-api/modules/model';
 
 import { GROUP_ID_PERSONAL } from '../../../../../constants';
 import useFavoriteType from '../../../../../hooks/use-favorite-type';
@@ -41,6 +42,7 @@ import RenderFavoriteQuery from '../../../../favorite-info/render-favorite-query
 import type { IFavoriteGroup } from '../../../../../types';
 
 export default defineComponent({
+  name: 'EditFavorite',
   props: {
     data: {
       type: Object as PropType<IFavoriteGroup['favorites'][number]>,
@@ -51,6 +53,10 @@ export default defineComponent({
     },
     personal: {
       type: Boolean,
+    },
+    isCreate: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['close', 'success'],
@@ -68,12 +74,24 @@ export default defineComponent({
       group_id: '',
     });
 
+    const groupRenderList = computed(() => {
+      return [
+        ...groupList.value,
+        {
+          id: 'null',
+          name: t('未分组'),
+        },
+      ];
+    });
+
     watch(
       () => props.isShow,
-      () => {
-        formData.name = props.data.name;
-        formData.group_id = `${props.data.group_id}`;
-        newGroupName.value = '';
+      val => {
+        if (val && props.data && !props.isCreate) {
+          formData.name = props.data.name;
+          formData.group_id = `${props.data.group_id}`;
+          newGroupName.value = '';
+        }
       },
       {
         immediate: true,
@@ -118,10 +136,19 @@ export default defineComponent({
       isSubmiting.value = true;
       try {
         await formRef.value.validate();
-        await updateFavorite(props.data.id, {
-          type: favoriteType.value,
-          ...formData,
-        });
+        if (props.isCreate) {
+          await createFavorite({
+            ...props.data,
+            type: favoriteType.value,
+            name: formData.name,
+            group_id: formData.group_id === 'null' || formData.group_id === '' ? null : formData.group_id,
+          });
+        } else {
+          await updateFavorite(props.data.id, {
+            type: favoriteType.value,
+            ...formData,
+          });
+        }
         refreshGroupList();
         context.emit('close');
       } finally {
@@ -187,7 +214,7 @@ export default defineComponent({
                 extension: () => <CreateGroupExtends onSuccess={handleCreateGroupSuccess} />,
               }}
             >
-              {groupList.value.map(groupItem => (
+              {groupRenderList.value.map(groupItem => (
                 <Select.Option
                   id={`${groupItem.id}`}
                   key={groupItem.id}

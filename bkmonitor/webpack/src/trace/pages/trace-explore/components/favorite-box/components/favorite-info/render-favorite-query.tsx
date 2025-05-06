@@ -29,7 +29,7 @@ import VueJsonPretty from 'vue-json-pretty';
 
 import useFavoriteType from '../../hooks/use-favorite-type';
 
-import type { IFavoriteGroup } from '../../types';
+import type { IFavoriteGroup, ITraceFavoriteConfig } from '../../types';
 
 import './render-favorite-query.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -134,10 +134,36 @@ export default defineComponent({
       return '*';
     };
 
+    const renderTrace = () => {
+      if (favoriteType.value !== 'trace') {
+        return null;
+      }
+      const queryParams = (props.data?.config?.queryParams || {}) as ITraceFavoriteConfig['queryParams'];
+      if (queryParams?.query) {
+        return <span>{queryParams.query}</span>;
+      }
+      if (queryParams?.filters?.length) {
+        return (
+          <VueJsonPretty
+            data={{
+              filters: queryParams.filters,
+              app_name: queryParams?.app_name || '',
+              start_time: queryParams?.start_time || '',
+              end_time: queryParams?.end_time || '',
+              mode: queryParams?.mode || '',
+            }}
+            deep={5}
+          />
+        );
+      }
+      return '*';
+    };
+
     return () => (
       <div class='favorite-box-favorite-info-query'>
         {renderEvent()}
         {renderMetric()}
+        {renderTrace()}
       </div>
     );
   },

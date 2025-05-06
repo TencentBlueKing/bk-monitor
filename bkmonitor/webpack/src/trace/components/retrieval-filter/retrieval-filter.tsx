@@ -80,7 +80,7 @@ export default defineComponent({
           })) || [],
       })) as IFilterField[];
     });
-    const curFavoriteId = computed(() => props.selectFavorite?.config?.queryConfig?.result_table_id);
+    const curFavoriteId = computed(() => props.selectFavorite?.config?.queryParams?.app_name);
     const isDefaultResidentSetting = computed(() => {
       if (curFavoriteId.value === props.dataId) {
         return false;
@@ -93,8 +93,8 @@ export default defineComponent({
       }
       /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
       return props.isTraceRetrieval
-        ? traceWhereFormatter(props.selectFavorite?.config?.queryConfig?.commonWhere || [])
-        : props.selectFavorite?.config?.queryConfig?.commonWhere || [];
+        ? traceWhereFormatter(props.selectFavorite?.config?.componentData?.commonWhere || [])
+        : props.selectFavorite?.config?.componentData?.commonWhere || [];
     });
     const propsCommonWhere = computed(() => {
       return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
@@ -517,20 +517,17 @@ export default defineComponent({
               )}
               {this.isShowFavorite && (
                 <Popover
-                  class='favorite-btn'
-                  ext-cls='favorite-btn-popover'
-                  tippy-options={{
-                    trigger: 'click',
-                    interactive: true,
-                    theme: 'light',
-                  }}
+                  extCls='retrieval-filter-favorite-btn-popover'
                   disabled={!this.selectFavorite}
                   placement='bottom'
+                  theme='light padding-0'
+                  trigger='click'
                 >
                   {{
                     default: () => {
                       return (
                         <div
+                          class='favorite-btn'
                           v-bk-tooltips={{
                             content: window.i18n.tc('收藏'),
                             delay: 300,
