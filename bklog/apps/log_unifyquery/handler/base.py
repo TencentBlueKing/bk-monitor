@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -58,9 +58,9 @@ from apps.utils.time_handler import timestamp_to_timeformat
 from bkm_ipchooser.constants import CommonEnum
 
 
-class UnifyQueryHandler(object):
+class UnifyQueryHandler:
     def __init__(self, params):
-        self.search_params: Dict[str, Any] = params
+        self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
         self.index_set_ids = self.search_params["index_set_ids"]
@@ -102,7 +102,7 @@ class UnifyQueryHandler(object):
         )
 
         # result fields
-        self.field: Dict[str, MAX_LEN_DICT] = {}
+        self.field: dict[str, MAX_LEN_DICT] = {}
 
         self.is_desensitize = params.get("is_desensitize", True)
 
@@ -209,7 +209,7 @@ class UnifyQueryHandler(object):
         else:
             return "1d"
 
-    def _init_index_info_list(self, index_set_ids: List[int]) -> list:
+    def _init_index_info_list(self, index_set_ids: list[int]) -> list:
         index_info_list = []
         for index_set_id in index_set_ids:
             index_info = {}
@@ -239,7 +239,6 @@ class UnifyQueryHandler(object):
                 if "__dist_05" in self.search_params.get("keyword", ""):
                     index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
                     index_info_list.append(index_info)
-                    return index_info_list
 
                 for addition in self.search_params.get("addition", []):
                     # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
@@ -262,7 +261,7 @@ class UnifyQueryHandler(object):
         return index_info
 
     @staticmethod
-    def _deal_normal_addition(value, _operator: str) -> Union[str, list]:
+    def _deal_normal_addition(value, _operator: str) -> str | list:
         operator = _operator
         addition_return_value = {
             "is": lambda: value,
@@ -379,7 +378,7 @@ class UnifyQueryHandler(object):
                 new_value_list = []
                 for value in value_list:
                     if addition["field"] == "*":
-                        value = "\"" + value.replace('"', '\\"') + "\""
+                        value = '"' + value.replace('"', '\\"') + '"'
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
@@ -412,7 +411,7 @@ class UnifyQueryHandler(object):
     def _init_sort(self) -> list:
         index_set_id = self.search_params.get("index_set_ids", [])[0]
         # 获取用户对sort的排序需求
-        sort_list: List = self.search_params.get("sort_list", [])
+        sort_list: list = self.search_params.get("sort_list", [])
         is_union_search = self.search_params.get("is_union_search", False)
 
         if sort_list:
@@ -553,7 +552,7 @@ class UnifyQueryHandler(object):
         )
         return result_dict
 
-    def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
+    def _analyze_field_length(self, log_list: list[dict[str, Any]]):
         for item in log_list:
 
             def get_field_and_get_length(_item: dict, father: str = ""):
@@ -566,7 +565,7 @@ class UnifyQueryHandler(object):
                             get_field_and_get_length(_item[key], key)
                     else:
                         if father:
-                            _key = "{}.{}".format(father, key)
+                            _key = f"{father}.{key}"
                         else:
                             _key = "%s" % key
                     if _key:
@@ -639,7 +638,7 @@ class UnifyQueryHandler(object):
         return log
 
     @classmethod
-    def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def update_nested_dict(cls, base_dict: dict[str, Any], update_dict: dict[str, Any]) -> dict[str, Any]:
         """
         递归更新嵌套字典
         """
@@ -653,10 +652,10 @@ class UnifyQueryHandler(object):
         return base_dict
 
     @staticmethod
-    def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def nested_dict_from_dotted_key(dotted_dict: dict[str, Any]) -> dict[str, Any]:
         result = {}
         for key, value in dotted_dict.items():
-            parts = key.split('.')
+            parts = key.split(".")
             current_level = result
             for part in parts[:-1]:
                 if part not in current_level:
@@ -665,7 +664,7 @@ class UnifyQueryHandler(object):
             current_level[parts[-1]] = "".join(value)
         return result
 
-    def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:
+    def _deal_object_highlight(self, log: dict[str, Any], highlight: dict[str, Any]) -> dict[str, Any]:
         """
         兼容Object类型字段的高亮
         ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
