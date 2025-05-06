@@ -29,6 +29,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { updateFavorite } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
 
@@ -43,6 +44,8 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import FavoriteBox from './components/favorite-box';
+import EditFavorite from './components/favorite-box/components/group-tree/components/render-favorite/components/edit-favorite';
+import useGroupList from './components/favorite-box/hooks/use-group-list';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
@@ -59,6 +62,7 @@ export default defineComponent({
     const router = useRouter();
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
+    const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
 
     /** 自动查询定时器 */
     let autoQueryTimer = null;
@@ -98,6 +102,10 @@ export default defineComponent({
     const loading = shallowRef(false);
     const queryString = shallowRef('');
     const queryStringInput = shallowRef('');
+    /* 当前选择的收藏项 */
+    const currentFavorite = shallowRef(null);
+    const editFavoriteData = shallowRef(null);
+    const editFavoriteShow = shallowRef(false);
 
     let axiosController = new AbortController();
 
@@ -373,6 +381,80 @@ export default defineComponent({
         });
     }
 
+    /**
+     * 处理收藏夹变更的回调函数
+     * @param {object} data - 收藏夹配置数据,为空时表示清除收藏
+     * @description 当收藏夹变更时:
+     * 1. 更新当前收藏夹值
+     * 2. 如果有收藏数据,则用收藏的配置更新查询条件(where)、通用查询条件(commonWhere)和查询语句(queryString)
+     * 3. 如果清除收藏,则重置所有查询条件为空
+     */
+    function handleFavoriteChange(data) {
+      currentFavorite.value = data || null;
+      if (data) {
+        const favoriteConfig = data?.config;
+        where.value = favoriteConfig?.queryParams?.filters || [];
+        commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
+        queryString.value = favoriteConfig?.queryParams?.query || '';
+        store.updateMode(favoriteConfig?.queryParams?.mode || 'trace');
+        store.updateAppName(favoriteConfig?.queryParams?.app_name || store.appName);
+        handleQuery();
+      } else {
+        where.value = [];
+        queryString.value = '';
+        commonWhere.value = [];
+      }
+    }
+
+    /**
+     * 处理收藏保存的异步函数
+     * @param {boolean} isEdit - 是否为编辑模式，默认为 false
+     * @description
+     * 该函数用于处理 Trace 探索页面的收藏功能：
+     * - 收集当前的时间范围、过滤条件等查询参数
+     * - 根据 isEdit 参数决定是更新现有收藏还是创建新收藏
+     * - 编辑模式下直接更新收藏并刷新列表
+     * - 非编辑模式下打开收藏编辑弹窗
+     */
+    async function handleFavoriteSave(isEdit = false) {
+      const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
+      const filters = mergeWhereList(where.value || [], commonWhere.value || []);
+      const params = {
+        config: {
+          componentData: {
+            mode: store.mode,
+            filterMode: filterMode.value,
+            commonWhere: commonWhere.value,
+          },
+          queryParams: {
+            app_name: store.appName,
+            start_time: startTime,
+            end_time: endTime,
+            filters: filterMode.value === EMode.queryString ? [] : filters,
+            offset: 0,
+            limit: 30,
+            query: filterMode.value === EMode.queryString ? queryString.value : '',
+            sort: [],
+            mode: store.mode,
+          },
+        },
+      };
+      if (isEdit) {
+        await updateFavorite(currentFavorite.value.id, {
+          type: 'trace',
+          ...params,
+        });
+        refreshGroupList();
+      } else {
+        editFavoriteData.value = params;
+        editFavoriteShow.value = true;
+      }
+    }
+
+    function handleEditFavoriteShow(isShow) {
+      editFavoriteShow.value = isShow;
+    }
+
     return {
       traceExploreLayoutRef,
       applicationList,
@@ -390,6 +472,10 @@ export default defineComponent({
       checkboxFilters,
       defaultResidentSetting,
       appName,
+      allFavoriteList,
+      currentFavorite,
+      editFavoriteShow,
+      editFavoriteData,
       handleQuery,
       handleAppNameChange,
       handelSceneChange,
@@ -405,17 +491,21 @@ export default defineComponent({
       handleFilterModeChange,
       handleFilterSearch,
       handleCheckboxFiltersChange,
+      handleFavoriteChange,
+      handleFavoriteSave,
+      handleEditFavoriteShow,
     };
   },
   render() {
     return (
       <div class='trace-explore'>
-        <div class='favorite-panel'>
+        <div
+          style={{ display: this.isShowFavorite ? 'block' : 'none' }}
+          class='favorite-panel'
+        >
           <FavoriteBox
-            type='event'
-            onChange={(data: any) => {
-              console.log('favorit change', data);
-            }}
+            type='trace'
+            onChange={this.handleFavoriteChange}
             onOpenBlank={(data: any) => {
               console.log('favorit open blank', data);
             }}
@@ -442,13 +532,17 @@ export default defineComponent({
                 dataId={this.appName}
                 defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
-                fields={this.fieldList}
+                favoriteList={this.allFavoriteList as any[]}
+                fields={this.fieldList as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                isShowFavorite={true}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
+                selectFavorite={this.currentFavorite}
                 where={this.where}
                 onCommonWhereChange={this.handleCommonWhereChange}
+                onFavorite={this.handleFavoriteSave}
                 onModeChange={this.handleFilterModeChange}
                 onQueryStringChange={this.handleQueryStringChange}
                 onQueryStringInputChange={this.handleQueryStringInputChange}
@@ -487,6 +581,13 @@ export default defineComponent({
             </TraceExploreLayout>
           </div>
         </div>
+        <EditFavorite
+          data={this.editFavoriteData}
+          isCreate={true}
+          isShow={this.editFavoriteShow}
+          onClose={() => this.handleEditFavoriteShow(false)}
+          onSuccess={() => this.handleEditFavoriteShow(false)}
+        />
       </div>
     );
   },
