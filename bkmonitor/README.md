@@ -1,6 +1,5 @@
 <p align="center">
-  <img src="../docs/resource/img/logo.png" alt="BkMonitor" height="80" style="vertical-align: middle;"/>
-  <span style="font-size:3rem; font-weight:bold; vertical-align: middle;">蓝鲸监控</span>
+  <img src="../docs/resource/img/logo.png" alt="BkMonitor" style="vertical-align: middle;"/>
 </p>
 <p align="center">
     <em>蓝鲸监控是蓝鲸智云推出的监控平台</em>
