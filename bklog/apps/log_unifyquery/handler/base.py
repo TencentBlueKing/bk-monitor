@@ -169,12 +169,26 @@ class UnifyQueryHandler:
                 raise e
             return {"series": []}
 
-    @staticmethod
-    def query_ts_raw(search_dict, raise_exception=False):
+    def query_ts_raw(self, search_dict, raise_exception=False, pre_search=False):
         """
         查询时序型日志数据
         """
         try:
+            pre_search_seconds = settings.PRE_SEARCH_SECONDS
+            if pre_search and pre_search_seconds and search_dict.get("start_time"):
+                # 预查询处理
+                first_field, order = self.origin_order_by[0] if self.origin_order_by else [None, None]
+                if first_field == self.search_params.get("time_field", ""):
+                    pre_search_end_time = int(
+                        arrow.get(self.start_time).shift(seconds=pre_search_seconds).timestamp() * 1000
+                    )
+                    pre_search_start_time = int(
+                        arrow.get(self.end_time).shift(seconds=-pre_search_seconds).timestamp() * 1000
+                    )
+                    if order == "desc" and self.start_time < pre_search_start_time:
+                        search_dict.update({"start_time": str(pre_search_start_time)})
+                    elif order == "asc" and self.end_time > pre_search_end_time:
+                        search_dict.update({"end_time": str(pre_search_end_time)})
             return UnifyQueryApi.query_ts_raw(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
@@ -688,17 +702,27 @@ class UnifyQueryHandler:
         if self.search_params["size"] > MAX_RESULT_WINDOW:
             once_size = MAX_RESULT_WINDOW
 
+        pre_search = True
         # 下载操作
         if is_export:
             once_size = MAX_RESULT_WINDOW
             self.search_params["size"] = MAX_RESULT_WINDOW
+            pre_search = False
 
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
 
-        result = UnifyQueryApi.query_ts_raw(search_dict)
+        # 预查询
+        result = self.query_ts_raw(search_dict, pre_search=pre_search)
+        time_difference = 0
+        if self.start_time and self.end_time:
+            # 计算时间差
+            time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
+        if pre_search and len(result["list"]) != once_size and time_difference > settings.PRE_SEARCH_SECONDS:
+            # 全量查询
+            result = self.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
