@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./bk_monitorv3.png" alt="FastAPI" height="80" style="vertical-align: middle;"/>
+  <img src="../docs/resource/img/logo.png" alt="BkMonitor" height="80" style="vertical-align: middle;"/>
   <span style="font-size:3rem; font-weight:bold; vertical-align: middle;">蓝鲸监控</span>
 </p>
 <p align="center">
@@ -92,3 +92,7 @@ pre-commit install
 ```
 
 执行 pre-commit install 后，会自动安装 pre-commit 的钩子，在提交代码时，会自动进行代码检查。
+
+### 单元测试
+
+项目使用 [pytest](https://docs.pytest.org/) 进行单元测试。
