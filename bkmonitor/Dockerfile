@@ -1,4 +1,5 @@
-FROM python:3.11-bullseye as python-base
+FROM python:3.11-bookworm AS python-base
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # variables
 ARG username=bkmonitor
@@ -36,21 +37,18 @@ RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini
 
 
 # build python packages
-FROM python-base as python-builder
+FROM python-base AS python-builder
+
+WORKDIR /app
 
 # install python packages
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
-    --mount=type=bind,source=requirements_aidev.txt,target=/app/requirements_aidev.txt \
-    python -m venv /app/venv \
-    && /app/venv/bin/pip install --upgrade pip \
-    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}" \
-    && /app/venv/bin/pip install -r /app/requirements_aidev.txt -i "${pypi_index_url}"
-
-
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv venv venv --seed && uv sync --locked --no-install-project --no-dev
 
 # build frontend
-FROM node:20-bullseye-slim as node-builder
+FROM node:20-bullseye-slim AS node-builder
 
 # pnpm
 RUN npm install -g pnpm@9
@@ -61,8 +59,6 @@ WORKDIR /app
 COPY ./webpack /app/webpack
 RUN cd /app/webpack/ && pnpm i && npm run prod \
     && mkdir -p /app/dist && mv apm monitor fta weixin trace external /app/dist/
-
-
 
 # final image
 FROM python-base
