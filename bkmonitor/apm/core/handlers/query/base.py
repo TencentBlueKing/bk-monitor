@@ -374,18 +374,7 @@ class BaseQuery:
             self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
         )
 
-    def _query_distinct_count(self, start_time, end_time, field, filters, query_string):
-        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
-            field=field, method="distinct", alias="a"
-        )
-        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
-        try:
-            return list(queryset)[0]["_result_"]
-        except (IndexError, KeyError) as exc:
-            logger.warning("failed to query [%s] distinct, err -> %s", field, exc)
-            raise ValueError(_("{} 去重数查询出错".format(field)))
-
-    def _query_topk(self, start_time, end_time, field, limit, filters, query_string):
+    def _query_field_topk(self, start_time, end_time, field, limit, filters, query_string):
         q: QueryConfigBuilder = (
             self.get_q_from_filters_and_query_string(filters, query_string)
             .metric(field=field, method="COUNT", alias="a")
@@ -405,6 +394,23 @@ class BaseQuery:
         except (IndexError, KeyError) as exc:
             logger.warning("failed to query total, err -> %s", exc)
             raise ValueError(_("总记录数查询出错"))
+
+    def _query_field_aggregated_value(self, start_time, end_time, field, method, q: QueryConfigBuilder):
+        """
+        查询字段聚合值
+        """
+        queryset = (
+            self.time_range_queryset(start_time, end_time)
+            .add_query(q.metric(field=field, method=method, alias="a"))
+            .time_agg(False)
+            .instant()
+            .limit(1)
+        )
+        try:
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query field %s with method %s, error: %s", field, method, exc)
+            raise ValueError(_("字段 {} 使用 {} 方法聚合值查询出错".format(field, method)))
 
 
 class FakeQuery:

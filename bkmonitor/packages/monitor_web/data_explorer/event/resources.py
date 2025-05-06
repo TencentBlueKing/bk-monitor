@@ -658,6 +658,7 @@ class EventStatisticsInfoResource(Resource):
                 processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
             processed_statistics_info[statistics_property] = value
+
         # 计算百分比
         processed_statistics_info["field_percent"] = (
             round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)

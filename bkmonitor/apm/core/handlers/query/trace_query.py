@@ -165,7 +165,7 @@ class TraceQuery(BaseQuery):
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
 
-    def query_topk(
+    def query_field_topk(
         self,
         start_time: Optional[int],
         end_time: Optional[int],
@@ -174,17 +174,7 @@ class TraceQuery(BaseQuery):
         filters: Optional[List[types.Filter]] = None,
         query_string: Optional[str] = None,
     ):
-        return self._query_topk(start_time, end_time, field, limit, filters, query_string)
-
-    def query_distinct_count(
-        self,
-        start_time: Optional[int],
-        end_time: Optional[int],
-        field: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
-    ):
-        return self._query_distinct_count(start_time, end_time, field, filters, query_string)
+        return self._query_field_topk(start_time, end_time, field, limit, filters, query_string)
 
     def query_total(
         self,
@@ -194,3 +184,18 @@ class TraceQuery(BaseQuery):
         query_string: Optional[str] = None,
     ):
         return self._query_total(start_time, end_time, filters, query_string)
+
+    def query_field_aggregated_value(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        field: str,
+        method: str,
+        filters: Optional[List[types.Filter]] = None,
+        query_string: Optional[str] = None,
+        need_empty: bool = True,
+    ):
+        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string)
+        if not need_empty:
+            q = q.filter(**{f"{field}__ne": ""})
+        return self._query_field_aggregated_value(start_time, end_time, field, method, q)

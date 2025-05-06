@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from rest_framework import serializers
 
-from apm.constants import QueryMode
+from apm.constants import EnabledStatisticsDimension, QueryMode
 
 
 class FilterSerializer(serializers.Serializer):
@@ -36,3 +36,13 @@ class BaseTraceFilterSerializer(serializers.Serializer):
 class TraceFieldsTopkRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
     limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+
+
+class TraceStatisticsFieldSerializer(serializers.Serializer):
+    field_type = serializers.ChoiceField(label="字段类型", choices=EnabledStatisticsDimension.choices())
+    field_name = serializers.CharField(label="字段名称")
+    values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
+
+
+class TraceFieldStatisticsInfoRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
+    field = TraceStatisticsFieldSerializer(label="字段")

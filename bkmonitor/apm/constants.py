@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from enum import Enum
 
 from django.conf import settings
 from django.db.models import TextChoices
@@ -614,3 +615,45 @@ class QueryMode:
             (cls.TRACE, "Trace视角"),
             (cls.SPAN, "span视角"),
         ]
+
+
+class EnabledStatisticsDimension(Enum):
+    """
+    开启字段分析的维度类型枚举（映射到 Elasticsearch 数据类型）
+    """
+
+    KEYWORD = "keyword"
+    INTEGER = "integer"
+    LONG = "long"
+    DOUBLE = "double"
+
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
+
+class AggregatedMethod(Enum):
+    """
+    聚合方法枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    COUNT = "count"
+    DISTINCT = "distinct"
+    CP50 = "cp50"
+
+
+class StatisticsProperty(Enum):
+    """
+    统计属性枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    TOTAL_COUNT = "total_count"
+    DISTINCT_COUNT = "distinct_count"
+    FIELD_COUNT = "field_count"
+    MEDIAN = "median"
