@@ -28,33 +28,39 @@ class OperatorEnum:
     """操作符枚举"""
 
     EQ = {"operator": "equal", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    EQ_WILDCARD = {
-        "operator": "equal",
-        "label": "=",
-        "placeholder": _("请选择或直接输入，Enter分隔"),
-        "wildcard_operator": "like",
-    }
     NE = {"operator": "not_equal", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    NE_WILDCARD = {
-        "operator": "not_equal",
-        "label": "!=",
-        "placeholder": _("请选择或直接输入，Enter分隔"),
-        "wildcard_operator": "like",
-    }
-
     EXISTS = {"operator": "exists", "label": _("存在"), "placeholder": _("确认字段已存在")}
     NOT_EXISTS = {"operator": "not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
     INCLUDE = {"operator": "like", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    CONTAINS_MATCH_PHRASE = {
+        "operator": "equal",
+        "label": _("包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "options": [
+            {"label": _("使用通配符"), "name": "is_wildcard", "default": False},
+            {
+                "label": _("组间关系"),
+                "name": "group_relation",
+                "default": "OR",
+                "children": [
+                    {"label": "AND", "value": "AND"},
+                    {"label": "OR", "value": "OR"},
+                ],
+            },
+        ],
+    }
 
 
 OPERATORS = {
     "keyword": [
-        OperatorEnum.EQ_WILDCARD,
-        OperatorEnum.NE_WILDCARD,
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
+        OperatorEnum.INCLUDE,
     ],
     "text": [
+        OperatorEnum.CONTAINS_MATCH_PHRASE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],

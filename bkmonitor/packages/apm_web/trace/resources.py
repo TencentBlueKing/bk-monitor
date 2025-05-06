@@ -32,6 +32,7 @@ from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
+    GetFieldsOptionValuesRequestSerializer,
     QuerySerializer,
     QueryStatisticsSerializer,
     SpanIdInputSerializer,
@@ -1093,21 +1094,7 @@ class GetFieldOptionValuesResource(Resource):
 class GetFieldsOptionValuesResource(Resource):
     """获取指定字段列表的候选项值"""
 
-    class RequestSerializer(serializers.Serializer):
-        class FilterSerializer(serializers.Serializer):
-            key = serializers.CharField(label="字段名")
-            operator = serializers.CharField(label="操作符")
-            value = serializers.ListField(child=serializers.CharField(), label="值列表")
-
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField()
-        end_time = serializers.IntegerField()
-        fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
-        limit = serializers.IntegerField(label="查询条数", default=10)
-        filters = serializers.ListField(child=FilterSerializer(), label="过滤条件列表", allow_empty=True)
-        query_string = serializers.CharField(label="查询字符串", allow_blank=True)
-        mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices(), default="span")
+    RequestSerializer = GetFieldsOptionValuesRequestSerializer
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
