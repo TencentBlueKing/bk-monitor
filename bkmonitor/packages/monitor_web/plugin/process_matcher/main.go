@@ -95,7 +95,6 @@ func (c *ProcessMatcher) Match(processStr string) []*ProcessMatchResult {
 func (c *ProcessMatcher) match(name string) bool {
 	// 如果匹配到了除外正则，则跳过该进程
 	if c.excludePattern != nil && c.excludePattern.MatchString(name) {
-		// 如果匹配到了除外正则，则跳过该进程
 		slog.Debug("proccustom: exclude case matched.")
 		return false
 	}
