@@ -1871,19 +1871,27 @@ class SearchHandler:
                     _index for _index in self.custom_indices.split(",") if _index in index_list
                 )
             self.origin_scenario_id = self.index_set.scenario_id
+            # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
+            if "__dist_05" in self.search_dict.get("keyword", ""):
+                if clustered_rt := self._get_clustering_config_clustered_rt():
+                    return clustered_rt
+
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
                 if addition.get("field", "").startswith("__dist"):
-                    clustering_config = ClusteringConfig.get_by_index_set_id(
-                        index_set_id=self.index_set_id, raise_exception=False
-                    )
-                    if clustering_config and clustering_config.clustered_rt:
-                        # 如果是查询bkbase端的表，即场景需要对应改为bkdata
-                        self.scenario_id = Scenario.BKDATA
-                        self.using_clustering_proxy = True
-                        return clustering_config.clustered_rt
+                    if clustered_rt := self._get_clustering_config_clustered_rt():
+                        return clustered_rt
             return self.origin_indices
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id))
+
+    def _get_clustering_config_clustered_rt(self) -> str | None:
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+        if clustering_config and clustering_config.clustered_rt:
+            # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+            self.scenario_id = Scenario.BKDATA
+            self.using_clustering_proxy = True
+            return clustering_config.clustered_rt
+        return None
 
     @staticmethod
     def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
