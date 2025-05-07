@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.module_loading import import_string
 
@@ -93,19 +93,22 @@ var _wr = function(type) {
       window.parent.postMessage({ pathname: this.location.pathname }, "*");
     });
   });
+
 window.addEventListener('message', function(e) {
-    if (e && e.data) {
-        switch (e.data) {
-        case 'create':
-            location.pathname = '/grafana/dashboard/new';
-            break;
-        case 'folder':
-            location.pathname = '/grafana/dashboards/folder/new';
-            break;
-        case 'import':
-            location.pathname = '/grafana/dashboard/import';
-            break;
+    if(e && e.data) {
+    var dom = null;
+        switch(e.data) {
+            case 'create':
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(2) a');
+                break;
+            case 'folder':
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(3) a');
+                break;
+            case 'import':
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(4) a');
+                break;
         }
+        dom && dom.click()
     }
 })
 </script>
