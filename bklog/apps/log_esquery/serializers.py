@@ -120,6 +120,10 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                 if field.startswith("__dist"):
                     is_clustered_fields = True
                     break
+        # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
+        if "__dist_05" in attrs.get("query_string", ""):
+            is_clustered_fields = True
+
         if index_set_id:
             index_info = _get_index_info(index_set_id, is_clustered_fields=is_clustered_fields)
             indices = index_info["indices"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from datetime import timedelta
 from unittest.mock import patch
@@ -30,30 +30,30 @@ def create_or_delete_records(mocker):
     """
     # ---------------------空间数据--------------------- #
     models.Space.objects.create(
-        space_type_id='bkcc',
-        space_id='1',
-        space_name='test',
-        space_code='1111test',
+        space_type_id="bkcc",
+        space_id="1",
+        space_name="test",
+        space_code="1111test",
     )
-    models.SpaceDataSource.objects.create(bk_data_id=50010, space_type_id='bkcc', space_id='1')
-    models.SpaceDataSource.objects.create(bk_data_id=50011, space_type_id='bkcc', space_id='1')
+    models.SpaceDataSource.objects.create(bk_data_id=50010, space_type_id="bkcc", space_id="1")
+    models.SpaceDataSource.objects.create(bk_data_id=50011, space_type_id="bkcc", space_id="1")
 
     models.Space.objects.create(
-        space_type_id='bkci',
-        space_id='bkmonitor',
-        space_name='bkmonitor',
-        space_code='1111bkm',
+        space_type_id="bkci",
+        space_id="bkmonitor",
+        space_name="bkmonitor",
+        space_code="1111bkm",
         id=10000,
     )
     models.SpaceResource.objects.create(
-        space_type_id='bkci', space_id='bkmonitor', resource_type='bkcc', resource_id='1'
+        space_type_id="bkci", space_id="bkmonitor", resource_type="bkcc", resource_id="1"
     )
 
     models.Space.objects.create(
-        space_type_id='bksaas',
-        space_id='monitor_saas',
-        space_name='monitor_saas',
-        space_code='1111bksaas',
+        space_type_id="bksaas",
+        space_id="monitor_saas",
+        space_name="monitor_saas",
+        space_code="1111bksaas",
         id=10008,
     )
     # ---------------------空间数据--------------------- #
@@ -92,17 +92,17 @@ def create_or_delete_records(mocker):
     # ---------------------指标数据--------------------- #
 
     # ---------------------预计算数据--------------------- #
-    models.RecordRule.objects.create(space_type='bkcc', space_id='1', table_id='bkm_1_record_rule.__default__')
+    models.RecordRule.objects.create(space_type="bkcc", space_id="1", table_id="bkm_1_record_rule.__default__")
 
     # ---------------------日志数据--------------------- #
     models.ESStorage.objects.create(
-        table_id='1001_bklog.stdout',
+        table_id="1001_bklog.stdout",
         storage_cluster_id=11,
     )
     models.ResultTable.objects.create(
-        table_id='1001_bklog.stdout',
+        table_id="1001_bklog.stdout",
         table_name_zh="stdout",
-        data_label='bklog_index_set_1001',
+        data_label="bklog_index_set_1001",
         is_custom_table=False,
     )
     models.ClusterInfo.objects.create(
@@ -116,17 +116,17 @@ def create_or_delete_records(mocker):
         version="5.x",
     )
     models.StorageClusterRecord.objects.create(
-        table_id='1001_bklog.stdout', cluster_id=11, is_current=True, enable_time=base_time - timedelta(days=30)
+        table_id="1001_bklog.stdout", cluster_id=11, is_current=True, enable_time=base_time - timedelta(days=30)
     )
     models.StorageClusterRecord.objects.create(
-        table_id='1001_bklog.stdout',
+        table_id="1001_bklog.stdout",
         cluster_id=12,
         is_current=False,
         enable_time=base_time - timedelta(days=60),
         disable_time=base_time - timedelta(days=30),
     )
     models.StorageClusterRecord.objects.create(
-        table_id='1001_bklog.stdout', cluster_id=13, is_current=True, enable_time=None
+        table_id="1001_bklog.stdout", cluster_id=13, is_current=True, enable_time=None
     )
     models.DataSourceResultTable.objects.create(bk_data_id=50011, table_id="1001_bklog.stdout")
 
@@ -134,13 +134,13 @@ def create_or_delete_records(mocker):
 
     # ---------------------自定义过滤别名--------------------- #
     models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type='bkcc', table_id='1001_bkmonitor_time_series_50010.__default__', filter_alias='dimensions.bk_biz_id'
+        space_type="bkcc", table_id="1001_bkmonitor_time_series_50010.__default__", filter_alias="dimensions.bk_biz_id"
     )
     models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type='bkci', table_id='custom_report_aggate.base', filter_alias='dimensions.bk_biz_id'
+        space_type="bkci", table_id="custom_report_aggate.base", filter_alias="dimensions.bk_biz_id"
     )
     models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type='bksaas', table_id='bkm_statistics.base', filter_alias='dimensions.bk_biz_id'
+        space_type="bksaas", table_id="bkm_statistics.base", filter_alias="dimensions.bk_biz_id"
     )
     # ---------------------自定义过滤别名--------------------- #
 
@@ -180,12 +180,12 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             actual_mapping = args[1]
 
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
-            actual_json = actual_mapping['bkcc__1']
+            actual_json = actual_mapping["bkcc__1"]
             assert json.dumps(actual_json) == json.dumps(expected)
 
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ['bkcc__1'],
+                ["bkcc__1"],
             )
 
 
@@ -216,13 +216,13 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             actual_redis_key = args[0]
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
-            actual_json = actual_mapping['bkci__bkmonitor']
+            actual_json = actual_mapping["bkci__bkmonitor"]
             assert json.dumps(actual_json) == json.dumps(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ['bkci__bkmonitor'],
+                ["bkci__bkmonitor"],
             )
 
 
@@ -246,11 +246,11 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
             actual_redis_key = args[0]
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
-            actual_json = actual_mapping['bksaas__monitor_saas']
+            actual_json = actual_mapping["bksaas__monitor_saas"]
             assert json.dumps(actual_json) == json.dumps(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ['bksaas__monitor_saas'],
+                ["bksaas__monitor_saas"],
             )

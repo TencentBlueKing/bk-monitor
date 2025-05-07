@@ -1,8 +1,8 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span class="history-button">
+    <span class="history-button" @click="handleClickHistoryButton">
       <span class="bklog-icon bklog-history-2"></span>
-      <span @click="handleClickHistoryButton">{{ $t('历史查询') }}</span>
+      <span >{{ $t('历史查询') }}</span>
     </span>
     <div v-show="false">
       <ul
@@ -18,12 +18,12 @@
             @click="handleClickHistory(item)"
           >
             <div class="item-text">
-              <sapn
+              <span
                 class="bklog-icon"
                 :class="getClass(item.search_mode)"
               >
                 <!-- {{ getText(item.search_mode) }} -->
-              </sapn>
+              </span>
 
               <div
                 class="text"

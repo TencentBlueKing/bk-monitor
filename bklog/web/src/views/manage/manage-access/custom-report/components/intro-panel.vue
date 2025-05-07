@@ -55,7 +55,7 @@
 
 <script>
   import { mapGetters } from 'vuex';
-
+  import $http from '../../../../../api';
   export default {
     props: {
       data: {
@@ -68,7 +68,9 @@
       },
     },
     data() {
-      return {};
+      return {
+        proxyHost:[]
+      };
     },
     computed: {
       ...mapGetters({
@@ -83,9 +85,12 @@
         return curType ? this.replaceVaribles(curType.introduction) : '';
       },
     },
+    mounted() {
+      this.initTargetFieldSelectList();
+    },
     methods: {
       replaceVaribles(intro) {
-        let str = intro;
+        let str = this.updateStringWithNewData(intro);
         const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
         varibleList?.forEach(item => {
           const val = item.match(/\{\{([^)]*)\}\}/)[1];
@@ -98,6 +103,30 @@
         this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
         this.$store.commit('updateChartSize');
       },
+      async initTargetFieldSelectList () {
+        const res = await $http.request('retrieve/getProxyHost', {
+          params: {
+            bk_biz_id: this.$store.state.bkBizId,
+          }
+        });
+        this.proxyHost = res.data
+        
+      },
+      updateStringWithNewData(originalString) {
+        const regex = /<code>[\s\S]*?云区域ID[\s\S]*?<\/code>/
+
+        // 格式化新的数据以便插入到 <code> 标签中
+        const newDataContent = this.proxyHost.map(dataGroup =>
+          dataGroup.map(data => 
+            `云区域ID ${data.bk_cloud_id} ${data.protocol}: ${data.report_url}`
+          ).join('\n')
+        ).join('\n');
+        console.log(newDataContent);
+        
+        const updatedString = originalString.replace(regex,  `<code>${newDataContent}</code>`);
+        return updatedString;
+      }
+
     },
   };
 </script>

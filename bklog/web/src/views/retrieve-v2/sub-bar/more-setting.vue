@@ -210,6 +210,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 60px;
+    height: 52px;
 
     span {
       margin: 0 -4px 0 0;
