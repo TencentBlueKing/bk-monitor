@@ -229,13 +229,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
     } = this.metricData[0] || {};
 
     const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
-    const isValidMetricData = this.metricData.length <= 1 && this.isKpiAnomalySdkEnabled;
-    const isSingleValidSource =
-      this.metricData.length === 1 &&
-      (['bk_data'].includes(dataSourceLabel) ||
-        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
-      !functions?.length;
-    return (isValidMetricData || isSingleValidSource) && isTimeSeries;
+    const isLogMetric = dataTypeLabel === 'log' || this.dataTypeLabel === 'log';
+    const isEventMetric = dataTypeLabel === 'event' || this.dataTypeLabel === 'event'
+    const isValidMetricData = this.metricData.length <= 1;
+    return isValidMetricData && (isTimeSeries || isLogMetric || isEventMetric);
   }
 
   get getMethodList() {
