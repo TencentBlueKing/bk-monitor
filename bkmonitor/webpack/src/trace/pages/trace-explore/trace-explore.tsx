@@ -41,6 +41,7 @@ import {
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import FavoriteBox from './components/favorite-box';
@@ -62,6 +63,8 @@ export default defineComponent({
     const router = useRouter();
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
+    const appStore = useAppStore();
+    const bizId = computed(() => appStore.bizId);
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
 
     /** 自动查询定时器 */
@@ -99,6 +102,8 @@ export default defineComponent({
     const loading = shallowRef(false);
     const queryString = shallowRef('');
     const queryStringInput = shallowRef('');
+    /** 默认选择的收藏Id */
+    const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
     const editFavoriteData = shallowRef(null);
@@ -126,15 +131,6 @@ export default defineComponent({
         }
       }
     );
-    watch(
-      () => store.mode,
-      () => {
-        commonParams.value = {
-          ...commonParams.value,
-          mode: store.mode,
-        };
-      }
-    );
 
     /** 视角切换 */
     function handelSceneChange(val: ICommonParams['mode'], oldVal: ICommonParams['mode']) {
@@ -151,6 +147,7 @@ export default defineComponent({
       where.value = cacheQuery?.where || [];
       queryString.value = cacheQuery?.query_string || '';
       commonWhere.value = cacheQuery?.commonWhere || [];
+      handleQuery();
     }
 
     /** 应用切换 */
@@ -250,6 +247,7 @@ export default defineComponent({
         showResidentBtn: queryShowResidentBtn,
         queryString: queryQueryString,
         selectedType,
+        favorite_id,
       } = route.query;
       try {
         store.init({
@@ -266,14 +264,16 @@ export default defineComponent({
         queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
+        favorite_id && (defaultFavoriteId.value = Number(favorite_id));
       } catch (error) {
         console.log('route query:', error);
       }
     }
 
     function setUrlParams() {
+      const { favorite_id, ...otherQuery } = route.query;
       const query = {
-        ...route.query,
+        ...otherQuery,
         start_time: store.timeRange[0],
         end_time: store.timeRange[1],
         timezone: store.timezone,
@@ -390,18 +390,29 @@ export default defineComponent({
       currentFavorite.value = data || null;
       if (data) {
         const favoriteConfig = data?.config;
-        filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
         where.value = favoriteConfig?.queryParams?.filters || [];
         commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
         queryString.value = favoriteConfig?.queryParams?.query || '';
-        store.updateMode(favoriteConfig?.queryParams?.mode || 'trace');
-        store.updateAppName(favoriteConfig?.queryParams?.app_name || store.appName);
-        handleQuery();
+        filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
+        store.init({
+          mode: favoriteConfig?.queryParams?.mode || 'trace',
+          appName: favoriteConfig?.queryParams?.app_name || store.appName,
+          timeRange: favoriteConfig?.componentData?.timeRange || DEFAULT_TIME_RANGE,
+          refreshInterval: favoriteConfig?.componentData?.refreshInterval || -1,
+        });
       } else {
         where.value = [];
         queryString.value = '';
         commonWhere.value = [];
       }
+      handleQuery();
+      getViewConfig();
+    }
+
+    /** 收藏夹新开标签页 */
+    function handleFavoriteOpenBlank(data) {
+      const href = `${location.origin}${location.pathname}?bizId=${bizId.value}#${route.path}`;
+      window.open(`${href}?favorite_id=${data.id}`, '_blank');
     }
 
     /**
@@ -423,6 +434,8 @@ export default defineComponent({
             mode: store.mode,
             filterMode: filterMode.value,
             commonWhere: commonWhere.value,
+            timeRange: store.timeRange,
+            refreshInterval: store.refreshInterval,
           },
           queryParams: {
             app_name: store.appName,
@@ -474,6 +487,7 @@ export default defineComponent({
       defaultResidentSetting,
       appName,
       allFavoriteList,
+      defaultFavoriteId,
       currentFavorite,
       editFavoriteShow,
       editFavoriteData,
@@ -493,6 +507,7 @@ export default defineComponent({
       handleFilterSearch,
       handleCheckboxFiltersChange,
       handleFavoriteChange,
+      handleFavoriteOpenBlank,
       handleFavoriteSave,
       handleEditFavoriteShow,
     };
@@ -505,12 +520,11 @@ export default defineComponent({
           class='favorite-panel'
         >
           <FavoriteBox
+            defaultFavoriteId={this.defaultFavoriteId}
             type='trace'
             onChange={this.handleFavoriteChange}
             onClose={() => this.handleFavoriteShowChange(false)}
-            onOpenBlank={(data: any) => {
-              console.log('favorit open blank', data);
-            }}
+            onOpenBlank={this.handleFavoriteOpenBlank}
           />
         </div>
         <div class='main-panel'>

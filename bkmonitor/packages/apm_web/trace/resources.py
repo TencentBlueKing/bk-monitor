@@ -39,6 +39,7 @@ from apm_web.trace.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
 )
+from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import (
     OtlpKey,
@@ -636,6 +637,12 @@ class ListSpanResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        response = self.get_span_list_api_data(data)
+
+        QueryHandler.handle_span_list(response["data"])
+        return response
+
+    def get_span_list_api_data(self, data):
         bk_biz_id: int = data["bk_biz_id"]
         app_name: str = data["app_name"]
         params = {
@@ -647,6 +654,7 @@ class ListSpanResource(Resource):
             "limit": data["limit"],
             "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]).es_dsl,
             "filters": data["filters"],
+            "exclude_field": ["bk_app_code"],
         }
 
         try:
@@ -655,7 +663,6 @@ class ListSpanResource(Resource):
             raise CustomException(_lazy(f"Span列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
-        QueryHandler.handle_span_list(response["data"])
         return response
 
     def burial_point(self, bk_biz_id, app_name):
@@ -672,6 +679,13 @@ class ListTraceResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        response = self.get_trace_list_api_data(data)
+
+        QueryHandler.handle_trace_list(response["data"])
+
+        return response
+
+    def get_trace_list_api_data(self, data):
         bk_biz_id: int = data["bk_biz_id"]
         app_name: str = data["app_name"]
         params = {
@@ -682,6 +696,7 @@ class ListTraceResource(Resource):
             "offset": data["offset"],
             "limit": data["limit"],
             "filters": data["filters"],
+            "exclude_field": ["bk_app_code", "biz_name"],
         }
 
         is_contain_non_standard_fields = QueryHandler.has_field_not_in_fields(
@@ -721,14 +736,8 @@ class ListTraceResource(Resource):
             raise CustomException(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
-
-        QueryHandler.handle_trace_list(response["data"])
-
-        return {
-            # 前端针对不同类型做处理
-            "type": qm,
-            **response,
-        }
+        response["type"] = qm
+        return response
 
     def burial_point(self, bk_biz_id, app_name):
         # 查询指标埋点
@@ -1325,3 +1334,26 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     def perform_request(self, validated_request_data):
         return API_GRAPH_DATA
+
+
+class ListFlattenSpanResource(Resource):
+    RequestSerializer = QuerySerializer
+
+    def perform_request(self, data):
+        response = ListSpanResource().get_span_list_api_data(data)
+        response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
+        return response
+
+
+class ListFlattenTraceResource(Resource):
+    RequestSerializer = QuerySerializer
+
+    def perform_request(self, data):
+        response = ListTraceResource().get_trace_list_api_data(data)
+        data_list = []
+        for trace_data_dict in response["data"]:
+            if PreCalculateSpecificField.COLLECTIONS in trace_data_dict:
+                trace_data_dict.update(trace_data_dict.pop(PreCalculateSpecificField.COLLECTIONS))
+            data_list.append(flatten_es_dict_data(trace_data_dict))
+        response["data"] = data_list
+        return response

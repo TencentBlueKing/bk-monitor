@@ -30,8 +30,6 @@ import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
 import { AngleDownLine } from 'bkui-vue/lib/icon';
-import { CancelToken } from 'monitor-api/index';
-import { traceFieldsTopK } from 'monitor-api/modules/apm_trace';
 import { storeToRefs } from 'pinia';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
@@ -39,19 +37,12 @@ import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { convertToTree } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
-import type {
-  IDimensionFieldTreeItem,
-  ConditionChangeEvent,
-  IDimensionField,
-  ITopKField,
-  ICommonParams,
-} from '../typing';
+import type { IDimensionFieldTreeItem, ConditionChangeEvent, IDimensionField, ICommonParams } from '../typing';
 
 import './dimension-filter-panel.scss';
 
@@ -68,22 +59,12 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const { tableList, filterTableList } = storeToRefs(store);
     const emptyStatus = shallowRef<EmptyStatusType>('empty');
-    /** 字段列表的count统计 */
-    const fieldListCount = shallowRef<{ [key: string]: number }>({});
     /* 搜索关键字 */
     const searchVal = shallowRef('');
     /** 搜索结果列表 */
     const searchResultList = shallowRef<IDimensionField[]>([]);
     /** 转化维度列表为树结构 */
     const dimensionTreeList = shallowRef<IDimensionFieldTreeItem[]>([]);
-    let topKCancelFn = null;
-
-    watch(
-      () => props.params,
-      () => {
-        getFieldCount();
-      }
-    );
 
     watch(
       () => props.list,
@@ -91,36 +72,8 @@ export default defineComponent({
         searchVal.value = '';
         searchResultList.value = list;
         dimensionTreeList.value = convertToTree(searchResultList.value);
-        getFieldCount();
       }
     );
-
-    const getFieldCount = useDebounceFn(async () => {
-      const fields = props.list.reduce((pre, cur) => {
-        if (cur.is_dimensions) pre.push(cur.name);
-        return pre;
-      }, []);
-      if (!fields.length) return;
-      topKCancelFn?.();
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const list: ITopKField[] = await traceFieldsTopK(
-        {
-          ...props.params,
-          start_time,
-          end_time,
-          limit: 0,
-          fields,
-        },
-        {
-          cancelToken: new CancelToken(c => (topKCancelFn = c)),
-        }
-      );
-      fieldListCount.value = list.reduce((pre, cur) => {
-        pre[cur.field] = cur.distinct_count || 1;
-        return pre;
-      }, {});
-    }, 200);
 
     /** 关键字搜索 */
     const handleSearch = useDebounceFn((keyword: string) => {
@@ -137,13 +90,13 @@ export default defineComponent({
 
     /** 渲染维度列表项 */
     function renderDimensionItem(item: IDimensionFieldTreeItem, level = 0) {
-      const disabled = !item.children && (!item.is_dimensions || !fieldListCount.value[item.name]);
+      const disabled = !item.children && !item.is_dimensions;
       return (
         <div
           key={item.alias}
           style={{ '--level': level }}
           v-bk-tooltips={{
-            content: t(item.is_dimensions ? '该维度暂无数据，无法进行统计分析' : '该字段类型，暂时不支持统计分析'),
+            content: t('该字段类型，暂时不支持统计分析'),
             disabled: !disabled,
             interactive: false,
             placement: 'right',
@@ -185,9 +138,7 @@ export default defineComponent({
                 <span
                   key={`${item.name}__count`}
                   class='dimension-count'
-                >
-                  {/* {fieldListCount.value[item.name] || 0} */}
-                </span>,
+                />,
                 !item.children && (
                   <i
                     key={`${item.name}__statistics`}
@@ -223,7 +174,7 @@ export default defineComponent({
         item.expand = !item.expand;
       } else {
         const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
-        if (!item.is_dimensions || !fieldListCount.value[item.name]) return;
+        if (!item.is_dimensions) return;
         selectField.value = item;
         popoverInstance.value = $bkPopover({
           target: e.currentTarget as HTMLDivElement,
@@ -297,7 +248,6 @@ export default defineComponent({
       showStatisticsPopover,
       activeFieldName,
       emptyStatus,
-      fieldListCount,
       searchVal,
       dimensionTreeList,
       selectField,
