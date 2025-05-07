@@ -58,7 +58,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['openBlank', 'change'],
+  emits: ['openBlank', 'change', 'close'],
   setup(props, context) {
     const { t } = useI18n();
     const { loading: isGroupListLoading, data: groupList, wholeFavoriteList } = useGroupList(props.type);
@@ -113,6 +113,10 @@ export default defineComponent({
       context.emit('openBlank', favoriteData, props.type);
     };
 
+    function handleClose() {
+      context.emit('close');
+    }
+
     return () => (
       <div class='bk-monitor-favorite-box'>
         <div class='header-wrapper'>
@@ -124,7 +128,10 @@ export default defineComponent({
               v-bk-tooltips={t('收藏管理')}
               onClick={handleShowGroupManage}
             />
-            <span class='icon-monitor icon-gongneng-shouqi' />
+            <span
+              class='icon-monitor icon-gongneng-shouqi'
+              onClick={handleClose}
+            />
           </div>
         </div>
         <div class='favorite-wrapper'>

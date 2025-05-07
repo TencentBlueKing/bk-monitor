@@ -73,9 +73,6 @@ export default defineComponent({
     /** 视角切换查询 */
     const cacheSceneQuery = new Map<string, Record<string, any>>();
 
-    function handleFavoriteShowChange(isShow: boolean) {
-      isShowFavorite.value = isShow;
-    }
     const filterMode = shallowRef<EMode>(EMode.ui);
 
     const where = shallowRef<IWhereItem[]>([]);
@@ -393,6 +390,7 @@ export default defineComponent({
       currentFavorite.value = data || null;
       if (data) {
         const favoriteConfig = data?.config;
+        filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
         where.value = favoriteConfig?.queryParams?.filters || [];
         commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
         queryString.value = favoriteConfig?.queryParams?.query || '';
@@ -454,6 +452,9 @@ export default defineComponent({
     function handleEditFavoriteShow(isShow) {
       editFavoriteShow.value = isShow;
     }
+    function handleFavoriteShowChange(isShow: boolean) {
+      isShowFavorite.value = isShow;
+    }
 
     return {
       traceExploreLayoutRef,
@@ -506,6 +507,7 @@ export default defineComponent({
           <FavoriteBox
             type='trace'
             onChange={this.handleFavoriteChange}
+            onClose={() => this.handleFavoriteShowChange(false)}
             onOpenBlank={(data: any) => {
               console.log('favorit open blank', data);
             }}

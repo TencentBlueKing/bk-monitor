@@ -26,7 +26,7 @@
 
 import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { $bkPopover } from 'bkui-vue';
+import tippy from 'tippy.js';
 
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
@@ -86,17 +86,8 @@ export default defineComponent({
         userConfigLoading.value = true;
         const defaultConfig = (await handleGetUserConfig<string[]>(val)) || [];
         userConfigLoading.value = false;
-        if (!props.isDefaultSetting) {
-          for (const where of props.value) {
-            if (fieldNameMap.value[where.key]) {
-              fields.push({
-                field: fieldNameMap.value[where.key],
-                value: where,
-              });
-            }
-          }
-        } else {
-          for (const key of defaultConfig.length ? defaultConfig : props.defaultResidentSetting) {
+        const pushFields = (config: string[]) => {
+          for (const key of config) {
             if (fieldNameMap.value[key]) {
               fields.push({
                 field: fieldNameMap.value[key],
@@ -110,6 +101,22 @@ export default defineComponent({
               });
             }
           }
+        };
+        if (!props.isDefaultSetting) {
+          if (props.value?.length) {
+            for (const where of props.value) {
+              if (fieldNameMap.value[where.key]) {
+                fields.push({
+                  field: fieldNameMap.value[where.key],
+                  value: where,
+                });
+              }
+            }
+          } else {
+            pushFields(props.defaultResidentSetting);
+          }
+        } else {
+          pushFields(defaultConfig.length ? defaultConfig : props.defaultResidentSetting);
         }
         localValue.value = fields;
       },
@@ -121,31 +128,28 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = $bkPopover({
-        target: event.target,
+      popoverInstance.value = tippy(event.target as any, {
         content: selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: false,
-        boundary: 'window',
+        appendTo: document.body,
         zIndex: 998,
-        padding: 0,
-        offset: 5,
-        onHide: () => {
+        maxWidth: 638,
+        offset: [0, 4],
+        interactive: true,
+        onHidden: () => {
           destroyPopoverInstance();
         },
       });
-      popoverInstance.value.install();
-      setTimeout(() => {
-        popoverInstance.value?.vm?.show();
-      }, 100);
+      popoverInstance.value?.show();
       showTransfer.value = true;
     }
 
     function destroyPopoverInstance() {
       popoverInstance.value?.hide();
-      popoverInstance.value?.close();
+      popoverInstance.value?.destroy();
       popoverInstance.value = null;
       showTransfer.value = false;
     }

@@ -27,6 +27,7 @@ import { defineComponent, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
+import { EMode } from '../../../../../../components/retrieval-filter/typing';
 import useFavoriteType from '../../hooks/use-favorite-type';
 
 import type { IFavoriteGroup, ITraceFavoriteConfig } from '../../types';
@@ -139,10 +140,11 @@ export default defineComponent({
         return null;
       }
       const queryParams = (props.data?.config?.queryParams || {}) as ITraceFavoriteConfig['queryParams'];
-      if (queryParams?.query) {
+      const filterMode = props.data?.config?.componentData?.filterMode || EMode.ui;
+      if (filterMode === EMode.queryString || queryParams?.query) {
         return <span>{queryParams.query}</span>;
       }
-      if (queryParams?.filters?.length) {
+      if (filterMode === EMode.ui || queryParams?.filters?.length) {
         return (
           <VueJsonPretty
             data={{
