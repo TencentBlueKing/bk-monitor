@@ -320,6 +320,7 @@
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);
@@ -396,7 +397,7 @@
         sortList: [], // 排序字段
         notTextTypeFields: [], // 字段类型不为 text 的字段
         fieldAliasMap: {},
-        showFieldAlias: this.$store.state.storage.showFieldAlias,
+        showFieldAlias: this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         tookTime: 0, // 耗时
         tableData: {}, // 表格结果
         bkmonitorUrl: false, // 监控主机详情地址
@@ -1690,7 +1691,7 @@
       async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
         if (showFieldAlias !== undefined) {
           // bklog\web\src\views\retrieve\result-comp\fields-setting.vue 中修改别名配置
-          this.showFieldAlias = showFieldAlias;
+          this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] = showFieldAlias;
           this.$store.commit('updateStorage', { showFieldAlias });
         }
         await this.$nextTick();

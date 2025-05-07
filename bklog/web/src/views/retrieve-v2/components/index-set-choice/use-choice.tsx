@@ -34,6 +34,13 @@ export default (props, { emit }) => {
   const singleHistoryList = ref([]);
   const unionHistoryList = ref([]);
   const historyLoading = ref(false);
+
+  const historyList = computed(() => {
+    return [...singleHistoryList.value, ...unionHistoryList.value]
+      .sort((a, b) => b.update_time - a.update_time)
+      .slice(0, 20);
+  });
+
   const favoriteLoading = ref(false);
 
   // 联合查询本地存储数据
@@ -49,11 +56,15 @@ export default (props, { emit }) => {
   });
 
   const favoriteList = computed(() => {
-    if (props.type === 'union') {
-      return unionFavoriteList.value;
-    }
-
-    return singleFavoriteList.value;
+    return [
+      ...singleFavoriteList.value.map(item => ({
+        item,
+        index_set_id: item.index_set_id,
+        index_set_name: item.index_set_name,
+        index_set_type: 'single',
+      })),
+      ...unionFavoriteList.value.map(item => ({ ...item, index_set_type: 'union' })),
+    ];
   });
 
   /**
@@ -62,40 +73,43 @@ export default (props, { emit }) => {
    * @param space_uid
    * @returns
    */
-  const getHistoryList = () => {
+  const requestHistoryList = () => {
     if (window?.__IS_MONITOR_TRACE__) {
       return;
     }
 
-    if (props.type === 'single' && singleHistoryList.value.length) {
-      return Promise.resolve(singleHistoryList);
-    }
+    if (!historyList.value.length) {
+      historyLoading.value = true;
+      const singleRequest = $http
+        .request('unionSearch/unionHistoryList', {
+          data: {
+            space_uid: props.spaceUid,
+            index_set_type: 'single',
+          },
+        })
+        .then(res => {
+          const result = res.data ?? [];
+          singleHistoryList.value = result.map(item => ({ ...item, update_time: new Date(item.updated_at).getTime() }));
+          return result;
+        });
 
-    if (props.type === 'union' && unionHistoryList.value.length) {
-      return Promise.resolve(unionHistoryList);
-    }
+      const unionRequest = $http
+        .request('unionSearch/unionHistoryList', {
+          data: {
+            space_uid: props.spaceUid,
+            index_set_type: 'union',
+          },
+        })
+        .then(res => {
+          const result = res.data ?? [];
+          unionHistoryList.value = result.map(item => ({ ...item, update_time: new Date(item.updated_at).getTime() }));
+          return result;
+        });
 
-    historyLoading.value = true;
-    return $http
-      .request('unionSearch/unionHistoryList', {
-        data: {
-          space_uid: props.spaceUid,
-          index_set_type: props.type,
-        },
-      })
-      .then(res => {
-        const result = res.data ?? [];
-        if (props.type === 'single') {
-          singleHistoryList.value = result;
-          return singleHistoryList;
-        }
-
-        unionHistoryList.value = result;
-        return unionHistoryList;
-      })
-      .finally(() => {
+      return Promise.all([singleRequest, unionRequest]).finally(() => {
         historyLoading.value = false;
       });
+    }
   };
 
   /**
@@ -119,11 +133,13 @@ export default (props, { emit }) => {
 
   /**
    * 选中值改变抛出事件
-   * @param value
+   * @param value 选中值
+   * @param type 选中类型： single | union
+   * @param id 选中id
    */
-  const handleValueChange = (value: any) => {
+  const handleValueChange = (value: any, type?: 'single' | 'union', id?: string | number) => {
     unionListValue.value = value;
-    emit('value-change', value);
+    emit('value-change', value, type, id);
   };
 
   /**
@@ -132,14 +148,14 @@ export default (props, { emit }) => {
    * @returns
    */
   const handleHistoryItemClick = (item: any) => {
-    if (props.type === 'single') {
+    if (item.index_set_type === 'single') {
       unionListValue.value = [`${item.index_set_id}`];
-      emit('value-change', [`${item.index_set_id}`]);
+      emit('value-change', [`${item.index_set_id}`], 'single', item.id);
       return;
     }
 
     unionListValue.value = item.index_set_ids.map(id => `${id}`);
-    emit('value-change', unionListValue.value);
+    emit('value-change', unionListValue.value, 'union', item.id);
   };
 
   /**
@@ -148,10 +164,10 @@ export default (props, { emit }) => {
    */
   const handleDeleteHistory = (item: any) => {
     historyLoading.value = true;
-    return deleteHistoryItem(props.spaceUid, props.type, item?.id, !item)
+    return deleteHistoryItem(props.spaceUid, item?.index_set_type, item?.id, !item)
       .then(resp => {
         if (resp.result) {
-          if (props.type === 'single') {
+          if (item?.index_set_type === 'single') {
             if (item === undefined || item === null) {
               singleHistoryList.value = [];
               return singleHistoryList.value;
@@ -162,7 +178,7 @@ export default (props, { emit }) => {
             return singleHistoryList.value;
           }
 
-          if (props.type === 'union') {
+          if (item?.index_set_type === 'union') {
             if (item === undefined || item === null) {
               unionHistoryList.value = [];
               return unionHistoryList.value;
@@ -171,6 +187,12 @@ export default (props, { emit }) => {
             const index = unionHistoryList.value.findIndex((item: any) => item.id !== item.id);
             unionHistoryList.value.splice(index, 1);
             return unionHistoryList.value;
+          }
+
+          if (!item) {
+            singleHistoryList.value = [];
+            unionHistoryList.value = [];
+            return [];
           }
         }
 
@@ -190,7 +212,7 @@ export default (props, { emit }) => {
    * @returns
    */
   const getUnionFavoriteList = () => {
-    if (props.type === 'union' && unionFavoriteList.value.length > 0) {
+    if (unionFavoriteList.value.length > 0) {
       return Promise.resolve(unionFavoriteList.value);
     }
 
@@ -220,8 +242,8 @@ export default (props, { emit }) => {
    *  获取收藏列表
    * @returns
    */
-  const getFavoriteList = () => {
-    if (props.type === 'single') {
+  const requestFavoriteList = (type?) => {
+    if (type === 'single') {
       return Promise.resolve(singleFavoriteList.value);
     }
 
@@ -230,13 +252,13 @@ export default (props, { emit }) => {
 
   /**
    * 单选取消收藏
-   * @param item
+   * @param favorite
    * @returns
    */
-  const cancelSingleFavorite = (item: any) => {
+  const cancelSingleFavorite = (favorite: any) => {
     return $http.request('indexSet/cancelMark', {
       params: {
-        index_set_id: item.index_set_id,
+        index_set_id: favorite.index_set_id,
       },
     });
   };
@@ -256,17 +278,17 @@ export default (props, { emit }) => {
 
   /**
    *  取消收藏
-   * @param item
+   * @param favorite
    * @returns
    */
-  const cancelFavorite = (item: any) => {
+  const cancelFavorite = (favorite: any) => {
     favoriteLoading.value = true;
 
-    if (props.type === 'single') {
-      return cancelSingleFavorite(item)
+    if (favorite.index_set_type === 'single') {
+      return cancelSingleFavorite(favorite)
         .then(resp => {
           if (resp.result) {
-            item.is_favorite = false;
+            favorite.item.is_favorite = false;
             return;
           }
 
@@ -277,10 +299,10 @@ export default (props, { emit }) => {
         });
     }
 
-    return cancelUnionFavorite(item)
+    return cancelUnionFavorite(favorite)
       .then(resp => {
         if (resp.result) {
-          const index = unionFavoriteList.value.findIndex(child => item.id === child.id);
+          const index = unionFavoriteList.value.findIndex(child => favorite.id === child.id);
           unionFavoriteList.value.splice(index, 1);
           return;
         }
@@ -340,14 +362,15 @@ export default (props, { emit }) => {
   };
 
   return {
-    getHistoryList,
-    getFavoriteList,
+    requestHistoryList,
+    requestFavoriteList,
     handleDeleteHistory,
     handleHistoryItemClick,
     handleValueChange,
     cancelFavorite,
     favoriteIndexSet,
     favoriteList,
+    historyList,
     historyLoading,
     favoriteLoading,
     unionListValue,

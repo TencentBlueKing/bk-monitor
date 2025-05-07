@@ -41,6 +41,8 @@ import OperatorTools from '../components/result-cell-element/operator-tools.ts';
 import TimeFormatterSwitcher from '../components/result-cell-element/time-formatter-switcher.tsx';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 import useFieldNameHook from '@/hooks/use-field-name';
+import { BK_LOG_STORAGE } from '../../../store/default-values.ts';
+
 export default {
   components: {
     TextHighlight,
@@ -131,7 +133,7 @@ export default {
     ...mapState([
       'isNotVisibleFieldsShow',
       'indexSetQueryResult',
-      'tableLineIsWrap',
+      { tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP] },
       'indexSetOperatorConfig',
       'indexFieldInfo',
       'indexItem',
@@ -162,7 +164,7 @@ export default {
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
       return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
-      // return [...(this.tableShowRowIndex ? [{ field_name: '行号', __is_row_index: true }] : []), ...list]
+      // return [...(this[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX] ? [{ field_name: '行号', __is_row_index: true }] : []), ...list]
     },
     /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
     fullQuantityFields() {
@@ -515,7 +517,7 @@ export default {
       return this.tableRowDeepView(row, field.field_name, field.field_type);
     },
     getLimitState(index) {
-      if (this.isLimitExpandView) return false;
+      if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
       return !this.cacheExpandStr.includes(index);
     },
     getOriginTimeShow(data) {

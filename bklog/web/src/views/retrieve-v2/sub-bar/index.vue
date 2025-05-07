@@ -10,7 +10,6 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
-  import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
@@ -20,6 +19,7 @@
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   const props = defineProps({
     showFavorites: {
@@ -47,13 +47,13 @@
 
   // 索引集当前激活Tab
   const indexSetTab = computed(() => {
-    return store.state.storage.indexSetActiveTab ?? indexSetType.value;
+    return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
   });
 
   const spaceUid = computed(() => store.state.spaceUid);
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -121,9 +121,8 @@
 
       setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('retrieve/updateChartKey');
-
       store.commit('updateIndexItem', payload);
+
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
       }
@@ -133,6 +132,7 @@
         origin_log_list: [],
         list: [],
       });
+
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
@@ -169,14 +169,19 @@
     store.commit('updateStorage', { indexSetActiveTab: type });
 
     if (['union', 'single'].includes(type)) {
-      // RetrieveHelper.setIndexsetId(indexSetParams.value.ids, type);
       store.commit('updateIndexItem', {
         isUnionIndex: type === 'union',
       });
     }
   };
 
-  const handleIndexSetValueChange = values => {
+  const handleIndexSetValueChange = (values, type) => {
+    if (['single', 'union'].includes(type)) {
+      store.commit('updateIndexItem', {
+        isUnionIndex: type === 'union',
+      });
+    }
+
     handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
 

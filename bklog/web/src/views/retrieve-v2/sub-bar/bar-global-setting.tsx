@@ -29,6 +29,7 @@ import { Instance } from 'tippy.js';
 
 import useLocale from '../../../hooks/use-locale';
 import useStore from '../../../hooks/use-store';
+import { BK_LOG_STORAGE } from '../../../store/default-values';
 
 import './bar-global-setting.scss';
 
@@ -79,8 +80,8 @@ export default defineComponent({
     const textEllipsisDir = ref('end');
 
     const initDefaultSettings = () => {
-      showFieldAlias.value = store.state.storage.showFieldAlias;
-      textEllipsisDir.value = store.state.storage.textEllipsisDir;
+      showFieldAlias.value = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+      textEllipsisDir.value = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     };
 
     onMounted(() => {
@@ -203,7 +204,11 @@ export default defineComponent({
             <div class='setting-item'>
               <div class='item-label'>{$t('字段名称设置')}</div>
               <div class='item-main'>
-                {checkboxRender(showFieldAlias.value, GLOBAL_SETTING_OPTIONS.showFieldAlias, setShowFieldAlias)}
+                {checkboxRender(
+                  showFieldAlias.value,
+                  GLOBAL_SETTING_OPTIONS[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+                  setShowFieldAlias,
+                )}
                 <div
                   class='link'
                   onClick={handleIndexConfigSliderShow}

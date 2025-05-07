@@ -36,6 +36,7 @@
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import RetrieveHelper from '../views/retrieve-helper';
+  import { BK_LOG_STORAGE } from '../store/default-values';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -58,7 +59,7 @@
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
 
-  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
       return props.fields;
@@ -127,7 +128,7 @@
     }));
   });
 
-  const depth = computed(() => store.state.storage.tableJsonFormatDepth);
+  const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
 
   watch(
     () => [formatCounter.value],

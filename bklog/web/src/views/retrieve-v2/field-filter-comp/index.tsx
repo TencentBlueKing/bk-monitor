@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
 import { builtInInitHiddenList } from '@/const/index.js';
 import VueDraggable from 'vuedraggable';
+import { BK_LOG_STORAGE } from '../../../store/default-values';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldItem from './field-item';
@@ -463,7 +464,7 @@ export default class FieldFilterComp extends tsc<object> {
           is-front-statistics={this.isFrontStatistics}
           isFieldObject={true}
           retrieve-params={this.retrieveParams}
-          show-field-alias={this.showFieldAlias}
+          show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
           statistical-field-data={this.statisticalFieldsData[data.field_name]}
           type={index.includes('show') ? 'visible' : 'hidden'}
           onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -556,7 +557,7 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='visible'
                         visible-fields={this.visibleFields}
@@ -586,7 +587,7 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -628,7 +629,7 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}

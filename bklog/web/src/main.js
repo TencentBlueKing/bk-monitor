@@ -66,13 +66,18 @@ Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
-const mountedVueInstance = router => {
+const mountedVueInstance = () => {
   window.mainComponent = {
     $t: function (key, params) {
       return i18n.t(key, params);
     },
   };
   preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
+    const spaceUid = localStorage.getItem('space_uid');
+    const bkBizId = localStorage.getItem('bk_biz_id');
+    const router = getRouter(spaceUid, bkBizId);
+    setRouterErrorHandle(router);
+
     window.mainComponent = new Vue({
       el: '#app',
       router,
@@ -85,6 +90,7 @@ const mountedVueInstance = router => {
     });
   });
 };
+window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
   http.request('meta/getEnvConstant').then(res => {
@@ -96,19 +102,11 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.bus = bus;
-    const router = getRouter();
-
-    setRouterErrorHandle(router);
-    mountedVueInstance(router);
+    mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
-  window.bus = bus;
-  const router = getRouter();
-
-  setRouterErrorHandle(router);
-  mountedVueInstance(router);
+  mountedVueInstance();
   Vue.config.devtools = true;
 }
 

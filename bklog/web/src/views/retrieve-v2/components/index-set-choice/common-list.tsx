@@ -42,11 +42,11 @@ export default defineComponent({
       default: 'history',
     },
     idField: {
-      type: String,
+      type: [String, Function],
       default: 'id',
     },
     nameField: {
-      type: String,
+      type: [String, Function],
       default: 'name',
     },
 
@@ -107,12 +107,20 @@ export default defineComponent({
       emit('delete', item);
     };
 
+    const getFuncionalPropVal = (prop, args) => {
+      if (typeof prop === 'function') {
+        return prop(...args);
+      }
+
+      return prop;
+    };
+
     const isActiveItem = (item: any) => {
-      return stringValue.value.includes(`${item[props.idField]}`);
+      return stringValue.value.includes(`${item[getFuncionalPropVal(props.idField, [item])]}`);
     };
 
     const listItemRender = (item: any) => {
-      if (Array.isArray(item?.[props.nameField])) {
+      if (Array.isArray(item?.[getFuncionalPropVal(props.nameField, [item])])) {
         return (
           <div
             class={['common-row multi', { active: isActiveItem(item) }]}
@@ -127,7 +135,7 @@ export default defineComponent({
                 onClick={e => handleItemIconClick(e, item)}
               ></span>
               <span class='row-item-list'>
-                {item[props.nameField].map(name => (
+                {item[getFuncionalPropVal(props.nameField, [item])].map(name => (
                   <span class='row-item'>{name}</span>
                 ))}
               </span>
@@ -155,7 +163,7 @@ export default defineComponent({
               }}
               onClick={e => handleItemIconClick(e, item)}
             ></span>
-            <span class='row-item'>{item[props.nameField]}</span>
+            <span class='row-item'>{item[getFuncionalPropVal(props.nameField, [item])]}</span>
           </span>
           {props.showDelItem && (
             <span
@@ -187,7 +195,7 @@ export default defineComponent({
       >
         <div class='common-header'>
           <span>
-            {activeMap.value.title}（{props.list.length}/10）
+            {activeMap.value.title}（{props.list.length}/20）
           </span>
           <span
             class='bklog-icon bklog-saoba'

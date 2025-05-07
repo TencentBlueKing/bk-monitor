@@ -74,9 +74,11 @@ export default defineComponent({
       name: undefined,
       color: undefined,
     });
-    const noDataReg = /^No\sData$/i;
 
-    const valueList = computed(() => props.list.filter((item: any) => props.value.includes(item.index_set_id)));
+    const propValueStrList = computed(() => props.value.map(id => `${id}`));
+    const valueList = computed(() =>
+      props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`)),
+    );
 
     const filterList = computed(() =>
       props.list
@@ -89,9 +91,11 @@ export default defineComponent({
         })
         .filter((item: any) => {
           if (hiddenEmptyItem.value) {
-            return (
-              !item.tags.some(tag => noDataReg.test(tag.name)) && item.index_set_name.indexOf(searchText.value) !== -1
-            );
+            if (props.value.includes(`${item.index_set_id}`)) {
+              return true;
+            }
+
+            return !item.tags.some(tag => tag.tag_id === 4) && item.index_set_name.indexOf(searchText.value) !== -1;
           }
 
           return item.index_set_name.indexOf(searchText.value) !== -1;
@@ -99,7 +103,7 @@ export default defineComponent({
     );
 
     const activeValueItems = computed(() => {
-      return props.value.map((item: any) => {
+      return propValueStrList.value.map((item: any) => {
         return props.list.find((indexSet: any) => indexSet.index_set_id === item);
       });
     });
@@ -122,7 +126,7 @@ export default defineComponent({
       }
 
       if (props.type === 'union') {
-        handleIndexSetItemCheck(item, !props.value.includes(`${item.index_set_id}`));
+        handleIndexSetItemCheck(item, !propValueStrList.value.includes(`${item.index_set_id}`));
       }
     };
 
@@ -178,13 +182,26 @@ export default defineComponent({
       return (
         <bk-checkbox
           style='margin-right: 4px'
-          checked={props.value.includes(item.index_set_id)}
+          checked={propValueStrList.value.includes(item.index_set_id)}
           // on-change={value => handleIndexSetItemCheck(item, value)}
         ></bk-checkbox>
       );
     };
 
     const getMainRender = () => {
+      if (filterList.value.length === 0) {
+        const type = props.list.length ? 'search-empty' : 'empty';
+        return (
+          <div class='bklog-v3-index-set-list'>
+            <bk-exception
+              style='margin-top: 50px'
+              type={type}
+              scene='part'
+            ></bk-exception>
+          </div>
+        );
+      }
+
       return (
         <div class='bklog-v3-index-set-list'>
           {filterList.value.map((item: any) => {
@@ -194,7 +211,7 @@ export default defineComponent({
                   'index-set-item',
                   {
                     'no-authority': item.permission?.[authorityMap.SEARCH_LOG_AUTH],
-                    active: props.value.includes(item.index_set_id),
+                    active: propValueStrList.value.includes(item.index_set_id),
                   },
                 ]}
                 onClick={e => handleIndexSetItemClick(e, item)}
@@ -208,9 +225,7 @@ export default defineComponent({
                   )}
                   <span class='group-icon'></span>
 
-                  <bdi
-                    class={['index-set-name', { 'no-data': item.tags?.some(tag => noDataReg.test(tag.name)) ?? false }]}
-                  >
+                  <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
                     {getCheckBoxRender(item)}
                     {item.index_set_name}
                   </bdi>

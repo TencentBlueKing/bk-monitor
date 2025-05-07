@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { BK_LOG_STORAGE } from '../store/default-values';
+
 export const getFieldNameByField = (field, store) => {
-  if (store.state.storage.showFieldAlias) {
+  if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
     return field.query_alias || field.field_name;
   }
 
@@ -35,7 +37,7 @@ export const getFieldNameByField = (field, store) => {
 export default ({ store }) => {
   // 用于筛选并展示别名的情况
   const getFieldName = (name: string) => {
-    if (store.state.storage.showFieldAlias) {
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === name);
       return field[0]?.query_alias || name;
     }
@@ -48,7 +50,7 @@ export default ({ store }) => {
 
   // 用于只返回字段名数组的情况
   const getFieldNames = (fields: any) => {
-    if (store.state.storage.showFieldAlias) {
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       return fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
     } else {
       return fields.map(fieldInfo => fieldInfo.field_name);
@@ -57,14 +59,16 @@ export default ({ store }) => {
   // 用于返回拼接字段名的情况
   const getConcatenatedFieldName = (fields: any) => {
     const { field_name: id, field_alias: alias, query_alias: query } = fields;
-    if (store.state.storage.showFieldAlias && query) {
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
       return { id, name: `${query}(${alias || id})` };
     }
     return { id, name: alias ? `${id}(${alias})` : id };
   };
   // 用于直接返回字段名的情况
   const getQueryAlias = (field: any) => {
-    return store.state.storage.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
+    return store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? field.query_alias || field.field_name
+      : field.field_name;
   };
   // 用于返回query_alias对应的field_name的情况
   const changeFieldName = (name: string) => {

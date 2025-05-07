@@ -25,9 +25,7 @@
 -->
 
 <template>
-  <div
-    class="bklog-column-wrapper"
-  >
+  <div class="bklog-column-wrapper">
     <template v-if="isJsonFormat">
       <JsonFormatter
         :fields="field"
@@ -50,6 +48,7 @@
   import JsonFormatter from '@/global/json-formatter.vue';
   import { mapState } from 'vuex';
   import { formatDate, formatDateNanos } from '@/common/util';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   import TextSegmentation from './text-segmentation';
   export default {
@@ -82,8 +81,8 @@
     },
     computed: {
       ...mapState({
-        // formatJson: state => state.storage.tableJsonFormat,
-        tableLineIsWrap: state => state.storage.tableLineIsWrap,
+        // formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
         isFormatDateField: state => state.isFormatDate,
       }),
 

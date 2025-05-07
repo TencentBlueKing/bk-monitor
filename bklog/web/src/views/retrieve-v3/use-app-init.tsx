@@ -69,6 +69,9 @@ export default () => {
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+
+  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
@@ -144,19 +147,75 @@ export default () => {
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
       .then(resp => {
         isPreApiLoaded.value = true;
-        RetrieveHelper.setSearchingValue(true);
 
-        const type = route.params.indexId ? 'single' : 'union';
-        RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+        // 如果当前地址参数没有indexSetId，则默认取第一个索引集
+        // 同时，更新索引信息到store中
+        if (!indexSetIdList.value.length) {
+          const defaultId = `${resp[1][0].index_set_id}`;
+          store.commit('updateIndexItem', { ids: [defaultId], items: [resp[1][0]] });
+          store.commit('updateIndexId', defaultId);
 
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery').then(() => {
-            RetrieveHelper.setSearchingValue(false);
+          router.replace({
+            params: { indexId: defaultId },
+            query: { ...route.query, unionList: undefined },
           });
-          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-        });
+        }
+
+        // 如果解析出来的索引集信息不为空
+        // 需要检查索引集列表中是否包含解析出来的索引集信息
+        // 避免索引信息不存在导致的频繁错误请求和异常提示
+        const emptyIndexSetList = [];
+        if (indexSetIdList.value.length) {
+          indexSetIdList.value.forEach(id => {
+            if (!resp[1].some(item => `${item.index_set_id}` === `${id}`)) {
+              emptyIndexSetList.push(id);
+            }
+          });
+
+          if (emptyIndexSetList.length) {
+            store.commit('updateIndexItem', { ids: [], items: [] });
+            store.commit('updateIndexId', '');
+            store.commit('updateIndexSetQueryResult', {
+              is_error: true,
+              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            });
+          }
+        }
+
+        if (emptyIndexSetList.length === 0) {
+          RetrieveHelper.setSearchingValue(true);
+
+          const type = route.params.indexId ? 'single' : 'union';
+          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+
+          store.dispatch('requestIndexSetFieldInfo').then(() => {
+            store.dispatch('requestIndexSetQuery').then(() => {
+              RetrieveHelper.setSearchingValue(false);
+            });
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          });
+        }
       });
   };
+
+  // 解析默认URL为前端参数
+  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
+  const setDefaultRouteUrl = () => {
+    const routeParams = store.getters.retrieveParams;
+    const resolver = new RetrieveUrlResolver({
+      ...routeParams,
+      datePickerValue: store.state.indexItem.datePickerValue,
+    });
+
+    router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+  };
+
+  const beforeMounted = () => {
+    setDefaultRouteUrl();
+    getIndexSetList();
+  };
+
+  beforeMounted();
 
   const handleSpaceIdChange = () => {
     store.commit('resetIndexsetItemParams');
@@ -236,7 +295,7 @@ export default () => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
-    getIndexSetList();
+    store.dispatch('requestFavoriteList');
   });
 
   onUnmounted(() => {

@@ -193,6 +193,7 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   export default {
     components: {
@@ -294,7 +295,7 @@
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.storage.showFieldAlias,
+        showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',

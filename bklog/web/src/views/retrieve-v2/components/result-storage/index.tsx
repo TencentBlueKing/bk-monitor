@@ -27,6 +27,7 @@
 import { computed, defineComponent } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
+import { BK_LOG_STORAGE } from '../../../../store/default-values';
 
 import './index.scss';
 
@@ -35,12 +36,12 @@ export default defineComponent({
     const store = useStore();
     const { $t } = useLocale();
 
-    const isWrap = computed(() => store.state.storage.tableLineIsWrap);
-    const jsonFormatDeep = computed(() => store.state.storage.tableJsonFormatDepth);
-    const isJsonFormat = computed(() => store.state.storage.tableJsonFormat);
-    const isAllowEmptyField = computed(() => store.state.storage.tableAllowEmptyField);
-    const showRowIndex = computed(() => store.state.storage.tableShowRowIndex);
-    const expandTextView = computed(() => store.state.storage.isLimitExpandView);
+    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const jsonFormatDeep = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+    const isJsonFormat = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+    const isAllowEmptyField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
+    const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
 
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
@@ -77,7 +78,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={isWrap.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, 'tableLineIsWrap')}
+          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_LINE_IS_WRAP)}
         >
           <span class='switch-label'>{$t('换行')}</span>
         </bk-checkbox>

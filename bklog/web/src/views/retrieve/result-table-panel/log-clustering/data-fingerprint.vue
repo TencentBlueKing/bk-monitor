@@ -403,6 +403,9 @@
   import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
   import ClusterFilter from './components/finger-tools/cluster-filter';
   import fingerSelectColumn from './components/finger-select-column';
+
+  import { BK_LOG_STORAGE } from '@/store/default-values';
+
   export default {
     components: {
       ClusterEventPopover,
@@ -521,7 +524,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -1139,7 +1142,7 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
       },
     },

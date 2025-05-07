@@ -43,8 +43,10 @@
               >
                 <bdi>
                   <span class="field-alias">{{ item.first_name }}</span>
-                  <span class="field-name"  
-                    v-if="item.first_name !== item.last_name">
+                  <span
+                    class="field-name"
+                    v-if="item.first_name !== item.last_name"
+                  >
                     ({{ item.last_name }})
                   </span>
                 </bdi>
@@ -106,8 +108,10 @@
                 >
                   <bdi>
                     <span class="field-alias">{{ item.first_name }}</span>
-                    <span class="field-name"  
-                      v-if="item.first_name !== item.last_name">
+                    <span
+                      class="field-name"
+                      v-if="item.first_name !== item.last_name"
+                    >
                       ({{ item.last_name }})
                     </span>
                   </bdi>
@@ -129,6 +133,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   // 获取 store
   const store = useStore();
@@ -161,10 +166,10 @@
       field.field_type !== '__virtual__' &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
     const mapFn = item =>
-    Object.assign({}, item, {
-      first_name: item.query_alias || item.field_name,
-      last_name: item.field_name,
-    });
+      Object.assign({}, item, {
+        first_name: item.query_alias || item.field_name,
+        last_name: item.field_name,
+      });
 
     return fieldList.value.filter(filterFn).map(mapFn);
   });
@@ -194,7 +199,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -239,11 +244,14 @@
     val => {
       if (val.length) {
         const mapFn = item =>
-        Object.assign({}, item, {
-          first_name: item.query_alias || item.field_name,
-          last_name: item.field_name,
-        });
-        shadowVisible.value = val.map(fieldName => fieldListMap.value[fieldName]).filter(Boolean).map(mapFn);
+          Object.assign({}, item, {
+            first_name: item.query_alias || item.field_name,
+            last_name: item.field_name,
+          });
+        shadowVisible.value = val
+          .map(fieldName => fieldListMap.value[fieldName])
+          .filter(Boolean)
+          .map(mapFn);
       } else {
         shadowVisible.value = [];
       }

@@ -65,11 +65,10 @@ export default defineComponent({
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
     const { $t } = useLocale();
-    const historyList = ref([]);
 
     const {
-      getHistoryList,
-      getFavoriteList,
+      requestHistoryList,
+      requestFavoriteList,
       handleHistoryItemClick,
       handleValueChange,
       handleDeleteHistory,
@@ -78,6 +77,7 @@ export default defineComponent({
       historyLoading,
       favoriteLoading,
       favoriteList,
+      historyList,
       unionListValue,
     } = useChoice(props, { emit });
 
@@ -99,21 +99,17 @@ export default defineComponent({
       return unionListValue.value;
     });
 
-    const handleDeleteHistoryItem = item => {
-      handleDeleteHistory(item).then(resp => {
-        if (resp !== undefined) {
-          historyList.value = resp;
-        }
-      });
-    };
-
     const handleFavoriteItemClick = item => {
-      if (props.type === 'single') {
-        handleValueChange([`${item.index_set_id}`]);
+      if (item.index_set_type === 'single') {
+        handleValueChange([`${item.index_set_id}`], 'single', item.index_set_id);
         return;
       }
 
-      handleValueChange(item.index_set_ids.map(id => `${id}`));
+      handleValueChange(
+        item.index_set_ids.map(id => `${id}`),
+        'union',
+        item.id,
+      );
     };
 
     const indexSetActiveId = computed(() => {
@@ -153,10 +149,10 @@ export default defineComponent({
         isLoading={historyLoading.value}
         value={currentValue.value}
         type='history'
-        idField={props.type === 'single' ? 'index_set_id' : 'id'}
-        nameField={props.type === 'single' ? 'index_set_name' : 'index_set_names'}
+        idField={item => (item.index_set_type === 'single' ? 'index_set_id' : 'id')}
+        nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'index_set_names')}
         on-value-click={handleHistoryItemClick}
-        on-delete={handleDeleteHistoryItem}
+        on-delete={handleDeleteHistory}
       ></CommonList>
     );
 
@@ -166,8 +162,8 @@ export default defineComponent({
         isLoading={favoriteLoading.value}
         showDelItem={false}
         type='favorite'
-        idField={props.type === 'single' ? 'index_set_id' : 'id'}
-        nameField={props.type === 'single' ? 'index_set_name' : 'name'}
+        idField={item => (item.index_set_type === 'single' ? 'index_set_id' : 'id')}
+        nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'name')}
         on-delete={() => alert('API not support')}
         on-value-click={handleFavoriteItemClick}
         itemIcon={{
@@ -191,13 +187,11 @@ export default defineComponent({
 
     const handleTabItemClick = (e: MouseEvent, item: { name: string; id: string }) => {
       if (item.id === 'history') {
-        getHistoryList().then(resp => {
-          historyList.value = resp;
-        });
+        requestHistoryList();
       }
 
       if (item.id === 'favorite') {
-        getFavoriteList();
+        requestFavoriteList(null);
       }
 
       emit('type-change', item.id);
@@ -205,13 +199,11 @@ export default defineComponent({
 
     onMounted(() => {
       if (props.activeId === 'history') {
-        getHistoryList().then(resp => {
-          historyList.value = resp;
-        });
+        requestHistoryList();
       }
 
       if (props.activeId === 'favorite') {
-        getFavoriteList();
+        requestFavoriteList(null);
       }
     });
 

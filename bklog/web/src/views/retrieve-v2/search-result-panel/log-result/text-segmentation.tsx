@@ -35,6 +35,7 @@ import { debounce } from 'lodash';
 import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
 import RetrieveHelper from '../../../retrieve-helper';
+import { BK_LOG_STORAGE } from '../../../../store/default-values';
 
 import './text-segmentation.scss';
 export default defineComponent({
@@ -61,8 +62,10 @@ export default defineComponent({
     const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const isWrap = computed(() => store.state.storage.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView || props.forceAll);
+    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const isLimitExpandView = computed(
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
+    );
     const rootStyle = computed(() => {
       return {
         maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '68px'}`,

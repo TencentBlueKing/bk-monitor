@@ -3,6 +3,7 @@
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useTruncateText from '@/hooks/use-truncate-text';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  import { BK_LOG_STORAGE } from '../../../store/default-values';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { debounce } from 'lodash';
@@ -19,8 +20,8 @@
   const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
-  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
-  const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView);
+  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+  const isLimitExpandView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
   const showAll = ref(false);
   const maxWidth = ref(0);
   const isIntersecting = ref(false);

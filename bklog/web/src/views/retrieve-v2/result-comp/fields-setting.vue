@@ -263,7 +263,7 @@
 
   // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
-
+  import { BK_LOG_STORAGE } from '@/store/default-values';
   export default {
     components: {
       VueDraggable,
@@ -317,7 +317,7 @@
         });
       },
       showFieldAlias() {
-        return this.$store.state.storage.showFieldAlias;
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -373,7 +373,7 @@
         return this.getFiledDisplay(field);
       },
       getFiledDisplay(field) {
-        if (this.showFieldAlias) {
+        if (this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
           return getFieldNameByField(field, this.$store);
         }
         const alias = this.fieldAliasMap[field.field_name];

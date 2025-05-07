@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
 import TextSegmentation from './text-segmentation.vue';
-// import JsonFormatter from '../../../global/json-formatter.vue';
+import { BK_LOG_STORAGE } from '../../../store/default-values';
 
 import './original-light-height.scss';
 
@@ -84,7 +84,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
   }
 
   get tableLineIsWrap() {
-    return this.$store.state.storage.tableLineIsWrap;
+    return this.$store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP];
   }
 
   @Emit('menu-click')

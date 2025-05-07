@@ -30,6 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { blobDownload } from '@/common/util';
 
 import AggChart from './agg-chart';
+import { BK_LOG_STORAGE } from '../../../store/default-values';
+
 import FieldAnalysis from './field-analysis';
 import { axiosInstance } from '@/api';
 
@@ -229,7 +231,7 @@ export default class FieldItem extends tsc<object> {
     this.distinctCount = val;
   }
   retuanFieldName() {
-    let name = this.showFieldAlias
+    let name = this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
       : this.fieldItem.field_name;
     if (this.isFieldObject) {

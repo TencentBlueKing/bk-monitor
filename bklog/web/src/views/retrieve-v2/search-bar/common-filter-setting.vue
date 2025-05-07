@@ -169,7 +169,7 @@
 
   import { excludesFields } from './const.common';
   import { getCommonFilterAddition } from '../../../store/helper';
-
+  import { BK_LOG_STORAGE } from '@/store/default-values';
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
@@ -177,7 +177,7 @@
   const tippyOptions = {
     offset: '0, 4',
   };
-  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -194,7 +194,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 

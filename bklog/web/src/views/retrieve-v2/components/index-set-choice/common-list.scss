@@ -24,6 +24,8 @@
   }
 
   .common-list {
+    max-height: 442px;
+    overflow-y: auto;
     .common-row {
       height: 32px;
       display: flex;

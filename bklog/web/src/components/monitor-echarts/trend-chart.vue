@@ -202,9 +202,9 @@
     logChartCancel?.();
   });
 
-  onMounted(() => {
-    loadTrendData();
-  });
+  // onMounted(() => {
+  //   loadTrendData();
+  // });
 </script>
 <script>
   export default {

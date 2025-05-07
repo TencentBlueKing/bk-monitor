@@ -193,7 +193,75 @@ export const routeQueryKeys = [
   'unionList',
 ];
 
-export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+enum BK_LOG_STORAGE {
+  /**
+   * 表格行是否换行
+   */
+  TABLE_LINE_IS_WRAP = '_0',
+
+  /**
+   * 是否展示json解析
+   */
+  TABLE_JSON_FORMAT = '_1',
+
+  /**
+   * json解析展示层级
+   */
+  TABLE_JSON_FORMAT_DEPTH = '_2',
+
+  /**
+   * 是否展示行号
+   */
+  TABLE_SHOW_ROW_INDEX = '_3',
+
+  /**
+   * 是否展示空字段
+   */
+  TABLE_ALLOW_EMPTY_FIELD = '_4',
+
+  /**
+   * 是否展开长字段
+   */
+  IS_LIMIT_EXPAND_VIEW = '_5',
+
+  /**
+   * 是否展示字段别名
+   */
+  SHOW_FIELD_ALIAS = '_6',
+
+  /**
+   * 文本溢出（省略设置）start | end | center
+   */
+  TEXT_ELLIPSIS_DIR = '_7',
+
+  /**
+   * 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
+   */
+  SEARCH_TYPE = '_8',
+
+  /**
+   * 左侧字段设置缓存配置
+   */
+  FIELD_SETTING = '_9',
+
+  /**
+   * 索引集激活的tab
+   */
+  INDEX_SET_ACTIVE_TAB = '_10',
+
+  /**
+   * 当前激活的收藏 id
+   */
+  FAVORITE_ID = '_11',
+
+  /**
+   * 当前激活的历史记录 id
+   */
+  HISTORY_ID = '_12',
+}
+
+export { BK_LOG_STORAGE, BkLogGlobalStorageKey };
 
 export const getStorageOptions = () => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
@@ -208,40 +276,22 @@ export const getStorageOptions = () => {
 
   return Object.assign(
     {
-      // 是否换行
-      tableLineIsWrap: false,
-
-      // 是否展示json解析
-      tableJsonFormat: false,
-
-      // json解析展示层级
-      tableJsonFormatDepth: 1,
-
-      // 是否展示行号
-      tableShowRowIndex: false,
-
-      // 是否展示空字段
-      tableAllowEmptyField: false,
-
-      // 是否展开长字段
-      isLimitExpandView: false,
-
-      // 是否展示字段别名
-      showFieldAlias: true,
-
-      // 文本溢出（省略设置）start | end | center
-      textEllipsisDir: 'end',
-
-      // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
-      searchType: 0,
-
-      // 左侧字段设置缓存配置
-      fieldSetting: {
+      [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
+      [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
+      [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
+      [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
+      [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
+      [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
+      [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+      [BK_LOG_STORAGE.FAVORITE_ID]: undefined,
+      [BK_LOG_STORAGE.HISTORY_ID]: undefined,
+      [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,
       },
-      // 索引集激活的tab
-      indexSetActiveTab: 'single',
     },
     storage,
   );

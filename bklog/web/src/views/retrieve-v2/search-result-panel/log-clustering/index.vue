@@ -184,6 +184,9 @@
   import { deepClone } from '../../../../common/util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import useFieldNameHook from '@/hooks/use-field-name';
+
+  import { BK_LOG_STORAGE } from '@/store/default-values';
+
   export default {
     components: {
       DataFingerprint,
@@ -283,7 +286,7 @@
         return this.$store.state.bkBizId;
       },
       showFieldAlias() {
-        return this.$store.state.storage.showFieldAlias;
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);

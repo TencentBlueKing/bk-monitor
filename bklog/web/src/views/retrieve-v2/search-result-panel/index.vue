@@ -20,6 +20,7 @@
   // #endif
 
   import LogResult from './log-result/index';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -44,8 +45,8 @@
   const isTrendChartShow = ref(true);
   const heightNum = ref();
 
-  const fieldFilterWidth = computed(() => store.state.storage.fieldSetting.width);
-  const isShowFieldStatistics = computed(() => store.state.storage.fieldSetting.show);
+  const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const isShowFieldStatistics = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show);
 
   RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 

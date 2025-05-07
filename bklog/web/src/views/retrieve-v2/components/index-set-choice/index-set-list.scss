@@ -58,9 +58,10 @@
     .bklog-v3-index-set-list {
       width: 490px;
       max-height: 442px;
-      min-height: 150px;
+      min-height: 300px;
       overflow-y: auto;
       border-right: solid 1px #dcdee5;
+      padding-bottom: 12px;
 
       .index-set-item {
         height: 32px;

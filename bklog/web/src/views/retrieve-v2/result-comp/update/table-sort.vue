@@ -90,6 +90,7 @@
   import VueDraggable from 'vuedraggable';
 
   import { deepClone, random } from '../../../../common/util';
+  import { BK_LOG_STORAGE } from '../../../../store/default-values';
   const props = defineProps({
     initData: {
       type: Array,
@@ -100,7 +101,7 @@
       default: false,
     },
   });
-  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
     animation: 150,

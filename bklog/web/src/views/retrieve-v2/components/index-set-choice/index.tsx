@@ -95,7 +95,7 @@ export default defineComponent({
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
     const isOpened = ref(false);
-    const refRootElement: Ref<HTMLElement | null> = ref(null);
+    const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
 
     let unionListValue = [];
@@ -129,7 +129,7 @@ export default defineComponent({
 
     const selectedValues = computed(() =>
       props.indexSetValue
-        .map(v => props.indexSetList.find((i: any) => i.index_set_id === v))
+        .map(v => props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`))
         .filter(c => c !== undefined),
     );
 
@@ -142,10 +142,11 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (value: any) => {
+    const handleValueChange = (value: any, type: 'single' | 'union', id: string | number) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
-        emit('value-change', value);
+        emit('value-change', value, type, id);
+        refRootElement.value?.hide();
         return;
       }
 

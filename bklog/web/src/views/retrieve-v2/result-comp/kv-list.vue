@@ -110,6 +110,8 @@
   import { mapGetters, mapState } from 'vuex';
 
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
+
   export default {
     components: {
       TextSegmentation,
@@ -179,9 +181,9 @@
         retrieveParams: 'retrieveParams',
       }),
       ...mapState({
-        formatJson: state => state.storage.tableJsonFormat,
-        showFieldAlias: state => state.storage.showFieldAlias,
-        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
+        formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+        isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;

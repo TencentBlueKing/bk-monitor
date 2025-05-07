@@ -93,8 +93,8 @@
 
   .group-container-new {
     height: calc(100vh - 210px);
-
     overflow-y: auto;
+    padding-bottom: 8px;
 
     &::-webkit-scrollbar {
       background: transparent;

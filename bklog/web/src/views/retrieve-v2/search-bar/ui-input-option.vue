@@ -15,6 +15,7 @@
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
+  import { BK_LOG_STORAGE } from '../../../store/default-values';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -205,7 +206,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -1117,9 +1118,7 @@
               :dir="textDir"
             >
               <bdi>
-                <span  
-                  class="field-alias"
-                >
+                <span class="field-alias">
                   {{ item.first_name }}
                 </span>
                 <span

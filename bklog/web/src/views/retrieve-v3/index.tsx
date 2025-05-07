@@ -34,6 +34,7 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
+import { BK_LOG_STORAGE } from '../../store/default-values';
 
 import './index.scss';
 
@@ -44,24 +45,36 @@ export default defineComponent({
 
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
       useAppInit();
-    const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
-        return <V3SearchResult></V3SearchResult>;
+        return (
+          <div
+            style={contentStyle.value}
+            class='v3-bklog-content'
+          >
+            <V3Toolbar></V3Toolbar>
+            <V3Container>
+              <V3Searchbar
+                class={{
+                  'is-sticky-top': isSearchContextStickyTop.value,
+                  'is-sticky-top-result': isSearchResultStickyTop.value,
+                }}
+              ></V3Searchbar>
+              <V3SearchResult></V3SearchResult>
+            </V3Container>
+          </div>
+        );
       }
 
-      return (
-        <div
-          style={{ minHeight: '50vh', width: '100%' }}
-          v-bkloading={{ isLoading: !isPreApiLoaded.value }}
-        ></div>
-      );
+      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
     };
 
     return () => (
       <div
         style={stickyStyle.value}
+        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
@@ -69,21 +82,7 @@ export default defineComponent({
         ]}
       >
         <V3Collection></V3Collection>
-        <div
-          style={contentStyle.value}
-          class='v3-bklog-content'
-        >
-          <V3Toolbar></V3Toolbar>
-          <V3Container>
-            <V3Searchbar
-              class={{
-                'is-sticky-top': isSearchContextStickyTop.value,
-                'is-sticky-top-result': isSearchResultStickyTop.value,
-              }}
-            ></V3Searchbar>
-            {renderResultContent()}
-          </V3Container>
-        </div>
+        {renderResultContent()}
       </div>
     );
   },

@@ -13,6 +13,7 @@
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
+  import { BK_LOG_STORAGE } from '../../../store/default-values';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -57,7 +58,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 

@@ -32,6 +32,7 @@ import { From } from 'bk-magic-vue';
 import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
+import { BK_LOG_STORAGE } from '../../../../../../store/default-values';
 
 import './filter-rule.scss';
 
@@ -95,7 +96,7 @@ export default class FilterRule extends tsc<IProps> {
     return false;
   }
   get showFieldAlias() {
-    return this.$store.state.storage.showFieldAlias;
+    return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
   }
   // 优先展示选中字段名
   get filterSelectList() {

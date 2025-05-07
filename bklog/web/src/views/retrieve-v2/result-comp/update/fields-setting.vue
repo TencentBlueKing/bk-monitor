@@ -168,7 +168,7 @@
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
-
+  import { BK_LOG_STORAGE } from '@/store/default-values';
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
@@ -255,7 +255,7 @@
         });
       },
       showFieldAlias() {
-        return this.$store.state.storage.showFieldAlias;
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       fieldAliasMap() {
         let fieldAliasMap = {};

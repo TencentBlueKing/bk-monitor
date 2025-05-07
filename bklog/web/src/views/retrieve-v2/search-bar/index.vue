@@ -25,6 +25,8 @@
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition } from '../../../store/helper';
+  import { BK_LOG_STORAGE } from '../../../store/default-values';
+
   const props = defineProps({
     // activeFavorite: {
     //   default: null,
@@ -67,7 +69,7 @@
     },
   });
 
-  const activeIndex = computed(() => store.state.storage.searchType ?? 0);
+  const activeIndex = computed(() => store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0);
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 

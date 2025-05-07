@@ -42,6 +42,7 @@ import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-vi
 import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
 import OperatorTools from '@/views/retrieve/result-table-panel/original-log/operator-tools';
 import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
+import { BK_LOG_STORAGE } from '@/store/default-values';
 import { mapState, mapGetters } from 'vuex';
 
 export default {
@@ -270,7 +271,9 @@ export default {
       const field = this.getShowTableVisibleFields[$index - 1];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
-        const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
+        const fieldName = this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+          ? this.fieldAliasMap[field.field_name]
+          : field.field_name;
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
@@ -409,7 +412,7 @@ export default {
       return this.tableRowDeepView(row, field.field_name, field.field_type);
     },
     getLimitState(index) {
-      if (this.isLimitExpandView) return false;
+      if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
       return !this.cacheExpandStr.includes(index);
     },
     getOriginTimeShow(data) {

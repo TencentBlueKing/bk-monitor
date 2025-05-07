@@ -261,6 +261,7 @@
   import { mapGetters } from 'vuex';
 
   import fieldsSettingOperate from './fields-setting-operate';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   export default {
     components: {
@@ -281,7 +282,7 @@
     data() {
       return {
         isLoading: false,
-        showFieldAlias: this.$store.state.storage.showFieldAlias,
+        showFieldAlias: this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         shadowTotal: [],
         shadowVisible: [],
         shadowSort: [],
@@ -403,7 +404,7 @@
           if (this.currentClickConfigID !== this.filedSettingConfigID) {
             await this.submitFieldsSet(this.currentClickConfigID);
           }
-          this.$emit('confirm', this.shadowVisible, this.showFieldAlias);
+          this.$emit('confirm', this.shadowVisible, this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
         } catch (error) {
           console.warn(error);
         } finally {
@@ -621,7 +622,7 @@
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
             const { display_fields } = this.configTabPanels[0];
-            this.$emit('modify-fields', display_fields, this.showFieldAlias);
+            this.$emit('modify-fields', display_fields, this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
           }
         }
       },

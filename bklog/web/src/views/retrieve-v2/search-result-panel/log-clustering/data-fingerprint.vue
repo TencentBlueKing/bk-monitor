@@ -446,6 +446,7 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { BK_LOG_STORAGE } from '@/store/default-values';
 
   export default {
     components: {
@@ -564,7 +565,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -1242,7 +1243,7 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
       },
       changeStrategy(val, row) {

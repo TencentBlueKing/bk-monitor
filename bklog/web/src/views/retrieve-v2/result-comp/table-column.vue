@@ -53,6 +53,9 @@
   import { mapState } from 'vuex';
   import TextSegmentation from './text-segmentation';
   import JsonFormatter from '@/global/json-formatter.vue';
+
+  import { BK_LOG_STORAGE } from '../../../store/default-values';
+
   export default {
     components: {
       TextSegmentation,
@@ -76,8 +79,8 @@
     },
     computed: {
       ...mapState({
-        formatJson: state => state.storage.tableJsonFormat,
-        tableLineIsWrap: state => state.storage.tableLineIsWrap,
+        formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
       }),
 
       isJsonFormat() {

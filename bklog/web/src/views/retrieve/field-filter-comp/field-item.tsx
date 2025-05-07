@@ -26,6 +26,7 @@
 
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { BK_LOG_STORAGE } from '../../../store/default-values';
 
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
@@ -184,7 +185,9 @@ export default class FieldItem extends tsc<object> {
           {/* 字段名 */}
           <span class='overflow-tips field-name'>
             <span v-bk-overflow-tips>
-              {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
+              {this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+                ? this.fieldAliasMap[this.fieldItem.field_name]
+                : this.fieldItem.field_name}
             </span>
             <span
               class='field-count'
