@@ -231,12 +231,12 @@ class TraceSearchItem(SearchItem):
             .values(PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME)
         )
 
-        now: int = int(time.time())
+        # 增加一个容忍时间（例如 5 min），增加仍在预计算 / 入库 Trace 的查询命中概率。
+        now: int = int(time.time() + timedelta(minutes=5).total_seconds())
         qs: UnifyQuerySet = (
             UnifyQuerySet()
-            .scope(0)
             .add_query(q)
-            .start_time((now - timedelta(days=7).total_seconds()) * 1000)
+            .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
             .end_time(now * 1000)
             .limit(limit)
         )
