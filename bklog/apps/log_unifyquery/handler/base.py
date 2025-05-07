@@ -179,7 +179,7 @@ class UnifyQueryHandler:
             if (
                 pre_search
                 and pre_search_seconds
-                and search_dict.get("start_time")
+                and self.start_time
                 and first_field == self.search_params.get("time_field", "")
             ):
                 # 预查询处理
@@ -707,6 +707,13 @@ class UnifyQueryHandler:
             once_size = MAX_RESULT_WINDOW
 
         pre_search = True
+        time_difference = 0
+        if self.start_time and self.end_time:
+            # 计算时间差
+            time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
+        if time_difference < settings.PRE_SEARCH_SECONDS:
+            pre_search = False
+
         # 下载操作
         if is_export:
             once_size = MAX_RESULT_WINDOW
@@ -720,11 +727,7 @@ class UnifyQueryHandler:
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        time_difference = 0
-        if self.start_time and self.end_time:
-            # 计算时间差
-            time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
-        if pre_search and len(result["list"]) != once_size and time_difference > settings.PRE_SEARCH_SECONDS:
+        if pre_search and len(result["list"]) != once_size:
             # 全量查询
             result = self.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
