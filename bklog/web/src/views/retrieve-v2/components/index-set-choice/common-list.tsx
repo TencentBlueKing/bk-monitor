@@ -63,8 +63,7 @@ export default defineComponent({
       default: true,
     },
     value: {
-      type: Array,
-      default: () => [],
+      type: [Number, String],
     },
   },
   emits: ['delete', 'value-click', 'icon-click'],
@@ -80,10 +79,6 @@ export default defineComponent({
         delLable: '清空收藏',
         itemIcon: 'bklog-lc-star-shape',
       },
-    });
-
-    const stringValue = computed(() => {
-      return props.value.map(v => `${v}`);
     });
 
     const activeMap = computed(() => {
@@ -116,7 +111,7 @@ export default defineComponent({
     };
 
     const isActiveItem = (item: any) => {
-      return stringValue.value.includes(`${item[getFuncionalPropVal(props.idField, [item])]}`);
+      return `${props.value}` === `${item[getFuncionalPropVal(props.idField, [item])]}`;
     };
 
     const listItemRender = (item: any) => {

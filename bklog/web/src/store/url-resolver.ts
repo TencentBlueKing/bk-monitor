@@ -29,7 +29,12 @@ import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-r
 
 import { ConditionOperator } from './condition-operator';
 import { Route } from 'vue-router';
+import { BK_LOG_STORAGE } from './default-values';
 
+/**
+ * 初始化App时解析URL中的参数
+ * 对应结果映射到Store里面
+ */
 class RouteUrlResolver {
   private route;
   private resolver: Map<string, (str) => unknown>;
@@ -101,6 +106,8 @@ class RouteUrlResolver {
       'spaceUid',
       'format',
       'index_id',
+      BK_LOG_STORAGE.FAVORITE_ID,
+      BK_LOG_STORAGE.HISTORY_ID,
     ];
   }
 
@@ -208,6 +215,10 @@ class RouteUrlResolver {
   }
 }
 
+/**
+ * Store 中的参数解析为URL参数
+ * 用于默认初始化或者解析Store中的参数更新到URL中
+ */
 class RetrieveUrlResolver {
   routeQueryParams;
   storeFieldKeyMap;

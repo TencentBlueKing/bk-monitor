@@ -30,6 +30,8 @@ import IndexSetList from './index-set-list';
 import './content.scss';
 import useChoice, { IndexSetType } from './use-choice';
 import CommonList from './common-list';
+import { useRoute } from 'vue-router/composables';
+import { BK_LOG_STORAGE } from '../../../../store/default-values';
 
 export default defineComponent({
   props: {
@@ -65,6 +67,7 @@ export default defineComponent({
   emits: ['type-change', 'value-change'],
   setup(props, { emit }) {
     const { $t } = useLocale();
+    const route = useRoute();
 
     const {
       requestHistoryList,
@@ -80,6 +83,14 @@ export default defineComponent({
       historyList,
       unionListValue,
     } = useChoice(props, { emit });
+
+    const favoriteId = computed(() => {
+      return route.query[BK_LOG_STORAGE.FAVORITE_ID] as string;
+    });
+
+    const historyId = computed(() => {
+      return route.query[BK_LOG_STORAGE.HISTORY_ID] as string;
+    });
 
     /**
      * 当前选中的索引集
@@ -147,9 +158,9 @@ export default defineComponent({
       <CommonList
         list={historyList.value}
         isLoading={historyLoading.value}
-        value={currentValue.value}
+        value={historyId.value}
         type='history'
-        idField={item => (item.index_set_type === 'single' ? 'index_set_id' : 'id')}
+        idField='id'
         nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'index_set_names')}
         on-value-click={handleHistoryItemClick}
         on-delete={handleDeleteHistory}
@@ -162,6 +173,7 @@ export default defineComponent({
         isLoading={favoriteLoading.value}
         showDelItem={false}
         type='favorite'
+        value={favoriteId.value}
         idField={item => (item.index_set_type === 'single' ? 'index_set_id' : 'id')}
         nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'name')}
         on-delete={() => alert('API not support')}

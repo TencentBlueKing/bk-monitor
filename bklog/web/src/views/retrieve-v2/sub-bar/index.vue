@@ -81,6 +81,8 @@
           ...route.query,
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
+          [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+          [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
         },
       });
 
@@ -92,13 +94,20 @@
         ...route.params,
         indexId: ids[0],
       },
-      query: { ...route.query, unionList: undefined, clusterParams: undefined },
+      query: {
+        ...route.query,
+        unionList: undefined,
+        clusterParams: undefined,
+        [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+        [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+      },
     });
   };
 
   const setRouteQuery = () => {
     const query = { ...route.query };
     const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+
     const resolver = new RetrieveUrlResolver({
       keyword,
       addition,
@@ -106,6 +115,8 @@
       search_mode,
       begin,
       size,
+      [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+      [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());
@@ -166,22 +177,37 @@
   };
 
   const handleActiveTypeChange = type => {
-    store.commit('updateStorage', { indexSetActiveTab: type });
-
+    const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
     if (['union', 'single'].includes(type)) {
+      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
       store.commit('updateIndexItem', {
         isUnionIndex: type === 'union',
       });
     }
+
+    store.commit('updateStorage', storage);
   };
 
-  const handleIndexSetValueChange = (values, type) => {
+  const handleIndexSetValueChange = (values, type, id) => {
+    debugger;
+    const storage = {};
     if (['single', 'union'].includes(type)) {
       store.commit('updateIndexItem', {
         isUnionIndex: type === 'union',
       });
+
+      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
     }
 
+    if ('favorite' === indexSetTab.value) {
+      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: id, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+    }
+
+    if ('history' === indexSetTab.value) {
+      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
+    }
+
+    store.commit('updateStorage', storage);
     handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
 

@@ -204,11 +204,7 @@ export default defineComponent({
             <div class='setting-item'>
               <div class='item-label'>{$t('字段名称设置')}</div>
               <div class='item-main'>
-                {checkboxRender(
-                  showFieldAlias.value,
-                  GLOBAL_SETTING_OPTIONS[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
-                  setShowFieldAlias,
-                )}
+                {checkboxRender(showFieldAlias.value, GLOBAL_SETTING_OPTIONS.showFieldAlias, setShowFieldAlias)}
                 <div
                   class='link'
                   onClick={handleIndexConfigSliderShow}

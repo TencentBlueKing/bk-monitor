@@ -24,23 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, nextTick, ref } from 'vue';
+import { computed, ref } from 'vue';
 import $http from '../../../../api';
-import { messageError } from '@/common/bkmagic';
+import { messageError, messageSuccess } from '@/common/bkmagic';
 export type IndexSetType = 'single' | 'union';
 export type IndexSetTabList = 'single' | 'union' | 'history' | 'favorite';
 
 export default (props, { emit }) => {
-  const singleHistoryList = ref([]);
-  const unionHistoryList = ref([]);
   const historyLoading = ref(false);
-
-  const historyList = computed(() => {
-    return [...singleHistoryList.value, ...unionHistoryList.value]
-      .sort((a, b) => b.update_time - a.update_time)
-      .slice(0, 20);
-  });
-
+  const historyList = ref([]);
   const favoriteLoading = ref(false);
 
   // 联合查询本地存储数据
@@ -88,9 +80,7 @@ export default (props, { emit }) => {
           },
         })
         .then(res => {
-          const result = res.data ?? [];
-          singleHistoryList.value = result.map(item => ({ ...item, update_time: new Date(item.updated_at).getTime() }));
-          return result;
+          return res.data ?? [];
         });
 
       const unionRequest = $http
@@ -101,14 +91,22 @@ export default (props, { emit }) => {
           },
         })
         .then(res => {
-          const result = res.data ?? [];
-          unionHistoryList.value = result.map(item => ({ ...item, update_time: new Date(item.updated_at).getTime() }));
-          return result;
+          return res.data ?? [];
         });
 
-      return Promise.all([singleRequest, unionRequest]).finally(() => {
-        historyLoading.value = false;
-      });
+      return Promise.all([singleRequest, unionRequest])
+        .then(resp => {
+          const list = [];
+          resp.forEach(rows => {
+            rows.forEach(row => {
+              list.push({ ...row, update_time: new Date(row.updated_at).getTime() });
+            });
+          });
+          historyList.value = list.sort((a, b) => b.update_time - a.update_time).slice(0, 20);
+        })
+        .finally(() => {
+          historyLoading.value = false;
+        });
     }
   };
 
@@ -168,30 +166,19 @@ export default (props, { emit }) => {
       .then(resp => {
         if (resp.result) {
           if (item?.index_set_type === 'single') {
-            if (item === undefined || item === null) {
-              singleHistoryList.value = [];
-              return singleHistoryList.value;
-            }
-
-            const index = singleHistoryList.value.findIndex((item: any) => item.id !== item.id);
-            singleHistoryList.value.splice(index, 1);
-            return singleHistoryList.value;
+            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            historyList.value.splice(index, 1);
+            return historyList.value;
           }
 
           if (item?.index_set_type === 'union') {
-            if (item === undefined || item === null) {
-              unionHistoryList.value = [];
-              return unionHistoryList.value;
-            }
-
-            const index = unionHistoryList.value.findIndex((item: any) => item.id !== item.id);
-            unionHistoryList.value.splice(index, 1);
-            return unionHistoryList.value;
+            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            historyList.value.splice(index, 1);
+            return historyList.value;
           }
 
           if (!item) {
-            singleHistoryList.value = [];
-            unionHistoryList.value = [];
+            historyList.value = [];
             return [];
           }
         }
@@ -329,12 +316,17 @@ export default (props, { emit }) => {
       })
       .then(resp => {
         if (resp.result) {
+          messageSuccess('收藏成功！');
           if (unionFavoriteList.value.length > 0) {
             if (!unionFavoriteList.value.some(item => item.id === resp.data.id)) {
               unionFavoriteList.value.push(resp.data);
             }
           }
+
+          return true;
         }
+
+        return false;
       });
   };
 

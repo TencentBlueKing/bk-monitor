@@ -65,6 +65,7 @@ export default defineComponent({
     const hiddenEmptyItem = ref(true);
     const searchText = ref('');
     const refFavoriteItemName = ref(null);
+    const refFavoriteGroup = ref(null);
     const favoriteFormData = ref({
       name: '',
     });
@@ -149,6 +150,7 @@ export default defineComponent({
       }
 
       emit('favorite-change', favoriteFormData.value.name, true);
+      refFavoriteGroup.value?.hide();
     };
 
     const handleHiddenEmptyItemChange = (val: boolean) => {
@@ -280,6 +282,7 @@ export default defineComponent({
               </div>
               <BklogPopover
                 trigger='click'
+                ref={refFavoriteGroup}
                 {...{
                   scopedSlots: {
                     content: () => (

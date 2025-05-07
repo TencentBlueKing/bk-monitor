@@ -76,12 +76,6 @@ export default defineComponent({
       default: () => [],
     },
 
-    // 收藏列表
-    favoriteList: {
-      type: Array,
-      default: () => [],
-    },
-
     // 当前uid
     spaceUid: {
       type: String,
@@ -112,8 +106,8 @@ export default defineComponent({
       onHide: () => {
         isOpened.value = false;
 
-        if (props.activeType === 'union') {
-          emit('value-change', unionListValue);
+        if (props.activeTab === 'union') {
+          emit('value-change', unionListValue, 'union');
         }
       },
     } as any;
