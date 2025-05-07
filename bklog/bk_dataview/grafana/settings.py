@@ -96,7 +96,7 @@ var _wr = function(type) {
 
 window.addEventListener('message', function(e) {
     if(e && e.data) {
-    var dom = null;
+        var dom = null;
         switch(e.data) {
             case 'create':
                 dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(2) a');
