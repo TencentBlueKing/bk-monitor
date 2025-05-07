@@ -28,6 +28,7 @@ let intervalId = null; // 定时器ID
 let hasShownConfirm = false; // 是否已经弹出过提示
 import Vue from 'vue';
 
+import { getLinkMapping } from 'monitor-api/modules/commons';
 // 使用箭头函数简化代码，并添加注释来提高可读性
 export const checkForNewVersion = (checkInterval = 5 * 60 * 1000) => {
   clearTimeout(intervalId); // 清除现有的定时器
@@ -49,7 +50,6 @@ const fetchStaticVersion = async (clearInterval = true) => {
   const urlPrefix = process.env.APP === 'external' ? 'external' : 'monitor';
   const response = await fetch(`${window.static_url}/${urlPrefix}/static_version.txt`.replace(/\/\//g, '/'));
   const newVersion = await response.text();
-  // return await promptForReload();
 
   if (!staticVersion) {
     staticVersion = newVersion;
@@ -66,6 +66,8 @@ const promptForReload = async () => {
   if (hasShownConfirm) return false;
   removeVisibilityChangeListener();
   hasShownConfirm = true;
+  const data = await getLinkMapping().catch(() => {});
+  const publishUrl = data?.publish_docs || {};
   return await new Promise(resolve => {
     const vm = new Vue();
     const h = vm.$createElement;
@@ -95,6 +97,7 @@ const promptForReload = async () => {
             {
               class: {
                 'check-version-btn': true,
+                'check-version-btn-single': !publishUrl?.value,
               },
             },
             [
@@ -126,6 +129,9 @@ const promptForReload = async () => {
               h(
                 'bk-button',
                 {
+                  style: {
+                    display: publishUrl?.value ? 'inline-block' : 'none',
+                  },
                   props: {
                     outline: true,
                     theme: 'primary',
@@ -135,6 +141,7 @@ const promptForReload = async () => {
                     click: () => {
                       cancelFn();
                       /** 跳转到wiki */
+                      publishUrl.value && window.open(publishUrl.value);
                     },
                   },
                 },

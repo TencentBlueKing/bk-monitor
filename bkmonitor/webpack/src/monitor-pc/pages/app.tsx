@@ -262,7 +262,6 @@ export default class App extends tsc<object> {
     this.needMenu && addListener(this.navHeaderRef, this.handleNavHeaderResize);
     this.handleFetchStickyList();
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
-    // useCheckVersion();
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     this.getGlobalConfig();
     this.getAiUserConfig();
