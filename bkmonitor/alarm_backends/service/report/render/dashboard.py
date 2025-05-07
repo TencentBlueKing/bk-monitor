@@ -2,7 +2,6 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 from urllib.parse import quote
 
 from django.conf import settings
@@ -25,8 +24,8 @@ class RenderDashboardConfig:
     dashboard_uid: str
     width: int
     height: int
-    panel_id: Optional[str] = None
-    variables: Dict[str, List[str]] = field(default_factory=dict)
+    panel_id: str | None = None
+    variables: dict[str, list[str]] = field(default_factory=dict)
     start_time: int = field(default_factory=lambda: int(time.time() - 10800))
     end_time: int = field(default_factory=lambda: int(time.time()))
     # 是否需要标题，仅单个图表渲染时需要
@@ -47,7 +46,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
     """
     # 获取路径前缀
     if external:
-        prefix = f"http://{settings.BK_MONITOR_HOST.rstrip('/')}grafana/"
+        prefix = f"{settings.BK_MONITOR_HOST.rstrip('/')}grafana/"
     else:
         if settings.BK_MONITOR_HOST.endswith("/o/bk_monitorv3/"):
             path_prefix = "/o/bk_monitorv3/"
@@ -72,7 +71,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
         variables_str = f"&{variables_str}"
 
     # 生成时间url参数
-    time_str = f"&from={config.start_time*1000}&to={config.end_time*1000}"
+    time_str = f"&from={config.start_time * 1000}&to={config.end_time * 1000}"
 
     # 生成仪表盘链接
     if config.panel_id:
