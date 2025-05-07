@@ -26,7 +26,14 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.cache import CacheType, using_cache
+from constants.apm import FIVE_MIN_SECONDS
 from core.drf_resource import api
+
+
+@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
+def get_biz_index_sets_with_cache(_bk_biz_id):
+    return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
 
 
 class ServiceLogHandler:
@@ -62,7 +69,7 @@ class ServiceLogHandler:
         pool = ThreadPool()
         futures = []
         for i in {j["bk_biz_id"] for j in service_mapping.values()}:
-            futures.append(pool.apply_async(api.log_search.search_index_set, kwds={"bk_biz_id": i}))
+            futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": i}))
         index_set = list(itertools.chain(*[i.get() for i in futures]))
 
         # Step3: 根据 index_set_id 进行匹配
@@ -118,7 +125,7 @@ class ServiceLogHandler:
             return None
         index_set_id = ds["index_set_id"]
         if not full_indexes:
-            full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+            full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)
 
         index_set_info = next(
             (i for i in full_indexes if str(i.get("index_set_id", "")) == str(index_set_id)),
@@ -230,7 +237,7 @@ class ServiceLogHandler:
         )
 
         res = []
-        full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
+        full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
         for index in full_indexes:
             indices = index.get("indices") or []
             if indices and len(indices) == 1 and indices[0].get("result_table_id") in table_id_list:
