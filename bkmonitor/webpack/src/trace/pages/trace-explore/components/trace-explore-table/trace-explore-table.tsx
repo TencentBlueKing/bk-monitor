@@ -184,6 +184,7 @@ export default defineComponent({
         .map(colKey => {
           const fieldItem = fieldMap[colKey];
           let column = columnMap[colKey];
+          if (!column && !fieldItem) return null;
           if (!column) {
             column = {
               renderType: ExploreTableColumnTypeEnum.TEXT,
@@ -197,8 +198,17 @@ export default defineComponent({
           }
           const tipText = column.headerDescription || column.colKey;
           column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
+          // 表格列表头渲染方法
           const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText);
-          return { ...column, title: tableHeaderTitle };
+          // 表格单元格渲染方法
+          const tableCell = (_, { row }) => handleSetFormatter(column, row);
+
+          return {
+            ...defaultTableConfig,
+            ...column,
+            title: tableHeaderTitle,
+            cell: tableCell,
+          };
         })
         .filter(Boolean);
     });
@@ -976,7 +986,6 @@ export default defineComponent({
       }
     }
     return {
-      defaultTableConfig,
       tableRowKeyField,
       displayColumnFields,
       tableColumns,
@@ -989,7 +998,6 @@ export default defineComponent({
       spanSliderRender,
       handleSortChange,
       handleDataSourceConfigClick,
-      handleSetFormatter,
       handleDisplayColumnFieldsChange,
     };
   },
@@ -1016,15 +1024,7 @@ export default defineComponent({
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
           columns={[
-            ...this.tableDisplayColumns.map(column => {
-              return {
-                ...this.defaultTableConfig,
-                ...column,
-                cell: (h, { row }) => {
-                  return this.handleSetFormatter(column, row);
-                },
-              };
-            }),
+            ...this.tableDisplayColumns,
             {
               width: '32px',
               minWidth: '32px',

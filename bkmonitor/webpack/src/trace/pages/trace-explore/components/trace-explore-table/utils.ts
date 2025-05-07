@@ -121,3 +121,18 @@ export function requestErrorMessage(err) {
   }
   return isAborted;
 }
+
+/**
+ * 检测单行文本是否显示省略号
+ * @param {HTMLElement} element 要检测的容器元素
+ * @returns {boolean}
+ */
+export function isEllipsisActiveSingleLine(element) {
+  // 验证是否应用了必要样式
+  const style = window.getComputedStyle(element);
+  if (style.textOverflow !== 'ellipsis' || style.whiteSpace !== 'nowrap') {
+    return false;
+  }
+
+  return element.scrollWidth > element.clientWidth;
+}
