@@ -189,7 +189,6 @@
   };
 
   const handleIndexSetValueChange = (values, type, id) => {
-    debugger;
     const storage = {};
     if (['single', 'union'].includes(type)) {
       store.commit('updateIndexItem', {
