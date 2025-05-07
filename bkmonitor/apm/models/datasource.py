@@ -668,11 +668,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
     }
 
     GROUP_KEY_FILTER_CONFIG = {
-        "db_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM)}__exists": True}),
-        "http_url": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)}__exists": True}),
-        "messaging_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM)}__exists": True}),
-        "rpc_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.RPC_SYSTEM)}__exists": True}),
-        "trpc_callee_method": Q(**{f"{OtlpKey.get_attributes_key('trpc.namespace')}__exists": True}),
+        "db_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM)}__exists": ""}),
+        "http_url": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)}__exists": ""}),
+        "messaging_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM)}__exists": ""}),
+        "rpc_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.RPC_SYSTEM)}__exists": ""}),
+        "trpc_callee_method": Q(**{f"{OtlpKey.get_attributes_key('trpc.namespace')}__exists": ""}),
     }
 
     DEFAULT_LIMIT_MAX_SIZE = 10000
@@ -1115,8 +1115,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
     ) -> list[dict[str, Any]]:
         """获取事件列表"""
         q: QueryConfigBuilder = self.get_q(
-            filter_params, category, [OtlpKey.EVENTS, OtlpKey.RESOURCE, OtlpKey.SPAN_NAME, OtlpKey.TRACE_ID]
-        ).filter(**{f"{OtlpKey.EVENTS}.name__exists": True})
+            None, category, [OtlpKey.EVENTS, OtlpKey.RESOURCE, OtlpKey.SPAN_NAME, OtlpKey.TRACE_ID]
+        ).filter(**{f"{OtlpKey.EVENTS}.name__exists": ""})
         if name:
             # 仅获取包含指定事件名的数据。
             q = q.filter(**{f"{OtlpKey.EVENTS}.name__eq": name})
