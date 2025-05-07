@@ -99,13 +99,13 @@ window.addEventListener('message', function(e) {
         var dom = null;
         switch(e.data) {
             case 'create':
-                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(2) a');
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(2) ul li:nth-child(2) a');
                 break;
             case 'folder':
-                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(3) a');
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(2) ul li:nth-child(3) a');
                 break;
             case 'import':
-                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(1) ul li:nth-child(4) a');
+                dom = document.querySelector('.sidemenu div:nth-child(3) div:nth-child(2) ul li:nth-child(4) a');
                 break;
         }
         dom && dom.click()
