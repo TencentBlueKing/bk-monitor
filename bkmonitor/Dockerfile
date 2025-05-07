@@ -45,7 +45,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
-    uv venv --seed && uv sync --locked --no-install-project --no-dev --link-mode=copy
+    uv venv venv --seed && source venv/bin/activate && uv sync --locked --no-install-project --no-dev --link-mode=copy
 
 # build frontend
 FROM node:20-bullseye-slim AS node-builder
@@ -72,7 +72,7 @@ RUN groupadd -r ${username}  \
 # move code and python packages
 COPY --chown=${username}:${username} . /app/code/
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
-COPY --from=python-builder --chown=${username}:${username} /app/.venv /app/venv
+COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 
 ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
