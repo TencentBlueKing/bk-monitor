@@ -383,10 +383,8 @@ export default defineComponent({
           if (!item?.hide) {
             where.push({
               key: item.key.id,
-              condition: ECondition.and,
               value: item.value.map(v => v.id),
-              ...(item?.options?.is_wildcard ? { options: { is_wildcard: true } } : {}),
-              method: item.method.id,
+              operator: item.method.id,
             });
           }
         }

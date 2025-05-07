@@ -76,9 +76,6 @@ export default defineComponent({
     /** 视角切换查询 */
     const cacheSceneQuery = new Map<string, Record<string, any>>();
 
-    function handleFavoriteShowChange(isShow: boolean) {
-      isShowFavorite.value = isShow;
-    }
     const filterMode = shallowRef<EMode>(EMode.ui);
 
     const where = shallowRef<IWhereItem[]>([]);
@@ -468,6 +465,9 @@ export default defineComponent({
     function handleEditFavoriteShow(isShow) {
       editFavoriteShow.value = isShow;
     }
+    function handleFavoriteShowChange(isShow: boolean) {
+      isShowFavorite.value = isShow;
+    }
 
     return {
       traceExploreLayoutRef,
@@ -523,6 +523,7 @@ export default defineComponent({
             defaultFavoriteId={this.defaultFavoriteId}
             type='trace'
             onChange={this.handleFavoriteChange}
+            onClose={() => this.handleFavoriteShowChange(false)}
             onOpenBlank={this.handleFavoriteOpenBlank}
           />
         </div>
