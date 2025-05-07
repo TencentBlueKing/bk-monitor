@@ -1045,7 +1045,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         category: str | None = None,
     ) -> list[dict[str, Any]]:
         """按 group_keys 对一段时间内的 Span 数据进行聚合统计
-        TODO(crayon) 目前默认拉取 1w 条聚合结果的方式存在性能瓶颈，需改造成前端分页 + TopN 拉取（需 UnifyQuery 支持多 Query 聚合）。
+        TODO(crayon) 目前默认拉取 1w 条聚合结果的方式存在性能瓶颈，需改造为前端分页 + TopN 拉取（需 UnifyQuery 支持多 Query 聚合）。
         """
         group_by: list[str] = [
             self.GROUP_KEY_CONFIG[group_key] for group_key in group_keys if group_key in self.GROUP_KEY_CONFIG
