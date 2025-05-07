@@ -57,6 +57,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    defaultFavoriteId: {
+      type: Number,
+      default: null,
+    },
   },
   emits: ['openBlank', 'change'],
   setup(props, context) {
@@ -74,7 +78,6 @@ export default defineComponent({
     const isAllExpaned = shallowRef(false);
 
     const isEventFilterDataId = computed(() => props.type === 'event');
-
     if (isEventFilterDataId.value) {
       eventFavoriteDataId.value = props.dataId;
     }
@@ -94,6 +97,12 @@ export default defineComponent({
         'change',
         _.find(wholeFavoriteList.value, item => item.id === favoritSelectedId.value)
       );
+    });
+
+    watch(wholeFavoriteList, () => {
+      if (props.defaultFavoriteId) {
+        favoritSelectedId.value = props.defaultFavoriteId;
+      }
     });
 
     const handleShowGroupManage = () => {
