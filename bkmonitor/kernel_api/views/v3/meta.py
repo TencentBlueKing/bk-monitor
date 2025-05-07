@@ -462,12 +462,24 @@ class UpdateEsRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
 
 
+class CreateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateDorisRouter)]
+
+
+class UpdateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.UpdateDorisRouter)]
+
+
 class AddBkDataTableIdsViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
 
 
 class CreateOrUpdateEsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
+
+
+class CreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):
