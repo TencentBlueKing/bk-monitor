@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import hashlib
 import json
 import math
@@ -27,6 +27,7 @@ import time
 from copy import deepcopy
 from enum import Enum
 from multiprocessing.pool import ThreadPool
+from collections.abc import Callable
 from urllib import parse
 
 import requests
@@ -73,7 +74,7 @@ def get_request_api_headers(params):
     return json.dumps(api_headers)
 
 
-class DataResponse(object):
+class DataResponse:
     """response for data api request"""
 
     def __init__(self, request_response, request_id):
@@ -104,7 +105,7 @@ class DataResponse(object):
         return self.response.get("errors", None)
 
 
-class DataApiRetryClass(object):
+class DataApiRetryClass:
     def __init__(self, stop_max_attempt_number=1, wait_random_min=0, wait_random_max=1000):
         self.stop_max_attempt_number = stop_max_attempt_number
         self.wait_random_min = wait_random_min
@@ -184,10 +185,10 @@ class LazyEncoder(DjangoJSONEncoder):
     def default(self, obj):
         if isinstance(obj, Promise):
             return force_str(obj)
-        return super(LazyEncoder, self).default(obj)
+        return super().default(obj)
 
 
-class DataAPI(object):
+class DataAPI:
     """Single API for DATA"""
 
     HTTP_STATUS_OK = 200
@@ -216,7 +217,7 @@ class DataAPI(object):
         data_api_retry_cls=None,
         use_superuser=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
-        bk_tenant_id="",
+        bk_tenant_id: str | Callable[[dict], str] = "",
     ):
         """
         初始化一个请求句柄
@@ -236,6 +237,7 @@ class DataAPI(object):
         @param {int} default_timeout 默认超时时间
         @param {DataApiRetryClass} data_api_retry_cls 超时配置
         @param {string} pagination_style 分页方式
+        @param {string} bk_tenant_id 租户ID，可传递一个静态值或者动态的函数
         """
         self.url = url
         self.module = module
@@ -282,8 +284,6 @@ class DataAPI(object):
     ):
         """
         调用传参
-
-        @param {Boolean} raw 是否返回原始内容
         """
         if params is None:
             params = {}
@@ -462,9 +462,7 @@ class DataAPI(object):
                 "request_user": bk_username,
             }
 
-            _log = _("[BKLOGAPI] {info}").format(
-                info=" && ".join([" {}=>{} ".format(_k, _v) for _k, _v in list(_info.items())])
-            )
+            _log = _("[BKLOGAPI] {info}").format(info=" && ".join([f" {_k}=>{_v} " for _k, _v in list(_info.items())]))
             if response_result:
                 logger.info(_log)
             else:
@@ -526,9 +524,18 @@ class DataAPI(object):
             session.headers.update(**headers)
 
         # 多租户模式下添加租户ID
-        # 如果是web请求，通过用户名获取租户ID
-        # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
-        session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id or self.bk_tenant_id or get_request_tenant_id()})
+        # 如果请求时没有指定租户ID，则看接口定义时是否有租户ID
+        # 如果请求时和接口定义时都没有给租户ID，则通过请求用户态获取租户ID
+        if not bk_tenant_id:
+            if self.bk_tenant_id:
+                if callable(self.bk_tenant_id):
+                    # 如果传递的 bk_tenant_id 是个函数，将调用该函数
+                    bk_tenant_id = self.bk_tenant_id(params)
+                else:
+                    bk_tenant_id = self.bk_tenant_id
+            else:
+                bk_tenant_id = get_request_tenant_id()
+        session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
 
         url = self.build_actual_url(params)
 
@@ -573,7 +580,7 @@ class DataAPI(object):
                 verify=False,
                 timeout=timeout,
             )
-        raise ApiRequestError("request method error => [{method}]".format(method=self.method))
+        raise ApiRequestError(f"request method error => [{self.method}]")
 
     def build_actual_url(self, params):
         if self.url_keys is not None:
@@ -754,7 +761,7 @@ DRF_DATAAPI_CONFIG = [
 ]
 
 
-class DRFActionAPI(object):
+class DRFActionAPI:
     def __init__(self, detail=True, url_path=None, method=None, **kwargs):
         """
         资源操作申明，类似 DRF 中的 detail_route、list_route，透传 DataAPI 配置
@@ -765,14 +772,12 @@ class DRFActionAPI(object):
 
         for k in list(kwargs.keys()):
             if k not in DRF_DATAAPI_CONFIG:
-                raise Exception(
-                    "Not support {k} config, SUPPORT_DATAAPI_CONFIG:{conf}".format(k=k, conf=DRF_DATAAPI_CONFIG)
-                )
+                raise Exception(f"Not support {k} config, SUPPORT_DATAAPI_CONFIG:{DRF_DATAAPI_CONFIG}")
 
         self.dataapi_kwargs = kwargs
 
 
-class DataDRFAPISet(object):
+class DataDRFAPISet:
     """
     For djangorestframework api set in the backend
     """
@@ -823,23 +828,21 @@ class DataDRFAPISet(object):
 
         for k in list(kwargs.keys()):
             if k not in DRF_DATAAPI_CONFIG:
-                raise Exception(
-                    "Not support {k} config, SUPPORT_DATAAPI_CONFIG:{conf}".format(k=k, conf=DRF_DATAAPI_CONFIG)
-                )
+                raise Exception(f"Not support {k} config, SUPPORT_DATAAPI_CONFIG:{DRF_DATAAPI_CONFIG}")
 
         self.dataapi_kwargs = kwargs
 
     def to_url(self, action_name, action, is_standard=False):
         target_url_keys = self.url_keys[:] if self.url_keys else []
         if action.detail:
-            target_url = "{root_path}{{{pk}}}/".format(root_path=self.url, pk=self.primary_key)
+            target_url = f"{self.url}{{{self.primary_key}}}/"
             target_url_keys.append(self.primary_key)
         else:
-            target_url = "{root_path}".format(root_path=self.url)
+            target_url = f"{self.url}"
 
         if not is_standard:
             sub_path = action.url_path if action.url_path else action_name
-            target_url += "{sub_path}/".format(sub_path=sub_path)
+            target_url += f"{sub_path}/"
 
         return target_url, target_url_keys
 
@@ -877,7 +880,7 @@ class DataDRFAPISet(object):
         return DataAPI(**dataapi_kwargs)
 
 
-class ProxyDataAPI(object):
+class ProxyDataAPI:
     """
     代理DataAPI，会根据settings.RUN_VER到sites.{run_ver}.api.proxy_modules找到对应的api
     """
@@ -886,13 +889,13 @@ class ProxyDataAPI(object):
         self.description = description
 
 
-class BaseApi(object):
+class BaseApi:
     """
     api基类，支持ProxyDataAPI代理类API
     """
 
     def __getattribute__(self, item):
-        attr = super(BaseApi, self).__getattribute__(item)
+        attr = super().__getattribute__(item)
         if isinstance(attr, ProxyDataAPI):
             # 代理类的DataApi，各个版本需要重载有差异的方法
 
@@ -906,7 +909,7 @@ class BaseApi(object):
                 mod = import_string(module_str)()
                 attr = getattr(mod, item)
             except (ImportError, AttributeError) as e:
-                raise NotImplementedError("{}.{} is not implemented. \nerror message: {}".format(module_str, item, e))
+                raise NotImplementedError(f"{module_str}.{item} is not implemented. \nerror message: {e}")
         return attr
 
 
@@ -915,9 +918,7 @@ class PassThroughAPI(DataAPI):
     直接透传API
     """
 
-    def __init__(
-        self, module, method, url_prefix, sub_url, supported_api=list()
-    ):  # pylint: disable=dangerous-default-value  # noqa
+    def __init__(self, module, method, url_prefix, sub_url, supported_api=list()):  # pylint: disable=dangerous-default-value  # noqa
         is_supported = False
         for d_api in supported_api:
             if d_api["method"] == method and re.match(d_api.get("url_regex"), sub_url):
@@ -927,19 +928,21 @@ class PassThroughAPI(DataAPI):
                 api_kwargs.update({"method": method, "url": url, "module": module})
                 if "before_request" not in api_kwargs:
                     api_kwargs["before_request"] = add_esb_info_before_request
-                super(PassThroughAPI, self).__init__(**api_kwargs)
+                super().__init__(**api_kwargs)
                 is_supported = True
                 break
         if not is_supported:
             logger.error("【API ERROR】%s 暂不支持透传" % sub_url)
             raise PermissionError(
-                _("非法请求，模块【{module}】，方法【{method}】，接口【{sub_url}】").format(module=module, method=method, sub_url=sub_url)
+                _("非法请求，模块【{module}】，方法【{method}】，接口【{sub_url}】").format(
+                    module=module, method=method, sub_url=sub_url
+                )
             )
 
 
 class GrafanaDataAPI(DataAPI):
     def __init__(self, with_org_id=False, *args, **kwargs):
-        super(GrafanaDataAPI, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.with_org_id = with_org_id
 
     def __call__(self, params=None, files=None, raw=False, timeout=None, raise_exception=True):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import functools
@@ -17,7 +17,8 @@ import operator
 from collections import defaultdict
 from enum import Enum
 from json import JSONDecodeError
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
+from collections.abc import Callable
 
 from django.conf import settings
 from django.core.cache import cache
@@ -170,11 +171,11 @@ class PreCalculateHelperMixin:
 
     @classmethod
     def get_helper_or_none(
-        cls, bk_biz_id: str, app_name: str, app_config_key: Optional[str] = None
-    ) -> Optional[PreCalculateHelper]:
+        cls, bk_biz_id: str, app_name: str, app_config_key: str | None = None
+    ) -> PreCalculateHelper | None:
         try:
-            app_config: Dict[str, Any] = getattr(settings, app_config_key or cls.DEFAULT_APP_CONFIG_KEY)
-            pre_calculate_config: Dict[str, Any] = app_config[f"{bk_biz_id}-{app_name}"]["pre_calculate"]
+            app_config: dict[str, Any] = getattr(settings, app_config_key or cls.DEFAULT_APP_CONFIG_KEY)
+            pre_calculate_config: dict[str, Any] = app_config[f"{bk_biz_id}-{app_name}"]["pre_calculate"]
         except (KeyError, AttributeError):
             return None
 
@@ -200,7 +201,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         class GroupByLimitSerializer(serializers.Serializer):
             class OptionsSerializer(serializers.Serializer):
                 class TrpcSerializer(serializers.Serializer):
-                    kind = serializers.ChoiceField(label="调用类型", choices=SeriesAliasType.get_choices(), required=True)
+                    kind = serializers.ChoiceField(
+                        label="调用类型", choices=SeriesAliasType.get_choices(), required=True
+                    )
                     temporality = serializers.ChoiceField(
                         label="时间性", required=True, choices=MetricTemporality.choices()
                     )
@@ -245,7 +248,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
-        fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
+        fill_bar = serializers.BooleanField(
+            label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False
+        )
         processors = serializers.ListField(label="处理器列表", child=ProcessorSerializer(), required=False, default=[])
         alias_prefix = serializers.ChoiceField(
             label="动态主被调当前值",
@@ -260,7 +265,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         hook_processors = serializers.DictField(label="每个 hook 对应的处理器列表", required=False, default={})
 
         def validate(self, attrs):
-            hook_processors: Dict[str, Any] = {}
+            hook_processors: dict[str, Any] = {}
             for processor in attrs.get("processors") or []:
                 hook_processors.setdefault(processor["hook"], []).append(processor)
 
@@ -407,7 +412,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         )
 
     @classmethod
-    def _process_map(cls) -> Dict[str, Callable]:
+    def _process_map(cls) -> dict[str, Callable]:
         return {
             "format_percent": cls.format_percent,
             "fill_empty_dimensions": cls.fill_empty_dimensions,
@@ -437,7 +442,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         :param app_config_key:
         :return:
         """
-        helper: Optional[PreCalculateHelper] = cls.get_helper_or_none(
+        helper: PreCalculateHelper | None = cls.get_helper_or_none(
             validate_data["bk_biz_id"], validate_data["app_name"], app_config_key
         )
         if helper is None:
@@ -448,7 +453,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         validate_data["metric_map"] = {}
         validate_data["backup_query_params"] = copy.deepcopy(query_params)
 
-        used_labels: List[str] = []
+        used_labels: list[str] = []
         is_pre_cal_hit: bool = False
         is_time_shift_exists: bool = False
         for query_config in query_params["query_configs"]:
@@ -459,9 +464,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             table_id: str = query_config["table"]
             metric: str = query_config["metrics"][0]["field"]
 
-            functions: List[Dict[str, Any]] = []
-            increase_function: Optional[Dict[str, Any]] = None
-            time_shift_function: Dict[str, Any] = {"id": "time_shift", "params": [{"id": "n", "value": None}]}
+            functions: list[dict[str, Any]] = []
+            increase_function: dict[str, Any] | None = None
+            time_shift_function: dict[str, Any] = {"id": "time_shift", "params": [{"id": "n", "value": None}]}
             for func in query_config.get("functions") or []:
                 if func["id"] == "increase":
                     increase_function = func
@@ -475,7 +480,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
 
             query_config["functions"] = functions
 
-            origin_time_shift: Optional[str] = None
+            origin_time_shift: str | None = None
             try:
                 origin_time_shift = time_shift_function["params"][0]["value"]
                 if origin_time_shift:
@@ -483,7 +488,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             except (KeyError, IndexError):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
 
-            result: Dict[str, Any] = helper.router(
+            result: dict[str, Any] = helper.router(
                 table_id, metric, used_labels, query_params["start_time"], query_params["end_time"], origin_time_shift
             )
             if not result["is_hit"]:
@@ -512,7 +517,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
     @classmethod
     def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):
         try:
-            dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+            dimension_fields: list[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
         except (IndexError, KeyError):
             # 找不到 group by，就不做填充了
             return
@@ -542,17 +547,17 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         """还原查询元数据信息
         预计算等逻辑对指标、结果表的路由查询不应暴露给用户，跳转数据检索/告警配置正常还是走原指标。
         """
-        backup_query_params: Optional[Dict[str, Any]] = validate_data.get("backup_query_params")
+        backup_query_params: dict[str, Any] | None = validate_data.get("backup_query_params")
         if not backup_query_params:
             return
 
         response["query_config"] = backup_query_params
 
-        table_metric_map: Dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
+        table_metric_map: dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
         if not table_metric_map:
             return
 
-        recovery_metrics: List[Dict[str, Any]] = []
+        recovery_metrics: list[dict[str, Any]] = []
         for metric in response.get("metrics") or []:
             metric_json = json.dumps(metric)
             for old, new in table_metric_map.items():
@@ -811,7 +816,7 @@ class ServiceListResource(PageListResource):
         )
 
         def validate(self, attrs):
-            res = super(ServiceListResource.RequestSerializer, self).validate(attrs)
+            res = super().validate(attrs)
             if not res.get("filter"):
                 # 兼容服务 tab 页面前端无法传递 all 的问题
                 res["filter"] = "all"
@@ -1191,7 +1196,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         service_names = serializers.ListSerializer(child=serializers.CharField(), default=[], label="服务列表")
         start_time = serializers.IntegerField(required=True, label="数据开始时间")
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
-        filter_keys = serializers.ListSerializer(child=serializers.CharField(), default=[], label="异步加载的过滤器类表")
+        filter_keys = serializers.ListSerializer(
+            child=serializers.CharField(), default=[], label="异步加载的过滤器类表"
+        )
 
     @classmethod
     def _get_column_metric_mapping(cls, column_metric, metric_params):
@@ -1379,7 +1386,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
 
         res = []
         filter_fields = []
-        m: Dict = self.METRIC_MAP[column]
+        m: dict = self.METRIC_MAP[column]
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
         metric_params = {
             "application": app,
@@ -1624,14 +1631,14 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     LinkTableFormat(
                         id="operate",
                         name=_lazy("调用链"),
-                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                        + '&search_type=scope'
-                        + '&start_time={start_time}&end_time={end_time}'
+                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        + "&search_type=scope"
+                        + "&start_time={start_time}&end_time={end_time}"
                         + '&conditionList={{"resource.service.name": '
                         '{{"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service}"]}},'
                         '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint}"]}}}}' + '&query=status.code:+2+',
+                        '"selectedConditionValue": ["{endpoint}"]}}}}' + "&query=status.code:+2+",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -2054,8 +2061,18 @@ class EndpointDetailListResource(Resource):
             return {
                 "data": self.filter_keyword(res, validated_request_data.get("keyword")),
                 "filter": [
-                    {"id": "success", "status": "success", "name": status_count["success"], "tips": _lazy("1小时内无异常")},
-                    {"id": "failed", "status": "failed", "name": status_count["failed"], "tips": _lazy("1小时内有异常")},
+                    {
+                        "id": "success",
+                        "status": "success",
+                        "name": status_count["success"],
+                        "tips": _lazy("1小时内无异常"),
+                    },
+                    {
+                        "id": "failed",
+                        "status": "failed",
+                        "name": status_count["failed"],
+                        "tips": _lazy("1小时内有异常"),
+                    },
                     {
                         "id": "disabled",
                         "status": "disabled",
@@ -2064,7 +2081,12 @@ class EndpointDetailListResource(Resource):
                     },
                 ],
                 "sort": [
-                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                    {
+                        "id": "request_count",
+                        "status": "request_count",
+                        "name": _lazy("请求数"),
+                        "tips": _lazy("请求数"),
+                    },
                     {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
                     {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
                 ],
@@ -2122,7 +2144,12 @@ class EndpointDetailListResource(Resource):
             "filter": [
                 {"id": "success", "status": "success", "name": status_count["success"], "tips": _lazy("1小时内无异常")},
                 {"id": "failed", "status": "failed", "name": status_count["failed"], "tips": _lazy("1小时内有异常")},
-                {"id": "disabled", "status": "disabled", "name": status_count["disabled"], "tips": _lazy("1小时内无数据")},
+                {
+                    "id": "disabled",
+                    "status": "disabled",
+                    "name": status_count["disabled"],
+                    "tips": _lazy("1小时内无数据"),
+                },
             ],
             "sort": [
                 {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
@@ -2289,9 +2316,9 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                     LinkTableFormat(
                         id="trace",
                         name=_lazy("调用链"),
-                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                        + '&search_type=scope'
-                        + '&start_time={start_time}&end_time={end_time}'
+                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        + "&search_type=scope"
+                        + "&start_time={start_time}&end_time={end_time}"
                         + '&conditionList={{"resource.service.name": {{'
                         '"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service_name}"]}},'
@@ -2414,6 +2441,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     def list_endpoints(self, data, service_name):
         bk_biz_id = data["bk_biz_id"]
         app_name = data["app_name"]
+        endpoint_name = None
 
         query_param = {
             "bk_biz_id": bk_biz_id,
@@ -2425,28 +2453,32 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if data.get("filter"):
             query_param["category"] = data["filter"]
 
+        filter_fields = data.get("filter_fields")
+        if filter_fields:
+            if "service_name" in filter_fields:
+                service_name = filter_fields["service_name"]
+            if "endpoint_name" in filter_fields:
+                endpoint_name = filter_fields["endpoint_name"]
+                query_param["filters"] = {"endpoint_name": endpoint_name}
+
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
 
         node_mapping = {}
         pool = ThreadPool()
-        endpoint_metrics_param = {
-            "application": application,
-            "start_time": data["start_time"],
-            "end_time": data["end_time"],
-        }
         if service_name:
-            endpoints_metric_res = pool.apply_async(
-                ServiceHandler.get_service_metric,
-                kwds={
-                    "metric": ENDPOINT_LIST,
-                    "application": application,
-                    "start_time": data["start_time"],
-                    "end_time": data["end_time"],
-                    "service_name": service_name,
-                    "bk_instance_id": query_param.get("bk_instance_id"),
-                    "raise_exception": False,
-                },
-            )
+            endpoint_metrics_param = {
+                "metric": ENDPOINT_LIST,
+                "application": application,
+                "start_time": data["start_time"],
+                "end_time": data["end_time"],
+                "service_name": service_name,
+                "bk_instance_id": query_param.get("bk_instance_id"),
+                "raise_exception": False,
+            }
+            if endpoint_name:
+                endpoint_metrics_param["where"] = [{"key": "span_name", "method": "eq", "value": [endpoint_name]}]
+
+            endpoints_metric_res = pool.apply_async(ServiceHandler.get_service_metric, kwds=endpoint_metrics_param)
 
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
@@ -2459,6 +2491,14 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
 
             node_mapping[service_name] = node
         else:
+            endpoint_metrics_param = {
+                "application": application,
+                "start_time": data["start_time"],
+                "end_time": data["end_time"],
+            }
+            if endpoint_name:
+                endpoint_metrics_param["where"] = [{"key": "span_name", "method": "eq", "value": [endpoint_name]}]
+
             # 如果无指定服务 需要在数据获取时获取服务信息
             endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_metrics_param)
 
@@ -2859,11 +2899,11 @@ class ServiceQueryExceptionResource(PageListResource):
             LinkTableFormat(
                 id="operate",
                 name=_lazy("调用链"),
-                url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                + '&search_type=scope'
-                + '&listType=trace'
-                + '&start_time={start_time}&end_time={end_time}'
-                + '&query=status.code:+2+'
+                url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                + "&search_type=scope"
+                + "&listType=trace"
+                + "&start_time={start_time}&end_time={end_time}"
+                + "&query=status.code:+2+"
                 + '&conditionList={{"resource.service.name": '
                 + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
                 + '"selectedConditionValue": ["{service_name}"]}},'
@@ -3119,10 +3159,10 @@ class ErrorListByTraceIdsResource(PageListResource):
                     LinkTableFormat(
                         id="operate",
                         name=_lazy("调用链"),
-                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                        + '&search_type=scope'
+                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        + "&search_type=scope"
                         + '&filter_dict={{"service":["{service_name}"],"endpoint":["{endpoint}"]}}'
-                        + '&query_string=status.code:+2+',
+                        + "&query_string=status.code:+2+",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -3332,7 +3372,7 @@ class GetFieldOptionValuesResource(Resource):
         metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
-        option_values: List[str] = metric_helper.get_field_option_values(
+        option_values: list[str] = metric_helper.get_field_option_values(
             metric_field=validated_request_data["metric_field"],
             field=validated_request_data["field"],
             filter_dict=validated_request_data.get("filter_dict"),
@@ -3345,7 +3385,7 @@ class GetFieldOptionValuesResource(Resource):
 
 class RecordHelperMixin:
     @classmethod
-    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _process_sorted(cls, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not records:
             return []
         if "time" in records[0].get("dimensions") or {}:
@@ -3385,8 +3425,12 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
                     choices=SeriesAliasType.get_choices(),
                     required=True,
                 )
-                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
-                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
+                temporality = serializers.ChoiceField(
+                    label="时间性", required=True, choices=MetricTemporality.choices()
+                )
+                ret_code_as_exception = serializers.BooleanField(
+                    label="非 0 返回码是否当成异常", required=False, default=False
+                )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3405,7 +3449,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
         )
         filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
         where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
-        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        group_by = serializers.ListSerializer(
+            label="聚合字段", required=False, default=[], child=serializers.CharField()
+        )
         options = OptionsSerializer(label="配置", required=False, default={})
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
@@ -3429,23 +3475,23 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
     def _merge(
         cls,
         metric_cal_type: str,
-        group_fields: List[str],
-        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]],
-    ) -> List[Dict[str, Any]]:
-        group_key_record_map: Dict[Tuple, Dict[str, Any]] = {}
+        group_fields: list[str],
+        alias_aggregated_records_map: dict[str, list[dict[str, Any]]],
+    ) -> list[dict[str, Any]]:
+        group_key_record_map: dict[tuple, dict[str, Any]] = {}
         # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
         for alias, records in alias_aggregated_records_map.items():
             for record in records:
                 record["time"] = record["_time_"] // 1000
-                group_key: Tuple = tuple((field, record.get(field) or "") for field in group_fields)
+                group_key: tuple = tuple((field, record.get(field) or "") for field in group_fields)
                 group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
 
-        merged_records: List[Dict[str, Any]] = []
-        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        merged_records: list[dict[str, Any]] = []
+        aliases: list[str] = list(alias_aggregated_records_map.keys())
         for group_key, record in group_key_record_map.items():
             # 确保 dimensions 以 group_fields 为序
-            dimensions: Dict[str, Any] = dict(group_key)
-            processed_record: Dict[str, Any] = {"dimensions": {}}
+            dimensions: dict[str, Any] = dict(group_key)
+            processed_record: dict[str, Any] = {"dimensions": {}}
             for field in group_fields:
                 processed_record["dimensions"][field] = dimensions.get(field) or ""
 
@@ -3459,10 +3505,10 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
         return merged_records
 
     @classmethod
-    def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
+    def _process_growth_rates(cls, baseline: str, aliases: list[str], records: list[dict[str, Any]]):
         for record in records:
             for alias in aliases:
-                growth_rate: Optional[float] = None
+                growth_rate: float | None = None
 
                 if record[baseline] == 0 and record[alias] == 0:
                     # 两个数据都为 0 时，设定增长率为 0%
@@ -3485,8 +3531,8 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
                 record.setdefault("growth_rates", {})[alias] = growth_rate
 
     @classmethod
-    def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
-        alias_total_map: Dict[str, int] = defaultdict(int)
+    def _process_proportions(cls, aliases: list[str], records: list[dict[str, Any]]):
+        alias_total_map: dict[str, int] = defaultdict(int)
         for record in records:
             for alias in aliases:
                 alias_total_map[alias] += record[alias] or 0
@@ -3502,7 +3548,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
                 )
 
     def perform_request(self, validated_request_data):
-        def _collect(_alias: Optional[str], **_kwargs):
+        def _collect(_alias: str | None, **_kwargs):
             _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
                 group_name,
                 validated_request_data["bk_biz_id"],
@@ -3517,10 +3563,10 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
 
         baseline: str = validated_request_data["baseline"]
         metric_cal_type: str = validated_request_data["metric_cal_type"]
-        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
+        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {}
         group_name: str = validated_request_data["metric_group_name"]
-        group_fields: List[str] = validated_request_data.get("group_by") or []
-        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+        group_fields: list[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: PreCalculateHelper | None = self.get_helper_or_none(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
 
@@ -3539,9 +3585,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
         )
 
         # 合并数据
-        merged_records: List[Dict[str, Any]] = self._merge(metric_cal_type, group_fields, alias_aggregated_records_map)
+        merged_records: list[dict[str, Any]] = self._merge(metric_cal_type, group_fields, alias_aggregated_records_map)
 
-        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        aliases: list[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
         self._process_growth_rates(baseline, aliases, merged_records)
         if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
@@ -3563,8 +3609,12 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
                     choices=SeriesAliasType.get_choices(),
                     required=True,
                 )
-                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
-                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
+                temporality = serializers.ChoiceField(
+                    label="时间性", required=True, choices=MetricTemporality.choices()
+                )
+                ret_code_as_exception = serializers.BooleanField(
+                    label="非 0 返回码是否当成异常", required=False, default=False
+                )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3573,7 +3623,9 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
         limit = serializers.IntegerField(label="查询数量", default=10, required=False)
         filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
         where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
-        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        group_by = serializers.ListSerializer(
+            label="聚合字段", required=False, default=[], child=serializers.CharField()
+        )
         method = serializers.ChoiceField(
             label="计算类型",
             required=False,
@@ -3600,8 +3652,8 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
             return attrs
 
     @classmethod
-    def _format(cls, time_shift: str, group_fields: List[str], records: List[Dict[str, Any]]):
-        group_key_result_map: Dict[Tuple, Any] = {}
+    def _format(cls, time_shift: str, group_fields: list[str], records: list[dict[str, Any]]):
+        group_key_result_map: dict[tuple, Any] = {}
         time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
         for record in records:
             # 时间偏移场景，需要转为字符串时间
@@ -3609,26 +3661,26 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
                 "%Y-%m-%d %H:%M:%S"
             )
 
-            group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
+            group_key: tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
-        processed_records: List[Dict[str, Any]] = []
+        processed_records: list[dict[str, Any]] = []
         for group_key, result in group_key_result_map.items():
             processed_records.append({"dimensions": dict(group_key), "result": result})
         return processed_records
 
     @classmethod
     def _display_format(
-        cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        cls, metric_cal_type: str, group_fields: list[str], records: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         total: float = 0
-        processed_records: List[Dict[str, Any]] = []
+        processed_records: list[dict[str, Any]] = []
         for record in records:
             value: float = cls.format_value(metric_cal_type, record["result"])
             total += value
 
-            group_values: List[str] = []
-            processed_record: Dict[str, Any] = {"value": value, "dimensions": {}}
+            group_values: list[str] = []
+            processed_record: dict[str, Any] = {"value": value, "dimensions": {}}
             for field in group_fields:
                 # 按 GroupBy 序处理
                 processed_record["dimensions"][field] = record["dimensions"].get(field) or ""
@@ -3650,11 +3702,11 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
         return processed_records
 
     @classmethod
-    def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _get_extra_filter_dict(cls, records: list[dict[str, Any]]) -> dict[str, Any]:
         q: Q = Q()
         for record in records:
             # 处理维度值为 None 的情况，改写为 xx=“”，避免忽略掉这条线
-            kv: Dict[str, Any] = {k: v or "" for k, v in record["dimensions"].items()}
+            kv: dict[str, Any] = {k: v or "" for k, v in record["dimensions"].items()}
             if kv:
                 q = q | Q(**kv)
         return q_to_dict(q)
@@ -3663,8 +3715,8 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
         group_name: str = validated_request_data["metric_group_name"]
         metric_cal_type: str = validated_request_data["metric_cal_type"]
         time_shift: str = validated_request_data.get("time_shift") or "0s"
-        group_fields: List[str] = validated_request_data.get("group_by") or []
-        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+        group_fields: list[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: PreCalculateHelper | None = self.get_helper_or_none(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
@@ -3677,7 +3729,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
             pre_calculate_helper=pre_calculate_helper,
             **(validated_request_data["options"].get(group_name) or {}),
         )
-        records: List[Dict[str, Any]] = group.handle(
+        records: list[dict[str, Any]] = group.handle(
             validated_request_data["method"],
             qs_type=metric_cal_type,
             limit=validated_request_data["limit"],
@@ -3686,7 +3738,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
         )
         records = self._format(time_shift, group_fields, records)
 
-        result: Dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
+        result: dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
         if validated_request_data.get("with_filter_dict"):
             result["extra_filter_dict"] = self._get_extra_filter_dict(records)
         return result

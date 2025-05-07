@@ -671,7 +671,7 @@
       align-items: center;
       justify-content: center;
       width: 90px;
-      height: 32px;
+      height: 52px;
       font-size: 12px;
       cursor: pointer;
 
