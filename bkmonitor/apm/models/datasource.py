@@ -1138,6 +1138,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             for event in span.get(OtlpKey.EVENTS, []):
                 event["service_name"] = span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
                 event["endpoint_name"] = span.get(OtlpKey.SPAN_NAME)
+                event["trace_id"] = span.get(OtlpKey.TRACE_ID, "")
                 events.append(event)
         return events
 
