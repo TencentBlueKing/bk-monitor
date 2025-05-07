@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import itertools
 import time
@@ -25,8 +25,6 @@ from apm_web.topo.handle.relation.define import (
     SourceSystem,
 )
 from apm_web.topo.handle.relation.query import RelationQ
-from bkm_space.api import SpaceApi
-from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -79,7 +77,7 @@ class ServiceLogHandler:
         # Step4: 对没有数据的服务进行自定义上报查询
         log_datasource = cls.get_log_datasource(bk_biz_id, app_name)
         if log_datasource:
-            table_id = log_datasource['result_table_id'].replace('-', '_').replace(".", "_")
+            table_id = log_datasource["result_table_id"].replace("-", "_").replace(".", "_")
             response = api.log_search.es_query_dsl(
                 indices=f"{table_id}*",
                 body={
@@ -222,63 +220,19 @@ class ServiceLogHandler:
         if not datasource_infos:
             return []
 
-        # 使用 bk_data_id 获取关联的 Pod / System
-        qs = []
-        for path_item, source_infos in datasource_infos.items():
-            qs += RelationQ.generate_multi_q(
-                bk_biz_id=bk_biz_id,
-                source_infos=source_infos,
-                target_type=path_item[-1],
-                start_time=start_time,
-                end_time=end_time,
-                path_resource=path_item,
-            )
+        # 这里直接从 metadata 查询，是为了解决跨业务关联的场景
+        # data_id -> table_id -> index_set_id
+        # 这里待 metadata 有相关接口后，需要改为走 api 形式查询，去掉模块之间的依赖
+        from metadata import models
 
-        data_id_query_mapping = defaultdict(lambda: defaultdict(set))
-        for r in RelationQ.query(qs):
-            data_id = r.source_info.get("bk_data_id")
-            if not data_id:
-                continue
-
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
-                pod = source_info.get("pod")
-                bk_target_ip = source_info.get("bk_target_ip")
-
-                if pod:
-                    if (
-                        len(data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"])
-                        >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE
-                    ):
-                        continue
-                    else:
-                        data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"].add(pod)
-                elif bk_target_ip:
-                    if len(data_id_query_mapping[data_id]["serverIp"]) >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE:
-                        continue
-                    else:
-                        data_id_query_mapping[data_id]["serverIp"].add(pod)
-
-        def log_list_collectors(_bk_biz_id):
-            return api.log_search.list_collectors(
-                space_uid=SpaceApi.get_space_detail(bk_biz_id=_bk_biz_id).space_uid,
-            )
-
-        full_collectors = using_cache(CacheType.APM(10 * 60))(log_list_collectors)(bk_biz_id)
+        table_id_list = list(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values_list("table_id", flat=True)
+        )
 
         res = []
-        for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
-            info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
-            if info:
-                res.append(
-                    {
-                        "index_set_id": info["index_set_id"],
-                        "addition": [
-                            {"field": k, "operator": "=", "value": v} for k, v in data_id_query_mapping[i].items()
-                        ]
-                        if i in data_id_query_mapping
-                        else [],
-                    }
-                )
-
+        full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
+        for index in full_indexes:
+            indices = index.get("indices") or []
+            if indices and len(indices) == 1 and indices[0].get("result_table_id") in table_id_list:
+                res.append({"index_set_id": index["index_set_id"], "addition": []})
         return res
