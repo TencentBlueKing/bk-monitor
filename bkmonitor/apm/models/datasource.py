@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import json
 import math
@@ -87,8 +87,7 @@ class ApmDataSourceConfigBase(models.Model):
             return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
         else:
             return (
-                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}"
-                f"_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
+                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
             )
 
     @property
@@ -206,7 +205,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_" f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
         else:
             return (
                 f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}_"
@@ -833,8 +832,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 res = api.log_search.update_index_set(index_set_id=index_set_id, **params)
             except Exception as e:  # noqa
                 logger.error(
-                    f"[TraceDatasource] update index set failed {e} "
-                    f"\n index set id: {index_set_id} params: {params}"
+                    f"[TraceDatasource] update index set failed {e} \n index set id: {index_set_id} params: {params}"
                 )
                 return self.index_set_id, self.index_set_name
 
@@ -865,7 +863,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(r".*_bkapm_trace_{0}_(\d{{8}})_\d+$".format(re.escape(app_name)))
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_\d+$")
 
         for name in index_names:
             match = pattern.search(name)
@@ -1065,7 +1063,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 else [],
             )
             .extra(size=constants.DISCOVER_BATCH_SIZE)
-            .source(["events", "resource", "span_name"])
+            .source(["events", "resource", "span_name", "trace_id"])
         )
         have_events_data_query = self.build_filter_params(have_events_data_query, filter_params, category)
         result = []
@@ -1078,6 +1076,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                         continue
                     event["service_name"] = span_dict.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
                     event["endpoint_name"] = span_dict.get("span_name")
+                    event["trace_id"] = span_dict.get("trace_id", "")
                     result.append(event)
         except Exception as e:
             logger.error(
@@ -1140,7 +1139,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        super(TraceDataSource, cls).stop(bk_biz_id, app_name)
+        super().stop(bk_biz_id, app_name)
         # 删除关联的索引集
         ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if ins:
@@ -1157,7 +1156,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
 
     BUILTIN_APP_NAME = "builtin_profile_app"
-    _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
+    _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
@@ -1219,7 +1218,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
 
     @classmethod
-    def get_builtin_source(cls) -> Optional['ProfileDataSource']:
+    def get_builtin_source(cls) -> Optional["ProfileDataSource"]:
         if cls._CACHE_BUILTIN_DATASOURCE:
             return cls._CACHE_BUILTIN_DATASOURCE
 
@@ -1264,7 +1263,9 @@ class DataLink(models.Model):
     metric_transfer_cluster_id = models.CharField("Metric Transfer集群id", max_length=128, null=True)
     kafka_cluster_id = models.IntegerField("kafka集群id", null=True)
     influxdb_cluster_name = models.CharField("时序数据存储的influxdb集群名称", max_length=128, null=True)
-    elasticsearch_cluster_id = models.IntegerField("默认ES集群ID(在快速创建应用、创建默认预计算集群时会用到)", null=True)
+    elasticsearch_cluster_id = models.IntegerField(
+        "默认ES集群ID(在快速创建应用、创建默认预计算集群时会用到)", null=True
+    )
     pre_calculate_config = JsonField("预计算数据存储配置", null=True)
 
     @classmethod
