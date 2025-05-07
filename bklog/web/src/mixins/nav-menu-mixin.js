@@ -69,14 +69,14 @@ export default {
   methods: {
     async requestMySpaceList() {
       try {
-        const res = await this.$http.request('space/getMySpaceList');
+        // const res = await this.$http.request('space/getMySpaceList');
         const queryObj = JSON.parse(JSON.stringify(this.$route.query));
         if (queryObj.from) {
           this.$store.commit('updateAsIframe', queryObj.from);
           this.$store.commit('updateIframeQuery', queryObj);
         }
 
-        const spaceList = res.data;
+        const spaceList = this.$store.state.mySpaceList;
         let isHaveViewBusiness = false;
 
         spaceList.forEach(item => {
@@ -99,7 +99,7 @@ export default {
             getAccess: {},
           };
           if (isOnlyDemo) {
-            this.$store.commit('updateMySpaceList', spaceList);
+            // this.$store.commit('updateMySpaceList', spaceList);
             if (bizId === demoProject.bk_biz_id || spaceUid === demoProject.space_uid) {
               // 查询参数指定查看 demo 业务
               return this.checkSpaceChange(demoProject.space_uid);
@@ -132,7 +132,7 @@ export default {
           this.$emit('welcome', args);
         } else {
           // 正常业务
-          this.$store.commit('updateMySpaceList', spaceList);
+          // this.$store.commit('updateMySpaceList', spaceList);
           // 首先从查询参数找，然后从storage里面找，还找不到就返回第一个不是demo的业务
 
           const firstRealSpaceUid = spaceList.find(item => item.bk_biz_id !== demoId).space_uid;
@@ -308,16 +308,6 @@ export default {
                 })
               : {};
             this.$store.commit('updateActiveManageSubNav', activeManageSubNav);
-            // // 动态更新title
-            // let headTitle = '';
-            // if (activeTopMenu.id === 'manage') {
-            //   headTitle = activeManageNav.name;
-            // } else if (activeTopMenu.id === 'retrieve') {
-            //   headTitle = this.$t('日志检索');
-            // } else {
-            //   headTitle = activeTopMenu.name;
-            // }
-            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('蓝鲸智云')}`;
           },
           {
             immediate: true,

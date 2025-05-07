@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,8 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import sys
+from collections.abc import Callable
 
 from django.conf import settings
 from django.utils import translation
@@ -326,3 +327,51 @@ def adapt_space_id_before(params):
             params["bk_biz_id"] = related_space.bk_biz_id
 
     return params
+
+
+# 多租户函数工具集，用于 DataAPI 声明时使用
+def biz_to_tenant_getter(key: Callable[[dict], str] | str = "bk_biz_id") -> Callable[[dict], str]:
+    """
+    通过业务获取租户ID
+    :param key: 获取业务 ID 的函数，例如 lambda p: p["bk_biz_id"]，如果为 None，则默认使用 params["bk_biz_id"]
+    :return: 获取租户 ID 的函数
+    """
+    from apps.log_search.models import Space
+
+    def tenant_getter(params):
+        """
+        从请求参数中获取业务信息并转换为租户 ID
+        """
+        if callable(key):
+            bk_biz_id = key(params)
+        else:
+            if key not in params:
+                raise ValueError(f"failed to get tenant id from params, key `{key}` not found")
+            bk_biz_id = params[key]
+        return Space.get_tenant_id(bk_biz_id=bk_biz_id)
+
+    return tenant_getter
+
+
+def space_to_tenant_getter(key: Callable[[dict], str] | str = "space_uid") -> Callable[[dict], str]:
+    """
+    通过空间获取租户ID
+    :param key: 获取空间 UID 的函数，例如 lambda p: p["space_uid"]，如果为 None，则默认使用 params["space_uid"]
+    :return: 获取租户 ID 的函数
+    """
+    from apps.log_search.models import Space
+
+    def tenant_getter(params):
+        """
+        从请求参数中获取空间信息并转换为租户 ID
+        """
+        if callable(key):
+            space_uid = key(params)
+        else:
+            if key not in params:
+                raise ValueError(f"failed to get tenant id from params, key `{key}` not found")
+            space_uid = params[key]
+
+        return Space.get_tenant_id(space_uid=space_uid)
+
+    return tenant_getter
