@@ -70,16 +70,6 @@ const initMap = {
   hidden: false,
 };
 
-const initMap = {
-  unit: '',
-  aggregate_method: '',
-  interval: 10,
-  function: [],
-  dimensions: [],
-  disabled: false,
-  hidden: false,
-};
-
 @Component
 export default class IndicatorTableSlide extends tsc<any> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -93,6 +83,7 @@ export default class IndicatorTableSlide extends tsc<any> {
 
   localTable: IMetricItem[] = [];
   units: any[] = [];
+
   currentPage = 1;
   pageSize = DEFAULT_PAGE_SIZE;
   cellHeight = DEFAULT_CELL_HEIGHT;
