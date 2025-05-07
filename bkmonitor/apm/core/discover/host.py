@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,15 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import json
 import logging
 from datetime import datetime
-from ipaddress import IPv6Address, ip_address
 
 from opentelemetry.semconv.trace import SpanAttributes
 
-from api.cmdb.client import list_biz_hosts
 from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.models import HostInstance
+from bkmonitor.utils.common_utils import safe_int
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
@@ -46,7 +46,6 @@ class HostDiscover(DiscoverBase):
         exists_hosts = self.list_exists()
 
         for span in origin_data:
-
             service_name = self.get_service_name(span)
             ip = extract_field_value((OtlpKey.RESOURCE, SpanAttributes.NET_HOST_IP), span)
 
@@ -61,7 +60,6 @@ class HostDiscover(DiscoverBase):
         need_create_instances = set()
 
         for service_name, ip in find_ips:
-
             found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
             if found_key in exists_hosts:
                 need_update_instance_ids |= exists_hosts[found_key]
@@ -90,54 +88,24 @@ class HostDiscover(DiscoverBase):
         self.clear_expired()
 
     def list_bk_cloud_id(self, ips):
+        from alarm_backends.core.cache.cmdb.host import HostManager
 
-        ipv4 = []
-        ipv6 = []
+        host_keys = HostManager.cache.hget(HostManager.get_biz_cache_key(), str(self.bk_biz_id))
+        host_keys = json.loads(host_keys) or []
+        ip_to_host_key = {}
+        for host_key in host_keys:
+            if not host_key:
+                continue
 
-        for i in ips:
-            (ipv4, ipv6)[isinstance(ip_address(i), IPv6Address)].append(i)
+            split_keys = host_key.split("|")
+            if len(split_keys) == 2:
+                ip_to_host_key[split_keys[0]] = safe_int(split_keys[1], 0)
 
-        params = {
-            "fields": ["bk_cloud_id", "bk_host_innerip", "bk_host_id"],
-            "bk_biz_id": self.bk_biz_id,
-            "host_property_filter": {
-                "condition": "AND",
-                "rules": [],
-            },
-        }
+        ret = {}
+        for ip in ips:
+            if ip in ip_to_host_key:
+                bk_cloud_id = ip_to_host_key[ip]
+                host = HostManager.get(ip, bk_cloud_id)
+                ret[ip] = (bk_cloud_id, host.bk_host_id)
 
-        ipv4_res = self._search_ips(
-            params, [{"field": "bk_host_innerip", "operator": "in", "value": ipv4}], key_field="bk_host_innerip"
-        )
-        ipv6_res = self._search_ips(
-            params, [{"field": "bk_host_innerip_v6", "operator": "in", "value": ipv6}], key_field="bk_host_innerip_v6"
-        )
-
-        return {**ipv4_res, **ipv6_res}
-
-    def _search_ips(self, base_params, rule_extra_params, key_field):
-        offset = 0
-        page_params = {"start": offset, "limit": self.PAGE_LIMIT}
-
-        base_params["page"] = page_params
-        base_params["host_property_filter"]["rules"] += rule_extra_params
-
-        result = list_biz_hosts(base_params)
-        if not result or (result and result["count"] == 0):
-            return {}
-
-        res = self.convert_result(result["info"], key_field)
-        count = result["count"] // self.PAGE_LIMIT
-        for i in range(1, count):
-            base_params["page"]["start"] = i * self.PAGE_LIMIT
-            temp_result = list_biz_hosts(base_params)
-            res.update(self.convert_result(temp_result["info"], key_field))
-
-        return res
-
-    def convert_result(self, content, key_field):
-        res = {}
-        for i in content:
-            res[i[key_field]] = (i["bk_cloud_id"], i["bk_host_id"])
-
-        return res
+        return ret
