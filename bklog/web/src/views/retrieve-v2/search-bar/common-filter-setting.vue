@@ -208,7 +208,7 @@
 
     const mapFn = item =>
       Object.assign({}, item, {
-        first_name: item.query_alias || item.field_alias || item.field_name,
+        first_name: item.query_alias || item.field_name,
         last_name: item.field_name,
       });
 
@@ -247,7 +247,7 @@
     const common_filter_addition = getCommonFilterAddition(store.state);
     const param = {
       filterSetting: shadowVisible.value,
-      filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
+      filterAddition: [], //common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
     };
     isLoading.value = true;
 

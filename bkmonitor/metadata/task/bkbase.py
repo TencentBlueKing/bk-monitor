@@ -187,7 +187,6 @@ def sync_bkbase_cluster_info():
             cluster_list=clusters,
             field_mappings=config["field_mappings"],
             cluster_type=config["cluster_type"],
-            storage_name=config["storage_name"],
         )
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -200,7 +199,7 @@ def sync_bkbase_cluster_info():
     logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
 
 
-def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str, storage_name: str):
+def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str):
     """通用集群信息同步函数"""
     for cluster_data in cluster_list:
         try:
@@ -210,7 +209,7 @@ def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: s
             # 动态获取字段映射（支持不同存储类型的字段差异）
             domain_name = cluster_auth_info.get(field_mappings["domain_name"])
             if not models.ClusterInfo.objects.filter(domain_name=domain_name).exists():
-                logger.info(f"sync_bkbase_cluster_info: create {storage_name} cluster, domain_name->[{domain_name}]")
+                logger.info(f"sync_bkbase_cluster_info: create {cluster_type} cluster, domain_name->[{domain_name}]")
                 with transaction.atomic():
                     models.ClusterInfo.objects.create(
                         domain_name=domain_name,
@@ -222,7 +221,7 @@ def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: s
                         cluster_type=cluster_type,
                     )
         except Exception as e:
-            logger.error(f"sync_bkbase_cluster_info: failed to sync {storage_name} cluster info, error->[{e}]")
+            logger.error(f"sync_bkbase_cluster_info: failed to sync {cluster_type} cluster info, error->[{e}]")
             continue
 
 
@@ -239,11 +238,13 @@ def sync_bkbase_metadata_all():
 
     # 获取BkBase数据一致性Redis中符合模式的所有key
     bkbase_redis = bkbase_redis_client()
-    matching_keys = []
     cursor = 0
+    matching_keys = []
+
     while True:
-        cursor, keys = bkbase_redis.scan(cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*")
-        # 将bytes类型的key转换为字符串
+        cursor, keys = bkbase_redis.scan(
+            cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*", count=settings.BKBASE_REDIS_SCAN_COUNT
+        )
         decoded_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
         matching_keys.extend(decoded_keys)
         if cursor == 0:
@@ -260,6 +261,7 @@ def sync_bkbase_metadata_all():
     with ThreadPoolExecutor(max_workers=10) as executor:
         executor.map(_send_task, matching_keys)
 
+    logger.info("sync_bkbase_metadata_all: Finished syncing metadata from bkbase.")
     # 记录指标
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(

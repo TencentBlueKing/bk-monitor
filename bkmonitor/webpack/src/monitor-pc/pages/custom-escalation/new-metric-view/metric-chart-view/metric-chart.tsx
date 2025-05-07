@@ -34,6 +34,12 @@ import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import {
+  downCsvFile,
+  transformSrcData,
+  transformTableDataToCsvStr,
+  type IUnifyQuerySeriesItem,
+} from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
@@ -48,7 +54,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
+import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
 import type {
   DataQuery,
   ILegendItem,
@@ -158,7 +164,7 @@ class NewMetricChart extends CommonSimpleChart {
   }
   // /** 更多里的操作列表 */
   get menuList() {
-    return ['explore', 'drill-down', 'relate-alert', 'screenshot'];
+    return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -677,10 +683,8 @@ class NewMetricChart extends CommonSimpleChart {
       case 'drillDown':
         this.$emit('drillDown', this.panel, ind);
         break;
-      case 'screenshot': // 保存到本地
-        setTimeout(() => {
-          this.handleStoreImage(this.panel.title || '测试');
-        }, 300);
+      case 'save': // 保存到仪表盘
+        this.handleCollectChart();
         break;
       case 'fullscreen': {
         // 大图
@@ -706,6 +710,37 @@ class NewMetricChart extends CommonSimpleChart {
         handleRelateAlert(copyPanel as any, this.timeRange);
         break;
       }
+      default:
+        break;
+    }
+  }
+  /**
+   * 根据图表接口响应数据下载csv文件
+   */
+  handleExportCsv() {
+    if (this.series?.length) {
+      const { tableThArr, tableTdArr } = transformSrcData(this.series);
+      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
+      downCsvFile(csvString, this.panel.title);
+    }
+  }
+  /**
+   * 点击更多菜单的子菜单
+   * @param data 菜单数据
+   */
+  handleSelectChildMenu(data: IChartTitleMenuEvents['onSelectChild']) {
+    switch (data.menu.id) {
+      case 'more' /** 更多操作 */:
+        if (data.child.id === 'screenshot') {
+          /** 截图 */
+          setTimeout(() => {
+            this.handleStoreImage(this.panel.title || '测试');
+          }, 300);
+        } else if (data.child.id === 'export-csv') {
+          /** 导出csv */
+          this.handleExportCsv();
+        }
+        break;
       default:
         break;
     }
@@ -810,6 +845,7 @@ class NewMetricChart extends CommonSimpleChart {
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleIconClick}
           onMetricClick={this.handleMetricClick}
+          onSelectChild={this.handleSelectChildMenu}
         >
           <span class='status-tab-view'>
             <StatusTab

@@ -2,7 +2,7 @@ import base64
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any
 
 from django.db.models import TextChoices
 from django.utils.functional import cached_property
@@ -10,6 +10,9 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
+
+
+FIVE_MIN_SECONDS = 5 * 60
 
 
 class SpanKind:
@@ -514,7 +517,7 @@ class SpanStandardField:
     ]
 
     @classmethod
-    def standard_fields(cls) -> List[str]:
+    def standard_fields(cls) -> list[str]:
         """获取标准字段"""
         return [field_info.field for field_info in cls.COMMON_STANDARD_FIELDS if not field_info.is_hidden]
 
@@ -721,7 +724,7 @@ class TRPCMetricTag:
     APP: str = "server"
 
     @classmethod
-    def tags(cls) -> List[Dict[str, str]]:
+    def tags(cls) -> list[dict[str, str]]:
         return [
             {"value": cls.CALLER_SERVER, "text": _("主调服务")},
             {"value": cls.CALLER_SERVICE, "text": _("主调 Service")},
@@ -748,17 +751,17 @@ class TRPCMetricTag:
         ]
 
     @classmethod
-    def callee_tags(cls) -> List[Dict[str, str]]:
+    def callee_tags(cls) -> list[dict[str, str]]:
         # 被调已经固定「被调服务」，不需要展示
         return [tag for tag in cls.tags() if tag["value"] != cls.CALLEE_SERVER]
 
     @classmethod
-    def caller_tags(cls) -> List[Dict[str, str]]:
+    def caller_tags(cls) -> list[dict[str, str]]:
         # 主调已经固定「主调服务」，不需要展示
         return [tag for tag in cls.tags() if tag["value"] != cls.CALLER_SERVER]
 
     @classmethod
-    def tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+    def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {
             "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_CONSUMER]},
             cls.CALLER_SERVER: {"field": ResourceAttributes.SERVICE_NAME},
@@ -776,11 +779,11 @@ class TRPCMetricTag:
         }
 
     @classmethod
-    def caller_tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+    def caller_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["callee"]}
 
     @classmethod
-    def callee_tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+    def callee_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["caller"]}
 
 
@@ -792,8 +795,8 @@ class TrpcTagDrillOperation:
     SERVICE = "service"
 
     @classmethod
-    def caller_support_operations(cls) -> List[Dict[str, Any]]:
-        tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
+    def caller_support_operations(cls) -> list[dict[str, Any]]:
+        tag_trace_mapping: dict[str, dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
         return [
             {
                 "text": _("主调"),
@@ -818,8 +821,8 @@ class TrpcTagDrillOperation:
         ]
 
     @classmethod
-    def callee_support_operations(cls) -> List[Dict[str, Any]]:
-        tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
+    def callee_support_operations(cls) -> list[dict[str, Any]]:
+        tag_trace_mapping: dict[str, dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
         return [
             {
                 "text": _("被调"),
@@ -1037,7 +1040,7 @@ class MetricTemporality:
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
 
     @classmethod
-    def get_metric_config(cls, temporality: str) -> Dict[str, str]:
+    def get_metric_config(cls, temporality: str) -> dict[str, str]:
         return {
             "temporality": temporality,
             "server_filter_method": "eq",

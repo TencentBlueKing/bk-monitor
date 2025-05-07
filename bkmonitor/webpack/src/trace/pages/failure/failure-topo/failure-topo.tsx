@@ -1071,12 +1071,11 @@ export default defineComponent({
       tooltipsRef?.value?.hide?.();
       tooltips?.hide?.();
       graph.changeSize(width, height - 40);
-      /** 将红线置顶 */
-      setTimeout(toFrontAnomalyEdge, 500);
       const combos = graph.getCombos().map(combo => combo.getModel());
       ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
       graph.refresh();
-      graph.render();
+      // graph.render();
+      renderGraph();
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
@@ -1185,7 +1184,15 @@ export default defineComponent({
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
-            processedNodes.push(...item.content.nodes);
+            item.content.nodes.forEach(showNode => {
+              const index = processedNodes.findIndex(node => node.id === showNode.id);
+              if (index !== -1) {
+                processedNodes[index] = showNode;
+              } else {
+                processedNodes.push(showNode);
+              }
+            });
+            processedNodes.push(item.content.nodes);
             // biome-ignore lint/complexity/noForEach: <explanation>
             item.content.edges.forEach(edge => {
               const key = edge.target + edge.source;
@@ -1822,7 +1829,7 @@ export default defineComponent({
       currNodes.forEach(item => {
         const node = graph.findById(item.id);
         const model = node?.getModel?.();
-        const targetNode = showNodes.find(node => node.id === item.id);
+        const targetNode = showNodes.reverse().find(node => node.id === item.id);
         if (!targetNode) {
           if (node) {
             next = true;
@@ -1846,13 +1853,23 @@ export default defineComponent({
           }
         } else {
           /** 某个节点状态从展示到隐藏 */
-          if (targetNode.is_deleted) {
+          if (item.is_deleted) {
             node?.hide?.();
             (node as any)?.getEdges()?.forEach(edge => edge?.hide());
-            return;
+          } else {
+            /** 节点从隐藏到展示 */
+            if (node.getModel().is_deleted) {
+              node?.show?.();
+              (node as any)?.getEdges()?.forEach(edge => edge?.show());
+            }
+            /** diff中的节点  comboId没有经过布局处理，延用node之前已设置过的id即可 */
+            graph.updateItem(node, {
+              ...item,
+              is_deleted: false,
+              comboId: model.comboId,
+              subComboId: model.subComboId,
+            });
           }
-          /** diff中的节点  comboId没有经过布局处理，延用node之前已设置过的id即可 */
-          graph.updateItem(node, { ...item, comboId: model.comboId, subComboId: model.subComboId });
         }
       });
       const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
@@ -2060,7 +2077,7 @@ export default defineComponent({
                 nodeEntityId.value = item.entityId;
                 nodeEntityName.value = item.entity_name;
               }
-              moveRootNodeCenter();
+              // moveRootNodeCenter();
             }
             graph.setItemState(graph.findById(item.id), 'running', true);
           });

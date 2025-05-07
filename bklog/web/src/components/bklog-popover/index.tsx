@@ -84,6 +84,7 @@ export default defineComponent({
         trigger: 'manual',
         onShown: (...args) => {
           props.options.onShown?.(...args);
+
           if (props.options.hideOnClick === false && !isDocumentClickBinded) {
             document.addEventListener('click', hanldeDocumentClick);
             isDocumentClickBinded = true;

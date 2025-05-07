@@ -105,7 +105,9 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
     for table_id, detail in vm_table_map.items():
         storage_name = vm_cluster_id_name.get(detail["storage_id"], "")
         if table_id in table_id_info:
-            table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
+            table_id_info[table_id].update(
+                {"vm_rt": detail["vm_rt"], "storage_name": storage_name, "storage_type": models.ClusterInfo.TYPE_VM}
+            )
         else:
             detail.update(
                 {

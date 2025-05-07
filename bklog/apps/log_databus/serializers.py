@@ -1713,3 +1713,13 @@ class ProxyHostSerializer(serializers.Serializer):
 
 class UpdateAliasSettingsSerializers(serializers.Serializer):
     alias_settings = AliasSettingSerializer(many=True, required=True)
+
+
+class RunSubscriptionTaskSerializer(serializers.Serializer):
+    class ScopeParams(serializers.Serializer):
+        node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
+        nodes = serializers.ListField(required=True, label="节点列表")
+
+    scope = ScopeParams(label="事件订阅监听的范围", required=False)
+    action = serializers.CharField(label="操作", default="install")
+    bk_biz_id = serializers.IntegerField(label="业务ID")
