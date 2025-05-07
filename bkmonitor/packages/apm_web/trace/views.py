@@ -17,6 +17,8 @@ from apm_web.trace.resources import (
     DeleteTraceComparisonResource,
     GetFieldOptionValuesResource,
     GetFieldsOptionValuesResource,
+    ListFlattenSpanResource,
+    ListFlattenTraceResource,
     ListOptionValuesResource,
     ListServiceStatisticsResource,
     ListSpanHostInstancesResource,
@@ -78,6 +80,22 @@ class TraceQueryViewSet(ResourceViewSet):
             "POST",
             ListSpanResource,
             endpoint="list_spans",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            ListFlattenTraceResource,
+            endpoint="list_flatten_traces",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            ListFlattenSpanResource,
+            endpoint="list_flatten_spans",
             decorators=[
                 user_visit_record,
             ],
