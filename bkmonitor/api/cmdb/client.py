@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,6 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import random
+import traceback
+import logging
 
 from django.conf import settings
 
@@ -34,6 +36,8 @@ __all__ = [
     "list_biz_hosts_topo",
     "find_host_topo_relation",
 ]
+
+logger = logging.getLogger(__name__)
 
 
 class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
@@ -60,7 +64,7 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     def full_request_data(self, validated_request_data):
         setattr(self, "bk_username", get_backend_username())
-        validated_request_data = super(CMDBBaseResource, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data.update(bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT)
         # 业务id判定
         if "bk_biz_id" not in validated_request_data:
@@ -73,10 +77,10 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     def perform_request(self, validated_request_data):
         # 非cmdb空间兼容，无关联资源捕获异常返回空数据
         try:
-            return super(CMDBBaseResource, self).perform_request(validated_request_data)
+            return super().perform_request(validated_request_data)
         except NoRelatedResourceError as err:
             self.report_api_failure_metric(
-                error_code=getattr(err, 'code', 0), exception_type=NoRelatedResourceError.__name__
+                error_code=getattr(err, "code", 0), exception_type=NoRelatedResourceError.__name__
             )
             return self.return_type()
 
@@ -274,6 +278,14 @@ class ListBizHosts(CMDBBaseResource):
         return "/api/v3/hosts/app/{bk_biz_id}/list_hosts" if self.use_apigw() else "/list_biz_hosts/"
 
     method = "POST"
+
+    def perform_request(self, validated_request_data):
+        # 非cmdb空间兼容，无关联资源捕获异常返回空数据
+        # 打印当前堆栈
+
+        if random.random() >= 0.99:
+            logger.info(f"{self.action} stack trace:\n{traceback.format_exc()}")
+        return super(CMDBBaseResource, self).perform_request(validated_request_data)
 
 
 # will be removed in version 3.8.x
