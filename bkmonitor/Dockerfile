@@ -45,7 +45,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
-    uv venv --seed && uv sync --locked --no-install-project --no-dev
+    uv venv --seed && uv sync --locked --no-install-project --no-dev --link-mode=copy
 
 # build frontend
 FROM node:20-bullseye-slim AS node-builder
