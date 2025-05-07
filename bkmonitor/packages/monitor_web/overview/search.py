@@ -4,15 +4,18 @@ import logging
 import re
 import time
 from multiprocessing.pool import IMapIterator
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any
+from collections.abc import Generator
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
+from future.backports.datetime import timedelta
 
 from apm.models import DataLink
 from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum, ActionMeta
@@ -22,6 +25,8 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
+from constants.apm import PreCalculateSpecificField
+from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 
@@ -36,12 +41,12 @@ class SearchItem(metaclass=abc.ABCMeta):
     _bk_biz_names_cache = {}
 
     @classmethod
-    def _get_biz_name(cls, bk_biz_id: int) -> Optional[str]:
+    def _get_biz_name(cls, bk_biz_id: int) -> str | None:
         """
         Get the space info by bk_biz_id.
         """
         if bk_biz_id not in cls._bk_biz_names_cache:
-            space_info: Optional[Space] = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+            space_info: Space | None = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
             if not space_info:
                 cls._bk_biz_names_cache[bk_biz_id] = str(bk_biz_id)
             else:
@@ -49,7 +54,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         return cls._bk_biz_names_cache[bk_biz_id]
 
     @classmethod
-    def _get_allowed_bk_biz_ids(cls, username: str, action: Union[str, ActionMeta]) -> List[int]:
+    def _get_allowed_bk_biz_ids(cls, username: str, action: str | ActionMeta) -> list[int]:
         """
         Get the allowed bk_biz_ids by username.
         """
@@ -70,7 +75,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the query in the search item.
         数据格式:
@@ -103,7 +108,7 @@ class AlertSearchItem(SearchItem):
         return bool(cls.RE_ALERT_ID.match(query))
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the alert by alert id
         extended fields: alert_id, start_time, end_time
@@ -160,7 +165,7 @@ class StrategySearchItem(SearchItem):
         return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the strategy by strategy id
         extended fields: strategy_id
@@ -216,13 +221,35 @@ class TraceSearchItem(SearchItem):
         return bool(cls.RE_TRACE_ID.match(query))
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def _query_apps_by_trace_id(cls, trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Query app infos by TraceId"""
+        q: QueryConfigBuilder = (
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
+            .table(table_id)
+            .filter(trace_id__eq=trace_id)
+            .time_field(PreCalculateSpecificField.MIN_START_TIME)
+            .values(PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME)
+        )
+
+        now: int = int(time.time())
+        qs: UnifyQuerySet = (
+            UnifyQuerySet()
+            .scope(0)
+            .add_query(q)
+            .start_time((now - timedelta(days=7).total_seconds()) * 1000)
+            .end_time(now * 1000)
+            .limit(limit)
+        )
+
+        return list(qs)
+
+    @classmethod
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the trace by trace id
         extended fields: trace_id, app_name, app_alias
         """
         trace_id = query
-        query_body = {"query": {"bool": {"filter": [{"term": {"trace_id": trace_id}}]}}, "size": limit}
 
         # 获取预计算表
         datalink = DataLink.objects.first()
@@ -232,27 +259,24 @@ class TraceSearchItem(SearchItem):
 
         # 使用多线程查询预计算表
         pool = ThreadPool(5)
-        results = pool.imap_unordered(
-            lambda tid: api.metadata.get_es_data(table_id=tid, query_body=query_body, use_full_index_names=True),
-            table_ids,
-        )
+        results = pool.imap_unordered(lambda tid: cls._query_apps_by_trace_id(trace_id, tid, limit), table_ids)
         pool.close()
 
         # 获取第一个有数据的结果
-        traces = None
+        app_infos = None
         for result in results:
-            if result["hits"]["hits"]:
-                traces = result["hits"]["hits"]
+            if result:
+                app_infos = result
                 pool.terminate()
                 break
 
-        if not traces:
+        if not app_infos:
             return
 
         items = []
-        for trace in traces:
-            bk_biz_id = int(trace["_source"]["bk_biz_id"])
-            app_name = trace["_source"]["app_name"]
+        for app_info in app_infos:
+            bk_biz_id = int(app_info["bk_biz_id"])
+            app_name = app_info["app_name"]
 
             # 获取apm应用信息
             apm_app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
@@ -292,7 +316,7 @@ class ApmApplicationSearchItem(SearchItem):
         return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the application by application name
         """
@@ -350,7 +374,7 @@ class HostSearchItem(SearchItem):
         return bool(cls.RE_IP.findall(query)) or ":" in query
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the host by host name
         """
@@ -374,7 +398,7 @@ class HostSearchItem(SearchItem):
             return
 
         result = api.cmdb.get_host_without_biz_v2(ips=ips)
-        hosts: List[Dict] = result["hosts"]
+        hosts: list[dict] = result["hosts"]
 
         items = []
         biz_hosts = {}
@@ -425,7 +449,7 @@ class BCSClusterSearchItem(SearchItem):
         return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> Optional[List[Dict]]:
+    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the bcs cluster by cluster name
         """
@@ -490,7 +514,7 @@ class Searcher:
     def __init__(self, username: str):
         self.username = username
 
-    def search(self, query: str, timeout: int = 30) -> Generator[Dict[str, Any], None, None]:
+    def search(self, query: str, timeout: int = 30) -> Generator[dict[str, Any], None, None]:
         """
         Search the query in the search items.
         """
@@ -504,7 +528,7 @@ class Searcher:
             start_time = time.time()
             for __ in range(len(search_items)):
                 try:
-                    result: Optional[List[Dict]] = results.next(timeout=5)
+                    result: list[dict] | None = results.next(timeout=5)
                 except StopIteration:
                     break
                 except TimeoutError:
