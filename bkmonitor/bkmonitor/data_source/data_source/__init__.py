@@ -409,8 +409,10 @@ def _parse_conditions(
         if operator in ["include", "exclude"]:
             value = [re.escape(v) for v in value]
 
+        # 通用处理，对 UnifyQuery 而言，存在与否通过 field !=/= "" 进行过滤。
         if operator in ["exists", "nexists"]:
             operator = {"exists": "ne", "nexists": "eq"}[operator]
+            # 强制 value 为 ""。
             value = [""]
 
         options: dict[str, Any] = condition.get("options") or {}

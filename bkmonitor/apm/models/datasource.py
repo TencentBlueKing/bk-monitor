@@ -934,7 +934,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         )
 
     def get_qs(self, start_time: int, end_time: int) -> UnifyQuerySet:
-        """根据时间范围（start_time、end_time）获取 UnifyQuerySet。"""
+        """根据时间范围（start_time、end_time）获取 UnifyQuerySet"""
         return (
             UnifyQuerySet()
             .scope(self.bk_biz_id)
@@ -960,9 +960,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         category: str | None = None,
     ) -> list[dict[str, Any]]:
         """查询端点 / 接口（Endpoint）列表"""
+        if not filter_params:
+            filter_params = []
+
         if service_name:
             # 获取指定服务的数据。
-            filter_params.append({"key": ResourceAttributes.SERVICE_NAME, "value": service_name, "operator": "="})
+            filter_params.append({"key": ResourceAttributes.SERVICE_NAME, "value": service_name, "op": "="})
 
         spans: list[dict[str, Any]] = self.query_span(
             start_time,
@@ -1095,7 +1098,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         spans: list[dict[str, str]] = self.query_span(
             start_time,
             end_time,
-            filter_params=[{"key": OtlpKey.TRACE_ID, "operator": "in", "value": trace_ids}],
+            filter_params=[{"key": OtlpKey.TRACE_ID, "op": "=", "value": trace_ids}],
             fields=[OtlpKey.TRACE_ID],
         )
         return list({span[OtlpKey.TRACE_ID] for span in spans})
