@@ -31,7 +31,7 @@
       }
 
       .icon-monitor {
-        visibility: hidden;
+        display: none;
         flex-shrink: 0;
         height: 16px;
         line-height: 16px;
@@ -39,7 +39,7 @@
 
       &:hover {
         .icon-monitor {
-          visibility: visible;
+          display: inline-block;
         }
       }
     }
@@ -141,6 +141,12 @@
         }
       }
     }
+  }
+
+  .explore-text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .explore-table-skeleton {
