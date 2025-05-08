@@ -29,6 +29,7 @@ from apps.log_search.constants import (
     OperatorEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    MAX_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -877,3 +878,58 @@ class UnifyQueryHandler:
                 search_mode=search_mode,
                 from_favorite_id=self.search_params.get("from_favorite_id", 0),
             )
+
+    def pre_get_result(self, sorted_fields: list, size: int):
+        """
+        pre_get_result
+        @param sorted_fields:
+        @param size:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+
+        if self.search_params["scenario_id"] != Scenario.ES:
+            order_by = []
+            for param in sorted_fields:
+                if param[1] == "asc":
+                    order_by.append(param[0])
+                elif param[1] == "desc":
+                    order_by.append(f"-{param[0]}")
+            search_dict["order_by"] = order_by
+
+        # 参数补充
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = size
+        result = UnifyQueryApi.query_ts_raw(search_dict)
+        return result
+
+    def search_after_result(self, search_result, sorted_fields):
+        """
+        search_after_result
+        @param search_result:
+        @param sorted_fields:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+        if self.search_params["scenario_id"] != Scenario.ES:
+            order_by = []
+            for param in sorted_fields:
+                if param[1] == "asc":
+                    order_by.append(param[0])
+                elif param[1] == "desc":
+                    order_by.append(f"-{param[0]}")
+            search_dict["order_by"] = order_by
+
+        index_set = self.index_info_list[0]["index_set_obj"]
+        search_after_size = len(search_result["list"])
+        result_size = search_after_size
+        max_result_window = index_set.result_window
+        # 参数补充
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = max_result_window
+        while search_after_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+            search_dict["result_table_options"] = search_result["result_table_options"]
+            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            search_after_size = len(search_result["list"])
+            result_size += search_after_size
+            yield self._deal_query_result(search_result)

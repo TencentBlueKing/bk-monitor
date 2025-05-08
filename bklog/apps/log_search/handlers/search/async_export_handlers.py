@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -28,6 +28,8 @@ from django.conf import settings
 from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
@@ -44,6 +46,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.log_search.tasks.async_export import async_export
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
 from apps.utils.drf import DataPageNumberPagination
@@ -59,7 +62,7 @@ from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
-class AsyncExportHandlers(object):
+class AsyncExportHandlers:
     def __init__(
         self,
         index_set_id: int = None,
@@ -72,6 +75,7 @@ class AsyncExportHandlers(object):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
         self.index_set_ids = index_set_ids
+        self.unify_query_handler = None
         if search_dict:
             self.search_dict = search_dict
             self.search_handler = SearchHandler(
@@ -80,6 +84,10 @@ class AsyncExportHandlers(object):
                 export_fields=export_fields,
                 export_log=True,
             )
+            if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+                unify_query_search_dict = copy.deepcopy(self.search_dict)
+                unify_query_search_dict["index_set_ids"] = [index_set_id]
+                self.unify_query_handler = UnifyQueryHandler(unify_query_search_dict)
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
         self.export_file_type = export_file_type
@@ -93,11 +101,20 @@ class AsyncExportHandlers(object):
         # 获取排序字段
         sorted_list = self.search_handler._get_user_sorted_list(fields["async_export_fields"])
         # 判断result是否符合要求
-        result = self.search_handler.pre_get_result(sorted_fields=sorted_list, size=ASYNC_COUNT_SIZE)
-        # 判断是否成功
-        if result["_shards"]["total"] != result["_shards"]["successful"]:
-            logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
-            raise PreCheckAsyncExportException()
+        if self.unify_query_handler:
+            result = self.unify_query_handler.pre_get_result(
+                sorted_fields=sorted_list,
+                size=ASYNC_COUNT_SIZE,
+            )
+            if not result["list"]:
+                logger.error("can not create async_export task, reason: no data")
+                raise PreCheckAsyncExportException()
+        else:
+            result = self.search_handler.pre_get_result(sorted_fields=sorted_list, size=ASYNC_COUNT_SIZE)
+            # 判断是否成功
+            if result["_shards"]["total"] != result["_shards"]["successful"]:
+                logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
+                raise PreCheckAsyncExportException()
 
         async_task = AsyncTask.objects.create(
             **{
@@ -127,6 +144,7 @@ class AsyncExportHandlers(object):
             is_quick_export=is_quick_export,
             export_file_type=self.export_file_type,
             external_user_email=get_request_external_user_email(),
+            unify_query_handler=self.unify_query_handler,
         )
         return async_task.id, self.search_handler.size
 
