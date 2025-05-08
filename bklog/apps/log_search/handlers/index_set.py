@@ -211,20 +211,27 @@ class IndexSetHandler(APIModel):
         log_index_sets = []
         other_index_sets = []
         for index_set in index_sets:
-            target_list = (
-                log_index_sets
-                if (not index_set["collector_config_id"] and index_set["scenario_id"] == Scenario.LOG)
-                else other_index_sets
-            )
-            target_list.append(index_set)
+            if not index_set["collector_config_id"] and index_set["scenario_id"] == Scenario.LOG:
+                log_index_sets.append(index_set)
+            else:
+                other_index_sets.append(index_set)
+
+        # 先构建一个字典，建立 result_table_id 到 other_index_sets 的映射关系
+        rt_id_to_index_mapping = {}
+        for index in other_index_sets:
+            if index["collector_config_id"] and index["scenario_id"] == Scenario.LOG:
+                rt_id = index["indices"][0]["result_table_id"]
+                rt_id_to_index_mapping.setdefault(rt_id, []).append(index)
+
         for log_index_set in log_index_sets:
-            for index in other_index_sets:
-                if index["index_set_name"].startswith("[采集项]") and index["scenario_id"] == Scenario.LOG:
-                    result_table_id_list = [ind["result_table_id"] for ind in log_index_set["indices"]]
-                    if index["indices"][0]["result_table_id"] in result_table_id_list:
+            result_table_id_list = [idx["result_table_id"] for idx in log_index_set["indices"]]
+            for rt_id in result_table_id_list:
+                if rt_id in rt_id_to_index_mapping:
+                    for index in rt_id_to_index_mapping[rt_id]:
                         remove_ids.add(index["index_set_id"])
                         log_index_set.setdefault("children", []).append(index)
-        index_sets[:] = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
+
+        index_sets = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
         return index_sets
 
     @classmethod
