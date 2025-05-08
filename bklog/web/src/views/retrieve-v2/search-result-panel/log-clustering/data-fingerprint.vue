@@ -446,7 +446,7 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {

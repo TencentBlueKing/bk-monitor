@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
 import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';

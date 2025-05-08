@@ -67,7 +67,7 @@ import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import LogResultException from './log-result-exception';
-import { BK_LOG_STORAGE } from '../../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import './log-rows.scss';
 
@@ -112,7 +112,7 @@ export default defineComponent({
     const pageSize = ref(50);
     const isRending = ref(false);
     let localSort = [];
- 
+
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
@@ -287,10 +287,10 @@ export default defineComponent({
                 }
                 return item;
               });
-              localSort = sortList
+              localSort = sortList;
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
-              store.dispatch('requestIndexSetQuery',{ localSort: sortList });
+              store.dispatch('requestIndexSetQuery', { localSort: sortList });
             }
           });
         },

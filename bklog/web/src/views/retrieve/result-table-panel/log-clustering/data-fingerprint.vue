@@ -404,7 +404,7 @@
   import ClusterFilter from './components/finger-tools/cluster-filter';
   import fingerSelectColumn from './components/finger-select-column';
 
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {

@@ -110,7 +110,7 @@
   import { mapGetters, mapState } from 'vuex';
 
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {

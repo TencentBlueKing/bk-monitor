@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
 import { builtInInitHiddenList } from '@/const/index.js';
 import VueDraggable from 'vuedraggable';
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldItem from './field-item';

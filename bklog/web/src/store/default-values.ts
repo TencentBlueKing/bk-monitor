@@ -27,7 +27,7 @@
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import VueRouter from 'vue-router';
 import RouteUrlResolver from './url-resolver';
-import { RouteParams } from './store.type';
+import { RouteParams, BK_LOG_STORAGE } from './store.type';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -73,74 +73,8 @@ export const routeQueryKeys = [
 ];
 
 const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
-enum BK_LOG_STORAGE {
-  /**
-   * 表格行是否换行
-   */
-  TABLE_LINE_IS_WRAP = '_0',
 
-  /**
-   * 是否展示json解析
-   */
-  TABLE_JSON_FORMAT = '_1',
-
-  /**
-   * json解析展示层级
-   */
-  TABLE_JSON_FORMAT_DEPTH = '_2',
-
-  /**
-   * 是否展示行号
-   */
-  TABLE_SHOW_ROW_INDEX = '_3',
-
-  /**
-   * 是否展示空字段
-   */
-  TABLE_ALLOW_EMPTY_FIELD = '_4',
-
-  /**
-   * 是否展开长字段
-   */
-  IS_LIMIT_EXPAND_VIEW = '_5',
-
-  /**
-   * 是否展示字段别名
-   */
-  SHOW_FIELD_ALIAS = '_6',
-
-  /**
-   * 文本溢出（省略设置）start | end | center
-   */
-  TEXT_ELLIPSIS_DIR = '_7',
-
-  /**
-   * 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
-   */
-  SEARCH_TYPE = '_8',
-
-  /**
-   * 左侧字段设置缓存配置
-   */
-  FIELD_SETTING = '_9',
-
-  /**
-   * 索引集激活的tab
-   */
-  INDEX_SET_ACTIVE_TAB = '_10',
-
-  /**
-   * 当前激活的收藏 id
-   */
-  FAVORITE_ID = 'f_11',
-
-  /**
-   * 当前激活的历史记录 id
-   */
-  HISTORY_ID = 'h_12',
-}
-
-export { BK_LOG_STORAGE, BkLogGlobalStorageKey };
+export { BkLogGlobalStorageKey };
 
 const getUrlArgs = () => {
   const router = new VueRouter({
@@ -270,9 +204,46 @@ export const getStorageOptions = () => {
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
+
+      let update = false;
+      // 对旧版缓存进行还原操作
+      // 映射旧版配置到新版key，同时移除旧版key
+      [
+        ['fieldSetting', BK_LOG_STORAGE.FIELD_SETTING],
+        ['indexSetActiveTab', BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB],
+        ['isLimitExpandView', BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+        ['searchType', BK_LOG_STORAGE.SEARCH_TYPE],
+        ['showFieldAlias', BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+        ['tableAllowEmptyField', BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
+        ['tableJsonFormat', BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        ['tableJsonFormatDepth', BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH],
+        ['tableLineIsWrap', BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+        ['tableShowRowIndex', BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX],
+        ['textEllipsisDir', BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR],
+      ].forEach(([k1, k2]) => {
+        if (storage[k1] !== undefined) {
+          storage[k2] = storage[k1];
+          delete storage[k1];
+          update = true;
+        }
+      });
+
+      if (update) {
+        window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
+      }
     } catch (e) {
       console.error(e);
     }
+  }
+
+  let activeTab = 'single';
+
+  if (URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID]) {
+    activeTab = 'favorite';
+  }
+
+  if (URL_ARGS[BK_LOG_STORAGE.HISTORY_ID]) {
+    activeTab = 'history';
   }
 
   return Object.assign(
@@ -286,9 +257,9 @@ export const getStorageOptions = () => {
       [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
       [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
       [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
-      [BK_LOG_STORAGE.FAVORITE_ID]: undefined,
-      [BK_LOG_STORAGE.HISTORY_ID]: undefined,
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+      [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
+      [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
       [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,

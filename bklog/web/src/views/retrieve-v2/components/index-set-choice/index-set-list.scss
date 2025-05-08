@@ -1,5 +1,5 @@
 .bklog-v3-index-set-root {
-  width: 800px;
+  width: 900px;
 
   .bklog-v3-content-filter {
     display: flex;
@@ -24,7 +24,21 @@
     .bklog-v3-tag-list {
       display: flex;
       align-items: center;
-      padding-top: 8px;
+      margin-top: 8px;
+      padding-left: 20px;
+      padding-right: 20px;
+      position: relative;
+
+      .tag-scroll-container {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        width: 100%;
+        white-space: nowrap;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
 
       .tag-item {
         padding: 0 8px;
@@ -33,16 +47,32 @@
         border-radius: 2px;
         font-size: 12px;
         color: #4d4f56;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         margin-right: 4px;
+        white-space: nowrap;
         cursor: pointer;
 
         &.is-active {
           background: #e1ecff;
           border: 1px solid #a3c5fd;
           color: #1768ef;
+        }
+      }
+
+      .move-icon {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        cursor: pointer;
+
+        &.left-icon {
+          left: 0px;
+        }
+
+        &.right-icon {
+          right: 0px;
         }
       }
     }
@@ -56,7 +86,7 @@
     background: #fafcff;
 
     .bklog-v3-index-set-list {
-      width: 490px;
+      width: 590px;
       max-height: 442px;
       min-height: 300px;
       overflow-y: auto;
@@ -83,6 +113,11 @@
           }
         }
 
+        > div {
+          display: inline-flex;
+          align-items: center;
+        }
+
         .group-icon {
           padding: 2px;
         }
@@ -90,6 +125,9 @@
         .index-set-name {
           position: relative;
           padding-left: 12px;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
 
           &.no-data {
             padding-left: 26px;
@@ -109,6 +147,8 @@
 
         .index-set-tags {
           max-width: 200px;
+          min-width: fit-content;
+
           text-overflow: ellipsis;
           white-space: nowrap;
           overflow: hidden;

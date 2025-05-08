@@ -252,13 +252,17 @@ export default defineComponent({
             <ObjectView
               object={item}
               showList={objectShowList}
-              labelWidth={120}
+              labelWidth={100}
             ></ObjectView>
           ))}
         </div>,
       ];
     };
 
+    /**
+     * 联合查询渲染
+     * @returns
+     */
     const getUnionBody = () => {
       return (
         <div class='content-body-multi'>
@@ -345,6 +349,27 @@ export default defineComponent({
       );
     };
 
+    const tagScrollTo = (e: MouseEvent, position: string) => {
+      const target = (e.target as HTMLElement).closest('.bklog-v3-tag-list').lastElementChild as HTMLElement;
+      const { offsetWidth, scrollWidth } = target;
+
+      if (offsetWidth < scrollWidth) {
+        let leftPx = position === 'left' ? target.scrollLeft - offsetWidth : target.scrollLeft + offsetWidth;
+        if (leftPx < 0) {
+          leftPx = 0;
+        }
+
+        if (leftPx > scrollWidth) {
+          leftPx = scrollWidth;
+        }
+
+        target.scrollTo({
+          left: leftPx,
+          behavior: 'smooth',
+        });
+      }
+    };
+
     const getFilterRow = () => {
       return (
         <div class='bklog-v3-content-filter'>
@@ -368,14 +393,28 @@ export default defineComponent({
             </bk-checkbox>
           </div>
           <div class='bklog-v3-tag-list'>
-            {indexSetTagList.value.map(item => (
-              <span
-                class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
-                onClick={e => handleTagItemClick(item)}
-              >
-                {item.name}
-              </span>
-            ))}
+            <div
+              class='move-icon left-icon'
+              onClick={e => tagScrollTo(e, 'left')}
+            >
+              <i class='bk-icon icon-angle-left-line' />
+            </div>
+            <div
+              class='move-icon right-icon'
+              onClick={e => tagScrollTo(e, 'right')}
+            >
+              <i class='bk-icon icon-angle-right-line' />
+            </div>
+            <div class='tag-scroll-container'>
+              {indexSetTagList.value.map(item => (
+                <span
+                  class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
+                  onClick={e => handleTagItemClick(item)}
+                >
+                  {item.name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       );

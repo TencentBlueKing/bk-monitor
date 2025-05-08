@@ -29,7 +29,7 @@ import { Instance } from 'tippy.js';
 
 import useLocale from '../../../hooks/use-locale';
 import useStore from '../../../hooks/use-store';
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import './bar-global-setting.scss';
 

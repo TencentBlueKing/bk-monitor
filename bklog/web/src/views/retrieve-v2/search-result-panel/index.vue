@@ -20,7 +20,7 @@
   // #endif
 
   import LogResult from './log-result/index';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const DEFAULT_FIELDS_WIDTH = 200;
 

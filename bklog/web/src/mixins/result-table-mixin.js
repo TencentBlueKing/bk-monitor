@@ -42,7 +42,7 @@ import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-vi
 import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
 import OperatorTools from '@/views/retrieve/result-table-panel/original-log/operator-tools';
 import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
-import { BK_LOG_STORAGE } from '@/store/default-values';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { mapState, mapGetters } from 'vuex';
 
 export default {

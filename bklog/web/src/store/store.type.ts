@@ -1,3 +1,72 @@
+enum BK_LOG_STORAGE {
+  /**
+   * 表格行是否换行
+   */
+  TABLE_LINE_IS_WRAP = '_0',
+
+  /**
+   * 是否展示json解析
+   */
+  TABLE_JSON_FORMAT = '_1',
+
+  /**
+   * json解析展示层级
+   */
+  TABLE_JSON_FORMAT_DEPTH = '_2',
+
+  /**
+   * 是否展示行号
+   */
+  TABLE_SHOW_ROW_INDEX = '_3',
+
+  /**
+   * 是否展示空字段
+   */
+  TABLE_ALLOW_EMPTY_FIELD = '_4',
+
+  /**
+   * 是否展开长字段
+   */
+  IS_LIMIT_EXPAND_VIEW = '_5',
+
+  /**
+   * 是否展示字段别名
+   */
+  SHOW_FIELD_ALIAS = '_6',
+
+  /**
+   * 文本溢出（省略设置）start | end | center
+   */
+  TEXT_ELLIPSIS_DIR = '_7',
+
+  /**
+   * 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
+   */
+  SEARCH_TYPE = '_8',
+
+  /**
+   * 左侧字段设置缓存配置
+   */
+  FIELD_SETTING = '_9',
+
+  /**
+   * 索引集激活的tab
+   */
+  INDEX_SET_ACTIVE_TAB = '_10',
+
+  /**
+   * 当前激活的收藏 id
+   */
+  FAVORITE_ID = 'f_11',
+
+  /**
+   * 当前激活的历史记录 id
+   */
+  HISTORY_ID = 'h_12',
+}
+
+export { BK_LOG_STORAGE };
+
 export type ConsitionItem = {
   field: string;
   operator: string;
@@ -23,4 +92,6 @@ export type RouteParams = {
   bizId: string;
   spaceUid: string;
   format: string;
+  [BK_LOG_STORAGE.HISTORY_ID]: string;
+  [BK_LOG_STORAGE.FAVORITE_ID]: string;
 };

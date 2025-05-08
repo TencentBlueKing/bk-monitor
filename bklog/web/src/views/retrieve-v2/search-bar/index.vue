@@ -25,7 +25,7 @@
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
 
   const props = defineProps({
     // activeFavorite: {
@@ -143,13 +143,14 @@
   const setRouteParams = () => {
     const query = { ...route.query };
 
+    const nextMode = queryParams[activeIndex.value];
     const resolver = new RetrieveUrlResolver({
       keyword: keyword.value,
       addition: store.getters.retrieveParams.addition,
+      search_mode: nextMode,
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());
-
     router.replace({
       query,
     });
@@ -263,18 +264,23 @@
   };
 
   const handleQueryTypeChange = () => {
-    store.commit('updateStorage', { searchType: activeIndex.value === 0 ? 1 : 0 });
+    const nextType = activeIndex.value === 0 ? 1 : 0;
+    const nextMode = queryParams[nextType];
+
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
     store.commit('updateIndexItemParams', {
-      search_mode: queryParams[activeIndex.value],
+      search_mode: nextMode,
     });
 
-    router.replace({
-      params: { ...route.params },
-      query: {
-        ...(route.query ?? {}),
-        search_mode: queryParams[activeIndex.value],
-      },
-    });
+    // console.log('nextMode', nextMode);
+
+    // router.replace({
+    //   params: { ...route.params },
+    //   query: {
+    //     ...(route.query ?? {}),
+    //     search_mode: nextMode,
+    //   },
+    // });
 
     inspectResponse.value.is_legal = true;
     inspectResponse.is_resolved = false;

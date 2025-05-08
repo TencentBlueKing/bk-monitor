@@ -169,7 +169,7 @@
 
   import { excludesFields } from './const.common';
   import { getCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();

@@ -32,7 +32,7 @@ import { From } from 'bk-magic-vue';
 import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
-import { BK_LOG_STORAGE } from '../../../../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
 
 import './filter-rule.scss';
 

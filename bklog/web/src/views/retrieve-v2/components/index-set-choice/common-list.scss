@@ -2,7 +2,7 @@
   padding: 12px 0;
   background: #ffffff;
   min-height: 200px;
-  width: 100%;
+  width: var(--index-set-ctx-width);
 
   .common-header {
     font-size: 12px;
@@ -39,6 +39,7 @@
       .row-left {
         display: inline-flex;
         align-items: center;
+        width: calc(var(--index-set-ctx-width) - 30px);
 
         .bklog-icon {
           visibility: visible;
@@ -69,13 +70,14 @@
         .row-item-list {
           display: inline-flex;
           align-items: center;
+          width: calc(var(--index-set-ctx-width) - 50px);
 
           .row-item {
             background: #f0f1f5;
             border-radius: 2px;
             padding: 0 8px;
             margin-right: 4px;
-            max-width: 200px;
+            // max-width: 200px;
             text-overflow: ellipsis;
             overflow: hidden;
             white-space: nowrap;

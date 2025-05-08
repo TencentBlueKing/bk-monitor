@@ -90,7 +90,7 @@
   import VueDraggable from 'vuedraggable';
 
   import { deepClone, random } from '../../../../common/util';
-  import { BK_LOG_STORAGE } from '../../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../../store/store.type';
   const props = defineProps({
     initData: {
       type: Array,

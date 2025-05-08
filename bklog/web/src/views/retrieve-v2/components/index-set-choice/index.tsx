@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, Ref, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
 import BklogPopover from '../../../../components/bklog-popover';
+import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import { getOsCommandLabel } from '../../../../common/util';
 import { Props } from 'tippy.js';
 import Content from './content';
@@ -50,6 +51,10 @@ export default defineComponent({
     minWidth: {
       type: Number,
       default: 400,
+    },
+    contentWidth: {
+      type: Number,
+      default: 900,
     },
     textDir: {
       type: String,
@@ -99,6 +104,7 @@ export default defineComponent({
       arrow: false,
       zIndex: props.zIndex,
       appendTo: document.body,
+      maxWidth: 900,
 
       onShow: () => {
         isOpened.value = true;
@@ -107,7 +113,7 @@ export default defineComponent({
         isOpened.value = false;
 
         if (props.activeTab === 'union') {
-          emit('value-change', unionListValue, 'union');
+          emit('value-change', unionListValue.length ? unionListValue : props.indexSetValue, 'union');
         }
       },
     } as any;
@@ -151,6 +157,36 @@ export default defineComponent({
       }
     };
 
+    const handleKeyDown = event => {
+      // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
+      const isCtrlO = event.ctrlKey && event.key === 'o';
+      const isCmdO = event.metaKey && event.key === 'o';
+
+      if (isCtrlO || isCmdO) {
+        event.preventDefault();
+        if (isOpened.value) {
+          refRootElement.value?.hide();
+          return;
+        }
+
+        refRootElement.value?.show();
+      }
+    };
+
+    onMounted(() => {
+      document.addEventListener('keydown', handleKeyDown);
+    });
+
+    onBeforeUnmount(() => {
+      document.removeEventListener('keydown', handleKeyDown);
+    });
+
+    const contentStyleVar = computed(() => {
+      return {
+        '--index-set-ctx-width': `${props.contentWidth}px`,
+      };
+    });
+
     return () => {
       return (
         <BklogPopover
@@ -172,6 +208,7 @@ export default defineComponent({
                   spaceUid={props.spaceUid}
                   activeId={props.activeTab}
                   zIndex={props.zIndex}
+                  style={contentStyleVar.value}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
                 ></Content>
@@ -179,14 +216,21 @@ export default defineComponent({
             },
           }}
         >
-          <bdi class='indexset-value-list'>
-            {selectedValues.value.map((v: any) => (
-              <span class='index-set-value-item'>
-                <span class='index-set-name'>{v.index_set_name}</span>
-                <span class='index-set-lighten-name'>{v.lightenName}</span>
-              </span>
-            ))}
-          </bdi>
+          <EllipsisTagList
+            list={selectedValues.value}
+            activeEllipsisCount={selectedValues.value.length > 1}
+            class='indexset-value-list'
+            {...{
+              scopedSlots: {
+                item: v => (
+                  <span class='index-set-value-item'>
+                    <span class='index-set-name'>{v.index_set_name}</span>
+                    <span class='index-set-lighten-name'>{v.lightenName}</span>
+                  </span>
+                ),
+              },
+            }}
+          ></EllipsisTagList>
           <span class='bklog-icon bklog-arrow-down-filled-2'></span>
         </BklogPopover>
       );

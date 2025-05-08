@@ -54,7 +54,7 @@
   import TextSegmentation from './text-segmentation';
   import JsonFormatter from '@/global/json-formatter.vue';
 
-  import { BK_LOG_STORAGE } from '../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
 
   export default {
     components: {

@@ -27,7 +27,7 @@
 import { computed, defineComponent } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
-import { BK_LOG_STORAGE } from '../../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import './index.scss';
 

@@ -3,7 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();

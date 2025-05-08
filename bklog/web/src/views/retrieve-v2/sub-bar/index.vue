@@ -19,7 +19,7 @@
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const props = defineProps({
     showFavorites: {

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { BK_LOG_STORAGE } from '../store/default-values';
+import { BK_LOG_STORAGE } from '../store/store.type';
 
 export const getFieldNameByField = (field, store) => {
   if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {

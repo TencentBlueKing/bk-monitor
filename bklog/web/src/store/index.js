@@ -58,8 +58,8 @@ import {
   getStorageOptions,
   BkLogGlobalStorageKey,
   URL_ARGS,
-  BK_LOG_STORAGE,
 } from './default-values.ts';
+import { BK_LOG_STORAGE } from './store.type.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
@@ -1061,12 +1061,12 @@ const store = new Vuex.Store({
     },
     /**
      * 执行查询
-     * 
+     *
      * @param {Boolean} payload.isPagination - 是否是分页请求。
      * @param {CancelToken} payload.cancelToken - 用于取消请求的 Axios cancel token。
      * @param {Number} payload.searchCount - 自定义的查询计数器。
      * @param {Array} payload.localSort - 用于排序的本地排序配置
-     * 
+     *
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },

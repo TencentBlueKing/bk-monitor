@@ -48,7 +48,7 @@
   import JsonFormatter from '@/global/json-formatter.vue';
   import { mapState } from 'vuex';
   import { formatDate, formatDateNanos } from '@/common/util';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import TextSegmentation from './text-segmentation';
   export default {

@@ -3,7 +3,7 @@
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useTruncateText from '@/hooks/use-truncate-text';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  import { BK_LOG_STORAGE } from '../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { debounce } from 'lodash';

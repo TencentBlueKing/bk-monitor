@@ -168,7 +168,7 @@
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 

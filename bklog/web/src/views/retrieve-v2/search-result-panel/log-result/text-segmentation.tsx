@@ -35,7 +35,7 @@ import { debounce } from 'lodash';
 import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
 import RetrieveHelper from '../../../retrieve-helper';
-import { BK_LOG_STORAGE } from '../../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import './text-segmentation.scss';
 export default defineComponent({

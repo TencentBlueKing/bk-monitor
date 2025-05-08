@@ -17,6 +17,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
 
     .index-set-value-item {
       display: inline-block;
@@ -41,7 +43,7 @@
       text-overflow: inherit;
 
       .index-set-value-item {
-        max-width: 140px;
+        max-width: 200px;
       }
     }
   }

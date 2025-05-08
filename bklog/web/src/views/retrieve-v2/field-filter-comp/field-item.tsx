@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { blobDownload } from '@/common/util';
 
 import AggChart from './agg-chart';
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import FieldAnalysis from './field-analysis';
 import { axiosInstance } from '@/api';

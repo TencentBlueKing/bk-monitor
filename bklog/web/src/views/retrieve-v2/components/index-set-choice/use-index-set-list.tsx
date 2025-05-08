@@ -7,7 +7,7 @@ export default (props, { emit }) => {
   const indexSetTagList: ComputedRef<{ tag_id: number; name: string; color: string }[]> = computed(() => {
     const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce((acc, item) => {
       item.tags.forEach(tag => {
-        if (!acc.has(tag.tag_id)) {
+        if (!acc.has(tag.tag_id) && tag.tag_id !== 4) {
           acc.set(tag.tag_id, tag);
         }
       });

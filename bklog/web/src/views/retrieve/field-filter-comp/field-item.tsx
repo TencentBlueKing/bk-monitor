@@ -26,7 +26,7 @@
 
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';

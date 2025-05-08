@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
 import TextSegmentation from './text-segmentation.vue';
-import { BK_LOG_STORAGE } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import './original-light-height.scss';
 

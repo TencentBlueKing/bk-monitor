@@ -193,7 +193,7 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {

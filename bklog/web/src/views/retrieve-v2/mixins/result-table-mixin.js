@@ -41,7 +41,7 @@ import OperatorTools from '../components/result-cell-element/operator-tools.ts';
 import TimeFormatterSwitcher from '../components/result-cell-element/time-formatter-switcher.tsx';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 import useFieldNameHook from '@/hooks/use-field-name';
-import { BK_LOG_STORAGE } from '../../../store/default-values.ts';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 export default {
   components: {

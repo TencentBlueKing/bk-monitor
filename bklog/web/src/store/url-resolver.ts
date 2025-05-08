@@ -29,7 +29,7 @@ import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-r
 
 import { ConditionOperator } from './condition-operator';
 import { Route } from 'vue-router';
-import { BK_LOG_STORAGE } from './default-values';
+import { BK_LOG_STORAGE } from './store.type';
 
 /**
  * 初始化App时解析URL中的参数
@@ -171,19 +171,23 @@ class RouteUrlResolver {
   }
 
   private searchModeResolver() {
-    if (['sql', 'ui'].includes(this.query.search_mode)) {
-      return this.query.search_mode;
+    const hasAddition = this.query.keyword?.length;
+    const hasKeyword = this.query.addition?.length;
+    const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
+
+    if (hasAddition && hasKeyword) {
+      return defValue;
     }
 
     if (this.query.keyword?.length) {
       return 'sql';
     }
 
-    if (this.query.additon?.length) {
+    if (this.query.addition?.length) {
       return 'ui';
     }
 
-    return 'ui';
+    return defValue;
   }
 
   private setDefaultResolver() {

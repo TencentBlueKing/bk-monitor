@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, ref } from 'vue';
 import './common-list.scss';
+import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 
 export default defineComponent({
   props: {
@@ -114,6 +115,22 @@ export default defineComponent({
       return `${props.value}` === `${item[getFuncionalPropVal(props.idField, [item])]}`;
     };
 
+    const getEllipsisItem = item => {
+      const list = item[getFuncionalPropVal(props.nameField, [item])];
+
+      return (
+        <EllipsisTagList
+          activeEllipsisCount={list.length > 1}
+          list={list}
+          {...{
+            scopedSlots: {
+              item: v => <span class='row-item'>{v}</span>,
+            },
+          }}
+        ></EllipsisTagList>
+      );
+    };
+
     const listItemRender = (item: any) => {
       if (Array.isArray(item?.[getFuncionalPropVal(props.nameField, [item])])) {
         return (
@@ -129,11 +146,7 @@ export default defineComponent({
                 }}
                 onClick={e => handleItemIconClick(e, item)}
               ></span>
-              <span class='row-item-list'>
-                {item[getFuncionalPropVal(props.nameField, [item])].map(name => (
-                  <span class='row-item'>{name}</span>
-                ))}
-              </span>
+              <span class='row-item-list'>{getEllipsisItem(item)}</span>
             </span>
             {props.showDelItem && (
               <span

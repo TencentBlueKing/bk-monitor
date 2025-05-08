@@ -31,7 +31,7 @@ import './content.scss';
 import useChoice, { IndexSetType } from './use-choice';
 import CommonList from './common-list';
 import { useRoute } from 'vue-router/composables';
-import { BK_LOG_STORAGE } from '../../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 export default defineComponent({
   props: {

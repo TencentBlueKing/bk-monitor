@@ -47,6 +47,8 @@ import preload from './preload';
 
 import './static/style.css';
 import './static/font-face/index.css';
+import './scss/theme/theme-dark.scss';
+import './scss/theme/theme-light.scss';
 
 Vue.prototype.$renderHeader = renderHeader;
 

@@ -320,7 +320,7 @@
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);

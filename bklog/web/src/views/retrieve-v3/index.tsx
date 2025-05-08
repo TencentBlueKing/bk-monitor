@@ -34,7 +34,7 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import { BK_LOG_STORAGE } from '../../store/default-values';
+import { BK_LOG_STORAGE } from '../../store/store.type';
 
 import './index.scss';
 

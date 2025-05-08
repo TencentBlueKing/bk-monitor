@@ -185,7 +185,7 @@
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import useFieldNameHook from '@/hooks/use-field-name';
 
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {

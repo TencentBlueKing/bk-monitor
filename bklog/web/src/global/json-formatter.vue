@@ -36,7 +36,7 @@
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import RetrieveHelper from '../views/retrieve-helper';
-  import { BK_LOG_STORAGE } from '../store/default-values';
+  import { BK_LOG_STORAGE } from '../store/store.type';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();

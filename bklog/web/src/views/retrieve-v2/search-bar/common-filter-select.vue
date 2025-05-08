@@ -13,7 +13,7 @@
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
 
   const { $t } = useLocale();
   const store = useStore();

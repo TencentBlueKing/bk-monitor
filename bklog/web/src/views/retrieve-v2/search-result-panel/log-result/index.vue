@@ -120,7 +120,7 @@
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
   import ResultStorage from '../../components/result-storage/index';
   import BkLogPopover from '../../../../components/bklog-popover/index';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   let logResultResizeObserver;
   let logResultResizeObserverFn;

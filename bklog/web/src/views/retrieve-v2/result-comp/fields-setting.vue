@@ -263,7 +263,7 @@
 
   // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
-  import { BK_LOG_STORAGE } from '@/store/default-values';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   export default {
     components: {
       VueDraggable,

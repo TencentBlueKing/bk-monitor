@@ -15,7 +15,7 @@
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { BK_LOG_STORAGE } from '../../../store/default-values';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -1400,8 +1400,4 @@
 </template>
 <style scoped lang="scss">
   @import './ui-input-option.scss';
-</style>
-<style lang="scss">
-  @import './theme-light.scss';
-  @import './theme-dark.scss';
 </style>
