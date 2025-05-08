@@ -33,11 +33,12 @@ import {
   type PropType,
   watch,
   onBeforeUnmount,
+  useTemplateRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
-import { Loading, OverflowTitle, Popover } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -47,6 +48,7 @@ import ExploreFieldSetting from '../explore-field-setting/explore-field-setting'
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
 import ExploreTableEmpty from './explore-table-empty';
+import { useTableEllipsis, useTableHeaderDescription } from './hooks/use-table-popover';
 import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
@@ -108,6 +110,23 @@ export default defineComponent({
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
 
+    const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
+    /** 表格功能单元格内容溢出弹出 popover 功能 */
+    const { initListeners: initEllipsisListeners, handlePopoverHide: ellipsisPopoverHide } = useTableEllipsis(
+      tableRef,
+      {
+        trigger: {
+          selector: '.explore-text-ellipsis',
+        },
+      }
+    );
+    /** 表格功能单元格内容溢出弹出 popover 功能 */
+    const { initListeners: initHeaderDescritionListeners, handlePopoverHide: descriptionPopoverHide } =
+      useTableHeaderDescription(tableRef, {
+        trigger: {
+          selector: '.explore-table-header-description',
+        },
+      });
     /** table 显示列配置 */
     const displayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
@@ -184,6 +203,7 @@ export default defineComponent({
         .map(colKey => {
           const fieldItem = fieldMap[colKey];
           let column = columnMap[colKey];
+          if (!column && !fieldItem) return null;
           if (!column) {
             column = {
               renderType: ExploreTableColumnTypeEnum.TEXT,
@@ -197,8 +217,17 @@ export default defineComponent({
           }
           const tipText = column.headerDescription || column.colKey;
           column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
+          // 表格列表头渲染方法
           const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText);
-          return { ...column, title: tableHeaderTitle };
+          // 表格单元格渲染方法
+          const tableCell = (_, { row }) => handleSetFormatter(column, row);
+
+          return {
+            ...defaultTableConfig,
+            ...column,
+            title: tableHeaderTitle,
+            cell: tableCell,
+          };
         })
         .filter(Boolean);
     });
@@ -255,6 +284,10 @@ export default defineComponent({
       getDisplayColumnFields();
       getExploreList();
       addScrollListener();
+      setTimeout(() => {
+        initEllipsisListeners();
+        initHeaderDescritionListeners();
+      }, 300);
     });
 
     onBeforeUnmount(() => {
@@ -288,6 +321,8 @@ export default defineComponent({
      */
     function handleScroll(event: Event) {
       const target = event.target as HTMLElement;
+      ellipsisPopoverHide();
+      descriptionPopoverHide();
       const { scrollHeight } = target;
       const { scrollTop } = target;
       const { clientHeight } = target;
@@ -751,16 +786,13 @@ export default defineComponent({
      *
      */
     function tableDescriptionHeaderRender(title, tipText) {
-      // TODO 临时使用，后续需改为 单例 popover 实现
       return () => (
-        <Popover
-          content={tipText}
-          placement='right'
-          popoverDelay={[500, 0]}
-          theme='light'
+        <span
+          class='th-label explore-table-header-description'
+          data-col-description={tipText}
         >
-          <span class='th-label'>{title}</span>
-        </Popover>
+          {title}
+        </span>
       );
     }
 
@@ -786,14 +818,13 @@ export default defineComponent({
     function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
       const alias = getTableCellRenderValue(row, column);
       return (
-        <div class='explore-col explore-click-col'>
-          <OverflowTitle
-            class='explore-click-text'
-            placement='top'
-            type='tips'
+        <div class='explore-col explore-click-col explore-text-ellipsis'>
+          <span
+            class='explore-click-text '
+            onClick={event => column?.clickCallback?.(row, column, event)}
           >
-            <span onClick={event => column?.clickCallback?.(row, column, event)}>{alias}</span>
-          </OverflowTitle>
+            {alias}
+          </span>
         </div>
       );
     }
@@ -831,14 +862,8 @@ export default defineComponent({
       const timestamp = getTableCellRenderValue(row, column);
       const value = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
       return (
-        <div class='explore-col explore-time-col '>
-          <OverflowTitle
-            class='explore-time-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{value}</span>
-          </OverflowTitle>
+        <div class='explore-col explore-time-col explore-text-ellipsis'>
+          <span class='explore-time-text '>{value}</span>
         </div>
       );
     }
@@ -852,14 +877,8 @@ export default defineComponent({
       const timestamp = getTableCellRenderValue(row, column);
       const value = formatDuration(+timestamp);
       return (
-        <div class='explore-col explore-duration-col '>
-          <OverflowTitle
-            class='explore-duration-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{value}</span>
-          </OverflowTitle>
+        <div class='explore-col explore-duration-col explore-text-ellipsis'>
+          <span class='explore-duration-text'>{value}</span>
         </div>
       );
     }
@@ -881,11 +900,7 @@ export default defineComponent({
       }
       return (
         <div class='explore-col explore-link-col '>
-          <OverflowTitle
-            class='explore-link-text'
-            placement='top'
-            type='tips'
-          >
+          <div class='explore-link-text explore-text-ellipsis'>
             <a
               style={{ color: 'inherit' }}
               href={item.url}
@@ -894,7 +909,7 @@ export default defineComponent({
             >
               {item.alias}
             </a>
-          </OverflowTitle>
+          </div>
           <i class='icon-monitor icon-mc-goto' />
         </div>
       );
@@ -940,14 +955,10 @@ export default defineComponent({
     function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
       const alias = getTableCellRenderValue(row, column);
       return (
-        <div class='explore-col explore-text-col '>
-          <OverflowTitle
-            class='explore-col-text'
-            placement='top'
-            type='tips'
-          >
-            <span>{alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}</span>
-          </OverflowTitle>
+        <div class='explore-col explore-text-col explore-text-ellipsis'>
+          <span class='explore-col-text'>
+            {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
+          </span>
         </div>
       );
     }
@@ -976,7 +987,6 @@ export default defineComponent({
       }
     }
     return {
-      defaultTableConfig,
       tableRowKeyField,
       displayColumnFields,
       tableColumns,
@@ -989,7 +999,6 @@ export default defineComponent({
       spanSliderRender,
       handleSortChange,
       handleDataSourceConfigClick,
-      handleSetFormatter,
       handleDisplayColumnFieldsChange,
     };
   },
@@ -998,6 +1007,7 @@ export default defineComponent({
     return (
       <div class='trace-explore-table'>
         <PrimaryTable
+          ref='tableRef'
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
             lastFullRow: this.tableViewData.length
@@ -1016,15 +1026,7 @@ export default defineComponent({
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
           columns={[
-            ...this.tableDisplayColumns.map(column => {
-              return {
-                ...this.defaultTableConfig,
-                ...column,
-                cell: (h, { row }) => {
-                  return this.handleSetFormatter(column, row);
-                },
-              };
-            }),
+            ...this.tableDisplayColumns,
             {
               width: '32px',
               minWidth: '32px',

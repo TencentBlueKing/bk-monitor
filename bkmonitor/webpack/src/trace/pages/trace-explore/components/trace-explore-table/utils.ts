@@ -121,3 +121,38 @@ export function requestErrorMessage(err) {
   }
   return isAborted;
 }
+
+/**
+ * 检测单行文本是否显示省略号
+ * @param {HTMLElement} element 要检测的容器元素
+ *
+ */
+export function isEllipsisActiveSingleLine(element: HTMLElement): {
+  content: string;
+  isEllipsisActive: boolean;
+} {
+  // 验证是否应用了必要样式
+  const style = window.getComputedStyle(element);
+  if (style.textOverflow !== 'ellipsis' || style.whiteSpace !== 'nowrap') {
+    return { content: '', isEllipsisActive: false };
+  }
+  const range = document.createRange();
+  range.setStart(element, 0);
+  range.setEnd(element, element.childNodes.length);
+
+  let rangeWidth = range.getBoundingClientRect().width;
+
+  const offsetWidth = rangeWidth - Math.floor(rangeWidth);
+  if (offsetWidth < 0.001) {
+    rangeWidth = Math.floor(rangeWidth);
+  }
+  const paddingLeft = Number.parseInt(style.paddingLeft, 10) || 0;
+  const paddingRight = Number.parseInt(style.paddingRight, 10) || 0;
+  const horizontalPadding = paddingLeft + paddingRight;
+
+  return {
+    content: range.toString(),
+    // @ts-ignore
+    isEllipsisActive: range.scrollWidth > element.clientWidth || rangeWidth + horizontalPadding > element.clientWidth,
+  };
+}
