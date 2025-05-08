@@ -47,6 +47,14 @@ import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
+import {
+  CAN_TABLE_SORT_FIELD_TYPES,
+  SERVICE_CATEGORY_MAP,
+  SERVICE_STATUS_COLOR_MAP,
+  SPAN_KIND_MAPS,
+  SPAN_STATUS_CODE_MAP,
+  TABLE_DEFAULT_CONFIG,
+} from './constants';
 import ExploreTableEmpty from './explore-table-empty';
 import { useTableEllipsis, useTableHeaderDescription } from './hooks/use-table-popover';
 import {
@@ -55,14 +63,7 @@ import {
   ExploreTableLoadingEnum,
   type GetTableCellRenderValue,
 } from './typing';
-import {
-  CAN_TABLE_SORT_FIELD_TYPES,
-  getTableList,
-  SERVICE_STATUS_COLOR_MAP,
-  SPAN_KIND_MAPS,
-  SPAN_STATUS_CODE_MAP,
-  TABLE_DEFAULT_CONFIG,
-} from './utils';
+import { getTableList } from './utils';
 
 import type { ExploreFieldList, ICommonParams, IDimensionField } from '../../typing';
 
@@ -466,6 +467,7 @@ export default defineComponent({
           colKey: 'root_service_category',
           title: t('调用类型'),
           width: 120,
+          getRenderValue: row => SERVICE_CATEGORY_MAP[row.root_service_category],
         },
         root_service_status_code: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
