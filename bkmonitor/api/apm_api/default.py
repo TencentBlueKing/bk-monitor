@@ -433,3 +433,8 @@ class QueryProfileServicesDetail(ApmAPIGWResource):
 class QueryFieldsTopkResource(ApmAPIGWResource):
     action = "/app/apm/query_apm_fields_topk/"
     method = "POST"
+
+
+class QueryFieldStatisticsInfoResource(ApmAPIGWResource):
+    action = "/app/apm/query_apm_field_statistics_info/"
+    method = "POST"
