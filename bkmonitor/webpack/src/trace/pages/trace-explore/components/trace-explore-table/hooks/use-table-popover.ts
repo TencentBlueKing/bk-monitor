@@ -138,7 +138,6 @@ export const useTablePopover = (
       allowHtml: false,
       renderType: 'auto',
       padding: 0,
-      offset: 0,
       zIndex: 0,
       disableTeleport: false,
       autoPlacement: false,
@@ -231,7 +230,6 @@ export const useTableHeaderDescription = (
     popoverOptions: {
       theme: 'light',
       placement: 'right',
-      offset: 6,
       ...(options?.popoverOptions || {}),
     },
   });
