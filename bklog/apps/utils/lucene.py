@@ -869,9 +869,6 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
 
     RE = r"'(?:[^'\\]|\\.)*'"
 
-    def __init__(self, query_string: str):
-        super().__init__(query_string)
-
     def match(self) -> bool:
         if re.search(self.RE, self.query_string):
             return True
