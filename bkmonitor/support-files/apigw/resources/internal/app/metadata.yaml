@@ -1936,9 +1936,11 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: metadata get data_labels mapping
   /app/metadata/query_meta_info_by_vmrt/:
-    post:
+    get:
       operationId: metadata_query_meta_info_by_vmrt
       description: 根据VMRT查询关联元数据信息
+      tags:
+        - metadata
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -1953,3 +1955,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata query meta info by vmrt
+  /app/metadata/sync_bk_base_rt_meta_by_biz_id/:
+    get:
+      operationId: metadata_sync_bk_base_rt_meta_by_biz_id
+      description: 同步单业务的计算平台RT元信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/sync_bk_base_rt_meta_by_biz_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: sync bkbase rt meta by biz_id
