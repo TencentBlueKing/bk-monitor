@@ -255,7 +255,7 @@ class UnifyQueryHandler:
                 index_info["origin_scenario_id"] = tmp_index_obj.scenario_id
 
                 # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
-                if "__dist_05" in self.search_params.get("keyword", ""):
+                if self.search_params.get("keyword") and "__dist_05" in self.search_params["keyword"]:
                     index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
                     index_info_list.append(index_info)
                     continue
