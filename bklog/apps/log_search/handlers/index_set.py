@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import re
 from collections import defaultdict
-from typing import List, Optional
 
 import arrow
 import pytz
@@ -188,7 +187,7 @@ class IndexSetHandler(APIModel):
         return space_uids
 
     @classmethod
-    def get_user_index_set(cls, space_uid, scenarios=None):
+    def get_user_index_set(cls, space_uid, is_group=False, scenarios=None):
         space_uids = cls.get_all_related_space_uids(space_uid)
         index_sets = LogIndexSet.get_index_set(scenarios=scenarios, space_uids=space_uids)
         # 补充采集场景
@@ -204,6 +203,35 @@ class IndexSetHandler(APIModel):
         )
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
+        # 不分组，直接返回
+        if not is_group:
+            return index_sets
+
+        remove_ids = set()
+        log_index_sets = []
+        other_index_sets = []
+        for index_set in index_sets:
+            if not index_set["collector_config_id"] and index_set["scenario_id"] == Scenario.LOG:
+                log_index_sets.append(index_set)
+            else:
+                other_index_sets.append(index_set)
+
+        # 先构建一个字典，建立 result_table_id 到 other_index_sets 的映射关系
+        rt_id_to_index_mapping = {}
+        for index in other_index_sets:
+            if index["collector_config_id"] and index["scenario_id"] == Scenario.LOG:
+                rt_id = index["indices"][0]["result_table_id"]
+                rt_id_to_index_mapping.setdefault(rt_id, []).append(index)
+
+        for log_index_set in log_index_sets:
+            result_table_id_list = [idx["result_table_id"] for idx in log_index_set["indices"]]
+            for rt_id in result_table_id_list:
+                if rt_id in rt_id_to_index_mapping:
+                    for index in rt_id_to_index_mapping[rt_id]:
+                        remove_ids.add(index["index_set_id"])
+                        log_index_set.setdefault("children", []).append(index)
+
+        index_sets = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
         return index_sets
 
     @classmethod
@@ -535,7 +563,7 @@ class IndexSetHandler(APIModel):
         添加索引到索引集内
         """
         # 判断索引集是否已加入此索引
-        logger.info("[index_set_data][{}]add_index => {}".format(self.index_set_id, result_table_id))
+        logger.info(f"[index_set_data][{self.index_set_id}]add_index => {result_table_id}")
         if LogIndexSetData.objects.filter(
             bk_biz_id=bk_biz_id or None, result_table_id=result_table_id, index_set_id=self.index_set_id
         ):
@@ -1306,7 +1334,7 @@ class IndexSetHandler(APIModel):
         return index_set_data
 
 
-class BaseIndexSetHandler(object):
+class BaseIndexSetHandler:
     scenario_id = None
 
     def __init__(
@@ -1381,13 +1409,13 @@ class BaseIndexSetHandler(object):
         创建索引集
         """
         self.pre_create()
-        logger.info("[create_index_set]pre_create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[create_index_set]pre_create index_set_name=>{self.index_set_name}")
 
         index_set = self.create()
-        logger.info("[create_index_set]create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[create_index_set]create index_set_name=>{self.index_set_name}")
 
         self.post_create(index_set)
-        logger.info("[create_index_set]post_create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[create_index_set]post_create index_set_name=>{self.index_set_name}")
         return index_set
 
     def update_index_set(self, index_set_obj):
@@ -1398,13 +1426,13 @@ class BaseIndexSetHandler(object):
         self.index_set_obj = index_set_obj
 
         self.pre_update()
-        logger.info("[update_index_set]pre_create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[update_index_set]pre_create index_set_name=>{self.index_set_name}")
 
         index_set = self.update()
-        logger.info("[update_index_set]create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[update_index_set]create index_set_name=>{self.index_set_name}")
 
         self.post_update(index_set)
-        logger.info("[update_index_set]post_create index_set_name=>{}".format(self.index_set_name))
+        logger.info(f"[update_index_set]post_create index_set_name=>{self.index_set_name}")
         return index_set
 
     def delete_index_set(self, index_set_obj):
@@ -1638,18 +1666,18 @@ class BkDataIndexSetHandler(BaseIndexSetHandler):
     scenario_id = Scenario.BKDATA
 
     def __init__(self, *args, **kwargs):
-        super(BkDataIndexSetHandler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # 是否需要跳转到数据平台进行授权
         self.need_authorize = False
 
     def pre_create(self):
-        super(BkDataIndexSetHandler, self).pre_create()
+        super().pre_create()
         self.check_rt_authorization_for_user()
         self.auto_authorize_rt()
 
     def pre_update(self):
-        super(BkDataIndexSetHandler, self).pre_update()
+        super().pre_update()
         self.check_rt_authorization_for_user()
         self.auto_authorize_rt()
 
@@ -1689,7 +1717,7 @@ class BkDataIndexSetHandler(BaseIndexSetHandler):
             ).update(apply_status=LogIndexSetData.Status.PENDING)
 
     def post_create(self, index_set):
-        super(BkDataIndexSetHandler, self).post_create(index_set)
+        super().post_create(index_set)
         self.check_rt_authorization_for_token(index_set)
 
 
@@ -1701,7 +1729,7 @@ class LogIndexSetHandler(BaseIndexSetHandler):
     scenario_id = Scenario.LOG
 
 
-class LogIndexSetDataHandler(object):
+class LogIndexSetDataHandler:
     def __init__(
         self,
         index_set_data,
@@ -1750,10 +1778,10 @@ class LogIndexSetDataHandler(object):
         ).delete()
 
 
-class IndexSetFieldsConfigHandler(object):
+class IndexSetFieldsConfigHandler:
     """索引集配置字段(展示字段以及排序字段)"""
 
-    data: Optional[IndexSetFieldsConfig] = None
+    data: IndexSetFieldsConfig | None = None
 
     def __init__(
         self,
@@ -1868,11 +1896,11 @@ class IndexSetFieldsConfigHandler(object):
         IndexSetFieldsConfig.delete_config(self.config_id)
 
 
-class UserIndexSetConfigHandler(object):
+class UserIndexSetConfigHandler:
     def __init__(
         self,
         index_set_id: int = None,
-        index_set_ids: List[int] = None,
+        index_set_ids: list[int] = None,
         index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
@@ -1921,11 +1949,11 @@ class UserIndexSetConfigHandler(object):
         return obj.index_set_config if obj else {}
 
 
-class IndexSetCustomConfigHandler(object):
+class IndexSetCustomConfigHandler:
     def __init__(
         self,
         index_set_id: int = None,
-        index_set_ids: List[int] = None,
+        index_set_ids: list[int] = None,
         index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id

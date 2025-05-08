@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import abc
 import json
 
-import six
 from django.conf import settings
 from rest_framework import serializers
 
@@ -31,12 +29,12 @@ class UseSaaSAuthInfoMixin:
     """
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
         return validated_request_data
 
     def get_headers(self):
-        headers = super(UseSaaSAuthInfoMixin, self).get_headers()
+        headers = super().get_headers()
         auth_info = headers.get("x-bkapi-authorization")
         if not auth_info:
             return headers
@@ -48,7 +46,7 @@ class UseSaaSAuthInfoMixin:
         return headers
 
 
-class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
+class BkDataAPIGWResource(APIResource, metaclass=abc.ABCMeta):
     base_url_statement = None
     base_url = settings.BKDATA_API_BASE_URL or "%s/api/bk-base/prod/" % settings.BK_COMPONENT_API_URL
 
@@ -62,7 +60,7 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return self.__doc__
 
     def get_request_url(self, validated_request_data):
-        return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
+        return super().get_request_url(validated_request_data).format(**validated_request_data)
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
@@ -122,6 +120,54 @@ class ListResultTableResource(BkDataAPIGWResource):
         return result_table_list
 
 
+class BulkListResultTableResource(BkDataAPIGWResource):
+    """
+    按照业务ID批量拉取计算平台结果表元信息
+    """
+
+    action = "/v3/meta/result_tables/"
+    method = "GET"
+    backend_cache_type = CacheType.METADATA
+
+    class RequestSerializer(serializers.Serializer):
+        related = serializers.ListField(required=False, default=["fields", "storages"], label="查询条件")
+        bk_biz_id = serializers.ListField(required=False, label="业务ID列表")
+        generate_type = serializers.CharField(required=False, default="user")
+        page_size = serializers.IntegerField(required=False, default=5000, max_value=5000)
+        storages = serializers.ListField(required=False)
+
+    def perform_request(self, params):
+        # 分页拉取，当前接口为返回 total_count 因此同步翻页拉取
+        result_table_list = []
+        page = 1
+        while True:
+            params.update(
+                {
+                    "page": page,
+                }
+            )
+            data = super().perform_request(params)
+            data_length = len(data)
+
+            # 过滤存储类型
+            if params.get("storages"):
+                expect_storages = set(params["storages"])
+                tables = []
+                for table in data:
+                    storages = {key for key, info in table["storages"].items() if info["active"]}
+                    if not expect_storages & storages:
+                        continue
+                    tables.append(table)
+            else:
+                tables = data
+
+            result_table_list += tables
+            if data_length < params["page_size"]:
+                break
+            page += 1
+        return result_table_list
+
+
 class GetResultTableResource(BkDataAPIGWResource):
     """
     查询指定结果表
@@ -135,9 +181,7 @@ class GetResultTableResource(BkDataAPIGWResource):
         related = serializers.ListField(required=False, default=["fields", "storages"], label="查询条件")
 
     def get_request_url(self, validated_request_data):
-        return (
-            super(GetResultTableResource, self).get_request_url(validated_request_data).format(**validated_request_data)
-        )
+        return super().get_request_url(validated_request_data).format(**validated_request_data)
 
 
 class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
@@ -154,7 +198,7 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
         _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(QueryDataResource, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         if validated_request_data.get("_user_request", False):
             validated_request_data["bkdata_authentication_method"] = "user"
             self.bk_username = settings.COMMON_USERNAME
@@ -186,13 +230,13 @@ class CommonRequestSerializer(serializers.Serializer):
     appenv = serializers.CharField(default="ieod", label="环境，默认 ieod 即可")
 
 
-class DataAccessAPIResource(six.with_metaclass(abc.ABCMeta, BkDataAPIGWResource)):
+class DataAccessAPIResource(BkDataAPIGWResource, metaclass=abc.ABCMeta):
     """
     重写BkDataAPIGWResource，对用户的处理
     """
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(DataAccessAPIResource, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         try:
             validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
@@ -429,7 +473,7 @@ class ApiServingExecute(UseSaaSAuthInfoMixin, DataAccessAPIResource):  # noqa
 
     def full_request_data(self, validated_request_data):
         # 组装额外参数
-        validated_request_data = super(ApiServingExecute, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["bkdata_authentication_method"] = "token"
         validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
         return validated_request_data
@@ -796,7 +840,9 @@ class StartDataFlow(DataAccessAPIResource):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
         consuming_mode = serializers.CharField(default="continue", label="数据处理模式")
         cluster_group = serializers.CharField(default="default", label="计算集群组")
-        check_and_start_clean_task = serializers.BooleanField(default=True, allow_null=True, label="是否检查并启动清洗任务")
+        check_and_start_clean_task = serializers.BooleanField(
+            default=True, allow_null=True, label="是否检查并启动清洗任务"
+        )
 
 
 class StopDataFlow(DataAccessAPIResource):
@@ -1053,7 +1099,9 @@ class CreateDataHub(DataAccessAPIResource):
             sensitivity = serializers.CharField(required=False, default="private", label="数据敏感度")
             data_encoding = serializers.CharField(required=False, default="UTF-8", label="数据编码")
             data_region = serializers.CharField(required=False, default="inland", label="数据所属区域")
-            description = serializers.CharField(required=False, default="计算平台数据接入", label="数据源描述", allow_blank=True)
+            description = serializers.CharField(
+                required=False, default="计算平台数据接入", label="数据源描述", allow_blank=True
+            )
             data_source_tags = serializers.ListField(required=False, default=["kafka"], label="数据来源标签")
             tags = serializers.ListField(required=False, default=[], label="数据标签")
             data_scenario = serializers.JSONField(label="数据定义")
@@ -1266,7 +1314,7 @@ class UpdateIncidentDetail(DataAccessAPIResource):
         feedback = serializers.DictField(required=False, label="故障反馈内容")
 
     def perform_request(self, params):
-        return super(UpdateIncidentDetail, self).perform_request(params)
+        return super().perform_request(params)
 
 
 class GetIncidentSnapshot(DataAccessAPIResource):
@@ -1318,7 +1366,7 @@ class GetStorageMetricsDataCount(DataAccessAPIResource):
             return attrs
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(GetStorageMetricsDataCount, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["bk_username"] = settings.COMMON_USERNAME
         self.bk_username = settings.COMMON_USERNAME
         return validated_request_data
@@ -1336,7 +1384,7 @@ class GetDataBusSamplingData(DataAccessAPIResource):
         data_id = serializers.IntegerField(required=True, label="数据源ID")
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(GetDataBusSamplingData, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["bk_username"] = settings.COMMON_USERNAME
         self.bk_username = settings.COMMON_USERNAME
         return validated_request_data
@@ -1355,7 +1403,7 @@ class GetRawDataStoragesInfo(DataAccessAPIResource):
         with_sql = serializers.BooleanField(required=False, label="默认参数", default=True)
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(GetRawDataStoragesInfo, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["bk_username"] = settings.COMMON_USERNAME
         self.bk_username = settings.COMMON_USERNAME
         return validated_request_data
@@ -1382,7 +1430,7 @@ class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
-        namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
+        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
         name = serializers.CharField(required=True, label="数据源名称（计算平台）")
         limit = serializers.IntegerField(required=False, default=10, label="条数")
 
@@ -1396,5 +1444,5 @@ class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
-        namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
+        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
         kind = serializers.CharField(required=True, label="资源类型")

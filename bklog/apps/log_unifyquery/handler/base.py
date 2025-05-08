@@ -174,6 +174,7 @@ class UnifyQueryHandler:
         查询时序型日志数据
         """
         try:
+            search_dict = copy.deepcopy(search_dict)
             pre_search_seconds = settings.PRE_SEARCH_SECONDS
             first_field, order = self.origin_order_by[0] if self.origin_order_by else [None, None]
             if (

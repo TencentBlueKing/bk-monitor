@@ -338,6 +338,19 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_CLUSTER_BLACKLIST", slz.ListField(label="ES 黑名单集群列表", default=[])),
         ("ENABLE_V2_ROTATION_ES_CLUSTER_IDS", slz.ListField(label="启用新版索引轮转的ES集群ID列表", default=[])),
         (
+            "SYNC_BKBASE_META_BLACK_BIZ_ID_LIST",
+            slz.ListField(label="同步计算平台RT元信息时的黑名单业务ID列表", default=[]),
+        ),
+        ("ENABLE_SYNC_BKBASE_META_TASK", slz.BooleanField(label="是否开启计算平台RT元信息同步任务", default=False)),
+        (
+            "SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES",
+            slz.ListField(label="同步计算平台RT元信息时支持的存储类型", default=["mysql", "tspider", "hdfs"]),
+        ),
+        (
+            "SYNC_BKBASE_META_BIZ_BATCH_SIZE",
+            slz.IntegerField(label="同步计算平台RT元信息时的单轮拉取业务ID个数", default=10),
+        ),
+        (
             "BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST",
             slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[]),
         ),

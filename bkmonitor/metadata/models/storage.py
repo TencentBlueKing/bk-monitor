@@ -111,6 +111,7 @@ class ClusterInfo(models.Model):
         (TYPE_ARGUS, "argus"),
         (TYPE_VM, "victoria_metrics"),
         (TYPE_DORIS, "doris"),
+        (TYPE_BKDATA, "bkdata"),
     )
 
     # 默认注册系统名

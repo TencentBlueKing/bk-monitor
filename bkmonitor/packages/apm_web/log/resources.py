@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,22 +7,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
 import logging
 
 from rest_framework import serializers
 
-from apm_web.handlers.log_handler import ServiceLogHandler
+from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.handlers.service_handler import ServiceHandler
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import Vendor
+from constants.apm import Vendor, FIVE_MIN_SECONDS
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources import HostIndexQueryMixin
 
 logger = logging.getLogger("apm")
-
-FIVE_MIN_SECONDS = 5 * 60
 
 
 def overwrite_with_span_addition(info, overwrite_key=None):
@@ -34,12 +32,6 @@ def overwrite_with_span_addition(info, overwrite_key=None):
             key = overwrite_key
         res.append({"field": key, "operator": "=", "value": [v]})
     return res
-
-
-# 缓存增强：对 search_index_set 添加缓存
-@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
-def _get_biz_index_sets(_bk_biz_id):
-    return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
 
 
 @using_cache(CacheType.APM(FIVE_MIN_SECONDS))
@@ -53,7 +45,7 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
     relation = ServiceLogHandler.get_log_relation(bk_biz_id, app_name, service_name)
     if relation:
         if relation.related_bk_biz_id != bk_biz_id:
-            relation_full_indexes = _get_biz_index_sets(_bk_biz_id=relation.related_bk_biz_id)
+            relation_full_indexes = get_biz_index_sets_with_cache(bk_biz_id=relation.related_bk_biz_id)
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
                 (i for i in relation_full_indexes if str(i["index_set_id"]) == relation.value),
@@ -162,11 +154,10 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     cache_call = using_cache(CacheType.APM(FIVE_MIN_SECONDS))
     index_info_list = cache_call.get_value(cache_key)
     if index_info_list:
-        for index_info in index_info_list:
-            yield index_info
+        yield from index_info_list
     else:
         # 使用缓存获取基础信息
-        biz_indices = _get_biz_index_sets(bk_biz_id)
+        biz_indices = get_biz_index_sets_with_cache(bk_biz_id)
         indexes_mapping = {bk_biz_id: biz_indices}
 
         span_detail = None
@@ -218,11 +209,10 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                         index_set_ids.add(index_id)
                         index_info_list.append(item)
             except Exception as e:  # pylint: disable=broad-except
-                logger.info("log_relation_list, {}".format(e))
+                logger.info(f"log_relation_list, {e}")
 
         cache_call.set_value(cache_key, index_info_list)
-        for index_info in index_info_list:
-            yield index_info
+        yield from index_info_list
 
 
 class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
