@@ -231,8 +231,7 @@ class TraceSearchItem(SearchItem):
             .values(PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME)
         )
 
-        # 增加一个容忍时间（例如 5 min），增加仍在预计算 / 入库 Trace 的查询命中概率。
-        now: int = int(time.time() + timedelta(minutes=5).total_seconds())
+        now: int = int(time.time())
         qs: UnifyQuerySet = (
             UnifyQuerySet()
             .add_query(q)
