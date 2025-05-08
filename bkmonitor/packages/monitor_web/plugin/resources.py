@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -143,7 +142,9 @@ class DataDogPluginUploadResource(Resource):
 
 class SaveMetricResource(Resource):
     class RequestSerializer(MetricJsonBaseSerializer):
-        plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
+        plugin_id = serializers.RegexField(
+            required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID"
+        )
         plugin_type = serializers.ChoiceField(
             required=True, choices=[choice[0] for choice in CollectorPluginMeta.PLUGIN_TYPE_CHOICES], label="插件类型"
         )
@@ -215,7 +216,7 @@ class CreatePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(CreatePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, params):
         # 新建插件默认开启自动发现
@@ -251,7 +252,7 @@ class CreatePluginResource(Resource):
 
 class PluginRegisterResource(Resource):
     def __init__(self):
-        super(PluginRegisterResource, self).__init__()
+        super().__init__()
         self.plugin_manager = None
         self.RequestSerializer = PluginRegisterRequestSerializer
         self.plugin_id = None
@@ -317,7 +318,7 @@ class PluginRegisterResource(Resource):
             with open(file_name, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash.update(chunk)
-        except IOError:
+        except OSError:
             return "-1"
 
         return hash.hexdigest()
@@ -365,7 +366,7 @@ class PluginRegisterResource(Resource):
                 raise RegisterPackageError({"msg": result["message"]})
 
             if result["is_finish"]:
-                logger.info("register package task({}) result: {}".format(job_id, result))
+                logger.info(f"register package task({job_id}) result: {result}")
                 break
             time.sleep(1)
             to_be_continue -= 1
@@ -391,7 +392,7 @@ class PluginRegisterResource(Resource):
             for filename in filenames:
                 if not filename.endswith(".tpl"):
                     # 不以 .tpl 结尾的，不注册为模板
-                    logger.info("template name ({}) not endswith .tpl, skip".format(filename))
+                    logger.info(f"template name ({filename}) not endswith .tpl, skip")
                     continue
                 with open(os.path.join(root, filename), "rb") as f:
                     content = f.read()
@@ -407,7 +408,7 @@ class PluginImportResource(Resource):
     CollectorFile = namedtuple("CollectorFile", ["name", "data"])
 
     def __init__(self):
-        super(PluginImportResource, self).__init__()
+        super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
         self.filename_list = []
@@ -453,7 +454,7 @@ class PluginImportResource(Resource):
         try:
             with open(meta_yaml_path) as f:
                 meta_content = f.read()
-        except IOError:
+        except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
         meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -469,7 +470,9 @@ class PluginImportResource(Resource):
     def check_conflict_mes(self):
         self.create_params["conflict_ids"] = []
         if not self.current_version:
-            self.create_params["conflict_detail"] = """已经存在重名的插件, 上传的插件版本为: {}""".format(self.tmp_version.version)
+            self.create_params["conflict_detail"] = (
+                f"""已经存在重名的插件, 上传的插件版本为: {self.tmp_version.version}"""
+            )
             return
         if self.current_version.is_official:
             if self.tmp_version.is_official:
@@ -481,14 +484,18 @@ class PluginImportResource(Resource):
                     self.create_params["conflict_detail"] = ""
                     self.create_params["duplicate_type"] = None
             else:
-                self.create_params["conflict_detail"] = """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
                 self.check_conflict_title()
         else:
             if self.tmp_version.is_official:
-                self.create_params["conflict_detail"] = """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
             else:
                 self.create_params["conflict_detail"] = """导入插件包版本为: {}；当前插件版本为: {}""".format(
@@ -646,7 +653,7 @@ class SaveAndReleasePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(SaveAndReleasePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, validated_request_data):
         with transaction.atomic():
@@ -850,7 +857,10 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
 
         # 1.首次导入
         # 2.数据库不存在，节点管理存在时
-        if not self.create_params["duplicate_type"] or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]:
+        if (
+            not self.create_params["duplicate_type"]
+            or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]
+        ):
             return save_resource.request(self.create_params)
         else:
             # 导入与原有插件完全一致
@@ -868,8 +878,82 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
             # 版本小于等于当前版本
             if StrictVersion(self.tmp_version.version) < StrictVersion(self.current_version.version):
                 # 将低版本的信息写入高版本,只需要将version信息，create_params中改为与当前版本一致即可
-                self.tmp_version.config_version = self.create_params[
-                    "config_version"
-                ] = self.current_version.config_version
+                self.tmp_version.config_version = self.create_params["config_version"] = (
+                    self.current_version.config_version
+                )
                 self.tmp_version.info_version = self.create_params["info_version"] = self.current_version.info_version
             return save_resource.request(self.create_params)
+
+
+class HelloWorldResource(Resource):
+    """
+    测试接口的联通性
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        user_name = serializers.CharField(required=False)
+
+    def perform_request(self, validated_request_data):
+        # 当前的数据是进过序列化的数据
+        # validated_request_data 是一个字典， 存储着前端发来的参数
+        user_name = validated_request_data.get("user_name", "robot")
+        return {f"hello world i am {user_name}"}
+
+
+class ProcessDataFilterResource(Resource):
+    """
+    对外提供的接口， 用于过滤前端发送来的的进程数据
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        data = serializers.CharField(required=True)
+        include = serializers.CharField(required=True)
+        exclude = serializers.CharField(required=True)
+        extract = serializers.CharField(required=True)
+        process_name = serializers.CharField(required=True)
+
+    def perform_request(self, validated_request_data):
+        # 获取输入参数
+        data = validated_request_data["data"]
+        include = validated_request_data.get("include", "")
+        exclude = validated_request_data.get("exclude", "")
+        extract = validated_request_data.get("extract", "")
+
+        # 处理包含条件(不支持正则)
+        include_terms = [term.strip() for term in include.split(",") if term.strip()]
+
+        # 处理排除条件(支持正则)
+        exclude_pattern = re.compile(exclude) if exclude else None
+
+        # 处理提取条件(支持正则)
+        extract_pattern = re.compile(extract) if extract else None
+
+        result = []
+        for line in data.splitlines():
+            # 跳过空行
+            if not line.strip():
+                continue
+
+            # 1. 包含条件检查（只有当前行包含指定词时才会继续处理）
+            if include_terms and not all(term in line for term in include_terms):
+                continue
+
+            # 2. 排除条件检查
+            if exclude_pattern and exclude_pattern.search(line):
+                continue
+
+            # 3. 提取处理
+            if extract_pattern:
+                match = extract_pattern.search(line)
+                if match:
+                    # 如果有分组则返回分组，否则返回整个匹配
+                    extracted = match.group(1) if len(match.groups()) >= 1 else match.group(0)
+                    result.append(extracted)
+            else:
+                result.append(line)
+
+        return {
+            "original_line_count": len(data.splitlines()),
+            "filtered_line_count": len(result),
+            "filtered_data": "\n".join(result),
+        }
