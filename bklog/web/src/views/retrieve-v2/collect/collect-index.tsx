@@ -37,7 +37,8 @@ import { copyMessage, deepClone } from '../../../common/util';
 import RetrieveHelper from '../../retrieve-helper';
 import AddCollectDialog from './add-collect-dialog';
 import CollectContainer from './collect-container';
-import ManageGroupDialog from './manage-group-dialog';
+import FavoriteManageDialog from './favorite-manage-dialog.vue';
+// import ManageGroupDialog from './manage-group-dialog';
 
 import './collect-index.scss';
 import { nextTick } from 'vue';
@@ -1011,10 +1012,18 @@ export default class CollectIndex extends tsc<IProps> {
             onMousedown={this.dragBegin}
           ></div>
         </CollectContainer>
-        <ManageGroupDialog
+        {/* <ManageGroupDialog
           vModel={this.isShowManageDialog}
           onSubmit={value => value && this.getFavoriteList()}
-        />
+        /> */}
+        <FavoriteManageDialog
+          modelValue={this.isShowManageDialog}
+          onClose={(val: boolean) => this.isShowManageDialog = false }
+          onSubmit={(value) => {console.log(2334);
+          }}
+        >
+
+        </FavoriteManageDialog>
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
           activeFavoriteID={this.activeFavoriteID}
