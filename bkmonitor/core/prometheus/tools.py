@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import socket
 import time
@@ -15,7 +15,7 @@ import typing
 from dataclasses import dataclass, field
 from functools import wraps
 from types import MethodType
-from typing import Generator, List, Optional
+from collections.abc import Generator
 
 from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
@@ -33,7 +33,7 @@ def get_udp_socket(address, port) -> socket.socket:
         udp_socket.connect((address, port))
         udp_socket.close()
         return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    except socket.error:
+    except OSError:
         return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
 
@@ -89,7 +89,7 @@ class SlicedIndex:
     # 用于标记当前切片数据本身并不是以 # HELP 开头
     valid_start: bool = True
     # valid_start = False 时需要通过 buffer_start 来补足
-    buffer_start: Optional[bytes] = None
+    buffer_start: bytes | None = None
 
     def to_tuple(self) -> tuple:
         return self.start, self.end
@@ -100,11 +100,11 @@ class SlicedIndex:
 
 @dataclass
 class SlicedIndexList:
-    indexes: List[SlicedIndex] = field(default_factory=list)
+    indexes: list[SlicedIndex] = field(default_factory=list)
     # 用于缓存上一次有效的开头
-    buffer_valid_start: Optional[bytes] = None
+    buffer_valid_start: bytes | None = None
 
-    _original_data: Optional[bytes] = None
+    _original_data: bytes | None = None
 
     def get_valid_start_content(self, start: int, end: int):
         """找到完整的指标头
@@ -143,15 +143,14 @@ class SlicedIndexList:
         self.indexes.append(SlicedIndex(start, end, valid_start, buffer_start=self.buffer_valid_start))
 
     def __iter__(self):
-        for elem in self.indexes:
-            yield elem
+        yield from self.indexes
 
     def __getitem__(self, ii):
         """Get a list item"""
         return self.indexes[ii]
 
 
-def find_udp_data_sliced_indexes(data: bytes, udp_package_max_size: int = 65507, mtu: int = 1500) -> SlicedIndexList:
+def find_udp_data_sliced_indexes(data: bytes, udp_package_max_size: int = 60000, mtu: int = 1500) -> SlicedIndexList:
     """对 UDP 发送数据进行切片处理，保证每次发送成功
     :param data: 预发送数据
     :param udp_package_max_size: 当前系统支持的最大 UDP 发送包大小，以 bytes 计算，默认为 65507 (在 macOS 下默认为 9126)

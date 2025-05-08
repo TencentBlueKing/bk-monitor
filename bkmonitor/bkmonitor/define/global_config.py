@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -38,7 +37,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
-        ("CELERY_WORKERS", slz.IntegerField(label="后台处理队列的子进程数（需重启scheduler:*）", default=0, min_value=0)),
+        (
+            "CELERY_WORKERS",
+            slz.IntegerField(label="后台处理队列的子进程数（需重启scheduler:*）", default=0, min_value=0),
+        ),
         ("HEALTHZ_ALARM_CONFIG", slz.JSONField(label="healthz告警配置", default={}, binary=True)),
         ("ENABLE_MESSAGE_QUEUE", slz.BooleanField(label="是否开启告警通知队列", default=True)),
         ("COMPATIBLE_ALARM_FORMAT", slz.BooleanField(label="是否兼容老版本数据字段格式", default=False)),
@@ -51,7 +53,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WEBHOOK_TIMEOUT", slz.IntegerField(label="Webhook超时时间", default=3)),
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
-        ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
+        (
+            "K8S_OPERATOR_DEPLOY_NAMESPACE",
+            slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={}),
+        ),
         ("K8S_COLLECTOR_CONFIG", slz.JSONField(label="集群内 collector 数据接收端特殊配置", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
@@ -64,7 +69,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("BK_DATA_PROJECT_MAINTAINER", slz.CharField(label="计算平台项目的维护人员", default="admin")),
         ("BK_DATA_DATA_EXPIRES_DAYS", slz.IntegerField(label="计算平台中结果表(MYSQL)默认保存天数", default=30)),
-        ("BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS", slz.IntegerField(label="计算平台中结果表(HDFS)默认保存天数", default=180)),
+        (
+            "BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS",
+            slz.IntegerField(label="计算平台中结果表(HDFS)默认保存天数", default=180),
+        ),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_NAME",
             slz.CharField(label="计算平台 MYSQL 存储集群名称", default="mysql-default", allow_blank=True),
@@ -82,11 +90,17 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.CharField(label="计算平台 DRUID 存储集群名称", default="", allow_blank=True),
         ),
         ("BK_DATA_KAFKA_BROKER_URL", slz.CharField(label="与计算平台对接的消息队列BROKER地址", default="")),
-        ("BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW", slz.IntegerField(label="数据接入计算平台后dataflow延时时间", default=5)),
+        (
+            "BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW",
+            slz.IntegerField(label="数据接入计算平台后dataflow延时时间", default=5),
+        ),
         ("BK_DATA_SCENE_ID_INTELLIGENT_DETECTION", slz.IntegerField(label="计算平台单指标异常检测场景ID", default=0)),
         ("BK_DATA_SCENE_ID_TIME_SERIES_FORECASTING", slz.IntegerField(label="计算平台时序预测场景ID", default=0)),
         ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label="计算平台离群检测场景ID", default=0)),
-        ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label="计算平台多指标异常检测场景ID", default=0)),
+        (
+            "BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION",
+            slz.IntegerField(label="计算平台多指标异常检测场景ID", default=0),
+        ),
         ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label="计算平台指标推荐场景ID", default=0)),
         ("BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测场景ID", default=0)),
         ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label="计算平台 dataflow 计算集群组", default="default_inland")),
@@ -157,7 +171,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
-        ("APM_APPLICATION_QUICK_REFRESH_DELTA", slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30)),
+        (
+            "APM_APPLICATION_QUICK_REFRESH_DELTA",
+            slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30),
+        ),
         (
             "APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA",
             slz.IntegerField(label=_("指标数据源数据发现时需要将周期切分为每批查询几分钟的数据"), default=200),
@@ -174,7 +191,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
-        ("APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE", slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland")),
+        (
+            "APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE",
+            slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland"),
+        ),
         ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
         ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
@@ -229,7 +249,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测方案ID", default=0)),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
-            slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
+            slz.CharField(
+                label="多指标异常检测通用flow结果输出表",
+                default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate",
+            ),
         ),
         (
             "BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX",
@@ -314,7 +337,23 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
         ("ES_CLUSTER_BLACKLIST", slz.ListField(label="ES 黑名单集群列表", default=[])),
         ("ENABLE_V2_ROTATION_ES_CLUSTER_IDS", slz.ListField(label="启用新版索引轮转的ES集群ID列表", default=[])),
-        ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
+        (
+            "SYNC_BKBASE_META_BLACK_BIZ_ID_LIST",
+            slz.ListField(label="同步计算平台RT元信息时的黑名单业务ID列表", default=[]),
+        ),
+        ("ENABLE_SYNC_BKBASE_META_TASK", slz.BooleanField(label="是否开启计算平台RT元信息同步任务", default=False)),
+        (
+            "SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES",
+            slz.ListField(label="同步计算平台RT元信息时支持的存储类型", default=["mysql", "tspider", "hdfs"]),
+        ),
+        (
+            "SYNC_BKBASE_META_BIZ_BATCH_SIZE",
+            slz.IntegerField(label="同步计算平台RT元信息时的单轮拉取业务ID个数", default=10),
+        ),
+        (
+            "BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST",
+            slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[]),
+        ),
         (
             "BCS_DATA_CONVERGENCE_CONFIG",
             slz.JSONField(
@@ -331,12 +370,21 @@ ADVANCED_OPTIONS = OrderedDict(
         ("KAFKA_TAIL_API_RETRY_TIMES", slz.IntegerField(label="Kafka采样接口重试次数", default=3)),
         ("KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS", slz.IntegerField(label="Kafka采样接口超时时间(秒)", default=2)),
         ("KAFKA_TAIL_API_TIMEOUT_SECONDS", slz.IntegerField(label="Kafka采样接口Consumer超时时间(秒)", default=1000)),
-        ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
+        (
+            "DEFAULT_VM_DATA_LINK_NAMESPACE",
+            slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor"),
+        ),
         ("BKBASE_REDIS_PATTERN", slz.CharField(label="计算平台Redis监听模式", default="databus_v4_dataid")),
         ("BKBASE_REDIS_SCAN_COUNT", slz.IntegerField(label="计算平台Redis单次SCAN数量", default=1000)),
-        ("BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS", slz.IntegerField(label="Redis Watch锁续约间隔(秒)", default=15)),
+        (
+            "BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS",
+            slz.IntegerField(label="Redis Watch锁续约间隔(秒)", default=15),
+        ),
         ("BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS", slz.IntegerField(label="Redis Watch锁过期时间(秒)", default=60)),
-        ("BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS", slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400)),
+        (
+            "BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS",
+            slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400),
+        ),
         ("BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS", slz.IntegerField(label="计算平台Redis重连间隔(秒)", default=2)),
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
@@ -344,11 +392,17 @@ ADVANCED_OPTIONS = OrderedDict(
             "ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE",
             slz.BooleanField(label="是否启用同步历史ES集群记录能力", default=False),
         ),
-        ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
+        (
+            "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
+            slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
+        ),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
-        ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
+        (
+            "BK_DATA_RECORD_RULE_PROJECT_ID",
+            slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
+        ),
         ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
@@ -383,10 +437,17 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "FILE_SYSTEM_TYPE_IGNORE",
             slz.ListField(
-                label=_("全局磁盘类型屏蔽配置"), default=["iso9660", "tmpfs", "udf"], help_text=_("可通过该配置屏蔽指定类型的磁盘的告警")
+                label=_("全局磁盘类型屏蔽配置"),
+                default=["iso9660", "tmpfs", "udf"],
+                help_text=_("可通过该配置屏蔽指定类型的磁盘的告警"),
             ),
         ),
-        ("GRAPH_WATERMARK", slz.BooleanField(label=_("显示图表水印"), default=True, help_text=_("开启后，页面上的数据图表将带上当前用户名的水印"))),
+        (
+            "GRAPH_WATERMARK",
+            slz.BooleanField(
+                label=_("显示图表水印"), default=True, help_text=_("开启后，页面上的数据图表将带上当前用户名的水印")
+            ),
+        ),
         ("ENABLED_NOTICE_WAYS", slz.ListField(label=_("告警通知渠道"), default=["weixin", "mail", "sms", "voice"])),
         (
             "MESSAGE_QUEUE_DSN",
@@ -394,7 +455,9 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("告警通知消息队列DSN"),
                 default="",
                 allow_blank=True,
-                help_text=_('例如 "redis://:${passowrd}@${host}:${port}/${db}/${key}" ，' "注意用户名和密码需要进行 urlencode"),
+                help_text=_(
+                    '例如 "redis://:${passowrd}@${host}:${port}/${db}/${key}" ，注意用户名和密码需要进行 urlencode'
+                ),
             ),
         ),
         (
@@ -403,12 +466,16 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("监控采集数据保存天数"),
                 default=30,
                 min_value=1,
-                help_text=_("采集上报数据在influxdb的保留天数，" "超出保留天数的将被清理。数值越大对存储资源要求越高"),
+                help_text=_("采集上报数据在influxdb的保留天数，超出保留天数的将被清理。数值越大对存储资源要求越高"),
             ),
         ),
         (
             "MESSAGE_QUEUE_MAX_LENGTH",
-            slz.IntegerField(label=_("通知消息队列长度上限"), default=0, help_text=_("若队列长度超出该值，则丢弃旧消息。值为 0 代表无长度限制")),
+            slz.IntegerField(
+                label=_("通知消息队列长度上限"),
+                default=0,
+                help_text=_("若队列长度超出该值，则丢弃旧消息。值为 0 代表无长度限制"),
+            ),
         ),
         ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=True)),
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
@@ -419,8 +486,14 @@ STANDARD_CONFIGS = OrderedDict(
             "MAX_AVAILABLE_DURATION_LIMIT",
             slz.IntegerField(label=_("拨测任务最大超时限制(ms)"), default=60000, min_value=1000),
         ),
-        ("HOST_DISABLE_MONITOR_STATES", slz.ListField(label=_("主机不监控字段列表"), default=[_("备用机"), _("测试中"), _("故障中")])),
-        ("HOST_DISABLE_NOTICE_STATES", slz.ListField(label=_("主机不告警字段列表"), default=[_("运营中[无告警]"), _("开发中[无告警]")])),
+        (
+            "HOST_DISABLE_MONITOR_STATES",
+            slz.ListField(label=_("主机不监控字段列表"), default=[_("备用机"), _("测试中"), _("故障中")]),
+        ),
+        (
+            "HOST_DISABLE_NOTICE_STATES",
+            slz.ListField(label=_("主机不告警字段列表"), default=[_("运营中[无告警]"), _("开发中[无告警]")]),
+        ),
         (
             "OS_GLOBAL_SWITCH",
             slz.MultipleChoiceField(
@@ -455,7 +528,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
-        ("APM_BMW_DEPLOY_BIZ_ID", slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0)),
+        (
+            "APM_BMW_DEPLOY_BIZ_ID",
+            slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
+        ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
         ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=[])),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
@@ -464,7 +540,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),
         (
             "UNIFY_QUERY_URL",
-            slz.CharField(label=_("统一查询模块地址(后台自动刷新)"), default="http://unify-query.bkmonitorv3.service.consul:10205/"),
+            slz.CharField(
+                label=_("统一查询模块地址(后台自动刷新)"),
+                default="http://unify-query.bkmonitorv3.service.consul:10205/",
+            ),
         ),
         (
             "INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME",
@@ -480,7 +559,9 @@ STANDARD_CONFIGS = OrderedDict(
         ),
         (
             "TRANSFER_BUILTIN_CLUSTER_ID",
-            slz.CharField(label=_("Transfer内置的集群ID，不需要在页面展示(多个以逗号分隔)"), default="", allow_blank=True),
+            slz.CharField(
+                label=_("Transfer内置的集群ID，不需要在页面展示(多个以逗号分隔)"), default="", allow_blank=True
+            ),
         ),
         (
             "DEFAULT_TRANSFER_CLUSTER_ID_FOR_K8S",
@@ -497,10 +578,19 @@ STANDARD_CONFIGS = OrderedDict(
         ("BCS_API_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群元数据获取方式"), default="db", choices=("db", "api"))),
         ("ENABLE_BCS_GRAY_CLUSTER", slz.BooleanField(label=_("是否启用BCS集群灰度模式"), default=False)),
         ("NOTICE_TITLE", slz.CharField(label=_("告警通知标题"), default="蓝鲸监控")),
-        ("DEFAULT_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True)),
+        (
+            "DEFAULT_KAFKA_STORAGE_CLUSTER_ID",
+            slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True),
+        ),
         ("BCS_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("BCS kafka 存储集群ID"), default=None, allow_null=True)),
-        ("BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID", slz.CharField(label=_("自定义上报存储集群ID"), default=None, allow_null=True)),
-        ("ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA", slz.BooleanField(label=_("是否启用计算平台处理influxdb降精度流程"), default=False)),
+        (
+            "BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID",
+            slz.CharField(label=_("自定义上报存储集群ID"), default=None, allow_null=True),
+        ),
+        (
+            "ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA",
+            slz.BooleanField(label=_("是否启用计算平台处理influxdb降精度流程"), default=False),
+        ),
         (
             "ENABLE_UNIFY_QUERY_DOWNSAMPLE_BY_BKDATA",
             slz.BooleanField(label=_("是否启用unify-query查询计算平台降精度数据"), default=False),
@@ -510,6 +600,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("DOUBLE_CHECK_SUM_STRATEGY_IDS", slz.ListField(label=_("适用 SUM 聚合方法二次确认的策略ID列表"), default=[])),
         ("SMS_CONTENT_LENGTH", slz.IntegerField(label=_("发送短信内容最大长度（0表示不限制）"), default=0)),
         ("IS_ACCESS_BK_DATA", slz.BooleanField(label=_("是否开启与计算平台的功能对接"), default=False)),
+        (
+            "IS_MIGRATE_AIOPS_STRATEGY",
+            slz.BooleanField(label=_("是否已经把AIOPS算法方案配置迁移到监控平台"), default=False),
+        ),
         ("BCS_CLUSTER_BK_ENV_LABEL", slz.CharField(label=_("BCS 集群配置来源标签"), default="")),
         # IPv6相关配置
         ("IPV6_SUPPORT_BIZ_LIST", slz.ListField(label=_("支持ipv6的业务列表"), default=[])),
@@ -517,7 +611,10 @@ STANDARD_CONFIGS = OrderedDict(
             "HOST_DISPLAY_FIELDS",
             slz.ListField(label=_("主机展示字段"), default=["bk_host_innerip", "bk_host_name", "bk_host_innerip_v6"]),
         ),
-        ("HOST_VIEW_DISPLAY_FIELDS", slz.ListField(label=_("主机视图展示字段"), default=["display_name", "bk_host_name"])),
+        (
+            "HOST_VIEW_DISPLAY_FIELDS",
+            slz.ListField(label=_("主机视图展示字段"), default=["display_name", "bk_host_name"]),
+        ),
         ("USE_GSE_AGENT_STATUS_NEW_API", slz.BooleanField(label=_("是否使用新的gse agent状态接口"), default=True)),
         (
             "UPTIMECHECK_OUTPUT_FIELDS",
