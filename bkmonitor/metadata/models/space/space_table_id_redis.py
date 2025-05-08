@@ -182,7 +182,10 @@ class SpaceTableIDRedis:
 
     def _compose_doris_table_id_detail(self, table_id_list: list[str] | None = None) -> dict:
         """组装doris结果表的详情"""
-        logger.info("start to compose doris table_id detail data,table_id_list->[%s]", table_id_list)
+        logger.info(
+            "_compose_doris_table_id_detail:start to compose doris table_id detail data,table_id_list->[%s]",
+            table_id_list,
+        )
         if table_id_list:
             doris_records = models.DorisStorage.objects.filter(table_id__in=table_id_list)
             data_label_map = models.ResultTable.objects.filter(table_id__in=table_id_list).values(
@@ -264,13 +267,107 @@ class SpaceTableIDRedis:
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "push_doris_table_id_detail: failed to push es_table_detail for table_id_list->[%s],error->[%s]",
+                "push_doris_table_id_detail: failed to push doris_table_detail for table_id_list->[%s],error->[%s]",
                 table_id_list,
                 e,
             )
             return
         logger.info(
-            "push_doris_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list
+            "push_doris_table_id_detail: push doris_table_detail for table_id_list->[%s] successfully", table_id_list
+        )
+
+    def _compose_bkbase_table_id_detail(self, table_id_list: list[str] | None = None) -> dict:
+        """
+        组装计算平台结果表详情
+        """
+        logger.info(
+            "_compose_bkbase_table_id_detail: start to compose bkbase table id detail,table_id_list->[%s] ",
+            table_id_list,
+        )
+        if table_id_list:
+            bkbase_rt_records = models.ResultTable.objects.filter(table_id__in=table_id_list)
+        else:
+            bkbase_rt_records = models.ResultTable.objects.filter(default_storage=models.ClusterInfo.TYPE_BKDATA)
+
+        data = {}
+        table_id_list = list(bkbase_rt_records.values_list("table_id", flat=True))
+        all_fields = self._compose_table_id_fields(table_ids=set(table_id_list))
+        for record in bkbase_rt_records:
+            # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
+            db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
+            fields = (all_fields.get(record.table_id) or [],)
+            data[record.table_id] = json.dumps(
+                {
+                    "db": db,
+                    "measurement": "",  # 现阶段不关注存储类型
+                    "storage_type": "bk_sql",
+                    "data_label": record.data_label,
+                    "fields": fields,
+                }
+            )
+        return data
+
+    def push_bkbase_table_id_detail(self, table_id_list: list | None = None, is_publish: bool | None = True):
+        """
+        推送Doris结果表详情路由
+        """
+        logger.info(
+            "push_bkbase_table_id_detail: try to push bkbase_table_id_detail for table_id_list->[%s]", table_id_list
+        )
+
+        _table_id_detail = {}
+        try:
+            _table_id_detail.update(self._compose_bkbase_table_id_detail(table_id_list))
+
+            if _table_id_detail:
+                logger.info(
+                    "push_bkbase_table_id_detail: table_id_list->[%s], got table_id_detail->[%s]",
+                    table_id_list,
+                    json.dumps(_table_id_detail),
+                )
+                updated_table_id_detail = {}
+                for key, value in _table_id_detail.items():
+                    parts = key.split(".")  # 通过 "." 分割 key
+                    if len(parts) == 1:
+                        logger.info(
+                            "push_bkbase_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'",
+                            key,
+                        )
+                        # 如果分割结果长度为 1，补充 ".__default__"
+                        new_key = f"{key}.__default__"
+                        updated_table_id_detail[new_key] = value
+                    elif len(parts) == 2:
+                        # 如果分割结果长度为 2，保持原样
+                        updated_table_id_detail[key] = value
+                    else:
+                        # 如果分割结果长度超过 2，打印错误日志
+                        logger.error(
+                            "push_doris_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
+                        )
+
+                # 更新 _table_id_detail
+                _table_id_detail = updated_table_id_detail
+
+                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                if is_publish:
+                    logger.info(
+                        "push_bkbase_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->["
+                        "%s]",
+                        table_id_list,
+                        json.dumps(_table_id_detail),
+                        RESULT_TABLE_DETAIL_CHANNEL,
+                    )
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "push_bkbase_table_id_detail: failed to push bkbase_table_detail for table_id_list->[%s],error->[%s]",
+                table_id_list,
+                e,
+            )
+            return
+        logger.info(
+            "push_bkbase_table_id_detail: push bkbase_table_detail for table_id_list->[%s] successfully", table_id_list
         )
 
     def push_table_id_detail(
