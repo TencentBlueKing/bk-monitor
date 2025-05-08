@@ -2,7 +2,7 @@ import copy
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
@@ -43,7 +43,7 @@ def get_node_lucene_syntax(node):
 
 
 @dataclass
-class LuceneField(object):
+class LuceneField:
     """Lucene解析出的Field类"""
 
     pos: int = 0
@@ -63,14 +63,14 @@ class LuceneField(object):
         self.field_name = self.name
 
 
-class LuceneParser(object):
+class LuceneParser:
     """lucene语法的解析类"""
 
     def __init__(self, keyword: str) -> None:
         self.keyword = keyword
         self.lexer = lexer.clone()
 
-    def parsing(self) -> List[LuceneField]:
+    def parsing(self) -> list[LuceneField]:
         """解析lucene语法入口函数"""
         tree = parser.parse(self.keyword, lexer=self.lexer)
         fields = self._get_method(tree)
@@ -94,7 +94,7 @@ class LuceneParser(object):
     def _get_method(self, node):
         """获取解析方法"""
         node_type = get_node_lucene_syntax(node)
-        method_name = "parsing_{}".format(node_type.lower())
+        method_name = f"parsing_{node_type.lower()}"
         return getattr(self, method_name)(node)
 
     def parsing_word(self, node):
@@ -141,7 +141,7 @@ class LuceneParser(object):
             pos=node.pos,
             type=LuceneSyntaxEnum.FIELD_GROUP,
             operator=FIELD_GROUP_OPERATOR,
-            value="({})".format(str(node.expr)),
+            value=f"({str(node.expr)})",
         )
         return field
 
@@ -159,7 +159,7 @@ class LuceneParser(object):
     def parsing_range(self, node):
         """ """
         field = LuceneField(pos=node.pos, type=LuceneSyntaxEnum.RANGE, value=str(node))
-        field.operator = "{}{}".format(LOW_CHAR[node.include_low], HIGH_CHAR[node.include_high])
+        field.operator = f"{LOW_CHAR[node.include_low]}{HIGH_CHAR[node.include_high]}"
         return field
 
     def parsing_fuzzy(self, node):
@@ -280,16 +280,16 @@ class LuceneTransformer(TreeTransformer):
         query_tree = parser.parse(keyword, lexer=self.lexer)
         for param in params:
             query_tree = self.visit(query_tree, param)
-        return re.sub(r'\s{2,}', ' ', str(auto_head_tail(query_tree)))
+        return re.sub(r"\s{2,}", " ", str(auto_head_tail(query_tree)))
 
 
 @dataclass
-class InspectResult(object):
+class InspectResult:
     is_legal: bool = True
     message: str = ""
 
 
-class BaseInspector(object):
+class BaseInspector:
     """检查器基类"""
 
     syntax_error_message = ""
@@ -547,7 +547,7 @@ class DefaultInspector(BaseInspector):
             self.set_illegal()
 
 
-class LuceneSyntaxResolver(object):
+class LuceneSyntaxResolver:
     """lucene语法检查以及修复器"""
 
     REGISTERED_INSPECTORS = [
@@ -659,15 +659,15 @@ def generate_query_string(params: dict) -> str:
             if not addition.get("field"):
                 continue
             if addition["operator"] in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
-                str_additions.append(f'{addition["field"]} {addition["operator"]}')
+                str_additions.append(f"{addition['field']} {addition['operator']}")
             else:
-                str_additions.append(f'{addition["field"]} {addition["operator"]} {addition.get("value", "")}')
+                str_additions.append(f"{addition['field']} {addition['operator']} {addition.get('value', '')}")
 
         query_string += " AND (" + " AND ".join(str_additions) + ")"
     return query_string
 
 
-class EnhanceLuceneBase(object):
+class EnhanceLuceneBase:
     """
     增强Lucene语法
     """
@@ -691,7 +691,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
     """
 
     RE_STRING = r'(".*?")|(/.*?/)'
-    RE = r'\b(and|or|not|to)\b'
+    RE = r"\b(and|or|not|to)\b"
 
     def __init__(self, query_string: str = ""):
         super().__init__(query_string)
@@ -700,9 +700,9 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         # 替换字符串,避免干扰判断
         check_query_string = re.sub(self.RE_STRING, "x", self.query_string, flags=re.DOTALL)
         pattern = re.compile(self.RE)
-        split_strings = re.split(r'(:\s*\S+\s*)', check_query_string)
+        split_strings = re.split(r"(:\s*\S+\s*)", check_query_string)
         for part in split_strings:
-            if ':' not in part and pattern.search(part):
+            if ":" not in part and pattern.search(part):
                 return True
         return False
 
@@ -710,13 +710,13 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         if not self.match():
             return self.query_string
         pattern = re.compile(self.RE)
-        pattern1 = re.compile(r'(:\s*\S+\s*)')
-        pattern2 = re.compile(r':\s*(and|or|not|to)')
+        pattern1 = re.compile(r"(:\s*\S+\s*)")
+        pattern2 = re.compile(r":\s*(and|or|not|to)")
         split_strings = re.split(self.RE_STRING, self.query_string, flags=re.DOTALL)
         # 调整列表，删除None值（由正则表达式分割位置的特殊性产生）
         split_strings = [s for s in split_strings if s is not None]
         for i, part in enumerate(split_strings):
-            if not (part.startswith('"') and part.endswith('"')) and not (part.startswith('/') and part.endswith('/')):
+            if not (part.startswith('"') and part.endswith('"')) and not (part.startswith("/") and part.endswith("/")):
                 match = pattern2.search(part)
                 # 处理log: and的情况,and不应该被转换
                 if match:
@@ -724,10 +724,10 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
                     for j, child_part in enumerate(part_strings):
                         if not child_part.startswith(":"):
                             part_strings[j] = pattern.sub(lambda m: m.group().upper(), child_part)
-                    split_strings[i] = ''.join(part_strings)
+                    split_strings[i] = "".join(part_strings)
                 else:
                     split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
-        return ''.join(split_strings)
+        return "".join(split_strings)
 
 
 class OperatorEnhanceEnum(ChoicesEnum):
@@ -780,7 +780,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
             if match_pattern.match(_query_string):
                 result_string += _query_string
             else:
-                result_string += sub_pattern.sub(r'\1: \2\3', _query_string)
+                result_string += sub_pattern.sub(r"\1: \2\3", _query_string)
         return result_string
 
 
@@ -791,7 +791,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
     """
 
     RE_STRING = r'(".*?")|(/.*?/)'
-    RE = r'(?<![a-zA-Z0-9_])(and|or|not|AND|OR|NOT)(?![a-zA-Z0-9_])'
+    RE = r"(?<![a-zA-Z0-9_])(and|or|not|AND|OR|NOT)(?![a-zA-Z0-9_])"
 
     def match(self):
         query_string = copy.deepcopy(self.query_string)
@@ -805,7 +805,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
             for match in matches:
                 start, __ = match.span()
                 # 检查逻辑运算符前面是否有冒号
-                colon_index = self.query_string.rfind(':', 0, start)
+                colon_index = self.query_string.rfind(":", 0, start)
                 if colon_index != -1:
                     # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
                     post_colon = self.query_string[colon_index + 1 : start].strip()
@@ -840,7 +840,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
             operator = match.group()
 
             # 检查逻辑运算符前面是否有冒号
-            colon_index = query_string.rfind(':', 0, start + offset)
+            colon_index = query_string.rfind(":", 0, start + offset)
             if colon_index != -1:
                 # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
                 post_colon = query_string[colon_index + 1 : start + offset].strip()
@@ -861,7 +861,34 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
         return query_string
 
 
-class EnhanceLuceneAdapter(object):
+class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
+    """
+    匹配单引号括起来的部分(只处理第一部分),单引号转换双引号,中间的转义符做调转
+    例如: 'abc" cde\'fgh'ijkl'mn' => "abc\" cde'fgh"ijkl"mn"
+    """
+
+    RE = r"'(?:[^'\\]|\\.)*'"
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string)
+
+    def match(self) -> bool:
+        if re.search(self.RE, self.query_string):
+            return True
+        return False
+
+    def transform(self) -> str:
+        matches = re.findall(self.RE, self.query_string)
+        if not matches:
+            return self.query_string
+        for original in matches:
+            res = original.replace('"', '\\"').replace("\\'", "'")
+            target_str = '"' + res[1:-1] + '"'
+            self.query_string = self.query_string.replace(original, target_str)
+        return self.query_string
+
+
+class EnhanceLuceneAdapter:
     """
     增强Lucene语法适配器
     依次检查是否满足需要兼容的语法类型, 并转换成lucene支持的语法
@@ -910,7 +937,7 @@ class LuceneCheckResult:
     fixed_query_string: str = ""
 
 
-class LuceneCheckerBase(object):
+class LuceneCheckerBase:
     """
     Lucene语法检查器基类
     """
@@ -918,7 +945,7 @@ class LuceneCheckerBase(object):
     # prompt message
     prompt_template = _("{error}, {suggestion}")
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None, force_check: bool = False):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None, force_check: bool = False):
         """
         初始化
         :param query_string: 查询字符串
@@ -930,14 +957,14 @@ class LuceneCheckerBase(object):
         self.fields = fields or []
         self.check_result = LuceneCheckResult(fixed_query_string=query_string)
         # 子查询列表
-        self.sub_query_list: List[str] = []
-        self.field_name_list: List[str] = []
+        self.sub_query_list: list[str] = []
+        self.field_name_list: list[str] = []
         # 分词字段列表
-        self.analyzed_field_list: List[str] = []
+        self.analyzed_field_list: list[str] = []
         # 数值字段列表
-        self.numeric_field_list: List[str] = []
+        self.numeric_field_list: list[str] = []
         # LuceneParser解析后的字段列表
-        self.parsed_fields: List[LuceneField] = []
+        self.parsed_fields: list[LuceneField] = []
         self.prepare()
 
     def prepare(self):
@@ -946,9 +973,9 @@ class LuceneCheckerBase(object):
         如果后续要在prepare里面做一些额外的工作, 需要在子类中重写这个方法, 最后返回super().prepare()即可
         """
         # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
-        pattern = '|'.join(r'\b{}\b'.format(x) for x in LuceneReservedLogicOperatorEnum.get_keys())
+        pattern = "|".join(rf"\b{x}\b" for x in LuceneReservedLogicOperatorEnum.get_keys())
         # 使用正则来分割字符串，但是保持分割引号的存在
-        result = re.split('(' + pattern + ')', self.query_string)
+        result = re.split("(" + pattern + ")", self.query_string)
         # 去除结果中的空格部分，这样就不会有头尾空格了
         self.sub_query_list = [x.strip() for x in result if x.strip() != ""]
         if not self.fields:
@@ -1026,13 +1053,13 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
     括号配对检查器
     """
 
-    PAIR_LEFT = '('
-    PAIR_RIGHT = ')'
+    PAIR_LEFT = "("
+    PAIR_RIGHT = ")"
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields)
         # 检查是否多了左括号或者右括号, 如果多了, 则为True, 否则为False
-        self.more_or_less: Optional[bool] = None
+        self.more_or_less: bool | None = None
 
     def _fix(self):
         stack = deque()
@@ -1087,7 +1114,7 @@ class LuceneQuotesChecker(LuceneCheckerBase):
     DOUBLE_QUOTE = '"'
     CHARACTER_WHITESPACE = " "
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     @staticmethod
@@ -1162,9 +1189,9 @@ class LuceneQuotesChecker(LuceneCheckerBase):
                 return False
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     continue
-                __, field_expr = sub_query.split(':')
+                __, field_expr = sub_query.split(":")
                 field_expr = field_expr.strip()
                 # 如果是空格分割的单词, 则每个单词都检查一遍
                 if " " in field_expr:
@@ -1180,12 +1207,12 @@ class LuceneQuotesChecker(LuceneCheckerBase):
 
 
 class LuceneRangeChecker(LuceneCheckerBase):
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields)
 
     @staticmethod
     def remove_left_consecutive_brackets(s: str):
-        matches = re.findall(r'\[+\{+|\{+\[+|\[+|\{+', s)
+        matches = re.findall(r"\[+\{+|\{+\[+|\[+|\{+", s)
         max_match = max(matches, key=len) if matches else None
         if not max_match:
             return s
@@ -1193,7 +1220,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
 
     @staticmethod
     def remove_right_consecutive_brackets(s: str):
-        matches = re.findall(r'\]+\}+|\}+\]+|\]+|\}+', s)
+        matches = re.findall(r"\]+\}+|\}+\]+|\]+|\}+", s)
         max_match = max(matches, key=len) if matches else None
         if not max_match:
             return s
@@ -1204,16 +1231,16 @@ class LuceneRangeChecker(LuceneCheckerBase):
         在最小化子语句中按TO拆分, 检查左边和右边是否缺失边界以及边界符号
         """
         for sub_query in self.sub_query_list:
-            if 'to' in sub_query:
+            if "to" in sub_query:
                 self.check_result.error = _("RANGE语法异常, to大小写需转换")
                 return False
-            if 'TO' in sub_query:
-                parts = sub_query.split('TO')
+            if "TO" in sub_query:
+                parts = sub_query.split("TO")
                 if len(parts) >= 2 and ":" not in parts[0]:
                     self.check_result.error = _("RANGE语法异常, 缺少字段名")
                     self.check_result.is_fixable = False
                     return False
-                __, start = parts[0].split(':')
+                __, start = parts[0].split(":")
                 start = start.strip()
                 end = parts[1].strip()
                 if not (re.match(r"^(?:\[\d+|\{\d+|\{\*)$", start) and re.match(r"^(?:\d+}|\d+]|.\*})$", end)):
@@ -1225,22 +1252,22 @@ class LuceneRangeChecker(LuceneCheckerBase):
     def _fix_range(self, sub_query: str) -> str:
         def process_left_part(_left_part: str):
             _left_part = self.remove_left_consecutive_brackets(_left_part)
-            field_name, upper_bound = _left_part.split(':')
+            field_name, upper_bound = _left_part.split(":")
             field_name = field_name.strip()
             upper_bound = upper_bound.strip()
             # 兼容 1 [ 这种情况
-            if upper_bound and upper_bound[-1] in ('[', '{'):
+            if upper_bound and upper_bound[-1] in ("[", "{"):
                 upper_bound = upper_bound[-1] + upper_bound[:-1].strip()
             if not upper_bound:
-                upper_bound = '{*'
+                upper_bound = "{*"
             else:
-                if upper_bound[0] not in ('[', '{'):
+                if upper_bound[0] not in ("[", "{"):
                     if upper_bound[-1].isdigit():
-                        upper_bound = '[' + upper_bound
+                        upper_bound = "[" + upper_bound
                     else:
-                        upper_bound = '{' + upper_bound
-                if not upper_bound[-1].isdigit() and upper_bound[-1] != '*':
-                    upper_bound += '*'
+                        upper_bound = "{" + upper_bound
+                if not upper_bound[-1].isdigit() and upper_bound[-1] != "*":
+                    upper_bound += "*"
                 if upper_bound == "[*":
                     upper_bound = "{*"
             return field_name, upper_bound
@@ -1248,25 +1275,25 @@ class LuceneRangeChecker(LuceneCheckerBase):
         def process_right_part(_right_part: str):
             _right_part = self.remove_right_consecutive_brackets(_right_part)
             # 兼容 [ 1 这种情况
-            if _right_part and _right_part[0] in (']', '}'):
+            if _right_part and _right_part[0] in ("]", "}"):
                 _right_part = _right_part[1:].strip() + _right_part[0]
             if not _right_part:
-                lower_bound = '*}'
+                lower_bound = "*}"
             else:
-                if _right_part[-1] not in (']', '}'):
+                if _right_part[-1] not in ("]", "}"):
                     if _right_part[0].isdigit():
-                        lower_bound = _right_part + ']'
+                        lower_bound = _right_part + "]"
                     else:
-                        lower_bound = _right_part + '}'
+                        lower_bound = _right_part + "}"
                 else:
                     lower_bound = _right_part
-                if not lower_bound[0].isdigit() and lower_bound[0] != '*':
-                    lower_bound = '*' + lower_bound
+                if not lower_bound[0].isdigit() and lower_bound[0] != "*":
+                    lower_bound = "*" + lower_bound
             if lower_bound == "*]":
                 lower_bound = "*}"
             return lower_bound
 
-        left_part, right_part = sub_query.split('TO')
+        left_part, right_part = sub_query.split("TO")
         left_result = process_left_part(left_part.strip())
         right_result = process_right_part(right_part.strip())
         return f"{left_result[0]}: {left_result[1]} TO {right_result}"
@@ -1278,14 +1305,14 @@ class LuceneRangeChecker(LuceneCheckerBase):
         fixed_sub_query_list = []
         for sub_query in self.sub_query_list:
             original_sub_query = copy.deepcopy(sub_query)
-            if 'to' in sub_query:
+            if "to" in sub_query:
                 original_sub_query = sub_query.replace("to", "TO")
 
-            if 'TO' in sub_query:
+            if "TO" in sub_query:
                 fixed_sub_query_list.append(self._fix_range(sub_query))
             else:
                 fixed_sub_query_list.append(original_sub_query)
-        return ' '.join(fixed_sub_query_list)
+        return " ".join(fixed_sub_query_list)
 
 
 class LuceneFieldExprChecker(LuceneCheckerBase):
@@ -1293,14 +1320,14 @@ class LuceneFieldExprChecker(LuceneCheckerBase):
     检查字段查询内容是否存在, 该类的所有场景均无法修复, 即针对 "log: "这种场景
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields)
 
     def _check(self):
         for sub_query in self.sub_query_list:
-            if ':' not in sub_query:
+            if ":" not in sub_query:
                 continue
-            field_name, field_expr = sub_query.split(':')
+            field_name, field_expr = sub_query.split(":")
             if "(" in field_name:
                 field_name = field_name.split("(")[0]
             field_name = field_name.strip()
@@ -1323,7 +1350,7 @@ class LuceneFieldExistChecker(LuceneCheckerBase):
     检查字段是否存在, 该类的所有场景均无法修复
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     def _check(self):
@@ -1339,9 +1366,9 @@ class LuceneFieldExistChecker(LuceneCheckerBase):
                     return False
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     continue
-                field_name, field_expr = sub_query.split(':')
+                field_name, field_expr = sub_query.split(":")
                 if "(" in field_name:
                     field_name = field_name.split("(")[0]
                 field_name = field_name.strip()
@@ -1358,8 +1385,8 @@ class LuceneReservedCharChecker(LuceneCheckerBase):
     检查是否有保留字符, 该类的所有场景均无法修复
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
-        self.analyzed_field_list: List[str] = []
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
+        self.analyzed_field_list: list[str] = []
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     def _check(self):
@@ -1376,14 +1403,14 @@ class LuceneReservedCharChecker(LuceneCheckerBase):
             return True
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     if sub_query.strip() in LUCENE_RESERVED_CHARS:
                         self.check_result.error = _("未检测到查询内容")
                         self.check_result.suggestion = _("请核对查询内容")
                         self.check_result.fixable = False
                         return False
                     continue
-                field_name, field_expr = sub_query.split(':')
+                field_name, field_expr = sub_query.split(":")
                 field_name = field_name.strip()
                 field_expr = field_expr.strip()
                 if field_expr and field_expr in LUCENE_RESERVED_CHARS and field_name in self.analyzed_field_list:
@@ -1404,9 +1431,9 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
     检查是否有全角字符
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
-        self.full_width_char_list: List[str] = []
+        self.full_width_char_list: list[str] = []
 
     def extract_full_width_char(self, s: str):
         """提取全角字符"""
@@ -1417,7 +1444,7 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
     @staticmethod
     def full_width_to_half_width(s: str) -> str:
         """全角转半角"""
-        result = ''
+        result = ""
         for char in s:
             if char in FULL_WIDTH_CHAR_MAP:
                 char = FULL_WIDTH_CHAR_MAP[char]
@@ -1433,9 +1460,9 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
                 self.extract_full_width_char(field.value)
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     continue
-                field_name, field_expr = sub_query.split(':')
+                field_name, field_expr = sub_query.split(":")
                 if "(" in field_name:
                     field_name = field_name.split("(")[0]
                 field_name = field_name.strip()
@@ -1447,7 +1474,9 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
             if FULL_WIDTH_COLON in self.query_string:
                 self.full_width_char_list.append(FULL_WIDTH_COLON)
             if self.full_width_char_list:
-                self.check_result.error = _("检测到使用了全角字符{char}").format(char=",".join(self.full_width_char_list))
+                self.check_result.error = _("检测到使用了全角字符{char}").format(
+                    char=",".join(self.full_width_char_list)
+                )
                 return False
 
         return True
@@ -1461,12 +1490,12 @@ class LuceneNumericOperatorChecker(LuceneCheckerBase):
     检查数值类型的运算符, 数值类型只支持LUCENE_NUMERIC_OPERATORS内定义的, 该类的所有场景均无法修复
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     @staticmethod
-    def _extract_illegal_numeric_operator(sub_query: str) -> Optional[str]:
-        pattern = r'[<>=]+'
+    def _extract_illegal_numeric_operator(sub_query: str) -> str | None:
+        pattern = r"[<>=]+"
         matches = re.findall(pattern, sub_query)
         for match in matches:
             if match not in LUCENE_NUMERIC_OPERATORS:
@@ -1482,9 +1511,9 @@ class LuceneNumericOperatorChecker(LuceneCheckerBase):
                 if field.field_name in self.numeric_field_list:
                     numeric_operator = self._extract_illegal_numeric_operator(field.value)
                     if numeric_operator:
-                        self.check_result.error = _("该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'").format(
-                            field_name=field.field_name, numeric_operator=numeric_operator
-                        )
+                        self.check_result.error = _(
+                            "该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'"
+                        ).format(field_name=field.field_name, numeric_operator=numeric_operator)
                         self.check_result.suggestion = _("请使用以下运算符: {numeric_operators}").format(
                             numeric_operators=",".join(LUCENE_NUMERIC_OPERATORS)
                         )
@@ -1492,9 +1521,9 @@ class LuceneNumericOperatorChecker(LuceneCheckerBase):
                         return False
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     continue
-                field_name, field_expr = sub_query.split(':')
+                field_name, field_expr = sub_query.split(":")
                 if "(" in field_name:
                     field_name = field_name.split("(")[0]
                 field_name = field_name.strip()
@@ -1502,9 +1531,9 @@ class LuceneNumericOperatorChecker(LuceneCheckerBase):
                 if field_name and field_name in self.numeric_field_list:
                     numeric_operator = self._extract_illegal_numeric_operator(field_expr)
                     if numeric_operator:
-                        self.check_result.error = _("该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'").format(
-                            field_name=field_name, numeric_operator=numeric_operator
-                        )
+                        self.check_result.error = _(
+                            "该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'"
+                        ).format(field_name=field_name, numeric_operator=numeric_operator)
                         self.check_result.suggestion = _("请使用以下运算符: {numeric_operators}").format(
                             numeric_operators=",".join(LUCENE_NUMERIC_OPERATORS)
                         )
@@ -1519,7 +1548,7 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
     检查数值类型的值, 数值类型只支持整形和浮点数, 该类的所有场景均无法修复
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     @staticmethod
@@ -1540,7 +1569,7 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
             return True
 
         # 检查字符串是否为浮点数
-        float_pattern = r'^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$'
+        float_pattern = r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$"
         if re.match(float_pattern, field_value):
             return True
 
@@ -1560,9 +1589,9 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
                         return False
         except Exception:  # pylint: disable=broad-except
             for sub_query in self.sub_query_list:
-                if ':' not in sub_query:
+                if ":" not in sub_query:
                     continue
-                field_name, field_expr = sub_query.split(':')
+                field_name, field_expr = sub_query.split(":")
                 if "(" in field_name:
                     field_name = field_name.split("(")[0]
                 field_name = field_name.strip()
@@ -1582,7 +1611,7 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
     检查是否存在意外的逻辑运算符
     """
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields, force_check=True)
 
     def _check(self):
@@ -1592,13 +1621,17 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
         if len(query_string_word_list) < 2:
             return True
         if query_string_word_list[-1] in LuceneReservedLogicOperatorEnum.get_keys():
-            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[-1])
+            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(
+                _logic_operator=query_string_word_list[-1]
+            )
             return False
         if query_string_word_list[0] in [
             LuceneReservedLogicOperatorEnum.AND.value,
             LuceneReservedLogicOperatorEnum.OR.value,
         ]:
-            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[0])
+            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(
+                _logic_operator=query_string_word_list[0]
+            )
             return False
 
         return True
@@ -1619,7 +1652,7 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
         return query_string
 
 
-class LuceneChecker(object):
+class LuceneChecker:
     """
     Lucene语法检查器
     依次检查是否满足需要兼容的语法类型, 并转换成lucene支持的语法
@@ -1628,15 +1661,15 @@ class LuceneChecker(object):
 
     REGISTERED_CHECKERS = LuceneCheckerBase.__subclasses__()
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: list[dict[str, Any]] = None):
         # 原始的query_string, 用于日志记录, 前端回显
         self.origin_query_string: str = query_string
         self.query_string: str = query_string
-        self.fields: List[Dict[str, Any]] = fields or []
-        self.messages: List[str] = []
+        self.fields: list[dict[str, Any]] = fields or []
+        self.messages: list[str] = []
 
     def inspect(self):
-        messages: List[str] = []
+        messages: list[str] = []
         for checker_class in self.REGISTERED_CHECKERS:
             checker = checker_class(query_string=self.query_string, fields=self.fields)
             checker.check()
