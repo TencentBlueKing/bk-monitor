@@ -216,8 +216,8 @@ INSPECT_KEYWORD_RESULT = {
 # =================================== TEST ENHANCE LUCENE =================================== #
 ENHANCE_KEYWORD_TEST_CASES = [
     {
-        "keyword": """number >=83063 or log: 'abc" cde\\'as' title: "The Right Way" AND log: and""",
-        "expect": """number: >=83063 OR log: "abc\\" cde'as" title: "The Right Way" AND log: \"and\"""",
+        "keyword": """number >=83063 or action: 'trying remove' AND title: "The Right Way" AND log: and""",
+        "expect": """number: >=83063 OR action: "trying remove" AND title: "The Right Way" AND log: \"and\"""",
     },
     {
         "keyword": """number < 83063 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
@@ -285,6 +285,16 @@ ENHANCE_KEYWORD_FIELDS = [
     },
     {
         "pos": 19,
+        "field_name": "action",
+        "name": "action",
+        "type": "Phrase",
+        "operator": "=",
+        "value": '"trying remove"',
+        "is_full_text_field": False,
+        "repeat_count": 0,
+    },
+    {
+        "pos": 47,
         "field_name": "title",
         "name": "title",
         "type": "Phrase",
@@ -294,9 +304,9 @@ ENHANCE_KEYWORD_FIELDS = [
         "repeat_count": 0,
     },
     {
-        "pos": 46,
-        "name": "log",
+        "pos": 74,
         "field_name": "log",
+        "name": "log",
         "type": "Phrase",
         "operator": "=",
         "value": '"and"',
@@ -312,16 +322,16 @@ ENHANCE_UPDATE_QUERY_PARAMS = [
         "value": "100000",
     },
     {
-        "pos": 19,
+        "pos": 47,
         "value": '"hello"',
     },
     {
-        "pos": 46,
+        "pos": 74,
         "value": '"not"',
     },
 ]
 
-ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\""""
+ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR action: "trying remove" AND title: "hello" AND log: \"not\""""
 
 # =================================== TEST LUCENE CHECKER =================================== #
 FIELDS = [
