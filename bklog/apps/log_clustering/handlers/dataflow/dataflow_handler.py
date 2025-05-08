@@ -1748,7 +1748,7 @@ class DataFlowHandler(BaseAiopsHandler):
         index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set:
             try:
-                TransferApi.create_or_update_es_router(
+                TransferApi.create_or_update_log_router(
                     {
                         "cluster_id": index_set.storage_cluster_id,
                         "index_set": clustering_config.clustered_rt,
