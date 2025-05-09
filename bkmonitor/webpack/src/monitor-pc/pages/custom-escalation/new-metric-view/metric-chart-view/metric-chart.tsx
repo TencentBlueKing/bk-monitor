@@ -591,7 +591,6 @@ class NewMetricChart extends CommonSimpleChart {
             },
           })
         );
-        console.log(this.options, 'this.options');
         this.initialized = true;
         this.empty = false;
         setTimeout(() => {
