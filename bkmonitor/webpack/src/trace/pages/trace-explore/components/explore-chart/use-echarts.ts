@@ -121,6 +121,7 @@ export const useEcharts = (
       hoverAllTooltips: false,
       options,
     });
+    console.info('getEchartOptions', options);
     return {
       ...options,
       tooltip: tooltipsOptions.value,
@@ -131,7 +132,7 @@ export const useEcharts = (
     let xAxisIndex = -1;
     const xAxis = [];
     const seriesData: EchartSeriesItem[] = [];
-    const preXData = [];
+    let preXData = [];
     for (const data of series) {
       const list = [];
       const xData = [];
@@ -143,6 +144,7 @@ export const useEcharts = (
         });
       }
       const isEqual = preXData.length && arraysEqual(preXData, xData);
+
       if (!isEqual) {
         xAxisIndex += 1;
       }
@@ -174,7 +176,7 @@ export const useEcharts = (
       if (!isEqual) {
         xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
       }
-      preXData.push(...xData);
+      preXData = [...xData];
     }
     return {
       xData: Array.from(xAllData).sort(),
@@ -212,10 +214,12 @@ export const useEcharts = (
     return [
       {
         show: !!options.show,
+        position: 'bottom',
         // boundaryGap: false,
         axisTick: {
           show: false,
         },
+        alignTicks: !!options.show,
         axisLine: {
           show: false,
           lineStyle: {
@@ -233,6 +237,7 @@ export const useEcharts = (
         type: 'category',
         data: xData,
         axisLabel: {
+          show: !!options.show,
           fontSize: 12,
           color: '#979BA5',
           showMinLabel: false,
@@ -240,6 +245,7 @@ export const useEcharts = (
           align: 'left',
           formatter: formatterFunc || '{value}',
         },
+        z: options.show ? 3 : 0,
       },
     ];
   };
@@ -259,6 +265,10 @@ export const useEcharts = (
       const yValueFormatter = getValueFormat(unit);
       return {
         type: 'value',
+        // boundaryGap: true,
+        // alignTicks: true,
+        // nameGap: 0,
+        // nameLocation: 'center',
         axisLine: {
           show: false,
           lineStyle: {
@@ -288,7 +298,7 @@ export const useEcharts = (
             return v;
           },
         },
-        splitNumber: 4,
+        splitNumber: 2,
         minInterval: 1,
         scale: true,
         unit,
@@ -298,6 +308,7 @@ export const useEcharts = (
     });
   };
   const createOptions = (xAxis, yAxis, series) => {
+    console.info('createOptions', xAxis, yAxis, series);
     return {
       useUTC: false,
       animation: false,
@@ -317,7 +328,7 @@ export const useEcharts = (
         show: true,
         trigger: 'axis',
         axisPointer: {
-          type: 'line',
+          type: 'cross',
           label: {
             backgroundColor: '#6a7985',
           },
@@ -362,18 +373,13 @@ export const useEcharts = (
       },
       grid: {
         containLabel: true,
-        left: 16,
-        right: 16,
+        left: 10,
+        right: 10,
         top: 10,
         bottom: 10,
         backgroundColor: 'transparent',
       },
       xAxis: xAxis,
-      markLine: [
-        {
-          z: 100, // markLine markArea不支持单独设置层级
-        },
-      ],
       yAxis: yAxis,
       series: series.map(item => {
         const yAxisIndex = yAxis.findIndex(axis => axis.unit === item.raw_data.unit);
@@ -387,12 +393,8 @@ export const useEcharts = (
   watch(
     [() => traceStore.timeRange, () => traceStore.refreshImmediate, panel],
     async () => {
-      console.info(panel, '========');
       loading.value = true;
       options.value = await getEchartOptions();
-      setTimeout(() => {
-        console.info(options.value, metricList.value, '______-');
-      }, 2000);
       loading.value = false;
     },
     {

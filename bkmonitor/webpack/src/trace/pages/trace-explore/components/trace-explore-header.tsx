@@ -335,7 +335,7 @@ export default defineComponent({
           <div
             class='goto-old-wrap'
             v-bk-tooltips={{
-              content: this.$tc('新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看'),
+              content: this.$tc('回到旧版'),
               placements: ['bottom-end'],
               zIndex: 9999,
             }}
