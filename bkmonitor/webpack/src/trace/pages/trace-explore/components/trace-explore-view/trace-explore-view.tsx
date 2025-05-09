@@ -141,7 +141,7 @@ export default defineComponent({
     return (
       <div class='trace-explore-view'>
         <div class='trace-explore-view-chart'>
-          <ChartWrapper />
+          <ChartWrapper collapseTitle={window.i18n.t('总览')} />
         </div>
         <div class='trace-explore-view-filter'>
           <span class='filter-label'>{this.$t('包含')}：</span>

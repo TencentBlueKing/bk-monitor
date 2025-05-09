@@ -865,6 +865,7 @@ export default {
   版本: 'Version',
   正常: 'Normal',
   异常: 'Exception',
+  未设置: 'Not set',
   升级: 'Upgrade',
   克隆: 'Clone',
   列表: 'List',

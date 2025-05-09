@@ -112,8 +112,9 @@ export default defineComponent({
       }
       return props.sourceList.filter(item => {
         const field = item[props.settingKey];
+        const label = item[props.displayKey];
         const matchReg = new RegExp(`${searchKeyword.value}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'ig');
-        return !selectedSet.value.has(field) && matchReg.test(field);
+        return !selectedSet.value.has(field) && matchReg.test(label);
       });
     });
     const selectedListLen = computed(() => selectedList.value.length);

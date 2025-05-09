@@ -23,8 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { listSpan, listTrace } from 'monitor-api/modules/apm_trace';
-import { bkMessage, makeMessage } from 'monitor-api/utils';
 
 import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typing';
 
@@ -70,7 +68,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
 /** 可以进行排序的字段类型 */
 export const CAN_TABLE_SORT_FIELD_TYPES = new Set(['integer', 'long', 'double', 'date']);
 
-/** trace检索table 状态码(status.code)列 不同类型显示 tag color 配置 */
+/** trace检索table trace视角-状态码(status.code)列 不同类型显示 tag color 配置 */
 export const SERVICE_STATUS_COLOR_MAP = {
   error: {
     tagColor: '#ea3536',
@@ -82,7 +80,18 @@ export const SERVICE_STATUS_COLOR_MAP = {
   },
 };
 
-/** trace检索table span类型(kind)列 不同类型显示 prefix-icon 渲染配置 */
+/** trace检索table trace视角-调用类型(root_service_category)列 */
+export const SERVICE_CATEGORY_MAP = {
+  http: window.i18n.t('网页'),
+  rpc: window.i18n.t('远程调用'),
+  db: window.i18n.t('数据库'),
+  messaging: window.i18n.t('消息队列'),
+  async_backend: window.i18n.t('后台任务'),
+  all: window.i18n.t('全部'),
+  other: window.i18n.t('其他'),
+};
+
+/** trace检索table span视角-类型(kind)列 不同类型显示 prefix-icon 渲染配置 */
 export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTableColumnTypeEnum.PREFIX_ICON>> = {
   0: { alias: window.i18n.t('未定义'), prefixIcon: 'icon-monitor icon-weizhi' },
   1: { alias: window.i18n.t('内部调用'), prefixIcon: 'icon-monitor icon-neibutiaoyong1' },
@@ -93,66 +102,9 @@ export const SPAN_KIND_MAPS: Record<number, GetTableCellRenderValue<ExploreTable
   6: { alias: window.i18n.t('推断'), prefixIcon: 'icon-monitor icon-tuiduan' },
 };
 
-export function getTableList(
-  params,
-  isSpanVisual: boolean,
-  requestConfig
-): Promise<{ data: any[]; total: number; isAborted?: boolean }> {
-  const apiFunc = isSpanVisual ? listSpan : listTrace;
-  const config = { needMessage: false, ...requestConfig };
-  return apiFunc(params, config).catch(err => {
-    const isAborted = requestErrorMessage(err);
-    return { data: [], total: 0, isAborted };
-  });
-}
-
-/**
- * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
- * @param err
- *
- */
-export function requestErrorMessage(err) {
-  const message = makeMessage(err.error_details || err.message);
-  let isAborted = false;
-  if (message && err?.message !== 'canceled') {
-    bkMessage(message);
-  } else {
-    isAborted = true;
-  }
-  return isAborted;
-}
-
-/**
- * 检测单行文本是否显示省略号
- * @param {HTMLElement} element 要检测的容器元素
- *
- */
-export function isEllipsisActiveSingleLine(element: HTMLElement): {
-  content: string;
-  isEllipsisActive: boolean;
-} {
-  // 验证是否应用了必要样式
-  const style = window.getComputedStyle(element);
-  if (style.textOverflow !== 'ellipsis' || style.whiteSpace !== 'nowrap') {
-    return { content: '', isEllipsisActive: false };
-  }
-  const range = document.createRange();
-  range.setStart(element, 0);
-  range.setEnd(element, element.childNodes.length);
-
-  let rangeWidth = range.getBoundingClientRect().width;
-
-  const offsetWidth = rangeWidth - Math.floor(rangeWidth);
-  if (offsetWidth < 0.001) {
-    rangeWidth = Math.floor(rangeWidth);
-  }
-  const paddingLeft = Number.parseInt(style.paddingLeft, 10) || 0;
-  const paddingRight = Number.parseInt(style.paddingRight, 10) || 0;
-  const horizontalPadding = paddingLeft + paddingRight;
-
-  return {
-    content: range.toString(),
-    // @ts-ignore
-    isEllipsisActive: range.scrollWidth > element.clientWidth || rangeWidth + horizontalPadding > element.clientWidth,
-  };
-}
+/** trace检索table span视角-状态(status.code)列 不同类型显示 prefix-icon 渲染配置 */
+export const SPAN_STATUS_CODE_MAP: Record<number, GetTableCellRenderValue<ExploreTableColumnTypeEnum.PREFIX_ICON>> = {
+  0: { alias: window.i18n.t('未设置'), prefixIcon: 'status-code-icon-warning' },
+  1: { alias: window.i18n.t('正常'), prefixIcon: 'status-code-icon-normal' },
+  2: { alias: window.i18n.t('异常'), prefixIcon: 'status-code-icon-failed' },
+};

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
 import { useTraceExploreStore } from '@/store/modules/explore';
 import { traceChats } from 'monitor-api/modules/apm_trace';
@@ -31,28 +31,42 @@ import { random } from 'monitor-common/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
-import MonitorCrossDrag from '../../../../components/monitor-cross-drag/monitor-cross-drag';
+import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
 
 import './chart-wrapper.scss';
 export default defineComponent({
   name: 'ExploreChart',
-  props: {},
+  props: {
+    /** 折叠面板收起时显示的title */
+    collapseTitle: {
+      type: String,
+    },
+    /** 默认高度（初始化时 container 区域的高度） */
+    defaultHeight: {
+      type: Number,
+      default: 166,
+    },
+    /** 初始化时折叠面板默认是否展开状态 */
+    defaultIsExpand: {
+      type: Boolean,
+      default: true,
+    },
+    /** 是否需要 resize 功能 */
+    hasResize: {
+      type: Boolean,
+      default: true,
+    },
+    /** 折叠收起时需要展示内容的高度 */
+    collapseShowHeight: {
+      type: Number,
+      default: 36,
+    },
+  },
   setup() {
     const store = useTraceExploreStore();
     const panelModels = shallowRef<PanelModel[]>([]);
-    const chartContainerHeight = shallowRef(0);
     const dashboardId = random(10);
-
-    /** 将chart容器高度转换成 css height 属性 */
-    const chartContainerHeightForStyle = computed(() =>
-      chartContainerHeight.value ? `${chartContainerHeight.value}px` : '166px'
-    );
-
-    /** css 变量 */
-    const cssVars = computed(() => ({
-      '--chart-container-height': chartContainerHeightForStyle.value,
-    }));
 
     const getChartPanels = async () => {
       const list =
@@ -72,37 +86,34 @@ export default defineComponent({
       echartsConnect(dashboardId);
     };
 
-    /**
-     * @description 拖拽 resize 操作后回调
-     * @param {number} height  拖拽操作后的新高度
-     * */
-    function handleCrossResize(height: number) {
-      chartContainerHeight.value = height;
-    }
     watch([() => store.appName, () => store.mode], () => {
       getChartPanels();
     });
     return {
-      cssVars,
       panelModels,
-      handleCrossResize,
     };
   },
   render() {
+    const { collapseTitle, defaultHeight, defaultIsExpand, hasResize, collapseShowHeight } = this.$props;
     return (
-      <div
-        style={this.cssVars}
-        class='explore-chart-wrapper'
-      >
-        <div class='explore-chart-container'>
-          {this.panelModels.map(panel => (
-            <ExploreChart
-              key={panel.id}
-              panel={panel}
-            />
-          ))}
-        </div>
-        <MonitorCrossDrag onMove={this.handleCrossResize} />
+      <div class='explore-chart-wrapper'>
+        <ChartCollapse
+          class='explore-chart-wrapper-collapse'
+          collapseShowHeight={collapseShowHeight}
+          defaultHeight={defaultHeight}
+          defaultIsExpand={defaultIsExpand}
+          hasResize={hasResize}
+          title={collapseTitle}
+        >
+          <div class='explore-chart-container'>
+            {this.panelModels.map(panel => (
+              <ExploreChart
+                key={panel.id}
+                panel={panel}
+              />
+            ))}
+          </div>
+        </ChartCollapse>
       </div>
     );
   },
