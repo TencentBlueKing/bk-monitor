@@ -488,7 +488,3 @@ class ModifyDataIdSourceViewSet(MetaViewSet):
 
 class GetDataLabelsMapViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetDataLabelsMapResource)]
-
-
-class SyncBkBaseRtMetaByBizIdResourceViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.SyncBkbaseRtMetaByBizIdResource)]
