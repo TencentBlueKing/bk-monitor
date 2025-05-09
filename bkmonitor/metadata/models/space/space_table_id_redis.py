@@ -284,10 +284,9 @@ class SpaceTableIDRedis:
             "_compose_bkbase_table_id_detail: start to compose bkbase table id detail,table_id_list->[%s] ",
             table_id_list,
         )
+        bkbase_rt_records = models.ResultTable.objects.filter(default_storage=models.ClusterInfo.TYPE_BKDATA)
         if table_id_list:
-            bkbase_rt_records = models.ResultTable.objects.filter(table_id__in=table_id_list)
-        else:
-            bkbase_rt_records = models.ResultTable.objects.filter(default_storage=models.ClusterInfo.TYPE_BKDATA)
+            bkbase_rt_records = bkbase_rt_records.filter(table_id__in=table_id_list)
 
         data = {}
         table_id_list = list(bkbase_rt_records.values_list("table_id", flat=True))
@@ -309,7 +308,7 @@ class SpaceTableIDRedis:
 
     def push_bkbase_table_id_detail(self, table_id_list: list | None = None, is_publish: bool | None = True):
         """
-        推送Doris结果表详情路由
+        推送BkBase结果表详情路由
         """
         logger.info(
             "push_bkbase_table_id_detail: try to push bkbase_table_id_detail for table_id_list->[%s]", table_id_list
