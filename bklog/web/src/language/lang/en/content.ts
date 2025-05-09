@@ -1058,4 +1058,8 @@ export default {
     'No configured responsible person, unable to automatically create alarm strategy',
   '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
   检索中: 'Searching',
+  '输入组名,30个字符': 'Enter group name, 30 characters',
+  组名不规范: 'Group name is not standard',
+  名称冲突: 'Name conflict',
+  最大30字符: 'Up to 30 characters',
 };
