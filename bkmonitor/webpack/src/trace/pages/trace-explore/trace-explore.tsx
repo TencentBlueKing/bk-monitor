@@ -54,6 +54,8 @@ import { getFilterByCheckboxFilter } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 
+const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
+
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
@@ -223,6 +225,7 @@ export default defineComponent({
     }
 
     onMounted(async () => {
+      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'true');
       getUrlParams();
       await getApplicationList();
       handleQuery();
@@ -467,6 +470,7 @@ export default defineComponent({
     }
     function handleFavoriteShowChange(isShow: boolean) {
       isShowFavorite.value = isShow;
+      localStorage.setItem(TRACE_EXPLORE_SHOW_FAVORITE, JSON.stringify(isShow));
     }
 
     return {
