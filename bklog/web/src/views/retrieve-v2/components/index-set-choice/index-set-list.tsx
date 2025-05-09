@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, set } from 'vue';
 import './index-set-list.scss';
 
 import * as authorityMap from '../../../../common/authority-map';
@@ -70,6 +70,9 @@ export default defineComponent({
       name: '',
     });
 
+    const listNodeOpenManager = ref({});
+    const disableList = ref([]);
+
     const tagItem = ref({
       tag_id: undefined,
       name: undefined,
@@ -81,53 +84,94 @@ export default defineComponent({
       props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`)),
     );
 
-    const filterList = computed(() =>
-      props.list
-        .filter((item: any) => {
-          if (tagItem.value.tag_id === undefined) {
-            return true;
-          }
+    const formatList = computed(() =>
+      props.list.map((item: any) => {
+        let is_shown_node = true;
 
-          return item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
-        })
-        .filter((item: any) => {
+        // 判定是不是已经选中Tag进行过滤
+        // 如果已经选中了Tag进行过滤，这里需要判定当前索引是否满足Tag标签
+        if (tagItem.value.tag_id !== undefined) {
+          is_shown_node = item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+        }
+
+        // 如果满足Tag标签或者当前条目为显示状态
+        // 继续判断其他过滤条件
+        if (is_shown_node) {
+          // 如果启用隐藏空数据
           if (hiddenEmptyItem.value) {
-            if (props.value.includes(`${item.index_set_id}`)) {
-              return true;
+            // 如果当前索引不是传入的选中值
+            if (!props.value.includes(`${item.index_set_id}`)) {
+              // 判断当前索引Tag标签是否有标识为空数据
+              // 如果结果为True，说明当前索引不展示
+              is_shown_node = !item.tags.some(tag => tag.tag_id === 4);
             }
-
-            return !item.tags.some(tag => tag.tag_id === 4) && item.index_set_name.indexOf(searchText.value) !== -1;
           }
 
-          return item.index_set_name.indexOf(searchText.value) !== -1;
-        }),
+          // 如果此时判定结果仍然为true
+          // 继续判定检索匹配是否满足匹配条件
+          if (is_shown_node) {
+            is_shown_node = item.index_set_name.indexOf(searchText.value) !== -1;
+          }
+        }
+        Object.assign(item, { is_shown_node });
+        return item;
+      }),
     );
 
-    const activeValueItems = computed(() => {
-      return propValueStrList.value.map((item: any) => {
-        return props.list.find((indexSet: any) => indexSet.index_set_id === item);
-      });
-    });
+    const filterFullList = computed(() => formatList.value.filter((item: any) => item.is_shown_node));
 
-    const objectShowList = [
-      { fieldName: 'index_set_name', label: $t('索引集名称') },
-      { fieldName: 'index_set_id', label: $t('索引集ID') },
-      { fieldName: 'index_set_id', label: $t('关联采集项') },
-    ];
+    const rootList = computed(() => formatList.value.filter((item: any) => !item.is_child_node));
+
+    const filterList = computed(() =>
+      rootList.value.filter((item: any) => {
+        return (
+          filterFullList.value.includes(item) ||
+          (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
+        );
+      }),
+    );
 
     /**
      * 索引集选中操作
      * @param e
      * @param item
      */
-    const handleIndexSetItemClick = (e: MouseEvent, item: any) => {
+    const handleIndexSetItemClick = (e: MouseEvent, item: any, is_root_checked = false) => {
+      if (is_root_checked) {
+        return;
+      }
+
       if (props.type === 'single') {
         emit('value-change', [item.index_set_id]);
         return;
       }
 
       if (props.type === 'union') {
-        handleIndexSetItemCheck(item, !propValueStrList.value.includes(`${item.index_set_id}`));
+        const indexSetId = `${item.index_set_id}`;
+        const isChecked = !(propValueStrList.value.includes(indexSetId) || disableList.value.includes(indexSetId));
+        const list = [];
+
+        (item.children ?? []).forEach(child => {
+          if (child.is_shown_node) {
+            const childId = `${child.index_set_id}`;
+            if (propValueStrList.value.includes(childId) || disableList.value.includes(childId)) {
+              const id = `${child.index_set_id}`;
+              list.push(id);
+              // 如果当前为选中操作，检查所有子节点是否有选中态，选中节点会被放置到 disableList
+              if (isChecked) {
+                disableList.value.push(id);
+              } else {
+                // 如果是非选中，从 disableList 中移除
+                const index = disableList.value.findIndex(v => (v = id));
+                if (index >= 0) {
+                  disableList.value.splice(index, 1);
+                }
+              }
+            }
+          }
+        });
+
+        handleIndexSetItemCheck(item, isChecked, list);
       }
     };
 
@@ -176,7 +220,13 @@ export default defineComponent({
       clearAllValue();
     };
 
-    const getCheckBoxRender = item => {
+    const handleNodeOpenClick = (e: MouseEvent, node) => {
+      e.stopPropagation();
+      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'closed' ? 'opened' : 'closed';
+      set(listNodeOpenManager.value, node.index_set_id, nextStatus);
+    };
+
+    const getCheckBoxRender = (item, is_root_checked = false) => {
       if (props.type === 'single') {
         return null;
       }
@@ -184,9 +234,65 @@ export default defineComponent({
       return (
         <bk-checkbox
           style='margin-right: 4px'
-          checked={propValueStrList.value.includes(item.index_set_id)}
-          // on-change={value => handleIndexSetItemCheck(item, value)}
+          checked={propValueStrList.value.includes(item.index_set_id) || disableList.value.includes(item.index_set_id)}
+          disabled={is_root_checked}
         ></bk-checkbox>
+      );
+    };
+
+    /**
+     * 渲染节点数据
+     * @param item
+     * @param is_child
+     * @param has_child
+     * @param is_root_checked
+     * @returns
+     */
+    const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
+      return (
+        <div
+          class={[
+            'index-set-item',
+            {
+              'no-authority': item.permission?.[authorityMap.SEARCH_LOG_AUTH],
+              'is-child': is_child,
+              'has-child': has_child,
+              active: propValueStrList.value.includes(item.index_set_id),
+            },
+          ]}
+          onClick={e => handleIndexSetItemClick(e, item, is_root_checked)}
+        >
+          <div dir={props.textDir}>
+            {props.type === 'single' && (
+              <span
+                class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
+                onClick={e => handleFavoriteClick(e, item)}
+              ></span>
+            )}
+            <span
+              class={['node-open-arrow', { 'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed' }]}
+              onClick={e => handleNodeOpenClick(e, item)}
+            >
+              <i class='bklog-icon bklog-arrow-down-filled'></i>
+            </span>
+
+            <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
+              {getCheckBoxRender(item, is_root_checked)}
+
+              <span class='group-icon'>
+                <i class='bklog-icon bklog-suoyin-mulu'></i>
+              </span>
+              {item.index_set_name}
+            </bdi>
+          </div>
+          <div class='index-set-tags'>
+            {item.tags
+              .filter(tag => tag?.tag_id !== 4)
+              .map((tag: any) => (
+                <span class='index-set-tag-item'>{tag.name}</span>
+              ))}
+          </div>
+        </div>
       );
     };
 
@@ -207,38 +313,20 @@ export default defineComponent({
       return (
         <div class='bklog-v3-index-set-list'>
           {filterList.value.map((item: any) => {
-            return (
-              <div
-                class={[
-                  'index-set-item',
-                  {
-                    'no-authority': item.permission?.[authorityMap.SEARCH_LOG_AUTH],
-                    active: propValueStrList.value.includes(item.index_set_id),
-                  },
-                ]}
-                onClick={e => handleIndexSetItemClick(e, item)}
-              >
-                <div dir={props.textDir}>
-                  {props.type === 'single' && (
-                    <span
-                      class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
-                      onClick={e => handleFavoriteClick(e, item)}
-                    ></span>
-                  )}
-                  <span class='group-icon'></span>
+            const result = [];
+            const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
-                  <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
-                    {getCheckBoxRender(item)}
-                    {item.index_set_name}
-                  </bdi>
-                </div>
-                <div class='index-set-tags'>
-                  {item.tags.map((tag: any) => (
-                    <span class='index-set-tag-item'>{tag.name}</span>
-                  ))}
-                </div>
-              </div>
-            );
+            if (listNodeOpenManager.value[item.index_set_id] !== 'closed') {
+              (item.children ?? []).forEach(child => {
+                if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
+                  result.push(renderNodeItem(child, true, false, is_root_checked));
+                }
+              });
+            }
+
+            result.unshift(renderNodeItem(item, false, item.children?.length > 0, false));
+
+            return result;
           })}
         </div>
       );
@@ -247,15 +335,16 @@ export default defineComponent({
     const getSingleBody = () => {
       return [
         getMainRender(),
-        <div class='bklog-v3-item-info'>
-          {activeValueItems.value.map((item: any) => (
-            <ObjectView
-              object={item}
-              showList={objectShowList}
-              labelWidth={100}
-            ></ObjectView>
-          ))}
-        </div>,
+        // <div class='bklog-v3-item-info'>
+        //   {activeValueItems.value.map((item: any) => (
+        //     <ObjectView
+        //       object={item}
+        //       showList={objectShowList}
+        //       labelWidth={100}
+        //       class='item-row'
+        //     ></ObjectView>
+        //   ))}
+        // </div>,
       ];
     };
 
@@ -392,7 +481,7 @@ export default defineComponent({
               <span>隐藏无数据</span>
             </bk-checkbox>
           </div>
-          <div class='bklog-v3-tag-list'>
+          <div class={['bklog-v3-tag-list', { 'is-empty': indexSetTagList.value.length === 0 }]}>
             <div
               class='move-icon left-icon'
               onClick={e => tagScrollTo(e, 'left')}

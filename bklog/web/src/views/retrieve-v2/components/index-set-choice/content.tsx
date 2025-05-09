@@ -237,7 +237,7 @@ export default defineComponent({
             ))}
           </div>
           <div class='bklog-v3-keys'>
-            <span class='key-item'>
+            {/* <span class='key-item'>
               <span class='key-code text'>tab</span>
               <span class='key-name'>快速切换标签</span>
             </span>
@@ -249,7 +249,7 @@ export default defineComponent({
             <span class='key-item'>
               <span class='key-code text'>enter</span>
               <span class='key-name'>选中</span>
-            </span>
+            </span> */}
           </div>
         </div>
         {activeTab.value.render?.()}

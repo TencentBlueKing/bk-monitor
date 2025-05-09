@@ -192,7 +192,7 @@ const store = new Vuex.Store({
     indexId: state => state.indexId,
     visibleFields: state => state.visibleFields,
     /** 是否是联合查询 */
-    isUnionSearch: state => !!state.unionIndexList.length,
+    isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */
     unionIndexList: state => state.unionIndexList,
     unionIndexItemList: state => state.unionIndexItemList,

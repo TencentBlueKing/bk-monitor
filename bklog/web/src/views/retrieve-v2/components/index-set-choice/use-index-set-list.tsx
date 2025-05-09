@@ -26,14 +26,18 @@ export default (props, { emit }) => {
    * 多选：选中操作
    * @param item
    * @param value
+   * @param storeList: 如果是选中状态，storeList中的值会被忽略，不会作为选中结果抛出，如果是非选中，storeList 中的值会被作为选中结果抛出
+   *
    */
-  const handleIndexSetItemCheck = (item, isChecked) => {
+  const handleIndexSetItemCheck = (item, isChecked, storeList = []) => {
     const targetValue = [];
 
     // 如果是选中
     if (isChecked) {
       props.value.forEach((v: any) => {
-        targetValue.push(v);
+        if (!storeList.includes(v)) {
+          targetValue.push(v);
+        }
       });
       targetValue.push(item.index_set_id);
       emit('value-change', targetValue);
@@ -43,6 +47,12 @@ export default (props, { emit }) => {
     // 如果是取消选中
     props.value.forEach((v: any) => {
       if (v !== item.index_set_id) {
+        targetValue.push(v);
+      }
+    });
+
+    storeList?.forEach(v => {
+      if (!targetValue.includes(v)) {
         targetValue.push(v);
       }
     });

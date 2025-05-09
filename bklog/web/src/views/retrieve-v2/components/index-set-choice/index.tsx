@@ -54,7 +54,7 @@ export default defineComponent({
     },
     contentWidth: {
       type: Number,
-      default: 900,
+      default: 800,
     },
     textDir: {
       type: String,
@@ -219,6 +219,7 @@ export default defineComponent({
           <EllipsisTagList
             list={selectedValues.value}
             activeEllipsisCount={selectedValues.value.length > 1}
+            placement='right'
             class='indexset-value-list'
             {...{
               scopedSlots: {

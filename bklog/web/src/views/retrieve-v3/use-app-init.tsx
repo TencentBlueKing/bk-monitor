@@ -144,7 +144,7 @@ export default () => {
    */
   const getIndexSetList = () => {
     return store
-      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
+      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {
         isPreApiLoaded.value = true;
 

@@ -27,6 +27,7 @@ import { defineComponent, onUnmounted, PropType, Ref, ref, watch } from 'vue';
 import useResizeObserve from '../../hooks/use-resize-observe';
 import './index.scss';
 import PopInstanceUtil from '../../global/pop-instance-util';
+import { Placement } from 'tippy.js';
 
 export default defineComponent({
   props: {
@@ -53,6 +54,10 @@ export default defineComponent({
     },
     showFullTooltip: {
       type: String as PropType<'auto' | 'disable' | 'enable'>,
+      default: 'auto',
+    },
+    placement: {
+      type: String as PropType<Placement>,
       default: 'auto',
     },
   },
@@ -124,7 +129,7 @@ export default defineComponent({
             return div;
           },
           tippyOptions: {
-            placement: 'auto',
+            placement: props.placement,
             theme: 'log-light',
           },
         });

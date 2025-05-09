@@ -73,11 +73,13 @@ export default defineComponent({
       history: {
         title: '搜索历史',
         delLable: '清空历史',
+        delAll: true,
         itemIcon: 'bklog-history-2',
       },
       favorite: {
         title: '我的收藏',
         delLable: '清空收藏',
+        delAll: false,
         itemIcon: 'bklog-lc-star-shape',
       },
     });
@@ -208,6 +210,7 @@ export default defineComponent({
           <span
             class='bklog-icon bklog-saoba'
             onClick={e => handleDeleteItem(e, null)}
+            style={{ display: activeMap.value.delAll ? 'block' : 'none' }}
           >
             {activeMap.value.delLable}
           </span>
