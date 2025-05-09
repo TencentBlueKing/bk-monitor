@@ -55,6 +55,7 @@ export default defineComponent({
     needCheck: { type: Boolean, default: false },
     /** 是否显示告警视图图表 */
     isAlarmView: { type: Boolean, default: false },
+    groupId: { type: String, default: '' },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries', 'successLoad'],
   setup(props, { emit }) {
@@ -134,6 +135,7 @@ export default defineComponent({
           <FailureAlarmChart
             clearErrorMsg={handleClearErrorMsg}
             detail={props.panel}
+            groupId={props.groupId}
             onErrorMsg={handleErrorMsgChange}
             onLoading={handleChangeLoading}
             onSuccessLoad={handleSuccessLoad}
