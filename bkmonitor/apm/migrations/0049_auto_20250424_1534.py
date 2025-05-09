@@ -18,7 +18,7 @@ def sync_trace_unifyquery_router(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("apm", "0047_auto_20250123_1930"),
+        ("apm", "0048_auto_20250418_1123"),
     ]
 
     operations = [migrations.RunPython(code=sync_trace_unifyquery_router)]

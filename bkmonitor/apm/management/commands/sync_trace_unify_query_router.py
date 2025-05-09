@@ -88,6 +88,7 @@ class Command(BaseCommand):
     def _sync_single_router(
         cls, datasource: dict[str, str], err_trace_datasources: list[dict[str, str]], lock: threading.Lock
     ):
+        """同步单个数据源的路由"""
         table_id: str = datasource["result_table_id"]
         modify_params: dict[str, Any] = {"table_id": table_id, "operator": get_global_user()}
         if datasource.get("type") == PRECALCULATE_TYPE:
@@ -114,6 +115,7 @@ class Command(BaseCommand):
 
     @classmethod
     def _sync_router(cls, trace_datasources: list[dict[str, str]], concurrency: int) -> list[dict[str, str]]:
+        """同步路由"""
         lock: threading.Lock = threading.Lock()
         err_trace_datasources: list[dict[str, str]] = []
         for idx in range(0, len(trace_datasources), concurrency):
