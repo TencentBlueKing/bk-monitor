@@ -121,7 +121,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                     is_clustered_fields = True
                     break
         # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
-        if "__dist_05" in attrs.get("query_string", ""):
+        if attrs.get("query_string") and "__dist_05" in attrs["query_string"]:
             is_clustered_fields = True
 
         if index_set_id:

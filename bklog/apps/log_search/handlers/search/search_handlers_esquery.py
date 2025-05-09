@@ -1872,7 +1872,7 @@ class SearchHandler:
                 )
             self.origin_scenario_id = self.index_set.scenario_id
             # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
-            if "__dist_05" in self.search_dict.get("keyword", ""):
+            if self.search_dict.get("keyword") and "__dist_05" in self.search_dict["keyword"]:
                 if clustered_rt := self._get_clustering_config_clustered_rt():
                     return clustered_rt
 
