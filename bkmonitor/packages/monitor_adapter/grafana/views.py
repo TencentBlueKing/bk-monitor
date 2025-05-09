@@ -160,10 +160,10 @@ class GrafanaSwitchOrgView(SwitchOrgView):
                 _, role, dashboard_permissions = DashboardPermission.get_user_permission(
                     username=request.user.username, org_name=org_name
                 )
-            if role < GrafanaRole.Viewer and uid not in dashboard_permissions:
-                return HttpResponseRedirect(
-                    f"/?bizId={org_name}&needMenu=false#/exception/403?actionId={ActionEnum.VIEW_SINGLE_DASHBOARD.id}"
-                )
+                if role < GrafanaRole.Viewer and uid not in dashboard_permissions:
+                    return HttpResponseRedirect(
+                        f"/?bizId={org_name}&needMenu=false#/exception/403?actionId={ActionEnum.VIEW_SINGLE_DASHBOARD.id}"
+                    )
 
         return super().dispatch(request, *args, **kwargs)
 
