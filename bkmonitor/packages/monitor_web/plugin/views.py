@@ -577,15 +577,15 @@ class PluginTypeViewSet(PermissionMixin, ResourceViewSet):
     resource_routes = [ResourceRoute("GET", resource.plugin.plugin_type)]
 
 
-class HelloWorldViewSet(PermissionMixin, ResourceViewSet):
+class ProcessDataFilterViewSet(PermissionMixin, ResourceViewSet):
     """
-    测试用
+    进程数据采集器
     """
 
     # resource是固定搭配， plugin是 APP 名， hello_world 为 resource.py 下的 HelloworldResource
 
     # 访问路径是 [custom_path]/[viewset_name]/[endpoint]
     # custom_path: 取自urls 文件中配置的路由前缀    /rest/v2
-    # viewset_name 将ViewSet类名转为小写，去掉ViewSet后缀    hello_world
+    # viewset_name 将ViewSet类名转为小写，去掉ViewSet后缀    ProcessDataFilter
     # endpoint 在ResourceRoute中配置， 不指定就是没有
-    resource_routes = [ResourceRoute("POST", resource.plugin.hello_world)]
+    resource_routes = [ResourceRoute("POST", resource.plugin.process_data_filter)]
