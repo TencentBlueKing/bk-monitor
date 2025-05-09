@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import type { EMode, IWhereItem } from '../../../../components/retrieval-filter/typing';
+import type { TimeRangeType } from '../../../../components/time-range/utils';
+
 interface IMetricFavoriteConfig {
   promqlData?: {
     alias: string;
@@ -74,8 +77,11 @@ interface IEventFavoriteConfig {
 export interface ITraceFavoriteConfig {
   bk_biz_id: number;
   componentData: {
-    mode: string;
-    filterMode: string;
+    mode: 'span' | 'trace';
+    filterMode: EMode;
+    commonWhere: IWhereItem[];
+    timeRange: TimeRangeType;
+    refreshInterval: number;
   };
   queryParams: {
     app_name: string;
@@ -89,7 +95,7 @@ export interface ITraceFavoriteConfig {
 
 export type IFavorite = 'event' | 'metric' | 'trace';
 
-export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
+export interface IFavoriteGroup<T extends IFavorite = 'trace'> {
   editable: string;
   id: number;
   name: string;
@@ -100,6 +106,10 @@ export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
     group_id: number;
     update_time: string;
     update_user: string;
-    config: T extends 'event' ? IEventFavoriteConfig : T extends 'metric' ? IMetricFavoriteConfig : unknown;
+    config: T extends 'event'
+      ? IEventFavoriteConfig
+      : T extends 'metric'
+        ? IMetricFavoriteConfig
+        : ITraceFavoriteConfig;
   }[];
 }

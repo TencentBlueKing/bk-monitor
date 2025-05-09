@@ -36,7 +36,7 @@ import ExploreChart from './explore-chart';
 
 import './chart-wrapper.scss';
 export default defineComponent({
-  name: 'ExploreChart',
+  name: 'ChartWrapper',
   props: {
     /** 折叠面板收起时显示的title */
     collapseTitle: {

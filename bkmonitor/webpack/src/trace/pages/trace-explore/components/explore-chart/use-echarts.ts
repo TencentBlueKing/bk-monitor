@@ -26,6 +26,7 @@
 
 import { type MaybeRef, type Ref, watch } from 'vue';
 import { shallowRef } from 'vue';
+import { computed } from 'vue';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useTraceExploreStore } from '@/store/modules/explore';
@@ -39,11 +40,12 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 import { useChartTooltips } from './use-chart-tooltips';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
+import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
-  chartRef: Ref<Element>,
+  chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>
 ) => {
   const traceStore = useTraceExploreStore();
@@ -51,12 +53,21 @@ export const useEcharts = (
   const loading = shallowRef(false);
   const options = shallowRef();
   const metricList = shallowRef([]);
-  // const queryConfigs = shallowRef([]);
-  // const series = shallowRef([]);
+  const targets = shallowRef<IDataQuery[]>([]);
+  const queryConfigs = computed(() => {
+    return targets.value.reduce((pre, cur) => {
+      if (cur.data?.query_configs) {
+        pre.push(...cur.data.query_configs);
+      }
+      return pre;
+    }, []);
+  });
+  const series = shallowRef([]);
 
   const getEchartOptions = async () => {
     loading.value = true;
     metricList.value = [];
+    targets.value = [];
     const [startTime, endTime] = handleTransformToTimestamp(traceStore.timeRange);
     const promiseList = get(panel).targets.map(target => {
       return $api[target.apiModule]
@@ -72,12 +83,13 @@ export const useEcharts = (
             needMessage: false,
           }
         )
-        .then(({ series, metrics }) => {
+        .then(({ series, metrics, query_config }) => {
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
             }
           }
+          targets.value.push({ ...target, data: query_config });
           return series?.length
             ? series.map(item => ({
                 ...item,
@@ -96,6 +108,7 @@ export const useEcharts = (
     for (const item of resList) {
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
+    series.value = seriesList;
     if (!seriesList.length) {
       return undefined;
     }
@@ -391,6 +404,9 @@ export const useEcharts = (
     loading,
     options,
     metricList,
+    targets,
+    queryConfigs,
+    series,
     getEchartOptions,
   };
 };

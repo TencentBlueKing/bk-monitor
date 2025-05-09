@@ -65,6 +65,10 @@ export default defineComponent({
       type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
       default: () => [],
     },
+    isShowSlider: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['filterListChange'],
   setup(props, { emit }) {
@@ -211,15 +215,17 @@ export default defineComponent({
               options={this.chartOptions}
               selectedRange={this.durationSlider.curValue}
             />
-            <Slider
-              class='slider-range'
-              v-model={this.durationSlider.curValue}
-              maxValue={this.durationSlider.max}
-              minValue={this.durationSlider.min}
-              step={this.durationSlider.step}
-              range
-              onChange={this.handleDurationChange}
-            />
+            {this.isShowSlider && (
+              <Slider
+                class='slider-range'
+                v-model={this.durationSlider.curValue}
+                maxValue={this.durationSlider.max}
+                minValue={this.durationSlider.min}
+                step={this.durationSlider.step}
+                range
+                onChange={this.handleDurationChange}
+              />
+            )}
           </div>
         )}
       </div>

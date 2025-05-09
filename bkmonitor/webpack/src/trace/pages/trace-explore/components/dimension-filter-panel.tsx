@@ -320,6 +320,7 @@ export default defineComponent({
             {this.tableList.length ? (
               <ChartFiltering
                 filterList={this.filterTableList}
+                isShowSlider={false}
                 list={this.tableList}
                 listType={this.params.mode}
                 onFilterListChange={this.handleFilterListChange}

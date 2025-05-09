@@ -24,15 +24,31 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  downCsvFile,
+  type IUnifyQuerySeriesItem,
+  transformSrcData,
+  transformTableDataToCsvStr,
+} from '@/plugins/utls/menu';
+
+import type { IDataQuery } from '@/plugins/typings';
 // import { handleAddStrategy } from '@/plugins/utls/menu';
 import { useTraceExploreStore } from '@/store/modules/explore';
 import { get } from '@vueuse/core';
+
+import { handleAddStrategy, handleExplore, handleRelateAlert, handleStoreImage } from './menu';
 
 import type { IMenuItem, ITitleAlarm } from '@/plugins/typings/chart-title';
 import type { IExtendMetricData } from '@/plugins/typings/metric';
 import type { MaybeRef } from 'vue';
 
-export const useChartTitleEvent = (metrics: MaybeRef<Array<Record<string, any>>>) => {
+export const useChartTitleEvent = (
+  metrics: MaybeRef<Array<Record<string, any>>>,
+  targets: MaybeRef<IDataQuery[]>,
+  title?: string,
+  seriesData?: MaybeRef<IUnifyQuerySeriesItem[]>,
+  chartRef?: MaybeRef<HTMLElement>
+) => {
   const store = useTraceExploreStore();
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */
   function handleAlarmClick(alarmStatus: ITitleAlarm) {
@@ -57,39 +73,30 @@ export const useChartTitleEvent = (metrics: MaybeRef<Array<Record<string, any>>>
     }
   }
   function handleMenuClick(item: IMenuItem) {
-    // const variablesService = new VariablesService({ ...viewOptions });
     switch (item.id) {
       case 'explore':
-        // handleExplore(props.panel!, viewOptions!.value, timeRange!.value);
+        handleExplore(get(targets), store.timeRange);
         return;
       case 'relate-alert':
-        // props.panel?.targets?.forEach(target => {
-        //   if (target.data?.query_configs?.length) {
-        //     let queryConfig = deepClone(target.data.query_configs);
-        //     queryConfig = variablesService.transformVariables(queryConfig);
-
-        //     target.data.query_configs = queryConfig;
-        //   }
-        // });
-        // handleRelateAlert(props.panel!, timeRange!.value);
+        handleRelateAlert(get(targets), store.timeRange);
         return;
       case 'screenshot':
         // 300ms 关闭动画
-        // setTimeout(() => handleStoreImage(props.panel!.title, timeSeriesRef.value!), 300);
+        chartRef && setTimeout(() => handleStoreImage(title, get(chartRef)), 300);
         return;
       case 'export-csv': {
-        // if (csvSeries.length) {
-        //   const { tableThArr, tableTdArr } = transformSrcData(csvSeries);
-        //   const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-        //   downCsvFile(csvString, props.panel!.title);
+        if (seriesData && get(seriesData).length) {
+          const { tableThArr, tableTdArr } = transformSrcData(get(seriesData));
+          const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
+          downCsvFile(csvString, title);
+        }
       }
     }
     return;
   }
 
   function handleMetricClick(metric: IExtendMetricData | null) {
-    console.info(metric);
-    // handleAddStrategy(props.panel!, metric, viewOptions!.value, timeRange!.value);
+    handleAddStrategy(get(targets), metric);
   }
 
   return {

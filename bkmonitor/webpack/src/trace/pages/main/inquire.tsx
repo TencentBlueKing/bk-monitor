@@ -92,7 +92,7 @@ import type {
   IAppItem,
   IFavoriteItem,
   IScopeSelect,
-  ISearchSelectItem,
+  // ISearchSelectItem,
   ISearchSelectValue,
   ITraceData,
   SearchType,
@@ -255,7 +255,7 @@ export default defineComponent({
       id: 0,
     });
     const isEmptyApp = ref<boolean>(false);
-    const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
+    // const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
     const durationRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});

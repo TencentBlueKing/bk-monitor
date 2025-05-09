@@ -80,8 +80,8 @@ export default defineComponent({
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
     function handleMenuSelectChange() {
-      if (store.currentApp) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${store.currentApp.app_name}`);
+      if (store.appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${store.appName}`);
         window.open(url, '_blank');
       }
     }
