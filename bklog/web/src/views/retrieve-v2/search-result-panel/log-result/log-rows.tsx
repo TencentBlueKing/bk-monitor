@@ -109,7 +109,6 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    let localSort = [];
  
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
@@ -285,10 +284,10 @@ export default defineComponent({
                 }
                 return item;
               });
-              localSort = sortList
+              store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
-              store.dispatch('requestIndexSetQuery',{ localSort: sortList });
+              store.dispatch('requestIndexSetQuery');
             }
           });
         },
@@ -788,7 +787,7 @@ export default defineComponent({
       if (hasMoreList.value) {
         isRequesting.value = true;
         return store
-          .dispatch('requestIndexSetQuery', { isPagination: true, localSort })
+          .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
             if (resp?.size === 50) {
               pageIndex.value++;

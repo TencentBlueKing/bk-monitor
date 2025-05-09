@@ -171,6 +171,7 @@ const stateTpl = {
   features: {
     isAiAssistantActive: false,
   },
+  localSort: false
 };
 
 const store = new Vuex.Store({
@@ -837,6 +838,9 @@ const store = new Vuex.Store({
     resetState(state) {
       Object.assign(state, deepClone(stateTpl));
     },
+    updateLocalSort(state, payload) {
+      state.localSort = payload;
+    },
   },
   actions: {
     /**
@@ -1143,12 +1147,11 @@ const store = new Vuex.Store({
      * @param {Boolean} payload.isPagination - 是否是分页请求。
      * @param {CancelToken} payload.cancelToken - 用于取消请求的 Axios cancel token。
      * @param {Number} payload.searchCount - 自定义的查询计数器。
-     * @param {Array} payload.localSort - 用于排序的本地排序配置
      * 
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined, localSort: [] },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
@@ -1212,7 +1215,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
-        sort_list: payload?.localSort.length ? otherPrams.sort_list : getters.custom_sort_list,
+        sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
 
       // 更新联合查询的begin
