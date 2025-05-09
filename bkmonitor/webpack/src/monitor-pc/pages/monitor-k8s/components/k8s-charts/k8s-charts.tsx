@@ -87,7 +87,9 @@ export default class K8SCharts extends tsc<
   resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
   sideDetailShow = false;
   sideDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
-
+  get canGroupByCluster() {
+    return this.scene === SceneEnum.Capacity;
+  }
   get groupByField() {
     return this.groupBy.at(-1) || K8sTableColumnKeysEnum.CLUSTER;
   }
@@ -169,29 +171,38 @@ export default class K8SCharts extends tsc<
 
   @Provide('onShowDetail')
   handleShowDetail(field: string) {
-    let dimension = field;
-    if (this.timeOffset.length) {
-      dimension = dimension.split('-')?.slice(1).join('-');
-    }
-    let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
-    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
-      const [container, pod] = dimension.split(':');
-      item = Array.from(this.resourceList).find(
-        item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container
-      );
-    } else if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
-      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
-      const list = dimension.split(':');
-      const field = isIngress ? list[0] : list[1];
-      item = Array.from(this.resourceList).find(item => item[this.groupByField] === field);
+    if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER && this.canGroupByCluster) {
+      this.sideDetail = {
+        cluster: this.filterCommonParams?.bcs_cluster_id,
+        externalParam: {
+          isCluster: true,
+        },
+      };
     } else {
-      item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
+      let dimension = field;
+      if (this.timeOffset.length) {
+        dimension = dimension.split('-')?.slice(1).join('-');
+      }
+      let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
+      if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+        const [container, pod] = dimension.split(':');
+        item = Array.from(this.resourceList).find(
+          item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container
+        );
+      } else if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
+        const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
+        const list = dimension.split(':');
+        const field = isIngress ? list[0] : list[1];
+        item = Array.from(this.resourceList).find(item => item[this.groupByField] === field);
+      } else {
+        item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
+      }
+      if (!item) return;
+      this.sideDetail = {
+        ...item,
+        cluster: item.cluster || this.filterCommonParams?.bcs_cluster_id,
+      };
     }
-    if (!item) return;
-    this.sideDetail = {
-      ...item,
-      cluster: item.cluster || this.filterCommonParams?.bcs_cluster_id,
-    };
     this.sideDetailShow = true;
   }
 
@@ -548,9 +559,9 @@ export default class K8SCharts extends tsc<
           )
         )`;
       case 'master_node_count': // 集群Master节点计数
-        return `count(${this.createCommonPromqlMethod()}(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+        return `count by(bcs_cluster_id)(${this.createCommonPromqlMethod()}(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
       case 'worker_node_count': // 集群Worker节点计数
-        return `count(kube_node_labels{bcs_cluster_id="${clusterId}"} $time_shift)
+        return `count by(bcs_cluster_id)(kube_node_labels{bcs_cluster_id="${clusterId}"} $time_shift)
          -
          count(sum by (node)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
 
@@ -640,6 +651,7 @@ export default class K8SCharts extends tsc<
   }
   async getResourceList() {
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([
+      [K8sTableColumnKeysEnum.CLUSTER, this.filterCommonParams.bcs_cluster_id],
       [K8sTableColumnKeysEnum.CONTAINER, ''],
       [K8sTableColumnKeysEnum.INGRESS, ''],
       [K8sTableColumnKeysEnum.NAMESPACE, ''],
@@ -653,7 +665,7 @@ export default class K8SCharts extends tsc<
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) {
       data = [
         {
-          [K8sTableColumnKeysEnum.CLUSTER]: this.filterCommonParams.bk_cluster_id,
+          [K8sTableColumnKeysEnum.CLUSTER]: this.filterCommonParams.bcs_cluster_id,
         },
       ];
     } else {
