@@ -108,7 +108,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
 
   data: ITaskData = taskDataInit();
   taskTableData: ITaskTableData = taskTableDataInit([]); // 任务表格数据
-  cacheTableData: ITaskData = taskDataInit();
   // 拖拽状态管理
   dragStatus: IDragStatus = {
     taskId: 0, // 拖拽中的拨测任务id
@@ -134,6 +133,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   emptyStatusType: EmptyStatusType = 'empty';
 
   loading = false;
+
+  filterList = Object.keys(taskStatusMap);
 
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
@@ -171,7 +172,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     });
     this.handleLoading(false);
     this.data = data;
-    this.cacheTableData = deepClone(this.data);
     this.taskTableData = taskTableDataInit(data.task_data);
     this.searchValue = this.nodeName ? `${this.$t('节点:')}${this.nodeName}` : this.searchValue || '';
 
@@ -622,19 +622,14 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   // 列表状态过滤
   handleFilterChange(data) {
     const { status_text } = data;
-    let filter = [];
-    if (status_text) {
-      filter = this.cacheTableData.task_data.filter(item => status_text.includes(item.status));
-    } else {
-      filter = deepClone(this.cacheTableData.task_data);
-    }
+    this.filterList = status_text || Object.keys(taskStatusMap);
+    const filter = this.data.task_data.filter(item => this.filterList.includes(item.status));
     const pagination = {
       count: filter.length,
       current: 1,
       limit: 10,
     };
     this.taskTableData.pagination = pagination;
-    this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, filter));
   }
 
   handleEmptyCreate(v: 'create' | 'createNode' | 'import') {
@@ -745,7 +740,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 </div>
               ),
             }}
-            data={this.taskTableData.data}
+            data={this.taskTableData.data.filter(item => this.filterList.includes(item.status))}
             pagination={this.taskTableData.pagination}
             onFilterChange={this.handleFilterChange}
             onLimitChange={this.handleTaskTableLimitChange}
