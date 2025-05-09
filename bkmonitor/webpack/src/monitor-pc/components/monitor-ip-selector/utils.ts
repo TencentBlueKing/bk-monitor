@@ -73,9 +73,10 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): any |
         })),
       };
     case 'SERVICE_TEMPLATE':
+      // 查服务模板的id 要用 SERVICE_TEMPLATE 不是用 bk_inst_id
       return {
         service_template_list: data.map(item => ({
-          id: item.bk_inst_id,
+          id: item.SERVICE_TEMPLATE || item.bk_inst_id,
         })),
       };
     case 'DYNAMIC_GROUP':
