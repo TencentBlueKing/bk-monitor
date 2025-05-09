@@ -29,7 +29,7 @@ import { type MaybeRef, onBeforeUnmount } from 'vue';
 import { get } from '@vueuse/core';
 import { $bkPopover } from 'bkui-vue';
 
-import { isEllipsisActiveSingleLine } from '../utils';
+import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 import type { $Popover } from 'bkui-vue/lib/popover/plugin-popover';
@@ -138,7 +138,6 @@ export const useTablePopover = (
       allowHtml: false,
       renderType: 'auto',
       padding: 0,
-      offset: 0,
       zIndex: 0,
       disableTeleport: false,
       autoPlacement: false,
@@ -231,7 +230,6 @@ export const useTableHeaderDescription = (
     popoverOptions: {
       theme: 'light',
       placement: 'right',
-      offset: 6,
       ...(options?.popoverOptions || {}),
     },
   });

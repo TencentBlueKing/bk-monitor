@@ -47,6 +47,14 @@ import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
+import {
+  CAN_TABLE_SORT_FIELD_TYPES,
+  SERVICE_CATEGORY_MAP,
+  SERVICE_STATUS_COLOR_MAP,
+  SPAN_KIND_MAPS,
+  SPAN_STATUS_CODE_MAP,
+  TABLE_DEFAULT_CONFIG,
+} from './constants';
 import ExploreTableEmpty from './explore-table-empty';
 import { useTableEllipsis, useTableHeaderDescription } from './hooks/use-table-popover';
 import {
@@ -55,13 +63,7 @@ import {
   ExploreTableLoadingEnum,
   type GetTableCellRenderValue,
 } from './typing';
-import {
-  CAN_TABLE_SORT_FIELD_TYPES,
-  getTableList,
-  SERVICE_STATUS_COLOR_MAP,
-  SPAN_KIND_MAPS,
-  TABLE_DEFAULT_CONFIG,
-} from './utils';
+import { getTableList } from './utils/api-utils';
 
 import type { ExploreFieldList, ICommonParams, IDimensionField } from '../../typing';
 
@@ -109,6 +111,8 @@ export default defineComponent({
     let abortController: AbortController = null;
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
+    /** 滚动结束后回调逻辑执行计时器  */
+    let scrollPointerEventsTimer = null;
 
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     /** 表格功能单元格内容溢出弹出 popover 功能 */
@@ -291,6 +295,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
       removeScrollListener();
       abortController?.abort?.();
       abortController = null;
@@ -321,6 +326,7 @@ export default defineComponent({
      */
     function handleScroll(event: Event) {
       const target = event.target as HTMLElement;
+      updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
       const { scrollHeight } = target;
@@ -330,6 +336,20 @@ export default defineComponent({
       if (isEnd) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      scrollPointerEventsTimer = setTimeout(() => {
+        updateTablePointEvents('auto');
+      }, 600);
+    }
+
+    /**
+     * @description 配置表格是否能够触发事件target
+     *
+     */
+    function updateTablePointEvents(val: 'auto' | 'none') {
+      const tableDom = tableRef?.value?.$el;
+      if (!tableDom) return;
+      tableDom.style.pointerEvents = val;
     }
 
     /**
@@ -377,12 +397,8 @@ export default defineComponent({
             title: t('状态'),
             width: 100,
             getRenderValue: row => {
-              const alias = row?.status_code?.value;
-              const type = row?.status_code?.type;
-              return {
-                alias,
-                prefixIcon: `status-code-icon-${type}`,
-              };
+              const code = row?.['status.code'];
+              return SPAN_STATUS_CODE_MAP[code];
             },
           },
           kind: {
@@ -398,27 +414,6 @@ export default defineComponent({
             title: t('所属服务'),
             width: 160,
             getRenderValue: row => getJumpToApmLinkItem(row?.resource?.['service.name']),
-          },
-          'resource.bk.instance.id': {
-            renderType: ExploreTableColumnTypeEnum.TEXT,
-            colKey: 'resource.bk.instance.id',
-            title: t('实例 ID'),
-            width: 160,
-            getRenderValue: row => row?.resource?.['bk.instance.id'],
-          },
-          'resource.telemetry.sdk.name': {
-            renderType: ExploreTableColumnTypeEnum.TEXT,
-            colKey: 'resource.telemetry.sdk.name',
-            title: t('SDK 名称'),
-            width: 160,
-            getRenderValue: row => row?.resource?.['telemetry.sdk.name'],
-          },
-          'resource.telemetry.sdk.version': {
-            renderType: ExploreTableColumnTypeEnum.TEXT,
-            colKey: 'resource.telemetry.sdk.version',
-            title: t('SDK 版本'),
-            width: 160,
-            getRenderValue: row => row?.resource?.['telemetry.sdk.version'],
           },
           trace_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -472,7 +467,7 @@ export default defineComponent({
           colKey: 'root_service_category',
           title: t('调用类型'),
           width: 120,
-          getRenderValue: row => row?.root_service_category?.text,
+          getRenderValue: row => SERVICE_CATEGORY_MAP[row.root_service_category],
         },
         root_service_status_code: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
@@ -480,9 +475,9 @@ export default defineComponent({
           title: t('状态码'),
           width: 100,
           getRenderValue: row => {
-            const alias = row?.root_service_status_code?.value as string;
+            const alias = row?.root_service_status_code as string;
             if (!alias) return [];
-            const type = row?.root_service_status_code?.type;
+            const type = row?.root_service_status_code === 200 ? 'normal' : 'error';
             return [
               {
                 alias: alias,
@@ -497,106 +492,17 @@ export default defineComponent({
           title: t('耗时'),
           width: 100,
         },
-        'kind_statistics.sync': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'kind_statistics.sync',
-          title: t('同步Span数量'),
-          width: 130,
-          align: 'right',
-          getRenderValue: row => row?.kind_statistics?.sync || 0,
-        },
-        'kind_statistics.async': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'kind_statistics.async',
-          title: t('异步Span数量'),
-          width: 130,
-          align: 'right',
-          getRenderValue: row => row?.kind_statistics?.async || 0,
-        },
-        'kind_statistics.interval': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'kind_statistics.interval',
-          title: t('内部Span数量'),
-          width: 130,
-          align: 'right',
-          getRenderValue: row => row?.kind_statistics?.interval || 0,
-        },
-        'kind_statistics.unspecified': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'kind_statistics.unspecified',
-          title: t('未知Span数量'),
-          width: 130,
-          align: 'right',
-          getRenderValue: row => row?.kind_statistics?.unspecified || 0,
-        },
-        'category_statistics.db': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.db',
-          title: t('DB 数量'),
-          width: 100,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.db || 0,
-        },
-        'category_statistics.messaging': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.messaging',
-          title: t('Messaging 数量'),
-          width: 136,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.messaging || 0,
-        },
-        'category_statistics.http': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.http',
-          title: t('HTTP 数量'),
-          width: 110,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.http || 0,
-        },
-        'category_statistics.rpc': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.rpc',
-          title: t('RPC 数量'),
-          width: 100,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.rpc || 0,
-        },
-        'category_statistics.async_backend': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.async_backend',
-          title: t('Async 数量'),
-          width: 110,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.async_backend || 0,
-        },
-        'category_statistics.other': {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'category_statistics.other',
-          title: t('Other 数量'),
-          width: 110,
-          align: 'right',
-          getRenderValue: row => row?.category_statistics?.other || 0,
-        },
-        span_count: {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'span_count',
-          title: t('Span 数量'),
-          width: 110,
-          align: 'right',
-        },
         hierarchy_count: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'hierarchy_count',
           title: t('Span 层数'),
           width: 110,
-          align: 'right',
         },
         service_count: {
           renderType: ExploreTableColumnTypeEnum.TEXT,
           colKey: 'service_count',
           title: t('服务数量'),
           width: 100,
-          align: 'right',
         },
       };
     }
@@ -1010,19 +916,6 @@ export default defineComponent({
           ref='tableRef'
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
           v-slots={{
-            lastFullRow: this.tableViewData.length
-              ? () => (
-                  <Loading
-                    style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
-                    class='scroll-end-loading'
-                    loading={true}
-                    mode='spin'
-                    size='mini'
-                    theme='primary'
-                    title={window.i18n.t('加载中…')}
-                  />
-                )
-              : undefined,
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
           columns={[
@@ -1053,6 +946,21 @@ export default defineComponent({
           headerAffixedTop={{
             container: SCROLL_ELEMENT_CLASS_NAME,
           }}
+          lastFullRow={
+            this.tableViewData.length
+              ? () => (
+                  <Loading
+                    style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
+                    class='scroll-end-loading'
+                    loading={true}
+                    mode='spin'
+                    size='mini'
+                    theme='primary'
+                    title={window.i18n.t('加载中…')}
+                  />
+                )
+              : undefined
+          }
           rowspanAndColspan={({ colIndex }) => {
             return {
               rowspan: 1,
