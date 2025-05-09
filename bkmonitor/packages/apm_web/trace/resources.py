@@ -1310,8 +1310,10 @@ class TraceFieldStatisticsInfoResource(Resource):
 
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        return API_INFO_DATA
+    def perform_request(self, validated_data):
+        if validated_data.get("is_mock"):
+            return API_INFO_DATA
+        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
 class TraceFieldStatisticsGraphResource(Resource):
