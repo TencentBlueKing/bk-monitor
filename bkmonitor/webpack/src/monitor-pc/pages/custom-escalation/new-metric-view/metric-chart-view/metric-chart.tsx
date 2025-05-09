@@ -86,6 +86,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: false }) isShowLegend: boolean;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
+  /** groupId */
+  @Prop({ default: '' }) groupId: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -544,13 +546,12 @@ class NewMetricChart extends CommonSimpleChart {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
+            color: COLOR_LIST,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -590,6 +591,7 @@ class NewMetricChart extends CommonSimpleChart {
             },
           })
         );
+        console.log(this.options, 'this.options');
         this.initialized = true;
         this.empty = false;
         setTimeout(() => {
@@ -829,6 +831,7 @@ class NewMetricChart extends CommonSimpleChart {
     });
   }
   render() {
+    console.log(this.panel.dashboardId, 'this.panel.dashboardId');
     return (
       <div class='new-metric-chart'>
         <ChartHeader
@@ -875,7 +878,7 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
-                  groupId={this.panel.dashboardId}
+                  groupId={this.groupId}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
