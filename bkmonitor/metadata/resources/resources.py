@@ -68,6 +68,7 @@ from metadata.service.data_source import (
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.bkbase import sync_bkbase_result_table_meta
 from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
 
@@ -2442,3 +2443,22 @@ class GetDataLabelsMapResource(Resource):
                 # 不为空才建立映射关系，避免写入 empty=empty，
                 data_labels_map[item["data_label"]] = item["data_label"]
         return data_labels_map
+
+
+class SyncBkBaseRtMetaByBizIdResource(Resource):
+    """
+    同步单个业务的计算平台RT元信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        # 同步BKDATA元信息,单业务实时触发同步
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        # 同步指定存储类型的数据
+        storages = settings.SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES
+        logger.info("SyncBkBaseRtMetaByBizIdResource: start sync bkbase meta for biz_id->[%s]", bk_biz_id)
+        bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=[bk_biz_id], storages=storages)
+        sync_bkbase_result_table_meta(round_iter=0, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=[bk_biz_id])
+        logger.info("SyncBkBaseRtMetaByBizIdResource: end sync bkbase meta for biz_id->[%s]", bk_biz_id)

@@ -104,7 +104,7 @@ networkx==2.6.3
 xxhash==3.5.0
 schema==0.7.7
 jmespath==1.0.1
-typing-extensions==4.7.1
+typing-extensions==4.12.2
 python-magic==0.4.27
 betterproto==2.0.0b7
 pytz==2024.2

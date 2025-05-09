@@ -24,6 +24,7 @@ from apps.utils.lucene import (
     LuceneUnexpectedLogicOperatorChecker,
     OperatorEnhanceLucene,
     ReservedLogicalEnhanceLucene,
+    SingleQuotationMarkAdaptationEnhanceLucene,
 )
 
 # =================================== TEST LUCENE =================================== #
@@ -215,52 +216,52 @@ INSPECT_KEYWORD_RESULT = {
 # =================================== TEST ENHANCE LUCENE =================================== #
 ENHANCE_KEYWORD_TEST_CASES = [
     {
-        "keyword": """number >=83063 or title: "The Right Way" AND log: and""",
-        "expect": """number: >=83063 OR title: "The Right Way" AND log: \"and\"""",
+        "keyword": """number >=83063 or action: 'trying remove' AND title: "The Right Way" AND log: and""",
+        "expect": """number: >=83063 OR action: "trying remove" AND title: "The Right Way" AND log: \"and\"""",
     },
     {
-        "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
-        "expect": """number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
+        "keyword": """number < 83063 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
+        "expect": """number: <83063 AND log: "abc\\" c'de'as" title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log: "lineno=1" and number < 83063 and title: "The Right Way" AND log: OR""",
-        "expect": """log: "lineno=1" AND number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
+        "keyword": """log: "lineno=1" and number < 83063 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
+        "expect": """log: "lineno=1" AND number: <83063 AND log: "abc\\" c'de'as" title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log:"r_e.cp|Add , root_id=0\n, item_id=20" and number < 83 and title: "The Way" AND log: OR""",
-        "expect": """log:"r_e.cp|Add , root_id=0\n, item_id=20" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+        "keyword": """log:"r_e.cp|Add , root_id=0\n, item_id=20" and number < 83 and log: 'abc" c\\'de\\'as' title: "The Way" AND log: OR""",
+        "expect": """log:"r_e.cp|Add , root_id=0\n, item_id=20" AND number: <83 AND log: "abc\\" c'de'as" title: "The Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log:"operateSm:fail:not supported" and number < 83 and title: "The Way" AND log: OR""",
-        "expect": """log:"operateSm:fail:not supported" AND number: <83 AND title: "The Way" AND log: \"OR\"""",
+        "keyword": """log:"operateSm:fail:not supported" and number < 83 and log: 'abc" c\\'de\\'as' title: "The Way" AND log: OR""",
+        "expect": """log:"operateSm:fail:not supported" AND number: <83 AND log: "abc\\" c'de'as" title: "The Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log: lineno=1 and title: "The Right Way" AND log: OR""",
-        "expect": """log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+        "keyword": """log: lineno=1 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
+        "expect": """log: lineno: =1 AND log: "abc\\" c'de'as" title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """log: or or /x and x/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
-        "expect": """log: \"or\" OR /x and x/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+        "keyword": """log: or or /x and x/ and log: lineno=1 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
+        "expect": """log: \"or\" OR /x and x/ AND log: lineno: =1 AND log: "abc\\" c'de'as" title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """/a and b or c, lo=1 xx:not/ and log: lineno=1 and title: "The Right Way" AND log: OR""",
-        "expect": """/a and b or c, lo=1 xx:not/ AND log: lineno: =1 AND title: "The Right Way" AND log: \"OR\"""",
+        "keyword": """/a and b or c, lo=1 xx:not/ and log: lineno=1 and log: 'abc" c\\'de\\'as' title: "The Right Way" AND log: OR""",
+        "expect": """/a and b or c, lo=1 xx:not/ AND log: lineno: =1 AND log: "abc\\" c'de'as" title: "The Right Way" AND log: \"OR\"""",
     },
     {
-        "keyword": """number >=83063 or levelname:\"a and b or c\" AND log: and""",
-        "expect": """number: >=83063 OR levelname:\"a and b or c\" AND log: \"and\"""",
+        "keyword": """number >=83063 or levelname:\"a and b or c\" log: 'abc" c\\'de\\'as' AND log: and""",
+        "expect": """number: >=83063 OR levelname:\"a and b or c\" log: "abc\\" c'de'as" AND log: \"and\"""",
     },
     {
-        "keyword": """number >=83063 or levelname: a and \"b or c\" AND log: and""",
-        "expect": """number: >=83063 OR levelname: a AND \"b or c\" AND log: \"and\"""",
+        "keyword": """number >=83063 or levelname: a and \"b or c\" log: 'abc" c\\'de\\'as' AND log: and""",
+        "expect": """number: >=83063 OR levelname: a AND \"b or c\" log: "abc\\" c'de'as" AND log: \"and\"""",
     },
     {
-        "keyword": """number < 83063 and levelname : \"a and b or c not d\" or lineno : [1 to 1000] AND log: and""",
-        "expect": """number: <83063 AND levelname : \"a and b or c not d\" OR lineno : [1 TO 1000] AND log: \"and\"""",
+        "keyword": """number < 83063 and levelname : \"a and b or c not d\" or lineno : [1 to 1000] log: 'abc" c\\'de\\'as' AND log: and""",
+        "expect": """number: <83063 AND levelname : \"a and b or c not d\" OR lineno : [1 TO 1000] log: "abc\\" c'de'as" AND log: \"and\"""",
     },
     {
-        "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] AND log: and""",
-        "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] AND log: \"and\"""",
+        "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] log: 'abc" c\\'de\\'as' AND log: and""",
+        "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] log: "abc\\" c'de'as" AND log: \"and\"""",
     },
 ]
 
@@ -273,34 +274,44 @@ ENHANCE_KEYWORD_INSPECT_RESULT = {
 
 ENHANCE_KEYWORD_FIELDS = [
     {
-        'pos': 0,
+        "pos": 0,
         "field_name": "number",
-        'name': 'number',
-        'type': 'Word',
-        'operator': '>=',
-        'value': '83063',
-        'is_full_text_field': False,
-        'repeat_count': 0,
+        "name": "number",
+        "type": "Word",
+        "operator": ">=",
+        "value": "83063",
+        "is_full_text_field": False,
+        "repeat_count": 0,
     },
     {
-        'pos': 19,
+        "pos": 19,
+        "field_name": "action",
+        "name": "action",
+        "type": "Phrase",
+        "operator": "=",
+        "value": '"trying remove"',
+        "is_full_text_field": False,
+        "repeat_count": 0,
+    },
+    {
+        "pos": 47,
         "field_name": "title",
-        'name': 'title',
-        'type': 'Phrase',
-        'operator': '=',
-        'value': '"The Right Way"',
-        'is_full_text_field': False,
-        'repeat_count': 0,
+        "name": "title",
+        "type": "Phrase",
+        "operator": "=",
+        "value": '"The Right Way"',
+        "is_full_text_field": False,
+        "repeat_count": 0,
     },
     {
-        'pos': 46,
-        'name': 'log',
-        'field_name': 'log',
-        'type': 'Phrase',
-        'operator': '=',
-        'value': '"and"',
-        'is_full_text_field': False,
-        'repeat_count': 0,
+        "pos": 74,
+        "field_name": "log",
+        "name": "log",
+        "type": "Phrase",
+        "operator": "=",
+        "value": '"and"',
+        "is_full_text_field": False,
+        "repeat_count": 0,
     },
 ]
 
@@ -311,16 +322,16 @@ ENHANCE_UPDATE_QUERY_PARAMS = [
         "value": "100000",
     },
     {
-        "pos": 19,
+        "pos": 47,
         "value": '"hello"',
     },
     {
-        "pos": 46,
+        "pos": 74,
         "value": '"not"',
     },
 ]
 
-ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\""""
+ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR action: "trying remove" AND title: "hello" AND log: \"not\""""
 
 # =================================== TEST LUCENE CHECKER =================================== #
 FIELDS = [
@@ -529,6 +540,8 @@ class TestEnhanceLucene(TestCase):
             keyword = OperatorEnhanceLucene(keyword).transform()
             self.assertEqual(ReservedLogicalEnhanceLucene(keyword).match(), True)
             keyword = ReservedLogicalEnhanceLucene(keyword).transform()
+            self.assertEqual(SingleQuotationMarkAdaptationEnhanceLucene(keyword).match(), True)
+            keyword = SingleQuotationMarkAdaptationEnhanceLucene(keyword).transform()
             self.assertEqual(keyword, i["expect"])
 
         # 完整的流程

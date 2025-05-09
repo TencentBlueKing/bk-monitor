@@ -46,7 +46,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
     """
     # 获取路径前缀
     if external:
-        prefix = f"{settings.BK_MONITOR_HOST.rstrip('/')}grafana/"
+        prefix = f"{settings.BK_MONITOR_HOST.rstrip('/')}/grafana/"
     else:
         if settings.BK_MONITOR_HOST.endswith("/o/bk_monitorv3/"):
             path_prefix = "/o/bk_monitorv3/"
