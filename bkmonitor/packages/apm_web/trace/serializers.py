@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -71,6 +71,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 class FilterSerializer(serializers.Serializer):
     key = serializers.CharField(label="查询键")
     operator = serializers.CharField(label="操作符")
+    options = serializers.DictField(label="操作符选项", required=False)
     value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
 
 
@@ -91,7 +92,9 @@ class QueryStatisticsSerializer(serializers.Serializer):
     class FilterSerializer(serializers.Serializer):
         key = serializers.CharField(label="查询键")
         operator = serializers.CharField(label="操作符")
-        value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
+        value = serializers.ListSerializer(
+            label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True
+        )
 
     bk_biz_id = serializers.IntegerField(label="业务ID")
     app_name = serializers.CharField(label="应用名称")
@@ -122,6 +125,11 @@ class BaseTraceFilterSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(label="查询视角", choices=QueryMode.choices())
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
+
+
+class GetFieldsOptionValuesRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
+    fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
+    limit = serializers.IntegerField(label="查询条数", required=False, default=10)
 
 
 class TraceFieldsTopkRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
