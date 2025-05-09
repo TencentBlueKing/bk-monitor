@@ -153,9 +153,7 @@ class GrafanaSwitchOrgView(SwitchOrgView):
         if match_result:
             uid = match_result[0]
             # 兼容旧版权限
-            role = DashboardPermission.get_user_role(
-                username=request.user.username, org_name=org_name, force_check=True
-            )
+            role = DashboardPermission.get_user_role(username=request.user.username, org_name=org_name)
             if role < GrafanaRole.Viewer:
                 _, role, dashboard_permissions = DashboardPermission.get_user_permission(
                     username=request.user.username, org_name=org_name
