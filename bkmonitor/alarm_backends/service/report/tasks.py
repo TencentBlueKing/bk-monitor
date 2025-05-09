@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
 import posixpath
@@ -25,7 +25,6 @@ from alarm_backends.service.report.render.dashboard import (
 )
 from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
-from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
 from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import (
@@ -150,9 +149,9 @@ def report_mail_detect():
                                 # 当前这个小时，且在检测的这个分钟已经发送过，则不再检测发送
                                 # 因为有一分钟裕量，否则有可能前后一分钟都会命中
                                 continue
-                        run_time_strings.append(f'{today} {hour}:{minute}:00')
+                        run_time_strings.append(f"{today} {hour}:{minute}:00")
         else:
-            run_time_strings = [f'{datetime.datetime.today().strftime("%Y-%m-%d")} {item.frequency["run_time"]}']
+            run_time_strings = [f"{datetime.datetime.today().strftime('%Y-%m-%d')} {item.frequency['run_time']}"]
         for time_str in run_time_strings:
             run_time = TimeMatch.convert_datetime_to_arrow(datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S"))
             if time_check.is_match(run_time):
@@ -211,7 +210,7 @@ def render_mails(
             bk_biz_ids = [s["bk_biz_id"] for s in spaces]
         except Exception as error:
             logger.exception(
-                "[mail_report] get business info of report_item(%s)" " failed: %s", report_item.id, str(error)
+                "[mail_report] get business info of report_item(%s) failed: %s", report_item.id, str(error)
             )
             bk_biz_ids = []
 
@@ -226,7 +225,7 @@ def render_mails(
             is_link_enabled=report_item.is_link_enabled,
             channel_name=channel_name,
         )
-        status["mail_title"] = f'{report_item.mail_title} {render_args["mail_title_time"]}'
+        status["mail_title"] = f"{report_item.mail_title} {render_args['mail_title_time']}"
         if err_msg:
             status["details"]["error_message"][receivers_string] = err_msg
         if channel_name == ReportItems.Channel.WXBOT:
@@ -262,13 +261,6 @@ def render_mails(
         item_id=report_item.id, status=metrics.StatusEnum.from_exc(exc), exception=exc
     ).inc()
     metrics.report_all()
-
-
-def report_transfer_operation_data():
-    """上报 transfer 运营数据"""
-    h = TransferMetricHelper()
-    h.fetch()
-    h.report()
 
 
 # 采集周期（小于1min）
