@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request
+from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import CC_APIGATEWAY_ROOT_V2
 
 
@@ -59,6 +59,7 @@ class _CCApi:
             before_request=get_supplier_account_before,
             cache_time=60,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["biz_property_filter"]["rules"][0]["value"]),
         )
         self.search_inst_by_object = DataAPI(
             method="POST",
@@ -67,6 +68,7 @@ class _CCApi:
             description="查询CC对象列表",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["condition"]["bk_biz_id"]),
         )
         self.search_biz_inst_topo = DataAPI(
             method="POST",
@@ -75,6 +77,7 @@ class _CCApi:
             description="查询业务TOPO，显示各个层级",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_module = DataAPI(
             method="POST",
@@ -83,6 +86,7 @@ class _CCApi:
             description="查询模块",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_host_info = DataAPI(
             method="GET",
@@ -99,6 +103,7 @@ class _CCApi:
             description="查询内部业务模块",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_object_attribute = DataAPI(
             method="POST",
@@ -107,6 +112,7 @@ class _CCApi:
             description="查询对象属性",
             before_request=filter_bk_field_prefix_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_biz_hosts = DataAPI(
             method="POST",
@@ -115,6 +121,7 @@ class _CCApi:
             description="查询业务下的主机",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_hosts_without_biz = DataAPI(
             method="POST",
@@ -131,6 +138,7 @@ class _CCApi:
             description="查询业务下的主机和拓扑信息",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_cloud_area = DataAPI(
             method="POST",
@@ -155,6 +163,7 @@ class _CCApi:
             description="查询集群",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_service_template = DataAPI(
             method="POST",
@@ -163,6 +172,7 @@ class _CCApi:
             description="获取服务模板列表",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_set_template = DataAPI(
             method="POST",
@@ -171,6 +181,7 @@ class _CCApi:
             description="获取集群模板列表",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.find_host_by_set_template = DataAPI(
             method="POST",
@@ -179,6 +190,7 @@ class _CCApi:
             description="查询集群模板下的主机",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.find_host_by_service_template = DataAPI(
             method="POST",
@@ -187,6 +199,7 @@ class _CCApi:
             description="查询服务模板下的主机",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.find_module_with_relation = DataAPI(
             method="POST",
@@ -195,6 +208,7 @@ class _CCApi:
             description="根据条件查询业务下的模块",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_dynamic_group = DataAPI(
             method="POST",
@@ -203,6 +217,7 @@ class _CCApi:
             description="查询动态分组列表",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.execute_dynamic_group = DataAPI(
             method="POST",
@@ -211,6 +226,7 @@ class _CCApi:
             description="根据指定动态分组规则查询获取数据",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.find_host_by_topo = DataAPI(
             method="POST",
@@ -235,6 +251,7 @@ class _CCApi:
             description="查询业务拓扑节点的拓扑路径",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_service_category = DataAPI(
             method="POST",
@@ -243,6 +260,7 @@ class _CCApi:
             description="list_service_category",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
     def get_biz_location(self, *args, **kwargs):
