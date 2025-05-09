@@ -172,6 +172,7 @@ const stateTpl = {
   features: {
     isAiAssistantActive: false,
   },
+  localSort: false,
 };
 
 const store = new Vuex.Store({
@@ -842,6 +843,9 @@ const store = new Vuex.Store({
     resetState(state) {
       Object.assign(state, deepClone(stateTpl));
     },
+    updateLocalSort(state, payload) {
+      state.localSort = payload;
+    },
   },
   actions: {
     /**
@@ -1070,7 +1074,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined, localSort: [] },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
@@ -1134,7 +1138,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
-        sort_list: payload?.localSort.length ? otherPrams.sort_list : getters.custom_sort_list,
+        sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
 
       // 更新联合查询的begin
