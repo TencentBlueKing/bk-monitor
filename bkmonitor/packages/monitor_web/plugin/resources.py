@@ -18,6 +18,9 @@ import re
 import shutil
 import tarfile
 import time
+import pathlib
+import subprocess
+import json
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -885,75 +888,78 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
             return save_resource.request(self.create_params)
 
 
-class HelloWorldResource(Resource):
-    """
-    测试接口的联通性
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        user_name = serializers.CharField(required=False)
-
-    def perform_request(self, validated_request_data):
-        # 当前的数据是进过序列化的数据
-        # validated_request_data 是一个字典， 存储着前端发来的参数
-        user_name = validated_request_data.get("user_name", "robot")
-        return {f"hello world i am {user_name}"}
-
-
 class ProcessDataFilterResource(Resource):
     """
     对外提供的接口， 用于过滤前端发送来的的进程数据
     """
 
     class RequestSerializer(serializers.Serializer):
-        data = serializers.CharField(required=True)
-        include = serializers.CharField(required=True)
+        processes = serializers.CharField(required=True)
+        match = serializers.CharField(required=True)
         exclude = serializers.CharField(required=True)
-        extract = serializers.CharField(required=True)
+        dimensions = serializers.CharField(required=True)
         process_name = serializers.CharField(required=True)
 
+        # 参数校验
+        def validate_exclude(self, value):
+            """验证exclude参数是否是合法的正则表达式"""
+            if value:
+                try:
+                    re.compile(value)
+                except re.error as e:
+                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
+            return value
+
+        def validate_dimensions(self, value):
+            """验证dimensions参数是否是合法的正则表达式"""
+            if value:
+                try:
+                    re.compile(value)
+                except re.error as e:
+                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
+            return value
+
+        def validate_process_name(self, value):
+            """验证process_name参数是否是合法的正则表达式"""
+            if value:
+                try:
+                    re.compile(value)
+                except re.error as e:
+                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
+            return value
+
     def perform_request(self, validated_request_data):
-        # 获取输入参数
-        data = validated_request_data["data"]
-        include = validated_request_data.get("include", "")
+        # 获取当前目录
+        current_dir = pathlib.Path(__file__).parent
+        cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
+
+        # 提取参数
+        match = validated_request_data.get("match", "")
         exclude = validated_request_data.get("exclude", "")
-        extract = validated_request_data.get("extract", "")
+        dimensions = validated_request_data.get("dimensions", "")
+        process_name = validated_request_data.get("process_name", "")
+        processes = validated_request_data.get("processes", "")
 
-        # 处理包含条件(不支持正则)
-        include_terms = [term.strip() for term in include.split(",") if term.strip()]
+        # 执行命令
+        cmd = f'{cmd_path} --match={match} --exclude={exclude} --dimensions="{dimensions}" --process_name="{process_name}" --processes="{processes}"'
+        try:
+            result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True, timeout=15)
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"Process matcher command timed out, error_message: {e}")
+            raise subprocess.TimeoutExpired(cmd, timeout=15)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Process matcher failed with code {e.returncode}: {e.stderr}")
+            raise subprocess.CalledProcessError(e.returncode, cmd, output=e.stdout, stderr=e.stderr)
+        except Exception as e:
+            logger.error(f"Unexpected error executing process matcher: {e}")
+            raise Exception(f"Unexpected error executing process matcher: {e}")
 
-        # 处理排除条件(支持正则)
-        exclude_pattern = re.compile(exclude) if exclude else None
-
-        # 处理提取条件(支持正则)
-        extract_pattern = re.compile(extract) if extract else None
-
-        result = []
-        for line in data.splitlines():
-            # 跳过空行
-            if not line.strip():
-                continue
-
-            # 1. 包含条件检查（只有当前行包含指定词时才会继续处理）
-            if include_terms and not all(term in line for term in include_terms):
-                continue
-
-            # 2. 排除条件检查
-            if exclude_pattern and exclude_pattern.search(line):
-                continue
-
-            # 3. 提取处理
-            if extract_pattern:
-                match = extract_pattern.search(line)
-                if match:
-                    # 如果有分组则返回分组，否则返回整个匹配
-                    extracted = match.group(1) if len(match.groups()) >= 1 else match.group(0)
-                    result.append(extracted)
-            else:
-                result.append(line)
-
-        return {
-            "original_line_count": len(data.splitlines()),
-            "filtered_line_count": len(result),
-            "filtered_data": "\n".join(result),
-        }
+        # 返回结果
+        try:
+            # 解析 JSON 输出并返回结构化数据
+            # 如果直接返回 result.stdout， 则会包含多余的转义字符， 所以这里先反序列化
+            json_result = json.loads(result.stdout.strip())
+            return json_result
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse process matcher output: {e}")
+            return {"error": "Invalid JSON output from process matcher"}
