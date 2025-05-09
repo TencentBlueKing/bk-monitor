@@ -30,6 +30,7 @@ import { useRouter } from 'vue-router';
 
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
+import { EStatus, getEffectiveStatus, statusMap } from 'monitor-common/rotation-utils/common';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -37,7 +38,6 @@ import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
-import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 
 import type { IAuthority } from '../../typings/authority';
 

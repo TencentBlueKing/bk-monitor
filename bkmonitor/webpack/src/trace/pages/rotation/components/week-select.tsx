@@ -209,6 +209,7 @@ export default defineComponent({
                 <div class='week-list'>
                   {this.weekList.map(item => (
                     <div
+                      key={item.id}
                       class={['week-item', item.Selected && 'selected']}
                       onClick={() => this.handleSelectItemClick(item)}
                       onMouseenter={() => (this.hoverWeek = item.id)}
