@@ -485,6 +485,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.drillList = this.drillList.filter(drill => item.key !== drill.key);
     this.$emit('chooseDrill', this.drillList, this.activeList);
   }
+
   createOption(dimensions: Record<string, string>) {
     return (
       <div class='options-wrapper'>

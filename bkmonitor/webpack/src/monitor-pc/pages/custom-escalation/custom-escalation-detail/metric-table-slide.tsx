@@ -276,6 +276,11 @@ export default class IndicatorTableSlide extends tsc<any> {
         item.id = 'name';
         item.values = [{ id: item.name, name: item.name }];
       }
+      if (item.id === 'unit') {
+        for (const v of item.values) {
+          v.id = v.name;
+        }
+      }
       search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
     }
 
