@@ -63,7 +63,7 @@ import {
   ExploreTableLoadingEnum,
   type GetTableCellRenderValue,
 } from './typing';
-import { getTableList } from './utils';
+import { getTableList } from './utils/api-utils';
 
 import type { ExploreFieldList, ICommonParams, IDimensionField } from '../../typing';
 

@@ -29,7 +29,7 @@ import { type MaybeRef, onBeforeUnmount } from 'vue';
 import { get } from '@vueuse/core';
 import { $bkPopover } from 'bkui-vue';
 
-import { isEllipsisActiveSingleLine } from '../utils';
+import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 import type { $Popover } from 'bkui-vue/lib/popover/plugin-popover';
