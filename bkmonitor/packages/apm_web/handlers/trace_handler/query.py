@@ -40,6 +40,7 @@ from apm_web.handlers.trace_handler.base import (
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from constants.apm import (
     OtlpKey,
+    PreCalculateSpecificField,
     SpanKind,
     SpanStandardField,
     StandardField,
@@ -325,8 +326,8 @@ class FieldTransformer(TreeTransformer):
 
 
 class OptionValues:
+    FIELDS: list["Field"] = []
     API = None
-    FIELDS = []
 
     @dataclass
     class Field:
@@ -346,7 +347,14 @@ class OptionValues:
         return option_values
 
     def _get_option_values_from_api(
-        self, value_source: str, fields: List[str], start_time: int, end_time: int
+        self,
+        value_source: str,
+        fields: List[str],
+        start_time: int,
+        end_time: int,
+        limit: Optional[int] = None,
+        filters: Optional[List] = None,
+        query_string: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         field_transformer: Callable[[str], str] = {
             ValueSource.TRACE: self._transform_field_to_log_field,
@@ -367,6 +375,9 @@ class OptionValues:
             "end_time": end_time,
             "fields": query_api_fields,
             "datasource_type": value_source,
+            "limit": limit,
+            "filters": filters,
+            "query_string": query_string,
         }
         field_values_mapping: Dict[str, List[Any]] = self.API(params)
 
@@ -401,9 +412,6 @@ class OptionValues:
     def _get_field_mapping(cls) -> Dict[str, Field]:
         return {field_info.id: field_info for field_info in cls.FIELDS}
 
-    def get_option_values(self, start_time: int, end_time: int) -> Dict[str, List[Dict[str, Any]]]:
-        return self.get_field_option_values([field.id for field in self.FIELDS], start_time, end_time)
-
     def get_field_option_values(
         self, fields: List[str], start_time: int, end_time: int
     ) -> Dict[str, List[Dict[str, Any]]]:
@@ -416,25 +424,44 @@ class OptionValues:
                 option_values.update(self._get_option_values_from_api(value_source, fields, start_time, end_time))
         return option_values
 
+    def get_fields_option_values(
+        self,
+        fields: List[str],
+        start_time: int,
+        end_time: int,
+        limit: int,
+        filters: List[Dict[str, str]],
+        query_string: str,
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        option_values: Dict[str, List[Dict[str, Any]]] = {}
+        value_source_fields: Dict[str, List[str]] = self._get_value_source_fields(fields)
+        for value_source, fields in value_source_fields.items():
+            if value_source == ValueSource.METHOD:
+                option_values.update(self._get_option_values_from_method(fields))
+            else:
+                option_values.update(
+                    self._get_option_values_from_api(
+                        value_source, fields, start_time, end_time, limit, filters, query_string
+                    )
+                )
+        return option_values
+
 
 class TraceOptionValues(OptionValues):
     API = api.apm_api.query_trace_option_values
 
     FIELDS = [
-        OptionValues.Field(id="root_service", value_source=ValueSource.TRACE, label=_("入口服务")),
-        OptionValues.Field(id="root_service_span_name", value_source=ValueSource.TRACE, label=_("入口接口")),
-        OptionValues.Field(id="root_service_status_code", value_source=ValueSource.TRACE, label=_("入口状态码")),
         OptionValues.Field(id="root_service_category", value_source=ValueSource.METHOD, label=_("入口类型")),
-        OptionValues.Field(id="root_span_name", value_source=ValueSource.TRACE, label=_("根Span接口")),
-        OptionValues.Field(id="root_span_service", value_source=ValueSource.TRACE, label=_("根Span服务")),
+        OptionValues.Field(id="root_service_kind", value_source=ValueSource.METHOD, label=_("入口服务类型")),
+        OptionValues.Field(id="root_span_kind", value_source=ValueSource.METHOD, label=_("根 Span 类型")),
+        OptionValues.Field(id="kind", value_source=ValueSource.METHOD, label=_("类型")),
     ]
 
     @classmethod
     def _transform_field_to_log_field(cls, field: str) -> str:
-        if field in ["span_name", "resource.service.name"]:
-            return f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
-        else:
+        if field in PreCalculateSpecificField.search_fields():
             return field
+        return f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
 
     def get_root_service_category(self):
         res = []
@@ -445,6 +472,15 @@ class TraceOptionValues(OptionValues):
 
         return res
 
+    def get_root_service_kind(self):
+        return SpanKind.list()
+
+    def get_root_span_kind(self):
+        return SpanKind.list()
+
+    def get_kind(self):
+        return SpanKind.list()
+
 
 class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
@@ -454,22 +490,9 @@ class SpanOptionValues(OptionValues):
     }
 
     FIELDS = [
-        OptionValues.Field(id="span_name", value_source=ValueSource.METRIC, label="Span Name"),
-        OptionValues.Field(id="status.code", value_source=ValueSource.METHOD, label=_("状态")),
-        OptionValues.Field(id="kind", value_source=ValueSource.METHOD, label=_("类型")),
-        OptionValues.Field(id="resource.telemetry.sdk.version", value_source=ValueSource.METRIC, label=_("版本")),
-        OptionValues.Field(id="resource.service.name", value_source=ValueSource.METRIC, label=_("服务")),
-        OptionValues.Field(id="resource.bk.instance.id", value_source=ValueSource.METRIC, label=_("实例")),
+        OptionValues.Field(id=field_info.field, value_source=field_info.value_source, label=field_info.value)
+        for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
     ]
-
-    @classmethod
-    def _get_field_mapping(cls) -> Dict[str, OptionValues.Field]:
-        return {
-            field_info.field: OptionValues.Field(
-                id=field_info.field, value_source=field_info.value_source, label=field_info.value
-            )
-            for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
-        }
 
     @classmethod
     def _transform_field_to_metric_field(cls, field: str) -> str:
@@ -561,6 +584,17 @@ class QueryHandler:
             option = SpanOptionValues(bk_biz_id, app_name)
 
         return option.get_field_option_values(fields, start_time, end_time)
+
+    @classmethod
+    def get_fields_option_values(
+        cls, bk_biz_id, app_name, fields, start_time, end_time, limit, filters, query_string, mode
+    ):
+        if mode == QueryMode.TRACE:
+            option = TraceOptionValues(bk_biz_id, app_name)
+        else:
+            option = SpanOptionValues(bk_biz_id, app_name)
+
+        return option.get_fields_option_values(fields, start_time, end_time, limit, filters, query_string)
 
     @classmethod
     def handle_trace_list(cls, trace_list):
