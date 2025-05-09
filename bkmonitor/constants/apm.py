@@ -63,6 +63,7 @@ class SpanKind:
 
 class OtlpKey:
     ELAPSED_TIME = "elapsed_time"
+    LINKS = "links"
     EVENTS = "events"
     START_TIME = "start_time"
     END_TIME = "end_time"

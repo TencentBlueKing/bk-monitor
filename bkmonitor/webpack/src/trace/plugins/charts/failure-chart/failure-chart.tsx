@@ -262,20 +262,21 @@ export default defineComponent({
       if (props.chartType === 'bar' || props.chartType === 'line') {
         return {
           tooltip: {
+            className: 'failure-chart-tooltips-box',
             axisPointer: {
               axis: 'auto',
               type: 'cross',
               label: {
                 show: false,
-                formatter: params => {
-                  if (props.chartType !== 'line') return;
-                  if (params.axisDimension === 'y') {
-                    curValue.value.yAxis = params.value;
-                  } else {
-                    curValue.value.xAxis = params.value;
-                    curValue.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
-                  }
-                },
+                // formatter: params => {
+                //   if (props.chartType !== 'line') return;
+                //   if (params.axisDimension === 'y') {
+                //     curValue.value.yAxis = params.value;
+                //   } else {
+                //     curValue.value.xAxis = params.value;
+                //     curValue.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
+                //   }
+                // },
               },
               crossStyle: {
                 opacity: 0,
@@ -283,7 +284,7 @@ export default defineComponent({
                 color: 'transparent',
               },
             },
-            formatter: handleSetTooltip,
+            // formatter: handleSetTooltip,
             appendToBody: true,
             position: (pos, params, dom, rect, size: any) => {
               const { contentSize } = size;
@@ -321,6 +322,10 @@ export default defineComponent({
     const chartOption = computed(() => {
       return deepMerge(
         {
+          tooltip: {
+            trigger: 'axis',
+            triggerOn: 'mousemove|click',
+          },
           legend: {
             asTable: false, // 是否转换为table图例
             toTheRight: false, // 图例位置在右侧
@@ -971,9 +976,9 @@ export default defineComponent({
             scatterTips.value.top = top;
             scatterTips.value.show = true;
             const { series } = chartOptions;
-            series.forEach(item => {
+            series.map(item => {
               if (item.type === 'scatter' && item.name === 'bk_trace_value') {
-                item.data.forEach(d => {
+                item.data.map(d => {
                   if (JSON.stringify(d.value) === JSON.stringify(e.data.value)) {
                     d.itemStyle.color = '#699DF4';
                   }
