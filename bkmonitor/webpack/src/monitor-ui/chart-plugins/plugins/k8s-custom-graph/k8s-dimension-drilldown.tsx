@@ -54,6 +54,9 @@ const drillListMap = {
     service: ['ingress', 'pod'],
     pod: ['ingress', 'service'],
   },
+  [SceneEnum.Capacity]: {
+    node: [],
+  },
 };
 @Component
 export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {

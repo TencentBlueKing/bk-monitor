@@ -512,10 +512,18 @@ export default class FilterByCondition extends tsc<IProps> {
       const tags = addValueSelectedTagsFn();
       if (delIndex > -1) {
         if (otherIds.length) {
-          this.tagList[delIndex].values = otherIds.map(id => ({
-            id: id,
-            name: id,
-          }));
+          const customOption = this.addValueSelected.get(this.groupSelected);
+          if (customOption?.size) {
+            this.tagList[delIndex].values = Array.from(customOption).map(id => ({
+              id: id,
+              name: id,
+            }));
+          } else {
+            this.tagList[delIndex].values = otherIds.map(id => ({
+              id: id,
+              name: id,
+            }));
+          }
         } else {
           if (tags.length) {
             this.tagList.push(...tags);
@@ -539,25 +547,31 @@ export default class FilterByCondition extends tsc<IProps> {
             name: groupItem.name,
             values: curSelected.map(item => ({
               id: item.id,
-              // name: item.name,
               name: item.id,
             })),
           });
         } else {
           for (const tag of this.tagList) {
             if (tag.id === this.groupSelected) {
-              const values = curSelected.map(item => ({
+              let values = curSelected.map(item => ({
                 id: item.id,
-                // name: item.name,
                 name: item.id,
               }));
               if (this.groupSelected !== EDimensionKey.workload) {
-                values.unshift(
-                  ...otherIds.map(id => ({
+                const customOption = this.addValueSelected.get(this.groupSelected);
+                if (customOption?.size) {
+                  values = Array.from(customOption).map(id => ({
                     id: id,
                     name: id,
-                  }))
-                );
+                  }));
+                } else {
+                  values.unshift(
+                    ...otherIds.map(id => ({
+                      id: id,
+                      name: id,
+                    }))
+                  );
+                }
               }
               tag.values = values;
               break;
