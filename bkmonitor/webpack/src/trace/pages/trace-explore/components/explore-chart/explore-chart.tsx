@@ -51,14 +51,21 @@ export default defineComponent({
     // const dashboardId = random(10);
     // const traceStore = useTraceExploreStore();
     const instance = getCurrentInstance();
-    const chartRef = useTemplateRef<Element>('chart');
+    const chartRef = useTemplateRef<HTMLElement>('chart');
     const panel = computed(() => props.panel);
-    const { options, loading, metricList } = useEcharts(
+    const { options, loading, metricList, targets, queryConfigs, series } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api
     );
-    const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(metricList);
+    console.log(targets, queryConfigs);
+    const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
+      metricList,
+      targets,
+      panel.value.title,
+      series,
+      chartRef
+    );
     return {
       loading,
       options,
@@ -80,7 +87,7 @@ export default defineComponent({
             dragging={this.panel.dragging}
             // drillDownOption={this.drillDownOptions}
             // isInstant={this.panel.instant}
-            // menuList={this.menuList}
+            menuList={['more', 'explore', 'area', 'drill-down', 'relate-alert']}
             metrics={this.metricList}
             showAddMetric={true}
             showMore={true}
@@ -88,9 +95,9 @@ export default defineComponent({
             title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
             onAllMetricClick={this.handleMetricClick}
-            // onMenuClick={this.handleMenuClick}
-            // onMetricClick={this.handleMetricClick}
-            // onSelectChild={({ child }) => this.handleMenuClick(child)}
+            onMenuClick={this.handleMenuClick}
+            onMetricClick={this.handleMetricClick}
+            onSelectChild={({ child }) => this.handleMenuClick(child)}
             // onUpdateDragging={() => this.panel?.updateDragging(false)}
           />
         )}

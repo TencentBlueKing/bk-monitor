@@ -36,7 +36,7 @@ import ExploreChart from './explore-chart';
 
 import './chart-wrapper.scss';
 export default defineComponent({
-  name: 'ExploreChart',
+  name: 'ChartWrapper',
   props: {},
   setup() {
     const store = useTraceExploreStore();
