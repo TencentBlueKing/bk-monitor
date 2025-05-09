@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request
+from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import JOB_APIGATEWAY_ROOT_V2, JOB_APIGATEWAY_ROOT_V3
 
 
@@ -47,6 +47,7 @@ class _JobApi:
             description=_("查询公共脚本列表"),
             module=self.MODULE,
             before_request=get_job_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.fast_execute_script = DataAPI(
             method="POST",
@@ -54,6 +55,7 @@ class _JobApi:
             description=_("快速执行脚本"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.fast_transfer_file = DataAPI(
             method="POST",
@@ -61,13 +63,7 @@ class _JobApi:
             description=_("快速分发文件"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
-        )
-        self.fast_transfer_file = DataAPI(
-            method="POST",
-            url=JOB_APIGATEWAY_ROOT_V3 + "fast_transfer_file/",
-            description=_("快速分发文件"),
-            module=self.MODULE,
-            before_request=get_job_request_before_with_esb,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_job_instance_log = DataAPI(
             method="GET",
@@ -82,6 +78,7 @@ class _JobApi:
             description=_("根据作业实例 ID 查询作业执行状态"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.batch_get_job_instance_ip_log = DataAPI(
             method="POST",
@@ -89,6 +86,7 @@ class _JobApi:
             description=_("根据ip列表批量查询作业执行日志"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 
