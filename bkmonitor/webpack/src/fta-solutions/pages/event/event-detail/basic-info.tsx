@@ -161,6 +161,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
+  /** 不同情况下的跳转逻辑 */
   handleToPerformance(item) {
     const { ipMap, cloudIdMap, basicInfo } = this;
     const isKeyInIpMap = ipMap.includes(item.key);
@@ -169,45 +170,29 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       return;
     }
 
-    const handlers = {
+    switch (item.key) {
       /** 增加集群跳转到BCS */
-      'tags.bcs_cluster_id': () => {
-        const { project_name, value } = item;
-        toBcsDetail(project_name, value);
-      },
+      case 'tags.bcs_cluster_id':
+        toBcsDetail(item.project_name, item.value);
+        break;
+
       /** 跳转到主机监控 */
-      bk_host_id: () => {
+      case 'bk_host_id':
         toPerformanceDetail(basicInfo.bk_biz_id, item.value);
-      },
-      default: () => {
+        break;
+
+      default: {
         const cloudIdItem = basicInfo.dimensions.find(dim => cloudIdMap.includes(dim.key));
         if (!cloudIdItem) {
           return;
         }
         const cloudId = cloudIdItem.value;
         toPerformanceDetail(basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
-      },
-    };
-
-    const handler = handlers[item.key] || handlers.default;
-    handler();
+        break;
+      }
+    }
   }
-  // handleToPerformance(item) {
-  //   if (this.ipMap.includes(item.key)) {
-  //     /** 增加集群跳转到BCS */
-  //     if (item.key === 'tags.bcs_cluster_id') {
-  //       const { project_name, value } = item;
-  //       toBcsDetail(project_name, value);
-  //       return;
-  //     }
-  //     if (item.key === 'bk_host_id') {
-  //       toPerformanceDetail(this.basicInfo.bk_biz_id, item.value);
-  //     } else {
-  //       const cloudId = this.basicInfo.dimensions.find(item => this.cloudIdMap.includes(item.key)).value;
-  //       toPerformanceDetail(this.basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
-  //     }
-  //   }
-  // }
+
   // 头部彩色条形
   getHeaderBarComponent(eventStatus: string, isShielded: boolean, isAck: boolean) {
     const classList = {
@@ -268,7 +253,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           class='relation-log-btn'
           onClick={() => this.handleRelationInfoDialog(parsedInfo)}
         >
-          <span class='icon-monitor icon-guanlian' /> 关联日志
+          <span class='icon-monitor icon-guanlian' /> {this.$t('关联日志')}
         </span>
       );
     } catch {
