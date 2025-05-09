@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api import MonitorApi
@@ -32,13 +33,12 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.models import ClusteringConfig, NoticeGroup
 from apps.log_databus.constants import EMPTY_REQUEST_USER
 from apps.log_search.models import LogIndexSet
-from apps.utils.apigw import use_gw
 
 
 class MonitorUtils(object):
     @classmethod
     def save_notice_group(cls, bk_biz_id: int, name: str, notice_way: dict, notice_receiver: list, message: str = ""):
-        if use_gw():
+        if settings.USE_NEW_MONITOR_APIGATEWAY:
             params = {
                 "bk_biz_id": bk_biz_id,
                 "name": name,
