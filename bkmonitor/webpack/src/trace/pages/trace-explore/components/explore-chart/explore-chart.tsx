@@ -55,7 +55,7 @@ export default defineComponent({
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<Element>('chart');
     const panel = computed(() => props.panel);
-    const { options, loading, metricList, menuList } = useEcharts(
+    const { options, loading, metricList } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api
@@ -66,7 +66,6 @@ export default defineComponent({
       loading,
       options,
       metricList,
-      menuList,
       legendData,
       handleAlarmClick,
       handleMenuClick,
@@ -86,7 +85,7 @@ export default defineComponent({
             dragging={this.panel.dragging}
             // drillDownOption={this.drillDownOptions}
             isInstant={this.panel.instant}
-            menuList={this.menuList}
+            // menuList={this.menuList}
             metrics={this.metricList}
             showAddMetric={true}
             showMore={true}
