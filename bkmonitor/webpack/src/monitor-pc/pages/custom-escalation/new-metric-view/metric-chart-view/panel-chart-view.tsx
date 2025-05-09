@@ -75,6 +75,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   currentChart = {};
 
   loading = false;
+  defaultGroupId = 'group-chart';
 
   /** 过滤条件发生改变的时候重新拉取数据 */
   @Watch('config', { deep: true })
@@ -152,12 +153,13 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       });
   }
   /** 渲染panel的内容 */
-  renderPanelMain(chart: IPanelModel, ind: number, chartInd: number) {
+  renderPanelMain(chart: IPanelModel, ind: number, chartInd: number, name: string) {
     return (
       <div class={`chart-view-item column-${this.viewColumn}`}>
         <LayoutChartTable
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.viewColumn)]}
           config={this.config}
+          groupId={name || this.defaultGroupId}
           isShowStatisticalValue={this.showStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
@@ -247,7 +249,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                         key={rowIndex}
                         class='chart-view-row'
                       >
-                        {rowItem.map((panelData, chartInd) => this.renderPanelMain(panelData, ind, chartInd))}
+                        {rowItem.map((panelData, chartInd) =>
+                          this.renderPanelMain(panelData, ind, chartInd, item.name)
+                        )}
                       </div>
                     ))}
                 </div>
