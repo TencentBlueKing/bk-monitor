@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -10,6 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import ntpath
 import os
 import sys
@@ -771,8 +771,8 @@ DATABASES = {
         "PORT": SAAS_MYSQL_PORT,
         "POOL_OPTIONS": {
             "POOL_SIZE": 5,
-            'MAX_OVERFLOW': -1,
-            'RECYCLE': 600,
+            "MAX_OVERFLOW": -1,
+            "RECYCLE": 600,
         },
     },
     "monitor_api": {
@@ -810,7 +810,7 @@ KAFKA_PORT = int(os.environ.get("BK_MONITOR_KAFKA_PORT", 9092))
 # alert 模块告警专属
 ALERT_KAFKA_HOST = [os.environ.get("BK_MONITOR_ALERT_KAFKA_HOST", KAFKA_HOST[0])]
 ALERT_KAFKA_PORT = int(os.environ.get("BK_MONITOR_ALERT_KAFKA_PORT", KAFKA_PORT))
-KAFKA_CONSUMER_GROUP = "{}-bkmonitorv3-alert-{}".format(PLATFORM.lower(), ENVIRONMENT.lower())
+KAFKA_CONSUMER_GROUP = f"{PLATFORM.lower()}-bkmonitorv3-alert-{ENVIRONMENT.lower()}"
 KAFKA_CONSUMER_GROUP = os.environ.get("BK_MONITOR_KAFKA_CONSUMER_GROUP", KAFKA_CONSUMER_GROUP)
 COMMON_KAFKA_CLUSTER_INDEX = 0
 # for stage
@@ -824,7 +824,7 @@ else:
         os.getenv("BKPAAS_APP_LOG_PATH")
         or os.getenv("BK_LOG_DIR")
         or os.getenv("LOGS_PATH")
-        or (f'{os.getenv("BK_HOME")}/logs' if os.getenv("BK_HOME") else "" or "/data/app/logs")
+        or (f"{os.getenv('BK_HOME')}/logs" if os.getenv("BK_HOME") else "" or "/data/app/logs")
     )
 
     if ROLE in ["worker", "api"]:
@@ -849,6 +849,7 @@ if not os.path.exists(LOG_PATH):
 #
 IS_ACCESS_BK_DATA = os.getenv("BKAPP_IS_ACCESS_BK_DATA", "") == "true"  # 是否接入计算平台
 IS_ENABLE_VIEW_CMDB_LEVEL = False  # 是否开启前端视图部分的CMDB预聚合
+IS_MIGRATE_AIOPS_STRATEGY = False
 
 # 数据接入相关
 BK_DATA_PROJECT_ID = 1  # 监控平台数据接入到计算平台 & 异常检测模型所在项目
@@ -1149,10 +1150,10 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
-BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", "{}/o/bk_itsm/".format(BK_PAAS_HOST))
-BK_SOPS_HOST = os.getenv("BK_SOPS_URL", "{}/o/bk_sops/".format(BK_PAAS_HOST))
+BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", f"{BK_PAAS_HOST}/o/bk_itsm/")
+BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
-BK_BCS_HOST = os.getenv("BK_BCS_URL", "{}/o/bk_bcs_app/".format(BK_PAAS_HOST))
+BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
@@ -1168,7 +1169,7 @@ BK_IAM_SYSTEM_NAME = _("监控平台")
 BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST") or "http://bkiam.service.consul:5001")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 是否跳过 iam migrate
 BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
@@ -1416,7 +1417,7 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkmonitorv3.service.consul:10204")
 
 # 网关管理员
-APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
@@ -1469,6 +1470,15 @@ ES_INDEX_ROTATION_STEP = 50
 ES_STORAGE_OFFSET_HOURS = 8
 # ES请求默认超时时间（秒）
 METADATA_REQUEST_ES_TIMEOUT_SECONDS = 10
+
+# 是否开启计算平台RT元信息同步任务
+ENABLE_SYNC_BKBASE_META_TASK = False
+# 同步计算平台RT元信息时的黑名单业务ID列表(计算平台自身业务ID）
+SYNC_BKBASE_META_BLACK_BIZ_ID_LIST = []
+# 同步计算平台RT元信息时的单轮拉取业务ID个数
+SYNC_BKBASE_META_BIZ_BATCH_SIZE = 10
+# 同步计算平台RT元信息时支持的存储类型
+SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"

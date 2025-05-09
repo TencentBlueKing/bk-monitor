@@ -109,7 +109,7 @@ export default defineComponent({
         if (localPanels.value?.length < 300) {
           echarts.connect(props.id.toString());
         }
-      }, 3000);
+      }, 1500);
     }
 
     /**
@@ -279,6 +279,7 @@ export default defineComponent({
               <div class={['single-chart-main', { 'has-btn': !!props.backToType }]}>
                 <div class='single-chart-wrap'>
                   <ChartWrapper
+                    groupId={props.id}
                     isAlarmView={props.isAlarmView}
                     panel={singleChartPanel.value}
                   />
@@ -310,6 +311,7 @@ export default defineComponent({
                   >
                     <ChartWrapper
                       key={`${panel.id}__key__`}
+                      groupId={props.id}
                       isAlarmView={props.isAlarmView}
                       panel={panel}
                       onChartCheck={v => handleChartCheck(v, panel)}

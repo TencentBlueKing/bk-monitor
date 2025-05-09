@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import copy
 import json
@@ -17,7 +17,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import partial, reduce
 from itertools import chain, permutations
-from typing import Any, Dict, List, Type, Union
+from typing import Any
 
 import arrow
 import xxhash
@@ -127,9 +127,9 @@ def get_metric_id(
     """
     metric_id_map = {
         DataSourceLabel.BK_MONITOR_COLLECTOR: {
-            DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
-            DataTypeLabel.EVENT: "{}.{}".format(data_source_label, metric_field),
-            DataTypeLabel.LOG: "{}.{}.{}".format(data_source_label, data_type_label, result_table_id),
+            DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
+            DataTypeLabel.EVENT: f"{data_source_label}.{metric_field}",
+            DataTypeLabel.LOG: f"{data_source_label}.{data_type_label}.{result_table_id}",
             DataTypeLabel.ALERT: "{}.{}.{}".format(
                 data_source_label, data_type_label, bkmonitor_strategy_id or metric_field
             ),
@@ -139,18 +139,18 @@ def get_metric_id(
             DataTypeLabel.EVENT: "{}.{}.{}.{}".format(
                 data_source_label, data_type_label, result_table_id, custom_event_name or "__INDEX__"
             ),
-            DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
+            DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
         },
         DataSourceLabel.BK_LOG_SEARCH: {
-            DataTypeLabel.LOG: "{}.index_set.{}".format(data_source_label, index_set_id),
-            DataTypeLabel.TIME_SERIES: "{}.index_set.{}.{}".format(data_source_label, index_set_id, metric_field),
+            DataTypeLabel.LOG: f"{data_source_label}.index_set.{index_set_id}",
+            DataTypeLabel.TIME_SERIES: f"{data_source_label}.index_set.{index_set_id}.{metric_field}",
         },
         DataSourceLabel.BK_DATA: {
-            DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
+            DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
         },
         DataSourceLabel.BK_FTA: {
-            DataTypeLabel.ALERT: "{}.{}.{}".format(data_source_label, data_type_label, alert_name or metric_field),
-            DataTypeLabel.EVENT: "{}.{}.{}".format(data_source_label, data_type_label, alert_name or metric_field),
+            DataTypeLabel.ALERT: f"{data_source_label}.{data_type_label}.{alert_name or metric_field}",
+            DataTypeLabel.EVENT: f"{data_source_label}.{data_type_label}.{alert_name or metric_field}",
         },
         DataSourceLabel.BK_APM: {
             DataTypeLabel.LOG: f"{data_source_label}.{data_type_label}.{result_table_id}",
@@ -163,7 +163,7 @@ def get_metric_id(
     return metric_id_map.get(data_source_label, {}).get(data_type_label, "")
 
 
-def parse_metric_id(metric_id: str) -> Dict:
+def parse_metric_id(metric_id: str) -> dict:
     """
     解析指标ID
     """
@@ -286,7 +286,7 @@ def has_instance_attr(obj, attr):
 
 class AbstractConfig(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def to_dict(self, *args, **kwargs) -> Dict:
+    def to_dict(self, *args, **kwargs) -> dict:
         raise NotImplementedError
 
     @classmethod
@@ -295,7 +295,7 @@ class AbstractConfig(metaclass=abc.ABCMeta):
 
     @classmethod
     def reuse_exists_records(
-        cls, model: Type[Model], objs: List[Model], configs: List["AbstractConfig"], config_cls: Type["AbstractConfig"]
+        cls, model: type[Model], objs: list[Model], configs: list["AbstractConfig"], config_cls: type["AbstractConfig"]
     ):
         """
         重用存量的数据库记录，删除多余的记录
@@ -352,9 +352,9 @@ class Action(AbstractConfig):
         self,
         strategy_id: int,
         type: str,
-        config: Dict = None,
-        notice_group_ids: List[int] = None,
-        notice_template: Dict = None,
+        config: dict = None,
+        notice_group_ids: list[int] = None,
+        notice_template: dict = None,
         id: int = 0,
         instance: ActionModel = None,
         **kwargs,
@@ -362,12 +362,12 @@ class Action(AbstractConfig):
         self.id = id
         self.strategy_id = strategy_id
         self.type = type
-        self.config: Dict = config
-        self.notice_group_ids: List[int] = notice_group_ids or []
+        self.config: dict = config
+        self.notice_group_ids: list[int] = notice_group_ids or []
         self.notice_template = notice_template or {"anomaly_template": "", "recovery_template": ""}
         self.instance = instance
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "type": self.type,
@@ -377,7 +377,7 @@ class Action(AbstractConfig):
         }
 
     @classmethod
-    def delete_useless(cls, useless_action_ids: List[int]):
+    def delete_useless(cls, useless_action_ids: list[int]):
         """
         删除策略下多余的Action记录
         """
@@ -448,10 +448,10 @@ class Action(AbstractConfig):
     @classmethod
     def from_models(
         cls,
-        actions: List["ActionModel"],
-        notice_templates: Dict[int, NoticeTemplate],
-        notice_group_ids: Dict[int, List[int]],
-    ) -> List["Action"]:
+        actions: list["ActionModel"],
+        notice_templates: dict[int, NoticeTemplate],
+        notice_group_ids: dict[int, list[int]],
+    ) -> list["Action"]:
         """
         数据模型转换为监控项对象
         """
@@ -519,8 +519,8 @@ class BaseActionRelation(AbstractConfig):
         self,
         strategy_id: int,
         config_id: int = 0,
-        user_groups: List[int] = None,
-        signal: List[str] = None,
+        user_groups: list[int] = None,
+        signal: list[str] = None,
         id: int = None,
         options: dict = None,
         config: dict = None,
@@ -530,14 +530,14 @@ class BaseActionRelation(AbstractConfig):
         self.id = id
         self.strategy_id = strategy_id
         self.config_id: int = config_id
-        self.user_groups: List[int] = user_groups or []
+        self.user_groups: list[int] = user_groups or []
         self.user_type = kwargs.get("user_type", UserGroupType.MAIN)
         self.signal = list(signal or [])
         self.options: dict = options or {}
         self.config: dict = config or {}
         self.instance = instance
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "config_id": self.config_id,
@@ -550,7 +550,7 @@ class BaseActionRelation(AbstractConfig):
         }
 
     @classmethod
-    def convert_v1_to_v2(cls, config: Dict) -> Dict:
+    def convert_v1_to_v2(cls, config: dict) -> dict:
         """
         将v1版本的配置转换为v2版本的配置
         """
@@ -594,7 +594,7 @@ class BaseActionRelation(AbstractConfig):
         }
 
     @classmethod
-    def delete_useless(cls, relation_ids: List[int]):
+    def delete_useless(cls, relation_ids: list[int]):
         """
         删除策略下多余的Action关联记录
         """
@@ -628,7 +628,7 @@ class BaseActionRelation(AbstractConfig):
             setattr(action_relation, key, value)
         action_relation.save()
 
-    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig] = None):
+    def bulk_save(self, relations: dict[int, list[RelationModel]], action_configs: dict[int, ActionConfig] = None):
         """
         根据配置新建或更新关联记录,循环结束后批量创建或更新
         """
@@ -678,7 +678,7 @@ class BaseActionRelation(AbstractConfig):
             return {"create_data": [{"cls": RelationModel, "objs": [new_relation]}]}
 
     @classmethod
-    def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
+    def from_models(cls, relations: list["RelationModel"], action_configs: dict[int, "ActionConfig"]):
         """
         数据模型转换为监控项对象
         """
@@ -725,7 +725,7 @@ class NoticeRelation(BaseActionRelation):
         config = NotifyActionConfigSlz()
 
     def __init__(self, *args, **kwargs):
-        super(NoticeRelation, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if ActionSignal.ABNORMAL in self.signal and ActionSignal.NO_DATA not in self.signal:
             # 如果用户配置了异常通知，那么无数据通知也会默认打开
@@ -778,13 +778,13 @@ class NoticeRelation(BaseActionRelation):
                 "converge_func": "collect_alarm",
             }
 
-    def to_dict(self) -> Dict:
-        data = super(NoticeRelation, self).to_dict()
+    def to_dict(self) -> dict:
+        data = super().to_dict()
         data["config"] = self.config
         return data
 
     @classmethod
-    def delete_useless(cls, relation_ids: List[int]):
+    def delete_useless(cls, relation_ids: list[int]):
         """
         删除策略下多余的Action关联记录
         """
@@ -815,9 +815,9 @@ class NoticeRelation(BaseActionRelation):
 
         self.config_id = action_config.id
 
-        return super(NoticeRelation, self).save()
+        return super().save()
 
-    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig]):
+    def bulk_save(self, relations: dict[int, list[RelationModel]], action_configs: dict[int, ActionConfig]):
         """
         根据配置新建或更新关联记录,循环结束后批量创建或更新
         """
@@ -864,14 +864,14 @@ class NoticeRelation(BaseActionRelation):
             )
             create_or_update_datas["create_data"].append({"cls": ActionConfig, "objs": [action_config]})
 
-        parent_data = super(NoticeRelation, self).bulk_save(relations)
+        parent_data = super().bulk_save(relations)
         create_or_update_datas["create_data"].extend(parent_data.get("create_data", []))
         create_or_update_datas["update_data"].extend(parent_data.get("update_data", []))
 
         return create_or_update_datas
 
     @classmethod
-    def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
+    def from_models(cls, relations: list["RelationModel"], action_configs: dict[int, "ActionConfig"]):
         """
         数据模型转换为监控项对象
         """
@@ -976,7 +976,7 @@ class Algorithm(AbstractConfig):
         strategy_id: int,
         item_id: int,
         type: str,
-        config: Union[Dict, List[List[Dict]]],
+        config: dict | list[list[dict]],
         level: int,
         unit_prefix: str = "",
         id: int = 0,
@@ -1031,7 +1031,7 @@ class Algorithm(AbstractConfig):
             algorithm.save()
 
     @classmethod
-    def from_models(cls, algorithms: List[AlgorithmModel]) -> List["Algorithm"]:
+    def from_models(cls, algorithms: list[AlgorithmModel]) -> list["Algorithm"]:
         """
         根据数据模型生成算法配置对象
         """
@@ -1074,7 +1074,10 @@ class Detect(AbstractConfig):
         class RecoveryConfig(serializers.Serializer):
             check_window = serializers.IntegerField()
             status_setter = serializers.ChoiceField(
-                required=False, choices=["recovery", "close", "recovery-nodata"], label="告警恢复目标状态", default="recovery"
+                required=False,
+                choices=["recovery", "close", "recovery-nodata"],
+                label="告警恢复目标状态",
+                default="recovery",
             )
 
         id = serializers.IntegerField(required=False)
@@ -1096,9 +1099,9 @@ class Detect(AbstractConfig):
     def __init__(
         self,
         strategy_id: int,
-        level: Union[int, str],
-        trigger_config: Dict,
-        recovery_config: Dict,
+        level: int | str,
+        trigger_config: dict,
+        recovery_config: dict,
         expression: str = "",
         connector: str = "and",
         id: int = 0,
@@ -1114,7 +1117,7 @@ class Detect(AbstractConfig):
         self.connector = connector or "and"
         self.instance = instance
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "level": self.level,
@@ -1153,7 +1156,7 @@ class Detect(AbstractConfig):
             detect.save()
 
     @classmethod
-    def from_models(cls, detects: List["DetectModel"]) -> List["Detect"]:
+    def from_models(cls, detects: list["DetectModel"]) -> list["Detect"]:
         """
         数据模型转换为监控项对象
         """
@@ -1183,22 +1186,22 @@ class QueryConfig(AbstractConfig):
     promql: str
     agg_method: str
     agg_interval: int
-    agg_dimension: List[str]
-    agg_condition: List[Dict]
+    agg_dimension: list[str]
+    agg_condition: list[dict]
     metric_field: str
     unit: str
     time_field: str
     custom_event_name: str
-    origin_config: Dict
-    intelligent_detect: Dict
-    values: List[str]
+    origin_config: dict
+    intelligent_detect: dict
+    values: list[str]
 
     # grafana图表来源
     dashboard_uid: str
     panel_id: int
     ref_id: str
-    variables: Dict[str, List[str]]
-    snapshot_config: Dict[str, Any]
+    variables: dict[str, list[str]]
+    snapshot_config: dict[str, Any]
 
     QueryConfigSerializerMapping = {
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES): BkMonitorTimeSeriesSerializer,
@@ -1246,7 +1249,7 @@ class QueryConfig(AbstractConfig):
             setattr(self, field, value)
 
     @classmethod
-    def get_serializer_class(cls, data_source_label: str, data_type_label: str) -> Type[QueryConfigSerializer]:
+    def get_serializer_class(cls, data_source_label: str, data_type_label: str) -> type[QueryConfigSerializer]:
         return cls.QueryConfigSerializerMapping[(data_source_label, data_type_label)]
 
     def get_metric_id(self):
@@ -1334,7 +1337,7 @@ class QueryConfig(AbstractConfig):
         query_config.save()
 
     @classmethod
-    def from_models(cls, query_configs: List[QueryConfigModel]) -> List["QueryConfig"]:
+    def from_models(cls, query_configs: list[QueryConfigModel]) -> list["QueryConfig"]:
         """
         根据数据模型获取查询配置对象
         """
@@ -1396,7 +1399,7 @@ class Item(AbstractConfig):
             value = serializers.ListField(child=serializers.DictField(), allow_empty=False)
             method = serializers.CharField()
 
-            def validate(self, attrs: Dict):
+            def validate(self, attrs: dict):
                 attrs["value"] = [v for v in attrs["value"] if v]
                 return attrs
 
@@ -1428,14 +1431,14 @@ class Item(AbstractConfig):
         self,
         strategy_id: int,
         name: str,
-        no_data_config: Dict,
-        target: List = None,
+        no_data_config: dict,
+        target: list = None,
         expression: str = "",
-        functions: List = None,
+        functions: list = None,
         origin_sql: str = "",
         id: int = 0,
-        query_configs: List[Dict] = None,
-        algorithms: List[Dict] = None,
+        query_configs: list[dict] = None,
+        algorithms: list[dict] = None,
         metric_type: str = "",
         instance: ItemModel = None,
         time_delay: int = None,
@@ -1444,11 +1447,11 @@ class Item(AbstractConfig):
         self.functions = functions or []
         self.name = name
         self.no_data_config = no_data_config
-        self.target: List[List[Dict]] = target or [[]]
+        self.target: list[list[dict]] = target or [[]]
         self.expression = expression
         self.origin_sql = origin_sql
-        self.query_configs: List[QueryConfig] = [QueryConfig(strategy_id, id, **c) for c in query_configs or []]
-        self.algorithms: List[Algorithm] = [Algorithm(strategy_id, id, **c) for c in algorithms or []]
+        self.query_configs: list[QueryConfig] = [QueryConfig(strategy_id, id, **c) for c in query_configs or []]
+        self.algorithms: list[Algorithm] = [Algorithm(strategy_id, id, **c) for c in algorithms or []]
         self.strategy_id = strategy_id
         self.id = id
         self.instance = instance
@@ -1550,7 +1553,7 @@ class Item(AbstractConfig):
         }
 
     @classmethod
-    def delete_useless(cls, useless_item_ids: List[int]):
+    def delete_useless(cls, useless_item_ids: list[int]):
         """
         删除策略下多余的Item记录
         """
@@ -1616,10 +1619,10 @@ class Item(AbstractConfig):
     @classmethod
     def from_models(
         cls,
-        items: List["ItemModel"],
-        algorithms: Dict[int, List[AlgorithmModel]],
-        query_configs: Dict[int, List[QueryConfigModel]],
-    ) -> List["Item"]:
+        items: list["ItemModel"],
+        algorithms: dict[int, list[AlgorithmModel]],
+        query_configs: dict[int, list[QueryConfigModel]],
+    ) -> list["Item"]:
         """
         数据模型转换为监控项对象
         """
@@ -1697,10 +1700,10 @@ class Strategy(AbstractConfig):
         source: str = settings.APP_CODE,
         type: str = StrategyModel.StrategyType.Monitor,
         id: int = 0,
-        items: List[Dict] = None,
-        actions: List[Dict] = None,
-        notice: Dict = None,
-        detects: List[Dict] = None,
+        items: list[dict] = None,
+        actions: list[dict] = None,
+        notice: dict = None,
+        detects: list[dict] = None,
         is_enabled: bool = True,
         is_invalid: bool = False,
         invalid_type: str = StrategyModel.InvalidType.NONE,
@@ -1708,7 +1711,7 @@ class Strategy(AbstractConfig):
         update_time: datetime = None,
         create_user: str = "",
         create_time: datetime = None,
-        labels: List[str] = None,
+        labels: list[str] = None,
         app: str = "",
         path: str = "",
         priority: int = None,
@@ -1728,9 +1731,9 @@ class Strategy(AbstractConfig):
         self.source = source
         self.scenario = scenario
         self.type = type
-        self.items: List[Item] = [Item(id, **item) for item in items or []]
-        self.detects: List[Detect] = [Detect(id, **detect) for detect in detects or []]
-        self.actions: List[ActionRelation] = [ActionRelation(id, **action) for action in actions or []]
+        self.items: list[Item] = [Item(id, **item) for item in items or []]
+        self.detects: list[Detect] = [Detect(id, **detect) for detect in detects or []]
+        self.actions: list[ActionRelation] = [ActionRelation(id, **action) for action in actions or []]
         self.notice: NoticeRelation = NoticeRelation(id, **(notice or {}))
         self.is_enabled = is_enabled
         self.is_invalid = is_invalid
@@ -1766,7 +1769,7 @@ class Strategy(AbstractConfig):
         for obj in chain(self.actions, self.items, self.detects, [self.notice]):
             obj.strategy_id = value
 
-    def _get_dashboard_panel_query_config(self, query_config: QueryConfig) -> Dict:
+    def _get_dashboard_panel_query_config(self, query_config: QueryConfig) -> dict:
         """
         获取Grafana图表查询配置
         """
@@ -1783,7 +1786,7 @@ class Strategy(AbstractConfig):
 
         return converted_config
 
-    def to_dict(self, convert_dashboard: bool = True) -> Dict:
+    def to_dict(self, convert_dashboard: bool = True) -> dict:
         """
         转换为JSON字典
         """
@@ -1865,7 +1868,7 @@ class Strategy(AbstractConfig):
         return config
 
     @classmethod
-    def fill_user_groups(cls, configs: List[Dict], with_detail=False):
+    def fill_user_groups(cls, configs: list[dict], with_detail=False):
         """
         显示告警组信息
         """
@@ -1888,7 +1891,7 @@ class Strategy(AbstractConfig):
                         user_group_list.append(user_groups[user_group_id])
                 action["user_group_list"] = user_group_list
 
-    def to_dict_v1(self, config_type: str = "frontend") -> Dict:
+    def to_dict_v1(self, config_type: str = "frontend") -> dict:
         """
         TODO 转换为旧版策略JSON字典
         """
@@ -2026,7 +2029,7 @@ class Strategy(AbstractConfig):
             convertor.restore(self)
 
     @classmethod
-    def from_dict_v1(cls, config: Dict, config_type="frontend") -> "Strategy":
+    def from_dict_v1(cls, config: dict, config_type="frontend") -> "Strategy":
         """
         由旧策略配置JSON字典生成对象
         """
@@ -2036,7 +2039,7 @@ class Strategy(AbstractConfig):
         strategy_id = config.pop("id", 0)
         algorithm_list = item_list[0].pop("algorithm_list")
 
-        item: Dict = item_list[0]
+        item: dict = item_list[0]
         item.pop("strategy_id", None)
         item.pop("item_id", None)
 
@@ -2207,7 +2210,7 @@ class Strategy(AbstractConfig):
         )
 
     @classmethod
-    def convert_v1_to_v2(cls, strategy_config: Dict) -> Dict:
+    def convert_v1_to_v2(cls, strategy_config: dict) -> dict:
         """
         旧版策略配置转新版策略
         """
@@ -2240,7 +2243,7 @@ class Strategy(AbstractConfig):
         return new_strategy_config
 
     @classmethod
-    def convert_v2_to_v1(cls, strategy_config: Dict) -> Dict:
+    def convert_v2_to_v1(cls, strategy_config: dict) -> dict:
         """
         新版策略配置转旧版策略
         """
@@ -2491,7 +2494,7 @@ class Strategy(AbstractConfig):
         self, query_config: QueryConfig, algorithm_name: str = None, algorithm_plan_id: int = None
     ):
         # 4.1 如果数据类型不是时序数据，则跳过不处理
-        if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
+        if query_config.data_type_label not in (DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG, DataTypeLabel.EVENT):
             return False
 
         # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
@@ -2611,7 +2614,7 @@ class Strategy(AbstractConfig):
         query_config.save()
 
     @classmethod
-    def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):
+    def get_priority_group_key(cls, bk_biz_id: int, items: list[Item]):
         """
         获取优先级分组key
         """
@@ -2709,7 +2712,7 @@ class Strategy(AbstractConfig):
         StrategyLabel.objects.filter(strategy_id=self.id).delete()
 
     @classmethod
-    def delete_by_strategy_ids(cls, strategy_ids: List[int]):
+    def delete_by_strategy_ids(cls, strategy_ids: list[int]):
         """
         批量删除策略
         """
@@ -2733,7 +2736,7 @@ class Strategy(AbstractConfig):
         StrategyLabel.objects.filter(strategy_id__in=strategy_ids).delete()
 
     @classmethod
-    def from_models(cls, strategies: Union[List[StrategyModel], QuerySet]) -> List["Strategy"]:
+    def from_models(cls, strategies: list[StrategyModel] | QuerySet) -> list["Strategy"]:
         """
         数据模型转换为策略对象
 
@@ -2761,30 +2764,30 @@ class Strategy(AbstractConfig):
 
         # 将查询结果整理为字典，便于后续根据策略ID快速查找
         # {strategy_id: [strategy_model]}
-        items: Dict[int, List[ItemModel]] = defaultdict(list)
+        items: dict[int, list[ItemModel]] = defaultdict(list)
         for item in item_query:
             items[item.strategy_id].append(item)
 
-        detects: Dict[int, List[DetectModel]] = defaultdict(list)
+        detects: dict[int, list[DetectModel]] = defaultdict(list)
         for detect in detect_query:
             detects[detect.strategy_id].append(detect)
 
-        algorithms: Dict[int, List[AlgorithmModel]] = defaultdict(list)
+        algorithms: dict[int, list[AlgorithmModel]] = defaultdict(list)
         for algorithm in algorithm_query:
             algorithms[algorithm.item_id].append(algorithm)
 
-        query_configs: Dict[int, List[QueryConfigModel]] = defaultdict(list)
+        query_configs: dict[int, list[QueryConfigModel]] = defaultdict(list)
         for query_config in query_config_query:
             query_configs[query_config.item_id].append(query_config)
 
-        labels: Dict[int, List[str]] = defaultdict(list)
+        labels: dict[int, list[str]] = defaultdict(list)
         for label in label_query:
             labels[label.strategy_id].append(label.label_name.strip("/"))
 
         # 策略关联的自愈套餐及告警组配置
         action_config_ids = set()
-        actions: Dict[int, List[RelationModel]] = defaultdict(list)
-        notices: Dict[int, List[RelationModel]] = defaultdict(list)
+        actions: dict[int, list[RelationModel]] = defaultdict(list)
+        notices: dict[int, list[RelationModel]] = defaultdict(list)
         for action in related_query:
             if action.relate_type == RelationModel.RelateType.NOTICE:
                 notices[action.strategy_id].append(action)
@@ -2798,7 +2801,7 @@ class Strategy(AbstractConfig):
             action_query = ActionConfig.objects.all()
         else:
             action_query = ActionConfig.objects.filter(id__in=action_config_ids)
-        action_configs: Dict[int, ActionConfig] = {}
+        action_configs: dict[int, ActionConfig] = {}
         for action_config in action_query:
             action_configs[action_config.id] = action_config
 
@@ -2877,7 +2880,7 @@ class Strategy(AbstractConfig):
         return False
 
 
-def _render_grafana_variable_str(variables: Dict[str, List[str]], value: str, mode: str = "") -> Union[str, List]:
+def _render_grafana_variable_str(variables: dict[str, list[str]], value: str, mode: str = "") -> str | list:
     """
     字符串渲染grafana变量
     mode: promql, list
@@ -2898,8 +2901,8 @@ def _render_grafana_variable_str(variables: Dict[str, List[str]], value: str, mo
 
 
 def _render_grafana_variable(
-    variables: Dict[str, List[str]], value: Union[str, List, Dict], mode: str = ""
-) -> Union[str, List, Dict]:
+    variables: dict[str, list[str]], value: str | list | dict, mode: str = ""
+) -> str | list | dict:
     """
     递归渲染grafana变量
     $x, ${x}, {{x}}, ${x:y}
@@ -2935,7 +2938,7 @@ def _render_grafana_variable(
     return value
 
 
-def grafana_panel_to_config(panel_query: Dict, variables: Dict[str, List[str]]) -> Dict[str, Any]:
+def grafana_panel_to_config(panel_query: dict, variables: dict[str, list[str]]) -> dict[str, Any]:
     """
     将grafana的panel信息转换为监控策略配置格式
     variables: {"xxx": {"text": "xxx", "value": "xxx"}, "yyy": [{"text": "yyy", "value": "yyy"}]}

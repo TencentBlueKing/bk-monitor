@@ -563,7 +563,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
 
 class K8sClusterMeta(K8sResourceMeta):
-    resource_field = "cluster_id"
+    resource_field = "bcs_cluster_id"
     resource_class = BCSCluster
     column_mapping = {"cluster": "name"}
     only_fields = ["name", "bk_biz_id", "bcs_cluster_id"]

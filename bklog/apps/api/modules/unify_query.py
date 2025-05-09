@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 """
@@ -16,7 +16,7 @@ UNIFYQUERY 模块，调用接口汇总
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
-from apps.api.modules.utils import add_esb_info_before_request  # noqa
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter  # noqa
 from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
 
@@ -37,7 +37,7 @@ def add_data_after_request(response_data):
     return data
 
 
-class _UnifyQueryApi(object):
+class _UnifyQueryApi:
     MODULE = _("UNIFYQUERY模块")
 
     def __init__(self):
@@ -49,6 +49,7 @@ class _UnifyQueryApi(object):
             after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.query_ts_reference = DataAPI(
             method="POST",
@@ -58,6 +59,7 @@ class _UnifyQueryApi(object):
             after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.query_ts_raw = DataAPI(
             method="POST",
@@ -67,4 +69,5 @@ class _UnifyQueryApi(object):
             after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )

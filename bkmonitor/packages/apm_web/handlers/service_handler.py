@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import logging
 import operator
@@ -416,6 +416,7 @@ class ServiceHandler:
         start_time,
         end_time,
         service_name,
+        where=None,
         bk_instance_id=None,
         raise_exception=True,
     ):
@@ -423,6 +424,7 @@ class ServiceHandler:
         # 根据 service 的类型使用不同的逻辑
         from apm_web.handlers.component_handler import ComponentHandler
 
+        where = where or []
         endpoint_metrics_param = {
             "application": application,
             "start_time": start_time,
@@ -432,7 +434,8 @@ class ServiceHandler:
         if ComponentHandler.is_component_by_node(node):
             return metric(
                 **endpoint_metrics_param,
-                where=ComponentHandler.get_component_metric_filter_params(
+                where=where
+                + ComponentHandler.get_component_metric_filter_params(
                     application.bk_biz_id,
                     application.app_name,
                     service_name,
@@ -450,7 +453,8 @@ class ServiceHandler:
         elif ServiceHandler.is_remote_service_by_node(node):
             return metric(
                 **endpoint_metrics_param,
-                where=[
+                where=where
+                + [
                     {
                         "key": "peer_service",
                         "method": "eq",
@@ -462,7 +466,7 @@ class ServiceHandler:
         else:
             return metric(
                 **endpoint_metrics_param,
-                where=[{"key": "service_name", "method": "eq", "value": [service_name]}],
+                where=where + [{"key": "service_name", "method": "eq", "value": [service_name]}],
             )
 
     @classmethod

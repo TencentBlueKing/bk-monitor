@@ -262,6 +262,7 @@
 
       this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
     },
+
     methods: {
       /** 初始化脱敏灰度相关的数据 */
       initMaskingToggle() {
