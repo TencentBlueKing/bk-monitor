@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 import base64
-from collections import defaultdict
 
 from django.conf import settings
 from django.db.models import Q
@@ -2538,14 +2537,16 @@ class CollectorViewSet(ModelViewSet):
         """
         params = self.params_valid(ProxyHostSerializer)
 
-        report_url_dict = defaultdict(list)
         proxy_host_info = []
+        report_url_list = []
         # 云区域为 0 的地址
         conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
 
         for item in conf.get("otlp", {}).get("0", []):
             protocol, report_url = item.split(":", maxsplit=1)
-            report_url_dict[0].append({"protocol": protocol, "report_url": report_url.strip()})
+            report_url_list.append({"protocol": protocol, "report_url": report_url.strip()})
+        if report_url_list:
+            proxy_host_info.append({"bk_cloud_id": 0, "urls": report_url_list})
 
         space = SpaceApi.get_related_space(params.get("space_uid"), SpaceTypeEnum.BKCC.value)
         if not space or not space.bk_biz_id:
@@ -2559,23 +2560,19 @@ class CollectorViewSet(ModelViewSet):
             if bk_cloud_id == 0:
                 continue
             ip = host.get("conn_ip") or host.get("inner_ip")
-            report_url_dict[bk_cloud_id].append(
-                [
-                    {
-                        "protocol": OTLPProxyHostConfig.GRPC,
-                        "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
-                    },
-                    {
-                        "protocol": OTLPProxyHostConfig.HTTP,
-                        "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
-                    },
-                ]
-            )
-        for bk_cloud_id, urls in report_url_dict.items():
             proxy_host_info.append(
                 {
                     "bk_cloud_id": bk_cloud_id,
-                    "urls": urls,
+                    "urls": [
+                        {
+                            "protocol": OTLPProxyHostConfig.GRPC,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
+                        },
+                        {
+                            "protocol": OTLPProxyHostConfig.HTTP,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
+                        },
+                    ],
                 }
             )
 
