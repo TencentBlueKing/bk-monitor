@@ -241,7 +241,7 @@
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
         }
-        return this.$store.state.indexFieldInfo.sort_list;
+        return this.currentClickConfigData?.sort_list || [];
       },
       shadowTotal() {
         return formatHierarchy(this.$store.state.indexFieldInfo.fields);
