@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -322,7 +321,9 @@ class SearchAttrSerializer(serializers.Serializer):
             for sort_info in attrs.get("sort_list"):
                 field_name, order = sort_info
                 if order not in ["desc", "asc"]:
-                    raise ValidationError(_("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name))
+                    raise ValidationError(
+                        _("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name)
+                    )
         return attrs
 
 
@@ -396,6 +397,7 @@ class SearchIndexSetScopeSerializer(serializers.Serializer):
     """
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    is_group = serializers.BooleanField(label=_("是否分组展示"), required=False, default=False)
 
 
 class IndexSetFieldsConfigBaseSerializer(serializers.Serializer):
@@ -468,7 +470,9 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
     history_id = serializers.IntegerField(label=_("历史记录ID"), required=False)
-    is_delete_all = serializers.BooleanField(label=_("是否删除用户当前空间下所有历史记录"), required=False, default=False)
+    is_delete_all = serializers.BooleanField(
+        label=_("是否删除用户当前空间下所有历史记录"), required=False, default=False
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -500,7 +504,9 @@ class SearchExportSerializer(serializers.Serializer):
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):
-    index_set_ids = serializers.ListField(label=_("联合检索索引集ID列表"), child=serializers.IntegerField(), required=True)
+    index_set_ids = serializers.ListField(
+        label=_("联合检索索引集ID列表"), child=serializers.IntegerField(), required=True
+    )
 
     def validate(self, attrs):
         attrs["index_set_ids"] = sorted(attrs["index_set_ids"])
@@ -833,13 +839,17 @@ class TemplateSerializer(serializers.Serializer):
 
 
 class DynamicGroupSerializer(serializers.Serializer):
-    dynamic_group_id_list = serializers.ListField(label=_("动态分组ID列表"), child=serializers.CharField(label=_("动态分组ID")))
+    dynamic_group_id_list = serializers.ListField(
+        label=_("动态分组ID列表"), child=serializers.CharField(label=_("动态分组ID"))
+    )
 
 
 class HostInfoSerializer(serializers.Serializer):
     cloud_id = serializers.IntegerField(help_text=_("云区域 ID"), required=False)
     ip = serializers.IPAddressField(help_text=_("IPv4 协议下的主机IP"), required=False, protocol="ipv4")
-    host_id = serializers.IntegerField(help_text=_("主机 ID，优先取 `host_id`，否则取 `ip` + `cloud_id`"), required=False)
+    host_id = serializers.IntegerField(
+        help_text=_("主机 ID，优先取 `host_id`，否则取 `ip` + `cloud_id`"), required=False
+    )
 
     def validate(self, attrs):
         if not ("host_id" in attrs or ("ip" in attrs and "cloud_id" in attrs)):
@@ -946,9 +956,9 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
     index_set_config = serializers.JSONField(label=_("索引集自定义配置"), required=True)
 
     def validate(self, attrs):
-        index_set_id = attrs.get('index_set_id')
-        index_set_ids = attrs.get('index_set_ids')
-        index_set_type = attrs.get('index_set_type')
+        index_set_id = attrs.get("index_set_id")
+        index_set_ids = attrs.get("index_set_ids")
+        index_set_type = attrs.get("index_set_type")
 
         if index_set_type == IndexSetType.SINGLE.value and not index_set_id:
             raise serializers.ValidationError(_("参数校验失败: index_set_id 必须被提供"))
