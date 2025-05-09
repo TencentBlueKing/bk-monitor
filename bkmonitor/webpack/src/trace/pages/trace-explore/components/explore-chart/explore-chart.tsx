@@ -27,10 +27,12 @@ import { computed, defineComponent, useTemplateRef, type PropType } from 'vue';
 import { getCurrentInstance } from 'vue';
 import VueEcharts from 'vue-echarts';
 
-import ChartSkeleton from '@/components/skeleton/chart-skeleton';
-import ChartTitle from '@/plugins/components/chart-title';
+import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
+import ChartTitle from '../../../../plugins/components/chart-title';
 // import { useTraceExploreStore } from '@/store/modules/explore';
 
+import CommonLegend from '../../../../plugins/components/common-legend';
+import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
 import { useEcharts } from './use-echarts';
 
@@ -53,19 +55,23 @@ export default defineComponent({
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<Element>('chart');
     const panel = computed(() => props.panel);
-    const { options, loading, metricList } = useEcharts(
+    const { options, loading, metricList, menuList } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(metricList);
+    const { legendData, handleSelectLegend } = useChartLegend(options);
     return {
       loading,
       options,
       metricList,
+      menuList,
+      legendData,
       handleAlarmClick,
       handleMenuClick,
       handleMetricClick,
+      handleSelectLegend,
     };
   },
   render() {
@@ -79,8 +85,8 @@ export default defineComponent({
             class='draggable-handle'
             dragging={this.panel.dragging}
             // drillDownOption={this.drillDownOptions}
-            // isInstant={this.panel.instant}
-            // menuList={this.menuList}
+            isInstant={this.panel.instant}
+            menuList={this.menuList}
             metrics={this.metricList}
             showAddMetric={true}
             showMore={true}
@@ -97,10 +103,16 @@ export default defineComponent({
         {this.loading ? (
           <ChartSkeleton />
         ) : this.options ? (
-          <VueEcharts
-            option={this.options}
-            autoresize
-          />
+          <>
+            <VueEcharts
+              option={this.options}
+              autoresize
+            />
+            <CommonLegend
+              legendData={this.legendData}
+              onSelectLegend={this.handleSelectLegend}
+            />
+          </>
         ) : (
           <div class='empty-chart'>{this.$t('暂无数据')}</div>
         )}

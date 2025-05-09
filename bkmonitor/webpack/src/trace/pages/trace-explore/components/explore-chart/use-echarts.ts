@@ -51,6 +51,7 @@ export const useEcharts = (
   const loading = shallowRef(false);
   const options = shallowRef();
   const metricList = shallowRef([]);
+  const menuList = shallowRef([]);
   // const queryConfigs = shallowRef([]);
   // const series = shallowRef([]);
 
@@ -371,12 +372,19 @@ export const useEcharts = (
       }),
     };
   };
+  const getMenuList = () => {
+    const [target] = get(panel)?.targets || [];
+    return target?.datasource === 'time_series'
+      ? ['more', 'explore', 'area', 'drill-down', 'relate-alert']
+      : ['screenshot', 'area'];
+  };
   watch(
     [() => traceStore.timeRange, () => traceStore.refreshImmediate, panel],
     async () => {
       console.info(panel, '========');
       loading.value = true;
       options.value = await getEchartOptions();
+      menuList.value = getMenuList();
       setTimeout(() => {
         console.info(options.value, metricList.value, '______-');
       }, 2000);
@@ -391,6 +399,7 @@ export const useEcharts = (
     loading,
     options,
     metricList,
+    menuList,
     getEchartOptions,
   };
 };

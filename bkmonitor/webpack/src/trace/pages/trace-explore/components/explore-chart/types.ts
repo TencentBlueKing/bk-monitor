@@ -50,6 +50,57 @@ export interface EchartSeriesItem {
   raw_data: SeriesItem;
 }
 
+export interface ILegendItem {
+  name: string;
+  alias?: string;
+  min?: number | string;
+  max?: number | string;
+  avg?: number | string;
+  total?: number | string;
+  color: string;
+  show: boolean;
+  value?: number | string;
+  borderColor?: string;
+  hidden?: boolean;
+  minSource?: number;
+  maxSource?: number;
+  avgSource?: number;
+  totalSource?: number;
+  metricField?: string;
+}
+export interface FormattedValue {
+  text: string;
+  prefix?: string;
+  suffix?: string;
+}
+export type DecimalCount = null | number | undefined;
+export type ValueFormatter = (
+  value: number,
+  decimals?: DecimalCount,
+  scaledDecimals?: DecimalCount,
+  timeZone?
+) => FormattedValue;
+export interface ILegendItem {
+  name: string;
+  alias?: string;
+  min?: number | string;
+  max?: number | string;
+  avg?: number | string;
+  total?: number | string;
+  color: string;
+  show: boolean;
+  value?: number | string;
+  borderColor?: string;
+  hidden?: boolean;
+  minSource?: number;
+  maxSource?: number;
+  avgSource?: number;
+  totalSource?: number;
+  metricField?: string;
+}
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
+export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
+
 export type Series = SeriesItem[];
 
 export type FormatterFunc = ((v: string) => string) | string;

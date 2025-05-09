@@ -745,7 +745,7 @@ export default defineComponent({
         query.filters = JSON.stringify(filters);
       }
 
-      if (params.query.length) {
+      if (params.query?.length) {
         query.query = params.query;
       }
 
@@ -879,23 +879,30 @@ export default defineComponent({
     function handleSelectCollect(id: number) {
       state.searchType = 'scope';
       const collectItem = collectList.value.find(item => String(item.id) === String(id));
-      const { componentData } = collectItem.config;
-      state.app = componentData.app;
+      const { componentData, queryParams } = collectItem.config;
+      state.app = componentData?.app || queryParams?.app_name || '';
       if (componentData.scopeSelects) {
-        Object.keys(componentData.scopeSelects).forEach(key => {
+        for (const key in componentData.scopeSelects) {
           if (scopeSelects.value[key]) {
             scopeSelects.value[key].value = componentData.scopeSelects[key].value;
             scopeSelects.value[key].key = random(8);
           }
-        });
+        }
+      } else {
+        for (const item of queryParams?.filters || []) {
+          if (scopeSelects.value[item.key]) {
+            scopeSelects.value[item.key].value = item.value;
+            scopeSelects.value[item.key].key = random(8);
+          }
+        }
       }
 
       // 条件查询值映射
       const historySearchSelectValue: any[] = [];
-      Object.keys(scopeSelects.value).forEach(key => {
+      for (const key in scopeSelects.value) {
         const values = scopeSelects.value[key].value;
         if (values.length) {
-          const curOptions = searchSelectData.value.find(item => item.id === key);
+          const curOptions = standardFieldList.value.find(item => item.id === key);
           if (curOptions) {
             let optionValue = curOptions.children.filter(val => values.includes(val.id));
             if (!optionValue.length) {
@@ -909,7 +916,7 @@ export default defineComponent({
             });
           }
         }
-      });
+      }
       searchSelectValue.value.splice(0, searchSelectValue.value.length, ...historySearchSelectValue);
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
