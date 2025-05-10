@@ -11,6 +11,13 @@ specific language governing permissions and limitations under the License.
 from typing import Dict, List, Optional, Tuple
 
 from django.utils.translation import gettext as _
+
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.models import MetricListCache
+from bkmonitor.utils.request import get_request_tenant_id
+from constants.cmdb import TargetNodeType, TargetObjectType
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
@@ -22,12 +29,6 @@ from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
 
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.models import MetricListCache
-from constants.cmdb import TargetNodeType, TargetObjectType
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
-
 
 def get_order_config(view: SceneViewModel) -> List:
     """
@@ -38,11 +39,13 @@ def get_order_config(view: SceneViewModel) -> List:
 
     if view.scene_id.startswith("collect_"):
         collect_config_id = int(view.scene_id.lstrip("collect_"))
-        collect_config = CollectConfigMeta.objects.get(id=collect_config_id)
+        collect_config = CollectConfigMeta.objects.get(bk_biz_id=view.bk_biz_id, id=collect_config_id)
         plugin = collect_config.plugin
     else:
         plugin_id = view.scene_id.split("plugin_", 1)[-1]
-        plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id])
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id]
+        )
 
     if plugin.plugin_type in [PluginType.LOG, PluginType.SNMP_TRAP]:
         return []
@@ -76,14 +79,17 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
     """
     获取指标信息，包含指标信息及该指标需要使用的聚合方法、聚合维度、聚合周期等
     """
+    bk_tenant_id = get_request_tenant_id()
     if view.scene_id.startswith("collect_"):
         collect_config_id = int(view.scene_id.lstrip("collect_"))
-        collect_config = CollectConfigMeta.objects.get(id=collect_config_id)
+        collect_config = CollectConfigMeta.objects.get(bk_biz_id=view.bk_biz_id, id=collect_config_id)
         plugin = collect_config.plugin
     else:
         plugin_id = view.scene_id.split("plugin_", 1)[-1]
-        plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id])
-        collect_config = CollectConfigMeta.objects.filter(plugin=plugin, bk_biz_id=view.bk_biz_id).first()
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id]
+        )
+        collect_config = CollectConfigMeta.objects.filter(plugin_id=plugin_id, bk_biz_id=view.bk_biz_id).first()
 
     if not collect_config:
         return []
@@ -93,7 +99,7 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
     panels = []
     if plugin.plugin_type == CollectorPluginMeta.PluginType.PROCESS:
         metric_json = PluginManagerFactory.get_manager(
-            plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
+            bk_tenant_id=bk_tenant_id, plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
         ).gen_metric_info()
     else:
         metric_json = collect_config.deployment_config.metrics
@@ -308,8 +314,10 @@ class CollectBuiltinProcessor(BuiltinProcessor):
         else:
             # 自定义场景视图
             plugin_id = scene_id.split("plugin_", 1)[-1]
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            collect_config = CollectConfigMeta.objects.filter(plugin=plugin, bk_biz_id=bk_biz_id).first()
+            plugin = CollectorPluginMeta.objects.get(
+                bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=[0, bk_biz_id]
+            )
+            collect_config = CollectConfigMeta.objects.filter(plugin_id=plugin_id, bk_biz_id=bk_biz_id).first()
 
             selector_panel = {
                 "title": _("对象列表"),
