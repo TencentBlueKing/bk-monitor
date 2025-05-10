@@ -1223,7 +1223,7 @@ class UptimeCheckBeatResource(Resource):
                 else:
                     raise serializers.ValidationError("Expected a Host object.")
 
-        bk_tenant_id = serializers.IntegerField(required=False, label="租户ID")
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
 
