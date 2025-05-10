@@ -1137,3 +1137,20 @@ class SpanKindCachedEnum(CachedEnum):
         default = super().get_default(value)
         default.label = value
         return default
+
+
+TRACE_RESULT_TABLE_OPTION = {
+    "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"],
+    # 以下为 UnifyQuery 查询所需的元数据：
+    # 是否根据查询时间范围，指定具体日期的索引进行查询。
+    "need_add_time": True,
+    # 默认查询时间字段，页面查询时间范围过滤与此字段联动。
+    "time_field": {"name": "end_time", "type": "long", "unit": "microsecond"},
+}
+
+PRECALCULATE_RESULT_TABLE_OPTION = {
+    # 是否根据查询时间范围，指定具体日期的索引进行查询。
+    "need_add_time": True,
+    # 默认查询时间字段，页面查询时间范围过滤与此字段联动。
+    "time_field": {"name": PreCalculateSpecificField.MIN_START_TIME.value, "type": "long", "unit": "microsecond"},
+}
