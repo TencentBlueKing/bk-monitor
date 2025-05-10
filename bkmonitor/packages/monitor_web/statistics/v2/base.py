@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
 
 from django.utils.functional import cached_property
 
+from api.cmdb.define import Business
 from bkmonitor.models import StatisticsMetric
 from core.drf_resource import api
 from core.statistics.collector import Collector
@@ -20,11 +19,11 @@ from core.statistics.storage import Storage
 
 
 class MySQLStorage(Storage):
-    def get(self, metric_names: List[str]) -> List[Metric]:
+    def get(self, metric_names: list[str]) -> list[Metric]:
         metrics = StatisticsMetric.objects.filter(name__in=metric_names)
         return [Metric.loads(metric.data) for metric in metrics]
 
-    def put(self, metrics: List[Metric]):
+    def put(self, metrics: list[Metric]):
         for metric in metrics:
             StatisticsMetric.objects.update_or_create(
                 name=metric.name,
@@ -39,9 +38,20 @@ class BaseCollector(Collector):
     STORAGE_BACKEND = MySQLStorage
 
     @cached_property
-    def biz_info(self):
+    def biz_info(self) -> dict[int, Business]:
         biz_list = api.cmdb.get_business(all=True)
         return {business.bk_biz_id: business for business in biz_list}
+
+    @cached_property
+    def tenants(self) -> list[dict]:
+        """
+        获取租户列表
+        [
+            {"id": "system", "name": "蓝鲸运营", "status": "enabled"},
+            {"id": "test", "name": "测试租户", "status": "disabled"},
+        ]
+        """
+        return api.bk_login.list_tenant()
 
     def biz_exists(self, bk_biz_id):
         """
