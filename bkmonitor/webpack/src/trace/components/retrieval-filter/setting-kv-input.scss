@@ -1,0 +1,65 @@
+.vue3_resident-setting__setting-kv-input-component {
+  .bk-input {
+    min-width: 180px;
+    max-width: 560px;
+    border: 1px solid #dcdee5;
+
+    &:hover {
+      border: 1px solid #dcdee5;
+    }
+
+    &.is-focused {
+      outline: 0;
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+    }
+  }
+
+  .key-method-wrap {
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
+
+    .key-wrap {
+      z-index: 2;
+      align-self: flex-start;
+      width: fit-content;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 30px;
+      white-space: nowrap;
+    }
+
+    .method-wrap {
+      position: relative;
+      align-self: flex-start;
+      padding: 0 3px 0 2px;
+      margin-left: 2px;
+      line-height: 30px;
+      color: #3a84ff;
+      cursor: pointer;
+      background: #fff;
+
+      &::after {
+        position: absolute;
+        top: 0;
+        right: -1px;
+        z-index: 3;
+        width: 4px;
+        height: 100%;
+        content: '';
+        background: #fff;
+      }
+
+      .method-span {
+        white-space: nowrap;
+
+        &.red-text {
+          color: #ea3636;
+        }
+      }
+
+    }
+  }
+}

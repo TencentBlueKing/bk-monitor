@@ -1,0 +1,15 @@
+.tippy-box[data-theme~='favorite-group-create-panel'] {
+  width: 305px;
+  .tippy-content {
+    padding: 12px 16px 16px;
+  }
+  .footer {
+    display: flex;
+    margin-top: -8px;
+    .bk-button {
+      & ~ .bk-button {
+        margin-left: 8px;
+      }
+    }
+  }
+}

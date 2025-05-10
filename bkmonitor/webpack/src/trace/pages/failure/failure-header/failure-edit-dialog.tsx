@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
+import { type Ref, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
@@ -56,9 +56,8 @@ export default defineComponent({
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const customLabelsList = ref([]);
     const editDialogRef = ref(null);
-    const incidentDetailData = computed(() => {
-      return JSON.parse(JSON.stringify(incidentDetail.value));
-    });
+    const incidentDetailData = ref({});
+
     function valueChange(v) {
       emit('update:isShow', v);
     }
@@ -114,6 +113,7 @@ export default defineComponent({
       () => props.visible,
       val => {
         if (val) {
+          incidentDetailData.value = JSON.parse(JSON.stringify(incidentDetail.value));
           const labels = incidentDetailData.value.labels.map(item => item.replace(/\//g, ''));
           incidentDetailData.value.labels = labels;
         }
@@ -134,7 +134,7 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        ext-cls='failure-edit-dialog'
+        class='failure-edit-dialog'
         v-slots={{
           footer: () => (
             <div>
@@ -153,73 +153,74 @@ export default defineComponent({
               </Button>
             </div>
           ),
+          default: () => (
+            <Form
+              ref='editDialogRef'
+              form-type={'vertical'}
+              model={this.incidentDetailData}
+            >
+              <Form.FormItem
+                label={this.t('故障名称')}
+                property='incident_name'
+                required
+              >
+                <Input
+                  v-model={this.incidentDetailData.incident_name}
+                  maxlength={50}
+                  placeholder={this.t('由中英文、下划线或数字组成')}
+                />
+              </Form.FormItem>
+              <Form.FormItem
+                label={this.t('故障级别')}
+                property='level'
+                required
+              >
+                <Radio.Group v-model={this.incidentDetailData.level}>
+                  {Object.values(this.$props.levelList || {}).map((item: any) => (
+                    <Radio
+                      key={item.key}
+                      label={item.name}
+                    >
+                      <i class={`icon-monitor icon-${item.key} radio-icon ${item.key}`} />
+                      {this.t(item.label)}
+                    </Radio>
+                  ))}
+                </Radio.Group>
+              </Form.FormItem>
+              <Form.FormItem
+                label={this.t('故障负责人')}
+                property='assignees'
+              >
+                <MemberSelector
+                  class='width-940'
+                  api={this.userApi}
+                  value={this.incidentDetailData.assignees}
+                  onChange={this.handleUserChange}
+                />
+              </Form.FormItem>
+              <Form.FormItem label={this.t('故障标签')}>
+                <TagInput
+                  v-model={this.incidentDetailData.labels}
+                  list={this.customLabelsList}
+                  trigger='focus'
+                  has-delete-icon
+                />
+              </Form.FormItem>
+              <Form.FormItem label={this.t('故障原因')}>
+                <Input
+                  v-model={this.incidentDetailData.incident_reason}
+                  maxlength={300}
+                  type='textarea'
+                />
+              </Form.FormItem>
+            </Form>
+          ),
         }}
         dialog-type='operation'
         is-show={this.$props.visible}
         title={this.t('编辑故障属性')}
         onUpdate:isShow={this.valueChange}
-      >
-        <Form
-          ref='editDialogRef'
-          form-type={'vertical'}
-          model={this.incidentDetailData}
-        >
-          <Form.FormItem
-            label={this.t('故障名称')}
-            property='incident_name'
-            required
-          >
-            <Input
-              v-model={this.incidentDetailData.incident_name}
-              maxlength={50}
-              placeholder={this.t('由中英文、下划线或数字组成')}
-            />
-          </Form.FormItem>
-          <Form.FormItem
-            label={this.t('故障级别')}
-            property='level'
-            required
-          >
-            <Radio.Group v-model={this.incidentDetailData.level}>
-              {Object.values(this.$props.levelList || {}).map((item: any) => (
-                <Radio
-                  key={item.key}
-                  label={item.name}
-                >
-                  <i class={`icon-monitor icon-${item.key} radio-icon ${item.key}`} />
-                  {this.t(item.label)}
-                </Radio>
-              ))}
-            </Radio.Group>
-          </Form.FormItem>
-          <Form.FormItem
-            label={this.t('故障负责人')}
-            property='assignees'
-          >
-            <MemberSelector
-              class='width-940'
-              api={this.userApi}
-              value={this.incidentDetailData.assignees}
-              onChange={this.handleUserChange}
-            />
-          </Form.FormItem>
-          <Form.FormItem label={this.t('故障标签')}>
-            <TagInput
-              v-model={this.incidentDetailData.labels}
-              list={this.customLabelsList}
-              trigger='focus'
-              has-delete-icon
-            />
-          </Form.FormItem>
-          <Form.FormItem label={this.t('故障原因')}>
-            <Input
-              v-model={this.incidentDetailData.incident_reason}
-              maxlength={300}
-              type='textarea'
-            />
-          </Form.FormItem>
-        </Form>
-      </Dialog>
+      />
     );
   },
 });

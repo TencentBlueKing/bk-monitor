@@ -193,6 +193,10 @@ class EventDimensionTypeEnum(Enum):
     INTEGER: str = "integer"
     DATE: str = "date"
 
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
 
 # 事件字段别名
 EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {

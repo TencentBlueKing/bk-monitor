@@ -223,6 +223,7 @@ export default defineComponent({
         <DatePicker
           class='date-picker'
           v-model={this.time}
+          appendToBody={true}
           clearable={false}
           disabled={this.isPlay}
           disabledDate={this.handleDisabledDate}

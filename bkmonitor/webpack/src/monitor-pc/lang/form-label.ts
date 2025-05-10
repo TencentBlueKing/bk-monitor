@@ -865,6 +865,7 @@ export default {
   版本: 'Version',
   正常: 'Normal',
   异常: 'Exception',
+  未设置: 'Not set',
   升级: 'Upgrade',
   克隆: 'Clone',
   列表: 'List',
@@ -1927,6 +1928,10 @@ export default {
   收藏名称: 'Collection name',
   收藏详情: 'Collection details',
 
+  // trace
+  字段显示: 'Field display',
+  待选字段: 'Available fields',
+  已选字段: 'Selected fields',
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',

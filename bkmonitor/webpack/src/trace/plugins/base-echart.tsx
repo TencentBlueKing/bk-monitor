@@ -60,13 +60,12 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
   // echart 配置
   options: {
-    type: Object as () => PropType<MonitorEchartOptions>,
+    type: Object as PropType<MonitorEchartOptions>,
     required: true,
   },
   // echarts图表实例分组id
@@ -93,6 +92,10 @@ export const BaseChartProps = {
   notMerge: {
     type: Boolean,
     default: true,
+  },
+  customTooltips: {
+    type: Function as PropType<(params: any) => string>,
+    default: null,
   },
 };
 export default defineComponent({
@@ -230,6 +233,9 @@ export default defineComponent({
       if (params[0]?.data?.tooltips) {
         liHtmlList.push(params[0].data.tooltips);
       } else {
+        if (typeof props.customTooltips === 'function') {
+          return props.customTooltips(params);
+        }
         const data = params
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
             color: item.color,

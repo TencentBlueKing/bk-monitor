@@ -1,0 +1,65 @@
+.vue3_retrieval-filter__resident-setting-component {
+  display: flex;
+  align-items: flex-start;
+  min-height: 40px;
+
+  .mt-4 {
+    margin-top: 4px;
+  }
+
+  .mr-4 {
+    margin-right: 4px;
+  }
+
+  .mb-4 {
+    margin-bottom: 4px;
+  }
+
+  .left-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 7px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-shezhi1 {
+      font-size: 14px;
+    }
+
+    .setting-text {
+      margin-left: 4px;
+    }
+  }
+
+  .right-content {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    padding-top: 4px;
+
+    .placeholder-text {
+      position: relative;
+      position: relative;
+      top: -4px;
+      font-size: 12px;
+      line-height: 40px;
+      color: #979ba5;
+    }
+  }
+
+  &.no-data {
+    .left-btn {
+      position: relative;
+      top: 2px;
+    }
+
+    .right-content {
+      .placeholder-text {
+        top: -2px;
+      }
+    }
+  }
+}

@@ -146,7 +146,7 @@ export default defineComponent({
                 >
                   {{
                     default: () =>
-                      !!data.users.length ? (
+                      data.users.length ? (
                         <div
                           style={{
                             top: `${48 + data.row * 22}px`,

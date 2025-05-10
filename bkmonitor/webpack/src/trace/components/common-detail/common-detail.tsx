@@ -31,7 +31,7 @@ import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 
 import { VariablesService } from '../../utils';
 import EmptyStatus from '../empty-status/empty-status';
-import MonitorDrag from '../monitor-grag/monitor-drag';
+import MonitorDrag from '../monitor-drag/monitor-drag';
 import HostDetailView from './host-detail-view';
 
 import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';

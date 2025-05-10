@@ -171,7 +171,7 @@ export default defineComponent({
     const traceMainElem = ref(null);
     const relationTopo = ref(null);
     const statisticsElem = ref(null);
-    const searchBarElem = ref(null);
+    const searchBarElem = ref<InstanceType<typeof SearchBar>>(null);
     const baseMessage = ref<HTMLDivElement>();
     const isbaseMessageWrap = ref<boolean>(false);
     const isSticky = ref<boolean>(false); // 工具栏是否吸顶
@@ -253,7 +253,7 @@ export default defineComponent({
         state.searchKeywords.splice(0, state.searchKeywords.length);
         state.searchKeywords = [];
         state.selectClassifyFilters = {};
-        await (searchBarElem.value as any)?.handleChange([]);
+        await searchBarElem.value?.handleChange([]);
         clearSearch();
         return;
       }
@@ -329,7 +329,7 @@ export default defineComponent({
         state.selectClassifyFilters.app_name = classify.app_name;
       }
       state.isClassifyFilter = true;
-      await (searchBarElem.value as any)?.handleChange([keyword]);
+      await searchBarElem.value?.handleChange([keyword]);
 
       if (state.activePanel === 'statistics') {
         // 统计过滤参数
@@ -337,7 +337,7 @@ export default defineComponent({
           type: classify.type,
           value: classify.type === 'service' ? classify.filter_value : '',
         };
-        (statisticsElem.value as any).handleKeywordFliter(filterDict);
+        (statisticsElem.value as any).handleKeywordFilter(filterDict);
       } else if (['timeline', 'topo'].includes(state.activePanel)) {
         const comps = curViewElem.value;
         const isTopo = state.activePanel === 'topo';
@@ -390,7 +390,7 @@ export default defineComponent({
     const cancelFilter = async () => {
       state.searchKeywords = [];
       state.selectClassifyFilters = {};
-      await (searchBarElem.value as any)?.handleChange([]);
+      await searchBarElem.value?.handleChange([]);
       clearSearch();
     };
     // 搜索结果选择下一个
@@ -410,7 +410,8 @@ export default defineComponent({
       state.matchedSpanIds = 0;
       const comps = curViewElem.value;
       if (state.activePanel === 'statistics') {
-        comps?.handleKeywordFliter(null);
+        searchBarElem.value?.handleChange([]);
+        comps?.handleKeywordFilter(null);
       } else {
         comps?.clearSearch();
         if (state.activePanel === 'topo') {
@@ -439,7 +440,7 @@ export default defineComponent({
           comps?.trackFilter(val);
           break;
         case 'topo':
-          comps?.handleKeywordFliter(val);
+          comps?.handleKeywordFilter(val);
           break;
         case 'statistics':
           {
@@ -450,7 +451,7 @@ export default defineComponent({
                 value: val.toString(),
               };
             }
-            comps?.handleKeywordFliter(filterDict);
+            comps?.handleKeywordFilter(filterDict);
           }
           break;
         default:
@@ -776,7 +777,7 @@ export default defineComponent({
      * @param _keys
      */
     async function handleServiceTopoClickItem(_keys) {
-      await (searchBarElem.value as any)?.handleChange([]);
+      await searchBarElem.value?.handleChange([]);
       clearSearch();
     }
     async function handleChangeEnableTimeALignment(v: boolean) {
@@ -1175,6 +1176,7 @@ export default defineComponent({
                       appName={appName}
                       compareTraceID={this.compareTraceID}
                       traceId={traceId}
+                      onClearKeyword={() => this.clearSearch()}
                       onUpdate:loading={this.contentLoadingChange}
                     />
                   </div>

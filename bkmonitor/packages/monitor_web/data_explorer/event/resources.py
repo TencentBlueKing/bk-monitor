@@ -324,9 +324,8 @@ class EventTopKResource(Resource):
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {
-                        # TODO unifyquery 处理完空值问题会退这段代码
-                        "value": "" if not field_value or field_value == " " else field_value,
-                        "alias": "--" if not field_value or field_value == " " else field_value,
+                        "value": field_value or "",
+                        "alias": "--" if not field_value else field_value,
                         "count": field_count,
                         "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
@@ -659,6 +658,7 @@ class EventStatisticsInfoResource(Resource):
                 processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
             processed_statistics_info[statistics_property] = value
+
         # 计算百分比
         processed_statistics_info["field_percent"] = (
             round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
