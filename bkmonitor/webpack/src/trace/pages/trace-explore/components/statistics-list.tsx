@@ -27,7 +27,7 @@
 import { defineComponent, reactive, shallowRef, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { $bkPopover, Progress, Sideslider, OverflowTitle } from 'bkui-vue';
+import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import {
   traceDownloadTopK,
@@ -329,7 +329,7 @@ export default defineComponent({
                     onMouseenter={e => topKItemMouseenter(e, item.value)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    <OverflowTitle type='tips'>{item.value}</OverflowTitle>
+                    <span v-bk-overflow-tips>{item.value}</span>
                   </span>
 
                   <span class='counts'>
@@ -485,12 +485,12 @@ export default defineComponent({
 
               <div class='top-k-list-header'>
                 <div class='dimension-top-k-title'>
-                  <OverflowTitle
+                  <span
                     class='field-name'
-                    type='tips'
+                    v-bk-overflow-tips
                   >
                     {this.localField}
-                  </OverflowTitle>
+                  </span>
                   <span class='divider' />
                   <span class='desc'>
                     {this.t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
@@ -542,12 +542,12 @@ export default defineComponent({
             header: () => (
               <div class='dimension-slider-header'>
                 <div class='dimension-top-k-title'>
-                  <OverflowTitle
+                  <span
                     class='field-name'
-                    type='tips'
+                    v-bk-overflow-tips
                   >
                     {this.localField}
-                  </OverflowTitle>
+                  </span>
                   <span class='divider' />
                   <span class='desc'>
                     {this.t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})

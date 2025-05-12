@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, computed, type PropType, onMounted, onUnmo
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Badge, OverflowTitle, Select } from 'bkui-vue';
+import { Badge, Select } from 'bkui-vue';
 import { detectOS, random } from 'monitor-common/utils';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
@@ -267,12 +267,12 @@ export default defineComponent({
                   <div class='application-select-trigger'>
                     <span class='data-prefix'>{this.$t('应用')}：</span>
                     {this.store.currentApp && (
-                      <OverflowTitle
+                      <span
                         class='application-name'
-                        type='tips'
+                        v-bk-overflow-tips
                       >
                         {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
-                      </OverflowTitle>
+                      </span>
                     )}
 
                     {!this.applicationToggle && (
@@ -298,12 +298,12 @@ export default defineComponent({
                             ]}
                             onClick={e => this.handleThumbtack(e, item)}
                           />
-                          <OverflowTitle
+                          <span
                             class='name-text'
-                            type='tips'
+                            v-bk-overflow-tips
                           >
                             {item.app_alias}({item.app_name})
-                          </OverflowTitle>
+                          </span>
                         </div>
                       )}
                     </Select.Option>
@@ -353,8 +353,8 @@ export default defineComponent({
             </div>
             {this.$slots.default || (
               <Badge
+                count='!'
                 theme='warning'
-                val='"!"'
               >
                 <span>{this.$t('回到旧版')}</span>
               </Badge>

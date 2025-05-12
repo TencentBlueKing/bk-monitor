@@ -40,7 +40,7 @@ export type IEmptyStatusTextMap = {
 
 const defaultTextMap: IEmptyStatusTextMap = {
   empty: window.i18n.t('暂无数据'),
-  'search-empty': window.i18n.t('无数据'),
+  'search-empty': window.i18n.t('搜索结果为空'),
   500: window.i18n.t('数据获取异常'),
   403: window.i18n.t('无业务权限'),
 };

@@ -134,6 +134,10 @@ export default defineComponent({
       }
     );
 
+    watch([() => store.timeRange, () => store.refreshImmediate], () => {
+      handleQuery();
+    });
+
     /** 视角切换 */
     function handelSceneChange(val: ICommonParams['mode'], oldVal: ICommonParams['mode']) {
       checkboxFilters.value = [];
@@ -538,9 +542,7 @@ export default defineComponent({
               list={this.applicationList}
               onAppNameChange={this.handleAppNameChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
-              onImmediateRefreshChange={this.handleQuery}
               onSceneModeChange={this.handelSceneChange}
-              onTimeRangeChange={this.handleQuery}
             />
           </div>
           <div class='trace-explore-content'>
