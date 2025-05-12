@@ -101,6 +101,7 @@ from apps.log_search.serializers import (
 )
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
+from apps.log_unifyquery.handler.async_export_handlers import UnifyQueryAsyncExportHandlers
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
@@ -749,13 +750,23 @@ class SearchViewSet(APIViewSet):
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
-        task_id, size = AsyncExportHandlers(
-            index_set_id=int(index_set_id),
-            bk_biz_id=data["bk_biz_id"],
-            search_dict=data,
-            export_fields=data["export_fields"],
-            export_file_type=data["file_type"],
-        ).async_export(is_quick_export=is_quick_export)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            task_id, size = UnifyQueryAsyncExportHandlers(
+                index_set_id=int(index_set_id),
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        else:
+            task_id, size = AsyncExportHandlers(
+                index_set_id=int(index_set_id),
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,

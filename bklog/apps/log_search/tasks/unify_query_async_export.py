@@ -19,18 +19,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import copy
-import datetime
 import json
 import os
 import tarfile
 
 import arrow
-import pytz
 import ujson
-from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
-from celery.schedules import crontab
 from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
@@ -44,32 +39,29 @@ from apps.log_search.constants import (
     ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
     ASYNC_EXPORT_EMAIL_TEMPLATE,
     ASYNC_EXPORT_EXPIRED,
-    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
     MsgModel,
+    SCROLL,
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.models import (
     AsyncTask,
     LogIndexSet,
     Scenario,
-    StorageClusterRecord,
 )
-from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
-from apps.utils.thread import MultiExecuteFunc
 
 
 @app.task(ignore_result=True, queue="async_export")
 def async_export(
-    search_handler: SearchHandler,
+    unify_query_handler: UnifyQueryHandler,
     sorted_fields: list,
     async_task_id: int,
     url_path: str,
@@ -82,7 +74,7 @@ def async_export(
 ):
     """
     异步导出任务
-    @param search_handler {SearchHandler}
+    @param unify_query_handler {UnifyQueryHandler}
     @param sorted_fields {List}
     @param async_task_id {Int}
     @param url_path {Str}
@@ -92,14 +84,16 @@ def async_export(
     @param is_quick_export {Bool}
     @param export_file_type {str}
     @param external_user_email {Str}
+    @param unify_query_handler: {UnifyQueryHandler}
     """
+    index_set_id = unify_query_handler.index_info_list[0]["index_set_id"]
     random_hash = get_random_string(length=10)
     time_now = arrow.now().format("YYYYMMDDHHmmss")
-    file_name = f"{ASYNC_APP_CODE}_{search_handler.index_set_id}_{time_now}_{random_hash}"
+    file_name = f"{ASYNC_APP_CODE}_{index_set_id}_{time_now}_{random_hash}"
     tar_file_name = f"{file_name}.tar.gz"
     async_task = AsyncTask.objects.filter(id=async_task_id).first()
     async_export_util = AsyncExportUtils(
-        search_handler=search_handler,
+        unify_query_handler=unify_query_handler,
         sorted_fields=sorted_fields,
         file_name=file_name,
         tar_file_name=tar_file_name,
@@ -140,7 +134,7 @@ def async_export(
 
         try:
             async_export_util.send_msg(
-                index_set_id=search_handler.index_set_id,
+                index_set_id=index_set_id,
                 async_task=async_task,
                 search_url_path=search_url_path,
                 language=language,
@@ -151,7 +145,7 @@ def async_export(
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(e)
         async_export_util.send_msg(
-            index_set_id=search_handler.index_set_id,
+            index_set_id=index_set_id,
             async_task=async_task,
             search_url_path=search_url_path,
             language=language,
@@ -185,42 +179,6 @@ def set_expired_status(async_task_id):
     async_task.save()
 
 
-@periodic_task(run_every=crontab(minute="10", hour="3"))
-def clean_expired_status():
-    """
-    change success status -> export_expired status
-    """
-
-    AsyncTask.objects.filter(export_status=ExportStatus.SUCCESS).filter(
-        completed_at__lt=arrow.now().shift(seconds=-ASYNC_EXPORT_EXPIRED).datetime
-    ).update(export_status=ExportStatus.DOWNLOAD_EXPIRED)
-
-
-@periodic_task(run_every=crontab(minute="0", hour="3"))
-def clean_expired_task():
-    """
-    clean expired task file
-    expired_time:  2days
-
-    """
-    day_ago = datetime.datetime.now(pytz.timezone("UTC")) - datetime.timedelta(days=ASYNC_EXPORT_FILE_EXPIRED_DAYS)
-    # 获取过期的内网下载文件
-    expired_task_list = AsyncTask.objects.filter(created_at__lt=day_ago, is_clean=False)
-    # nfs文件需要进行定期清理操作
-    storage_type = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(
-        FEATURE_ASYNC_EXPORT_STORAGE_TYPE
-    )
-
-    if storage_type or storage_type == RemoteStorageType.NFS.value:
-        # 删除NFS文件
-        for expired_task in expired_task_list:
-            target_file_dir = os.path.join(settings.EXTRACT_SAAS_STORE_DIR, expired_task.file_name)
-            if os.path.isfile(target_file_dir):
-                os.remove(os.path.abspath(target_file_dir))
-            expired_task.is_clean = True
-            expired_task.save()
-
-
 class AsyncExportUtils:
     """
     async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
@@ -228,7 +186,7 @@ class AsyncExportUtils:
 
     def __init__(
         self,
-        search_handler: SearchHandler,
+        unify_query_handler: UnifyQueryHandler,
         sorted_fields: list,
         file_name: str,
         tar_file_name: str,
@@ -238,13 +196,13 @@ class AsyncExportUtils:
         external_user_email: str = "",
     ):
         """
-        @param search_handler: the handler cls to search
+        @param unify_query_handler: the handler cls to search
         @param sorted_fields: the fields to sort search result
         @param file_name: the export file name
         @param tar_file_name: the file name which will be tar
         @param is_external: is external_request
         """
-        self.search_handler = search_handler
+        self.unify_query_handler = unify_query_handler
         self.sorted_fields = sorted_fields
         self.file_name = file_name
         self.tar_file_name = tar_file_name
@@ -267,38 +225,22 @@ class AsyncExportUtils:
         export_method = self.quick_export if self.is_quick_export else self.async_export
         export_method()
 
-    def process_time(self, time_value, tz_info):
-        """
-        处理时间值并返回转换后的 datetime 对象
-        """
-        if isinstance(time_value, (int, float)):
-            return arrow.get(time_value).to(tz=tz_info).datetime
-        else:
-            return arrow.get(time_value).replace(tzinfo=tz_info).datetime
+    def _unify_query_async_export(self, file_path):
+        try:
+            index_set = self.unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            result = self.unify_query_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                generate_result = self.unify_query_handler.search_after_result(result, self.sorted_fields)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
 
-    def get_storage_cluster_record(self):
-        """
-        获取集群切换记录
-        """
-        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-        start_time = self.process_time(self.search_handler.start_time, tz_info)
-        end_time = self.process_time(self.search_handler.end_time, tz_info)
-        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-            index_set_id=int(self.search_handler.index_set_id),
-            created_at__gt=(start_time - datetime.timedelta(hours=1)),
-        ).order_by("created_at")
-        max_created_at = None
-        for obj in storage_cluster_record_objs:
-            if end_time <= obj.created_at:
-                max_created_at = obj.created_at
-                break
-        if max_created_at:
-            storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
-            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
-        else:
-            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
-            storage_cluster_ids.add(self.search_handler.storage_cluster_id)
-        return storage_cluster_ids
+        return file_path
 
     def _async_export(self, search_handler, file_path):
         try:
@@ -324,59 +266,36 @@ class AsyncExportUtils:
         return file_path
 
     def async_export(self):
-        storage_cluster_record_ids = self.get_storage_cluster_record()
-        multi_execute_func = MultiExecuteFunc()
-        for storage_cluster_record_id in storage_cluster_record_ids:
-            search_handler = SearchHandler(
-                index_set_id=self.search_handler.index_set_id,
-                search_dict=copy.deepcopy(self.search_handler.search_dict),
-                export_fields=self.search_handler.export_fields,
-                export_log=True,
-            )
-            search_handler.storage_cluster_id = storage_cluster_record_id
-            current_cluster_id = search_handler.storage_cluster_id
-            file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
-            params = {
-                "search_handler": search_handler,
-                "file_path": file_path,
-            }
-            multi_execute_func.append(
-                result_key=search_handler.storage_cluster_id,
-                func=self._async_export,
-                params=params,
-                multi_func_params=True,
-            )
-        multi_result = multi_execute_func.run(return_exception=True)
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
-        with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
-            for result_key, result in multi_result.items():
-                if isinstance(result, Exception):
-                    logger.exception("async export error: %s -- %s, reason: %s", self.file_name, result_key, result)
-                else:
-                    self.file_path_list.append(result)
-                    # 读取文件内容并写入汇总文件
-                    with open(result, encoding="utf-8") as f:
-                        for line in f:
-                            summary_file.write(line)
+        result = self._unify_query_async_export(file_path=summary_file_path)
+        self.file_path_list.append(result)
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
             self.file_path_list.append(summary_file_path)
 
-    def _quick_export(self, search_handler):
-        multi_result = search_handler.multi_get_slice_data(
-            pre_file_name=self.file_name, export_file_type=self.export_file_type
-        )
-        for idx, result in multi_result.items():
-            if isinstance(result, Exception):
-                logger.exception("quick export error: %s -- %s, reason: %s", self.file_name, idx, result)
-            else:
-                self.file_path_list.append(result)
+    def _quick_export(self):
+        try:
+            index_set = self.unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+            result = self.unify_query_handler.pre_get_result(
+                sorted_fields=self.sorted_fields, size=max_result_window, scroll=SCROLL
+            )
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                generate_result = self.unify_query_handler.scroll_search(result)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
+
+        return file_path
 
     def quick_export(self):
-        storage_cluster_record_ids = self.get_storage_cluster_record()
-        for storage_cluster_record_id in storage_cluster_record_ids:
-            self.search_handler.storage_cluster_id = storage_cluster_record_id
-            self._quick_export(self.search_handler)
+        result = self._quick_export()
+        self.file_path_list.append(result)
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             for file_path in self.file_path_list:
                 tar.add(file_path, arcname=os.path.basename(file_path))
