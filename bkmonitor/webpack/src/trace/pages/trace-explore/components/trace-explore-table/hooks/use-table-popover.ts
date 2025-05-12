@@ -90,8 +90,10 @@ export const useTablePopover = (
    */
   const handleMouseenter = (e: MouseEvent) => {
     handlePopoverHide();
+    // 兼容微前端环境下，e.target 在异步任务中会被置空的场景
+    const _target = e.target as HTMLElement;
     mouseenterDebouncedTimer = setTimeout(() => {
-      const targetDom: HTMLElement = (e.target as HTMLElement).closest(options.trigger.selector);
+      const targetDom: HTMLElement = _target?.closest?.(options.trigger.selector);
       if (!targetDom) return;
 
       const content = options.getContent(targetDom, e);
