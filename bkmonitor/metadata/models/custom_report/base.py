@@ -222,12 +222,14 @@ class CustomGroupBase(models.Model):
 
         logger.info(
             "create_custom_group: bk_biz_id->[%s],bk_tenant_id->[%s], custom_group_name->[%s], label->[%s], "
-            "operator->[%s]",
+            "operator->[%s],default_storage_config->[%s],bk_tenant_id->[%s]",
             bk_biz_id,
             bk_tenant_id,
             custom_group_name,
             label,
             operator,
+            default_storage_config,
+            bk_tenant_id,
         )
 
         # 1. 参数检查
