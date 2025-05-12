@@ -1569,6 +1569,7 @@ class RedisStorage(models.Model, StorageResultTable):
 
     # 对应ResultTable的table_id
     table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     # 默认命令是PUBLISH
     command = models.CharField("写入消息的命令", max_length=32, default="PUBLISH")
     key = models.CharField("存储键值", max_length=256)
@@ -1874,6 +1875,8 @@ class ESStorage(models.Model, StorageResultTable):
     # 新增标记位，用于标识是否需要创建索引
     need_create_index = models.BooleanField("是否需要创建索引", default=True)
     archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
+
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -4886,6 +4889,7 @@ class StorageClusterRecord(models.Model):
     """
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -4904,7 +4908,7 @@ class StorageClusterRecord(models.Model):
         unique_together = ("table_id", "cluster_id", "enable_time")  # 联合索引，保证唯一性
 
     @classmethod
-    def compose_table_id_storage_cluster_records(cls, table_id):
+    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         组装指定结果表的历史存储集群记录
         [

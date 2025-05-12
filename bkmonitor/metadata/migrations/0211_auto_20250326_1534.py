@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +13,6 @@ from django.db import migrations
 
 def sync_event_es_router(apps, schema_editor):
     """直接调用 sync_event_es_route 方法执行同步"""
-    from metadata.management.commands.sync_event_es_router import Command
 
     EventGroup = apps.get_model("metadata", "EventGroup")
     queryset = EventGroup.objects.filter(is_delete=False).order_by("bk_data_id")
@@ -23,10 +21,10 @@ def sync_event_es_router(apps, schema_editor):
     total = queryset.count()
     for begin_idx in range(0, total, batch_size):
         print(f"[sync_event_es_router] start to sync_event_es_route: begin_idx -> {begin_idx}")
-        Command.sync_event_es_route(
-            list(queryset.values("table_id", "event_group_name", "bk_data_id")[begin_idx : begin_idx + batch_size]),
-            push_now=False,
-        )
+        # Command.sync_event_es_route(
+        #     list(queryset.values("table_id", "event_group_name", "bk_data_id")[begin_idx : begin_idx + batch_size]),
+        #     push_now=False,
+        # )
 
 
 class Migration(migrations.Migration):
