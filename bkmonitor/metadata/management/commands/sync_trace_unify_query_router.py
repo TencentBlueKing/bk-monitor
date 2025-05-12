@@ -20,7 +20,6 @@ from typing import Any, TYPE_CHECKING
 from django.core.management.base import BaseCommand
 
 from metadata.models.common import OptionBase
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 if TYPE_CHECKING:
     from metadata.models import ResultTable, ResultTableOption, ESStorage
@@ -169,5 +168,7 @@ class Command(BaseCommand):
 
         # 立即同步到缓存。
         if push_now:
+            from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
             client = SpaceTableIDRedis()
             client.push_es_table_id_detail(table_id_list=table_ids, is_publish=True)
