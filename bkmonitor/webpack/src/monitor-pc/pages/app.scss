@@ -570,7 +570,7 @@
 .check-version-wrapper {
   z-index: 99999999 !important;
   .bk-notify-icon {
-    display: none;
+    display: none !important;
   }
   .bk-notify-content-title {
     color: #313238;

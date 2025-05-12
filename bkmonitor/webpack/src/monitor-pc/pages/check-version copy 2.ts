@@ -95,9 +95,12 @@ const promptForReload = async () => {
           h(
             'div',
             {
+              style: {
+                marginTop: '20px',
+                textAlign: !publishUrl?.value ? 'right' : 'left',
+              },
               class: {
                 'check-version-btn': true,
-                'check-version-btn-single': !publishUrl?.value,
               },
             },
             [
@@ -117,6 +120,9 @@ const promptForReload = async () => {
               h(
                 'bk-button',
                 {
+                  style: {
+                    marginLeft: '8px',
+                  },
                   props: {
                     size: 'small',
                   },
@@ -131,6 +137,7 @@ const promptForReload = async () => {
                 {
                   style: {
                     display: publishUrl?.value ? 'inline-block' : 'none',
+                    float: 'right',
                   },
                   props: {
                     outline: true,
@@ -152,8 +159,9 @@ const promptForReload = async () => {
         ]
       ),
       delay: 0,
+      icon: '--',
       offsetY: 46,
-      extCls: '.check-version-wrapper',
+      extCls: 'check-version-wrapper-main',
     });
   });
   // return true;
