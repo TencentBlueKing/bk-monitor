@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0213_remove_label_bk_tenant_id"),
+        ("metadata", "0214_remove_label_bk_tenant_id"),
     ]
 
     operations = [

@@ -86,7 +86,11 @@ def create_or_delete_records(mocker):
         version="5.x",
     )
     models.StorageClusterRecord.objects.create(
-        table_id="1001_bklog.stdout", cluster_id=11, is_current=True, enable_time=base_time - timedelta(days=30)
+        table_id="1001_bklog.stdout",
+        cluster_id=11,
+        is_current=True,
+        enable_time=base_time - timedelta(days=30),
+        bk_tenant_id="riot",
     )
     models.StorageClusterRecord.objects.create(
         table_id="1001_bklog.stdout",
@@ -94,9 +98,10 @@ def create_or_delete_records(mocker):
         is_current=False,
         enable_time=base_time - timedelta(days=60),
         disable_time=base_time - timedelta(days=30),
+        bk_tenant_id="riot",
     )
     models.StorageClusterRecord.objects.create(
-        table_id="1001_bklog.stdout", cluster_id=13, is_current=True, enable_time=None
+        table_id="1001_bklog.stdout", cluster_id=13, is_current=True, enable_time=None, bk_tenant_id="riot"
     )
     models.DataSourceResultTable.objects.create(bk_data_id=50011, table_id="1001_bklog.stdout", bk_tenant_id="riot")
 
