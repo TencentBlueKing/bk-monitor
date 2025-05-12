@@ -45,7 +45,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("-b", "--bk-biz-ids", nargs="+", type=int, default=[], help=_("业务 ID 列表"))
-        parser.add_argument("-c", "--batch-size", type=str, help="同步批次大小")
+        parser.add_argument("-c", "--batch-size", type=int, help="同步批次大小")
 
     def handle(self, *args, **options):
         bk_biz_ids: list[int] = options.get("bk_biz_ids") or []
