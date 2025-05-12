@@ -162,8 +162,10 @@ export default class MessageChart extends CommonSimpleChart {
       },
     };
     const routeData = this.$router.resolve(params);
-    window.open(routeData.href, '_blank');
+    const url = location.href.replace(location.hash, `#/trace/home${routeData.href.slice(2)}`);
+    window.open(url, '_blank');
   }
+
   render() {
     return (
       <div class='message-chart'>
