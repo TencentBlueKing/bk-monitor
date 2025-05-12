@@ -121,7 +121,6 @@ export const useEcharts = (
       hoverAllTooltips: false,
       options,
     });
-    console.info('getEchartOptions', options);
     return {
       ...options,
       tooltip: tooltipsOptions.value,
@@ -308,7 +307,6 @@ export const useEcharts = (
     });
   };
   const createOptions = (xAxis, yAxis, series) => {
-    console.info('createOptions', xAxis, yAxis, series);
     return {
       useUTC: false,
       animation: false,
