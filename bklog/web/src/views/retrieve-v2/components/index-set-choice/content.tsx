@@ -64,7 +64,7 @@ export default defineComponent({
       default: 101,
     },
   },
-  emits: ['type-change', 'value-change'],
+  emits: ['type-change', 'value-change', 'auth-request'],
   setup(props, { emit }) {
     const { $t } = useLocale();
     const route = useRoute();
@@ -150,6 +150,7 @@ export default defineComponent({
           spaceUid={props.spaceUid}
           on-value-change={handleValueChange}
           on-favorite-change={handleFavoriteChange}
+          on-auth-request={item => emit('auth-request', item)}
         ></IndexSetList>
       );
     };
