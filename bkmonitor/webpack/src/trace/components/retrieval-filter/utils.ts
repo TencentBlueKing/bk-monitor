@@ -117,11 +117,11 @@ export function onClickOutside(element, callback, { once = false } = {}) {
     }
     if (!isInside) {
       callback(event);
-      if (once) document.removeEventListener('click', handler);
+      if (once) window.removeEventListener('click', handler);
     }
   };
-  document.addEventListener('click', handler);
-  return () => document.removeEventListener('click', handler);
+  window.addEventListener('click', handler);
+  return () => window.removeEventListener('click', handler);
 }
 /**
  * 获取字符长度，汉字两个字节
@@ -207,4 +207,20 @@ export function getDurationDisplay(value: Array<number | string>) {
   const start = value[0] ? `${Number(value[0]) / 1000}ms` : '0ms';
   const end = value[1] ? `${Number(value[1]) / 1000}ms` : '0ms';
   return `${start}~${end}`;
+}
+export function getTopDocument(node = document) {
+  let currentRoot = node.getRootNode();
+  let nodeTemp: any = node;
+  // 递归穿透 Shadow Host
+  while (currentRoot !== document) {
+    // 如果当前根是 Shadow Root，则向上找到宿主元素（Shadow Host）
+    if (currentRoot instanceof ShadowRoot) {
+      nodeTemp = currentRoot.host;
+      currentRoot = nodeTemp.getRootNode();
+    } else {
+      break;
+    }
+  }
+  // 返回最终的顶层 document
+  return currentRoot === document ? document : currentRoot;
 }

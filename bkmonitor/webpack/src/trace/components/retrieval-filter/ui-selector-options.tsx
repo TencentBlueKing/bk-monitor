@@ -156,7 +156,7 @@ export default defineComponent({
 
     function init() {
       isMacSystem.value = detectOperatingSystem() === 'macOS';
-      useEventListener(document, 'keydown', handleKeydownEvent);
+      useEventListener(window, 'keydown', handleKeydownEvent);
     }
 
     function initData() {
@@ -366,17 +366,19 @@ export default defineComponent({
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({
-            where: [
-              {
-                key: params.field,
-                method: getWildcardOperator(!!params.search),
-                value: params.search ? [params.search] : [],
-                condition: ECondition.and,
-                options: {
-                  is_wildcard: true,
-                },
-              },
-            ],
+            where: params.search
+              ? [
+                  {
+                    key: params.field,
+                    method: getWildcardOperator(!!params.search),
+                    value: [params.search],
+                    condition: ECondition.and,
+                    options: {
+                      is_wildcard: true,
+                    },
+                  },
+                ]
+              : [],
             fields: [params.field],
             limit: params.limit,
           })
@@ -524,8 +526,10 @@ export default defineComponent({
                 ref='searchInput'
                 v-model={this.searchValue}
                 behavior='simplicity'
+                clearable={true}
                 placeholder={this.$t('请输入关键字')}
                 stopPropagation={false}
+                onClear={this.handleSearchChangeDebounce}
                 onInput={this.handleSearchChangeDebounce}
               >
                 {{

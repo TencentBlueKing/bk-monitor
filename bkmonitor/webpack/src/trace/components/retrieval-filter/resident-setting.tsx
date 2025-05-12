@@ -254,17 +254,19 @@ export default defineComponent({
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({
-            where: [
-              {
-                key: params.field,
-                method: getWildcardOperator(params.field, !!params.search),
-                value: params.search ? [params.search] : [],
-                condition: ECondition.and,
-                options: {
-                  is_wildcard: true,
-                },
-              },
-            ],
+            where: params.search
+              ? [
+                  {
+                    key: params.field,
+                    method: getWildcardOperator(params.field, !!params.search),
+                    value: [params.search],
+                    condition: ECondition.and,
+                    options: {
+                      is_wildcard: true,
+                    },
+                  },
+                ]
+              : [],
             fields: [params.field],
             limit: params.limit,
           })
