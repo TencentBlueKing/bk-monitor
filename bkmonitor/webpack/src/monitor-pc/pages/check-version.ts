@@ -153,7 +153,7 @@ const promptForReload = async () => {
       ),
       delay: 0,
       offsetY: 46,
-      extCls: '.check-version-wrapper',
+      extCls: 'check-version-wrapper',
     });
   });
   // return true;
