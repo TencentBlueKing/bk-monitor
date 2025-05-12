@@ -8,6 +8,7 @@
 
   &.is-expand {
     grid-template-rows: 1fr;
+    overflow-y: visible;
 
     .chart-collapse-header {
       .chart-collapse-header-trigger {

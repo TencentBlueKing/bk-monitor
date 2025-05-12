@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, useTemplateRef, type PropType } from 'vue';
+import { computed, defineComponent, useTemplateRef, watch, type PropType } from 'vue';
 import { getCurrentInstance } from 'vue';
 import VueEcharts from 'vue-echarts';
 
@@ -72,13 +72,6 @@ export default defineComponent({
       chartRef
     );
     const { legendData, handleSelectLegend } = useChartLegend(options);
-    const handleFinished = () => {
-      chartInstance.value.dispatchAction({
-        type: 'takeGlobalCursor',
-        key: 'dataZoomSelect',
-        dataZoomSelectActive: true,
-      });
-    };
     const handleDataZoom = (event: DataZoomEvent) => {
       const xAxisData = options.value.xAxis[0]?.data;
       if (!xAxisData.length || xAxisData.length < 2) return;
@@ -95,6 +88,24 @@ export default defineComponent({
       }
       store.updateTimeRange([xAxisData[startValue], endTime]);
     };
+    watch(
+      [loading, options],
+      async () => {
+        if (!loading.value && options.value) {
+          setTimeout(() => {
+            chartInstance.value?.dispatchAction({
+              type: 'takeGlobalCursor',
+              key: 'dataZoomSelect',
+              dataZoomSelectActive: true,
+            });
+          }, 1000);
+        }
+      },
+      {
+        immediate: false,
+        flush: 'post',
+      }
+    );
     return {
       loading,
       options,
@@ -104,7 +115,6 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleSelectLegend,
-      handleFinished,
       handleDataZoom,
     };
   },
@@ -142,7 +152,6 @@ export default defineComponent({
               option={this.options}
               autoresize
               onDatazoom={this.handleDataZoom}
-              onFinished={this.handleFinished}
             />
             <CommonLegend
               legendData={this.legendData}

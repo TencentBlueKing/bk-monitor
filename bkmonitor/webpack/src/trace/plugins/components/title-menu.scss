@@ -1,34 +1,35 @@
 .chart-menu {
-  width: 182px;
+  position: absolute;
+  z-index: 999;
   display: flex;
   flex-direction: column;
+  width: 182px;
+  padding: 6px 0;
+  font-size: 12px;
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .15);
-  padding: 6px 0;
-  font-size: 12px;
-  position: absolute;
-  z-index: 999;
+  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
 
   &-item {
     display: flex;
+    flex: 0 0 32px;
+    align-items: center;
     // width: 100%;
     height: 100%;
-    align-items: center;
-    flex: 0 0 32px;
     padding-left: 12px;
-    color: #63656e;
     font-weight: normal;
+    color: #63656e;
 
     .menu-item-trigger {
       margin-left: 8px;
     }
 
     .field-name {
-      text-overflow: ellipsis;
       width: 100%;
       overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     &.segmentation-item {
@@ -36,9 +37,9 @@
     }
 
     &:hover {
-      background: #f5f6fa;
       color: #3a84ff;
       cursor: pointer;
+      background: #f5f6fa;
 
       .menu-icon {
         color: #3a84ff;
@@ -50,24 +51,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
       width: 12px;
       height: 12px;
       margin-right: 12px;
+      font-size: 14px;
       color: #979ba5;
 
       &::before {
-        width: 12px;
-        height: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 12px;
+        height: 12px;
       }
     }
 
     .link-icon {
-      color: #979ba5;
       margin-left: auto;
+      color: #979ba5;
 
       @extend %menu-icon;
 
@@ -78,18 +79,18 @@
 
     .more-icon {
       margin-left: auto;
-      color: #979ba5;
-
-      @extend %menu-icon;
 
       /* stylelint-disable-next-line order/order */
       font-size: 24px;
+      color: #979ba5;
+
+      @extend %menu-icon;
     }
 
     .tips-icon {
-      color: #979ba5;
-      margin-left: auto;
       margin-right: 10px;
+      margin-left: auto;
+      color: #979ba5;
 
       @extend %menu-icon;
 
@@ -110,35 +111,34 @@
   }
 
   .chart-menu-item-more {
-    height: 32px;
     display: flex;
     align-items: center;
-
+    height: 32px;
 
     .bk-popover-reference {
-      height: 100%;
       width: 100%;
+      height: 100%;
     }
   }
 
   .bk-popover {
     display: flex;
-  
+
     .bk-popover-reference {
-      height: 100%;
       width: 100%;
+      height: 100%;
     }
   }
 }
 
 .child-list-popover {
-  border-radius: 2px;
   background-color: #fff;
-  box-shadow: 0 2px 6px 0 rgba(0,0,0,.10);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 
   .child-list {
-    padding: 8px 0;
     max-height: 200px;
+    padding: 8px 0;
     overflow-y: auto;
     background-color: #fff;
 
@@ -146,13 +146,13 @@
       display: flex;
       align-items: center;
       height: 32px;
-      line-height: 32px;
       padding: 0 12px;
+      line-height: 32px;
       cursor: pointer;
 
       &:hover {
-        background-color: #f5f6fa;
         color: #3a84ff;
+        background-color: #f5f6fa;
 
         .child-icon {
           color: #3a84ff;
@@ -176,18 +176,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
     width: 14px;
     height: 14px;
     margin-right: 5px;
+    font-size: 14px;
     color: #63656e;
 
     &::before {
-      width: 14px;
-      height: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 14px;
+      height: 14px;
     }
   }
 }
