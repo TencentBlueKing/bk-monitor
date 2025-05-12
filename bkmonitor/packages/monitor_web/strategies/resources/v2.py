@@ -2731,7 +2731,7 @@ class GetTargetDetailWithCache(CacheResource):
             instance_count = len(instances)
 
         # 补充未查询到模块的模版信息
-        if field in [
+        if len(target_detail) != len(params["bk_inst_ids"]) and field in [
             TargetFieldType.host_set_template,
             TargetFieldType.host_service_template,
             TargetFieldType.service_set_template,
