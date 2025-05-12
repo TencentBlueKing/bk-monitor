@@ -68,7 +68,7 @@ FILE_PLUGINS_FACTORY = {
 
 class PluginManagerFactory(object):
     @classmethod
-    def get_manager(cls, plugin=None, plugin_type=None, operator="", tmp_path=None) -> PluginManager:
+    def get_manager(cls, bk_tenant_id=None, plugin=None, plugin_type=None, operator="", tmp_path=None) -> PluginManager:
         """
         根据插件ID和插件类型获取对应的插件管理对象
         :param plugin: CollectorPluginMeta对象或id
@@ -81,11 +81,14 @@ class PluginManagerFactory(object):
             raise IOError(_("文件夹不存在：%s") % tmp_path)
 
         if not isinstance(plugin, CollectorPluginMeta):
+            if not bk_tenant_id:
+                raise ValueError("bk_tenant_id is required when PluginManagerFactory.get_manager")
+
             plugin_id = plugin
             try:
-                plugin = CollectorPluginMeta.objects.get(plugin_id=plugin)
+                plugin = CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin)
             except CollectorPluginMeta.DoesNotExist:
-                plugin = CollectorPluginMeta(plugin_id=plugin_id, plugin_type=plugin_type)
+                plugin = CollectorPluginMeta(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, plugin_type=plugin_type)
 
         plugin_type = plugin.plugin_type
         if plugin_type not in SUPPORTED_PLUGINS:

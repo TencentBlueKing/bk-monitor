@@ -57,6 +57,7 @@ from bkmonitor.strategy.new_strategy import QueryConfig, Strategy, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
+from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.user import get_global_user, set_local_username
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -155,14 +156,6 @@ def run_init_builtin(bk_biz_id):
         #     run_init_builtin_assign_group(cc_biz_id)
     else:
         logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
-
-
-@shared_task(ignore_result=True)
-def update_config_instance_count():
-    """
-    周期性查询节点管理任务状态，更新启用中的采集配置的主机数和异常数
-    """
-    resource.collecting.update_config_instance_count()
 
 
 @shared_task(ignore_result=True)
@@ -338,7 +331,7 @@ def update_cmdb_util_info():
 
 
 @shared_task(ignore_result=True)
-def append_metric_list_cache(result_table_id_list):
+def append_metric_list_cache(bk_tenant_id: str, result_table_id_list: list[str]):
     """
     追加或更新新增的采集插件标列表
     """
@@ -362,6 +355,7 @@ def append_metric_list_cache(result_table_id_list):
         # api 调用不做指标实时更新。
         return
 
+    set_local_tenant_id(bk_tenant_id)
     set_local_username(settings.COMMON_USERNAME)
     if not result_table_id_list:
         return
@@ -375,7 +369,9 @@ def append_metric_list_cache(result_table_id_list):
         new_metric_list = []
         if plugin is None:
             plugin_type, plugin_id = db_name.split("_", 1)
-            plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
+            plugin = CollectorPluginMeta.objects.filter(
+                bk_tenant_id=bk_tenant_id, plugin_type=plugin_type, plugin_id=plugin_id
+            ).first()
         for result in group_list:
             result["bk_biz_id"] = plugin.bk_biz_id
             create_msg = BkmonitorMetricCacheManager().get_plugin_ts_metric(result)
