@@ -138,6 +138,7 @@ export default defineComponent({
           <>
             <VueEcharts
               ref='echart'
+              group={this.panel.dashboardId}
               option={this.options}
               autoresize
               onDatazoom={this.handleDataZoom}
