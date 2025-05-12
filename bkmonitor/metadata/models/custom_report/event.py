@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
+
 import logging
-from typing import Optional, Dict, Any
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -19,6 +20,7 @@ from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
@@ -30,13 +32,14 @@ logger = logging.getLogger("metadata")
 
 
 class EventGroup(CustomGroupBase):
-
     """事件分组记录"""
 
     EVENT_GROUP_STATUS_CHOICES = (
         (EventGroupStatus.NORMAL, "正常"),
         (EventGroupStatus.SLEEP, "休眠"),
     )
+
+    # event_group_id 类似于uuid,因此过滤时无需添加租户属性
 
     event_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     event_group_name = models.CharField(verbose_name="事件分组名", max_length=255)
@@ -49,7 +52,8 @@ class EventGroup(CustomGroupBase):
 
     # 事件支持 UnifyQuery 检索所需的配置项
     DEFAULT_RESULT_TABLE_OPTIONS = {
-        "need_add_time": True, "time_field": {"name": "time", "type": "date", "unit": "millisecond"}
+        "need_add_time": True,
+        "time_field": {"name": "time", "type": "date", "unit": "millisecond"},
     }
 
     # 时间字段的配置
@@ -124,17 +128,30 @@ class EventGroup(CustomGroupBase):
     DEFAULT_STORAGE_CONFIG = STORAGE_ES_CONFIG
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None):
-        bk_biz_id_str = str(bk_biz_id)
-        if bk_biz_id_str > "0":
-            return "{}_bkmonitor_event_{}".format(bk_biz_id, bk_data_id)
-        elif bk_biz_id_str < "0":
-            return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        """
+        生成结果表table_id
+        涉及破坏性改造,通过是否开启多租户开关控制
+        """
 
-        return "bkmonitor_event_{}".format(bk_data_id)
+        bk_biz_id_str = str(bk_biz_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return f"{bk_tenant_id}_{bk_biz_id}_bkmonitor_event_{bk_data_id}"
+            elif bk_biz_id_str < "0":
+                return f"{bk_tenant_id}_bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return f"{bk_tenant_id}_bkmonitor_event_{bk_data_id}"
+        else:
+            logger.info("make_table_id: disable multi-tenant mode")
+            if bk_biz_id_str > "0":
+                return f"{bk_biz_id}_bkmonitor_event_{bk_data_id}"
+            elif bk_biz_id_str < "0":
+                return f"bkmonitor_{bk_biz_id_str.split('-')[-1]}_bkmonitor_event_{bk_data_id}"
+            return f"bkmonitor_event_{bk_data_id}"
 
     @classmethod
-    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: Dict[str, Any]):
+    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
         # 补充索引集，用于 UnifyQuery 查询。
         default_storage_config["index_set"] = custom_group.table_id
 
@@ -149,6 +166,7 @@ class EventGroup(CustomGroupBase):
         """
 
         # 更新result_table的option
+        # event_group_id 类似于uuid,因此过滤时无需添加租户属性
         event_list = Event.objects.filter(event_group_id=self.event_group_id).values("event_name", "dimension_list")
         return {event["event_name"]: event["dimension_list"] for event in event_list}
 
@@ -156,9 +174,9 @@ class EventGroup(CustomGroupBase):
     def consul_path(self):
         """返回consul路径配置"""
 
-        return "{}/data_id/{}/event".format(config.CONSUL_PATH, self.bk_data_id)
+        return f"{config.CONSUL_PATH}/data_id/{self.bk_data_id}/event"
 
-    def update_event_dimensions_from_es(self, client: Optional[Elasticsearch] = None):
+    def update_event_dimensions_from_es(self, client: Elasticsearch | None = None):
         """
         从ES更新事件及维度信息等内容
         对于一个过久未有上报的事件，那么其将会一直被保留在元数据当中
@@ -167,7 +185,7 @@ class EventGroup(CustomGroupBase):
         """
         if not client:
             # 获取ES客户端
-            client = ESStorage.objects.get(table_id=self.table_id).get_client()
+            client = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).get_client()
 
         # 获取当前index下，所有的event_name集合
         # result格式为：
@@ -186,7 +204,7 @@ class EventGroup(CustomGroupBase):
         #     }
         # ]
         result = client.search(
-            index="{}*".format(self.table_id),
+            index=f"{self.table_id}*",
             body={
                 "aggs": {"find_event_name": {"terms": {"field": "event_name", "size": 10000}}},
                 # 降低返回的内容条数，我们只关注聚合后的内容
@@ -195,22 +213,20 @@ class EventGroup(CustomGroupBase):
         )
         # 使用 .get() 获取，避免直接 KeyError
         buckets = result.get("aggregations", {}).get("find_event_name", {}).get("buckets", [])
-        logger.info("event->[{}] found total event->[{}]".format(self.event_group_id, len(buckets)))
+        logger.info(f"event->[{self.event_group_id}] found total event->[{len(buckets)}]")
 
         # 逐个获取信息
         event_dimension_list = []
         for event_info in buckets:
             try:
                 result = client.search(
-                    index="{}*".format(self.table_id),
+                    index=f"{self.table_id}*",
                     body={
                         "query": {"bool": {"must": {"term": {"event_name": event_info["key"]}}}},
                         "size": 1,
                         "sort": {"time": "desc"},
                     },
-                )["hits"]["hits"][
-                    0
-                ]  # 只需要其中一个命中的结果即可
+                )["hits"]["hits"][0]  # 只需要其中一个命中的结果即可
 
             except IndexError:
                 continue
@@ -218,13 +234,11 @@ class EventGroup(CustomGroupBase):
             event_dimension_list.append(
                 {"event_name": event_info["key"], "dimension_list": list(result["_source"]["dimensions"].keys())}
             )
-            logger.info(
-                "event->[{}] added new event_dimension->[{}]".format(self.event_group_id, event_dimension_list[0])
-            )
+            logger.info(f"event->[{self.event_group_id}] added new event_dimension->[{event_dimension_list[0]}]")
 
         # 更新所有的相关事件
         Event.modify_event_list(self.event_group_id, event_dimension_list)
-        logger.info("event->[{}] update all dimension success.".format(self.event_group_id))
+        logger.info(f"event->[{self.event_group_id}] update all dimension success.")
 
         return True
 
@@ -237,9 +251,9 @@ class EventGroup(CustomGroupBase):
             )
         )
         custom_events.delete()
-        logger.info("all metrics about EventGroup->[{}] is deleted.".format(self.event_group_id))
+        logger.info(f"all metrics about EventGroup->[{self.event_group_id}] is deleted.")
 
-    def get_event_info_list(self, limit: Optional[int] = None):
+    def get_event_info_list(self, limit: int | None = None):
         query = Event.objects.filter(event_group_id=self.event_group_id).only(
             "event_id", "event_name", "dimension_list"
         )
@@ -251,7 +265,7 @@ class EventGroup(CustomGroupBase):
         # 将查询结果转化为JSON格式
         return [event_info.to_json() for event_info in query]
 
-    def to_json(self, event_infos_limit: Optional[int] = None):
+    def to_json(self, event_infos_limit: int | None = None):
         return {
             "event_group_id": self.event_group_id,
             "bk_data_id": self.bk_data_id,
@@ -280,7 +294,8 @@ class EventGroup(CustomGroupBase):
         operator,
         event_info_list=None,
         table_id=None,
-        data_label: Optional[str] = None,
+        data_label: str | None = None,
+        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -292,6 +307,7 @@ class EventGroup(CustomGroupBase):
         :param event_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param data_label: 数据标签
+        :param bk_tenant_id: 租户ID
         :return: group object
         """
         group = super().create_custom_group(
@@ -303,6 +319,7 @@ class EventGroup(CustomGroupBase):
             metric_info_list=event_info_list,
             table_id=table_id,
             data_label=data_label,
+            bk_tenant_id=bk_tenant_id,
             additional_options=copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS),
         )
 
@@ -311,12 +328,17 @@ class EventGroup(CustomGroupBase):
         option_value.append("time")
 
         ResultTableOption.create_option(
-            table_id=group.table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID, value=option_value, creator="system"
+            table_id=group.table_id,
+            name=ResultTableOption.OPTION_ES_DOCUMENT_ID,
+            value=option_value,
+            creator="system",
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
 
+        # 除1000外不存在跨租户事件,因此无需携带租户属性过滤
         DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         return group
@@ -329,7 +351,7 @@ class EventGroup(CustomGroupBase):
         label=None,
         is_enable=None,
         event_info_list=None,
-        data_label: Optional[str] = None,
+        data_label: str | None = None,
     ):
         """
         修改一个事件组
@@ -383,6 +405,7 @@ class Event(models.Model):
     def modify_event_list(cls, event_group_id, event_info_list):
         """
         批量的修改/创建某个事件分组下的事件
+        event_group_id 类似于uuid,因此过滤时无需添加租户属性
         :param event_group_id: 事件分组ID
         :param event_info_list: 具体事件内容信息，[{
             "event_name": "core_file",
@@ -395,7 +418,7 @@ class Event(models.Model):
         """
         # 0. 判断是否真的存在某个group_id
         if not EventGroup.objects.filter(event_group_id=event_group_id).exists():
-            logger.info("event_group_id->[{}] not exists, nothing will do.".format(event_group_id))
+            logger.info(f"event_group_id->[{event_group_id}] not exists, nothing will do.")
             raise ValueError(_("事件组ID[{}]不存在，请确认后重试").format(event_group_id))
 
         # 1. 遍历所有的事件进行处理，判断是否存在custom_event_id
@@ -405,7 +428,7 @@ class Event(models.Model):
                 event_name = event_info["event_name"]
                 dimension_list = event_info["dimension_list"]
             except KeyError as key:
-                logger.error("event_info_list got bad event_info->[{}] which has no key->[{}]".format(event_info, key))
+                logger.error(f"event_info_list got bad event_info->[{event_info}] which has no key->[{key}]")
                 raise ValueError(_("事件列表配置有误，请确认后重试"))
 
             # NOTE: 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
@@ -418,7 +441,7 @@ class Event(models.Model):
             except cls.DoesNotExist:
                 # 如果不存在事件，创建一个新的时间
                 custom_event = cls.objects.create(event_name=event_name, event_group_id=event_group_id)
-                logger.info("new custom_event->[{}] is create for group_id->[{}].".format(custom_event, event_group_id))
+                logger.info(f"new custom_event->[{custom_event}] is create for group_id->[{event_group_id}].")
 
             # 修改已有的事件配置, 但是考虑需要保持已有的维度，需要将新旧两个维度merge
             old_dimension_set = set(custom_event.dimension_list)
