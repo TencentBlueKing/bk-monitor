@@ -31,7 +31,6 @@ import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useIndexSetList from './use-index-set-list';
-import ObjectView from '../../../../components/object-view';
 
 export default defineComponent({
   props: {
@@ -56,7 +55,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['value-change', 'favorite-change'],
+  emits: ['value-change', 'favorite-change', 'auth-request'],
   setup(props, { emit }) {
     const { indexSetTagList, clearAllValue, handleIndexSetItemCheck } = useIndexSetList(props, { emit });
 
@@ -137,7 +136,7 @@ export default defineComponent({
      * @param item
      */
     const handleIndexSetItemClick = (e: MouseEvent, item: any, is_root_checked = false) => {
-      if (is_root_checked) {
+      if (is_root_checked || !item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
       }
 
@@ -226,6 +225,11 @@ export default defineComponent({
       set(listNodeOpenManager.value, node.index_set_id, nextStatus);
     };
 
+    const handleAuthBtnClick = (e: MouseEvent, item: any) => {
+      e.stopPropagation();
+      emit('auth-request', item);
+    };
+
     const getCheckBoxRender = (item, is_root_checked = false) => {
       if (props.type === 'single') {
         return null;
@@ -249,12 +253,13 @@ export default defineComponent({
      * @returns
      */
     const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
+      const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
       return (
         <div
           class={[
             'index-set-item',
             {
-              'no-authority': item.permission?.[authorityMap.SEARCH_LOG_AUTH],
+              'no-authority': !hasPermission,
               'is-child': is_child,
               'has-child': has_child,
               active: propValueStrList.value.includes(item.index_set_id),
@@ -286,11 +291,18 @@ export default defineComponent({
             </bdi>
           </div>
           <div class='index-set-tags'>
-            {item.tags
-              .filter(tag => tag?.tag_id !== 4)
-              .map((tag: any) => (
-                <span class='index-set-tag-item'>{tag.name}</span>
-              ))}
+            {hasPermission ? (
+              item.tags
+                .filter(tag => tag?.tag_id !== 4)
+                .map((tag: any) => <span class='index-set-tag-item'>{tag.name}</span>)
+            ) : (
+              <span
+                class='index-set-tag-item'
+                onClick={e => handleAuthBtnClick(e, item)}
+              >
+                {$t('申请权限')}
+              </span>
+            )}
           </div>
         </div>
       );

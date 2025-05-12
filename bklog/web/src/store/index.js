@@ -1069,7 +1069,6 @@ const store = new Vuex.Store({
      * @param {Boolean} payload.isPagination - 是否是分页请求。
      * @param {CancelToken} payload.cancelToken - 用于取消请求的 Axios cancel token。
      * @param {Number} payload.searchCount - 自定义的查询计数器。
-     * @param {Array} payload.localSort - 用于排序的本地排序配置
      *
      */
     requestIndexSetQuery(
