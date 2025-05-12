@@ -567,6 +567,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # 追加计算平台计算任务结果表
+        _values.update(self._compose_bkbase_flow_table_ids(space_type, space_id))
         # 追加关联的BKCI的ES结果表，适配ES多空间功能
         _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
 
@@ -610,6 +612,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # 追加计算平台计算任务结果表
+        _values.update(self._compose_bkbase_flow_table_ids(space_type, space_id))
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
@@ -1032,6 +1036,16 @@ class SpaceTableIDRedis:
             bk_biz_id=biz_id, default_storage=models.ClusterInfo.TYPE_DORIS, is_deleted=False, is_enable=True
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
+
+    def _compose_bkbase_flow_table_ids(self, space_type: str, space_id: str):
+        """
+        组装计算平台计算任务结果表
+        """
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
+        tids = models.ResultTable.objects.filter(
+            default_storage=models.ClusterInfo.TYPE_BKDATA, is_enable=True, bk_biz_id=biz_id
+        )
+        return {tid.table_id: {"filters": []} for tid in tids}
 
     def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str):
         """
