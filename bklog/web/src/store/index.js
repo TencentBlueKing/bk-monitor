@@ -389,11 +389,11 @@ const store = new Vuex.Store({
     updateIndexSetFieldConfig(state, payload) {
       const defVal = { ...indexSetClusteringData };
       const { config } = payload ?? { config: [] };
-      const result = (config ?? []).reduce((output, item) => Object.assign(output, { [item.name]: { ...item } }), {
-        clustering_config: defVal,
-      });
 
-      Object.assign(state.indexSetFieldConfig, result ?? {});
+      set(state.indexSetFieldConfig, 'clustering_config', defVal);
+      (config ?? []).forEach(item => {
+        set(state.indexSetFieldConfig, item.name, item);
+      });
     },
 
     updateIndexSetCustomConfig(state, payload) {
