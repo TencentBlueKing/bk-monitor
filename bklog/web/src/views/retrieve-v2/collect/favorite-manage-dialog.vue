@@ -50,7 +50,7 @@
             :class="['group-item', { active: curSelectGroup === 'all' }]"
             @click="handleSelectGroupChange('all')"
           >
-            <i class="icon-monitor icon-all" />
+            <i class="bklog-icon icon-all" />
             <span class="group-name">{{ $t("全部收藏") }}</span>
             <span class="favorite-count">{{ allGroupList.length }}</span>
           </div>
@@ -58,7 +58,7 @@
             :class="['group-item', { active: curSelectGroup === 'noGroup' }]"
             @click="handleSelectGroupChange('noGroup')"
           >
-            <i class="icon-monitor icon-mc-file-close" />
+            <i class="bklog-icon bklog-file-close" />
             <span class="group-name">{{ $t("未分组") }}</span>
             <span class="favorite-count">{{ noGroupList.length }}</span>
           </div>
@@ -66,7 +66,7 @@
             :class="['group-item', { active: curSelectGroup === 'private' }]"
             @click="handleSelectGroupChange('private')"
           >
-            <i class="icon-monitor icon-file-personal" />
+            <i class="bklog-icon bklog-file-personal" />
             <span class="group-name">{{ $t("个人收藏") }}</span>
             <span class="favorite-count">{{ privateFavorite.length }}</span>
           </div>
@@ -110,7 +110,7 @@
               </div>
             </template>
             <div class="add-group-btn">
-              <i class="icon-monitor icon-a-1jiahao" />
+              <i class="bk-icon icon-plus-line" />
             </div>
           </bk-popover>
 
@@ -132,9 +132,9 @@
             :class="['group-item', { active: curSelectGroup === group.id }]"
             @click="handleSelectGroupChange(group.id)"
           >
-            <i class="icon-monitor icon-mc-file-close" />
+            <i class="bklog-icon bklog-file-close" />
             <span class="group-name">{{ group.name }}</span>
-            <span class="favorite-count">{{ group.favorites.length }}</span>
+            <span class="favorite-count">{{ group.favorites?.length }}</span>
           </div>
         </div>
       </div>
@@ -171,12 +171,51 @@
             <bk-table-column width="45" type="selection" />
             <bk-table-column :label="$t('收藏名称')" prop="name">
               <template #default="{ row }">
-                {{ favoriteNameScopedSlots(row) }}
+                <div>
+                  <div
+                    v-if="!row.editName"
+                    class="edit-cell"
+                    @click="handleEditName(row)"
+                  >
+                    <span class="text name">{{ row.name }}</span>
+                    <i class="bklog-icon bklog-edit" />
+                  </div>
+                  <bk-input
+                    v-else
+                    ref="editFavoriteNameInput"
+                    :value="row.name"
+                    @blur="(val) => handleEditFavoriteName(val, row)"
+                    @enter="(val) => handleEditFavoriteName(val, row)"
+                  ></bk-input>
+                </div>
+                <!-- {{ favoriteNameScopedSlots(row) }} -->
               </template>
             </bk-table-column>
             <bk-table-column :label="$t('所属组')" prop="groupName">
               <template #default="{ row }">
-                {{ groupScopedSlots(row) }}
+                <!-- {{ groupScopedSlots(row) }} -->
+                <div
+                  v-if="!row.editGroup"
+                  class="edit-cell"
+                  @click="handleEditGroup(row)"
+                >
+                  <span class="text">{{ row.group_name }}</span>
+                  <i class="bklog-icon bklog-edit" />
+                </div>
+                <bk-select
+                  v-else
+                  class="edit-favorite-group"
+                  :model-value="row.group_id"
+                  :clearable="false"
+                  @selected="(val) => handleEditFavoriteGroup(val, row)"
+                >
+                  <bk-option
+                    v-for="item in localFavoriteList"
+                    :key="item.id"
+                    :id="String(item.id)"
+                    :name="item.name"
+                  />
+                </bk-select>
               </template>
               <template #filter>
                 <bk-checkbox-group :value="[]" @change="handleGroupFilterChange">
@@ -191,7 +230,7 @@
               </template>
             </bk-table-column>
             <template v-if="favoriteType === 'event'"> </template>
-            <bk-table-column :label="$t('变更人')" prop="update_user">
+            <bk-table-column :label="$t('变更人')" prop="updated_by">
               <template #filter>
                 <bk-checkbox-group :value="[]" @change="handleNameFilterChange">
                   <bk-checkbox
@@ -211,10 +250,7 @@
             </bk-table-column>
             <bk-table-column :label="$t('操作')" prop="operation" width="80">
               <template #default="{ row }">
-                <span
-                  class="del-btn"
-                  @click="handleOperateChange('delete-favorite', row)"
-                >
+                <span class="del-btn" @click="handleOperateChange(row)">
                   {{ $t("删除") }}
                 </span>
               </template>
@@ -235,10 +271,12 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed, ref } from "vue";
+import { defineProps, defineEmits, computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { bkInfoBox } from "bk-magic-vue";
 import $http from "@/api";
 import useStore from "@/hooks/use-store";
 import useLocale from "@/hooks/use-locale";
+import dayjs from "dayjs";
 const props = defineProps({
   modelValue: {
     type: Boolean,
@@ -271,6 +309,8 @@ const addGroupData = ref({ name: "" });
 const localFavoriteList = ref([]);
 const allGroupList = ref([]);
 const noGroupList = ref([]);
+const otherGroupList = ref([]);
+
 const privateFavorite = ref([]);
 const searchResultGroupList = ref([]);
 const searchResultFavorites = ref([]);
@@ -298,6 +338,13 @@ const checkName = () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.nam
 const checkExistName = () =>
   !localFavoriteList.value.some((item) => item.name === addGroupData.value.name);
 
+onMounted(() => {
+  window.addEventListener("keydown", handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleKeydown);
+});
 const initData = async () => {
   await getGroupList();
   getFavoriteList();
@@ -316,20 +363,16 @@ const getGroupList = async (isAddGroup = false) => {
       },
     });
     console.log(res);
+    otherGroupList.value = res.data
+      .filter((item) => item.name !== "未分组" && item.name !== "个人收藏")
+      .map((item) => {
+        return {
+          ...item,
+          favorites: [],
+        };
+      });
 
-    // groupList.value = res.data.map((item) => ({
-    //   group_id: item.id,
-    //   group_name: groupNameMap.value[item.group_type] ?? item.name,
-    //   group_type: item.group_type,
-    // }));
-    // unPrivateList.value = groupList.value.slice(1); // 去除个人收藏的列表
-    // privateList.value = groupList.value.slice(0, 1); // 个人收藏列表
-    // sourceFilters.value = res.data.map((item) => ({
-    //   text: groupNameMap.value[item.group_type] ?? item.name,
-    //   value: item.name,
-    // }));
-    // unknownGroupID.value = groupList.value[groupList.value.length - 1]?.group_id;
-    // privateGroupID.value = groupList.value[0]?.group_id;
+    handleGroupSearch();
   } catch (error) {
     console.warn(error);
   } finally {
@@ -355,44 +398,32 @@ const getFavoriteList = async () => {
         order_type: "NAME_ASC",
       },
     });
-    console.log(res);
+    const data = res.data.map((item) => {
+      return {
+        ...item,
+        editName: false,
+        editGroup: false,
+      };
+    });
+    const groupMap = new Map(otherGroupList.value.map((group) => [group.id, group]));
+    [allGroupList.value, noGroupList.value, privateFavorite.value] = data.reduce(
+      (acc, item) => {
+        acc[0].push(item);
 
-    // const updateSourceFiltersSet = new Set();
-    // const localLanguage = jsCookie.get("blueking_language") || "zh-cn";
-    // const initList = res.data.map((item) => {
-    //   const visible_option =
-    //     item.created_by === this.getUserName
-    //       ? this.allOptionList
-    //       : this.unPrivateOptionList;
-    //   const search_fields_select_list = item.search_fields.map((item) => ({
-    //     name:
-    //       localLanguage === "en"
-    //         ? item.replace(/^全文检索(\(\d\))?$/, (item, p1) => {
-    //             return `${this.$t("全文检索")}${!!p1 ? p1 : ""}`;
-    //           })
-    //         : item,
-    //     chName: item,
-    //   })); // 初始化表单字段
+        if (item.group_name === "未分组") {
+          acc[1].push(item);
+        } else if (item.group_name === "个人收藏") {
+          acc[2].push(item);
+        } else {
+          const group = groupMap.get(item.group_id);
+          group?.favorites.push(item);
+        }
 
-    //   const is_group_disabled = item.visible_type === "private";
-    //   if (!updateSourceFiltersSet.has(item.updated_by))
-    //     updateSourceFiltersSet.add(item.updated_by);
-    //   return {
-    //     ...item,
-    //     search_fields_select_list,
-    //     group_option: this.unPrivateList,
-    //     group_option_private: this.privateList,
-    //     visible_option,
-    //     is_group_disabled,
-    //   };
-    // });
-    // this.updateSourceFilters = [...updateSourceFiltersSet].map((item) => ({
-    //   text: item,
-    //   value: item,
-    // }));
-    // this.tableList = res.data;
-    // this.operateTableList = initList;
-    // this.searchAfterList = initList;
+        return acc;
+      },
+      [[], [], []]
+    );
+    searchResultFavorites.value = allGroupList.value;
   } catch (error) {
     // this.emptyType = "500";
   } finally {
@@ -419,7 +450,7 @@ const handleSelectGroupChange = (id) => {
       break;
     default:
       curSelectGroupFavorites =
-        localFavoriteList.value.find((item) => item.id === id)?.favorites || [];
+        otherGroupList.value.find((item) => item.id === id)?.favorites || [];
   }
 
   searchResultFavorites.value = curSelectGroupFavorites.map((favorite) => ({
@@ -432,9 +463,9 @@ const handleSelectGroupChange = (id) => {
 };
 /** 组搜索 */
 const handleGroupSearch = () => {
-  searchResultGroupList.value = localFavoriteList.value.filter((group) =>
-    group.name.includes(groupSearchValue.value)
-  );
+  searchResultGroupList.value = otherGroupList.value.filter((group) => {
+    return group.name.includes(groupSearchValue.value);
+  });
 };
 /** 收藏列表搜索 */
 const handleFavoriteSearch = () => {
@@ -443,8 +474,18 @@ const handleFavoriteSearch = () => {
   );
 };
 
-const handleOperateChange = (type, data) => {
-  emit("operateChange", type, data);
+const handleOperateChange = (row) => {
+  bkInfoBox({
+    subTitle: $t("当前收藏名为 {n}，确认是否删除？", { n: row.name }),
+    type: "warning",
+    confirmFn: () => {
+
+      // 发送删除请求
+      $http.request("favorite/deleteFavorite", {
+        params: { favorite_id: row.id },
+      });
+    },
+  });
 };
 /** 添加行类名 */
 const getRowClassName = ({ row, rowIndex }) => {
@@ -479,11 +520,65 @@ const handleAddGroupPopoverHidden = (close = true) => {
     addGroupPopoverRef.value?.hide();
   }
 };
+const handleEditGroup = () => {
+  row.editGroup = true;
+  for (const favorite of this.searchResultFavorites) {
+    if (favorite.id !== row.id) {
+      favorite.editGroup = false;
+    }
+  }
+};
+const handleEditName = (row) => {
+  row.editName = true;
+  row.editGroup = false;
+  // nextTick(() => {
+  //   this.favoriteTableRef?.$refs?.editFavoriteNameInput?.focus();
+  // });
+};
+
+const handleEditFavoriteName = (val, row) => {
+  if (val !== row.name) {
+    this.handleUpdateFavorite({
+      id: row.id,
+      group_id: row.group_id,
+      name: val,
+      config: row.config,
+    }).then(() => {
+      row.editName = false;
+      row.name = val;
+      this.curClickRow = row;
+    });
+  } else {
+    row.editName = false;
+  }
+};
+const handleEditFavoriteGroup = (val, row) => {
+  if (val === String(row.group_id)) {
+    row.editGroup = false;
+  } else {
+    this.handleUpdateFavorite({
+      id: row.id,
+      group_id: JSON.parse(val),
+      name: row.name,
+      config: row.config,
+    }).then(() => {
+      row.editName = false;
+      row.group_id = JSON.parse(val);
+      row.groupName = this.groups.find((item) => item.id === JSON.parse(val))?.name;
+      this.curClickRow = row;
+    });
+  }
+};
+const handleKeydown = (event) => {
+  if (event.key === "Escape" || event.key === "Esc") {
+    handleShowChange(false);
+  }
+};
 </script>
 
 <style lang="scss" scoped>
 :deep(.bk-dialog) {
-  height: 100%;
+  height: calc(100% - 50px);
   .bk-dialog-content {
     height: 100%;
     .bk-dialog-body {
@@ -531,7 +626,7 @@ const handleAddGroupPopoverHidden = (close = true) => {
   display: flex;
   width: 100%;
   height: calc(100% - 48px);
-
+  background-color: #ffffff;
   .favorite-group-filter {
     display: flex;
     flex-direction: column;
@@ -580,7 +675,7 @@ const handleAddGroupPopoverHidden = (close = true) => {
       padding: 0 20px;
       cursor: pointer;
 
-      .icon-monitor {
+      .bklog-icon {
         font-size: 16px;
         color: #a3b1cc;
       }
@@ -591,6 +686,8 @@ const handleAddGroupPopoverHidden = (close = true) => {
         color: #4d4f56;
       }
 
+      .add-group-btn {
+      }
       .favorite-count {
         font-size: 12px;
         font-weight: 700;
@@ -608,7 +705,7 @@ const handleAddGroupPopoverHidden = (close = true) => {
       &.active {
         background: #e1ecff;
 
-        .icon-monitor,
+        .bklog-icon,
         .group-name,
         .favorite-count {
           color: #3a84ff;
@@ -641,7 +738,7 @@ const handleAddGroupPopoverHidden = (close = true) => {
           cursor: pointer;
           background: #f5f7fa;
 
-          .icon-bianji {
+          .bklog-edit {
             display: block;
           }
         }
@@ -675,9 +772,9 @@ const handleAddGroupPopoverHidden = (close = true) => {
           }
         }
 
-        .icon-bianji {
+        .bklog-edit {
           display: none;
-          font-size: 24px;
+          font-size: 16px;
           color: #979ba5;
         }
       }
