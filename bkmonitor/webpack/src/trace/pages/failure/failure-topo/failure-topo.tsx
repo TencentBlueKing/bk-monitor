@@ -66,6 +66,7 @@ import FailureTopoTooltips from './failure-topo-tooltips';
 import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
+import ServiceCombo from './service-combo';
 import TopoTools from './topo-tools';
 import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
 
@@ -186,7 +187,7 @@ export default defineComponent({
     const zoomValue = ref<number>(10);
     const showResourceGraph = ref<boolean>(false);
     const savedMatrix = ref(null);
-    /** 检测文字长度 */
+    /** 检测文字长度，溢出截断 */
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
       const textWidth = context.measureText(text).width;
@@ -510,78 +511,7 @@ export default defineComponent({
     };
     /** 自定义service combo */
     const registerCustomCombo = () => {
-      registerCombo('service-combo', {
-        drawShape(cfg, group) {
-          const { style } = cfg;
-          const rect = group.addShape('rect', {
-            fixSize: [400, 300],
-            attrs: {
-              fixSize: [400, 300],
-              ...style,
-              radius: 6, // 圆角矩形
-            },
-            name: 'combo-rect',
-          });
-          /** 一期数据暂时不需要展示，二期需要打开所以代码不能直接删除 */
-          // group.addShape('circle', {
-          //   zIndex: 10,
-          //   attrs: {
-          //     x: 14,
-          //     y: 14,
-          //     lineWidth: 1, // 描边宽度
-          //     cursor: 'pointer', // 手势类型
-          //     r: 8, // 圆半径
-          //     fill: 'rgba(255, 102, 102, 0.4)',
-          //     stroke: '#F55555',
-          //     opacity: 0,
-          //     // ...nodeAttrs.groupAttrs,
-          //   },
-          //   draggable: true,
-          //   name: 'service-image-shape',
-          // });
-          // group.addShape('image', {
-          //   zIndex: 12,
-          //   attrs: {
-          //     x: 8,
-          //     y: 8,
-          //     width: 12,
-          //     height: 12,
-          //     cursor: 'pointer', // 手势类型
-          //     img: NODE_TYPE_SVG.BcsPod,
-          //     opacity: 0,
-          //   },
-          //   draggable: true,
-          //   name: 'service-image',
-          // });
-
-          group.addShape('text', {
-            zIndex: 12,
-            attrs: {
-              opacity: 1,
-              x: 0,
-              y: 14,
-              cursor: 'default',
-              textAlign: 'center',
-              textBaseline: 'middle',
-              text: cfg.label,
-              fontSize: 14,
-              fill: '#979BA5',
-            },
-            draggable: true,
-            name: 'service-label',
-          });
-          return rect;
-        },
-        // setState(name, value, item) {
-        //   if (name === 'hover') {
-        //     const group = item.getContainer();
-        //     const label = group.find(e => e.get('name') === 'service-label');
-        //     label.attr({
-        //       opacity: value ? 1 : 0,
-        //     });
-        //   }
-        // },
-      });
+      registerCombo('service-combo', ServiceCombo, 'rect');
     };
     /** 自定义边公共工具函数 */
     const edgeUtils = {
@@ -656,7 +586,9 @@ export default defineComponent({
 
         switch (name) {
           case 'show-animate':
+            // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
             const length = shape.getTotalLength();
+            // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
             const originalStroke = shape.attr('stroke');
 
             shape.attr({ stroke: colors.highlight, opacity: 0 });
@@ -829,6 +761,7 @@ export default defineComponent({
           // 清除临时信息
           this.currentComboId = undefined;
           this.currentNodes = undefined;
+          setTimeout(toFrontAnomalyEdge);
         },
       });
       // 自定义拖拽
@@ -1172,7 +1105,6 @@ export default defineComponent({
           const { latest, diff, complete } = res;
           // diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
-          complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
           isNoData.value = combos.length === 0;
@@ -1181,6 +1113,7 @@ export default defineComponent({
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
           const processedEdges = [];
+          const processedSubCombos = [];
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
@@ -1203,6 +1136,8 @@ export default defineComponent({
                 processedEdges.push(edge);
               }
             });
+            item.showSubCombos = [...processedSubCombos];
+            processedSubCombos.push(...item.content.sub_combos);
             item.showEdges = [...processedEdges];
           });
           topoRawDataCache.value.diff = diff;
@@ -1243,12 +1178,10 @@ export default defineComponent({
       const copyData = JSON.parse(JSON.stringify(data));
       const { layoutNodes, edges, nodes } = formatTopoData(copyData);
       const resolvedData = ElkjsUtils.getKlayGraphData({ nodes: layoutNodes, edges, source: nodes });
-
       return ElkjsUtils.getLayoutData(resolvedData).then(layouted => {
         ElkjsUtils.updatePositionFromLayouted(layouted, copyData);
         ElkjsUtils.OptimizeLayout(layouted, copyData, edges);
         ElkjsUtils.setRootComboStyle(copyData.combos, graph.getWidth());
-
         return { layouted, data: copyData };
       });
     };
@@ -1341,15 +1274,12 @@ export default defineComponent({
         graph.translate(dx + left, dy + top);
       }
     };
-    /** 错误的线置于顶层 */
+    /** 线置于顶层 */
     const toFrontAnomalyEdge = () => {
       const edges = graph.getEdges();
       // biome-ignore lint/complexity/noForEach: <explanation>
       edges.forEach(edge => {
-        const edgeModel = edge.getModel();
-        if (edgeModel.is_anomaly) {
-          edge.toFront();
-        }
+        edge.toFront();
       });
     };
     /** 渲染数据 */
@@ -1520,9 +1450,12 @@ export default defineComponent({
           originLabel: originLabel,
         };
         if (cfg.parentId) {
+          // label宽度为cfg.width减去“反馈根因节点”文本宽度
+          const labelWidth = cfg.width - (cfg.is_feedback_root ? 90 : 56);
           return {
             ...model,
-            label: accumulatedWidth(cfg.label, cfg.width),
+            type: 'service-combo',
+            label: accumulatedWidth(cfg.label, labelWidth),
             style: {
               fill: '#34383d',
               stroke: '#7A7C80',
@@ -1563,53 +1496,53 @@ export default defineComponent({
       graph.on('combo:mouseenter', e => {
         const { item } = e;
         const model = item.getModel();
-        const fullLabel = model.originLabel;
 
+        const fullLabel = model.originLabel;
         // 只有被截断的combo label才显示 Tooltip
         if (fullLabel && fullLabel !== model.label) {
           // 获取 Combo 的包围盒坐标
           const bbox = item.getBBox();
-
           // 转换画布坐标到页面坐标
           const canvasPoint = graph.getCanvasByPoint(bbox.x, bbox.y);
           const containerRect = graph.getContainer().getBoundingClientRect();
-
           const x = containerRect.left + canvasPoint.x;
           const y = containerRect.top + canvasPoint.y;
 
-          labelTooltip.innerHTML = fullLabel as string;
+          labelTooltip.innerHTML = `
+            <p><span class='combo-label-text'>名称：</span>${fullLabel as string}</p>
+            <p><span class='combo-label-text'>类型：</span>${(model.entity as any)?.properties?.entity_category as string}</p>
+          `;
           const tooltipHeight = labelTooltip.offsetHeight;
           labelTooltip.style.left = `${x}px`;
           labelTooltip.style.top = `${y - tooltipHeight}px`;
           labelTooltip.style.visibility = 'visible';
         }
+
+        // 移入展示“反馈新根因”文本
+        if (!item.getModel().parentId) return;
+        graph.setItemState(item, 'hover', true);
+        const feedbackImg = item.getContainer().find(ele => ele.get('name') === 'sub-combo-feedback-img');
+        const feedbackText = item.getContainer().find(ele => ele.get('name') === 'sub-combo-feedback-text');
+        if (feedbackImg) feedbackImg.attr('opacity', 1);
+        if (feedbackText) feedbackText.attr('opacity', 1);
       });
 
-      // 隐藏combo label的Tooltip
-      graph.on('combo:mouseleave', () => {
+      graph.on('combo:mouseleave', e => {
+        // 移出隐藏combo label的Tooltip
         labelTooltip.style.visibility = 'hidden';
-      });
 
-      /** serverCombo 移动展示name */
-      // graph.on('combo:mouseenter', e => {
-      //   const { item } = e;
-      //   if (!item.getModel().parentId) return;
-      //   graph.setItemState(item, 'hover', true);
-      //   const label = item.getContainer().find(element => element.get('type') === 'text');
-      //   if (label) {
-      //     label.attr('opacity', 1); // 悬停时显示标签
-      //   }
-      // });
-      /** serverCombo 移出隐藏name */
-      // graph.on('combo:mouseleave', e => {
-      //   const { item } = e;
-      //   if (!item.getModel().parentId) return;
-      //   graph.setItemState(item, 'hover', false);
-      //   const label = item.getContainer().find(element => element.get('type') === 'text');
-      //   if (label) {
-      //     label.attr('opacity', 0); // 悬停时显示标签
-      //   }
-      // });
+        // 移出隐藏“反馈新根因”文本
+        const { item } = e;
+        const model = item.getModel();
+        if (!model.parentId) return;
+        graph.setItemState(item, 'hover', false);
+        const container = item.getContainer();
+        const feedbackImg = container.find(ele => ele.get('name') === 'sub-combo-feedback-img');
+        const feedbackText = container.find(ele => ele.get('name') === 'sub-combo-feedback-text');
+
+        if (feedbackImg) feedbackImg.attr('opacity', 0);
+        if (feedbackText) feedbackText.attr('opacity', 0);
+      });
 
       graph.on('node:mouseenter', e => {
         const { item } = e;
@@ -1653,8 +1586,8 @@ export default defineComponent({
         resizeCacheCallback.value?.();
       });
       /** 设置节点高亮状态 */
-      graph.on('node:click', ({ item }) => {
-        // const nodeItem = e.item;
+      graph.on('node:click', event => {
+        const { item } = event;
         graph.setAutoPaint(false);
         // biome-ignore lint/complexity/noForEach: <explanation>
         graph.getNodes().forEach(function (node) {
@@ -1700,10 +1633,18 @@ export default defineComponent({
         graph.setAutoPaint(true);
       }
 
-      graph.on('combo:click', () => {
+      graph.on('combo:click', e => {
         tooltipsRef.value.hide();
         tooltips.hide();
         labelTooltip.style.visibility = 'hidden';
+
+        // 点击"反馈新根因"，打开反馈弹窗
+        const { target, item } = e;
+        const model = item.getModel();
+        if (model.type !== 'service-combo') return;
+        if (target.get('className') === 'sub-combo-label-feedback') {
+          handleFeedBack(model);
+        }
       });
       /** 触发下一帧播放 */
       graph.on('afteritemstatechange', ({ state }) => {
@@ -1810,7 +1751,7 @@ export default defineComponent({
         node && graph.hideItem(node);
       });
       /** 对比node是否已经展示，已经展示还存在diff中说明只是状态变更以及对比每个展示的node都需要判断边关系的node是在展示状态 */
-      const { showNodes } = topoRawDataCache.value.diff[timelinePosition.value];
+      const { showNodes, content } = topoRawDataCache.value.diff[timelinePosition.value];
       const currNodes = topoRawDataCache.value.diff[timelinePosition.value].content.nodes;
       const currEdges = topoRawDataCache.value.diff[timelinePosition.value].content.edges;
       const randomStr = random(8);
@@ -1875,12 +1816,27 @@ export default defineComponent({
       const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
       // biome-ignore lint/complexity/noForEach: <explanation>
       combos.forEach(combo => {
-        const { id } = combo.getModel();
+        const { entity, id, comboId } = combo.getModel() as ITopoNode;
+        const updateCombo = content.sub_combos.find(com => com.id === entity.entity_id);
         const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
         const showNodes = nodes.filter(({ id }) => {
           const node = graph.findById(id);
           return node?._cfg.visible;
         });
+        updateCombo &&
+          graph.updateItem(combo, {
+            ...combo,
+            id,
+            comboId,
+            is_feedback_root: updateCombo.is_feedback_root,
+            entity: {
+              ...updateCombo.entity,
+            },
+            alert_all_recorved: updateCombo.alert_all_recorved,
+            is_on_alert: updateCombo.is_on_alert,
+          });
+        updateCombo && ServiceCombo.labelChange(combo);
+
         graph[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
       });
       return currNodes.length === 0 || !next;
@@ -1938,7 +1894,7 @@ export default defineComponent({
         /** 切换帧时 */
         showResourceGraph.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
-        const { showNodes, content, showEdges } = topoRawDataCache.value.diff[value];
+        const { showNodes, content, showEdges, showSubCombos } = topoRawDataCache.value.diff[value];
         const updateEdges = content.edges;
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
@@ -1980,12 +1936,28 @@ export default defineComponent({
         const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
         // biome-ignore lint/complexity/noForEach: <explanation>
         combos.forEach(combo => {
-          const { id } = combo.getModel();
+          const { id, comboId, entity } = combo.getModel() as ITopoNode;
+          const updateCombo = [...showSubCombos, ...content.sub_combos]
+            .reverse()
+            .find(item => item.id === entity.entity_id);
           const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
           const showNodes = nodes.filter(({ id }) => {
             const node = graph.findById(id);
             return node?._cfg.visible;
           });
+          updateCombo &&
+            graph.updateItem(combo, {
+              ...combo,
+              id,
+              comboId,
+              is_feedback_root: updateCombo.is_feedback_root,
+              entity: {
+                ...updateCombo.entity,
+              },
+              alert_all_recorved: updateCombo.alert_all_recorved,
+              is_on_alert: updateCombo.is_on_alert,
+            });
+          updateCombo && ServiceCombo.labelChange(combo);
           graph[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
         });
       }
