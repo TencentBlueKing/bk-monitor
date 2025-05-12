@@ -57,6 +57,7 @@ class _MonitorApi:
             description="保存通知组",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.save_alarm_strategy_v2 = DataAPI(
             method="POST",
@@ -133,7 +134,6 @@ class _MonitorApi:
             description="发送阅报表",
             default_return_value=None,
             before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_reports = DataAPI(
             method="GET",

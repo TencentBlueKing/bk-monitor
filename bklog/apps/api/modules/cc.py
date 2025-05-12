@@ -59,7 +59,6 @@ class _CCApi:
             before_request=get_supplier_account_before,
             cache_time=60,
             use_superuser=True,
-            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["biz_property_filter"]["rules"][0]["value"]),
         )
         self.search_inst_by_object = DataAPI(
             method="POST",
@@ -112,7 +111,6 @@ class _CCApi:
             description="查询对象属性",
             before_request=filter_bk_field_prefix_before,
             use_superuser=True,
-            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_biz_hosts = DataAPI(
             method="POST",
@@ -155,6 +153,7 @@ class _CCApi:
             description="获取主机与拓扑的关系",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_set = DataAPI(
             method="POST",
@@ -243,6 +242,7 @@ class _CCApi:
             description="查询主机及其对应拓扑",
             before_request=get_supplier_account_before,
             use_superuser=True,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.find_topo_node_paths = DataAPI(
             method="POST",

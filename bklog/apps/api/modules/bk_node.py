@@ -70,7 +70,6 @@ class _BKNodeApi:
             module=self.MODULE,
             description="执行订阅下发任务",
             before_request=get_bk_node_request_before,
-            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["scope"]["bk_biz_id"]),
         )
         self.get_subscription_instance_status = DataAPI(
             method="POST",
