@@ -26,7 +26,7 @@
 
 import { defineComponent, shallowRef, computed, type PropType, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { Badge, OverflowTitle, Select } from 'bkui-vue';
 import { detectOS, random } from 'monitor-common/utils';
@@ -75,6 +75,7 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useTraceExploreStore();
     const router = useRouter();
+    const route = useRoute();
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const applicationSelectRef = shallowRef<InstanceType<typeof Select>>(null);
     const applicationToggle = shallowRef(false);
@@ -146,12 +147,11 @@ export default defineComponent({
     }
 
     function handleDocumentClick(e: KeyboardEvent) {
-      e.preventDefault();
       const isKeyO = e.key.toLowerCase() === 'o';
       // 检测是否按下 Ctrl 或 Command 键（跨平台兼容）
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       if (isKeyO && isCtrlOrMeta) {
-        console.log(applicationSelectRef.value);
+        e.preventDefault();
         applicationSelectRef.value.showPopover();
       }
     }
@@ -185,7 +185,9 @@ export default defineComponent({
 
     function handleGotoOld() {
       router.push({
-        name: 'trace',
+        name: 'trace-old',
+        query: route.query,
+        params: route.params,
       });
       // const queryStr = location.hash.match(/\?([^]*)/)?.[1] || '';
       // const url = `${location.origin}${location.pathname}${location.search}#/trace/old${queryStr ? `?${queryStr}` : ''}`;
@@ -352,7 +354,7 @@ export default defineComponent({
             {this.$slots.default || (
               <Badge
                 theme='warning'
-                val='!'
+                val='"!"'
               >
                 <span>{this.$t('回到旧版')}</span>
               </Badge>
