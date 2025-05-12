@@ -30,10 +30,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
     resizable: true,
     ellipsis: false,
-    ellipsisTitle: {
-      destroyOnClose: true,
-      placement: 'top',
-    },
+    ellipsisTitle: false,
     align: 'left',
     emptyPlaceholder: '--',
   },

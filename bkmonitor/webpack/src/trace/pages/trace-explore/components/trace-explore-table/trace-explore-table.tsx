@@ -413,7 +413,7 @@ export default defineComponent({
             colKey: 'resource.service.name',
             title: t('所属服务'),
             width: 160,
-            getRenderValue: row => getJumpToApmLinkItem(row?.resource?.['service.name']),
+            getRenderValue: row => getJumpToApmLinkItem(row?.['resource.service.name']),
           },
           trace_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -693,12 +693,14 @@ export default defineComponent({
      */
     function tableDescriptionHeaderRender(title, tipText) {
       return () => (
-        <span
-          class='th-label explore-table-header-description'
-          data-col-description={tipText}
-        >
-          {title}
-        </span>
+        <div class='explore-header-col  explore-text-ellipsis'>
+          <span
+            class='th-label explore-table-header-description '
+            data-col-description={tipText}
+          >
+            {title}
+          </span>
+        </div>
       );
     }
 
