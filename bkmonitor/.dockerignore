@@ -11,3 +11,7 @@ tests/
 */tests/
 */*/tests/
 Dockerfile
+venv
+.venv
+**/node_modules
+.env

@@ -26,8 +26,6 @@
 import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-const { i18n: I18N } = window;
-
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce, deepClone } from 'monitor-common/utils';
@@ -140,7 +138,7 @@ export default class IndicatorTable extends tsc<any, any> {
   header = {
     value: 0,
     dropdownShow: false,
-    list: [{ id: 0, name: I18N.t('添加至分组') }],
+    list: [{ id: 0, name: this.$t('添加至分组') }],
   };
   editingIndex = -1;
 
@@ -179,42 +177,42 @@ export default class IndicatorTable extends tsc<any, any> {
   get metricSearchData() {
     return [
       {
-        name: window.i18n.t('名称'),
+        name: this.$t('名称'),
         id: 'name',
         multiple: false,
         children: [],
       },
       {
-        name: window.i18n.t('别名'),
+        name: this.$t('别名'),
         id: 'description',
         multiple: false,
         children: [],
       },
       {
-        name: window.i18n.t('单位'),
+        name: this.$t('单位'),
         id: 'unit',
         multiple: false,
         children: this.unitList,
       },
       // {
-      //   name: window.i18n.t('函数'),
+      //   name: this.$t('函数'),
       //   id: 'func',
       //   multiple: false,
       //   children: this.metricFunctions,
       // },
       {
-        name: window.i18n.t('汇聚方法'),
+        name: this.$t('汇聚方法'),
         id: 'aggregate',
         multiple: false,
         children: METHOD_LIST,
       },
       {
-        name: window.i18n.t('显/隐'),
+        name: this.$t('显/隐'),
         id: 'show',
         multiple: false,
         children: [
-          { id: 'true', name: window.i18n.t('显示') },
-          { id: 'false', name: window.i18n.t('隐藏') },
+          { id: 'true', name: this.$t('显示') },
+          { id: 'false', name: this.$t('隐藏') },
         ],
       },
     ];

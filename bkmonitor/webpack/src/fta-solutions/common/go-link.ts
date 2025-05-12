@@ -65,4 +65,13 @@ const toStrategyConfigDetail: PerformanceDetailFunction = (bizId, id) => {
   );
 };
 
-export { tologSearch, toPerformanceDetail, toStrategyConfigDetail };
+/**
+ * 集群管理跳转到bcs
+ * @param projectName
+ * @param bcsClusterId
+ */
+const toBcsDetail: PerformanceDetailFunction = (projectName, bcsClusterId) => {
+  window.open(`${window.bk_bcs_url}bcs/projects/${projectName}/clusters?clusterId=${bcsClusterId}&active=info`);
+};
+
+export { tologSearch, toPerformanceDetail, toStrategyConfigDetail, toBcsDetail };

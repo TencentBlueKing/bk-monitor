@@ -105,8 +105,8 @@
       },
       async initTargetFieldSelectList () {
         const res = await $http.request('retrieve/getProxyHost', {
-          params: {
-            bk_biz_id: this.$store.state.bkBizId,
+          query: {
+            space_uid: this.$route.query.spaceUid,
           }
         });
         this.proxyHost = res.data
@@ -117,8 +117,8 @@
 
         // 格式化新的数据以便插入到 <code> 标签中
         const newDataContent = this.proxyHost.map(dataGroup =>
-          dataGroup.map(data => 
-            `云区域ID ${data.bk_cloud_id} ${data.protocol}: ${data.report_url}`
+          dataGroup.urls.map(data => 
+            `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`
           ).join('\n')
         ).join('\n');
         console.log(newDataContent);

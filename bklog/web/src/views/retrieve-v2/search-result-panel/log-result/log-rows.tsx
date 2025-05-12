@@ -109,7 +109,7 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-
+ 
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
@@ -284,6 +284,7 @@ export default defineComponent({
                 }
                 return item;
               });
+              store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
               store.dispatch('requestIndexSetQuery');
