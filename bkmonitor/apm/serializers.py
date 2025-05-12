@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import serializers
+from django.utils.translation import gettext as _
 
 from apm.constants import EnabledStatisticsDimension, QueryMode
 
@@ -46,3 +47,20 @@ class TraceStatisticsFieldSerializer(serializers.Serializer):
 
 class TraceFieldStatisticsInfoRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
     field = TraceStatisticsFieldSerializer(label="字段")
+
+
+class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
+    field = TraceStatisticsFieldSerializer(label="字段")
+    query_method = serializers.CharField(label="查询方法", required=False)
+    time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        time_alignment: bool = attrs.get("time_alignment", False)
+        attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        field = attrs["field"]
+        if field["field_type"] != EnabledStatisticsDimension.INTEGER.value:
+            return attrs
+        if len(field["values"]) < 4:
+            raise ValueError(_("数值类型查询条件不足"))
+        return attrs

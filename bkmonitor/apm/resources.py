@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import json
 import logging
 import time
-from typing import Any, Dict
+from typing import Any
 
 import pytz
 from django.conf import settings
@@ -69,11 +69,14 @@ from apm.models.profile import ProfileService
 from apm.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
+
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.data_source import q_to_dict, dict_to_q
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
@@ -85,7 +88,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
@@ -227,7 +230,7 @@ class ListApplicationResources(Resource):
             exclude = ("is_deleted", "is_enabled")
 
         def to_representation(self, instance):
-            data = super(ListApplicationResources.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:
@@ -258,15 +261,15 @@ class ApplicationRequestSerializer(serializers.Serializer):
         if application_id:
             app = Application.objects.filter(application_id=application_id).first()
             if app:
-                attrs['bk_biz_id'] = app.bk_biz_id
-                attrs['app_name'] = app.app_name
+                attrs["bk_biz_id"] = app.bk_biz_id
+                attrs["app_name"] = app.app_name
                 return attrs
             raise ValidationError(f"the application({application_id}) does not exist")
 
         if app_name and bk_biz_id:
             app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
             if app:
-                attrs['application_id'] = app.application_id
+                attrs["application_id"] = app.application_id
                 return attrs
             raise ValidationError(f"the application({app_name}) does not exist")
 
@@ -275,8 +278,8 @@ class ApplicationRequestSerializer(serializers.Serializer):
             if bk_biz_id:
                 app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
                 if app:
-                    attrs['application_id'] = app.application_id
-                    attrs['bk_biz_id'] = bk_biz_id
+                    attrs["application_id"] = app.application_id
+                    attrs["bk_biz_id"] = bk_biz_id
                     return attrs
                 # space_uid和app_name都合法并存在，但是组合起来查不到数据
                 raise ValidationError(f"the application({app_name}) does not exist")
@@ -293,7 +296,7 @@ class ApplicationInfoResource(Resource):
             exclude = ("is_deleted", "is_enabled")
 
         def to_representation(self, instance):
-            data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             data["token"] = instance.get_bk_data_token()
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
@@ -619,7 +622,7 @@ class QueryTopoNodeResource(Resource):
             fields = ("extra_data", "system", "platform", "sdk", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
-            data = super(QueryTopoNodeResource.NodeResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             data["extra_data"] = instance.extra_data
             return data
 
@@ -946,7 +949,9 @@ class QuerySerializer(serializers.Serializer):
     class FilterSerializer(serializers.Serializer):
         key = serializers.CharField(label="查询键")
         operator = serializers.CharField(label="操作符")
-        value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
+        value = serializers.ListSerializer(
+            label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True
+        )
 
     bk_biz_id = serializers.IntegerField(label="业务id")
     app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -1804,7 +1809,9 @@ class CreateApplicationSimpleResource(Resource):
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         plugin_id = serializers.CharField(label="插件ID", max_length=255, required=False)
-        deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
+        deployment_ids = serializers.ListField(
+            label="环境", child=serializers.CharField(max_length=255), required=False
+        )
         language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
         enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
@@ -2021,7 +2028,7 @@ class QueryFieldStatisticsInfoResource(Resource):
             StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
         }
         if property_name not in query_property_method_map:
-            raise ValueError(_("未知的字段统计属性: {}".format(property_name)))
+            raise ValueError(_(f"未知的字段统计属性: {property_name}"))
         statistics_info[property_name] = proxy.query_field_aggregated_value(
             validated_data["mode"],
             validated_data["start_time"],
@@ -2035,7 +2042,7 @@ class QueryFieldStatisticsInfoResource(Resource):
         )
 
     @classmethod
-    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+    def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
         processed_statistics_info = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
@@ -2064,3 +2071,128 @@ class QueryFieldStatisticsInfoResource(Resource):
             else 0
         )
         return processed_statistics_info
+
+
+class QueryFieldStatisticsGraphResource(Resource):
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_data):
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        # keyword类型，返回时序数据图
+        field = validated_data["field"]
+        values = field["values"]
+        field_name = field["field_name"]
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+            config = proxy.query_graph_config(
+                validated_data["mode"],
+                validated_data["start_time"],
+                validated_data["end_time"],
+                field_name,
+                validated_data["filters"],
+                validated_data["query_string"],
+            )
+            config.update(
+                {
+                    "query_method": validated_data["query_method"],
+                    "time_alignment": validated_data["time_alignment"],
+                    "start_time": config["start_time"] // 1000,
+                    "end_time": config["end_time"] // 1000,
+                }
+            )
+            for query_config in config["query_configs"]:
+                query_config["filter_dict"] = q_to_dict(
+                    (dict_to_q(query_config["filter_dict"]) or Q()) & Q(**{f"{field_name}__eq": values})
+                )
+            return resource.grafana.graph_unify_query(config)
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
+            field_topk = proxy.query_field_topk(
+                validated_data["mode"],
+                validated_data["start_time"],
+                validated_data["end_time"],
+                field["field_name"],
+                distinct_count,
+                validated_data["filters"],
+                validated_data["query_string"],
+            )
+            return self.process_graph_info(
+                [
+                    [topk_item["count"], int(topk_item["field_value"])]
+                    for topk_item in sorted(field_topk, key=lambda topk_item: topk_item["field_value"])
+                ]
+            )
+        return self.process_graph_info(
+            self.calculate_interval_buckets(
+                validated_data, proxy, self.calculate_intervals(min_value, max_value, interval_num)
+            )
+        )
+
+    @classmethod
+    def calculate_intervals(cls, min_value, max_value, interval_num):
+        """
+        计算区间
+        :param min_value: int
+            区间的最小值。
+        :param max_value: int
+            区间的最大值。
+        :param interval_num: int
+            区间数量。
+        :return: List[Tuple[int, int]]
+            返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
+        """
+        intervals = []
+        current_min = min_value
+        for i in range(interval_num):
+            # 闭区间，加上区间数后要 -1
+            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
+            # 确保最后一个区间覆盖到 max_value
+            if i == interval_num - 1:
+                current_max = max_value
+            intervals.append((current_min, current_max))
+            current_min = current_max + 1
+        return intervals
+
+    @classmethod
+    def process_graph_info(cls, buckets):
+        """
+        处理数值趋势图格式，和时序趋势图保持一致
+        """
+        return {"series": [{"datapoints": buckets}]}
+
+    @classmethod
+    def calculate_interval_buckets(cls, validated_data, proxy, intervals) -> list:
+        """
+        统计各区间计数
+        """
+        buckets = []
+        run_threads(
+            [
+                InheritParentThread(
+                    target=cls.collect_interval_buckets,
+                    args=(
+                        validated_data,
+                        proxy,
+                        buckets,
+                        interval,
+                    ),
+                )
+                for interval in intervals
+            ]
+        )
+        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+
+    @classmethod
+    def collect_interval_buckets(cls, validated_data, proxy, bucket, interval: tuple[int, int]):
+        interval_count = proxy.query_interval_count(
+            validated_data["mode"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["field"]["field_name"],
+            validated_data["filters"],
+            validated_data["query_string"],
+            interval[0],
+            interval[1],
+        )
+        bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
