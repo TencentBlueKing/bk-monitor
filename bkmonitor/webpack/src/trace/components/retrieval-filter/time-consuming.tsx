@@ -28,7 +28,8 @@ import { defineComponent, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
-import { Input, Slider } from 'bkui-vue';
+import { Input as BkInput, Slider } from 'bkui-vue';
+import { Input as TInput } from 'tdesign-vue-next';
 
 import { formatDuration } from '../trace-view/utils/date';
 import { TIME_CONSUMING_EMITS, TIME_CONSUMING_PROPS } from './typing';
@@ -58,14 +59,17 @@ export default defineComponent({
     const endError = shallowRef(false);
     const errMsg = shallowRef('');
 
+    let stopWatch = false;
+
     watch(
       () => props.value,
       val => {
-        if (val.length > 1) {
+        if (val.length > 1 && !stopWatch) {
           const [start, end] = val;
           startValue.value = `${Number(start) / 1000}ms`;
           endValue.value = `${Number(end) / 1000}ms`;
           handleSetSlider(false);
+          stopWatch = true;
         }
       },
       { immediate: true }
@@ -74,6 +78,14 @@ export default defineComponent({
     const handleChangeDebounce = useDebounceFn(() => {
       const value = durationSlider.value.curValue.map(val => Number(val * 1000));
       emit('change', value);
+    }, 300);
+    const handleSliderChange = useDebounceFn((rangeValue: number[] = []) => {
+      const [start, end] = rangeValue;
+      startValue.value = formatDuration(start * 1000) === '0μs' ? '0ns' : formatDuration(start * 1000);
+      endValue.value = formatDuration(end * 1000) === '0μs' ? '0ns' : formatDuration(end * 1000);
+      startError.value = false;
+      endError.value = false;
+      errMsg.value = '';
     }, 300);
 
     function handleInputChange(val: string, type: 'end' | 'start') {
@@ -107,13 +119,14 @@ export default defineComponent({
         // 当最小耗时大于最大耗时
         errMsg.value = t('最小耗时不能大于最大耗时，');
       } else {
-        Object.assign(durationSlider.value, {
+        durationSlider.value = {
+          ...durationSlider.value,
           curValue: [start, end],
           min: start,
           max: end,
           step: Math.abs(start - end) / 100,
           disable: start === end,
-        });
+        };
         errMsg.value = '';
         isUpdate && handleChangeDebounce();
       }
@@ -146,14 +159,14 @@ export default defineComponent({
       handleSliderChange(value);
     }
 
-    function handleSliderChange(rangeValue: number[] = []) {
-      const [start, end] = rangeValue;
-      startValue.value = formatDuration(start * 1000) === '0μs' ? '0ns' : formatDuration(start * 1000);
-      endValue.value = formatDuration(end * 1000) === '0μs' ? '0ns' : formatDuration(end * 1000);
-      startError.value = false;
-      endError.value = false;
-      errMsg.value = '';
-    }
+    // function handleSliderChange(rangeValue: number[] = []) {
+    //   const [start, end] = rangeValue;
+    //   startValue.value = formatDuration(start * 1000) === '0μs' ? '0ns' : formatDuration(start * 1000);
+    //   endValue.value = formatDuration(end * 1000) === '0μs' ? '0ns' : formatDuration(end * 1000);
+    //   startError.value = false;
+    //   endError.value = false;
+    //   errMsg.value = '';
+    // }
 
     return {
       startValue,
@@ -182,12 +195,22 @@ export default defineComponent({
             ),
           }}
         >
-          <Input
-            v-model={this.startValue}
-            placeholder={'0ns'}
-            size={this.styleType !== 'form' ? 'small' : 'default'}
-            onChange={val => this.handleInputChange(val, 'start')}
-          />
+          {this.styleType === 'form' ? (
+            <BkInput
+              v-model={this.startValue}
+              placeholder={'0ns'}
+              size={this.styleType !== 'form' ? 'small' : 'default'}
+              onChange={val => this.handleInputChange(val, 'start')}
+            />
+          ) : (
+            <TInput
+              v-model={this.startValue}
+              autoWidth={true}
+              placeholder={'0ns'}
+              size={'small'}
+              onChange={val => this.handleInputChange(val as string, 'start')}
+            />
+          )}
         </div>
         <div class='slider-wrap'>
           <Slider
@@ -214,12 +237,22 @@ export default defineComponent({
             ),
           }}
         >
-          <Input
-            v-model={this.endValue}
-            placeholder={'1s'}
-            size={this.styleType !== 'form' ? 'small' : 'default'}
-            onChange={val => this.handleInputChange(val, 'end')}
-          />
+          {this.styleType === 'form' ? (
+            <BkInput
+              v-model={this.endValue}
+              placeholder={'1s'}
+              size={this.styleType !== 'form' ? 'small' : 'default'}
+              onChange={val => this.handleInputChange(val, 'end')}
+            />
+          ) : (
+            <TInput
+              v-model={this.endValue}
+              autoWidth={true}
+              placeholder={'1s'}
+              size={'small'}
+              onChange={val => this.handleInputChange(val as string, 'end')}
+            />
+          )}
         </div>
       </div>
     );

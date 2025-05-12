@@ -27,6 +27,7 @@
 import { defineComponent, shallowRef, computed, watch, nextTick, useTemplateRef } from 'vue';
 
 import { useEventListener, watchDebounced } from '@vueuse/core';
+import { promiseTimeout } from '@vueuse/core';
 
 import loadingImg from '../../static/img/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';
@@ -68,8 +69,8 @@ export default defineComponent({
             dataInit();
             const list = await getValueData();
             localOptions.value = localOptionsFilter(list);
-            cleanup = useEventListener(document, 'keydown', handleKeydownEvent);
-            document.addEventListener('keydown', handleKeydownEvent);
+            cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
+            window.addEventListener('keydown', handleKeydownEvent);
           } else {
             cleanup();
           }
@@ -93,7 +94,7 @@ export default defineComponent({
         dataInit();
         const list = await getValueData();
         localOptions.value = localOptionsFilter(list);
-        cleanup = useEventListener(document, 'keydown', handleKeydownEvent);
+        cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
       }
     }
     /**
@@ -233,6 +234,7 @@ export default defineComponent({
       }
       if (props.fieldInfo?.isEnableOptions) {
         const limit = pageSize.value * page.value;
+        await promiseTimeout(300);
         const data = await props.getValueFn({
           search: props.search,
           limit,
@@ -331,7 +333,7 @@ export default defineComponent({
               <div
                 key={index}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
-                v-bk-overflow-tips={{
+                overflow-title={{
                   content: item.name,
                   placement: 'right',
                 }}

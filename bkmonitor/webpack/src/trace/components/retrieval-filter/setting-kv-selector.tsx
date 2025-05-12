@@ -29,7 +29,7 @@ import { onMounted } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
-import tippy from 'tippy.js';
+import tippy, { sticky } from 'tippy.js';
 
 import AutoWidthInput from './auto-width-input';
 import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
@@ -168,6 +168,8 @@ export default defineComponent({
         zIndex: 998,
         interactive: true,
         offset: [0, 4],
+        sticky: 'reference',
+        plugins: [sticky],
         onHidden: () => {
           destroyPopoverInstance();
         },

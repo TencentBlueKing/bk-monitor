@@ -114,7 +114,7 @@ export default defineComponent({
       if (localValue.value) {
         cleanup?.();
       } else {
-        cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
+        cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
       }
     }
 
@@ -238,7 +238,7 @@ export default defineComponent({
         setTimeout(() => {
           queryStringEditor.value.editorEl?.focus?.();
         }, 300);
-        document.removeEventListener('keydown', handleKeyDownSlash);
+        window.removeEventListener('keydown', handleKeyDownSlash);
       }
     }
     /**

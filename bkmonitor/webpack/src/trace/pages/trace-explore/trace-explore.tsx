@@ -352,7 +352,7 @@ export default defineComponent({
           filters:
             params?.where?.map(item => ({
               key: item.key,
-              operator: item.method,
+              operator: 'like',
               value: item.value || [],
             })) || [],
           query_string: params?.queryString || '',

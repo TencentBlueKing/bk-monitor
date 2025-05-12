@@ -79,9 +79,14 @@ export interface IFilterField {
     wildcard_operator?: string;
     label?: string;
     options?: {
+      default?: boolean | string;
       label: string;
       name: string;
-    };
+      children?: {
+        label: string;
+        value: string;
+      }[];
+    }[];
   }[]; // 支持的操作
 }
 
@@ -95,7 +100,8 @@ export interface IWhereItem {
   operator?: string;
   value: number[] | string[];
   options?: {
-    is_wildcard: boolean;
+    is_wildcard?: boolean;
+    group_relation?: boolean;
   };
 }
 
