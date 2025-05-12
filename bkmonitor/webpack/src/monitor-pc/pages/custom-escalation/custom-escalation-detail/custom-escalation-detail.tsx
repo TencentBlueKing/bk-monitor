@@ -241,6 +241,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         item.id = 'name';
         item.values = [{ id: item.name, name: item.name }];
       }
+      if (item.id === 'unit') {
+        for (const v of item.values) {
+          v.id = v.name;
+        }
+      }
       search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
     }
 
@@ -616,7 +621,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const metricNames = this.metricList.map(item => item.name);
     const allMatchRulesSet = new Set();
     const metricGroupsMap = new Map();
-
+    this.groupsMap = new Map();
     // 收集所有匹配规则
     for (const item of this.groupList) {
       for (const rule of item.matchRules) {
@@ -1158,8 +1163,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         manual_list: newMetrics,
         auto_rules: group.matchRules || [],
       });
+      await this.getDetailData();
       this.updateCheckValue();
-      this.getDetailData();
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
     } catch (error) {
       console.error(`批量添加分组 ${groupName} 更新失败:`, error);
@@ -1215,8 +1220,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
       ]);
-
-      this.getDetailData();
+      await this.getDetailData();
+      this.updateCheckValue();
     } catch (error) {
       console.error('分组更新失败:', error);
     }
@@ -1239,9 +1244,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
    */
   async handleSubmitGroup(config: Record<string, any>): Promise<void> {
     await this.submitGroupInfo(config);
-    await this.getGroupList();
     this.changeGroupFilterList(config.name);
-    this.getDetailData();
+    await this.getDetailData();
     this.nonGroupNum = this.getNonGroupNum();
   }
 
@@ -1259,8 +1263,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (this.groupFilterList[0] === name) {
       this.changeGroupFilterList(ALL_LABEL);
     }
-
-    this.getDetailData();
+    await this.getDetailData();
     this.nonGroupNum = this.getNonGroupNum();
   }
 
@@ -1331,8 +1334,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       update_fields: localTable,
       delete_fields: delArray,
     });
-
-    this.getDetailData();
+    await this.getDetailData();
+    this.allCheckValue = 0;
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
 

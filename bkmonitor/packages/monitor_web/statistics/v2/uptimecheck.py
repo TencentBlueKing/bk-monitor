@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.functional import cached_property
+from functools import lru_cache
 
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
@@ -29,9 +30,9 @@ class UptimeCheckCollector(BaseCollector):
     def uptimecheck_nodes(self):
         return UptimeCheckNode.objects.filter(bk_biz_id__in=self.biz_info.keys())
 
-    @cached_property
-    def all_node_status(self):
-        return resource.uptime_check.uptime_check_beat()
+    @lru_cache(maxsize=100)
+    def all_node_status(self, bk_tenant_id: int):
+        return resource.uptime_check.uptime_check_beat(bk_tenant_id=bk_tenant_id)
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "protocol", "status"))
     def uptimecheck_task_count(self, metric: Metric):
@@ -72,7 +73,7 @@ class UptimeCheckCollector(BaseCollector):
                 filter(
                     lambda x: (x.get("bk_host_id") == node.bk_host_id)
                     or (x.get("ip") == node.ip and x.get("bk_cloud_id") == node.plat_id),
-                    self.all_node_status,
+                    self.all_node_status(node.bk_tenant_id),
                 )
             )
             if not filtered_node_status:
