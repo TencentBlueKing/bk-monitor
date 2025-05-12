@@ -84,6 +84,7 @@ from monitor_web.strategies.constant import (
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
 from bkmonitor.models.strategy import AlgorithmChoiceConfig
+from bkm_ipchooser.handlers import template_handler
 
 logger = logging.getLogger(__name__)
 
@@ -2728,6 +2729,52 @@ class GetTargetDetailWithCache(CacheResource):
             for node in target_detail:
                 instances.update(node.get("all_host", []))
             instance_count = len(instances)
+
+        # 补充未查询到模块的模版信息
+        if field in [
+            TargetFieldType.host_set_template,
+            TargetFieldType.host_service_template,
+            TargetFieldType.service_set_template,
+            TargetFieldType.service_service_template,
+        ]:
+
+            # 已经查询到的模板ID
+            queried_template_ids = {d[target_type_map[field]] for d in target_detail}
+
+            templates_params = {
+                "scope_list": [
+                    {
+                        "scope_type": "biz",
+                        "scope_id": bk_biz_id,
+                        "bk_biz_id": bk_biz_id
+                    }
+                ],
+                "template_type": target_type_map[field],
+            }
+            # 获取到所有的模板信息
+            templates = {t["id"]: t for t in template_handler.TemplateHandler(**templates_params).list_templates()}
+
+            for _id in params["bk_inst_ids"]:
+                if _id in queried_template_ids or _id not in templates:
+                    continue
+
+                target_detail.append({
+                    "bk_obj_id": "",
+                    "bk_inst_id": None,
+                    "bk_biz_id": bk_biz_id,
+                    "bk_inst_name": "",
+                    "SERVICE_TEMPLATE": _id,
+                    "node_path": templates[_id]["name"],
+                    "all_host": [],
+                    "count": 0,
+                    "agent_error_count": 0,
+                    "labels": [
+                        {
+                            "first": "None",
+                            "second": "None"
+                        }
+                    ]
+                })
 
         return {
             "node_type": target_type_map[field],
