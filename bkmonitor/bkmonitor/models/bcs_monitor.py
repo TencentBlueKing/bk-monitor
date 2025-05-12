@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import itertools
-from typing import Dict
 
 from django.db import models
 from django.utils import timezone
@@ -154,14 +153,14 @@ class BCSMonitor(BCSBase):
         return columns
 
     @classmethod
-    def load_list_from_api(cls, params: Dict):
+    def load_list_from_api(cls, params: dict):
         api_resources = cls.fetch_k8s_monitor_list_by_cluster(params)
 
         monitors = []
         for r in itertools.chain.from_iterable(item for item in api_resources if item):
             bcs_cluster_id = r.get("bcs_cluster_id")
             bk_biz_id = params[bcs_cluster_id]
-            metric_path_list = r.get("metric_path")
+            metric_path_list = list(set(r.get("metric_path")))
             metric_port_list = r.get("metric_port")
             metric_interval_list = r.get("metric_interval")
             for i, metric_path in enumerate(metric_path_list):
