@@ -197,18 +197,18 @@ export const useEcharts = (
       const duration = Math.abs(dayjs.tz(maxXTime).diff(dayjs.tz(minXTime), 'second'));
       formatterFunc = (v: string) => {
         if (duration < 1 * 60) {
-          return dayjs.tz(v).format('mm:ss');
+          return dayjs.tz(+v).format('mm:ss');
         }
         if (duration < 60 * 60 * 24 * 1) {
-          return dayjs.tz(v).format('HH:mm');
+          return dayjs.tz(+v).format('HH:mm');
         }
         if (duration < 60 * 60 * 24 * 6) {
-          return dayjs.tz(v).format('MM-DD HH:mm');
+          return dayjs.tz(+v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
-          return dayjs.tz(v).format('MM-DD');
+          return dayjs.tz(+v).format('MM-DD');
         }
-        return dayjs.tz(v).format('YYYY-MM-DD');
+        return dayjs.tz(+v).format('YYYY-MM-DD');
       };
     }
     return [

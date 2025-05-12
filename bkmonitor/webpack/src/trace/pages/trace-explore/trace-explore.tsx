@@ -41,6 +41,7 @@ import {
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { updateTimezone } from '../../i18n/dayjs';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
@@ -55,7 +56,7 @@ import { getFilterByCheckboxFilter } from './utils';
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
-
+updateTimezone(window.timezone);
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
@@ -68,7 +69,6 @@ export default defineComponent({
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
-
     /** 自动查询定时器 */
     let autoQueryTimer = null;
     /** 应用列表 */

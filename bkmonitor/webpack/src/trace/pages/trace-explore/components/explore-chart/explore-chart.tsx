@@ -119,7 +119,6 @@ export default defineComponent({
             class='draggable-handle'
             dragging={this.panel.dragging}
             isInstant={this.panel.instant}
-            // drillDownOption={this.drillDownOptions}
             menuList={['more', 'explore', 'area', 'drill-down', 'relate-alert']}
             metrics={this.metricList}
             showAddMetric={true}
@@ -131,7 +130,6 @@ export default defineComponent({
             onMenuClick={this.handleMenuClick}
             onMetricClick={this.handleMetricClick}
             onSelectChild={({ child }) => this.handleMenuClick(child)}
-            // onUpdateDragging={() => this.panel?.updateDragging(false)}
           />
         )}
         {this.loading ? (
