@@ -2,6 +2,7 @@
   display: grid;
   grid-template-rows: 0fr;
   grid-template-columns: 100%;
+  overflow-x: hidden;
   overflow-y: hidden;
   transition: grid-template-rows var(--expand-animation-duration);
   transition-timing-function: ease;
