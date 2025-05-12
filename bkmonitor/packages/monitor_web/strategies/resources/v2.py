@@ -2731,24 +2731,22 @@ class GetTargetDetailWithCache(CacheResource):
             instance_count = len(instances)
 
         # 补充未查询到模块的模版信息
-        if len(target_detail) != len(params["bk_inst_ids"]) and field in [
-            TargetFieldType.host_set_template,
-            TargetFieldType.host_service_template,
-            TargetFieldType.service_set_template,
-            TargetFieldType.service_service_template,
-        ]:
-
+        if (
+            "bk_inst_ids" in params
+            and len(target_detail) != len(params["bk_inst_ids"])
+            and field
+            in [
+                TargetFieldType.host_set_template,
+                TargetFieldType.host_service_template,
+                TargetFieldType.service_set_template,
+                TargetFieldType.service_service_template,
+            ]
+        ):
             # 已经查询到的模板ID
             queried_template_ids = {d[target_type_map[field]] for d in target_detail}
 
             templates_params = {
-                "scope_list": [
-                    {
-                        "scope_type": "biz",
-                        "scope_id": bk_biz_id,
-                        "bk_biz_id": bk_biz_id
-                    }
-                ],
+                "scope_list": [{"scope_type": "biz", "scope_id": bk_biz_id, "bk_biz_id": bk_biz_id}],
                 "template_type": target_type_map[field],
             }
             # 获取到所有的模板信息
@@ -2758,23 +2756,20 @@ class GetTargetDetailWithCache(CacheResource):
                 if _id in queried_template_ids or _id not in templates:
                     continue
 
-                target_detail.append({
-                    "bk_obj_id": "",
-                    "bk_inst_id": None,
-                    "bk_biz_id": bk_biz_id,
-                    "bk_inst_name": "",
-                    "SERVICE_TEMPLATE": _id,
-                    "node_path": templates[_id]["name"],
-                    "all_host": [],
-                    "count": 0,
-                    "agent_error_count": 0,
-                    "labels": [
-                        {
-                            "first": "None",
-                            "second": "None"
-                        }
-                    ]
-                })
+                target_detail.append(
+                    {
+                        "bk_obj_id": "",
+                        "bk_inst_id": None,
+                        "bk_biz_id": bk_biz_id,
+                        "bk_inst_name": "",
+                        "SERVICE_TEMPLATE": _id,
+                        "node_path": templates[_id]["name"],
+                        "all_host": [],
+                        "count": 0,
+                        "agent_error_count": 0,
+                        "labels": [{"first": "None", "second": "None"}],
+                    }
+                )
 
         return {
             "node_type": target_type_map[field],
