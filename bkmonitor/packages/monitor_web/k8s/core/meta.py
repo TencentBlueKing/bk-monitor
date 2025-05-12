@@ -281,7 +281,13 @@ class K8sResourceMeta:
                         max_data_point = max(max_data_point, point[1])
         for line in series:
             if line["datapoints"][-1][1] == max_data_point:
-                lines.append([line["datapoints"][-1][0] or 0, line])
+                # 如果 len(series) < page_size，则保留实际值为None的情况
+                # 反之如果大于则对为 None的情况进行排除
+                if len(series) <= page_size:
+                    lines.append([line["datapoints"][-1][0] or 0, line])
+                else: 
+                    if line["datapoints"][-1][0] is not None:
+                        lines.append([line["datapoints"][-1][0], line])
             else:
                 lines.append([0, line])
         if order_by:
