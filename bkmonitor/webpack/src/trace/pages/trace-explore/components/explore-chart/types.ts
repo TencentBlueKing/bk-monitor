@@ -104,3 +104,17 @@ export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click
 export type Series = SeriesItem[];
 
 export type FormatterFunc = ((v: string) => string) | string;
+
+export interface DataZoomEvent {
+  type: string; // "datazoom"
+  batch: Array<DataZoomBatchItem>;
+}
+
+export interface DataZoomBatchItem {
+  dataZoomId: string;
+  startValue: number;
+  endValue: number;
+  type: string; // "datazoom"
+  from: string;
+  batch: Array<DataZoomBatchItem> | null;
+}

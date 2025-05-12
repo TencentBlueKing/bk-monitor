@@ -31,11 +31,14 @@ import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 import ChartTitle from '../../../../plugins/components/chart-title';
 // import { useTraceExploreStore } from '@/store/modules/explore';
 
+import { useTraceExploreStore } from '@/store/modules/explore';
+
 import CommonLegend from '../../../../plugins/components/common-legend';
 import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
 import { useEcharts } from './use-echarts';
 
+import type { DataZoomEvent } from './types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './explore-chart.scss';
@@ -48,10 +51,11 @@ export default defineComponent({
     },
   },
   setup(props) {
-    // const store = useTraceExploreStore();
+    const store = useTraceExploreStore();
     // const panelModels = shallowRef<PanelModel[]>([]);
     // const dashboardId = random(10);
     // const traceStore = useTraceExploreStore();
+    const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const panel = computed(() => props.panel);
@@ -68,6 +72,29 @@ export default defineComponent({
       chartRef
     );
     const { legendData, handleSelectLegend } = useChartLegend(options);
+    const handleFinished = () => {
+      chartInstance.value.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: true,
+      });
+    };
+    const handleDataZoom = (event: DataZoomEvent) => {
+      const xAxisData = options.value.xAxis[0]?.data;
+      if (!xAxisData.length || xAxisData.length < 2) return;
+      chartInstance.value.dispatchAction({
+        type: 'restore',
+      });
+      const { startValue, endValue } = event.batch[0];
+      let endTime = xAxisData[endValue];
+      if (startValue === endValue) {
+        endTime = xAxisData[endValue + 1];
+        if (!endTime) {
+          endTime = xAxisData[startValue] + 1000;
+        }
+      }
+      store.updateTimeRange([xAxisData[startValue], endTime]);
+    };
     return {
       loading,
       options,
@@ -77,6 +104,8 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleSelectLegend,
+      handleFinished,
+      handleDataZoom,
     };
   },
   render() {
@@ -110,8 +139,11 @@ export default defineComponent({
         ) : this.options ? (
           <>
             <VueEcharts
+              ref='echart'
               option={this.options}
               autoresize
+              onDatazoom={this.handleDataZoom}
+              onFinished={this.handleFinished}
             />
             <CommonLegend
               legendData={this.legendData}
