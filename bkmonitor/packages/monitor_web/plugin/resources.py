@@ -895,40 +895,34 @@ class ProcessDataFilterResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         processes = serializers.CharField(required=True)
-        match = serializers.CharField(required=True)
-        exclude = serializers.CharField(required=True)
-        dimensions = serializers.CharField(required=True)
-        process_name = serializers.CharField(required=True)
+        match = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        exclude = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        dimensions = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        process_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+        # todo gtm pr
 
-        # 参数校验
-        def validate_exclude(self, value):
-            """验证exclude参数是否是合法的正则表达式"""
+    # todo 支持参数注解
+    def perform_request(self, validated_request_data: dict):
+        # 参数正则校验
+        def _validate_regex(value: str):
+            """通用正则表达式验证方法"""
             if value:
                 try:
                     re.compile(value)
-                except re.error as e:
-                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
-            return value
+                except re.error:
+                    return False
+            return True
 
-        def validate_dimensions(self, value):
-            """验证dimensions参数是否是合法的正则表达式"""
+        # 在此对参数进行正则校验
+        for field_name in ["exclude", "dimensions", "process_name"]:
+            value = validated_request_data.get(field_name, "")
             if value:
-                try:
-                    re.compile(value)
-                except re.error as e:
-                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
-            return value
+                if not _validate_regex(value):
+                    return {
+                        "result": False,
+                        "message": f"Invalid regex pattern for {field_name}",
+                    }
 
-        def validate_process_name(self, value):
-            """验证process_name参数是否是合法的正则表达式"""
-            if value:
-                try:
-                    re.compile(value)
-                except re.error as e:
-                    raise serializers.ValidationError(f"无效的正则表达式: {str(e)}")
-            return value
-
-    def perform_request(self, validated_request_data):
         # 获取当前目录
         current_dir = pathlib.Path(__file__).parent
         cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
@@ -946,13 +940,19 @@ class ProcessDataFilterResource(Resource):
             result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True, timeout=15)
         except subprocess.TimeoutExpired as e:
             logger.error(f"Process matcher command timed out, error_message: {e}")
-            raise subprocess.TimeoutExpired(cmd, timeout=15)
+            return {
+                "result": False,
+                "message": "Process matcher command timed out",
+            }
         except subprocess.CalledProcessError as e:
             logger.error(f"Process matcher failed with code {e.returncode}: {e.stderr}")
-            raise subprocess.CalledProcessError(e.returncode, cmd, output=e.stdout, stderr=e.stderr)
+            return {"result": False, "message": f"Process matcher failed, error_message: {e.stderr}"}
         except Exception as e:
             logger.error(f"Unexpected error executing process matcher: {e}")
-            raise Exception(f"Unexpected error executing process matcher: {e}")
+            return {
+                "result": False,
+                "message": f"Unexpected error executing process matcher: {e}",
+            }
 
         # 返回结果
         try:
@@ -962,4 +962,7 @@ class ProcessDataFilterResource(Resource):
             return json_result
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse process matcher output: {e}")
-            return {"error": "Invalid JSON output from process matcher"}
+            return {
+                "result": False,
+                "message": f"Failed to parse process matcher output: {e}",
+            }
