@@ -57,6 +57,9 @@ from core.errors.plugin import (
     RelatedItemsExist,
     SNMPMetricNumberError,
     UnsupportedPluginTypeError,
+    RegexParseError,
+    SubprocessCallError,
+    JsonParseError,
 )
 from monitor.models import GlobalConfig
 from monitor_web.commons.data_access import PluginDataAccessor
@@ -899,16 +902,14 @@ class ProcessDataFilterResource(Resource):
         exclude = serializers.CharField(required=True, allow_blank=True, allow_null=True)
         dimensions = serializers.CharField(required=True, allow_blank=True, allow_null=True)
         process_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-        # todo gtm pr
 
-    # todo 支持参数注解
     def perform_request(self, validated_request_data: dict):
         # 参数正则校验
-        def _validate_regex(value: str):
+        def _validate_regex(value_: str):
             """通用正则表达式验证方法"""
-            if value:
+            if value_:
                 try:
-                    re.compile(value)
+                    re.compile(value_)
                 except re.error:
                     return False
             return True
@@ -918,10 +919,7 @@ class ProcessDataFilterResource(Resource):
             value = validated_request_data.get(field_name, "")
             if value:
                 if not _validate_regex(value):
-                    return {
-                        "result": False,
-                        "message": f"Invalid regex pattern for {field_name}",
-                    }
+                    raise RegexParseError({"msg": f"对应字字段为 {field_name}"})
 
         # 获取当前目录
         current_dir = pathlib.Path(__file__).parent
@@ -939,20 +937,17 @@ class ProcessDataFilterResource(Resource):
         try:
             result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True, timeout=15)
         except subprocess.TimeoutExpired as e:
+            # 调用超时
             logger.error(f"Process matcher command timed out, error_message: {e}")
-            return {
-                "result": False,
-                "message": "Process matcher command timed out",
-            }
+            raise SubprocessCallError({"msg": "Process matcher command timed out"})
         except subprocess.CalledProcessError as e:
+            # 命令执行失败
             logger.error(f"Process matcher failed with code {e.returncode}: {e.stderr}")
-            return {"result": False, "message": f"Process matcher failed, error_message: {e.stderr}"}
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e.stderr}"})
         except Exception as e:
+            # 未知错误
             logger.error(f"Unexpected error executing process matcher: {e}")
-            return {
-                "result": False,
-                "message": f"Unexpected error executing process matcher: {e}",
-            }
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e}"})
 
         # 返回结果
         try:
@@ -962,7 +957,4 @@ class ProcessDataFilterResource(Resource):
             return json_result
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse process matcher output: {e}")
-            return {
-                "result": False,
-                "message": f"Failed to parse process matcher output: {e}",
-            }
+            raise JsonParseError({"msg": f"json解析 stdout 失败: {e}"})
