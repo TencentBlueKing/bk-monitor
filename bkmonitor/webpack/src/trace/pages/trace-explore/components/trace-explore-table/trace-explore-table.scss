@@ -163,10 +163,37 @@
     white-space: nowrap;
   }
 
+  .explore-table-hidden-all {
+    display: none;
+  }
+
+  .explore-table-hidden-body {
+    .t-table__body tr {
+      display: none;
+    }
+  }
+
   .explore-table-skeleton {
     position: absolute;
     top: 0;
+    visibility: hidden;
     padding: 10px 8px;
+
+    &.explore-skeleton-show-all,
+    &.explore-skeleton-show-body {
+      visibility: visible;
+    }
+
+    &.explore-skeleton-show-body {
+      .common-table-skeleton-row:nth-child(1) {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    .common-table-skeleton-row {
+      margin-bottom: 10px;
+    }
   }
 
   .t-table {

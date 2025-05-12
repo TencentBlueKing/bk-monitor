@@ -143,8 +143,10 @@ export default defineComponent({
     const tableHasMoreData = shallowRef(false);
     /** table loading 配置 */
     const tableLoading = reactive({
-      /** table 骨架屏 loading */
-      [ExploreTableLoadingEnum.REFRESH]: false,
+      /** table body部分 骨架屏 loading */
+      [ExploreTableLoadingEnum.BODY_SKELETON]: false,
+      /** table header部分 骨架屏 loading */
+      [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
       /** 表格触底加载更多 loading  */
       [ExploreTableLoadingEnum.SCROLL]: false,
     });
@@ -264,10 +266,28 @@ export default defineComponent({
       };
     });
 
+    const tableSkeletonConfig = computed(() => {
+      const loading = tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
+      if (!loading) return null;
+      const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
+      let config = {
+        tableClass: 'explore-table-hidden-body',
+        skeletonClass: 'explore-skeleton-show-body',
+      };
+      if (headerLoading) {
+        config = {
+          tableClass: 'explore-table-hidden-all',
+          skeletonClass: 'explore-skeleton-show-all',
+        };
+      }
+      return config;
+    });
+
     watch(
       () => isSpanVisual.value,
       v => {
-        tableLoading[ExploreTableLoadingEnum.REFRESH] = true;
+        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
+        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
         tableRowKeyField.value = v ? 'span_id' : 'trace_id';
         getDisplayColumnFields();
@@ -524,7 +544,7 @@ export default defineComponent({
      * @description: 获取 table 表格数据
      *
      */
-    async function getExploreList(loadingType = ExploreTableLoadingEnum.REFRESH) {
+    async function getExploreList(loadingType = ExploreTableLoadingEnum.BODY_SKELETON) {
       if (abortController) {
         abortController.abort();
         abortController = null;
@@ -533,7 +553,8 @@ export default defineComponent({
       const { app_name, start_time, end_time } = queryParams.value;
       if (!app_name || !start_time || !end_time) {
         store.updateTableList([]);
-        tableLoading[ExploreTableLoadingEnum.REFRESH] = false;
+        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
+        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
         tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
@@ -541,7 +562,7 @@ export default defineComponent({
         store.updateTableList([...tableData.value, ...list]);
       };
 
-      if (loadingType === ExploreTableLoadingEnum.REFRESH) {
+      if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
         store.updateTableList([]);
         updateTableDataFn = list => {
           store.updateTableList(list);
@@ -564,7 +585,7 @@ export default defineComponent({
         return;
       }
       tableLoading[loadingType] = false;
-
+      tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
       updateTableDataFn(res.data);
       tableHasMoreData.value = res.data?.length === limit;
     }
@@ -903,6 +924,7 @@ export default defineComponent({
       sortContainer,
       tableDisplayColumns,
       tableViewData,
+      tableSkeletonConfig,
       traceSliderRender,
       spanSliderRender,
       handleSortChange,
@@ -916,7 +938,7 @@ export default defineComponent({
       <div class='trace-explore-table'>
         <PrimaryTable
           ref='tableRef'
-          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
+          class={this.tableSkeletonConfig?.tableClass}
           v-slots={{
             empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
           }}
@@ -982,8 +1004,8 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton
-          style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
-          class='explore-table-skeleton'
+          // style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ? 'visible' : 'hidden' }}
+          class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`}
         />
         {this.traceSliderRender()}
         {this.spanSliderRender()}

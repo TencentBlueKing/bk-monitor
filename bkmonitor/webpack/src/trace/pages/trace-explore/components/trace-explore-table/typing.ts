@@ -91,8 +91,10 @@ export enum ExploreTableColumnTypeEnum {
 
 /** 检索表格loading类型枚举 */
 export enum ExploreTableLoadingEnum {
-  /** 刷新 -- 显示 骨架屏 效果loading */
-  REFRESH = 'refreshLoading',
+  /** 刷新 -- table body 部分 显示 骨架屏 效果loading */
+  BODY_SKELETON = 'table_body_skeleton',
+  /** 刷新 -- table header 部分 显示 骨架屏 效果loading */
+  HEADER_SKELETON = 'table_header_skeleton',
   /** 滚动 -- 显示 表格底部 loading */
   SCROLL = 'scrollLoading',
 }
