@@ -537,10 +537,13 @@ export default class K8SCharts extends tsc<
         return `
         ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
         /
-        sum by (node) (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
       `;
       case 'node_cpu_usage_ratio': // 节点CPU使用率
-        return `(1 - (${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()}}[$interval])[$interval:] $time_shift)))) * 100`;
+        if (this.groupByField === K8sTableColumnKeysEnum.NODE) {
+          return `(1 - avg by(node)(rate(node_cpu_seconds_total{mode="idle",${this.createCommonPromqlContent()}}[$interval] $time_shift))) * 100`;
+        }
+        return `(1 - avg by(bcs_cluster_id)(rate(node_cpu_seconds_total{mode="idle",${this.createCommonPromqlContent()}}[$interval] $time_shift))) * 100`;
       case 'node_memory_working_set_bytes': // 节点内存使用量
         return ` ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemTotal_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
         -
