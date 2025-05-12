@@ -78,7 +78,7 @@ export default defineComponent({
     );
 
     function init() {
-      cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
+      cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
     }
 
     async function handleShowSelect(event: MouseEvent) {
@@ -99,7 +99,7 @@ export default defineComponent({
         interactive: true,
         onHidden: () => {
           destroyPopoverInstance();
-          cleanup = useEventListener(document, 'keydown', handleKeyDownSlash);
+          cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
         },
       });
       popoverInstance.value?.show();

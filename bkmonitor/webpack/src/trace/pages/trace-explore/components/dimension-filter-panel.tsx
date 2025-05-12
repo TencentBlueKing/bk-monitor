@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, useTemplateRef, watch, type PropType } fro
 import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
-import { $bkPopover, Input, OverflowTitle } from 'bkui-vue';
+import { $bkPopover, Input } from 'bkui-vue';
 import { AngleDownLine } from 'bkui-vue/lib/icon';
 import { storeToRefs } from 'pinia';
 
@@ -112,13 +112,13 @@ export default defineComponent({
             onClick={e => handleDimensionItemClick(e, item)}
           >
             <FieldTypeIcon type={item.type} />
-            <OverflowTitle
+            <span
               class='dimension-name'
-              type='tips'
+              v-bk-overflow-tips
             >
               {item.levelName}
               {item?.name ? <span class='subtitle'>({item.name})</span> : ''}
-            </OverflowTitle>
+            </span>
             {item.children && [
               <span
                 key='object-count'
@@ -287,6 +287,7 @@ export default defineComponent({
             type='search'
             clearable
             show-clear-only-hover
+            onClear={this.handleSearch}
             onEnter={this.handleSearch}
             onInput={this.handleSearch}
           />
