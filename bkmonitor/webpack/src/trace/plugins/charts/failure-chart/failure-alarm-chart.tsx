@@ -68,6 +68,10 @@ export default defineComponent({
       default: () => ({}),
       required: true,
     },
+    groupId: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['successLoad'],
   setup(props, { emit }) {
@@ -405,6 +409,7 @@ export default defineComponent({
         empty-text={this.errorMsg?.length ? this.t('查询数据错误') : this.t('无数据')}
         errorMsg={this.errorMsg}
         getSeriesData={this.handleGetSeriesData}
+        groupId={this.$props.groupId}
         hasTraceInfo={this.hasTraceSeries}
         options={this.chartOption}
         subtitle={this.chart.subtitle}

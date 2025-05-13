@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,12 +14,13 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import datetime
 import hashlib
 import json
 import logging
 import traceback
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -34,7 +34,7 @@ from apm.models import DataLink
 from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
-from constants.apm import PreCalculateSpecificField
+from constants.apm import PreCalculateSpecificField, PRECALCULATE_RESULT_TABLE_OPTION
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
@@ -52,7 +52,7 @@ class RendezvousHash:
         max_node = None
         key = f"{bk_biz_id}:{app_name}"
         for node in self.nodes:
-            combined = f'{node}:{key}'
+            combined = f"{node}:{key}"
             hash_val = hashlib.sha1(combined.encode()).hexdigest()
             weight = int(hash_val, 16)
 
@@ -331,7 +331,7 @@ class PrecalculateStorage:
             return None, None, None, None, None
 
         node: str = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
-        result_table_id: str = node.split('-', 1)[-1]
+        result_table_id: str = node.split("-", 1)[-1]
         origin_index_name: str = rt_id_to_index(result_table_id)
 
         return (
@@ -391,8 +391,8 @@ class PrecalculateStorage:
         return DataLink.create_global(pre_calculate_config=pre_calculate_config)
 
     @classmethod
-    def get_datalink_or_none(cls, bk_biz_id: int) -> Optional[DataLink]:
-        datalink: Optional[DataLink] = DataLink.get_data_link(bk_biz_id)
+    def get_datalink_or_none(cls, bk_biz_id: int) -> DataLink | None:
+        datalink: DataLink | None = DataLink.get_data_link(bk_biz_id)
         # 不存在则创建
         if not datalink or not datalink.pre_calculate_config:
             try:
@@ -405,12 +405,12 @@ class PrecalculateStorage:
         return datalink
 
     @classmethod
-    def fetch_cluster_simple_infos(cls, bk_biz_id) -> List[Dict[str, Union[int, str]]]:
-        datalink: Optional[DataLink] = cls.get_datalink_or_none(bk_biz_id)
+    def fetch_cluster_simple_infos(cls, bk_biz_id) -> list[dict[str, int | str]]:
+        datalink: DataLink | None = cls.get_datalink_or_none(bk_biz_id)
         if datalink is None:
             return []
 
-        cluster_infos: List[Dict[str, Any]] = datalink.pre_calculate_config.get("cluster") or []
+        cluster_infos: list[dict[str, Any]] = datalink.pre_calculate_config.get("cluster") or []
         if not cluster_infos:
             logger.warning("[PreCalculate] empty pre_calculate clusters, bk_biz_id -> %s", bk_biz_id)
             return []
@@ -421,33 +421,33 @@ class PrecalculateStorage:
         ]
 
     @classmethod
-    def fetch_result_table_ids(cls, bk_biz_id: int) -> List[str]:
-        cluster_infos: List[Dict[str, Union[int, str]]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+    def fetch_result_table_ids(cls, bk_biz_id: int) -> list[str]:
+        cluster_infos: list[dict[str, int | str]] = cls.fetch_cluster_simple_infos(bk_biz_id)
         return [cluster_info["table_name"] for cluster_info in cluster_infos]
 
     @classmethod
     def list_nodes(
         cls, bk_biz_id: int, need_client: bool
-    ) -> Tuple[Optional[RendezvousHash], Optional[Dict[str, Any]], Optional[Dict[str, int]]]:
-        cluster_infos: List[Dict[str, Union[int, str]]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+    ) -> tuple[RendezvousHash | None, dict[str, Any] | None, dict[str, int] | None]:
+        cluster_infos: list[dict[str, int | str]] = cls.fetch_cluster_simple_infos(bk_biz_id)
         if not cluster_infos:
             return None, None, None
 
-        table_ids: List[str] = [cluster_info["table_name"] for cluster_info in cluster_infos]
-        table_storage_mapping: Dict[str, ESStorage] = {
+        table_ids: list[str] = [cluster_info["table_name"] for cluster_info in cluster_infos]
+        table_storage_mapping: dict[str, ESStorage] = {
             storage.table_id: storage for storage in ESStorage.objects.filter(table_id__in=table_ids)
         }
 
-        nodes: List[str] = []
-        id_mapping: Dict[str, int] = {}
-        node_mapping: Dict[str, Any] = {}
+        nodes: list[str] = []
+        id_mapping: dict[str, int] = {}
+        node_mapping: dict[str, Any] = {}
 
         for cluster_info in cluster_infos:
             table_name: str = cluster_info["table_name"]
             cluster_id: str = cluster_info["cluster_id"]
             key: str = f"{cluster_id}-{table_name}"
 
-            storage: Optional[ESStorage] = table_storage_mapping.get(table_name)
+            storage: ESStorage | None = table_storage_mapping.get(table_name)
             if storage is None:
                 try:
                     storage: ESStorage = cls.create_storage_table(cluster_id, table_name)
@@ -500,10 +500,14 @@ class PrecalculateStorage:
                 "table_name_zh": f"APM预计算结果表: {table_name}",
                 "is_custom_table": True,
                 "schema_type": "free",
+                # 默认情况下，预计算表需要按业务 ID 进行隔离查询。
+                "bk_biz_id_alias": PreCalculateSpecificField.BIZ_ID.value,
                 "default_storage": "elasticsearch",
                 "default_storage_config": {
                     "cluster_id": storage_id,
                     "storage_cluster_id": storage_id,
+                    # 指定 UnifyQuery 查询索引。
+                    "index_set": table_name.replace(".", "_"),
                     "slice_size": settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE,
                     "retention": settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION,
                     "slice_gap": 60 * 24,
@@ -517,7 +521,7 @@ class PrecalculateStorage:
                 "field_list": cls.TABLE_SCHEMA,
                 "is_time_field_only": True,
                 "label": "application_check",
-                "option": {},
+                "option": PRECALCULATE_RESULT_TABLE_OPTION,
                 "time_option": {
                     "es_type": "date",
                     "es_format": "epoch_millis",
@@ -565,7 +569,7 @@ class PrecalculateStorage:
                 continue
 
             for j in cluster_config:
-                instance = ESStorage.objects.filter(table_id=j['table_name']).first()
+                instance = ESStorage.objects.filter(table_id=j["table_name"]).first()
                 if not instance:
                     logger.info(f"[PreCalculateStorage-CHECK_UPDATE] storage: {j['table_name']} not created, skip")
                     continue
@@ -590,7 +594,7 @@ class PrecalculateStorage:
                         )
                 except Exception as e:  # noqa
                     logger.warning(
-                        f"[PreCalculateStorage-CHECK_UPDATE] " f"handle rt: {j['table_name']} fields update failed: {e}"
+                        f"[PreCalculateStorage-CHECK_UPDATE] handle rt: {j['table_name']} fields update failed: {e}"
                     )
 
     @classmethod

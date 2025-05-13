@@ -32,8 +32,8 @@ from core.drf_resource import api
 
 
 @using_cache(CacheType.APM(FIVE_MIN_SECONDS))
-def get_biz_index_sets_with_cache(_bk_biz_id):
-    return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
+def get_biz_index_sets_with_cache(bk_biz_id):
+    return api.log_search.search_index_set(bk_biz_id=bk_biz_id)
 
 
 class ServiceLogHandler:

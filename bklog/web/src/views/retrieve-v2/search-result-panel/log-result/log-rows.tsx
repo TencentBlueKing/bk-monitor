@@ -109,8 +109,7 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    let localSort = [];
- 
+
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
@@ -285,10 +284,10 @@ export default defineComponent({
                 }
                 return item;
               });
-              localSort = sortList
+              store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
-              store.dispatch('requestIndexSetQuery',{ localSort: sortList });
+              store.dispatch('requestIndexSetQuery');
             }
           });
         },
@@ -612,19 +611,28 @@ export default defineComponent({
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
-      for (let index = nextIdx; index < tableDataSize.value; index++) {
-        const nextRow = tableList.value[index];
-        if (!tableRowConfig.has(nextRow)) {
-          const rowKey = `${ROW_KEY}_${index}`;
-          tableRowConfig.set(
-            nextRow,
-            ref({
-              [ROW_KEY]: rowKey,
-              [ROW_INDEX]: index,
-              [ROW_F_JSON]: formatJson.value,
-              ...getRowConfigWithCache(),
-            }),
-          );
+      if (nextIdx >= 0) {
+        for (let index = nextIdx; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          if (!tableRowConfig.has(nextRow)) {
+            const rowKey = `${ROW_KEY}_${index}`;
+            tableRowConfig.set(
+              nextRow,
+              ref({
+                [ROW_KEY]: rowKey,
+                [ROW_INDEX]: index,
+                [ROW_F_JSON]: formatJson.value,
+                ...getRowConfigWithCache(),
+              }),
+            );
+          }
+        }
+      }
+
+      if (nextIdx === -1) {
+        for (let index = 0; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          tableRowConfig.delete(nextRow);
         }
       }
     };
@@ -652,6 +660,17 @@ export default defineComponent({
           ></ExpandView>
         );
       },
+    };
+
+    const resetRowListState = (oldValSize?) => {
+      hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+      setRenderList(null);
+      debounceSetLoading();
+      updateTableRowConfig(oldValSize ?? 0);
+
+      if (tableDataSize.value <= 50) {
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+      }
     };
 
     watch(
@@ -714,14 +733,15 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
-        setRenderList(null);
-        debounceSetLoading();
-        updateTableRowConfig(oldVal?.[0] ?? 0);
+        // hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+        // setRenderList(null);
+        // debounceSetLoading();
+        // updateTableRowConfig(oldVal?.[0] ?? 0);
 
-        if (tableDataSize.value <= 50) {
-          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        }
+        // if (tableDataSize.value <= 50) {
+        //   nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        // }
+        resetRowListState(oldVal?.[0]);
       },
       {
         immediate: true,
@@ -788,7 +808,7 @@ export default defineComponent({
       if (hasMoreList.value) {
         isRequesting.value = true;
         return store
-          .dispatch('requestIndexSetQuery', { isPagination: true, localSort })
+          .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
             if (resp?.size === 50) {
               pageIndex.value++;
@@ -1172,6 +1192,7 @@ export default defineComponent({
     };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
+      resetRowListState(-1);
     });
 
     return {

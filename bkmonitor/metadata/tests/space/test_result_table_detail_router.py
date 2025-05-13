@@ -48,6 +48,43 @@ def create_or_delete_records(mocker):
         table_id="2_bklog.test_doris_non_exists",
     )
 
+    # 计算平台结果表
+    models.ResultTable.objects.create(
+        table_id="2_bkbase_metric_agg.__default__",
+        bk_biz_id=2,
+        is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_BKDATA,
+        data_label="bkbase_rt_meta_metric",
+    )
+
+    models.ResultTableField.objects.create(
+        table_id="2_bkbase_metric_agg.__default__",
+        field_name="metric_a",
+        field_type="long",
+        tag="metric",
+        unit="",
+        is_config_by_user=False,
+        creator="system",
+    )
+    models.ResultTableField.objects.create(
+        table_id="2_bkbase_metric_agg.__default__",
+        field_name="metric_b",
+        field_type="long",
+        tag="metric",
+        unit="",
+        is_config_by_user=False,
+        creator="system",
+    )
+    models.ResultTableField.objects.create(
+        table_id="2_bkbase_metric_agg.__default__",
+        field_name="dimension_c",
+        field_type="long",
+        tag="dimension",
+        unit="",
+        is_config_by_user=False,
+        creator="system",
+    )
+
     # VM结果表
     models.BkBaseResultTable.objects.create(
         monitor_table_id="1001_bkmonitor_time_series_50010.__default__",
@@ -136,5 +173,33 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             mock_publish.assert_has_calls(
                 [
                     call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_non_exists"]),
+                ]
+            )
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_push_bkbase_table_id_detail(create_or_delete_records):
+    # 结果表详情路由推送 后台任务方式
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            space_client = SpaceTableIDRedis()
+            space_client.push_bkbase_table_id_detail(table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True)
+            expected_rt_detail_router = {
+                "2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
+                '"measurement":"",'
+                '"storage_type":"bk_sql",'
+                '"data_label":"bkbase_rt_meta_metric",'
+                '"fields":[["metric_a","metric_b"]]}'
+            }
+
+            mock_hmset_to_redis.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
+                ]
+            )
+
+            mock_publish.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bkbase_metric_agg.__default__"]),
                 ]
             )

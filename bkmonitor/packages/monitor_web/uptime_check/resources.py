@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -250,7 +249,7 @@ class UptimeCheckTaskListResource(Resource):
         th_list = []
         end = arrow.utcnow().timestamp
         for protocol, data in query_group.items():
-            data_label = "{}_{}".format(UPTIME_CHECK_DB, protocol.lower())
+            data_label = f"{UPTIME_CHECK_DB}_{protocol.lower()}"
             for period, task_id_list in data.items():
                 where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
 
@@ -372,7 +371,7 @@ class TestTaskResource(Resource):
                 except Exception:
                     # 版本格式异常，仍可测试下发拨测任务
                     pass
-            invalid_nodes.append(f'{plugin["inner_ip"] or plugin["inner_ipv6"]}-{plugin["bk_cloud_id"]}')
+            invalid_nodes.append(f"{plugin['inner_ip'] or plugin['inner_ipv6']}-{plugin['bk_cloud_id']}")
         if invalid_nodes:
             raise CustomException("部分节点版本校验失败，推荐升级至v3.5.0以上版本:%s" % ",".join(invalid_nodes))
 
@@ -668,8 +667,8 @@ class GenerateSubConfigResource(Resource):
                 "labels": labels,
                 "bk_biz_id": 0 if data["test"] else bk_biz_id,
                 "period": "{}s".format(config["period"]),
-                "available_duration": "{}ms".format(available_duration),
-                "timeout": "{}ms".format(timeout),
+                "available_duration": f"{available_duration}ms",
+                "timeout": f"{timeout}ms",
                 "target_host_list": target_host_list,
                 "target_port": config["port"],
                 "response": self.encode_data_with_prefix(config.get("response", "")),
@@ -685,8 +684,8 @@ class GenerateSubConfigResource(Resource):
                 "labels": labels,
                 "bk_biz_id": 0 if data["test"] else bk_biz_id,
                 "period": "{}s".format(config["period"]),
-                "available_duration": "{}ms".format(available_duration),
-                "timeout": "{}ms".format(timeout),
+                "available_duration": f"{available_duration}ms",
+                "timeout": f"{timeout}ms",
                 "target_host_list": target_host_list,
                 "target_port": config["port"],
                 "request_format": config.get("request_format", "hex"),
@@ -728,8 +727,8 @@ class GenerateSubConfigResource(Resource):
                 # 是否进行证书校验
                 "insecure_skip_verify": not auth.get("insecure_skip_verify", False),
                 "disable_keep_alives": False,
-                "available_duration": "{}ms".format(available_duration),
-                "timeout": "{}ms".format(timeout),
+                "available_duration": f"{available_duration}ms",
+                "timeout": f"{timeout}ms",
                 "dns_check_mode": config.get("dns_check_mode", "single"),
                 "target_ip_type": config.get("target_ip_type", 0),
                 "steps": [
@@ -743,7 +742,7 @@ class GenerateSubConfigResource(Resource):
                         "response_code": config.get("response_code", ""),
                         # available_duration 参数在step下(样例配置文件)
                         # 但从采集器代码看，还是在上层
-                        "available_duration": "{}ms".format(available_duration),
+                        "available_duration": f"{available_duration}ms",
                     }
                 ],
             }
@@ -767,8 +766,8 @@ class GenerateSubConfigResource(Resource):
                 "max_rtt": "3000ms" if data["test"] else "{}ms".format(config["max_rtt"]),
                 "total_num": 1 if data["test"] else config["total_num"],
                 "size": config["size"],
-                "available_duration": "{}ms".format(available_duration),
-                "timeout": "{}ms".format(timeout),
+                "available_duration": f"{available_duration}ms",
+                "timeout": f"{timeout}ms",
                 "target_host_list": target_host_list,
                 "node_list": config.get("node_list", []),
                 "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
@@ -821,7 +820,7 @@ class TaskDataResource(Resource):
                 "monitor_field": monitor_field,
                 "time_step": 0,
                 "interval": task.config["period"],
-                "result_table_id": "{}_{}_{}".format(str(task.bk_biz_id), UPTIME_CHECK_DB, task.protocol.lower()),
+                "result_table_id": f"{str(task.bk_biz_id)}_{UPTIME_CHECK_DB}_{task.protocol.lower()}",
             }
 
             if monitor_field == "available":
@@ -958,7 +957,7 @@ class TaskDetailResource(Resource):
             "interval": task.get_period(),
             "filter_dict": {"task_id": task_id},
             "monitor_field": monitor_field,
-            "result_table_id": "{}_{}_{}".format(str(bk_biz_id), UPTIME_CHECK_DB, protocol),
+            "result_table_id": f"{str(bk_biz_id)}_{UPTIME_CHECK_DB}_{protocol}",
             "group_by_list": ["ip", "bk_cloud_id"],
             "use_short_series_name": True,
             "unit": unit,
@@ -1224,6 +1223,7 @@ class UptimeCheckBeatResource(Resource):
                 else:
                     raise serializers.ValidationError("Expected a Host object.")
 
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
 
@@ -1277,7 +1277,9 @@ class UptimeCheckBeatResource(Resource):
 
         # nodes -> hosts
         if not hosts:
-            nodes = UptimeCheckNode.objects.filter(bk_tenant_id=get_request_tenant_id())
+            nodes = UptimeCheckNode.objects.filter(
+                bk_tenant_id=validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
+            )
             if bk_biz_id:
                 # 过滤业务下所有节点时，同时还应该加上通用节点
                 nodes = nodes.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True))
@@ -1382,8 +1384,8 @@ class GetBeatDataResource(Resource):
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
 
         def validate(self, attrs):
-            bk_host_ids = attrs.get('bk_host_ids', None)
-            ips = attrs.get('ips', None)
+            bk_host_ids = attrs.get("bk_host_ids", None)
+            ips = attrs.get("ips", None)
             if bk_host_ids is None and ips is None:
                 raise serializers.ValidationError("bk_host_ids 和 ips 至少存在一个")
             return attrs
@@ -1393,8 +1395,8 @@ class GetBeatDataResource(Resource):
         cloud_ips = defaultdict(list)
 
         for ip_info in ips:
-            cloud_id = ip_info['bk_cloud_id']
-            ip = ip_info['ip']
+            cloud_id = ip_info["bk_cloud_id"]
+            ip = ip_info["ip"]
             cloud_ips[cloud_id].append(ip)
 
         transformd_ips = []
@@ -1408,7 +1410,7 @@ class GetBeatDataResource(Resource):
         start = end - 180
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         if data.get("bk_host_ids"):
-            condition_statement = f'''bk_host_id=~"{'|'.join(data.get('bk_host_ids'))}"'''
+            condition_statement = f'''bk_host_id=~"{"|".join(data.get("bk_host_ids"))}"'''
             promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}"
         else:
             ips = data.get("ips")
@@ -1420,7 +1422,7 @@ class GetBeatDataResource(Resource):
                 if len(ips) == 1:
                     condition_statement = f'ip="{ips[0]}", bk_cloud_id="{bk_cloud_id}"'
                 else:
-                    condition_statement = f'''ip=~"{'$|'.join(ips)}$", bk_cloud_id="{bk_cloud_id}"'''
+                    condition_statement = f'''ip=~"{"$|".join(ips)}$", bk_cloud_id="{bk_cloud_id}"'''
                 promql_statement_list.append(f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}")
             promql_statement = "(" + " or ".join(promql_statement_list) + ")"
 
@@ -1516,7 +1518,9 @@ class GenerateDefaultStrategyResource(Resource):
         if task.protocol == task.Protocol.HTTP:
             # 如果HTTP任务指定了状态码
             if task.config["response_code"] and (task.protocol == task.Protocol.HTTP):
-                self.gen_default_strategy(task, "response_code", _("状态码"), "gte", 1, UPTIME_CHECK_MONIT_RESPONSE_CODE)
+                self.gen_default_strategy(
+                    task, "response_code", _("状态码"), "gte", 1, UPTIME_CHECK_MONIT_RESPONSE_CODE
+                )
             # 如果指定了响应内容
             if task.config["response"]:
                 self.gen_default_strategy(task, "response", _("响应内容"), "gte", 1, UPTIME_CHECK_MONIT_RESPONSE)
@@ -1528,7 +1532,7 @@ class UpdateTaskRunningStatusResource(Resource):
     """
 
     def __init__(self):
-        super(UpdateTaskRunningStatusResource, self).__init__()
+        super().__init__()
 
     def check_single_task_status(self, subscription_id):
         while True:
@@ -1537,7 +1541,7 @@ class UpdateTaskRunningStatusResource(Resource):
             try:
                 status_result = api.node_man.batch_task_result(subscription_id=subscription_id)
             except BKAPIError as e:
-                logger.error("请求节点管理任务{}执行结果接口:batch_task_result失败: {}".format(subscription_id, e))
+                logger.error(f"请求节点管理任务{subscription_id}执行结果接口:batch_task_result失败: {e}")
                 return
             log = []
             nodeman_task_id = ""
@@ -1599,7 +1603,7 @@ class BatchUpdateTaskRunningStatusResource(Resource):
     """周期更新任务状态，用于celery周期任务"""
 
     def __init__(self):
-        super(BatchUpdateTaskRunningStatusResource, self).__init__()
+        super().__init__()
 
     @staticmethod
     def check_task_status(subscription_id_list):
@@ -1619,7 +1623,7 @@ class BatchUpdateTaskRunningStatusResource(Resource):
                     [{"subscription_id": s_id} for s_id in subscription_ids]
                 )
             except BKAPIError as e:
-                logger.error("请求节点管理任务执行结果接口失败: {}".format(e))
+                logger.error(f"请求节点管理任务执行结果接口失败: {e}")
                 return
             for index, subscription_id in enumerate(subscription_ids):
                 result[subscription_id] = status_result[index][0].get("status")
@@ -1703,7 +1707,7 @@ class FrontPageDataResource(Resource):
                 "time_end": end,
                 "monitor_field": "available",
                 "series_name": task.name,
-                "result_table_id": "{}_{}_{}".format(str(task.bk_biz_id), UPTIME_CHECK_DB, task.protocol.lower()),
+                "result_table_id": f"{str(task.bk_biz_id)}_{UPTIME_CHECK_DB}_{task.protocol.lower()}",
                 "unit": "percentunit",
                 "conversion": 1,
                 "time_step": 0,
@@ -1755,7 +1759,9 @@ class ExportUptimeCheckConfResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         task_ids = serializers.CharField(required=False, label="拨测任务ID")
         protocol = serializers.ChoiceField(required=False, choices=["TCP", "UDP", "HTTP"], label="协议类型")
-        node_conf_needed = serializers.ChoiceField(required=False, choices=[0, 1], default=1, label="是否需要导出节点配置")
+        node_conf_needed = serializers.ChoiceField(
+            required=False, choices=[0, 1], default=1, label="是否需要导出节点配置"
+        )
 
         def validate_task_ids(self, value):
             r = re.match(r"^\d+(,\d+)*$", value)
@@ -1910,7 +1916,12 @@ class FileParseResource(Resource):
         if validated_request_data["protocol"] == "HTTP(S)":
             result_data = [
                 {"cnkey": _("任务名称（必填）"), "enkey": "name", "required": True, "regex": r"^.{1,50}$"},
-                {"cnkey": _("协议（必填）"), "enkey": "protocol", "required": True, "regex": r"^HTTP\(S\)$|^http\(s\)$"},
+                {
+                    "cnkey": _("协议（必填）"),
+                    "enkey": "protocol",
+                    "required": True,
+                    "regex": r"^HTTP\(S\)$|^http\(s\)$",
+                },
                 {"cnkey": _("方法（必填）"), "enkey": "method", "required": True, "regex": r"^GET$|^POST$"},
                 {
                     "cnkey": _("地址（必填,小写）"),
@@ -1919,7 +1930,12 @@ class FileParseResource(Resource):
                     "regex": r"(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]",
                 },
                 {"cnkey": _("节点（必填）"), "enkey": "node_list", "required": True},
-                {"cnkey": _("提交内容（POST、PUT、PATCH方法必填）"), "enkey": "request", "required": False, "default": ""},
+                {
+                    "cnkey": _("提交内容（POST、PUT、PATCH方法必填）"),
+                    "enkey": "request",
+                    "required": False,
+                    "default": "",
+                },
                 {
                     "cnkey": _("SSL证书校验"),
                     "enkey": "insecure_skip_verify",
@@ -1935,7 +1951,13 @@ class FileParseResource(Resource):
                     "regex": r"^[1-9]\d*$",
                 },
                 {"cnkey": _("任务分组"), "enkey": "groups", "required": False, "default": "", "regex": r"^.{0,50}$"},
-                {"cnkey": _("周期（默认分钟）"), "enkey": "period", "required": False, "default": "1", "regex": r"^[1-9]\d*$"},
+                {
+                    "cnkey": _("周期（默认分钟）"),
+                    "enkey": "period",
+                    "required": False,
+                    "default": "1",
+                    "regex": r"^[1-9]\d*$",
+                },
                 {
                     "cnkey": _("周期是否为秒级"),
                     "enkey": "second_period_unit",
@@ -1985,7 +2007,13 @@ class FileParseResource(Resource):
                     "regex": r"^[1-9]\d*$",
                 },
                 {"cnkey": _("任务分组"), "enkey": "groups", "required": False, "default": "", "regex": r"^.{0,50}$"},
-                {"cnkey": _("周期（默认分钟）"), "enkey": "period", "required": False, "default": "1", "regex": r"^[1-9]\d*$"},
+                {
+                    "cnkey": _("周期（默认分钟）"),
+                    "enkey": "period",
+                    "required": False,
+                    "default": "1",
+                    "regex": r"^[1-9]\d*$",
+                },
                 {
                     "cnkey": _("周期是否为秒级"),
                     "enkey": "second_period_unit",
@@ -2043,7 +2071,13 @@ class FileParseResource(Resource):
                     "regex": r"^[1-9]\d*$",
                 },
                 {"cnkey": _("任务分组"), "enkey": "groups", "required": False, "default": "", "regex": r"^.{0,50}$"},
-                {"cnkey": _("周期（默认分钟）"), "enkey": "period", "required": False, "default": "1", "regex": r"^[1-9]\d*$"},
+                {
+                    "cnkey": _("周期（默认分钟）"),
+                    "enkey": "period",
+                    "required": False,
+                    "default": "1",
+                    "regex": r"^[1-9]\d*$",
+                },
                 {
                     "cnkey": _("周期是否为秒级"),
                     "enkey": "second_period_unit",
@@ -2099,7 +2133,13 @@ class FileParseResource(Resource):
                     "regex": r"^[1-9]\d*$",
                 },
                 {"cnkey": _("任务分组"), "enkey": "groups", "required": False, "default": "", "regex": r"^.{0,50}$"},
-                {"cnkey": _("周期（默认分钟）"), "enkey": "period", "required": False, "default": "1", "regex": r"^[1-9]\d*$"},
+                {
+                    "cnkey": _("周期（默认分钟）"),
+                    "enkey": "period",
+                    "required": False,
+                    "default": "1",
+                    "regex": r"^[1-9]\d*$",
+                },
                 {
                     "cnkey": _("周期是否为秒级"),
                     "enkey": "second_period_unit",
@@ -2774,7 +2814,7 @@ class ImportUptimeCheckTaskResource(Resource):
                             "solution_type": "job",
                             "solution_is_enable": False,
                             "monitor_id": 0,
-                            "where_sql": "(task_id={})".format(task_obj.id),
+                            "where_sql": f"(task_id={task_obj.id})",
                             "task_id": task_obj.id,
                             "bk_biz_id": task_obj.bk_biz_id,
                         }
