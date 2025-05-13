@@ -134,7 +134,7 @@
         }
 
         .node-open-arrow {
-          padding: 4px;
+          padding: 2px;
 
           &.is-closed {
             .bklog-icon {
@@ -199,17 +199,19 @@
             padding-right: 12px;
           }
 
-          .group-icon {
-            display: none;
-            width: 8px;
-          }
-
           .index-set-name {
             padding-left: 12px;
             border-left: solid 1px #a3b1cc;
 
             &::before {
               left: 14px;
+            }
+          }
+
+          &:not(.no-authority) {
+            .group-icon {
+              display: none;
+              width: 8px;
             }
           }
         }
@@ -248,10 +250,22 @@
           background: #e1ecff;
           color: #3a84ff;
 
+          .group-icon {
+            &::after {
+              background-color: #e1ecff;
+            }
+          }
+
           .index-set-tags {
             .index-set-tag-item {
               background: #ffffff;
             }
+          }
+        }
+
+        &:not(.has-child) {
+          .node-open-arrow {
+            visibility: hidden;
           }
         }
       }

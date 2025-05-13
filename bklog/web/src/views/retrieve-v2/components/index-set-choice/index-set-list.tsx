@@ -275,7 +275,12 @@ export default defineComponent({
               ></span>
             )}
             <span
-              class={['node-open-arrow', { 'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed' }]}
+              class={[
+                'node-open-arrow',
+                {
+                  'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed',
+                },
+              ]}
               onClick={e => handleNodeOpenClick(e, item)}
             >
               <i class='bklog-icon bklog-arrow-down-filled'></i>
