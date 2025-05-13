@@ -281,7 +281,8 @@
     }
 
     &__content {
-      height: 100%;
+      // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+      height: calc(100% + 1px);
 
       .t-table--layout-fixed {
         height: 100%;
