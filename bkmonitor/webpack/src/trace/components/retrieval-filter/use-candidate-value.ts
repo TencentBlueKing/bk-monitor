@@ -39,8 +39,9 @@ interface IParams {
   limit: number;
   fields: string[];
 }
-export const useCandidateValue = (axiosController: AbortController) => {
+export const useCandidateValue = () => {
   const candidateValueMap: ICandidateValueMap = new Map();
+  let axiosController = new AbortController();
 
   function getFieldsOptionValuesProxy(params: IParams): Promise<{ id: string; name: string }[]> {
     return new Promise((resolve, _reject) => {
@@ -60,6 +61,8 @@ export const useCandidateValue = (axiosController: AbortController) => {
           resolve(candidateItem.values.slice(0, params.limit));
         }
       } else {
+        axiosController.abort();
+        axiosController = new AbortController();
         getFieldsOptionValues(params, {
           signal: axiosController.signal,
         })
