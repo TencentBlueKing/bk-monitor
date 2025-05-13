@@ -1386,7 +1386,7 @@ class ResultTable(models.Model):
 
         # 刷新清洗配置
         self.refresh_etl_config()
-        logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success." % self.table_id, self.bk_tenant_id)
+        logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
     # TODO: 多租户 计算平台关联接口，暂未改造
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
