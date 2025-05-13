@@ -40,6 +40,7 @@ export default defineComponent({
     const localValue = shallowRef<IFilterItem>(null);
     const hideCount = shallowRef(0);
     const isSetting = shallowRef(false);
+    const groupRelation = shallowRef('OR');
 
     const isHide = computed(() => {
       if (typeof localValue.value?.hide === 'boolean') {
@@ -74,6 +75,7 @@ export default defineComponent({
             $value,
           };
           hideCount.value = val.value.length - 3;
+          groupRelation.value = val?.options?.group_relation || 'OR';
           flickerTag(!!val?.isSetting);
         }
       },
@@ -111,6 +113,7 @@ export default defineComponent({
       isSetting,
       isHide,
       hideCount,
+      groupRelation,
       handleClickComponent,
       handleHide,
       handleDelete,
@@ -149,7 +152,7 @@ export default defineComponent({
                       key={`${index}_condition`}
                       class='value-condition'
                     >
-                      OR
+                      {this.groupRelation}
                     </span>
                   ),
                   <span

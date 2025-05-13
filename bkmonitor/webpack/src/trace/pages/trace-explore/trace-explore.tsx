@@ -29,7 +29,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
@@ -37,6 +37,7 @@ import pinyin from 'tiny-pinyin';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
+import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
@@ -73,6 +74,7 @@ export default defineComponent({
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
+
     /** 自动查询定时器 */
     let autoQueryTimer = null;
     const applicationLoading = shallowRef(false);
@@ -117,6 +119,7 @@ export default defineComponent({
     const editFavoriteShow = shallowRef(false);
 
     let axiosController = new AbortController();
+    const { getFieldsOptionValuesProxy } = useCandidateValue(axiosController);
 
     const residentSettingOnlyId = computed(() => {
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
@@ -350,46 +353,71 @@ export default defineComponent({
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
-      axiosController?.abort?.();
+      // axiosController?.abort?.();
       axiosController = new AbortController();
       const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
-      return getFieldsOptionValues(
-        {
-          app_name: store.appName,
-          start_time: startTime,
-          end_time: endTime,
-          fields: params?.fields || [],
-          limit: params?.limit || 5,
-          filters:
-            params?.where?.map(item => ({
-              key: item.key,
-              operator: 'like',
-              value: item.value || [],
-            })) || [],
-          query_string: params?.queryString || '',
-          mode: store.mode,
-        },
-        {
-          signal: axiosController.signal,
-        }
-      )
+      return getFieldsOptionValuesProxy({
+        app_name: store.appName,
+        start_time: startTime,
+        end_time: endTime,
+        fields: params?.fields || [],
+        limit: params?.limit || 5,
+        filters:
+          params?.where?.map(item => ({
+            key: item.key,
+            operator: 'like',
+            value: item.value || [],
+          })) || [],
+        query_string: params?.queryString || '',
+        mode: store.mode,
+      } as any)
         .then(res => {
-          const data = res?.[params?.fields?.[0]] || [];
           return {
-            count: +data?.length || 0,
-            list:
-              data?.map(item => ({
-                id: item,
-                name: item,
-              })) || [],
+            count: res.length,
+            list: res,
           };
         })
-        .catch(() => {
-          return {
-            count: 0,
-            list: [],
-          };
-        });
+        .catch(() => ({
+          count: 0,
+          list: [],
+        }));
+      // return getFieldsOptionValues(
+      //   {
+      //     app_name: store.appName,
+      //     start_time: startTime,
+      //     end_time: endTime,
+      //     fields: params?.fields || [],
+      //     limit: params?.limit || 5,
+      //     filters:
+      //       params?.where?.map(item => ({
+      //         key: item.key,
+      //         operator: 'like',
+      //         value: item.value || [],
+      //       })) || [],
+      //     query_string: params?.queryString || '',
+      //     mode: store.mode,
+      //   },
+      //   {
+      //     signal: axiosController.signal,
+      //   }
+      // )
+      //   .then(res => {
+      //     const data = res?.[params?.fields?.[0]] || [];
+      //     return {
+      //       count: +data?.length || 0,
+      //       list:
+      //         data?.map(item => ({
+      //           id: item,
+      //           name: item,
+      //         })) || [],
+      //     };
+      //   })
+      //   .catch(() => {
+      //     return {
+      //       count: 0,
+      //       list: [],
+      //     };
+      //   });
     }
 
     /**
