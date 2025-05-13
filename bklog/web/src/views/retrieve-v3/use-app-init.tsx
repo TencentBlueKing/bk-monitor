@@ -178,8 +178,8 @@ export default () => {
         // 拉取完毕根据当前路由参数回填默认选中索引集
         store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
           setDefaultIndexsetId();
-          const type = route.params.indexId ? 'single' : 'union';
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+          // const type = route.params.indexId ? 'single' : 'union';
+          // RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
 
           store.dispatch('requestIndexSetFieldInfo').then(() => {
             store.dispatch('requestIndexSetQuery').then(() => {
