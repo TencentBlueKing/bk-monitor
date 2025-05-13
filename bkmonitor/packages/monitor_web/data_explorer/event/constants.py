@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import sys
 from enum import Enum, IntEnum
-from typing import Dict, Tuple
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -73,7 +72,9 @@ class EventSource(CachedEnum):
     @cached_property
     def label(self):
         return str(
-            {self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")}.get(self, self.value)
+            {self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")}.get(
+                self, self.value
+            )
         )
 
     @classmethod
@@ -151,9 +152,9 @@ CATEGORY_WEIGHTS = {
     EventCategory.CICD_EVENT.value: CategoryWeight.CICD_EVENT.value,
 }
 
-DEFAULT_EVENT_ORIGIN: Tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
+DEFAULT_EVENT_ORIGIN: tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
 
-EVENT_ORIGIN_MAPPING: Dict[str, Tuple[str, str]] = {
+EVENT_ORIGIN_MAPPING: dict[str, tuple[str, str]] = {
     EventCategory.SYSTEM_EVENT.value: (
         EventDomain.SYSTEM.value,
         EventSource.HOST.value,
@@ -194,7 +195,7 @@ class EventDimensionTypeEnum(Enum):
 
 
 # 事件字段别名
-EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
+EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
     EventCategory.COMMON.value: {
         "time": _("数据上报时间"),
         "event_name": _("事件名"),
@@ -274,12 +275,20 @@ class Operation:
     NE = {"alias": "!=", "value": "ne"}
     GT = {"alias": ">", "value": "gt"}
     GTE = {"alias": ">=", "value": "gte"}
-    LT = {"alias": "<", "value": "le"}
+    LT = {"alias": "<", "value": "lt"}
     LTE = {"alias": "<=", "value": "lte"}
     INCLUDE = {"alias": _("包含"), "value": "include"}
     EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
-    EQ_WITH_WILDCARD = {"alias": _("包含"), "value": "include", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
-    NE_WITH_WILDCARD = {"alias": _("不包含"), "value": "exclude", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
+    EQ_WITH_WILDCARD = {
+        "alias": _("包含"),
+        "value": "include",
+        "options": {"label": _("使用通配符"), "name": "is_wildcard"},
+    }
+    NE_WITH_WILDCARD = {
+        "alias": _("不包含"),
+        "value": "exclude",
+        "options": {"label": _("使用通配符"), "name": "is_wildcard"},
+    }
 
 
 # 类型和操作符映射

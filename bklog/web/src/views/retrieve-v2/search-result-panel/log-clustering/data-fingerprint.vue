@@ -237,7 +237,7 @@
             }"
           >
             <bk-user-selector
-             v-if="!isExternal"
+              v-if="!isExternal"
               style="margin-top: 4px"
               class="principal-input"
               :api="userApi"
@@ -256,7 +256,7 @@
               :allow-create="true"
               :clearable="false"
               :has-delete-icon="true"
-              @change="val => handleChangePrincipal(val, row)"
+              @blur="val => handleChangePrincipal(null, row)"
             >
             </bk-tag-input>
           </div>
@@ -591,8 +591,8 @@
         return this.$store.state.userMeta?.username;
       },
       isExternal() {
-        return window.IS_EXTERNAL === true
-      }
+        return window.IS_EXTERNAL === true;
+      },
     },
     watch: {
       'fingerList.length': {
@@ -920,6 +920,11 @@
           });
           return;
         }
+
+        if (!row.owners.length) {
+          return;
+        }
+
         this.curEditUniqueVal = {
           signature: row.signature,
           group: row.group,
@@ -931,7 +936,7 @@
             },
             data: {
               signature: this.getHoverRowValue.signature,
-              owners: val,
+              owners: val ?? row.owners,
               origin_pattern: this.getHoverRowValue.origin_pattern,
               groups: this.getGroupsValue(row.group),
             },
@@ -1446,19 +1451,19 @@
         }
       }
 
-      :deep(.bk-tag-input){
+      :deep(.bk-tag-input) {
         background-color: transparent;
         border: none;
 
-        .input{
+        .input {
           background-color: transparent;
         }
       }
 
-      :deep(.bk-tag-input):hover{
+      :deep(.bk-tag-input):hover {
         background-color: #eaebf0;
 
-        .input{
+        .input {
           background-color: #eaebf0;
         }
       }

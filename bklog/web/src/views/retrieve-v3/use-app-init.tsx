@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -40,6 +40,7 @@ export default () => {
   const searchBarHeight = ref(0);
   const leftFieldSettingWidth = ref(0);
   const leftFieldSettingShown = ref(true);
+  const isPreApiLoaded = ref(false);
 
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
@@ -168,18 +169,26 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
-      // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-        setDefaultIndexsetId();
-        const type = route.params.indexId ? 'single' : 'union';
-        RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery');
-          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+    return store
+      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
+      .then(resp => {
+        isPreApiLoaded.value = true;
+        RetrieveHelper.setSearchingValue(true);
+
+        // 拉取完毕根据当前路由参数回填默认选中索引集
+        store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+          setDefaultIndexsetId();
+          const type = route.params.indexId ? 'single' : 'union';
+          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+
+          store.dispatch('requestIndexSetFieldInfo').then(() => {
+            store.dispatch('requestIndexSetQuery').then(() => {
+              RetrieveHelper.setSearchingValue(false);
+            });
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          });
         });
       });
-    });
   };
 
   const handleSpaceIdChange = () => {
@@ -260,9 +269,19 @@ export default () => {
   });
 
   /** * 结束计算 ***/
-
   onMounted(() => {
     RetrieveHelper.onMounted();
+
+    const bkBizId = store.state.bkBizId;
+    const spaceUid = store.state.spaceUid;
+
+    router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...route.query,
+      },
+    });
   });
 
   onUnmounted(() => {
@@ -275,5 +294,6 @@ export default () => {
     stickyStyle,
     contentStyle,
     isFavoriteShown,
+    isPreApiLoaded,
   };
 };

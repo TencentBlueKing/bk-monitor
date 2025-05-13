@@ -41,24 +41,14 @@ import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { downCsvFile } from '../../../pages/view-detail/utils';
 import { matchRuleFn } from '../group-manage-dialog';
 import DimensionTableSlide from './dimension-table-slide';
-import IndicatorTableSlide, { fuzzyMatch } from './metric-table-slide';
+import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
+import { ALL_LABEL, type IGroupListItem, NULL_LABEL } from './type';
+import { fuzzyMatch } from './utils';
 
 import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
-
-// 常量定义
-export const ALL_LABEL = '__all_label__';
-export const NULL_LABEL = '__null_label__';
-
-// 接口定义
-export interface IGroupListItem {
-  name: string; // 分组名称
-  matchRules: string[]; // 匹配规则
-  manualList: string[]; // 手动添加的指标
-  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
-}
 
 interface IMetricSearchObject {
   name: string[];
@@ -212,8 +202,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         // 过滤分组
         (length
           ? this.groupFilterList.some(
-              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-            )
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          )
           : true) &&
         // 过滤名称
         (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
@@ -251,6 +241,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         item.id = 'name';
         item.values = [{ id: item.name, name: item.name }];
       }
+      if (item.id === 'unit') {
+        for (const v of item.values) {
+          v.id = v.name;
+        }
+      }
       search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
     }
 
@@ -278,75 +273,75 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     // 构建JSON内容
     const dimensions = this.dimensions.length
       ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
+        name,
+        type,
+        description,
+        disabled,
+        common,
+      }))
+      : [
+        {
+          name: 'dimension1',
+          type: 'dimension',
+          description: '',
+          disabled: true,
+          common: true,
+        },
+      ];
+
+    const metrics = this.metricData.length
+      ? this.metricData.map(
+        ({
           name,
           type,
           description,
           disabled,
-          common,
-        }))
+          unit,
+          hidden,
+          aggregate_method,
+          interval,
+          label,
+          dimensions,
+          function: func,
+        }) => ({
+          type,
+          name,
+          description,
+          disabled,
+          unit,
+          hidden,
+          aggregate_method,
+          interval,
+          label,
+          dimensions,
+          function: func,
+        })
+      )
       : [
-          {
-            name: 'dimension1',
-            type: 'dimension',
-            description: '',
-            disabled: true,
-            common: true,
-          },
-        ];
-
-    const metrics = this.metricData.length
-      ? this.metricData.map(
-          ({
-            name,
-            type,
-            description,
-            disabled,
-            unit,
-            hidden,
-            aggregate_method,
-            interval,
-            label,
-            dimensions,
-            function: func,
-          }) => ({
-            type,
-            name,
-            description,
-            disabled,
-            unit,
-            hidden,
-            aggregate_method,
-            interval,
-            label,
-            dimensions,
-            function: func,
-          })
-        )
-      : [
-          {
-            name: 'metric1',
-            type: 'metric',
-            description: '',
-            disabled: false,
-            unit: '',
-            hidden: false,
-            aggregate_method: '',
-            function: {},
-            interval: 0,
-            label: [],
-            dimensions: ['dimension1'],
-          },
-        ];
+        {
+          name: 'metric1',
+          type: 'metric',
+          description: '',
+          disabled: false,
+          unit: '',
+          hidden: false,
+          aggregate_method: '',
+          function: {},
+          interval: 0,
+          label: [],
+          dimensions: ['dimension1'],
+        },
+      ];
 
     const groupRules = this.groupList
       ? this.groupList
       : [
-          {
-            name: '测试分组',
-            manual_list: ['metric1'],
-            auto_rules: ['rule1'],
-          },
-        ];
+        {
+          name: '测试分组',
+          manual_list: ['metric1'],
+          auto_rules: ['rule1'],
+        },
+      ];
 
     const template = {
       dimensions,
@@ -476,6 +471,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       this.dimensions = metricData?.dimensions || [];
 
       await this.getGroupList();
+      await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       this.handleDetailData(this.detailData);
     } catch (error) {
       console.error('获取详情数据失败:', error);
@@ -591,6 +587,16 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
 
+  /* 获取所有数据预览数据 */
+  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
+    const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
+    const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
+      result_table_id: tableId,
+      fields_list: fieldList,
+    });
+    this.allDataPreview = data?.fields_value || {};
+  }
+
   /**
    * 获取分组管理数据
    */
@@ -615,7 +621,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const metricNames = this.metricList.map(item => item.name);
     const allMatchRulesSet = new Set();
     const metricGroupsMap = new Map();
-
+    this.groupsMap = new Map();
     // 收集所有匹配规则
     for (const item of this.groupList) {
       for (const rule of item.matchRules) {
@@ -1157,8 +1163,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         manual_list: newMetrics,
         auto_rules: group.matchRules || [],
       });
+      await this.getDetailData();
       this.updateCheckValue();
-      this.getDetailData();
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
     } catch (error) {
       console.error(`批量添加分组 ${groupName} 更新失败:`, error);
@@ -1214,8 +1220,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         this.updateGroupInfo(metricName, changes.added),
         this.updateGroupInfo(metricName, changes.removed, false),
       ]);
-
-      this.getDetailData();
+      await this.getDetailData();
+      this.updateCheckValue();
     } catch (error) {
       console.error('分组更新失败:', error);
     }
@@ -1238,9 +1244,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
    */
   async handleSubmitGroup(config: Record<string, any>): Promise<void> {
     await this.submitGroupInfo(config);
-    await this.getGroupList();
     this.changeGroupFilterList(config.name);
-    this.getDetailData();
+    await this.getDetailData();
     this.nonGroupNum = this.getNonGroupNum();
   }
 
@@ -1258,8 +1263,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (this.groupFilterList[0] === name) {
       this.changeGroupFilterList(ALL_LABEL);
     }
-
-    this.getDetailData();
+    await this.getDetailData();
     this.nonGroupNum = this.getNonGroupNum();
   }
 
@@ -1330,8 +1334,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       update_fields: localTable,
       delete_fields: delArray,
     });
-
-    this.getDetailData();
+    await this.getDetailData();
+    this.allCheckValue = 0;
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
 

@@ -77,7 +77,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
 
   localWhereValueList: Readonly<IProps['value']> = [];
   localCommonConditionValueList: Readonly<IProps['commonConditionValue']> = [];
-  isShowCommonlyUsedList = false;
+  isShowCommonlyUsedList = true;
   localCustomDataValueList: Readonly<IProps['customData']> = [];
 
   get commonDimensionList() {
@@ -168,7 +168,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   }
 
   created() {
-    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] === 'true';
+    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] || true;
   }
 
   render() {

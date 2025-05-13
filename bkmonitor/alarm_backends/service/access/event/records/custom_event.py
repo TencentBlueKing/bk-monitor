@@ -134,6 +134,7 @@ class GseCustomStrEventRecord(EventRecord):
             return []
 
         for strategy_id, strategy_obj in list(strategies.items()):
+            # 针对每条策略， 只要是配置了该事件的策略，都克隆一个新的event record 对象。
             if not strategy_obj.items or self.METRIC_ID not in strategy_obj.items[0].metric_ids:
                 continue
             new_alarm = {}

@@ -782,4 +782,8 @@ export default {
   字段名称设置: 'Field name settings',
   前往查看: 'Go to view',
   '检索结果（找到 {0} 条结果，用时{1}毫秒) {2}': 'Retrieval results (found {0} results, took {1} milliseconds) {2}',
+  日志分级展示: 'Log Level Display',
+  分级展示: 'Level Display',
+  '文本溢出（省略设置）': 'Text overflow (ellipsis setting)',
+  快捷键: 'Shortcut Key',
 };
