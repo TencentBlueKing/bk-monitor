@@ -124,7 +124,7 @@ export default defineComponent({
         ref='chart'
         class='explore-chart'
       >
-        {this.panel && !!this.metricList?.length && (
+        {this.panel && (
           <ChartTitle
             class='draggable-handle'
             dragging={this.panel.dragging}
