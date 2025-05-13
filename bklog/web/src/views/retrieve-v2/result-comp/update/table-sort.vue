@@ -18,7 +18,7 @@
             class="rtl-text"
             v-model="sorts[0]"
             auto-focus
-            filterable
+            searchable
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <div
