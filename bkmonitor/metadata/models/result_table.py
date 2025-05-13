@@ -561,8 +561,6 @@ class ResultTable(models.Model):
                 result_table, bk_data_id, bk_tenant_id
             )
         )
-        DataSourceResultTable.objects.create(bk_data_id=bk_data_id, table_id=table_id, creator=operator)
-        logger.info(f"create_result_table: result_table->[{result_table}] now has relate to bk_data->[{bk_data_id}]")
 
         # 5. 创建实际结果表
         if default_storage_config is None:
