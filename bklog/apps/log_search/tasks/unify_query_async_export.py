@@ -225,7 +225,7 @@ class AsyncExportUtils:
         export_method = self.quick_export if self.is_quick_export else self.async_export
         export_method()
 
-    def _unify_query_async_export(self, file_path):
+    def _async_export(self, file_path):
         try:
             index_set = self.unify_query_handler.index_info_list[0]["index_set_obj"]
             max_result_window = index_set.result_window
@@ -242,32 +242,9 @@ class AsyncExportUtils:
 
         return file_path
 
-    def _async_export(self, search_handler, file_path):
-        try:
-            max_result_window = search_handler.index_set.result_window
-            result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
-            # 判断是否成功
-            if result["_shards"]["total"] != result["_shards"]["successful"]:
-                logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
-                raise PreCheckAsyncExportException()
-            with open(file_path, "a+", encoding="utf-8") as f:
-                result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
-                for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
-                if search_handler.scenario_id == Scenario.ES:
-                    generate_result = search_handler.scroll_result(result)
-                else:
-                    generate_result = search_handler.search_after_result(result, self.sorted_fields)
-                self.write_file(f, generate_result)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception("async export error: index_set_id: %s, reason: %s", search_handler.index_set_id, e)
-            raise e
-
-        return file_path
-
     def async_export(self):
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
-        result = self._unify_query_async_export(file_path=summary_file_path)
+        result = self._async_export(file_path=summary_file_path)
         self.file_path_list.append(result)
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
