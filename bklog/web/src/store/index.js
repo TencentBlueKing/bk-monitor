@@ -171,7 +171,7 @@ const stateTpl = {
   features: {
     isAiAssistantActive: false,
   },
-  localSort: false
+  localSort: false,
 };
 
 const store = new Vuex.Store({
@@ -1143,11 +1143,11 @@ const store = new Vuex.Store({
     },
     /**
      * 执行查询
-     * 
+     *
      * @param {Boolean} payload.isPagination - 是否是分页请求。
      * @param {CancelToken} payload.cancelToken - 用于取消请求的 Axios cancel token。
      * @param {Number} payload.searchCount - 自定义的查询计数器。
-     * 
+     *
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
@@ -1638,6 +1638,10 @@ const store = new Vuex.Store({
           if (newSearchKeywords.length) {
             const lastIndex = newSearchKeywords.length - 1;
             newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
+          }
+
+          if (!/\s$/.test(keywords[0])) {
+            keywords[0] = keywords[0] + ' ';
           }
 
           const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
