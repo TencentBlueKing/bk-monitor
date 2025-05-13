@@ -35,7 +35,7 @@ class LogGroup(CustomGroupBase):
     GROUP_NAME_FIELD = "log_group_name"
 
     @staticmethod
-    def make_table_id(bk_biz_id: int, bk_data_id: int, table_name: str = None, bk_tenant_id=DEFAULT_TENANT_ID) -> str:
+    def make_table_id(bk_biz_id: int, bk_data_id: int, table_name: str = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> str:
         """
         获取表名
         """
