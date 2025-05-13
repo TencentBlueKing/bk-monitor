@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import datetime
 import json
 
-import six
 from django.db import models
 from django.utils.translation import gettext as _
 
@@ -65,6 +63,7 @@ class Label(models.Model):
         :param include_admin_only: 是否只需要返回全部标签, 包含只管理员可用的配置标签
         :param label_type: 标签类型，可选参数
         :param level: 标签层级，可选参数
+        :param bk_tenant_id: 租户ID
         :return: {
             "source_label": [{
                 "label_id": "bk_monitor_collector",
@@ -166,6 +165,7 @@ class OptionBase(models.Model):
     value = models.TextField("option配置内容")
     creator = models.CharField("创建者", max_length=32)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         abstract = True
@@ -259,11 +259,11 @@ class OptionBase(models.Model):
         """
         try:
             option_value = self.TYPE_OPTION_DICT[self.value_type]
-            real_value = option_value(self.value) if self.value_type != "string" else six.text_type(self.value)
+            real_value = option_value(self.value) if self.value_type != "string" else str(self.value)
 
         except KeyError:
             # 如果找不到对应的配置，表示不是简单的基本功能，需要依赖函数实现
-            trans_method = getattr(self, "_trans_{}".format(self.value_type))
+            trans_method = getattr(self, f"_trans_{self.value_type}")
             real_value = trans_method()
 
         return {self.name: real_value}

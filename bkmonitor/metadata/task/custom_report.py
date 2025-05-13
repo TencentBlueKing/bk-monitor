@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,7 +12,6 @@ import logging
 import time
 import traceback
 from datetime import timedelta
-from typing import List, Optional
 
 import billiard as multiprocessing
 from django import db
@@ -38,7 +36,7 @@ logger = logging.getLogger("metadata")
 RECOMMENDED_VERSION = {"bk-collector": "0.16.1061"}
 
 
-def update_event_by_cluster(cluster_id_with_table_ids: Optional[dict] = None, data_ids: Optional[list] = None):
+def update_event_by_cluster(cluster_id_with_table_ids: dict | None = None, data_ids: list | None = None):
     """
     按照ES集群更新event维度等信息
     :param cluster_id_with_table_ids: ES集群id与table_id_list的字典
@@ -158,8 +156,6 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
                 f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本"
                 f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
             )
-        # bkmonitorproxy全量更新
-        models.CustomReportSubscription.refresh_collector_custom_conf(None, "bkmonitorproxy")
     except Exception as e:  # noqa
         logger.exception("refresh custom report config to colletor error: %s" % e)
 
@@ -220,7 +216,7 @@ def check_custom_event_group_sleep():
             continue
         table_ids_with_strategy.add(query_config.config.get("result_table_id"))
 
-    need_clean_es_storages: List[models.ESStorage] = []
+    need_clean_es_storages: list[models.ESStorage] = []
     for event_group in event_groups:
         if event_group.table_id in table_ids_with_strategy:
             continue

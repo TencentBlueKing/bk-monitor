@@ -94,6 +94,8 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.access
+.env.leave
 
 # virtualenv
 ENV/

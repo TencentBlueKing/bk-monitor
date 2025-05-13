@@ -249,7 +249,7 @@
 
     const mapFn = item =>
       Object.assign({}, item, {
-        first_name: item.query_alias || item.field_alias || item.field_name,
+        first_name: item.query_alias || item.field_name,
         last_name: item.field_name,
       });
 
@@ -1116,14 +1116,19 @@
               class="display-container rtl-text"
               :dir="textDir"
             >
-              <bdi class="field-alias">
-                {{ item.first_name }}
+              <bdi>
+                <span  
+                  class="field-alias"
+                >
+                  {{ item.first_name }}
+                </span>
+                <span
+                  v-if="!item.is_full_text && item.first_name !== item.last_name"
+                  class="field-name"
+                >
+                  ({{ item.last_name }})
+                </span>
               </bdi>
-              <bdi
-                v-if="!item.is_full_text && item.first_name !== item.last_name"
-                class="field-name"
-                >({{ item.last_name }})</bdi
-              >
             </div>
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
