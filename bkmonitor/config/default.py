@@ -572,6 +572,10 @@ APM_PROFILING_AGG_METHOD_MAPPING = {
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
 
+# RUM config
+RUM_ENABLED = False
+RUM_ACCESS_URL = ""
+
 # ==============================================================================
 # elasticsearch for fta
 # 自愈的 ES 连接信息
