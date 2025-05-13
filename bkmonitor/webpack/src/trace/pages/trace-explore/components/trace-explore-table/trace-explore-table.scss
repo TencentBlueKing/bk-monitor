@@ -282,7 +282,8 @@
 
     &__content {
       // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
-      // height: calc(100% + 1px);
+      height: 100%;
+      overflow-y: hidden;
 
       .t-table--layout-fixed {
         height: 100%;
