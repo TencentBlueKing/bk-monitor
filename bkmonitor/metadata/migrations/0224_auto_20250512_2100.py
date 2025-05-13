@@ -49,7 +49,7 @@ def parse_value(value):
 
 
 def is_precalculate(table_id: str) -> bool:
-    return APM_PRECALCULATE_TABLE_PREFIX in table_id
+    return table_id.startswith(APM_PRECALCULATE_TABLE_PREFIX)
 
 
 def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
@@ -93,7 +93,8 @@ def sync_router(result_table_infos: list[dict[str, Any]]):
         table_ids.append(table_id)
         table_id__tenant_id_map[table_id] = result_table_info["bk_tenant_id"]
 
-    models["ResultTable"].objects.bulk_update(to_be_updated_rts, fields=["bk_biz_id_alias"])
+    if to_be_updated_rts:
+        models["ResultTable"].objects.bulk_update(to_be_updated_rts, fields=["bk_biz_id_alias"])
     logger.info("[sync_trace_unify_query_router] update rt -> %s", len(to_be_updated_rts))
 
     # Step-2: ESStorage 指定索引集。
@@ -102,7 +103,8 @@ def sync_router(result_table_infos: list[dict[str, Any]]):
         es_storage_obj.index_set = es_storage_obj.table_id.replace(".", "_")
         to_be_updated_storages.append(es_storage_obj)
 
-    models["ESStorage"].objects.bulk_update(to_be_updated_storages, fields=["index_set"])
+    if to_be_updated_storages:
+        models["ESStorage"].objects.bulk_update(to_be_updated_storages, fields=["index_set"])
     logger.info("[sync_trace_unify_query_router] sync index_set to ESStorage: %s", len(to_be_updated_storages))
 
     # Step-3：设置查询选项，例如事件字段、是否在查询索引中增加日期等。
@@ -137,8 +139,11 @@ def sync_router(result_table_infos: list[dict[str, Any]]):
             else:
                 to_be_created_rt_options.append(rt_option)
 
-    models["ResultTableOption"].objects.bulk_create(to_be_created_rt_options)
-    models["ResultTableOption"].objects.bulk_update(to_be_updated_rt_options, fields=["value_type", "value"])
+    if to_be_created_rt_options:
+        models["ResultTableOption"].objects.bulk_create(to_be_created_rt_options)
+    if to_be_updated_rt_options:
+        models["ResultTableOption"].objects.bulk_update(to_be_updated_rt_options, fields=["value_type", "value"])
+
     logger.info(
         "[sync_trace_unify_query_router] update or create rt options: create -> %s, update -> %s",
         len(to_be_created_rt_options),
