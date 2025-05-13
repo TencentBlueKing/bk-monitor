@@ -73,6 +73,18 @@
         this.isLoading = bool;
       },
     },
+    mounted() {
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
+        query: {
+          bizId: bkBizId,
+          spaceUid: spaceUid,
+          ...this.$route.query,
+        },
+      });
+    },
   };
 </script>
 

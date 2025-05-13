@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import itertools
@@ -16,7 +16,7 @@ import operator
 import re
 from collections import defaultdict
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -210,7 +210,7 @@ class CreateApplicationResource(Resource):
             fields = "__all__"
 
         def to_representation(self, instance):
-            data = super(CreateApplicationResource.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             application = Application.objects.filter(application_id=instance.application_id).first()
             data["plugin_config"] = application.plugin_config
             return data
@@ -219,7 +219,7 @@ class CreateApplicationResource(Resource):
         if Application.origin_objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         ).exists():
-            raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
+            raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
 
         app = Application.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -397,7 +397,7 @@ class ApplicationInfoResource(Resource):
             return data
 
         def to_representation(self, instance):
-            data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
             for config in instance.get_all_config():
                 data[config.config_key] = config.config_value
@@ -682,7 +682,7 @@ class SetupResource(Resource):
         application_qps_config = serializers.IntegerField(label="qps", required=False)
 
         def validate(self, attrs):
-            res = super(SetupResource.RequestSerializer, self).validate(attrs)
+            res = super().validate(attrs)
             if attrs.get("trace_datasource_option") and not attrs.get("trace_datasource_option", {}).get(
                 "es_slice_size"
             ):
@@ -843,7 +843,7 @@ class SetupResource(Resource):
 
         # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
         if validated_data.get("application_sampler_config"):
-            SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
+            SamplingHelpers(validated_data["application_id"]).setup(validated_data["application_sampler_config"])
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -1341,6 +1341,7 @@ class QueryExceptionEventResource(PageListResource):
                     .get(SpanAttributes.EXCEPTION_STACKTRACE, "")
                     .split("\n"),
                     "timestamp": int(event["timestamp"]),
+                    "trace_id": event.get("trace_id", ""),
                 }
             )
         # 对 res 基于 timestamp 字段排序 (倒序)
@@ -1364,7 +1365,9 @@ class MetaInstrumentGuides(Resource):
             label="环境列表",
             required=False,
             default=[DeploymentEnum.CENTOS.id],
-            child=serializers.ChoiceField(label="环境", choices=[deploy.lower() for deploy in DeploymentEnum.get_keys()]),
+            child=serializers.ChoiceField(
+                label="环境", choices=[deploy.lower() for deploy in DeploymentEnum.get_keys()]
+            ),
         )
         plugins = serializers.ListSerializer(
             label="场景列表",
@@ -1377,10 +1380,10 @@ class MetaInstrumentGuides(Resource):
         OTLP_EXPORTER_GRPC_PORT = 4317
         OTLP_EXPORTER_HTTP_PORT = 4318
 
-        def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
             app = Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).first()
             if app is None:
-                raise ValueError(_(f'应用({attrs["app_name"]})不存在'))
+                raise ValueError(_(f"应用({attrs['app_name']})不存在"))
 
             data_token: str = QueryBkDataToken().request({"application_id": app.application_id})
 
@@ -1410,7 +1413,7 @@ class MetaInstrumentGuides(Resource):
             access_config["otlp"][field] = str(access_config["otlp"][field]).lower()
         access_config["profiling"]["enabled"] = str(access_config["profiling"]["enabled"]).lower()
 
-        context: Dict[str, str] = {
+        context: dict[str, str] = {
             "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
             "APM_ACCESS_URL": settings.APM_ACCESS_URL,
@@ -1420,7 +1423,7 @@ class MetaInstrumentGuides(Resource):
 
         helper: Help = Help(context)
 
-        guides: List[Dict[str, Any]] = []
+        guides: list[dict[str, Any]] = []
         for language, deployment, plugin in itertools.product(
             validated_request_data["languages"],
             validated_request_data["deployments"],
@@ -1497,7 +1500,9 @@ class MetaConfigInfoResource(Resource):
 
         push_urls = PushUrlResource().request({"bk_biz_id": validated_request_data["bk_biz_id"]})
         push_urls_str = "\n".join(
-            str(_("云区域 {} {} [{}]").format(push_url['bk_cloud_id'], push_url['push_url'], ','.join(push_url['tags'])))
+            str(
+                _("云区域 {} {} [{}]").format(push_url["bk_cloud_id"], push_url["push_url"], ",".join(push_url["tags"]))
+            )
             for push_url in push_urls
         )
         for plugin in PluginEnum.get_values():
@@ -1586,7 +1591,7 @@ class PushUrlResource(Resource):
         return proxy_host_infos
 
     @classmethod
-    def generate_endpoint(cls, ip: str, port: Optional[Union[int, str]] = None, path: Optional[str] = None) -> str:
+    def generate_endpoint(cls, ip: str, port: int | str | None = None, path: str | None = None) -> str:
         if is_v6(ip):
             ip = f"[{ip}]"
 
@@ -1601,8 +1606,8 @@ class PushUrlResource(Resource):
 
         return base_endpoint
 
-    def _get_default_endpoints(self, proxy_infos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        endpoints: List[Dict[str, Any]] = []
+    def _get_default_endpoints(self, proxy_infos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        endpoints: list[dict[str, Any]] = []
         for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
             endpoints.append(
                 {
@@ -1613,9 +1618,9 @@ class PushUrlResource(Resource):
             )
         return endpoints
 
-    def _get_simple_endpoints(self, proxy_infos: List[Dict[str, Any]]):
-        deplicate_keys: Set[str] = set()
-        endpoints: List[Dict[str, Any]] = []
+    def _get_simple_endpoints(self, proxy_infos: list[dict[str, Any]]):
+        deplicate_keys: set[str] = set()
+        endpoints: list[dict[str, Any]] = []
         for proxy_info in proxy_infos:
             deplicate_key: str = f"{proxy_info['bk_cloud_id']}-{proxy_info['ip']}"
             if deplicate_key in deplicate_keys:
@@ -1632,7 +1637,7 @@ class PushUrlResource(Resource):
         return endpoints
 
     def perform_request(self, validated_request_data):
-        proxy_infos: List[Dict[str, Any]] = self.get_proxy_infos(validated_request_data["bk_biz_id"])
+        proxy_infos: list[dict[str, Any]] = self.get_proxy_infos(validated_request_data["bk_biz_id"])
         return {FormatType.DEFAULT: self._get_default_endpoints, FormatType.SIMPLE: self._get_simple_endpoints}[
             validated_request_data["format_type"]
         ](proxy_infos)
@@ -2069,8 +2074,8 @@ class ApplyStrategiesToServicesResource(Resource):
         options = serializers.DictField(label="配置", required=False)
 
         def validate(self, attrs):
-            bk_biz_id: Optional[int] = attrs.get("bk_biz_id")
-            space_uid: Optional[str] = attrs.get("space_uid")
+            bk_biz_id: int | None = attrs.get("bk_biz_id")
+            space_uid: str | None = attrs.get("space_uid")
             if not (bk_biz_id or space_uid):
                 raise ValueError(_("bk_biz_id、space_uid 至少需要传其中一个"))
 
@@ -2249,20 +2254,20 @@ class QueryEndpointStatisticsResource(PageListResource):
                     LinkTableFormat(
                         id="trace",
                         name=_("调用链"),
-                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                        + '&search_type=scope'
-                        + '&start_time={start_time}&end_time={end_time}'
-                        + '&listType=span',
+                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        + "&search_type=scope"
+                        + "&start_time={start_time}&end_time={end_time}"
+                        + "&listType=span",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
                     LinkTableFormat(
                         id="statistics",
                         name=_("统计"),
-                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                        + '&search_type=scope'
-                        + '&start_time={start_time}&end_time={end_time}'
-                        + '&listType=interfaceStatistics',
+                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        + "&search_type=scope"
+                        + "&start_time={start_time}&end_time={end_time}"
+                        + "&listType=interfaceStatistics",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -2307,7 +2312,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
-        items = super(QueryEndpointStatisticsResource, self).get_pagination_data(data, params, column_type)
+        items = super().get_pagination_data(data, params, column_type)
 
         # url 拼接
         for item in items["data"]:
@@ -2332,7 +2337,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                 }
 
             for i in item["operation"]:
-                i["url"] = i["url"] + '&conditionList=' + json.dumps(tmp)
+                i["url"] = i["url"] + "&conditionList=" + json.dumps(tmp)
                 if filter_http_url:
                     i["url"] += filter_http_url
 
@@ -2527,6 +2532,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                             "content": stacktrace,
                             "timestamp": int(event["timestamp"]),
                             "exception_type": exception_type,
+                            "trace_id": span.get("trace_id", ""),
                         }
                     )
             else:
@@ -2537,6 +2543,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                         "content": [],
                         "timestamp": int(span["start_time"]),
                         "exception_type": self.UNKNOWN,
+                        "trace_id": span.get("trace_id", ""),
                     }
                 )
 
@@ -2888,7 +2895,7 @@ class CustomServiceListResource(PageListResource):
 
         for item in data:
             if item["match_type"] == CustomServiceMatchType.AUTO:
-                count_mapping = defaultdict(lambda: 0)
+                count_mapping = defaultdict(int)
                 for i in spans:
                     url = i.get("attributes", {}).get(SpanAttributes.HTTP_URL)
                     if Matcher.match_auto(item["rule"], url):
@@ -3137,7 +3144,7 @@ class DeleteApplicationResource(Resource):
     def perform_request(self, data):
         app = Application.objects.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]).first()
         if not app:
-            raise ValueError(_("应用{}不存在").format(data['app_name']))
+            raise ValueError(_("应用{}不存在").format(data["app_name"]))
         Application.delete_plugin_config(app.application_id)
         api.apm_api.delete_application(application_id=app.application_id)
         app.delete()

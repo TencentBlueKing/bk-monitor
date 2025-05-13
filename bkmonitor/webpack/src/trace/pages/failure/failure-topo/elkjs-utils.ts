@@ -29,7 +29,7 @@ import type { Edge, VirtaulNode } from './format-topo-data';
 
 let subCombosMap: Record<string, number> = {};
 const space = 30;
-const nodeWidth = 92;
+const nodeWidth = 162;
 const nodeHeight = 92;
 
 const setSubCombosMap = (val: any) => {
@@ -86,6 +86,7 @@ const convertToElkFormat = data => {
   const elkEdges = [];
 
   // 处理边（edges）
+  // biome-ignore lint/complexity/noForEach: <explanation>
   data.edges.forEach(edge => {
     elkEdges.push({
       id: `${edge.source}-${edge.target}`,
@@ -94,8 +95,10 @@ const convertToElkFormat = data => {
     });
   });
 
+  // biome-ignore lint/complexity/noForEach: <explanation>
   data.nodes.forEach(child => {
     Object.assign(child, { layoutOptions: subChildOption });
+    // biome-ignore lint/complexity/noForEach: <explanation>
     (child.children ?? []).forEach(subChild => {
       if (subChild.isCombo) {
         Object.assign(child, {
@@ -171,12 +174,14 @@ const setSubNodesX = (children: VirtaulNode[], startX: number) => {
 };
 
 const setSubNodesY = (children: VirtaulNode[], starY: number) => {
+  // biome-ignore lint/complexity/noForEach: <explanation>
   children.forEach(node => {
     Object.assign(node, { y: starY });
   });
 };
 
 const fixNodeYOffset = (nodes, diff) => {
+  // biome-ignore lint/complexity/noForEach: <explanation>
   nodes.forEach(node => {
     node.y += diff;
     if (node.children?.length) {
@@ -298,6 +303,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     yKeys.sort((a, b) => a - b);
 
     const updateNodeY = (to, index) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       groupByY.get(yKeys[index]).forEach(node => {
         Object.assign(node, { y: to });
 
@@ -336,6 +342,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     yKeys = [...groupByY.keys()];
     yKeys.sort((a, b) => b - a);
     let preLeveYVal = null;
+    // biome-ignore lint/complexity/noForEach: <explanation>
     yKeys.forEach(key => {
       const nodes = groupByY.get(key);
       const leftNodes = nodes.filter(node => node.x < x);
@@ -343,6 +350,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
       leftNodes.sort((a, b) => b.referenceRoot.length - a.referenceRoot.length);
 
       let lastOneX = x - getStartXSpace(key);
+      // biome-ignore lint/complexity/noForEach: <explanation>
       leftNodes.forEach(node => {
         if (node.id !== rootNode.id) {
           const computedX = lastOneX - node.width - space;
@@ -361,6 +369,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
       rightNodes.sort((a, b) => b.referenceRoot.length - a.referenceRoot.length);
 
       let rightX = x + getStartXSpace(key);
+      // biome-ignore lint/complexity/noForEach: <explanation>
       rightNodes.forEach(node => {
         if (node.id !== rootNode.id) {
           const computedX = rightX + node.width;
@@ -387,6 +396,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const leftPdding = Math.max(...usefullNodes.filter(node => node.x === globalMinX).map(node => node.width));
   const rightPadding = Math.max(...usefullNodes.filter(node => node.x === globalMaxX).map(node => node.width));
   const globalWidth = globalMaxX - globalMinX + leftPdding + rightPadding;
+  // biome-ignore lint/complexity/noForEach: <explanation>
   data.combos.forEach(combo => {
     if (combo.parentId) return;
     Object.assign(combo, {
@@ -409,6 +419,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     setSubNodesX(rootBox.children, rootBox.x);
   }
 
+  // biome-ignore lint/complexity/noForEach: <explanation>
   globalNodes.forEach(node => {
     const { x, y, isCombo, id, comboId, subComboId } = node;
     const queryId = isCombo ? (subComboId ?? comboId) : id;
@@ -417,9 +428,16 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     if (target) {
       Object.assign(target, { x: x + paddingLeft, y });
       if (isCombo && !node.isRoot) {
-        node.children.forEach((child, index) => {
-          child.x = target.x - target.width / 2 + index * child.width + 10;
-        });
+        //  如果combo中只有一个节点则优化节点居中即可
+        if (node.children.length === 1) {
+          node.children.forEach(child => {
+            child.x = target.x + target.width / 2 - child.width;
+          });
+        } else {
+          node.children.forEach((child, index) => {
+            child.x = target.x - target.width / 2 + index * child.width + 10;
+          });
+        }
       }
     }
   });
@@ -462,6 +480,7 @@ const resolveSumbCombos = (sub_combos: any[]) => {
     const { comboId, label, dataType, dimensions } = combo;
 
     return {
+      ...combo,
       parentId: comboId,
       id,
       type: 'rect',

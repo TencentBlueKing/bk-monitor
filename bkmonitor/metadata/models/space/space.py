@@ -48,6 +48,7 @@ class Space(BaseModel):
 
     space_type_id = models.CharField("空间类型 ID", max_length=64)
     space_id = models.CharField("空间 ID", max_length=128, help_text="空间类型下唯一")
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     space_name = models.CharField("空间中文名称", max_length=256, help_text="空间类型下唯一")
     space_code = models.CharField("空间英文名称", max_length=64, blank=True, null=True, help_text="针对容器和研发类型，会多存储存储code这个字段")
     status = models.CharField("空间状态", max_length=32, choices=SPACE_STATUS, default=SpaceStatus.NORMAL.value)
@@ -88,12 +89,19 @@ class Space(BaseModel):
 
         # 添加空间 uid
         data["space_uid"] = self.space_uid
+        data['bk_tenant_id'] = self.bk_tenant_id
 
         return data
 
     @classmethod
-    def bulk_create_space(cls, space_type_id: str, space_list: List):
+    def bulk_create_space(cls, bk_tenant_id: str, space_type_id: str, space_list: List):
         """批量创建同类型空间"""
+        logger.info(
+            "bulk_create_space: try to create spaces->[%s] for tenant_id->[%s],space_type_id->[%s]",
+            space_list,
+            bk_tenant_id,
+            space_type_id,
+        )
         data = []
         for s in space_list:
             data.append(
@@ -101,6 +109,7 @@ class Space(BaseModel):
                     creator=SYSTEM_USERNAME,
                     space_type_id=space_type_id,
                     space_id=s["space_id"],
+                    bk_tenant_id=bk_tenant_id,  # 创建记录时需要指定租户
                     space_name=s["space_name"],
                 )
             )
@@ -116,6 +125,7 @@ class SpaceDataSource(BaseModel):
 
     space_type_id = models.CharField("空间类型英文名称", max_length=64)
     space_id = models.CharField("Space 英文名称", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     bk_data_id = models.IntegerField("数据源 ID")
     from_authorization = models.BooleanField("是否来源于授权", default=False)
 
@@ -130,6 +140,7 @@ class SpaceResource(BaseModel):
 
     space_type_id = models.CharField("空间类型英文名称", max_length=64)
     space_id = models.CharField("空间英文名称", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
     resource_type = models.CharField("资源类型", max_length=128, help_text="关联的资源类型，必须属于某个空间类型")
     resource_id = models.CharField(
         "关联的资源唯一标识", max_length=64, blank=True, null=True, help_text="关联的资源的唯一标识，如关联BCS项目ID，BKCC业务ID等"

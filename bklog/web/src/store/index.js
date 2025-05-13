@@ -171,6 +171,7 @@ const stateTpl = {
   features: {
     isAiAssistantActive: false,
   },
+  localSort: false,
 };
 
 const store = new Vuex.Store({
@@ -388,11 +389,11 @@ const store = new Vuex.Store({
     updateIndexSetFieldConfig(state, payload) {
       const defVal = { ...indexSetClusteringData };
       const { config } = payload ?? { config: [] };
-      const result = (config ?? []).reduce((output, item) => Object.assign(output, { [item.name]: { ...item } }), {
-        clustering_config: defVal,
-      });
 
-      Object.assign(state.indexSetFieldConfig, result ?? {});
+      set(state.indexSetFieldConfig, 'clustering_config', defVal);
+      (config ?? []).forEach(item => {
+        set(state.indexSetFieldConfig, item.name, item);
+      });
     },
 
     updateIndexSetCustomConfig(state, payload) {
@@ -837,6 +838,9 @@ const store = new Vuex.Store({
     resetState(state) {
       Object.assign(state, deepClone(stateTpl));
     },
+    updateLocalSort(state, payload) {
+      state.localSort = payload;
+    },
   },
   actions: {
     /**
@@ -1139,6 +1143,11 @@ const store = new Vuex.Store({
     },
     /**
      * 执行查询
+     *
+     * @param {Boolean} payload.isPagination - 是否是分页请求。
+     * @param {CancelToken} payload.cancelToken - 用于取消请求的 Axios cancel token。
+     * @param {Number} payload.searchCount - 自定义的查询计数器。
+     *
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
@@ -1206,7 +1215,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
-        sort_list: getters.custom_sort_list.length > 0 ? getters.custom_sort_list : otherPrams.sort_list,
+        sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
 
       // 更新联合查询的begin
@@ -1629,6 +1638,10 @@ const store = new Vuex.Store({
           if (newSearchKeywords.length) {
             const lastIndex = newSearchKeywords.length - 1;
             newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
+          }
+
+          if (!/\s$/.test(keywords[0])) {
+            keywords[0] = keywords[0] + ' ';
           }
 
           const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
