@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,17 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Set
 
 from django.conf import settings
 from django.db.models import Q
 from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import config, models
@@ -75,7 +75,11 @@ def sync_bkcc_space(allow_deleted=False):
     sync_archived_bkcc_space()
 
     bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list = api.cmdb.get_business()
+    biz_list = []
+    for tenant in api.bk_login.list_tenant():
+        temp = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+        biz_list.extend(temp)
+
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
     if not biz_list:
         logger.info("query cmdb api resp is null")
@@ -577,10 +581,11 @@ def refresh_bkci_space_name():
 
 
 def push_and_publish_space_router(
-    space_type: Optional[str] = None,
-    space_id: Optional[str] = None,
-    space_id_list: Optional[List[str]] = None,
-    is_publish: Optional[bool] = True,
+    space_type: str | None = None,
+    space_id: str | None = None,
+    space_id_list: list[str] | None = None,
+    is_publish: bool | None = True,
+    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
@@ -588,19 +593,25 @@ def push_and_publish_space_router(
     from metadata.task.tasks import multi_push_space_table_ids
 
     # 过滤数据
-    spaces = models.Space.objects.values("space_type_id", "space_id")
+    spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
     if space_type:
         spaces = spaces.filter(space_type_id=space_type)
     if space_id:
         spaces = spaces.filter(space_id=space_id)
+    if bk_tenant_id:
+        logger.info("push and publish space router with bk_tenant_id->[%s]", bk_tenant_id)
+        spaces = spaces.filter(bk_tenant_id=bk_tenant_id)
     # 这里不应该会有太多空间 ID 的输入
     if space_id_list:
         spaces = spaces.filter(space_id__in=space_id_list)
 
     # 拼装数据
-    space_list = [{"space_type": space["space_type_id"], "space_id": space["space_id"]} for space in spaces]
+    space_list = [
+        {"space_type": space["space_type_id"], "space_id": space["space_id"], "bk_tenant_id": space["bk_tenant_id"]}
+        for space in spaces
+    ]
 
-    # 批量处理
+    # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
     bulk_handle(multi_push_space_table_ids, space_list)
 
     # 通知到使用方
@@ -612,15 +623,35 @@ def push_and_publish_space_router(
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     # 仅存在空间 id 时，可以直接按照结果表进行处理
-    table_id_list = []
-    if space_id:
+    # 非多租户环境: 所有table_id的路由一并推送
+    # 多租户环境: 按空间逐个推送路由,因为table_id不再唯一
+
+    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
         for space in space_list:
             tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
-            table_id_list.extend(tid_ds.keys())
+            space_tid_list = list(tid_ds.keys())
+            space_client = SpaceTableIDRedis()
+            space_client.push_table_id_detail(
+                table_id_list=space_tid_list,
+                is_publish=is_publish,
+                include_es_table_ids=True,
+                bk_tenant_id=space["bk_tenant_id"],
+            )
+            space_client.push_data_label_table_ids(
+                table_id_list=space_tid_list,
+                is_publish=is_publish,
+                bk_tenant_id=space["bk_tenant_id"],
+            )
+    else:
+        table_id_list = []
+        if space_id:
+            for space in space_list:
+                tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+                table_id_list.extend(tid_ds.keys())
 
-    space_client = SpaceTableIDRedis()
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
+        space_client = SpaceTableIDRedis()
+        space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
 def push_and_publish_space_router_task():
@@ -635,8 +666,8 @@ def push_and_publish_space_router_task():
 def delete_and_create_paas_space_data_id(
     space_type: str,
     space_id: str,
-    need_delete_data_ids: Set,
-    need_add_data_ids: Set,
+    need_delete_data_ids: set,
+    need_add_data_ids: set,
 ):
     if need_delete_data_ids:
         models.SpaceDataSource.objects.filter(
@@ -654,7 +685,7 @@ def delete_and_create_paas_space_data_id(
     models.SpaceDataSource.objects.bulk_create(bulk_create_records, batch_size=BULK_CREATE_BATCH_SIZE)
 
 
-def authorize_paas_space_cluster_data_source(space_cluster: Dict):
+def authorize_paas_space_cluster_data_source(space_cluster: dict):
     """重新针对使用的集群内置指标数据源授权
 
     NOTE: 仅针对集群的进行授权处理
@@ -730,7 +761,7 @@ def authorize_paas_space_cluster_data_source(space_cluster: Dict):
             )
 
 
-def create_and_update_paas_space_resource(space_cluster_namespaces: Dict):
+def create_and_update_paas_space_resource(space_cluster_namespaces: dict):
     """创建或更新空间绑定的资源"""
     space_type = SpaceTypes.BKSAAS.value
     # 针对资源的集群进行处理

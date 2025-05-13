@@ -37,7 +37,7 @@ import {
   updateUptimeCheckGroup,
 } from 'monitor-api/modules/model';
 import { commonPageSizeSet } from 'monitor-common/utils';
-import { Debounce } from 'monitor-common/utils/utils';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -133,6 +133,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   emptyStatusType: EmptyStatusType = 'empty';
 
   loading = false;
+
+  filterList = Object.keys(taskStatusMap);
 
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
@@ -617,6 +619,19 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, taskData));
   }
 
+  // 列表状态过滤
+  handleFilterChange(data) {
+    const { status_text } = data;
+    this.filterList = status_text || Object.keys(taskStatusMap);
+    const filter = this.data.task_data.filter(item => this.filterList.includes(item.status));
+    const pagination = {
+      count: filter.length,
+      current: 1,
+      limit: 10,
+    };
+    this.taskTableData.pagination = pagination;
+  }
+
   handleEmptyCreate(v: 'create' | 'createNode' | 'import') {
     switch (v) {
       case 'create':
@@ -725,8 +740,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 </div>
               ),
             }}
-            data={this.taskTableData.data}
+            data={this.taskTableData.data.filter(item => this.filterList.includes(item.status))}
             pagination={this.taskTableData.pagination}
+            onFilterChange={this.handleFilterChange}
             onLimitChange={this.handleTaskTableLimitChange}
             onPageChange={this.handleTaskTablePageChange}
             onSortChange={this.handleSortChange}

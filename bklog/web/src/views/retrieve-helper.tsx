@@ -27,7 +27,7 @@
 import { Ref } from 'vue';
 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
-import { RetrieveEvent } from './retrieve-core/retrieve-events';
+import RetrieveEvent from './retrieve-core/retrieve-events';
 import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
 

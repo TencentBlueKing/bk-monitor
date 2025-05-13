@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import base64
 
 from django.conf import settings
@@ -2538,14 +2538,15 @@ class CollectorViewSet(ModelViewSet):
         params = self.params_valid(ProxyHostSerializer)
 
         proxy_host_info = []
-        # 云区域为 0 的地址
         report_url_list = []
+        # 云区域为 0 的地址
         conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
+
         for item in conf.get("otlp", {}).get("0", []):
             protocol, report_url = item.split(":", maxsplit=1)
-            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
+            report_url_list.append({"protocol": protocol, "report_url": report_url.strip()})
         if report_url_list:
-            proxy_host_info.append(report_url_list)
+            proxy_host_info.append({"bk_cloud_id": 0, "urls": report_url_list})
 
         space = SpaceApi.get_related_space(params.get("space_uid"), SpaceTypeEnum.BKCC.value)
         if not space or not space.bk_biz_id:
@@ -2559,19 +2560,21 @@ class CollectorViewSet(ModelViewSet):
             if bk_cloud_id == 0:
                 continue
             ip = host.get("conn_ip") or host.get("inner_ip")
-            report_url_list = [
+            proxy_host_info.append(
                 {
                     "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.GRPC,
-                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
-                },
-                {
-                    "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.HTTP,
-                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
-                },
-            ]
-            proxy_host_info.append(report_url_list)
+                    "urls": [
+                        {
+                            "protocol": OTLPProxyHostConfig.GRPC,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
+                        },
+                        {
+                            "protocol": OTLPProxyHostConfig.HTTP,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
+                        },
+                    ],
+                }
+            )
 
         return Response(proxy_host_info)
 

@@ -86,9 +86,13 @@ export default defineComponent({
       echartsConnect(dashboardId);
     };
 
-    watch([() => store.appName, () => store.mode], () => {
-      getChartPanels();
-    });
+    watch(
+      [() => store.appName, () => store.mode],
+      () => {
+        getChartPanels();
+      },
+      { immediate: true }
+    );
     return {
       panelModels,
     };

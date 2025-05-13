@@ -58,7 +58,7 @@ bk-audit==1.2.2
 cos-python-sdk-v5==1.9.6
 
 # pipeline
-bamboo-pipeline==4.0.0rc1
+bamboo-pipeline==4.0.0
 mock==2.0.0
 
 # jinjia
@@ -71,19 +71,19 @@ jedi==0.19.2
 humanize==3.11.0
 
 # opentelemetry
-protobuf==3.19.6
-opentelemetry-api==1.23.0
-opentelemetry-sdk==1.23.0
-opentelemetry-exporter-otlp-proto-http==1.23.0
-opentelemetry-exporter-otlp-proto-grpc==1.23.0
-opentelemetry-semantic-conventions==0.44b0
-opentelemetry-instrumentation-django==0.44b0
-opentelemetry-instrumentation-elasticsearch==0.44b0
-opentelemetry-instrumentation-dbapi==0.44b0
-opentelemetry-instrumentation-redis==0.44b0
-opentelemetry-instrumentation-requests==0.44b0
-opentelemetry-instrumentation-celery==0.44b0
-opentelemetry-instrumentation-logging==0.44b0
+protobuf==3.20.3
+opentelemetry-api==1.24.0
+opentelemetry-sdk==1.24.0
+opentelemetry-exporter-otlp-proto-http==1.24.0
+opentelemetry-exporter-otlp-proto-grpc==1.24.0
+opentelemetry-semantic-conventions==0.45b0
+opentelemetry-instrumentation-django==0.45b0
+opentelemetry-instrumentation-elasticsearch==0.45b0
+opentelemetry-instrumentation-dbapi==0.45b0
+opentelemetry-instrumentation-redis==0.45b0
+opentelemetry-instrumentation-requests==0.45b0
+opentelemetry-instrumentation-celery==0.45b0
+opentelemetry-instrumentation-logging==0.45b0
 
 
 # kubernetes
@@ -111,7 +111,7 @@ pypinyin==0.46.0
 pymysql==1.1.1
 
 # pika, rabbitmq client
-pika==1.2.1
+pika==1.3.2
 
 # luqum, ES Search SQL
 luqum==0.12.0

@@ -1223,7 +1223,7 @@ export default defineComponent({
             cursor: 'pointer',
             lineAppendWidth: 15,
             endArrow:
-              isInvoke && is_anomaly
+              isInvoke || is_anomaly
                 ? {
                     path: Arrow.triangle(12, 12, 0),
                     d: 0,

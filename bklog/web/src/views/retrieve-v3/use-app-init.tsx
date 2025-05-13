@@ -271,6 +271,17 @@ export default () => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
+
+    const bkBizId = store.state.bkBizId;
+    const spaceUid = store.state.spaceUid;
+
+    router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...route.query,
+      },
+    });
   });
 
   onUnmounted(() => {
