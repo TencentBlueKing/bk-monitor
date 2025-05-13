@@ -161,6 +161,7 @@ class SearchViewSet(APIViewSet):
         actions=[ActionEnum.SEARCH_LOG],
         resource_meta=ResourceEnum.INDICES,
         id_field=lambda d: d["index_set_id"],
+        check_children=True,
     )
     def list(self, request, *args, **kwargs):
         """
