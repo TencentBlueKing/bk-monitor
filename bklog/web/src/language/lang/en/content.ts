@@ -1062,4 +1062,8 @@ export default {
   组名不规范: 'Group name is not standard',
   名称冲突: 'Name conflict',
   最大30字符: 'Up to 30 characters',
+  '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorites?',
+  '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be restored. Please operate with caution!',
+  '已选择以下{0}个收藏对象': 'The following {0} favorite objects have been selected',
+  批量删除成功: 'Batch deletion succeeded',
 };

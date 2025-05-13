@@ -789,4 +789,6 @@ export default {
   收藏管理: 'Favorite management',
   全部收藏: 'All favorites',
   分组名称: 'Group name',
+  批量操作: 'Batch operation',
+  收藏详情: 'Favorite details',
 };

@@ -140,12 +140,12 @@
       </div>
       <div class="favorite-table-container">
         <div class="table-header-operation">
-          <!-- <BatchOperationMenu
+          <BatchOperationMenu
             :favorite-group-list="localFavoriteList"
             :favorite-type="favoriteType"
             :select-favorite-list="selectFavoriteList"
-            @operate-change="handleOperateChange"
-          /> -->
+            @operateChange="handleBatchUpdateGroup"
+          />
           <bk-input
             class="favorite-search-input"
             v-model="favoriteSearchValue"
@@ -159,7 +159,7 @@
         </div>
         <div class="table-content">
           <bk-table
-            ref="favoriteTable"
+            ref="favoriteTableRef"
             :data="searchResultFavorites"
             :max-height="525"
             :row-class-name="getRowClassName"
@@ -182,18 +182,22 @@
                   </div>
                   <bk-input
                     v-else
-                    ref="editFavoriteNameInput"
+                    ref="editFavoriteNameInputRef"
                     :value="row.name"
                     @blur="(val) => handleEditFavoriteName(val, row)"
                     @enter="(val) => handleEditFavoriteName(val, row)"
                   ></bk-input>
                 </div>
-                <!-- {{ favoriteNameScopedSlots(row) }} -->
               </template>
             </bk-table-column>
-            <bk-table-column :label="$t('所属组')" prop="groupName">
+            <bk-table-column
+              :label="$t('所属组')"
+              prop="group_name"
+              :filters="tableFilters.groups"
+              filter-multiple
+              :filter-method="sourceFilterMethod"
+            >
               <template #default="{ row }">
-                <!-- {{ groupScopedSlots(row) }} -->
                 <div
                   v-if="!row.editGroup"
                   class="edit-cell"
@@ -217,40 +221,23 @@
                   />
                 </bk-select>
               </template>
-              <template #filter>
-                <bk-checkbox-group :value="[]" @change="handleGroupFilterChange">
-                  <bk-checkbox
-                    v-for="filter in tableFilters.groups"
-                    :key="filter.value"
-                    :value="filter.value"
-                  >
-                    {{ filter.text }}
-                  </bk-checkbox>
-                </bk-checkbox-group>
-              </template>
             </bk-table-column>
-            <template v-if="favoriteType === 'event'"> </template>
-            <bk-table-column :label="$t('变更人')" prop="updated_by">
-              <template #filter>
-                <bk-checkbox-group :value="[]" @change="handleNameFilterChange">
-                  <bk-checkbox
-                    v-for="filter in tableFilters.names"
-                    :key="filter.value"
-                    :value="filter.value"
-                  >
-                    {{ filter.text }}
-                  </bk-checkbox>
-                </bk-checkbox-group>
-              </template>
+            <bk-table-column
+              :label="$t('变更人')"
+              prop="updated_by"
+              :filters="tableFilters.names"
+              filter-multiple
+              :filter-method="sourceFilterMethod"
+            >
             </bk-table-column>
-            <bk-table-column :label="$t('变更时间')" prop="update_time" sortable>
+            <bk-table-column :label="$t('变更时间')" prop="updated_at" sortable>
               <template #default="{ row }">
-                {{ dayjs(row.update_time).format("YYYY-MM-DD HH:mm:ss") }}
+                {{ dayjs(row.updated_at).format("YYYY-MM-DD HH:mm:ss") }}
               </template>
             </bk-table-column>
             <bk-table-column :label="$t('操作')" prop="operation" width="80">
               <template #default="{ row }">
-                <span class="del-btn" @click="handleOperateChange(row)">
+                <span class="del-btn" @click="handleDelete(row)">
                   {{ $t("删除") }}
                 </span>
               </template>
@@ -258,24 +245,35 @@
           </bk-table>
         </div>
       </div>
-      <!-- <div v-if="curClickRow" class="favorite-detail-container">
+      <div v-if="curClickRow" class="favorite-detail-container">
         <FavoriteDetail
           :favorite-type="favoriteType"
           :groups="groups"
           :value="curClickRow"
           @success="handleDetailUpdate"
         />
-      </div> -->
+      </div>
     </div>
   </bk-dialog>
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed, ref, onMounted, onBeforeUnmount } from "vue";
+import {
+  defineProps,
+  defineEmits,
+  computed,
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from "vue";
 import { bkInfoBox } from "bk-magic-vue";
 import $http from "@/api";
 import useStore from "@/hooks/use-store";
 import useLocale from "@/hooks/use-locale";
+import BatchOperationMenu from "./batch-operation-menu";
+import FavoriteDetail from "./favorite-detail";
 import dayjs from "dayjs";
 const props = defineProps({
   modelValue: {
@@ -287,18 +285,42 @@ const props = defineProps({
 const emit = defineEmits(["close", "submit"]);
 const store = useStore();
 const { $t } = useLocale();
-const groupNameMap = ref({
-  unknown: $t("未分组"),
-  private: $t("个人收藏"),
-});
 const spaceUid = computed(() => store.state.spaceUid);
-const groupList = ref([]);
-const unPrivateList = ref([]);
-const privateList = ref([]);
-const sourceFilters = ref([]);
-const unknownGroupID = ref(0);
-const privateGroupID = ref(0);
+const groups = computed(() => {
+  return localFavoriteList.value.map((item) => ({
+    id: item.id,
+    name: item.name,
+  }));
+});
+const searchResultGroupList = computed(() => {
+  return otherGroupList.value.filter((group) => {
+    return group.name.includes(groupSearchValue.value);
+  });
+});
+const tableFilters = computed(() => {
+  const names = {};
+  const groups = {};
 
+  for (const item of searchResultFavorites.value) {
+    if (!names[item.updated_by]) {
+      names[item.updated_by] = item.updated_by;
+    }
+    if (item.group_id && !groups[item.group_id]) {
+      groups[item.group_id] = item.group_id;
+    }
+  }
+
+  return {
+    names: Object.values(names).map((text) => ({ text, value: text })),
+    groups: Object.values(groups).map((value) => {
+      const group = localFavoriteList.value.find((g) => g.id === value);
+      return {
+        text: group?.name,
+        value: group?.name,
+      };
+    }),
+  };
+});
 const curSelectGroup = ref("all");
 const groupSearchValue = ref("");
 const favoriteSearchValue = ref("");
@@ -312,19 +334,14 @@ const noGroupList = ref([]);
 const otherGroupList = ref([]);
 
 const privateFavorite = ref([]);
-const searchResultGroupList = ref([]);
 const searchResultFavorites = ref([]);
 const favoriteType = ref("event");
 
-const addGroupPopoverRef = ref();
-const checkInputFormRef = ref();
-const favoriteTableRef = ref();
+const addGroupPopoverRef = ref(null);
+const checkInputFormRef = ref(null);
+const favoriteTableRef = ref(null);
+const editFavoriteNameInputRef = ref(null);
 
-const groupTypes = computed(() => [
-  // { id: 'all', name: '全部收藏', icon: 'icon-all', count: allGroupList.value.length },
-  // { id: 'noGroup', name: '未分组', icon: 'icon-mc-file-close', count: noGroupList.value.length },
-  // { id: 'private', name: '个人收藏', icon: 'icon-file-personal', count: privateFavorite.value.length }
-]);
 const rules = {
   name: [
     { validator: checkName, message: $t("组名不规范"), trigger: "blur" },
@@ -345,13 +362,47 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleKeydown);
 });
+
+watch(
+  allGroupList,
+  (newValue, oldValue) => {
+    const groupMap = new Map(
+      otherGroupList.value.map((group) => {
+        return [group.id, { ...group, favorites: [] }];
+      })
+    );
+    const [noGroupItems, privateItems, otherGroupItems] = newValue.reduce(
+      (acc, item) => {
+        if (item.group_name === "未分组") {
+          acc[0].push(item);
+        } else if (item.group_name === "个人收藏") {
+          acc[1].push(item);
+        } else {
+          const group = groupMap.get(item.group_id);
+          if (group) {
+            group.favorites.push(item);
+            if (!acc[2].some((g) => g.id === group.id)) {
+              acc[2].push(group);
+            }
+          }
+        }
+        return acc;
+      },
+      [[], [], []]
+    );
+
+    noGroupList.value = noGroupItems;
+    privateFavorite.value = privateItems;
+    otherGroupList.value = otherGroupItems;
+  },
+  { deep: true }
+);
 const initData = async () => {
   await getGroupList();
   getFavoriteList();
 };
 
 const handleShowChange = () => {
-  console.log("Closing dialog...", emit);
   emit("close", false);
 };
 /** 获取组列表 */
@@ -362,7 +413,6 @@ const getGroupList = async (isAddGroup = false) => {
         space_uid: spaceUid.value,
       },
     });
-    console.log(res);
     otherGroupList.value = res.data
       .filter((item) => item.name !== "未分组" && item.name !== "个人收藏")
       .map((item) => {
@@ -371,21 +421,12 @@ const getGroupList = async (isAddGroup = false) => {
           favorites: [],
         };
       });
+    localFavoriteList.value = res.data;
 
     handleGroupSearch();
   } catch (error) {
     console.warn(error);
-  } finally {
-    //   if (isAddGroup) {
-    //     // 如果是新增组 则刷新操作表格的组列表
-    //     this.operateTableList = this.operateTableList.map((item) => ({
-    //       ...item,
-    //       group_option: this.unPrivateList,
-    //       group_option_private: this.privateList,
-    //     }));
-    //     this.handleSearchFilter();
-    // }
-  }
+  } 
 };
 
 /** 获取收藏请求 */
@@ -405,24 +446,8 @@ const getFavoriteList = async () => {
         editGroup: false,
       };
     });
-    const groupMap = new Map(otherGroupList.value.map((group) => [group.id, group]));
-    [allGroupList.value, noGroupList.value, privateFavorite.value] = data.reduce(
-      (acc, item) => {
-        acc[0].push(item);
+    allGroupList.value = data;
 
-        if (item.group_name === "未分组") {
-          acc[1].push(item);
-        } else if (item.group_name === "个人收藏") {
-          acc[2].push(item);
-        } else {
-          const group = groupMap.get(item.group_id);
-          group?.favorites.push(item);
-        }
-
-        return acc;
-      },
-      [[], [], []]
-    );
     searchResultFavorites.value = allGroupList.value;
   } catch (error) {
     // this.emptyType = "500";
@@ -462,28 +487,25 @@ const handleSelectGroupChange = (id) => {
   }));
 };
 /** 组搜索 */
-const handleGroupSearch = () => {
-  searchResultGroupList.value = otherGroupList.value.filter((group) => {
-    return group.name.includes(groupSearchValue.value);
-  });
-};
+const handleGroupSearch = () => {};
 /** 收藏列表搜索 */
 const handleFavoriteSearch = () => {
   searchResultFavorites.value = searchResultFavorites.value.filter((favorite) =>
     favorite.name.includes(favoriteSearchValue.value)
   );
 };
-
-const handleOperateChange = (row) => {
+/** 删除单个收藏 */
+const handleDelete = (row) => {
   bkInfoBox({
     subTitle: $t("当前收藏名为 {n}，确认是否删除？", { n: row.name }),
     type: "warning",
-    confirmFn: () => {
-
-      // 发送删除请求
-      $http.request("favorite/deleteFavorite", {
+    confirmFn: async () => {
+      const res = await $http.request("favorite/deleteFavorite", {
         params: { favorite_id: row.id },
       });
+      if (res.result) {
+        allGroupList.value = allGroupList.value.filter((item) => item.id !== row.id);
+      }
     },
   });
 };
@@ -520,9 +542,9 @@ const handleAddGroupPopoverHidden = (close = true) => {
     addGroupPopoverRef.value?.hide();
   }
 };
-const handleEditGroup = () => {
+const handleEditGroup = (row) => {
   row.editGroup = true;
-  for (const favorite of this.searchResultFavorites) {
+  for (const favorite of searchResultFavorites.value) {
     if (favorite.id !== row.id) {
       favorite.editGroup = false;
     }
@@ -531,22 +553,21 @@ const handleEditGroup = () => {
 const handleEditName = (row) => {
   row.editName = true;
   row.editGroup = false;
-  // nextTick(() => {
-  //   this.favoriteTableRef?.$refs?.editFavoriteNameInput?.focus();
-  // });
+  nextTick(() => {
+    editFavoriteNameInputRef?.value.focus();
+  });
 };
 
 const handleEditFavoriteName = (val, row) => {
   if (val !== row.name) {
-    this.handleUpdateFavorite({
-      id: row.id,
-      group_id: row.group_id,
+    const updatedRow = {
+      ...row,
       name: val,
-      config: row.config,
-    }).then(() => {
+    };
+    handleUpdateFavorite(updatedRow).then(() => {
       row.editName = false;
       row.name = val;
-      this.curClickRow = row;
+      curClickRow.value = row;
     });
   } else {
     row.editName = false;
@@ -556,16 +577,17 @@ const handleEditFavoriteGroup = (val, row) => {
   if (val === String(row.group_id)) {
     row.editGroup = false;
   } else {
-    this.handleUpdateFavorite({
-      id: row.id,
+    const updatedRow = {
+      ...row,
       group_id: JSON.parse(val),
-      name: row.name,
-      config: row.config,
-    }).then(() => {
-      row.editName = false;
+    };
+    handleUpdateFavorite(updatedRow).then(() => {
+      row.editGroup = false;
       row.group_id = JSON.parse(val);
-      row.groupName = this.groups.find((item) => item.id === JSON.parse(val))?.name;
-      this.curClickRow = row;
+      row.group_name = localFavoriteList.value.find(
+        (item) => item.id === JSON.parse(val)
+      )?.name;
+      curClickRow.value = row;
     });
   }
 };
@@ -573,6 +595,84 @@ const handleKeydown = (event) => {
   if (event.key === "Escape" || event.key === "Esc") {
     handleShowChange(false);
   }
+};
+const handleUpdateFavorite = async (row) => {
+  const params = [
+    {
+      id: row.id,
+      name: row.name,
+      keyword: row.keyword,
+      group_id: row.group_id,
+      search_fields: row.search_fields,
+      visible_type: row.visible_type,
+      display_fields: row.display_fields,
+      is_enable_display_fields: row.is_enable_display_fields,
+      ip_chooser: row.params.ip_chooser,
+      addition: row.params.addition,
+      search_mode: row.search_mode,
+    },
+  ];
+
+  return $http
+    .request("favorite/batchFavoriteUpdate", {
+      data: {
+        params,
+      },
+    })
+    .then(() => {
+      return Promise.resolve(true);
+    })
+    .catch((error) => {
+      console.error("Batch update failed", error);
+      return Promise.reject(error);
+    });
+};
+const handleDetailUpdate = (params) => {
+  curClickRow.value = params;
+  handleOperateChange(params);
+};
+// 修改分组
+const handleOperateChange = (data) => {
+  const updateDataInList = (list, data) => {
+    return list.map((item) => (item.id === data.id ? data : item));
+  };
+  allGroupList.value = updateDataInList(allGroupList.value, data);
+  searchResultFavorites.value = updateDataInList(searchResultFavorites.value, data);
+};
+// 批量编辑分组
+const handleBatchUpdateGroup = (groupId) => {
+  const selectIds = selectFavoriteList.value.map((item) => item.id);
+  if (!groupId) {
+    const updateDataInList = (list) => {
+      return list.filter((item) => {
+        return !selectIds.includes(item.id);
+      });
+    };
+    allGroupList.value = updateDataInList(allGroupList.value);
+    searchResultFavorites.value = updateDataInList(searchResultFavorites.value);
+  } else {
+    const updateDataInList = (list) => {
+      return list.map((item) => {
+        if (selectIds.includes(item.id)) {
+          return {
+            ...item,
+            group_id: JSON.parse(groupId),
+            group_name: localFavoriteList.value.find(
+              (item) => item.id === JSON.parse(groupId)
+            )?.name,
+          };
+        } else {
+          return item;
+        }
+      });
+    };
+    allGroupList.value = updateDataInList(allGroupList.value);
+    searchResultFavorites.value = updateDataInList(searchResultFavorites.value);
+  }
+};
+const sourceFilterMethod = (value, row, column) => {
+  const property = column.property;
+  return row[property] === value;
 };
 </script>
 
@@ -604,7 +704,6 @@ const handleKeydown = (event) => {
   text-align: center;
   background: #ffffff;
   box-shadow: 0 1px 4px 0 #00000014;
-
   .close-icon {
     position: absolute;
     top: 8px;
@@ -627,6 +726,7 @@ const handleKeydown = (event) => {
   width: 100%;
   height: calc(100% - 48px);
   background-color: #ffffff;
+  margin-top: 1px;
   .favorite-group-filter {
     display: flex;
     flex-direction: column;
