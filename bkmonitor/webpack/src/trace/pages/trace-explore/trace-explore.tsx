@@ -627,7 +627,7 @@ export default defineComponent({
                 </EmptyStatus>
               </div>
             )}
-            {!this.applicationLoading && this.applicationList.length && (
+            {!this.applicationLoading && !!this.applicationList.length && (
               <TraceExploreLayout
                 ref='traceExploreLayoutRef'
                 class='content-container'
