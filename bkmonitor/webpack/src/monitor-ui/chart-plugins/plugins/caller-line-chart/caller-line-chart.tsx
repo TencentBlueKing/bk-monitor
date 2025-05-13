@@ -1115,7 +1115,7 @@ class CallerLineChart extends CommonSimpleChart {
           left: clientX + 12,
           top: clientY + 12,
         },
-        400,
+        720,
         300
       );
       this.customMenuPosition = {

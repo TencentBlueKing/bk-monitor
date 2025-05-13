@@ -108,10 +108,10 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
       return (
         <div
           key={id}
-          class={['group-by-item', !this.groupInstance.isDefaultGroupFilter(id) ? 'can-delete' : '']}
+          class={['group-by-item', !this.groupInstance.isFixedGroupFilter(id) ? 'can-delete' : '']}
         >
           <span>{id || '--'}</span>
-          {!this.groupInstance.isDefaultGroupFilter(id) ? (
+          {!this.groupInstance.isFixedGroupFilter(id) ? (
             <i
               class='icon-monitor icon-mc-close'
               onClick={() => this.handleDeleteItem(id)}
