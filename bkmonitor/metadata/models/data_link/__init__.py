@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .data_link import DataLink  # noqa
 from .data_link_configs import (  # noqa
     ConditionalSinkConfig,
@@ -22,3 +20,6 @@ __all__ = [
     "VMStorageBindingConfig",
     "ConditionalSinkConfig",
 ]
+
+
+# TODO：BkBase多租户改造
