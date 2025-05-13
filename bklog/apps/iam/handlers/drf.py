@@ -202,7 +202,6 @@ def insert_permission_field(
     data_field: Callable = lambda data_list: data_list,
     always_allowed: Callable = lambda item: False,
     many: bool = True,
-    check_children: bool = False,
 ):
     """
     数据返回后，插入权限相关字段
@@ -212,7 +211,6 @@ def insert_permission_field(
     :param data_field: 从response.data中获取结果集的方式
     :param always_allowed: 满足一定条件进行权限豁免
     :param many: 是否为列表数据
-    :param check_children: 是否处理children
     """
 
     def wrapper(view_func):
@@ -224,52 +222,44 @@ def insert_permission_field(
             if not many:
                 result_list = [result_list]
 
-            def process_list(item_list):
-                resources = []
-                for item in item_list:
-                    if not id_field(item):
-                        continue
-                    attribute = {}
-                    if "bk_biz_id" in item:
-                        attribute["bk_biz_id"] = item["bk_biz_id"]
-                    if "space_uid" in item:
-                        attribute["space_uid"] = item["space_uid"]
+            resources = []
+            for item in result_list:
+                if not id_field(item):
+                    continue
+                attribute = {}
+                if "bk_biz_id" in item:
+                    attribute["bk_biz_id"] = item["bk_biz_id"]
+                if "space_uid" in item:
+                    attribute["space_uid"] = item["space_uid"]
 
-                    resources.append(
-                        [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
-                    )
+                resources.append(
+                    [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
+                )
 
-                if not resources:
-                    return
+            if not resources:
+                return response
 
-                if settings.IGNORE_IAM_PERMISSION:
-                    for item in item_list:
-                        item.setdefault("permission", {})
-                        item["permission"].update({action.id: True for action in actions})
-                    return
-
-                permission_result = Permission().batch_is_allowed(actions, resources)
-
-                for item in item_list:
-                    origin_instance_id = id_field(item)
-                    if not origin_instance_id:
-                        # 如果拿不到实例ID，则不处理
-                        continue
-                    instance_id = str(origin_instance_id)
+            if settings.IGNORE_IAM_PERMISSION:
+                for item in result_list:
                     item.setdefault("permission", {})
-                    item["permission"].update(permission_result[instance_id])
+                    item["permission"].update({action.id: True for action in actions})
+                return response
 
-                    if always_allowed(item):
-                        # 权限豁免
-                        for action_id in item["permission"]:
-                            item["permission"][action_id] = True
+            permission_result = Permission().batch_is_allowed(actions, resources)
 
-            process_list(result_list)
+            for item in result_list:
+                origin_instance_id = id_field(item)
+                if not origin_instance_id:
+                    # 如果拿不到实例ID，则不处理
+                    continue
+                instance_id = str(origin_instance_id)
+                item.setdefault("permission", {})
+                item["permission"].update(permission_result[instance_id])
 
-            if check_children:
-                for result in result_list:
-                    if "children" in result and isinstance(result["children"], list):
-                        process_list(result["children"])
+                if always_allowed(item):
+                    # 权限豁免
+                    for action_id in item["permission"]:
+                        item["permission"][action_id] = True
 
             return response
 
