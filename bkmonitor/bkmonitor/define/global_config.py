@@ -421,6 +421,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
         ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
+        # RUM 配置
+        ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
+        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
     ]
 )
 

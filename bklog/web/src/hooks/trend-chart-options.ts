@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-const COLOR_LIST = [
+export const COLOR_LIST = [
   '#A4B3CD',
   '#F59789',
   '#F5C78E',
@@ -259,6 +259,7 @@ export const getSeriesData = ({ data, name, color }) => ({
   itemStyle: {
     color,
   },
+  colorBy: 'data',
   emphasis: {
     label: {},
   },

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -23,7 +23,7 @@
   const refDataTrendCanvas = ref(null);
   const dynamicHeight = ref(130);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
-  const { initChartData, setChartData, clearChartData } = useTrendChart({
+  const { initChartData, setChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
     dynamicHeight,
@@ -144,7 +144,7 @@
         )
         .then(res => {
           if (res?.data) {
-            sumCount += setChartData(res?.data?.aggs, gradeOptions.value?.field, isInit);
+            sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
             isInit = false;
 
             store.commit('retrieve/updateTrendDataCount', sumCount);
@@ -201,10 +201,6 @@
   onBeforeUnmount(() => {
     logChartCancel?.();
   });
-
-  // onMounted(() => {
-  //   loadTrendData();
-  // });
 </script>
 <script>
   export default {
