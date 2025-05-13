@@ -3182,3 +3182,60 @@ class UnionSearchHandler:
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
         ]
+
+    @property
+    def index_sets(self):
+        if not hasattr(self, "_index_sets"):
+            self._index_sets = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
+        return self._index_sets
+
+    def pre_get_result(self, size: int):
+        """
+        pre_get_result
+        @param size:
+        @return:
+        """
+        if not self.index_sets:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
+            )
+
+        # 构建请求参数
+        params = {
+            "ip_chooser": self.search_dict.get("ip_chooser"),
+            "bk_biz_id": self.search_dict.get("bk_biz_id"),
+            "addition": self.search_dict.get("addition"),
+            "start_time": self.search_dict.get("start_time"),
+            "end_time": self.search_dict.get("end_time"),
+            "time_range": self.search_dict.get("time_range"),
+            "keyword": self.search_dict.get("keyword"),
+            "size": size,
+            "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
+        }
+
+        multi_execute_func = MultiExecuteFunc()
+        for index_set_id in self.index_set_ids:
+            search_dict = copy.deepcopy(params)
+            search_dict["begin"] = self.search_dict.get("begin", 0)
+            search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+            search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
+            search_handler = SearchHandler(
+                index_set_id=index_set_id,
+                search_dict=search_dict,
+                export_fields=self.search_dict.get("export_fields", []),
+            )
+            if search_handler.scenario_id == Scenario.ES:
+                search_handler.scroll = SCROLL
+            multi_execute_func.append(f"union_search_{index_set_id}", search_handler.search)
+
+        # 执行线程
+        multi_result = multi_execute_func.run(return_exception=True)
+        for index_set_id in self.index_set_ids:
+            ret = multi_result.get(f"union_search_{index_set_id}")
+            if isinstance(ret, Exception):
+                # 子查询异常
+                raise UnionSearchErrorException(
+                    UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
+                )
+        return multi_result
