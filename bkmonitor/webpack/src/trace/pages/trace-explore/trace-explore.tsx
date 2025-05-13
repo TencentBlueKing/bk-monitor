@@ -45,6 +45,7 @@ import {
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { updateTimezone } from '../../i18n/dayjs';
+import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
@@ -57,7 +58,6 @@ import TraceExploreView from './components/trace-explore-view/trace-explore-view
 import { getFilterByCheckboxFilter } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
-
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 updateTimezone(window.timezone);
 
@@ -128,6 +128,11 @@ export default defineComponent({
       return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
     const appName = computed(() => store.appName);
+    /** 当前应用是否开启 profiling 功能 */
+    const enableProfiling = computed(
+      () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
+    );
+    useIsEnabledProfilingProvider(enableProfiling);
 
     watch(
       () => store.refreshInterval,
