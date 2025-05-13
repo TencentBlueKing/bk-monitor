@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,18 +14,22 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import copy
 import datetime
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 from django.db.models import Q
 from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
+from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
+from apm.utils.base import get_bar_interval_number
 from bkmonitor.data_source import dict_to_q
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -34,8 +37,8 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 logger = logging.getLogger("apm")
 
 
-def dsl_to_filter_dict(query: Dict[str, Any], depth=1, width=1) -> Dict[str, Any]:
-    filter_dict: Dict[str, Any] = {}
+def dsl_to_filter_dict(query: dict[str, Any], depth=1, width=1) -> dict[str, Any]:
+    filter_dict: dict[str, Any] = {}
 
     if "nested" in query:
         nested_query = query["nested"]
@@ -65,7 +68,7 @@ def dsl_to_filter_dict(query: Dict[str, Any], depth=1, width=1) -> Dict[str, Any
     else:
         op: str = ""
         lookup: str = ""
-        child_query: Dict[str, Any] = {}
+        child_query: dict[str, Any] = {}
         for op, lookup in {"query_string": "qs", "term": "eq", "wildcard": "include"}.items():
             if op in query:
                 child_query = query[op]
@@ -107,11 +110,11 @@ class LogicSupportOperator:
 
 
 class BaseQuery:
-    USING_LOG: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+    USING_LOG: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
-    USING_METRIC: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
+    USING_METRIC: tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
 
-    DEFAULT_DATASOURCE_CONFIGS: Dict[str, Dict[str, Any]] = {
+    DEFAULT_DATASOURCE_CONFIGS: dict[str, dict[str, Any]] = {
         ApmDataSourceConfigBase.METRIC_DATASOURCE: {
             "using": USING_METRIC,
             "get_table_id_func": MetricDataSource.get_table_id,
@@ -135,22 +138,22 @@ class BaseQuery:
     OPTION_VALUES_MAX_SIZE = 500
 
     # 查询字段映射
-    KEY_REPLACE_FIELDS: Dict[str, str] = {}
+    KEY_REPLACE_FIELDS: dict[str, str] = {}
 
     def __init__(
         self,
         bk_biz_id: int,
         app_name: str,
         retention: int,
-        overwrite_datasource_configs: Optional[Dict[str, Dict[str, Any]]] = None,
+        overwrite_datasource_configs: dict[str, dict[str, Any]] | None = None,
     ):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
         self.retention: int = retention
-        self.overwrite_datasource_configs: Dict[str, Dict[str, Any]] = overwrite_datasource_configs or {}
+        self.overwrite_datasource_configs: dict[str, dict[str, Any]] = overwrite_datasource_configs or {}
 
     @classproperty
-    def operator_mapping(self) -> Dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
+    def operator_mapping(self) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
         return {
             FilterOperator.EXISTS: lambda q, field, value: q & Q(**{f"{field}__exists": value}),
             FilterOperator.NOT_EXISTS: lambda q, field, value: q & Q(**{f"{field}__nexists": value}),
@@ -163,8 +166,8 @@ class BaseQuery:
         }
 
     @cached_property
-    def _datasource_configs(self) -> Dict[str, Dict[str, Any]]:
-        datasource_configs: Dict[str, Dict[str, Any]] = copy.deepcopy(self.DEFAULT_DATASOURCE_CONFIGS)
+    def _datasource_configs(self) -> dict[str, dict[str, Any]]:
+        datasource_configs: dict[str, dict[str, Any]] = copy.deepcopy(self.DEFAULT_DATASOURCE_CONFIGS)
         for datasource_type, conf in self.overwrite_datasource_configs.items():
             datasource_configs.setdefault(datasource_type, {}).update(conf)
         return datasource_configs
@@ -174,7 +177,7 @@ class BaseQuery:
         return get_table_id_func(self.bk_biz_id, self.app_name)
 
     def _get_q(self, datasource_type: str):
-        datasource_config: Dict[str, Any] = self._datasource_configs[datasource_type]
+        datasource_config: dict[str, Any] = self._datasource_configs[datasource_type]
         return QueryConfigBuilder(datasource_config["using"]).table(self._get_table_id(datasource_type))
 
     @property
@@ -191,8 +194,8 @@ class BaseQuery:
 
     def time_range_queryset(
         self,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
         using_scope: bool = True,
     ) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
@@ -203,13 +206,13 @@ class BaseQuery:
         return queryset
 
     def _query_option_values(
-        self, q: QueryConfigBuilder, fields: List[str], start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Dict[str, List[str]]:
+        self, q: QueryConfigBuilder, fields: list[str], start_time: int | None = None, end_time: int | None = None
+    ) -> dict[str, list[str]]:
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(self.OPTION_VALUES_MAX_SIZE)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？
         # 在性能差距不大的情况下，尽可能构造通用查询，便于后续屏蔽存储差异
-        option_values: Dict[str, List[str]] = {}
+        option_values: dict[str, list[str]] = {}
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
@@ -220,7 +223,7 @@ class BaseQuery:
 
     @classmethod
     def _collect_option_values(
-        cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: Dict[str, List[str]]
+        cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: dict[str, list[str]]
     ):
         if q.using == cls.USING_LOG:
             q = q.metric(field=field, method="count", alias="a").group_by(field)
@@ -236,7 +239,7 @@ class BaseQuery:
         cls,
         q: QueryConfigBuilder,
         queryset: UnifyQuerySet,
-        select_fields: List[str],
+        select_fields: list[str],
         count_field: str,
         offset: int,
         limit: int,
@@ -245,7 +248,7 @@ class BaseQuery:
             _q: QueryConfigBuilder = q.values(*select_fields)
             page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
 
-        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {"total": 0}
+        page_data: dict[str, int | list[dict[str, Any]]] = {"total": 0}
 
         _fill_data()
 
@@ -256,14 +259,14 @@ class BaseQuery:
         return cls.KEY_REPLACE_FIELDS.get(field) or field
 
     @classmethod
-    def _build_filters(cls, filters: Optional[List[types.Filter]]) -> Q:
+    def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
         if not filters:
             return Q()
 
         q: Q = Q()
         for f in filters:
             if f["operator"] not in cls.operator_mapping:
-                raise ValueError(_("不支持的查询操作符: %s") % (f['operator']))
+                raise ValueError(_("不支持的查询操作符: %s") % (f["operator"]))
 
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
@@ -277,8 +280,8 @@ class BaseQuery:
 
     @classmethod
     def _get_time_range(
-        cls, retention: int, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Tuple[int, int]:
+        cls, retention: int, start_time: int | None = None, end_time: int | None = None
+    ) -> tuple[int, int]:
         now: int = int(datetime.datetime.now().timestamp())
         # 最早可查询时间
         earliest_start_time: int = now - int(datetime.timedelta(days=retention).total_seconds())
@@ -295,10 +298,10 @@ class BaseQuery:
         return start_time, end_time
 
     @classmethod
-    def _add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: Dict[str, Any]) -> QueryConfigBuilder:
+    def _add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: dict[str, Any]) -> QueryConfigBuilder:
         logger.info("[add_query_string] dsl -> %s", dsl)
         try:
-            filter_dict: Dict[str, Any] = dsl_to_filter_dict(dsl["query"])
+            filter_dict: dict[str, Any] = dsl_to_filter_dict(dsl["query"])
             logger.info("[add_query_string] filter_dict -> %s", filter_dict)
             if filter_dict:
                 return q.filter(dict_to_q(filter_dict))
@@ -311,7 +314,7 @@ class BaseQuery:
         return q.query_string(query_string, nested_paths)
 
     @classmethod
-    def _parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, Dict[str, str]]:
+    def _parse_query_string_from_dsl(cls, dsl: dict[str, Any]) -> tuple[str, dict[str, str]]:
         """
         【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
         :param dsl:
@@ -323,12 +326,12 @@ class BaseQuery:
             pass
 
         try:
-            should_list: List[Dict[str, Any]] = dsl["query"]["bool"]["should"]
+            should_list: list[dict[str, Any]] = dsl["query"]["bool"]["should"]
         except KeyError:
             return "*", {}
 
         query_string: str = "*"
-        nested_paths: Dict[str, str] = {}
+        nested_paths: dict[str, str] = {}
         for should in should_list:
             try:
                 nested_paths[should["nested"]["path"]] = should["nested"]["query"]["query_string"]["query"]
@@ -342,14 +345,14 @@ class BaseQuery:
         return query_string, nested_paths
 
     @classmethod
-    def _parse_ordering_from_dsl(cls, dsl: Dict[str, Any]) -> List[str]:
+    def _parse_ordering_from_dsl(cls, dsl: dict[str, Any]) -> list[str]:
         """
         【待废弃】在 dsl 中提取字段排序信息
         :param dsl:
         :return:
         """
 
-        ordering: List[str] = []
+        ordering: list[str] = []
         try:
             for sort_item in dsl["sort"]:
                 if isinstance(sort_item, str):
@@ -369,12 +372,12 @@ class BaseQuery:
 
         return ordering
 
-    def get_q_from_filters_and_query_string(self, filters, query_string) -> QueryConfigBuilder:
+    def get_q_from_filters_and_query_string(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
         return (
             self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
         )
 
-    def _query_field_topk(self, start_time, end_time, field, limit, filters, query_string):
+    def _query_field_topk(self, start_time, end_time, field, limit, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = (
             self.get_q_from_filters_and_query_string(filters, query_string)
             .metric(field=field, method="COUNT", alias="a")
@@ -384,7 +387,7 @@ class BaseQuery:
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
         return list(queryset)
 
-    def _query_total(self, start_time, end_time, filters, query_string):
+    def _query_total(self, start_time, end_time, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
             field="_index", method="COUNT", alias="a"
         )
@@ -410,7 +413,19 @@ class BaseQuery:
             return list(queryset)[0]["_result_"]
         except (IndexError, KeyError) as exc:
             logger.warning("failed to query field %s with method %s, error: %s", field, method, exc)
-            raise ValueError(_("字段 {} 使用 {} 方法聚合值查询出错".format(field, method)))
+            raise ValueError(_(f"字段 {field} 使用 {method} 方法聚合值查询出错"))
+
+    def query_graph_config(self, start_time, end_time, field, filters: list[types.Filter], query_string: str):
+        """
+        获取查询配置
+        """
+        q: QueryConfigBuilder = (
+            self.get_q_from_filters_and_query_string(filters, query_string)
+            .interval(get_bar_interval_number(start_time, end_time))
+            .metric(field="_index", method=AggregatedMethod.COUNT.value, alias="a")
+            .group_by(field)
+        )
+        return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
 
 
 class FakeQuery:

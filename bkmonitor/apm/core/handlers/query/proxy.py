@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,9 +14,10 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -118,12 +118,12 @@ class QueryProxy:
         end_time: int,
         limit: int,
         offset: int,
-        filters: Optional[List[types.Filter]] = None,
-        es_dsl: Optional[Dict[str, Any]] = None,
-        exclude_fields: Optional[List[str]] = None,
+        filters: list[types.Filter] | None = None,
+        es_dsl: dict[str, Any] | None = None,
+        exclude_fields: list[str] | None = None,
     ):
         """查询列表"""
-        data, size = self.query_mode[query_mode].list(
+        data, size = self.query_mode[query_mode].query_list(
             start_time, end_time, offset, limit, filters, es_dsl, exclude_fields
         )
         return asdict(TraceInfoList(total=size, data=data))
@@ -208,13 +208,13 @@ class QueryProxy:
 
     @classmethod
     def query_trace_by_ids(
-        cls, bk_biz_id: int, trace_ids: List[str], start_time: Optional[int], end_time: Optional[int]
-    ) -> Dict[str, Dict[str, Any]]:
+        cls, bk_biz_id: int, trace_ids: list[str], start_time: int | None, end_time: int | None
+    ) -> dict[str, dict[str, Any]]:
         """不指定 APP_NAME 下根据 TraceId 查询 Trace"""
-        trace_id__info_map: Dict[str, Dict[str, Any]] = {}
-        result_table_ids: List[str] = PrecalculateStorage.fetch_result_table_ids(bk_biz_id)
+        trace_id__info_map: dict[str, dict[str, Any]] = {}
+        result_table_ids: list[str] = PrecalculateStorage.fetch_result_table_ids(bk_biz_id)
         # 这里取哪一个业务的数据过期时间都不合适，但时间范围后续切换查询方式可能起到加速查询、跨集群检索的能力，先给个极值 30
-        trace_infos: List[Dict[str, Any]] = TraceQuery.query_by_trace_ids(
+        trace_infos: list[dict[str, Any]] = TraceQuery.query_by_trace_ids(
             result_table_ids, trace_ids, 30, start_time, end_time
         )
         for trace_info in trace_infos:
@@ -222,13 +222,22 @@ class QueryProxy:
         return trace_id__info_map
 
     def query_simple_info(self, start_time, end_time, offset, limit):
-        trace_id__info_map: Dict[str, Dict[str, Any]] = {}
+        trace_id__info_map: dict[str, dict[str, Any]] = {}
         trace_infos, total = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
 
-    def query_field_topk(self, query_mode, start_time, end_time, field, limit, filters, query_string):
+    def query_field_topk(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
         topk_values = []
         for topk_item in self.query_mode[query_mode].query_field_topk(
             start_time, end_time, field, limit, filters, query_string
@@ -238,24 +247,35 @@ class QueryProxy:
                 count = topk_item["_result_"]
             except (IndexError, KeyError) as exc:
                 logger.warning("failed to query %s topk, err -> %s", field, exc)
-                raise ValueError(_("{} topk 值查询出错".format(field)))
+                raise ValueError(_(f"{field} topk 值查询出错"))
             topk_values.append({"field_value": field_value, "count": count})
         return topk_values
 
-    def query_total(self, query_mode, start_time, end_time, filters, query_string):
+    def query_total(self, query_mode, start_time, end_time, filters: list[types.Filter], query_string: str):
         return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)
 
     def query_field_aggregated_value(
         self,
         query_mode,
-        start_time: Optional[int],
-        end_time: Optional[int],
+        start_time: int,
+        end_time: int,
         field: str,
         method: str,
-        filters: Optional[List[types.Filter]] = None,
-        query_string: Optional[str] = None,
+        filters: list[types.Filter],
+        query_string: str,
         need_empty: bool = True,
     ):
         return self.query_mode[query_mode].query_field_aggregated_value(
             start_time, end_time, field, method, filters, query_string, need_empty
         )
+
+    def query_graph_config(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)
