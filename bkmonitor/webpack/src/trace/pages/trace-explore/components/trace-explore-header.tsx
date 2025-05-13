@@ -239,7 +239,7 @@ export default defineComponent({
                 class={{ item: true, active: this.store.mode === 'trace' }}
                 onClick={() => this.handleSceneModelChange('trace')}
               >
-                {this.$t('Tracing 视角')}
+                {this.$t('Trace 视角')}
               </div>
               <div
                 class={{ item: true, active: this.store.mode === 'span' }}
