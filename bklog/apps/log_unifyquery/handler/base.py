@@ -58,7 +58,6 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.time_handler import timestamp_to_timeformat
 from bkm_ipchooser.constants import CommonEnum
-from apps.log_search.handlers.search.search_handlers_esquery import fields_config
 from django.utils.translation import gettext as _
 from apps.log_search.constants import ERROR_MSG_CHECK_FIELDS_FROM_BKDATA, ERROR_MSG_CHECK_FIELDS_FROM_LOG
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -66,6 +65,24 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
+
+
+def fields_config(name: str, is_active: bool = False):
+    def decorator(func):
+        def func_decorator(*args, **kwargs):
+            config = {"name": name, "is_active": is_active}
+            result = func(*args, **kwargs)
+            if isinstance(result, tuple):
+                config["is_active"], config["extra"] = result
+                return config
+            if result is None:
+                return config
+            config["is_active"] = result
+            return config
+
+        return func_decorator
+
+    return decorator
 
 
 class UnifyQueryHandler:

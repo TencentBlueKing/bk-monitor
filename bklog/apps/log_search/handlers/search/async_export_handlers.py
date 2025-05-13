@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import copy
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -59,7 +59,7 @@ from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
-class AsyncExportHandlers:
+class AsyncExportHandlers(object):
     def __init__(
         self,
         index_set_id: int = None,

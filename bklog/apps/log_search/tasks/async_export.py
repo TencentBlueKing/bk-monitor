@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -355,7 +356,7 @@ class AsyncExportUtils:
                 else:
                     self.file_path_list.append(result)
                     # 读取文件内容并写入汇总文件
-                    with open(result, encoding="utf-8") as f:
+                    with open(result, "r", encoding="utf-8") as f:
                         for line in f:
                             summary_file.write(line)
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
