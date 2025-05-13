@@ -423,6 +423,7 @@ class TraceChatsResource(Resource):
                                     },
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -472,6 +473,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -521,6 +523,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
