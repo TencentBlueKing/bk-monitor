@@ -50,6 +50,7 @@ class _BcsApi:
             description="根据项目id获取集群信息",
             header_keys=["Authorization"],
             before_request=bcs_before_request,
+            bk_tenant_id=biz_to_tenant_getter("businessID"),
         )
         self.get_cluster_by_cluster_id = DataAPI(
             method="GET",

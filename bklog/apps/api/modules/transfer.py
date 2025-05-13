@@ -138,6 +138,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改数据源与结果表的关系"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.create_result_table = DataAPI(
             method="POST",
@@ -160,6 +161,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改结果表"),
             before_request=modify_result_table_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.switch_result_table = DataAPI(
             method="POST",
@@ -167,6 +169,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("结果表起停"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_label = DataAPI(
             method="GET",

@@ -68,6 +68,7 @@ class _BkDataDatabusApi:
             description="获取清洗配置列表",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.databus_cleans_post = DataAPI(
             method="POST",

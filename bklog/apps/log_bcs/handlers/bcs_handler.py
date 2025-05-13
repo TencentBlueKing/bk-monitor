@@ -42,9 +42,9 @@ class BcsHandler:
         if space.space_type_id == SpaceTypeEnum.BKCC.value:
             clusters = BcsApi.list_cluster_by_project_id({"businessID": bk_biz_id})
         elif space.space_type_id == SpaceTypeEnum.BCS.value:
-            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_id})
+            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_id, "businessID": bk_biz_id})
         elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_code})
+            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_code, "businessID": bk_biz_id})
         else:
             clusters = []
 

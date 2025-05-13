@@ -47,6 +47,7 @@ class _BkDataDataFlowApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.start_flow = DataAPI(
             method="POST",
@@ -138,6 +139,7 @@ class _BkDataDataFlowApi:
             description="设置dataflow资源",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 

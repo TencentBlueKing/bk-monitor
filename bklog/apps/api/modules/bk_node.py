@@ -63,6 +63,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询订阅配置信息",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.run_subscription_task = DataAPI(
             method="POST",
@@ -70,6 +71,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="执行订阅下发任务",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_subscription_instance_status = DataAPI(
             method="POST",
@@ -85,6 +87,7 @@ class _BKNodeApi:
             description="查看订阅任务运行状态",
             before_request=get_bk_node_request_before,
             pagination_style=DataAPI.PaginationStyle.PAGE_NUMBER.value,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.plugin_search = DataAPI(
             method="POST",
@@ -93,6 +96,7 @@ class _BKNodeApi:
             description="查询插件列表",
             before_request=get_bk_node_request_before,
             pagination_style=DataAPI.PaginationStyle.PAGE_NUMBER.value,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.check_subscription_task_ready = DataAPI(
             method="POST",
@@ -100,6 +104,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查看订阅任务是否发起",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.delete_subscription = DataAPI(
             method="POST",
@@ -107,6 +112,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="删除订阅配置",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_subscription_task_detail = DataAPI(
             method="POST",
@@ -114,6 +120,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询订阅任务中实例的详细状态",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.switch_subscription = DataAPI(
             method="POST",
@@ -121,6 +128,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="节点管理订阅功能开关",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.subscription_statistic = DataAPI(
@@ -129,6 +137,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="节点管理统计订阅任务数据",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.query_host_subscriptions = DataAPI(
             method="GET",
@@ -144,6 +153,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="重试失败的任务",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.ipchooser_host_details = DataAPI(
             method="POST",

@@ -51,6 +51,7 @@ class _BkDataAccessApi:
             after_request=None,
             url_keys=["raw_data_id"],
             cache_time=60,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.stop_collectorhub = DataAPI(
             method="POST",
