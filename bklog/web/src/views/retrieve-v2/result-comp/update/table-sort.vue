@@ -3,7 +3,7 @@
     <vue-draggable
       v-bind="dragOptions"
       class="custom-select-list"
-      v-model="shadowSort"
+      v-model="sortList"
     >
       <transition-group>
         <li
