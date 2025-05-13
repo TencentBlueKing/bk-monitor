@@ -91,7 +91,7 @@ export default defineComponent({
       default: 101,
     },
   },
-  emits: ['type-change', 'value-change'],
+  emits: ['type-change', 'value-change', 'auth-request'],
   setup(props, { emit }) {
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
@@ -187,6 +187,11 @@ export default defineComponent({
       };
     });
 
+    const handleAuthRequest = item => {
+      emit('auth-request', item);
+      refRootElement.value?.hide();
+    };
+
     return () => {
       return (
         <BklogPopover
@@ -211,6 +216,7 @@ export default defineComponent({
                   style={contentStyleVar.value}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
+                  on-auth-request={handleAuthRequest}
                 ></Content>
               ),
             },

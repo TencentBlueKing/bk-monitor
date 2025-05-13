@@ -20,6 +20,7 @@
   import WarningSetting from './warning-setting.vue';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import * as authorityMap from '@/common/authority-map';
 
   const props = defineProps({
     showFavorites: {
@@ -210,6 +211,26 @@
     handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
 
+  const handleAuthRequest = item => {
+    try {
+      store
+        .dispatch('getApplyData', {
+          action_ids: [authorityMap.SEARCH_LOG_AUTH],
+          resources: [
+            {
+              type: 'indices',
+              id: item.index_set_id,
+            },
+          ],
+        })
+        .then(res => {
+          window.open(res.data.apply_url);
+        });
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
   /**
    * @description: 打开 索引集配置 抽屉页
    */
@@ -240,6 +261,7 @@
         width="100%"
         @value-change="handleIndexSetValueChange"
         @type-change="handleActiveTypeChange"
+        @auth-request="handleAuthRequest"
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>

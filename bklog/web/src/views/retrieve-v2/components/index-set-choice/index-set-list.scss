@@ -173,6 +173,26 @@
           }
         }
 
+        &.no-authority {
+          cursor: not-allowed;
+
+          .group-icon {
+            position: relative;
+            &::after {
+              content: '';
+
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: url('@/images/cursor-lock.svg') no-repeat;
+              background-position: center left 4px;
+              background-color: #fafcff;
+            }
+          }
+        }
+
         &.is-child {
           .node-open-arrow {
             visibility: hidden;
@@ -208,6 +228,18 @@
           .index-set-tags {
             .index-set-tag-item {
               background: #ffffff;
+            }
+          }
+
+          &.no-authority {
+            .group-icon {
+              &::after {
+                background-color: #ebeff5;
+              }
+            }
+
+            .index-set-tag-item {
+              cursor: pointer;
             }
           }
         }
