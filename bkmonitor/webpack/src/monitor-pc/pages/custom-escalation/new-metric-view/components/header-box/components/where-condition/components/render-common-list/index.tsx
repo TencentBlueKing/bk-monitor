@@ -74,8 +74,10 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
               style='color: #3a84ff;'
               to={{
                 name: 'new-custom-detail-timeseries',
-                id: this.$route.params.id,
-                activeTab: 'dimension',
+                params: {
+                  id: this.$route.params.id,
+                  activeTab: 'dimension',
+                },
               }}
               target='_blank'
             >
