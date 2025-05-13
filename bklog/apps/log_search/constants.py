@@ -1579,6 +1579,30 @@ class OperatorEnum:
         "placeholder": _("请选择或直接输入，Enter分隔"),
         "wildcard_operator": "&!=~",
     }
+    CONTAINS_MATCH_PHRASE_PREFIX = {
+        "operator": "contains match phrase prefix",
+        "label": _("包含前缀"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "=~",
+    }
+    NOT_CONTAINS_MATCH_PHRASE_PREFIX = {
+        "operator": "not contains match phrase prefix",
+        "label": _("不包含前缀"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "!=~",
+    }
+    ALL_CONTAINS_MATCH_PHRASE_PREFIX = {
+        "operator": "all contains match phrase prefix",
+        "label": _("全部包含前缀"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&=~",
+    }
+    ALL_NOT_CONTAINS_MATCH_PHRASE_PREFIX = {
+        "operator": "all not contains match phrase prefix",
+        "label": _("全部不包含前缀"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&!=~",
+    }
 
 
 OPERATORS = {
