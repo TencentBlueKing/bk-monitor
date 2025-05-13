@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
@@ -33,6 +34,7 @@ import { updateFavorite } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
 import {
@@ -57,11 +59,13 @@ import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonP
 
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 updateTimezone(window.timezone);
+
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
+    const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
@@ -71,6 +75,7 @@ export default defineComponent({
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
     /** 自动查询定时器 */
     let autoQueryTimer = null;
+    const applicationLoading = shallowRef(false);
     /** 应用列表 */
     const applicationList = shallowRef<IApplicationItem[]>([]);
     /** 是否展示收藏夹 */
@@ -164,7 +169,9 @@ export default defineComponent({
 
     /** 获取应用列表 */
     async function getApplicationList() {
+      applicationLoading.value = true;
       const data = await listApplicationInfo().catch(() => []);
+      applicationLoading.value = false;
       applicationList.value = data;
       store.updateAppList(data);
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
@@ -477,8 +484,15 @@ export default defineComponent({
       localStorage.setItem(TRACE_EXPLORE_SHOW_FAVORITE, JSON.stringify(isShow));
     }
 
+    function handleCreateApp() {
+      const url = location.href.replace(location.hash, '#/apm/home');
+      window.open(url, '_blank');
+    }
+
     return {
+      t,
       traceExploreLayoutRef,
+      applicationLoading,
       applicationList,
       isShowFavorite,
       fieldListMap,
@@ -518,6 +532,7 @@ export default defineComponent({
       handleFavoriteOpenBlank,
       handleFavoriteSave,
       handleEditFavoriteShow,
+      handleCreateApp,
     };
   },
   render() {
@@ -573,34 +588,50 @@ export default defineComponent({
                 onWhereChange={this.handleWhereChange}
               />
             )}
-            <TraceExploreLayout
-              ref='traceExploreLayoutRef'
-              class='content-container'
-            >
-              {{
-                aside: () => (
-                  <div class='dimension-filter-panel'>
-                    <DimensionFilterPanel
-                      list={this.fieldList}
-                      listLoading={this.loading}
-                      params={this.commonParams}
-                      onClose={this.handleCloseDimensionPanel}
-                      onConditionChange={this.handleConditionChange}
-                    />
-                  </div>
-                ),
-                default: () => (
-                  <div class='result-content-panel'>
-                    <TraceExploreView
-                      checkboxFilters={this.checkboxFilters}
-                      commonParams={this.commonParams}
-                      fieldListMap={this.fieldListMap}
-                      onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
-                    />
-                  </div>
-                ),
-              }}
-            </TraceExploreLayout>
+            {!this.applicationLoading && !this.applicationList.length && (
+              <div class='create-app-guide'>
+                <EmptyStatus
+                  textMap={{ 'empty-app': this.t('暂无应用') }}
+                  type='empty-app'
+                >
+                  <p class='subTitle'>
+                    <i18n-t keypath='无法查询调用链，请先 {0}'>
+                      <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                    </i18n-t>
+                  </p>
+                </EmptyStatus>
+              </div>
+            )}
+            {!this.applicationLoading && this.applicationList.length && (
+              <TraceExploreLayout
+                ref='traceExploreLayoutRef'
+                class='content-container'
+              >
+                {{
+                  aside: () => (
+                    <div class='dimension-filter-panel'>
+                      <DimensionFilterPanel
+                        list={this.fieldList}
+                        listLoading={this.loading}
+                        params={this.commonParams}
+                        onClose={this.handleCloseDimensionPanel}
+                        onConditionChange={this.handleConditionChange}
+                      />
+                    </div>
+                  ),
+                  default: () => (
+                    <div class='result-content-panel'>
+                      <TraceExploreView
+                        checkboxFilters={this.checkboxFilters}
+                        commonParams={this.commonParams}
+                        fieldListMap={this.fieldListMap}
+                        onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                      />
+                    </div>
+                  ),
+                }}
+              </TraceExploreLayout>
+            )}
           </div>
         </div>
         <EditFavorite
