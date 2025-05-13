@@ -30,10 +30,10 @@ import { Message } from 'bkui-vue';
 import { createFavorite, updateFavorite, destroyFavorite } from 'monitor-api/modules/model';
 import tippy, { type SingleTarget, type Instance } from 'tippy.js';
 
+import EditFavorite from '../../../../components/edit-favorite';
 import useFavoriteType from '../../../../hooks/use-favorite-type';
 import useGroupList from '../../../../hooks/use-group-list';
 import UpdateFavoriteGroupPopover from '../../../update-favorite-group-popover';
-import EditFavorite from './components/edit-favorite';
 import ShareFavorite from './components/share-favorite';
 
 import type { IFavoriteGroup } from '../../../../types';
@@ -48,7 +48,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['openBlank'],
+  emits: ['openBlank', 'selected'],
   setup(props, context) {
     const { t } = useI18n();
     const favoriteType = useFavoriteType();
@@ -83,6 +83,10 @@ export default defineComponent({
           isHover.value = false;
         },
       });
+    };
+
+    const handleClick = () => {
+      context.emit('selected', props.data);
     };
 
     const handleShowShareFavorite = () => {
@@ -171,7 +175,12 @@ export default defineComponent({
           placement: 'right',
         }}
       >
-        <div class='favorite-box-item-name'>{props.data.name}</div>
+        <div
+          class='favorite-box-item-name'
+          onClick={handleClick}
+        >
+          {props.data.name}
+        </div>
         <div
           ref={actionRef}
           class='favorite-item-action'

@@ -62,12 +62,14 @@ export default defineComponent({
       return group ? group.name : t('未分组');
     });
 
-    const handleEditStart = () => {
+    const handleEditStart = (event: Event) => {
+      event.stopImmediatePropagation();
+      event.stopPropagation();
       isEditing.value = true;
       formData.group_id = props.data.group_id;
       setTimeout(() => {
-        groupSelectRef.value.focusInput();
-      });
+        groupSelectRef.value.showPopover();
+      }, 100);
     };
 
     const handleCreateGroupSuccess = (groupName: string) => {

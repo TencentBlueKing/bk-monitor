@@ -32,6 +32,7 @@ import { Input, Checkbox, Loading } from 'bkui-vue';
 import _ from 'lodash';
 
 import CreateGroupPopover from './components/create-group-popover';
+import EditFavorite from './components/edit-favorite';
 import GroupFavoriteSort from './components/group-favorite-sort';
 import GroupManage from './components/group-manage/index';
 import GroupTree from './components/group-tree/index';
@@ -45,6 +46,8 @@ import type { IFavorite, IFavoriteGroup } from './types';
 import './index.scss';
 
 export type { IFavorite, IFavoriteGroup };
+
+export { EditFavorite };
 
 export default defineComponent({
   name: 'FavoriteBox',
@@ -65,7 +68,13 @@ export default defineComponent({
   emits: ['openBlank', 'change', 'close'],
   setup(props, context) {
     const { t } = useI18n();
-    const { loading: isGroupListLoading, data: groupList, wholeFavoriteList } = useGroupList(props.type);
+    const {
+      loading: isGroupListLoading,
+      data: groupList,
+      wholeFavoriteList,
+      allFavoriteList,
+      run: refreshGroupList,
+    } = useGroupList(props.type);
     const favoriteType = useFavoriteType();
     const eventFavoriteDataId = useEventFavoriteDataId();
 
@@ -122,24 +131,33 @@ export default defineComponent({
       context.emit('openBlank', favoriteData, props.type);
     };
 
-    function handleClose() {
+    const handleClose = () => {
       context.emit('close');
-    }
+    };
+
+    context.expose({
+      refreshGroupList,
+      getGroupList: () => groupList.value,
+      // 不经过过滤条件
+      getWholeFavoriteList: () => wholeFavoriteList.value,
+      // 经过过滤
+      getFavoriteList: () => allFavoriteList.value,
+    });
 
     return () => (
       <div class='bk-monitor-favorite-box'>
         <div class='header-wrapper'>
-          <div>{t('收藏夹')}</div>
+          <span
+            class='icon-monitor icon-gongneng-shouqi'
+            onClick={handleClose}
+          />
+          <div style='margin-left: 8px'>{t('收藏夹')}</div>
           <div class='number-tag'>{groupList.value.length}</div>
           <div class='extend-action'>
             <span
               class='icon-monitor icon-shezhi1'
               v-bk-tooltips={t('收藏管理')}
               onClick={handleShowGroupManage}
-            />
-            <span
-              class='icon-monitor icon-gongneng-shouqi'
-              onClick={handleClose}
             />
           </div>
         </div>

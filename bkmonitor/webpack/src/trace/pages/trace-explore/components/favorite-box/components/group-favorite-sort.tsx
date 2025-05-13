@@ -63,7 +63,7 @@ export default defineComponent({
       tippyInstance = tippy(rootRef.value as SingleTarget, {
         content: panelRef.value as any,
         trigger: 'click',
-        placement: 'bottom-start',
+        placement: 'bottom',
         theme: 'light favorite-box-favorite-sort-panel',
         interactive: true,
         hideOnClick: true,
