@@ -44,7 +44,6 @@ from apps.iam.handlers.drf import (
     InstanceActionForDataPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
-    insert_permission_field,
 )
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
@@ -157,11 +156,6 @@ class SearchViewSet(APIViewSet):
 
         return [ViewBusinessPermission()]
 
-    @insert_permission_field(
-        actions=[ActionEnum.SEARCH_LOG],
-        resource_meta=ResourceEnum.INDICES,
-        id_field=lambda d: d["index_set_id"],
-    )
     def list(self, request, *args, **kwargs):
         """
         @api {get} /search/index_set/?space_uid=$space_uid&is_group=false 01_搜索-索引集列表
@@ -201,7 +195,50 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchIndexSetScopeSerializer)
-        return Response(IndexSetHandler().get_user_index_set(data["space_uid"], data["is_group"]))
+        result_list = IndexSetHandler().get_user_index_set(data["space_uid"], data["is_group"])
+
+        # 构建一个包含所有子项的列表，利用引用赋值特性
+        all_items = []
+        for item in result_list:
+            all_items.append(item)
+            if "children" in item and isinstance(item["children"], list):
+                all_items.extend(item["children"])
+
+        # 获取资源
+        resources = []
+        for item in all_items:
+            attribute = {}
+            if "bk_biz_id" in item:
+                attribute["bk_biz_id"] = item["bk_biz_id"]
+            if "space_uid" in item:
+                attribute["space_uid"] = item["space_uid"]
+            resources.append(
+                [ResourceEnum.INDICES.create_simple_instance(instance_id=item["index_set_id"], attribute=attribute)]
+            )
+
+        if not resources:
+            return Response(result_list)
+
+        # 权限处理
+        if settings.IGNORE_IAM_PERMISSION:
+            for item in all_items:
+                item.setdefault("permission", {})
+                item["permission"].update({ActionEnum.SEARCH_LOG.id: True})
+            return Response(result_list)
+
+        from apps.iam.handlers.permission import Permission
+
+        permission_result = Permission().batch_is_allowed([ActionEnum.SEARCH_LOG], resources)
+        for item in all_items:
+            origin_instance_id = item["index_set_id"]
+            if not origin_instance_id:
+                # 如果拿不到实例ID，则不处理
+                continue
+            instance_id = str(origin_instance_id)
+            item.setdefault("permission", {})
+            item["permission"].update(permission_result[instance_id])
+
+        return Response(result_list)
 
     @detail_route(methods=["GET"], url_path="bizs")
     def bizs(self, request, *args, **kwargs):
