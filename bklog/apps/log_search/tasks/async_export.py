@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import copy
 import datetime
 import json
@@ -222,7 +221,7 @@ def clean_expired_task():
             expired_task.save()
 
 
-class AsyncExportUtils:
+class AsyncExportUtils(object):
     """
     async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
     """
