@@ -118,8 +118,7 @@ export default defineComponent({
     const editFavoriteData = shallowRef(null);
     const editFavoriteShow = shallowRef(false);
 
-    let axiosController = new AbortController();
-    const { getFieldsOptionValuesProxy } = useCandidateValue(axiosController);
+    const { getFieldsOptionValuesProxy } = useCandidateValue();
 
     const residentSettingOnlyId = computed(() => {
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
@@ -353,8 +352,6 @@ export default defineComponent({
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
-      // axiosController?.abort?.();
-      axiosController = new AbortController();
       const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
       return getFieldsOptionValuesProxy({
         app_name: store.appName,

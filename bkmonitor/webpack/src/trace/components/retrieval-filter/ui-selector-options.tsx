@@ -32,6 +32,7 @@ import { Select, Checkbox, Input, Button, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
+import EmptyStatus from '../empty-status/empty-status';
 import TimeConsuming from './time-consuming';
 import {
   ECondition,
@@ -426,6 +427,11 @@ export default defineComponent({
       }) as any;
     }
 
+    function handleClearSearch() {
+      searchValue.value = '';
+      handleSearchChange();
+    }
+
     return {
       checkedItem,
       queryString,
@@ -454,6 +460,7 @@ export default defineComponent({
       handleConfirm,
       handleCancel,
       defaultOptions,
+      handleClearSearch,
     };
   },
   render() {
@@ -591,36 +598,43 @@ export default defineComponent({
               </Input>
             </div>
             <div class='options-wrap'>
-              {this.searchLocalFields.map((item, index) => {
-                // const { title, subtitle } = getTitleAndSubtitle(item.alias);
-                const title = item.alias;
-                const subtitleStr = item.name;
-                return (
-                  <div
-                    key={item.name}
-                    class={[
-                      'option',
-                      { checked: this.checkedItem?.name === item.name },
-                      { cursor: index === this.cursorIndex },
-                    ]}
-                    onClick={() => {
-                      this.handleCheck(item, '', [], this.defaultOptions(), true);
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: fieldTypeMap[item.type]?.bgColor || fieldTypeMap.other.bgColor,
-                        color: fieldTypeMap[item.type]?.color || fieldTypeMap.other.color,
+              {this.searchLocalFields.length ? (
+                this.searchLocalFields.map((item, index) => {
+                  // const { title, subtitle } = getTitleAndSubtitle(item.alias);
+                  const title = item.alias;
+                  const subtitleStr = item.name;
+                  return (
+                    <div
+                      key={item.name}
+                      class={[
+                        'option',
+                        { checked: this.checkedItem?.name === item.name },
+                        { cursor: index === this.cursorIndex },
+                      ]}
+                      onClick={() => {
+                        this.handleCheck(item, '', [], this.defaultOptions(), true);
                       }}
-                      class='option-icon'
                     >
-                      <span class={[fieldTypeMap[item.type]?.icon || fieldTypeMap.other.icon, 'option-icon-icon']} />
-                    </span>
-                    <span class='option-name-title'>{title}</span>
-                    {!!subtitleStr && <span class='option-name-subtitle'>（{subtitleStr}）</span>}
-                  </div>
-                );
-              })}
+                      <span
+                        style={{
+                          background: fieldTypeMap[item.type]?.bgColor || fieldTypeMap.other.bgColor,
+                          color: fieldTypeMap[item.type]?.color || fieldTypeMap.other.color,
+                        }}
+                        class='option-icon'
+                      >
+                        <span class={[fieldTypeMap[item.type]?.icon || fieldTypeMap.other.icon, 'option-icon-icon']} />
+                      </span>
+                      <span class='option-name-title'>{title}</span>
+                      {!!subtitleStr && <span class='option-name-subtitle'>（{subtitleStr}）</span>}
+                    </div>
+                  );
+                })
+              ) : (
+                <EmptyStatus
+                  type={this.searchValue ? 'search-empty' : 'empty'}
+                  onOperation={this.handleClearSearch}
+                />
+              )}
             </div>
           </div>
           <div class='component-top-right'>{rightRender()}</div>

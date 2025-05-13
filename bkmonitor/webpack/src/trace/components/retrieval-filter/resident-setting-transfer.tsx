@@ -29,6 +29,7 @@ import { defineComponent, shallowRef, useTemplateRef, computed, watch } from 'vu
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Input } from 'bkui-vue';
 
+import EmptyStatus from '../empty-status/empty-status';
 import { type IFilterField, RESIDENT_SETTING_TRANSFER_EMITS, RESIDENT_SETTING_TRANSFER_PROPS } from './typing';
 import { fieldTypeMap, triggerShallowRef } from './utils';
 
@@ -188,6 +189,7 @@ export default defineComponent({
       handleCheck,
       handleAllAdd,
       handleSearchValueChangeDebounce,
+      handleSearchValueChange,
     };
   },
   render() {
@@ -234,23 +236,32 @@ export default defineComponent({
                 <Input
                   ref='search'
                   behavior='simplicity'
+                  clearable={true}
                   left-icon='bk-icon icon-search'
                   modelValue={this.searchValue}
                   placeholder={this.$t('请输入关键字')}
-                  onChange={this.handleSearchValueChangeDebounce}
+                  onClear={() => this.handleSearchValueChange('')}
+                  onInput={this.handleSearchValueChangeDebounce}
                 />
               </div>
               <div class='options-wrap'>
-                {this.searchLocalFields.map((item, index) => (
-                  <div
-                    key={item.name}
-                    class={'option check-type'}
-                    onClick={() => this.handleCheck(index)}
-                  >
-                    {optionRender(item)}
-                    <span class='icon-monitor icon-back-right' />
-                  </div>
-                ))}
+                {this.searchLocalFields.length ? (
+                  this.searchLocalFields.map((item, index) => (
+                    <div
+                      key={item.name}
+                      class={'option check-type'}
+                      onClick={() => this.handleCheck(index)}
+                    >
+                      {optionRender(item)}
+                      <span class='icon-monitor icon-back-right' />
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStatus
+                    type={this.searchValue ? 'search-empty' : 'empty'}
+                    onOperation={() => this.handleSearchValueChange('')}
+                  />
+                )}
               </div>
             </div>
           </div>

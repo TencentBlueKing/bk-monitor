@@ -127,6 +127,13 @@
             }
           }
         }
+
+        .empty-status-container {
+          position: relative;
+          top: 50%;
+          overflow: hidden;
+          transform: translateY(-50%);
+        }
       }
 
       .search-wrap {
