@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, computed, watch, useTemplateRef, nextTick 
 import { useI18n } from 'vue-i18n';
 
 import { useEventListener, useDebounceFn } from '@vueuse/core';
-import { Select, Checkbox, Input, Button } from 'bkui-vue';
+import { Select, Checkbox, Input, Button, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
@@ -44,7 +44,7 @@ import {
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
-import { DURATION_KEYS, fieldTypeMap, isNumeric } from './utils';
+import { DURATION_KEYS, EXISTS_KEYS, fieldTypeMap, GROUP_RELATION_KEY, isNumeric, WILDCARD_KEY } from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
@@ -66,15 +66,23 @@ export default defineComponent({
     const queryString = shallowRef('');
     const method = shallowRef('');
     const values = shallowRef([]);
-    const isWildcard = shallowRef(false);
     const rightRefreshKey = shallowRef(random(8));
     const rightFocus = shallowRef(false);
     const cacheCheckedName = shallowRef('');
     const isMacSystem = shallowRef(false);
 
-    const wildcardItem = computed(
-      () => checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.options
+    const wildcardItem = computed(() =>
+      checkedItem.value?.supported_operations
+        ?.find(item => item.value === method.value)
+        ?.options?.find(item => item.name === WILDCARD_KEY)
     );
+    const groupRelationItem = computed(() =>
+      checkedItem.value?.supported_operations
+        ?.find(item => item.value === method.value)
+        ?.options?.find(item => item.name === GROUP_RELATION_KEY)
+    );
+    const isWildcard = shallowRef(wildcardItem.value?.default || false);
+    const groupRelation = shallowRef(groupRelationItem.value?.default || '');
     /* 是否为数字类型 */
     const isTypeInteger = computed(() => checkedItem.value?.type === EFieldType.integer);
     /* 是否输入了非数字 */
@@ -132,7 +140,10 @@ export default defineComponent({
                   checkedItem,
                   props.value.method.id,
                   props.value.value,
-                  !!props.value?.options?.is_wildcard,
+                  {
+                    isWildcard: !!props.value?.options?.is_wildcard,
+                    groupRelation: props.value?.options?.group_relation,
+                  },
                   true
                 );
                 setTimeout(() => {
@@ -167,16 +178,27 @@ export default defineComponent({
       method.value = '';
       values.value = [];
       isWildcard.value = false;
+      groupRelation.value = '';
       rightFocus.value = false;
       cacheCheckedName.value = '';
       handleSearchChange();
     }
 
-    function handleCheck(item: IFilterField, method$ = '', value = [], isWildcard$ = false, isFocus = false) {
+    function handleCheck(
+      item: IFilterField,
+      method$ = '',
+      value = [],
+      options = {
+        isWildcard: false,
+        groupRelation: '',
+      },
+      isFocus = false
+    ) {
       checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
       method.value = method$ || item?.supported_operations?.[0]?.value || '';
-      isWildcard.value = isWildcard$;
+      isWildcard.value = options?.isWildcard || false;
+      groupRelation.value = options?.groupRelation || '';
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
       if (checkedItem.value.name === '*') {
         queryString.value = value[0]?.id || '';
@@ -207,18 +229,21 @@ export default defineComponent({
 
         return;
       }
-      if (values.value.length) {
+      if (EXISTS_KEYS.includes(method.value) || values.value.length) {
         const methodName = checkedItem.value.supported_operations.find(item => item.value === method.value)?.alias;
+        const opt = {};
+        if (isWildcard.value) {
+          opt[WILDCARD_KEY] = true;
+        }
+        if (groupRelation.value) {
+          opt[GROUP_RELATION_KEY] = groupRelation.value;
+        }
         const value: IFilterItem = {
           key: { id: checkedItem.value.name, name: checkedItem.value.alias },
           method: { id: method.value as any, name: methodName || '=' },
           value: values.value,
           condition: { id: ECondition.and, name: 'AND' },
-          options: isWildcard.value
-            ? {
-                is_wildcard: true,
-              }
-            : undefined,
+          options: opt,
         };
         emit('confirm', value);
       } else {
@@ -298,7 +323,7 @@ export default defineComponent({
           if (!props.keyword) allInputRef.value?.focus();
         } else {
           queryString.value = '';
-          handleCheck(item, '', [], false, isFocus);
+          handleCheck(item, '', [], defaultOptions(), isFocus);
         }
       }
     }
@@ -394,12 +419,21 @@ export default defineComponent({
       });
     }
 
+    function defaultOptions() {
+      return structuredClone({
+        isWildcard: wildcardItem.value?.default || false,
+        groupRelation: groupRelationItem.value?.default || '',
+      }) as any;
+    }
+
     return {
       checkedItem,
       queryString,
       method,
       wildcardItem,
+      groupRelationItem,
       isWildcard,
+      groupRelation,
       rightRefreshKey,
       valueSelectorFieldInfo,
       values,
@@ -419,6 +453,7 @@ export default defineComponent({
       handleCheck,
       handleConfirm,
       handleCancel,
+      defaultOptions,
     };
   },
   render() {
@@ -511,6 +546,24 @@ export default defineComponent({
               </div>
               {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
             </div>,
+            !!this.groupRelationItem && (
+              <div
+                key='group_relation'
+                class='form-item mt-16'
+              >
+                <div class='form-item-label'>{this.groupRelationItem?.label || '组件关系'}</div>
+                <div class='form-item-content mt-6'>
+                  <Radio.Group v-model={this.groupRelation}>
+                    {this.groupRelationItem?.children?.map(g => (
+                      <Radio
+                        key={g.value}
+                        label={g.value}
+                      />
+                    ))}
+                  </Radio.Group>
+                </div>
+              </div>
+            ),
           ]
         : undefined;
     };
@@ -551,7 +604,7 @@ export default defineComponent({
                       { cursor: index === this.cursorIndex },
                     ]}
                     onClick={() => {
-                      this.handleCheck(item, '', [], false, true);
+                      this.handleCheck(item, '', [], this.defaultOptions(), true);
                     }}
                   >
                     <span

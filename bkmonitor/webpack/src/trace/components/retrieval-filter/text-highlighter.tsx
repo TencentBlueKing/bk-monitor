@@ -54,13 +54,13 @@ export default defineComponent({
         if (!keyword) return [{ text: content, highlight: false }];
 
         const regex = new RegExp(`(${escapedKeyword})`, 'gi');
-        const tokens = content.split(regex);
-
+        const tokens = `${content}`.split(regex);
         return tokens.filter(Boolean).map(token => ({
           text: token,
           highlight: props.caseSensitive ? token === keyword : token.toLowerCase() === keyword.toLowerCase(),
         }));
-      } catch (_err) {
+      } catch (err) {
+        console.log(err);
         return [];
       }
     }

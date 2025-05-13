@@ -215,15 +215,15 @@ export default defineComponent({
      * 6. 触发变更回调
      */
     function handleConfirm(value: IFilterItem) {
-      const localValue$ = JSON.parse(JSON.stringify(localValue.value));
+      const localValueV = JSON.parse(JSON.stringify(localValue.value));
       if (value) {
         if (updateActive.value > -1) {
-          localValue$.splice(updateActive.value, 1, value);
+          localValueV.splice(updateActive.value, 1, value);
         } else {
-          localValue$.push(value);
+          localValueV.push(value);
         }
       }
-      localValue.value = localValue$;
+      localValue.value = localValueV;
       destroyPopoverInstance();
       hideInput();
       handleChange();

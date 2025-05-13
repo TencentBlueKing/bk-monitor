@@ -133,7 +133,8 @@ export interface IFilterItem {
   method: { id: EMethod; name: string };
   value: { id: string; name: string }[];
   options?: {
-    is_wildcard: boolean;
+    is_wildcard?: boolean;
+    group_relation?: string;
   };
   hide?: boolean;
   isSetting?: boolean; // 是否是设置项
