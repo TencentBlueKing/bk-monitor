@@ -26,8 +26,10 @@ from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
+from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
+from apm.utils.base import get_bar_interval_number
 from bkmonitor.data_source import dict_to_q
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -370,12 +372,12 @@ class BaseQuery:
 
         return ordering
 
-    def get_q_from_filters_and_query_string(self, filters, query_string) -> QueryConfigBuilder:
+    def get_q_from_filters_and_query_string(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
         return (
             self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
         )
 
-    def _query_field_topk(self, start_time, end_time, field, limit, filters, query_string):
+    def _query_field_topk(self, start_time, end_time, field, limit, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = (
             self.get_q_from_filters_and_query_string(filters, query_string)
             .metric(field=field, method="COUNT", alias="a")
@@ -385,7 +387,7 @@ class BaseQuery:
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
         return list(queryset)
 
-    def _query_total(self, start_time, end_time, filters, query_string):
+    def _query_total(self, start_time, end_time, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
             field="_index", method="COUNT", alias="a"
         )
@@ -413,10 +415,16 @@ class BaseQuery:
             logger.warning("failed to query field %s with method %s, error: %s", field, method, exc)
             raise ValueError(_(f"字段 {field} 使用 {method} 方法聚合值查询出错"))
 
-    def _query_config(self, start_time, end_time, q: QueryConfigBuilder):
+    def query_graph_config(self, start_time, end_time, field, filters: list[types.Filter], query_string: str):
         """
         获取查询配置
         """
+        q: QueryConfigBuilder = (
+            self.get_q_from_filters_and_query_string(filters, query_string)
+            .interval(get_bar_interval_number(start_time, end_time))
+            .metric(field="_index", method=AggregatedMethod.COUNT.value, alias="a")
+            .group_by(field)
+        )
         return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
 
 

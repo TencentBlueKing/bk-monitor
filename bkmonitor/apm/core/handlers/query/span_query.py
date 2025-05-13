@@ -19,11 +19,9 @@ import logging
 from typing import Any
 
 from apm import constants, types
-from apm.constants import AggregatedMethod
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import TraceDataSource
-from apm.utils.base import get_bar_interval_number
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
@@ -113,18 +111,3 @@ class SpanQuery(BaseQuery):
         if not need_empty:
             q = q.filter(**{f"{field}__ne": ""})
         return self._query_field_aggregated_value(start_time, end_time, field, method, q)
-
-    def query_interval_count(self, start_time, end_time, field, filters, query_string, min_value, max_value):
-        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).filter(
-            **{f"{field}__gte": min_value, f"{field}__lte": max_value}
-        )
-        return self._query_field_aggregated_value(start_time, end_time, field, AggregatedMethod.COUNT.value, q)
-
-    def query_graph_config(self, start_time, end_time, field, filters, query_string):
-        q: QueryConfigBuilder = (
-            self.get_q_from_filters_and_query_string(filters, query_string)
-            .interval(get_bar_interval_number(start_time, end_time))
-            .metric(field="_index", method=AggregatedMethod.COUNT.value, alias="a")
-            .group_by(field)
-        )
-        return self._query_config(start_time, end_time, q)

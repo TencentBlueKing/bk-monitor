@@ -228,7 +228,16 @@ class QueryProxy:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
 
-    def query_field_topk(self, query_mode, start_time, end_time, field, limit, filters, query_string):
+    def query_field_topk(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
         topk_values = []
         for topk_item in self.query_mode[query_mode].query_field_topk(
             start_time, end_time, field, limit, filters, query_string
@@ -242,30 +251,31 @@ class QueryProxy:
             topk_values.append({"field_value": field_value, "count": count})
         return topk_values
 
-    def query_total(self, query_mode, start_time, end_time, filters, query_string):
+    def query_total(self, query_mode, start_time, end_time, filters: list[types.Filter], query_string: str):
         return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)
 
     def query_field_aggregated_value(
         self,
         query_mode,
-        start_time: int | None,
-        end_time: int | None,
+        start_time: int,
+        end_time: int,
         field: str,
         method: str,
-        filters: list[types.Filter] | None = None,
-        query_string: str | None = None,
+        filters: list[types.Filter],
+        query_string: str,
         need_empty: bool = True,
     ):
         return self.query_mode[query_mode].query_field_aggregated_value(
             start_time, end_time, field, method, filters, query_string, need_empty
         )
 
-    def query_interval_count(
-        self, query_mode, start_time, end_time, field, filters, query_string, min_value, max_value
+    def query_graph_config(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
     ):
-        return self.query_mode[query_mode].query_interval_count(
-            start_time, end_time, field, filters, query_string, min_value, max_value
-        )
-
-    def query_graph_config(self, query_mode, start_time, end_time, field, filters, query_string):
         return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)

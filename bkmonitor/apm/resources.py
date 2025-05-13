@@ -34,6 +34,7 @@ from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
@@ -76,7 +77,6 @@ from apm_web.constants import ServiceRelationLogTypeChoices
 
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
-from bkmonitor.data_source import q_to_dict, dict_to_q
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
@@ -2081,16 +2081,23 @@ class QueryFieldStatisticsGraphResource(Resource):
         # keyword类型，返回时序数据图
         field = validated_data["field"]
         values = field["values"]
-        field_name = field["field_name"]
+        base_query_params = {
+            "query_mode": validated_data["mode"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "query_string": validated_data["query_string"],
+            "filters": validated_data["filters"],
+            "field": field["field_name"],
+        }
         if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
-            config = proxy.query_graph_config(
-                validated_data["mode"],
-                validated_data["start_time"],
-                validated_data["end_time"],
-                field_name,
-                validated_data["filters"],
-                validated_data["query_string"],
+            base_query_params["filters"].append(
+                {
+                    "key": field["field_name"],
+                    "value": values,
+                    "operator": FilterOperator.EQUAL,
+                }
             )
+            config = proxy.query_graph_config(**base_query_params)
             config.update(
                 {
                     "query_method": validated_data["query_method"],
@@ -2099,24 +2106,12 @@ class QueryFieldStatisticsGraphResource(Resource):
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            for query_config in config["query_configs"]:
-                query_config["filter_dict"] = q_to_dict(
-                    (dict_to_q(query_config["filter_dict"]) or Q()) & Q(**{f"{field_name}__eq": values})
-                )
             return resource.grafana.graph_unify_query(config)
 
         # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
         if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
-            field_topk = proxy.query_field_topk(
-                validated_data["mode"],
-                validated_data["start_time"],
-                validated_data["end_time"],
-                field["field_name"],
-                distinct_count,
-                validated_data["filters"],
-                validated_data["query_string"],
-            )
+            field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
             return self.process_graph_info(
                 [
                     [topk_item["count"], int(topk_item["field_value"])]
@@ -2125,7 +2120,7 @@ class QueryFieldStatisticsGraphResource(Resource):
             )
         return self.process_graph_info(
             self.calculate_interval_buckets(
-                validated_data, proxy, self.calculate_intervals(min_value, max_value, interval_num)
+                base_query_params, proxy, self.calculate_intervals(min_value, max_value, interval_num)
             )
         )
 
@@ -2162,7 +2157,7 @@ class QueryFieldStatisticsGraphResource(Resource):
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod
-    def calculate_interval_buckets(cls, validated_data, proxy, intervals) -> list:
+    def calculate_interval_buckets(cls, base_query_params, proxy, intervals) -> list:
         """
         统计各区间计数
         """
@@ -2172,7 +2167,7 @@ class QueryFieldStatisticsGraphResource(Resource):
                 InheritParentThread(
                     target=cls.collect_interval_buckets,
                     args=(
-                        validated_data,
+                        base_query_params,
                         proxy,
                         buckets,
                         interval,
@@ -2184,15 +2179,17 @@ class QueryFieldStatisticsGraphResource(Resource):
         return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
 
     @classmethod
-    def collect_interval_buckets(cls, validated_data, proxy, bucket, interval: tuple[int, int]):
-        interval_count = proxy.query_interval_count(
-            validated_data["mode"],
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["field"]["field_name"],
-            validated_data["filters"],
-            validated_data["query_string"],
-            interval[0],
-            interval[1],
+    def collect_interval_buckets(cls, base_query_params, proxy, bucket, interval: tuple[int, int]):
+        interval_query_params = copy.deepcopy(base_query_params)
+        interval_query_params["filters"].append(
+            {
+                "key": interval_query_params["field"],
+                "value": [interval[0], interval[1]],
+                "operator": FilterOperator.BETWEEN,
+            }
+        )
+        interval_query_params["method"] = AggregatedMethod.COUNT.value
+        interval_count = proxy.query_field_aggregated_value(
+            **interval_query_params,
         )
         bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
