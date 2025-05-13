@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import itertools
 import logging
-from typing import Optional
 
 from curator import utils
 from django.db import models
@@ -85,7 +84,7 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_snapshot(cls, table_id, snapshot_days, operator, status: Optional[str] = None):
+    def modify_snapshot(cls, table_id, snapshot_days, operator, status: str | None = None):
         try:
             obj = cls.objects.get(table_id=table_id)
         except cls.DoesNotExist:
@@ -101,7 +100,7 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_snapshot(cls, table_id, is_sync: Optional[bool] = False):
+    def delete_snapshot(cls, table_id, is_sync: bool | None = False):
         """
         当快照产生当比较多当会产生很多的es调用 比较重 移到后台去执行实际的快照清理
         """
@@ -282,6 +281,7 @@ class EsSnapshotRepository(models.Model):
 
 class EsSnapshotIndice(models.Model):
     table_id = models.CharField("结果表id", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     snapshot_name = models.CharField("快照名称", max_length=150)
 
     cluster_id = models.IntegerField("集群id")
@@ -365,7 +365,7 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_restore(cls, table_id, start_time, end_time, expired_time, operator, is_sync: Optional[bool] = False):
+    def create_restore(cls, table_id, start_time, end_time, expired_time, operator, is_sync: bool | None = False):
         from metadata.models import ESStorage
 
         es_storage = ESStorage.objects.filter(table_id=table_id).first()
@@ -393,7 +393,11 @@ class EsSnapshotRestore(models.Model):
         cluster_total_size = get_cluster_disk_size(es_storage.es_client, kind="total")
         cluster_used_size = get_cluster_disk_size(es_storage.es_client, kind="used")
         if cluster_used_size + total_store_size > cluster_total_size * cls.NOT_OVER_ES_CLUSTER_SIZE_PERCENT:
-            raise ValueError(_("回溯的索引大小加集群已经使用的容量已经超过了集群总容量的{}").format(cls.NOT_OVER_ES_CLUSTER_SIZE_PERCENT))
+            raise ValueError(
+                _("回溯的索引大小加集群已经使用的容量已经超过了集群总容量的{}").format(
+                    cls.NOT_OVER_ES_CLUSTER_SIZE_PERCENT
+                )
+            )
 
         restore = cls.objects.create(
             table_id=table_id,
@@ -457,7 +461,7 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_restore(cls, restore_id, operator, is_sync: Optional[bool] = False):
+    def delete_restore(cls, restore_id, operator, is_sync: bool | None = False):
         try:
             restore = cls.objects.get(restore_id=restore_id)
         except cls.DoesNotExist:

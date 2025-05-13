@@ -76,6 +76,7 @@ from monitor_web.strategies.serializers import (
     validate_recovery_config_msg,
     validate_trigger_config_msg,
 )
+from monitor_web.strategies.resources.v2 import GetTargetDetailWithCache
 
 logger = logging.getLogger(__name__)
 
@@ -1852,6 +1853,27 @@ class BulkEditStrategyResource(Resource):
             item.target = edit_data["target"]
 
     @staticmethod
+    def refresh_target_cache(strategies: list[Strategy], edit_data):
+        """
+        刷新监控目标缓存
+        """
+
+        if  "target" not in edit_data or not strategies:
+            return
+
+        bk_biz_id = strategies[0].bk_biz_id
+        strategy_ids = [strategy.id for strategy in strategies]
+        items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
+
+        # 构建映射关系，避免重复查询
+        mapping = {item.strategy_id: (bk_biz_id, item.target) for item in items}
+        get_target_detail_with_cache = GetTargetDetailWithCache()
+        get_target_detail_with_cache.set_mapping(mapping)
+
+        for i in items:
+            get_target_detail_with_cache.request.refresh({"strategy_id": i.strategy_id})
+
+    @staticmethod
     def update_message_template(strategy: Strategy, edit_data):
         if "message_template" not in edit_data:
             return
@@ -1884,6 +1906,8 @@ class BulkEditStrategyResource(Resource):
         for strategy in Strategy.from_models(strategies):
             self.update(strategy, edit_data)
             strategy.save()
+
+        self.refresh_target_cache(strategies,edit_data)
 
         return params["id_list"]
 

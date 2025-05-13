@@ -1562,6 +1562,10 @@ const store = new Vuex.Store({
             newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
           }
 
+          if (!/\s$/.test(keywords[0])) {
+            keywords[0] = keywords[0] + ' ';
+          }
+
           const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');

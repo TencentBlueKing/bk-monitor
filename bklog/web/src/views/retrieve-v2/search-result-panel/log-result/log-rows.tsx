@@ -613,19 +613,28 @@ export default defineComponent({
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
-      for (let index = nextIdx; index < tableDataSize.value; index++) {
-        const nextRow = tableList.value[index];
-        if (!tableRowConfig.has(nextRow)) {
-          const rowKey = `${ROW_KEY}_${index}`;
-          tableRowConfig.set(
-            nextRow,
-            ref({
-              [ROW_KEY]: rowKey,
-              [ROW_INDEX]: index,
-              [ROW_F_JSON]: formatJson.value,
-              ...getRowConfigWithCache(),
-            }),
-          );
+      if (nextIdx >= 0) {
+        for (let index = nextIdx; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          if (!tableRowConfig.has(nextRow)) {
+            const rowKey = `${ROW_KEY}_${index}`;
+            tableRowConfig.set(
+              nextRow,
+              ref({
+                [ROW_KEY]: rowKey,
+                [ROW_INDEX]: index,
+                [ROW_F_JSON]: formatJson.value,
+                ...getRowConfigWithCache(),
+              }),
+            );
+          }
+        }
+      }
+
+      if (nextIdx === -1) {
+        for (let index = 0; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          tableRowConfig.delete(nextRow);
         }
       }
     };
@@ -655,6 +664,17 @@ export default defineComponent({
           ></ExpandView>
         );
       },
+    };
+
+    const resetRowListState = (oldValSize?) => {
+      hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+      setRenderList(null);
+      debounceSetLoading();
+      updateTableRowConfig(oldValSize ?? 0);
+
+      if (tableDataSize.value <= 50) {
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+      }
     };
 
     watch(
@@ -723,21 +743,15 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+        // hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+        // setRenderList(null);
+        // debounceSetLoading();
+        // updateTableRowConfig(oldVal?.[0] ?? 0);
 
-        // 这里激活 isRequesting，用于处理本地分片追加渲染列表
-        // 接口请求返回成功后本地分片处理会因为Vue渲染机制有滞后
-        // 通过本地 isRequesting 保证 loading 持续到渲染列表渲染完成
-        requestingTimer && clearTimeout(requestingTimer);
-        isRequesting.value = true;
-
-        setRenderList(null);
-        debounceSetLoading();
-        updateTableRowConfig(oldVal?.[0] ?? 0);
-
-        if (tableDataSize.value <= 50) {
-          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        }
+        // if (tableDataSize.value <= 50) {
+        //   nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        // }
+        resetRowListState(oldVal?.[0]);
       },
       {
         immediate: true,
@@ -1104,6 +1118,7 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
+      resetRowListState(-1);
     });
 
     return {

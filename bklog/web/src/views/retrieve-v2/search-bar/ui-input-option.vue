@@ -145,8 +145,8 @@
     field_name: '*',
     is_full_text: true,
     field_alias: t('全文检索'),
+    query_alias: t('全文检索'),
     field_type: '',
-    query_alias: '',
     field_operator: [
       {
         operator: FulltextOperator,
