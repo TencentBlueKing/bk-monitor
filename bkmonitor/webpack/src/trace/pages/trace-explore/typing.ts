@@ -80,7 +80,7 @@ export interface ITopKField {
   distinct_count: number;
   field: string;
   list: {
-    alias: string;
+    alias?: string;
     count: number;
     proportions: number;
     value: string;
@@ -105,7 +105,7 @@ export interface IStatisticsInfo {
 export interface IStatisticsGraph {
   name: string;
   color: string;
-  datapoints: number[];
+  datapoints: [number, number][];
   type: 'bar' | 'line';
   [key: string]: any;
 }

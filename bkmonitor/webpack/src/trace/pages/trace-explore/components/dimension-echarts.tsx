@@ -121,12 +121,13 @@ export default defineComponent({
 
     function setOptions() {
       if (props.seriesType === 'histogram') {
-        const series = props.data.map(item => ({
+        const series: MonitorEchartOptions['series'] = props.data.map(item => ({
           type: 'bar',
           name: '',
           data: item.datapoints.map(point => [point[1], point[0]]),
           symbol: 'none',
           z: 6,
+          color: item.color,
           itemStyle: {
             color: item.color,
           },
@@ -137,7 +138,6 @@ export default defineComponent({
             xAxis: {
               type: 'category',
               boundaryGap: true,
-              splitNumber: 5,
               axisLabel: {
                 showMaxLabel: true,
                 showMinLabel: true,
@@ -160,12 +160,13 @@ export default defineComponent({
         );
       } else {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(props.data);
-        const series = props.data.map(item => ({
+        const series: MonitorEchartOptions['series'] = props.data.map(item => ({
           type: 'line',
           name: item.name,
           data: item.datapoints.map(point => [point[1], point[0]]),
           symbol: 'none',
           z: 6,
+          color: item.color,
           lineStyle: {
             color: item.color,
           },
