@@ -3682,7 +3682,9 @@ class ESStorage(models.Model, StorageResultTable):
                 current_mapping = es_mappings["properties"]
 
         except (KeyError, elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            logger.info(f"index_name->[{index_name}] is not exists, will think the mapping is not same.")
+            logger.info(
+                f"is_mapping_same: index_name->[{index_name}] is not exists, will think the mapping is not same."
+            )
             return False
 
         # 判断字段列表是否一致的: _type在ES7.x版本后取消
@@ -3695,7 +3697,7 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
         try:
-            alias_field_list = [v["path"] for v in current_mapping.values() if v.get("type") == "alias"]
+            alias_field_list = [k for k, v in current_mapping.items() if v.get("type") == "alias"]
         except KeyError:
             alias_field_list = []  # 如果 "path" 不存在，返回空列表
 
@@ -3705,7 +3707,7 @@ class ESStorage(models.Model, StorageResultTable):
         field_diff_set = set(database_field_list) - set(current_field_list)
         if len(field_diff_set) != 0:
             logger.info(
-                "table_id->[{}] index->[{}] found differ field->[{}] will thing not same".format(
+                "is_mapping_same: table_id->[{}] index->[{}] found differ field->[{}] will thing not same".format(
                     self.table_id, index_name, field_diff_set
                 )
             )
@@ -3713,18 +3715,33 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
-            if field_name in alias_field_list:
-                continue
             try:
                 current_config = current_mapping[field_name]
-
             except KeyError:
                 logger.info(
-                    "table_id->[{}] found field->[{}] is missing in current_mapping->[{}], will delete it and recreate."
+                    "is_mapping_same: table_id->[{}] found field->[{}] is missing in current_mapping->[{}], "
+                    "will delete it and recreate."
                 )
                 return False
+
+            # 当字段为别名字段时,只需要判断path是否发生了变更
+            if field_name in alias_field_list:
+                database_path = database_config.get("path", None)
+                current_path = current_config.get("path", None)
+
+                if database_path != current_path:
+                    logger.info(
+                        "is_mapping_same: table_id->[%s] alias_field->[%s] path config is different ,"
+                        "old_index_path->[%s],new_path->[%s],",
+                        self.table_id,
+                        field_name,
+                        current_path,
+                        database_path,
+                    )
+                    return False
+
             # 判断具体的内容是否一致，只要判断具体的四个内容
-            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer", "path"]:
+            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer"]:
                 database_value = database_config.get(field_config, None)
                 current_value = current_config.get(field_config, None)
 
@@ -3733,12 +3750,12 @@ class ESStorage(models.Model, StorageResultTable):
                     # object 字段动态写入数据后 不再有type这个字段 只有 properties
                     if current_field_properties and database_value != ResultTableField.FIELD_TYPE_OBJECT:
                         logger.info(
-                            "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
+                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
                             "so not same".format(self.table_id, index_name, field_name, field_config, database_value)
                         )
                         return False
                     logger.info(
-                        "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
+                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
                         "so nothing will do.".format(
                             self.table_id, index_name, field_name, field_config, database_value
                         )
@@ -3747,7 +3764,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 if database_value != current_value:
                     logger.info(
-                        "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
+                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
                         "not the same, ".format(
                             self.table_id, index_name, field_name, field_config, database_value, current_value
                         )
