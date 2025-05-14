@@ -624,8 +624,20 @@ export default defineComponent({
                       >
                         <span class={[fieldTypeMap[item.type]?.icon || fieldTypeMap.other.icon, 'option-icon-icon']} />
                       </span>
-                      <span class='option-name-title'>{title}</span>
-                      {!!subtitleStr && <span class='option-name-subtitle'>（{subtitleStr}）</span>}
+                      <span
+                        class='option-name-title'
+                        v-overflow-text
+                      >
+                        {title}
+                      </span>
+                      {!!subtitleStr && (
+                        <span
+                          class='option-name-subtitle'
+                          v-overflow-text
+                        >
+                          （{subtitleStr}）
+                        </span>
+                      )}
                     </div>
                   );
                 })

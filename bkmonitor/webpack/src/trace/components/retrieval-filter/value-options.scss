@@ -39,6 +39,8 @@
     }
 
     .options-item {
+      display: flex;
+      align-items: center;
       width: 100%;
       height: 32px;
       padding: 0 8px;
@@ -53,6 +55,20 @@
       &:hover,
       &.active-index {
         background: #f5f7fa;
+      }
+
+      .title__text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #4d4f56;
+        white-space: nowrap;
+      }
+
+      .subtitle__text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #757880;
+        white-space: nowrap;
       }
 
       .highlight {
@@ -79,6 +95,7 @@
           height: 22px;
         }
       }
+      
     }
 
     .empty-status-container {
