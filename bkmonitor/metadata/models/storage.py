@@ -3695,11 +3695,17 @@ class ESStorage(models.Model, StorageResultTable):
 
         database_field_list = list(es_properties.keys())
 
-        # 获取别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
+        # 获取ES中的当前别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
         try:
             alias_field_list = [k for k, v in current_mapping.items() if v.get("type") == "alias"]
         except KeyError:
-            alias_field_list = []  # 如果 "path" 不存在，返回空列表
+            alias_field_list = []
+
+            # 获取DB中的别名字段类表
+        try:
+            db_alias_field_list = [k for k, v in es_properties.items() if v.get("type") == "alias"]
+        except KeyError:
+            db_alias_field_list = []
 
         current_field_list = list(current_mapping.keys()) + alias_field_list
 
@@ -3707,9 +3713,18 @@ class ESStorage(models.Model, StorageResultTable):
         field_diff_set = set(database_field_list) - set(current_field_list)
         if len(field_diff_set) != 0:
             logger.info(
-                "is_mapping_same: table_id->[{}] index->[{}] found differ field->[{}] will thing not same".format(
+                "is_mapping_same: table_id->[{}] index->[{}] found differ field->[{}] will think not same".format(
                     self.table_id, index_name, field_diff_set
                 )
+            )
+            return False
+
+        # 之所以没有比较全部的字段列表, 是因为__ext等嵌套字段在ES中会被展开成多个字段, 不能直接用ES中的数量 - DB中的数量来判断
+        alias_field_diff = len(set(db_alias_field_list)) - len(set(alias_field_list))
+        if alias_field_diff != 0:
+            logger.info(
+                "is_mapping_same: table_id->[%s] alias field length between db and es is different,mapping not same",
+                self.table_id,
             )
             return False
 
