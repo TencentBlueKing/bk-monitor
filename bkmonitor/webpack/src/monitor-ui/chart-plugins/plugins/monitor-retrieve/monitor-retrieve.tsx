@@ -28,7 +28,7 @@ import { Component, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  MonitorRetrieve as Log,
+  MonitorApmLog as Log,
   initMonitorState,
   initGlobalComponents,
   logStore,

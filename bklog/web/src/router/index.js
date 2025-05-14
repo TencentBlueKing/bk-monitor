@@ -282,14 +282,14 @@ const MaskingList = () =>
 const MonitorApmLog = () =>
   import(
     /* webpackChunkName: 'monitor-apm-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
 // #if MONITOR_APP === 'trace'
 const MonitorTraceLog = () =>
   import(
     /* webpackChunkName: 'monitor-trace-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
 

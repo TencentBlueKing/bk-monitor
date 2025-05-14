@@ -23,8 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import i18n from 'monitor-pc/i18n/i18n';
-window.$t = function (key, params) {
-  return i18n.tc(key, params);
-};
-export default i18n;
+
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = true;
+window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
+
+import MonitorTraceLog from './monitor'
+
+export {
+  MonitorTraceLog
+}
