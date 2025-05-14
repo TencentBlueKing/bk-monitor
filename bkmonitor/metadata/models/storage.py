@@ -3739,6 +3739,8 @@ class ESStorage(models.Model, StorageResultTable):
                         database_path,
                     )
                     return False
+            else:  # 别名字段为虚拟字段,无需校验除原始字段path外的其余属性
+                continue
 
             # 判断具体的内容是否一致，只要判断具体的四个内容
             for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer"]:
