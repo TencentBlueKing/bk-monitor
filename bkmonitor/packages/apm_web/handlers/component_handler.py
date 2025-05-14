@@ -214,7 +214,10 @@ class ComponentHandler:
             filter_params,
             component_instance_id=component_instance_id,
         )
-        return Q(**{filter_param["key"]: filter_param["value"] for filter_param in filter_params})
+        q: Q = Q()
+        for filter_param in filter_params:
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
     def get_component_metric_filter_params(cls, bk_biz_id, app_name, service_name, component_instance_id=None):
