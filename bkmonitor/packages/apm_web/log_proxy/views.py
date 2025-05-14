@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.http.response import HttpResponseBase
 from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 from rest_framework.views import APIView
@@ -29,8 +30,42 @@ class BkLogForwardingView(APIView):
     # 需要忽略的头部
     ignore_headers = ["host", "content-length"]
 
+    @classmethod
+    def _is_attachment_response(cls, response: requests.Response) -> bool:
+        """
+        判断是否为携带附件响应
+        - `Content-Disposition` 头部包含 `attachment` 时，表示响应为附件。
+        - 参考：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition。
+        """
+        content_disposition = response.headers.get("Content-Disposition", "")
+        return "attachment" in content_disposition
+
+    @classmethod
+    def _construct_attachment_response(cls, response: requests.Response) -> HttpResponse:
+        """构造附件响应"""
+        return HttpResponse(
+            response.content,
+            headers={
+                "Content-Type": response.headers.get("Content-Type"),
+                "Content-Disposition": response.headers.get("Content-Disposition"),
+            },
+            status=response.status_code,
+        )
+
+    @classmethod
+    def _construct_json_response(cls, response: requests.Response) -> JsonResponse:
+        """构造 JSON 响应"""
+        return JsonResponse(response.json(), status=response.status_code)
+
+    @classmethod
+    def _construct_response(cls, response: requests.Response) -> HttpResponseBase:
+        """构造请求响应"""
+        if cls._is_attachment_response(response):
+            return cls._construct_attachment_response(response)
+        return cls._construct_json_response(response)
+
     def dispatch(self, request, *args, **kwargs):
-        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split('bklog')[-1])
+        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split("bklog")[-1])
 
         try:
             params = {key: request.GET.get(key) for key in request.GET}
@@ -62,7 +97,7 @@ class BkLogForwardingView(APIView):
                     allow_redirects=False,
                     verify=False,
                 )
-            return JsonResponse(response.json(), status=response.status_code)
+                return self._construct_response(response)
         except Exception as e:  # noqa
             return JsonResponse(
                 {

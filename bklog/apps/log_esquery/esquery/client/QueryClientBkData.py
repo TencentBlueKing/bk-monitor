@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # pylint: disable=invalid-name
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
@@ -20,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from elasticsearch.client import _make_path
@@ -38,20 +38,21 @@ from apps.utils.thread import MultiExecuteFunc
 
 class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
     def __init__(self, bkdata_authentication_method: str = "", bkdata_data_token: str = ""):
-        super(QueryClientBkData, self).__init__()
+        super().__init__()
         self._client = BkDataQueryApi
         self.bkdata_authentication_method = bkdata_authentication_method
         self.bkdata_data_token = bkdata_data_token
 
-    def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
+    def query(self, index: str, body: dict[str, Any], scroll=None, track_total_hits=False):
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
                 # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
                 if track_total_hits:
                     body.update({"track_total_hits": True})
-                params = {"prefer_storage": "es", "sql": json.dumps({"index": index, "body": body})}
-                span.set_attribute("db.statement", str(params))
+                sql = json.dumps({"index": index, "body": body})
+                params = {"prefer_storage": "es", "sql": sql}
+                span.set_attribute("db.statement", sql)
                 span.set_attribute("db.system", "elasticsearch")
 
                 if self.bkdata_authentication_method:
@@ -75,7 +76,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 code=getattr(e, "code", EsClientSearchException.ERROR_CODE),
             )
 
-    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> dict:
         index_list: list = index.split(",")
         new_index_list: list = []
         has_wildcard = False

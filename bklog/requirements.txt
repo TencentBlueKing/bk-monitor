@@ -58,7 +58,7 @@ bk-audit==1.2.2
 cos-python-sdk-v5==1.9.6
 
 # pipeline
-bamboo-pipeline==4.0.0rc1
+bamboo-pipeline==4.0.0
 mock==2.0.0
 
 # jinjia

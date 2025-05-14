@@ -19,7 +19,6 @@ from .bkdata import BkBaseResultTable
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
-    CustomReportSubscriptionConfig,
     Event,
     EventGroup,
     LogGroup,
@@ -140,7 +139,6 @@ __all__ = [
     "TimeSeriesGroup",
     "TimeSeriesMetric",
     "TimeSeriesTag",
-    "CustomReportSubscriptionConfig",
     "CustomReportSubscription",
     "LogSubscriptionConfig",
     # ping server

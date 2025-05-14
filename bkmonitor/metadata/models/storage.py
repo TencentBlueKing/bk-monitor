@@ -54,6 +54,7 @@ from bkmonitor.utils.common_utils import (
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.elasticsearch.curator import IndexList
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import config
@@ -111,6 +112,7 @@ class ClusterInfo(models.Model):
         (TYPE_ARGUS, "argus"),
         (TYPE_VM, "victoria_metrics"),
         (TYPE_DORIS, "doris"),
+        (TYPE_BKDATA, "bkdata"),
     )
 
     # 默认注册系统名
@@ -800,6 +802,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         null=True,
         help_text="设置influxdb proxy 和 后端存储集群的关联关系记录 ID, 用以查询结果表使用的 proxy 和后端存储",
     )
+
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         # 实际数据库存储表信息不可重复
@@ -1567,6 +1571,7 @@ class RedisStorage(models.Model, StorageResultTable):
 
     # 对应ResultTable的table_id
     table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     # 默认命令是PUBLISH
     command = models.CharField("写入消息的命令", max_length=32, default="PUBLISH")
     key = models.CharField("存储键值", max_length=256)
@@ -1682,7 +1687,9 @@ class KafkaStorage(models.Model, StorageResultTable):
     UPGRADE_FIELD_CONFIG = ("partition", "retention")
 
     # 对应ResultTable的table_id
-    table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    table_id = models.CharField("结果表名", max_length=128)
     topic = models.CharField("topic", max_length=256)
     partition = models.IntegerField("topic分区数量", default=1)
     # 对应StorageCluster记录ID
@@ -1697,11 +1704,13 @@ class KafkaStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "Kafka存储配置"
         verbose_name_plural = "Kafka存储配置"
+        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def create_table(
         cls,
         table_id,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         is_sync_db=False,
         storage_cluster_id=None,
         topic=None,
@@ -1713,6 +1722,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         """
         实际创建结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param is_sync_db: 是否需要同步到存储
         :param storage_cluster_id: 存储集群配置ID
         :param topic: topic
@@ -1743,8 +1753,12 @@ class KafkaStorage(models.Model, StorageResultTable):
                 raise ValueError(_("存储集群配置有误，请确认或联系管理员处理"))
 
         # 1. 校验table_id， key是否存在冲突
-        if cls.objects.filter(table_id=table_id).exists():
-            logger.error("result_table->[%s] already has redis storage config, nothing will add." % table_id)
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
+            logger.error(
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
+                "nothing will add." % table_id,
+                bk_tenant_id,
+            )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
 
         # 如果未有指定key，则改为table_id
@@ -1755,6 +1769,7 @@ class KafkaStorage(models.Model, StorageResultTable):
 
         new_record = cls.objects.create(
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             storage_cluster_id=storage_cluster_id,
             topic=topic,
             partition=partition,
@@ -1765,7 +1780,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] now has create kafka storage config" % table_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
         return new_record
 
     @property
@@ -1825,9 +1840,12 @@ class ESStorage(models.Model, StorageResultTable):
     TIME_ZONE_MIN = -12
 
     # 对应ResultTable的table_id
-    table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    table_id = models.CharField("结果表名", max_length=128)
     # 格式化配置字符串，用于追加到table_id后，作为index的创建方案，默认格式类似为20190910194802
     date_format = models.CharField("日期格式化配置", max_length=64, default="%Y%m%d%H")
+
+    # 全新主键
+    id = models.BigAutoField(primary_key=True)
 
     # index切分大小阈值，单位GB，默认是500GB
     slice_size = models.IntegerField("index大小切分阈值", default=500)
@@ -1862,6 +1880,11 @@ class ESStorage(models.Model, StorageResultTable):
     # 新增标记位，用于标识是否需要创建索引
     need_create_index = models.BooleanField("是否需要创建索引", default=True)
     archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
+
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+
+    class Meta:
+        unique_together = ("table_id", "bk_tenant_id")
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1935,6 +1958,7 @@ class ESStorage(models.Model, StorageResultTable):
     def create_table(
         cls,
         table_id,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         is_sync_db=True,
         date_format="%Y%m%d%H",
         slice_size=500,
@@ -1955,6 +1979,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         实际创建结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param is_sync_db: 是否需要同步创建结果表
         :param date_format: 时间格式，用于拼接index及别名
         :param slice_size: 切分大小，不提供使用默认值
@@ -1975,7 +2000,9 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
-            cluster_id = ClusterInfo.objects.get(cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True).cluster_id
+            cluster_id = (
+                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True).first().cluster_id
+            )
 
         # 如果有提供集群信息，需要判断
         else:
@@ -1984,8 +2011,12 @@ class ESStorage(models.Model, StorageResultTable):
                 raise ValueError(_("存储集群配置有误，请确认或联系管理员处理"))
 
         # 1. 校验table_id， key是否存在冲突
-        if cls.objects.filter(table_id=table_id).exists():
-            logger.error("result_table->[%s] already has redis storage config, nothing will add." % table_id)
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
+            logger.error(
+                "result_table->[%s] already has es storage config under bk_tenant_id->[%s]"
+                ", nothing will add." % table_id,
+                bk_tenant_id,
+            )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
 
         # 测试date_format是否正确可用的 -- 格式化结果的数据只能包含数字，不能有其他结果
@@ -2016,6 +2047,7 @@ class ESStorage(models.Model, StorageResultTable):
         # alias settings目前暂时没有用上，在参数和配置中都没有更新
         new_record = cls.objects.create(
             table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
             date_format=date_format,
             slice_size=slice_size,
             slice_gap=slice_gap,
@@ -2036,6 +2068,7 @@ class ESStorage(models.Model, StorageResultTable):
             table_id=table_id,
             cluster_id=cluster_id,
             enable_time=django_timezone.now(),
+            bk_tenant_id=bk_tenant_id,
             defaults={
                 "is_current": True,
             },
@@ -2054,8 +2087,12 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-            logger.info("create_table: table_id->[%s] push detail start", table_id)
-            SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
+            logger.info(
+                "create_table: table_id->[%s] under bk_tenant_id->[%s] push detail start", table_id, bk_tenant_id
+            )
+            SpaceTableIDRedis().push_es_table_id_detail(
+                table_id_list=[table_id], is_publish=True, bk_tenant_id=bk_tenant_id
+            )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
@@ -2074,10 +2111,10 @@ class ESStorage(models.Model, StorageResultTable):
         # 构建mapping内容
         # 将所有properties先去掉，防止用户注入了自行的字段内容
         properties = body["mappings"]["properties"] = {}
-        for field in ResultTableField.objects.filter(table_id=self.table_id):
+        for field in ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id):
             try:
                 properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
-                    table_id=self.table_id, field_name=field.field_name
+                    table_id=self.table_id, field_name=field.field_name, bk_tenant_id=self.bk_tenant_id
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
@@ -2090,10 +2127,14 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
             # 别名-原字段配置
-            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(
+                self.table_id, bk_tenant_id=self.bk_tenant_id
+            )
             logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
             # 别名原字段-字段类型配置
-            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(self.table_id)
+            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(
+                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+            )
             logger.info(
                 "index_body: table_id->[%s] got alias_path_type_config->[%s]", self.table_id, alias_path_type_config
             )
@@ -2116,10 +2157,14 @@ class ESStorage(models.Model, StorageResultTable):
         from metadata.models import ESFieldQueryAliasOption
 
         logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        properties = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        properties = ESFieldQueryAliasOption.generate_query_alias_settings(
+            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+        )
         logger.info(
-            "compose_field_alias_settings: compose alias mapping for->[%s] success,alias_settings->[%s]",
+            "compose_field_alias_settings: compose alias mapping for->[%s] of bk_tenant_id->[%s] success,"
+            "alias_settings->[%s]",
             self.table_id,
+            self.bk_tenant_id,
             properties,
         )
         return {"properties": properties}
@@ -2231,6 +2276,7 @@ class ESStorage(models.Model, StorageResultTable):
                 "base_index": self.table_id.replace(".", "_"),
                 "index_settings": json.loads(self.index_settings),
                 "mapping_settings": json.loads(self.mapping_settings),
+                "bk_tenant_id": self.bk_tenant_id,
             }
         }
         # 添加集群信息
@@ -2263,14 +2309,20 @@ class ESStorage(models.Model, StorageResultTable):
         """判断index是否启用中"""
 
         # 判断如果结果表已经废弃了，那么不再进行index的创建
-        if not ResultTable.objects.filter(table_id=self.table_id, is_enable=True, is_deleted=False).exists():
-            logger.info("table_id->[%s] now is delete or disable, no index will create.", self.table_id)
+        if not ResultTable.objects.filter(
+            table_id=self.table_id, is_enable=True, is_deleted=False, bk_tenant_id=self.bk_tenant_id
+        ).exists():
+            logger.info(
+                "table_id->[%s] under bk_tenant_id->[%s] now is delete or disable, no index will create.",
+                self.table_id,
+                self.bk_tenant_id,
+            )
             return False
 
         # 同时需要增加判断这个结果表是否可能遗留的自定义事件上报，需要考虑自定义上报已经关闭了
         try:
             # 查找发现，1. 这个es存储是归属于自定义事件的，而且 2. 不是在启动且未被删除的，那么不需要创建这个索引
-            event_group = EventGroup.objects.get(table_id=self.table_id)
+            event_group = EventGroup.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
 
             if not event_group.is_enable or event_group.is_delete or event_group.status == EventGroupStatus.SLEEP.value:
                 logger.info(
@@ -2476,14 +2528,20 @@ class ESStorage(models.Model, StorageResultTable):
         """
 
         # 判断如果结果表已经废弃了，那么不再进行index的创建
-        if not ResultTable.objects.filter(table_id=self.table_id, is_enable=True, is_deleted=False).exists():
-            logger.info("table_id->[%s] now is delete or disable, no index will create.", self.table_id)
+        if not ResultTable.objects.filter(
+            table_id=self.table_id, is_enable=True, is_deleted=False, bk_tenant_id=self.bk_tenant_id
+        ).exists():
+            logger.info(
+                "table_id->[%s] under bk_tenant_id->[%s] now is delete or disable, no index will create.",
+                self.table_id,
+                self.bk_tenant_id,
+            )
             return
 
         # 同时需要增加判断这个结果表是否可能遗留的自定义事件上报，需要考虑自定义上报已经关闭了
         try:
             # 查找发现，1. 这个es存储是归属于自定义事件的，而且 2. 不是在启动且未被删除的，那么不需要创建这个索引
-            event_group = EventGroup.objects.get(table_id=self.table_id)
+            event_group = EventGroup.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
 
             if not event_group.is_enable or event_group.is_delete:
                 logger.info(
@@ -2494,7 +2552,11 @@ class ESStorage(models.Model, StorageResultTable):
 
         except EventGroup.DoesNotExist:
             # 如果查找失败，那么这个存储是日志平台，而且rt没有被删除或废弃，需要继续建立index
-            logger.info("table_id->[%s] belong to log search, will create it.", self.table_id)
+            logger.info(
+                "table_id->[%s] under bk_tenant_id->[%s] belong to log search, will create it.",
+                self.table_id,
+                self.bk_tenant_id,
+            )
 
         now_time = self.now
         now_gap = 0
@@ -3440,11 +3502,15 @@ class ESStorage(models.Model, StorageResultTable):
             logger.info("clean_history_es_index:table_id->[%s] clean index is not allowed, skip", self.table_id)
             return False
 
-        logger.info("clean_history_es_index:table_id->[%s] start cleaning indices", self.table_id)
+        logger.info(
+            "clean_history_es_index:table_id->[%s] bk_tenant_id->[%s] start cleaning indices",
+            self.table_id,
+            self.bk_tenant_id,
+        )
 
         # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
         storage_records = StorageClusterRecord.objects.filter(
-            table_id=self.table_id, is_deleted=False, is_current=False
+            table_id=self.table_id, is_deleted=False, is_current=False, bk_tenant_id=self.bk_tenant_id
         )
 
         # 遍历所有集群记录
@@ -3616,7 +3682,9 @@ class ESStorage(models.Model, StorageResultTable):
                 current_mapping = es_mappings["properties"]
 
         except (KeyError, elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            logger.info(f"index_name->[{index_name}] is not exists, will think the mapping is not same.")
+            logger.info(
+                f"is_mapping_same: index_name->[{index_name}] is not exists, will think the mapping is not same."
+            )
             return False
 
         # 判断字段列表是否一致的: _type在ES7.x版本后取消
@@ -3629,7 +3697,7 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
         try:
-            alias_field_list = [v["path"] for v in current_mapping.values() if v.get("type") == "alias"]
+            alias_field_list = [k for k, v in current_mapping.items() if v.get("type") == "alias"]
         except KeyError:
             alias_field_list = []  # 如果 "path" 不存在，返回空列表
 
@@ -3639,7 +3707,7 @@ class ESStorage(models.Model, StorageResultTable):
         field_diff_set = set(database_field_list) - set(current_field_list)
         if len(field_diff_set) != 0:
             logger.info(
-                "table_id->[{}] index->[{}] found differ field->[{}] will thing not same".format(
+                "is_mapping_same: table_id->[{}] index->[{}] found differ field->[{}] will thing not same".format(
                     self.table_id, index_name, field_diff_set
                 )
             )
@@ -3647,18 +3715,35 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
-            if field_name in alias_field_list:
-                continue
             try:
                 current_config = current_mapping[field_name]
-
             except KeyError:
                 logger.info(
-                    "table_id->[{}] found field->[{}] is missing in current_mapping->[{}], will delete it and recreate."
+                    "is_mapping_same: table_id->[{}] found field->[{}] is missing in current_mapping->[{}], "
+                    "will delete it and recreate."
                 )
                 return False
+
+            # 当字段为别名字段时,只需要判断path是否发生了变更
+            if field_name in alias_field_list:
+                database_path = database_config.get("path", None)
+                current_path = current_config.get("path", None)
+
+                if database_path != current_path:
+                    logger.info(
+                        "is_mapping_same: table_id->[%s] alias_field->[%s] path config is different ,"
+                        "old_index_path->[%s],new_path->[%s],",
+                        self.table_id,
+                        field_name,
+                        current_path,
+                        database_path,
+                    )
+                    return False
+                # 跳过别名字段的其余配置判断
+                continue
+
             # 判断具体的内容是否一致，只要判断具体的四个内容
-            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer", "path"]:
+            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer"]:
                 database_value = database_config.get(field_config, None)
                 current_value = current_config.get(field_config, None)
 
@@ -3667,12 +3752,12 @@ class ESStorage(models.Model, StorageResultTable):
                     # object 字段动态写入数据后 不再有type这个字段 只有 properties
                     if current_field_properties and database_value != ResultTableField.FIELD_TYPE_OBJECT:
                         logger.info(
-                            "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
+                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
                             "so not same".format(self.table_id, index_name, field_name, field_config, database_value)
                         )
                         return False
                     logger.info(
-                        "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
+                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
                         "so nothing will do.".format(
                             self.table_id, index_name, field_name, field_config, database_value
                         )
@@ -3681,7 +3766,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 if database_value != current_value:
                     logger.info(
-                        "table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
+                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
                         "not the same, ".format(
                             self.table_id, index_name, field_name, field_config, database_value, current_value
                         )
@@ -4188,6 +4273,7 @@ class ESStorage(models.Model, StorageResultTable):
     def create_target_index_meta_info(self, index_name, snapshot_name):
         create_obj = {
             "table_id": self.table_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "start_time": datetime.datetime.fromtimestamp(
                 int(self.__get_last_time_content(index_name).get("time")) / 1000
             ).astimezone(timezone(settings.TIME_ZONE)),
@@ -4268,7 +4354,9 @@ class ESStorage(models.Model, StorageResultTable):
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_snapshot(self, snapshot_name, target_snapshot_repository_name):
-        EsSnapshotIndice.objects.filter(table_id=self.table_id, snapshot_name=snapshot_name).delete()
+        EsSnapshotIndice.objects.filter(
+            table_id=self.table_id, snapshot_name=snapshot_name, bk_tenant_id=self.bk_tenant_id
+        ).delete()
         self.es_client.snapshot.delete(target_snapshot_repository_name, snapshot_name)
         logger.info("table_id -> [%s] has delete snapshot -> [%s]", self.table_id, snapshot_name)
 
@@ -4295,7 +4383,9 @@ class BkDataStorage(models.Model, StorageResultTable):
     STORAGE_TYPE = ClusterInfo.TYPE_BKDATA
 
     # 对应ResultTable的table_id
-    table_id = models.CharField("结果表名", max_length=128, primary_key=True)
+    table_id = models.CharField("结果表名", max_length=128)
+    id = models.BigAutoField(primary_key=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     # 对应计算平台的接入配置ID
     raw_data_id = models.IntegerField("接入配置ID", default=-1)
@@ -4308,6 +4398,7 @@ class BkDataStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "bkdata存储配置"
         verbose_name_plural = "bkdata存储配置"
+        unique_together = ("table_id", "bk_tenant_id")
 
     def get_client(self):
         pass
@@ -4334,14 +4425,18 @@ class BkDataStorage(models.Model, StorageResultTable):
         """
         from metadata.models import DataSourceResultTable
 
-        return DataSourceResultTable.objects.filter(table_id=self.table_id).first().bk_data_id
+        return (
+            DataSourceResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            .first()
+            .bk_data_id
+        )
 
     @classmethod
-    def create_table(cls, table_id, is_sync_db=False, is_access_now=False, **kwargs):
+    def create_table(cls, table_id, is_sync_db=False, is_access_now=False, bk_tenant_id=DEFAULT_TENANT_ID, **kwargs):
         try:
-            bkdata_storage = BkDataStorage.objects.get(table_id=table_id)
+            bkdata_storage = BkDataStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except BkDataStorage.DoesNotExist:
-            bkdata_storage = BkDataStorage.objects.create(table_id=table_id)
+            bkdata_storage = BkDataStorage.objects.create(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
         bkdata_storage.update_storage(is_access_now=is_access_now, **kwargs)
 
@@ -4355,7 +4450,9 @@ class BkDataStorage(models.Model, StorageResultTable):
             tasks.access_to_bk_data_task.apply_async(args=(self.table_id,), countdown=60)
 
     def create_databus_clean(self, result_table):
-        kafka_storage = KafkaStorage.objects.filter(table_id=result_table.table_id).first()
+        kafka_storage = KafkaStorage.objects.filter(
+            table_id=result_table.table_id, bk_tenant_id=self.bk_tenant_id
+        ).first()
         if not kafka_storage:
             raise ValueError(_(f"结果表[{result_table.table_id}]数据未写入消息队列，请确认后重试"))
 
@@ -4457,7 +4554,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         :return:
         """
         try:
-            result_table = ResultTable.objects.get(table_id=self.table_id)
+            result_table = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         except ResultTable.DoesNotExist:
             raise ValueError(_("结果表%s不存在，请确认后重试") % self.table_id)
 
@@ -4467,6 +4564,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         # 增加或修改清洗配置任务
         json_config, fields = self.generate_bk_data_etl_config()
         etl_json_config = json.dumps(json_config)
+        # TODO: 计算平台长度截断问题
         bk_data_rt_id_without_biz_id = gen_bk_data_rt_id_without_biz_id(self.table_id)
         result_table_id = f"{settings.BK_DATA_BK_BIZ_ID}_{bk_data_rt_id_without_biz_id}"
         params = {
@@ -4554,7 +4652,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         """
         from metadata.models.result_table import ResultTableField
 
-        qs = ResultTableField.objects.filter(table_id=self.table_id)
+        qs = ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         if not qs.exists():
             return False
 
@@ -4599,7 +4697,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         from metadata.models.vm.constants import TimestampLen
         from metadata.models.vm.utils import get_timestamp_len
 
-        qs = ResultTableField.objects.filter(table_id=self.table_id)
+        qs = ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         etl_dimension_assign = []
         etl_metric_assign = []
         etl_time_assign = []
@@ -4731,7 +4829,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         """
         from metadata.models.result_table import ResultTableField
 
-        qs = ResultTableField.objects.filter(table_id=self.table_id)
+        qs = ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         metric_fields = []
         dimension_fields = []
         for field in qs:
@@ -4761,7 +4859,7 @@ class BkDataStorage(models.Model, StorageResultTable):
 
         from metadata.models.result_table import ResultTableField
 
-        qs = ResultTableField.objects.filter(table_id=self.table_id)
+        qs = ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         if not qs.exists():
             return
 
@@ -4802,6 +4900,7 @@ class ArgusStorage(models.Model, StorageResultTable):
     storage_cluster_id = models.IntegerField("存储集群")
 
     tenant_id = models.CharField("argus租户ID", max_length=64)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     def __str__(self):
         return f"<{self.table_id}, {self.storage_cluster_id}>"
@@ -4874,6 +4973,7 @@ class StorageClusterRecord(models.Model):
     """
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -4889,10 +4989,10 @@ class StorageClusterRecord(models.Model):
     delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
 
     class Meta:
-        unique_together = ("table_id", "cluster_id", "enable_time")  # 联合索引，保证唯一性
+        unique_together = ("table_id", "cluster_id", "enable_time", "bk_tenant_id")  # 联合索引，保证唯一性
 
     @classmethod
-    def compose_table_id_storage_cluster_records(cls, table_id):
+    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         组装指定结果表的历史存储集群记录
         [
@@ -4903,11 +5003,14 @@ class StorageClusterRecord(models.Model):
         ]
         """
         logger.info(
-            "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
+            "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s] under "
+            "bk_tenant_id->[%s]",
+            table_id,
+            bk_tenant_id,
         )
         # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
         records = (
-            cls.objects.filter(table_id=table_id, is_deleted=False)
+            cls.objects.filter(table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
             .order_by("-create_time")
             .values("cluster_id", "is_current", "enable_time")
         )
@@ -4952,7 +5055,7 @@ class SpaceRelatedStorageInfo(models.Model):
     # 空间信息-> 空间类型+空间ID+租户ID
     space_type_id = models.CharField("空间类型 ID", max_length=64)
     space_id = models.CharField("空间ID", max_length=128, help_text="空间类型下唯一")
-    # tenant_id = models.CharField("租户ID", max_length=128,null=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=128, null=True)
 
     # 存储集群信息
     storage_type = models.CharField("存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES)
@@ -4962,23 +5065,27 @@ class SpaceRelatedStorageInfo(models.Model):
     update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     @classmethod
-    def create_space_related_storage_record(cls, space_type_id, space_id, storage_type, cluster_id=None):
+    def create_space_related_storage_record(
+        cls, space_type_id, space_id, storage_type, cluster_id=None, bk_tenant_id=DEFAULT_TENANT_ID
+    ):
         """
         创建空间<->存储集群映射记录
         @param space_type_id: 空间类型ID
         @param space_id: 空间ID
         @param storage_type: 存储类型
         @param cluster_id: 存储集群ID
+        @param bk_tenant_id: 租户ID
         """
         from django.db import transaction
 
         logger.info(
             "create_space_related_storage_record: try to create space related storage record, "
-            "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s]",
+            "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s] bk_tenant_id->[%s]",
             space_type_id,
             space_id,
             storage_type,
             cluster_id,
+            bk_tenant_id,
         )
 
         if not cluster_id:
@@ -5000,6 +5107,7 @@ class SpaceRelatedStorageInfo(models.Model):
                     space_id=space_id,
                     storage_type=storage_type,
                     cluster_id=cluster_id,
+                    bk_tenant_id=bk_tenant_id,
                 )
                 logger.info(
                     "create_space_related_storage_record: create space related storage record, "
@@ -5082,9 +5190,11 @@ class DorisStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True
-            ).cluster_id
+            storage_cluster_id = (
+                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True)
+                .first()
+                .cluster_id
+            )
             logger.info("CreateDorisStorage: use default Doris storage cluster->[%s]", storage_cluster_id)
         else:
             if not ClusterInfo.objects.filter(

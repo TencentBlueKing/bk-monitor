@@ -357,17 +357,14 @@ class EtlStorage:
             )
             # 分词场景下, 自定义分词器
             if field["is_analyzed"]:
-                if field.get("option", {}).get("es_analyzer"):
-                    field_option["es_analyzer"] = field["option"]["es_analyzer"]
-                else:
-                    analyzer_name = self.generate_field_analyzer_name(
-                        field_name=field["field_name"],
-                        field_alias=field.get("alias_name", ""),
-                        is_case_sensitive=field.get("is_case_sensitive", False),
-                        tokenize_on_chars=field.get("tokenize_on_chars", ""),
-                    )
-                    if analyzer_name:
-                        field_option["es_analyzer"] = analyzer_name
+                analyzer_name = self.generate_field_analyzer_name(
+                    field_name=field["field_name"],
+                    field_alias=field.get("alias_name", ""),
+                    is_case_sensitive=field.get("is_case_sensitive", False),
+                    tokenize_on_chars=field.get("tokenize_on_chars", ""),
+                )
+                if analyzer_name:
+                    field_option["es_analyzer"] = analyzer_name
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):

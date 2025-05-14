@@ -34,7 +34,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_cpu_capacity_ratio",
                     name=_lazy("节点CPU装箱率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=[],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
@@ -44,7 +44,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_cpu_usage_ratio",
                     name=_lazy("节点CPU使用率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=[],
                 ),
                 # (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) by (node)) * 100
@@ -64,7 +64,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_memory_capacity_ratio",
                     name=_lazy("节点内存装箱率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=["namespace"],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
@@ -74,7 +74,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_memory_usage_ratio",
                     name=_lazy("节点内存使用率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=["namespace"],
                 ),
                 # (1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))
