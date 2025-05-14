@@ -175,9 +175,11 @@
 
   .explore-table-skeleton {
     position: absolute;
-    top: 0;
+    top: 32px;
+    z-index: 9;
     visibility: hidden;
     padding: 10px 8px;
+    background: #fff;
 
     &.explore-skeleton-show-all,
     &.explore-skeleton-show-body {
@@ -186,8 +188,7 @@
 
     &.explore-skeleton-show-body {
       .common-table-skeleton-row:nth-child(1) {
-        visibility: hidden;
-        pointer-events: none;
+        display: none;
       }
     }
 
