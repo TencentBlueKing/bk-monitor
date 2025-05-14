@@ -188,6 +188,7 @@ class CollectorConfig(CollectorBase):
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
+    max_rate = models.IntegerField(_("上报速率限制"), default=-1)
 
     def get_name(self):
         return self.collector_config_name
