@@ -207,7 +207,7 @@ export default defineComponent({
     }
     function handleEnter() {
       if (!isChecked.value || !showSelector.value) {
-        if (!localValue.value.includes(inputValue.value) && inputValue.value) {
+        if (!localValue.value.map(str => String(str)).includes(inputValue.value) && inputValue.value) {
           localValue.value.push(inputValue.value);
           triggerShallowRef(localValue);
           handleChange();

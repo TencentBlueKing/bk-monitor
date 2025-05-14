@@ -34,6 +34,7 @@ import { Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
 
+import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
 import QsSelector from './qs-selector';
 import ResidentSetting from './resident-setting';
 import {
@@ -196,7 +197,7 @@ export default defineComponent({
             condition: { id: ECondition.and, name: 'AND' },
             value: item.value.map(v => ({
               id: v,
-              name: v,
+              name: transformFieldName(item.key, v) || v,
             })),
           });
           uiValueAddSet.add(`${item.key}____${item.method}____${item.value.join('____')}`);

@@ -27,6 +27,7 @@
 import { bkTooltips, clickoutside, overflowTitle, bkEllipsis } from 'bkui-vue';
 
 import authority from './authority';
+import overflowText from './overflow-text';
 import watermark from './watermark';
 
 import type { App } from 'vue';
@@ -40,6 +41,7 @@ const directives: Record<string, any> = {
   watermark,
   overflowTips: bkEllipsis,
   bkOverflowTips: bkEllipsis,
+  overflowText,
 };
 
 export default {

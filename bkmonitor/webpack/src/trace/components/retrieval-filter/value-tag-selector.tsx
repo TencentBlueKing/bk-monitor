@@ -168,7 +168,7 @@ export default defineComponent({
       if (!inputValue.value || isChecked.value) {
         return;
       }
-      if (localValue.value.some(v => v.id === inputValue.value)) {
+      if (localValue.value.some(v => String(v.id) === inputValue.value)) {
         inputValue.value = '';
         return;
       }

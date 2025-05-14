@@ -23,7 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { getFieldsOptionValues } from 'monitor-api/modules/apm_trace';
+
+import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
+
 type ICandidateValueMap = Map<
   string,
   {
@@ -54,8 +58,8 @@ export const useCandidateValue = () => {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();
-            // const nameLower = item.name.toLocaleLowerCase();
-            return idLower.includes(searchValueLower);
+            const nameLower = item.name.toLocaleLowerCase();
+            return idLower.includes(searchValueLower) || nameLower.includes(searchValueLower);
           });
           resolve(filterValues);
         } else {
@@ -72,7 +76,7 @@ export const useCandidateValue = () => {
             const values =
               data?.map(item => ({
                 id: item,
-                name: item,
+                name: transformFieldName(params?.fields?.[0], item) || '',
               })) || [];
             if (!searchValue) {
               candidateValueMap.set(getMapKey(params), {
