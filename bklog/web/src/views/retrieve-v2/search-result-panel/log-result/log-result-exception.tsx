@@ -125,7 +125,7 @@ export default defineComponent({
             type='500'
           >
             <div style='text-align: left; color: #313238;'>
-              <div style='font-size: 14px; padding: 8px 0;'>{`找不到索引集“${props.message.replace(/^index-set-not-found:\((\d+\,?\d*)\)/, '$1')}”的相关信息`}</div>
+              <div style='font-size: 14px; padding: 8px 0;'>{`找不到索引集“${props.message.replace(/^index-set-not-found:\((.*)\)/, '$1')}”的相关信息`}</div>
               <div style='font-size: 12px; color: #4d4f56;'>
                 <div>您可以进行如下操作：</div>
                 <div style='padding: 8px 0;'>1. 点击左上角重新选择索引集</div>

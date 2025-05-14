@@ -69,7 +69,7 @@
     }
     RetrieveHelper.setLeftFieldIsShown(!!status);
     store.commit('updateStorage', {
-      fieldSetting: {
+      [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: !!status,
         width: DEFAULT_FIELDS_WIDTH,
       },
@@ -80,7 +80,7 @@
     if (width !== fieldFilterWidth.value) {
       RetrieveHelper.setLeftFieldSettingWidth(width);
       store.commit('updateStorage', {
-        fieldSetting: {
+        [BK_LOG_STORAGE.FIELD_SETTING]: {
           show: true,
           width,
         },

@@ -26,12 +26,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../hooks/use-resize-observe';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
+import { RouteParams } from '../../store/store.type';
 
 export default () => {
   const store = useStore();
@@ -45,6 +46,22 @@ export default () => {
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
+
+  /**
+   * 解析地址栏参数
+   * 在其他模块跳转过来时，这里需要解析路由参数
+   * 更新相关参数到store
+   */
+  const reoverRouteParams = () => {
+    const urlResolver = new RouteUrlResolver({ route });
+    urlResolver.setResolver('index_id', () => route.params.indexId ?? '');
+    const routeParams = urlResolver.convertQueryToStore<RouteParams>();
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateSpace', routeParams.spaceUid);
+    store.commit('updateIndexId', routeParams.index_id);
+  };
+
+  reoverRouteParams();
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -104,7 +121,7 @@ export default () => {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
         const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
-        const target = resolver.convertQueryToStore();
+        const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
           $http
@@ -143,6 +160,8 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
+    console.log('getIndexSetList', spaceUid.value, bkBizId.value);
+
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {
@@ -211,6 +230,7 @@ export default () => {
   };
 
   const beforeMounted = () => {
+    console.log('--before mounted');
     setDefaultRouteUrl();
     getIndexSetList();
   };
