@@ -21,7 +21,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.core.storage.kafka_v2 import KafkaQueueV2
+from alarm_backends.core.storage.kafka import KafkaQueue
 from alarm_backends.service.access.base import BaseAccessProcess
 from alarm_backends.service.access.data.filters import HostStatusFilter, RangeFilter
 from alarm_backends.service.access.event.filters import ConditionFilter, ExpireFilter
@@ -198,7 +198,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         """
         queue_key = (topic, group_prefix)
         if queue_key not in cls._kafka_queues:
-            kafka_queue = KafkaQueueV2.get_common_kafka_queue()
+            kafka_queue = KafkaQueue.get_common_kafka_queue()
             kafka_queue.set_topic(topic, group_prefix=group_prefix)
             cls._kafka_queues[queue_key] = kafka_queue
         return cls._kafka_queues[queue_key]
