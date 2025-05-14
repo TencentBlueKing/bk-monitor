@@ -1022,6 +1022,9 @@ class QueryOptionValuesSerializer(serializers.Serializer):
         default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
         choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
     )
+    filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])
+    query_string = serializers.CharField(label="查询字符串", allow_blank=True)
+    limit = serializers.IntegerField(label="数量限制", required=False, default=500)
 
 
 class QueryTraceOptionValues(Resource):
@@ -1036,6 +1039,9 @@ class QueryTraceOptionValues(Resource):
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1051,6 +1057,9 @@ class QuerySpanOptionValues(Resource):
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1936,9 +1945,9 @@ class QueryFieldsTopkResource(Resource):
                 "distinct_count": field_distinct_map.get(field, 0),
                 "list": [
                     {
-                        "value": field_topk.get("field_value", ""),
-                        "count": int(field_topk.get("count", 0)),
-                        "proportions": round(100 * (field_topk.get("count", 0) / total), 2) if total > 0 else 0,
+                        "value": field_topk["field_value"],
+                        "count": field_topk["count"],
+                        "proportions": round(100 * (field_topk["count"] / total), 2) if total > 0 else 0,
                     }
                     for field_topk in field_topk_map.get(field, [])
                 ],

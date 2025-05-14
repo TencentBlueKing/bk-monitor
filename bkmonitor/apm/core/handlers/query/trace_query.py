@@ -25,7 +25,7 @@ from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.ebpf.base import EbpfHandler
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
-from apm.models import ApmApplication
+from apm.models import ApmApplication, ApmDataSourceConfigBase
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
@@ -106,12 +106,6 @@ class TraceQuery(BaseQuery):
             self.q.filter(self.build_app_filter()).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}).order_by("time desc")
         )
         return self.time_range_queryset().add_query(q).first()
-
-    def query_option_values(
-        self, datasource_type: str, start_time: int | None, end_time: int | None, fields: list[str]
-    ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
-        return self._query_option_values(q, fields, start_time, end_time)
 
     @classmethod
     def _translate_field(cls, field: str) -> str:
@@ -199,3 +193,23 @@ class TraceQuery(BaseQuery):
         if not need_empty:
             q = q.filter(**{f"{field}__ne": ""})
         return self._query_field_aggregated_value(start_time, end_time, field, method, q)
+
+    def query_option_values(
+        self,
+        datasource_type: str,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ) -> dict[str, list[str]]:
+        q: QueryConfigBuilder = (
+            self._get_q(datasource_type)
+            .filter(self._build_filters(filters))
+            .query_string(query_string)
+            .order_by("-_value")
+        )
+        if datasource_type == ApmDataSourceConfigBase.TRACE_DATASOURCE:
+            q = q.filter(self.build_app_filter())
+        return self._query_option_values(start_time, end_time, fields, q, limit)
