@@ -25,8 +25,10 @@ from bkm_space.define import SpaceTypeEnum
 
 class BcsHandler:
     @classmethod
-    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str) -> dict:
-        namespaces = BcsApi.list_namespaces({"project_code": "-", "cluster_id": bcs_cluster_id.upper()})
+    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str, bk_tenant_id: str) -> dict:
+        namespaces = BcsApi.list_namespaces(
+            {"project_code": "-", "cluster_id": bcs_cluster_id.upper()}, bk_tenant_id=bk_tenant_id
+        )
         project_id_to_ns = {}
         for ns in namespaces:
             project_id_to_ns.setdefault(ns["projectID"], []).append(ns["name"])

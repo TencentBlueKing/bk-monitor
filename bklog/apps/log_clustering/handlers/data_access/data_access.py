@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 
@@ -47,7 +47,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 
 class DataAccessHandler(BaseAiopsHandler):
     def __init__(self, raw_data_id: int = None):
-        super(DataAccessHandler, self).__init__()
+        super().__init__()
         self.raw_data_id = raw_data_id
 
     def get_deploy_plan(self):
@@ -55,7 +55,9 @@ class DataAccessHandler(BaseAiopsHandler):
 
     @classmethod
     def get_fields(cls, result_table_id: str):
-        return BkDataMetaApi.result_tables.fields({"result_table_id": result_table_id})
+        return BkDataMetaApi.result_tables.fields(
+            {"result_table_id": result_table_id, "bk_biz_id": result_table_id.split("_", 1)[0]}
+        )
 
     def create_bkdata_access(self, collector_config_id):
         collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
@@ -134,7 +136,11 @@ class DataAccessHandler(BaseAiopsHandler):
         if space:
             return space.bk_biz_id
         # 无业务关联的空间，不允许创建清洗任务
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(bk_biz_id=bk_biz_id))
+        raise NoRelatedResourceError(
+            _(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(
+                bk_biz_id=bk_biz_id
+            )
+        )
 
     def sync_bkdata_etl(self, collector_config_id):
         clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
@@ -248,6 +254,7 @@ class DataAccessHandler(BaseAiopsHandler):
                 "bk_username": self.conf.get("bk_username"),
                 "operator": self.conf.get("bk_username"),
                 "no_request": True,
+                "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
             }
         )
 
@@ -258,13 +265,16 @@ class DataAccessHandler(BaseAiopsHandler):
             "bk_username": self.conf.get("bk_username"),
             "operator": self.conf.get("bk_username"),
             "no_request": True,
+            "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
         }
         if from_tail:
             params["consume_position"] = "tail"
         return BkDataDatabusApi.post_tasks(params=params)
 
-    def add_cluster_group(self, result_table_id):
-        storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
+    def add_cluster_group(self, result_table_id, bk_biz_id):
+        storage_config = BkDataMetaApi.result_tables.storages(
+            {"result_table_id": result_table_id, "bk_biz_id": bk_biz_id}
+        )
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params={
                 "resource_type": "storage",
@@ -277,6 +287,7 @@ class DataAccessHandler(BaseAiopsHandler):
             params={
                 "project_id": self.conf.get("project_id"),
                 "cluster_group_id": cluster_resource_group["resource_group_id"],
+                "bk_biz_id": bk_biz_id,
             }
         )
 

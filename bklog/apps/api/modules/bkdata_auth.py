@@ -94,4 +94,5 @@ class _BkDataAuthApi:
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )

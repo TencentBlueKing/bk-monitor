@@ -29,6 +29,7 @@ from apps.api.modules.utils import (  # noqa
     add_esb_info_before_request,
 )
 from config.domains import BK_NODE_APIGATEWAY_ROOT  # noqa
+from django.conf import settings
 
 
 def get_bk_node_request_before(params):
@@ -79,6 +80,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询订阅实例状态",
             before_request=get_bk_node_request_before,
+            bk_tenant_id=settings.DEFAULT_TENANT_ID,
         )
         self.get_subscription_task_status = DataAPI(
             method="POST",
