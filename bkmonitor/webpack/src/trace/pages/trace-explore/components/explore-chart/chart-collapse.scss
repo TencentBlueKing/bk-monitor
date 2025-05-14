@@ -3,14 +3,12 @@
   grid-template-rows: 0fr;
   grid-template-columns: 100%;
   overflow: hidden;
-  border-bottom: 1px solid #ddd;
   transition: grid-template-rows var(--expand-animation-duration);
   transition-timing-function: ease;
 
   &.is-expand {
     grid-template-rows: 1fr;
     overflow: visible;
-    border-bottom-color: transparent;
 
     .chart-collapse-header {
       .chart-collapse-header-trigger {

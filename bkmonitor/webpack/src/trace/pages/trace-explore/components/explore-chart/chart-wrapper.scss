@@ -30,10 +30,8 @@
     }
 
     &:not(.is-expand) {
-      .chart-collapse-wrapper-collapse {
-        animation: chart-collapse-bottom-box var(--expand-animation-duration) steps(2, jump-end);
-        animation-fill-mode: both;
-      }
+      animation: chart-collapse-bottom-box var(--expand-animation-duration) steps(2, jump-end);
+      animation-fill-mode: both;
 
       .chart-collapse-header {
         .chart-collapse-header-trigger {
