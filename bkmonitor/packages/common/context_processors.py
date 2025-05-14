@@ -231,6 +231,10 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
     except Exception as e:
         logger.error(f"Get AIOPS_INCIDENT_BIZ_WHITE_LIST Failed: {e}")
 
+    # RUM功能
+    if settings.RUM_ENABLED:
+        context["RUM_ACCESS_URL"] = settings.RUM_ACCESS_URL
+
     return context
 
 

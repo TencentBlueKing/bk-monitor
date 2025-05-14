@@ -26,7 +26,7 @@
 import OptimizedHighlighter from './optimized-highlighter';
 import { random } from '../../common/util';
 import { getRGBAColors } from './colors';
-import { RetrieveEvent } from './retrieve-events';
+import RetrieveEvent from './retrieve-events';
 
 export default class {
   // 滚动条查询条件

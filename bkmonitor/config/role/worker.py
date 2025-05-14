@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 import sys
 
-from django.conf import settings
 from jinja2 import DebugUndefined
 
 from config.tools.consul import get_consul_settings
@@ -21,10 +20,8 @@ from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
-    ENVIRONMENT,
     IS_CONTAINER_MODE,
     NEW_ENV,
-    ROLE,
 )
 
 # 按照环境变量中的配置，加载对应的配置文件
@@ -32,7 +29,7 @@ try:
     _module = __import__(f"config.{NEW_ENV}", globals(), locals(), ["*"])
 except ImportError as e:
     logging.exception(e)
-    raise ImportError("Could not import config '{}' (Is it on sys.path?): {}".format(DJANGO_CONF_MODULE, e))
+    raise ImportError(f"Could not import config '{DJANGO_CONF_MODULE}' (Is it on sys.path?): {e}")
 
 for _setting in dir(_module):
     if _setting == _setting.upper():
@@ -300,6 +297,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
     # BkBase数据兜底任务,2h一次
     ("metadata.task.bkbase.sync_bkbase_metadata_all", "0 */2 * * *", "global"),
+    # BkBase RT 路由同步任务，6h一次
+    ("metadata.task.bkbase.sync_bkbase_rt_meta_info_all", "0 */6 * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次
@@ -420,7 +419,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
         "formatters": {
             "standard": {
                 "format": (
-                    "%(asctime)s %(levelname)-8s %(process)-8d" "%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"
+                    "%(asctime)s %(levelname)-8s %(process)-8d%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"
                 ),
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             }
@@ -515,18 +514,18 @@ CACHES = {
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "locmem": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
-            'CULL_FREQUENCY': 0,
+        "OPTIONS": {
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 0,
         },
     },
     "space": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "space",
-        'OPTIONS': {
+        "OPTIONS": {
             # 5w空间支持
-            'MAX_ENTRIES': 50000,
-            'CULL_FREQUENCY': 0,
+            "MAX_ENTRIES": 50000,
+            "CULL_FREQUENCY": 0,
         },
     },
 }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import json
@@ -215,7 +215,7 @@ class ListApplicationResources(Resource):
             exclude = ("is_deleted", "is_enabled")
 
         def to_representation(self, instance):
-            data = super(ListApplicationResources.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:
@@ -246,15 +246,15 @@ class ApplicationRequestSerializer(serializers.Serializer):
         if application_id:
             app = Application.objects.filter(application_id=application_id).first()
             if app:
-                attrs['bk_biz_id'] = app.bk_biz_id
-                attrs['app_name'] = app.app_name
+                attrs["bk_biz_id"] = app.bk_biz_id
+                attrs["app_name"] = app.app_name
                 return attrs
             raise ValidationError(f"the application({application_id}) does not exist")
 
         if app_name and bk_biz_id:
             app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
             if app:
-                attrs['application_id'] = app.application_id
+                attrs["application_id"] = app.application_id
                 return attrs
             raise ValidationError(f"the application({app_name}) does not exist")
 
@@ -263,8 +263,8 @@ class ApplicationRequestSerializer(serializers.Serializer):
             if bk_biz_id:
                 app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
                 if app:
-                    attrs['application_id'] = app.application_id
-                    attrs['bk_biz_id'] = bk_biz_id
+                    attrs["application_id"] = app.application_id
+                    attrs["bk_biz_id"] = bk_biz_id
                     return attrs
                 # space_uid和app_name都合法并存在，但是组合起来查不到数据
                 raise ValidationError(f"the application({app_name}) does not exist")
@@ -281,7 +281,7 @@ class ApplicationInfoResource(Resource):
             exclude = ("is_deleted", "is_enabled")
 
         def to_representation(self, instance):
-            data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             data["token"] = instance.get_bk_data_token()
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
@@ -607,7 +607,7 @@ class QueryTopoNodeResource(Resource):
             fields = ("extra_data", "system", "platform", "sdk", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
-            data = super(QueryTopoNodeResource.NodeResponseSerializer, self).to_representation(instance)
+            data = super().to_representation(instance)
             data["extra_data"] = instance.extra_data
             return data
 
@@ -850,9 +850,9 @@ class QuerySpanResource(Resource):
             "end_time": validated_request_data["end_time"],
             "filter_params": validated_request_data.get("filter_params"),
             "category": validated_request_data.get("category"),
-            "fields": validated_request_data.get("fields"),
         }
         if not validated_request_data.get("group_keys"):
+            param["fields"] = validated_request_data.get("fields")
             return application.trace_datasource.query_span(**param)
 
         param["group_keys"] = validated_request_data.get("group_keys")
@@ -934,7 +934,9 @@ class QuerySerializer(serializers.Serializer):
     class FilterSerializer(serializers.Serializer):
         key = serializers.CharField(label="查询键")
         operator = serializers.CharField(label="操作符")
-        value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
+        value = serializers.ListSerializer(
+            label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True
+        )
 
     bk_biz_id = serializers.IntegerField(label="业务id")
     app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -1317,6 +1319,16 @@ class QueryAppByTraceResource(Resource):
         start_time = serializers.IntegerField()
         end_time = serializers.IntegerField()
 
+    @classmethod
+    def _exists_by_trace_ids(
+        cls, app: ApmApplication, trace_ids: list[str], start_time: int, end_time: int
+    ) -> dict[str, dict[str, int | str]]:
+        app_info: dict[str, int | str] = {"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
+        return {
+            trace_id: app_info
+            for trace_id in app.trace_datasource.query_exists_trace_ids(trace_ids, start_time, end_time)
+        }
+
     def perform_request(self, validated_request_data):
         """根据trace_id列表查询对应app信息"""
         trace_ids = validated_request_data["trace_ids"]
@@ -1334,7 +1346,7 @@ class QueryAppByTraceResource(Resource):
             params.append([app, trace_ids, validated_request_data["start_time"], validated_request_data["end_time"]])
 
         pool = ThreadPool(self.CONCURRENT_NUMBER)
-        results = pool.map_ignore_exception(TraceDataSource.exists_by_trace_ids, params)
+        results = pool.map_ignore_exception(self._exists_by_trace_ids, params)
         res = {}
         for result in results:
             res.update(result)
@@ -1792,7 +1804,9 @@ class CreateApplicationSimpleResource(Resource):
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         plugin_id = serializers.CharField(label="插件ID", max_length=255, required=False)
-        deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
+        deployment_ids = serializers.ListField(
+            label="环境", child=serializers.CharField(max_length=255), required=False
+        )
         language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
         enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
