@@ -12202,6 +12202,25 @@ msgstr "结果表[%s]未配置物理存储"
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "存储[%s]对应的查询引擎不存在"
 
+msgid "正则表达式解析错误"
+msgstr "正则表达式解析错误"
+
+msgid "正则表达式解析错误：{msg}"
+msgstr "正则表达式解析错误：{msg}"
+
+msgid "子进程调用错误"
+msgstr "子进程调用错误"
+
+msgid "子进程调用错误：{msg}"
+msgstr "子进程调用错误：{msg}"
+
+msgid "JSON解析错误"
+msgstr "JSON解析错误"
+
+msgid "JSON解析错误：{msg}"
+msgstr "JSON解析错误：{msg}"
+
+
 #~ msgid "{} 匹配到第{}个uri配置: {}"
 #~ msgstr "{} 匹配到第{}个uri配置: {}"
 
