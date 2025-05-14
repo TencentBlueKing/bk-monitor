@@ -895,7 +895,9 @@ class LogSubscriptionConfig(models.Model):
             ],
         }
 
-        log_subscription = cls.objects.filter(bk_biz_id=log_group["bk_biz_id"], collector_config_id=collector_config.id)
+        log_subscription = cls.objects.filter(
+            bk_biz_id=log_group["bk_biz_id"], collector_config_id=collector_config.collector_config_id
+        )
         if log_subscription.exists():
             try:
                 logger.info("custom log config subscription task already exists.")
@@ -924,7 +926,7 @@ class LogSubscriptionConfig(models.Model):
                 LogSubscriptionConfig.objects.create(
                     max_rate=collector_config.max_rate,
                     subscription_id=subscription_id,
-                    collector_config_id=collector_config.id,
+                    collector_config_id=collector_config.collector_config_id,
                     bk_biz_id=log_group["bk_biz_id"],
                     config=subscription_params,
                 )
