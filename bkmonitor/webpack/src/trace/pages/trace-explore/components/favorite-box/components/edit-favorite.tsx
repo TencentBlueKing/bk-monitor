@@ -32,14 +32,14 @@ import { Dialog, Form, Input, Select, Button, Tag } from 'bkui-vue';
 import _ from 'lodash';
 import { createFavorite, updateFavorite } from 'monitor-api/modules/model';
 
-import { GROUP_ID_PERSONAL } from '../../../../../constants';
-import useFavoriteType from '../../../../../hooks/use-favorite-type';
-import useGroupList from '../../../../../hooks/use-group-list';
-import CreateGroupExtends from '../../../../create-group-extends';
-import RenderFavoriteDataId from '../../../../favorite-info/render-favorite-data-id';
-import RenderFavoriteQuery from '../../../../favorite-info/render-favorite-query';
+import { GROUP_ID_PERSONAL } from '../constants';
+import useFavoriteType from '../hooks/use-favorite-type';
+import useGroupList from '../hooks/use-group-list';
+import CreateGroupExtends from './create-group-extends';
+import RenderFavoriteDataId from './favorite-info/render-favorite-data-id';
+import RenderFavoriteQuery from './favorite-info/render-favorite-query';
 
-import type { IFavoriteGroup } from '../../../../../types';
+import type { IFavoriteGroup } from '../types';
 
 export default defineComponent({
   name: 'EditFavorite',

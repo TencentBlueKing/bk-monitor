@@ -173,7 +173,7 @@ export default defineComponent({
         isEditSubmiting.value = true;
         await editFormRef.value.validate();
         await updateFavoriteGroup(props.data.id, {
-          type: type.value,
+          type: favoriteType.value,
           ...editFormData,
         });
         refreshGroupList();
@@ -206,106 +206,110 @@ export default defineComponent({
       }
     });
 
-    return () => (
-      <>
-        <div
-          class={{
-            'favorite-box-group-info': true,
-            'is-hover': isHover.value,
-            'is-editable-disable': !isEnableGroupAction.value,
-          }}
-        >
+    return () => {
+      const groupIconClass = ['icon-monitor', 'expanded-flag'];
+      if (props.fixedSelectedFavorite) {
+        groupIconClass.push('icon-file-dot');
+      } else {
+        if (!props.expanded) {
+          groupIconClass.push(isPersonalGroup.value ? 'icon-file-personal' : 'icon-mc-file-close');
+        } else {
+          groupIconClass.push('icon-mc-file-open');
+        }
+      }
+
+      return (
+        <>
           <div
-            class='wrapper'
-            onClick={handleToggleExpand}
+            class={{
+              'favorite-box-group-info': true,
+              'is-hover': isHover.value,
+              'is-editable-disable': !isEnableGroupAction.value,
+            }}
           >
-            <i
-              class={{
-                'icon-monitor': true,
-                'expanded-flag': true,
-                'icon-file-personal': !props.fixedSelectedFavorite && isPersonalGroup.value,
-                'icon-mc-file-open': !props.fixedSelectedFavorite && !isPersonalGroup.value && props.expanded,
-                'icon-mc-file-close': !props.fixedSelectedFavorite && !isPersonalGroup.value && !props.expanded,
-                'icon-file-dot': props.fixedSelectedFavorite,
-              }}
-            />
             <div
-              class='group-name'
-              v-bk-tooltips={props.data.name}
+              class='wrapper'
+              onClick={handleToggleExpand}
             >
-              {props.data.name}
+              <i class={groupIconClass} />
+              <div
+                class='group-name'
+                v-bk-tooltips={props.data.name}
+              >
+                {props.data.name}
+              </div>
+              <div class='group-favorite-count'>{props.data.favorites.length}</div>
             </div>
-            <div class='group-favorite-count'>{props.data.favorites.length}</div>
+            {isEnableGroupAction.value && (
+              <div
+                ref={rootRef}
+                class='group-action'
+              >
+                <i class='icon-monitor icon-mc-more' />
+              </div>
+            )}
           </div>
           {isEnableGroupAction.value && (
-            <div
-              ref={rootRef}
-              class='group-action'
-            >
-              <i class='icon-monitor icon-mc-more' />
-            </div>
-          )}
-        </div>
-        {isEnableGroupAction.value && (
-          <>
-            <div ref={panelRef}>
-              <div
-                class='action-item'
-                onClick={handleShowEdit}
-              >
-                {t('编辑')}
-              </div>
-              <div
-                class='action-remove'
-                onClick={handleDestroyFavoriteGroup}
-              >
-                {t('解散分组')}
-              </div>
-            </div>
-            <div style='display: none'>
-              <div ref={groupNameEditPanelRef}>
-                <Form
-                  ref={editFormRef}
-                  form-type='vertical'
-                  model={editFormData}
-                  rules={editFormRules}
+            <>
+              <div ref={panelRef}>
+                <div
+                  class='action-item'
+                  onClick={handleShowEdit}
                 >
-                  <Form.FormItem
-                    error-display-type='tooltips'
-                    label={t('分组名称')}
-                    property='name'
-                    required={true}
-                  >
-                    <Input
-                      v-model={editFormData.name}
-                      maxcharacter={30}
-                      clearable
-                      showWordLimit
-                    />
-                  </Form.FormItem>
-                </Form>
-                <div style='margin-top: -8px;'>
-                  <Button
-                    loading={isEditSubmiting.value}
-                    size='small'
-                    theme='primary'
-                    onClick={handleUpdateFavoriteGroup}
-                  >
-                    {t('确定')}
-                  </Button>
-                  <Button
-                    style='margin-left: 8px'
-                    size='small'
-                    onClick={handleEditGroupCancel}
-                  >
-                    {t('取消')}
-                  </Button>
+                  {t('编辑')}
+                </div>
+                <div
+                  class='action-remove'
+                  onClick={handleDestroyFavoriteGroup}
+                >
+                  {t('解散分组')}
                 </div>
               </div>
-            </div>
-          </>
-        )}
-      </>
-    );
+              <div style='display: none'>
+                <div ref={groupNameEditPanelRef}>
+                  <Form
+                    ref={editFormRef}
+                    form-type='vertical'
+                    model={editFormData}
+                    rules={editFormRules}
+                  >
+                    <Form.FormItem
+                      error-display-type='tooltips'
+                      label={t('分组名称')}
+                      property='name'
+                      required={true}
+                    >
+                      <Input
+                        v-model={editFormData.name}
+                        maxcharacter={30}
+                        clearable
+                        showWordLimit
+                      />
+                    </Form.FormItem>
+                  </Form>
+                  <div style='margin-top: -8px;'>
+                    <Button
+                      loading={isEditSubmiting.value}
+                      size='small'
+                      theme='primary'
+                      onClick={handleUpdateFavoriteGroup}
+                    >
+                      {t('确定')}
+                    </Button>
+                    <Button
+                      style='margin-left: 8px'
+                      size='small'
+                      onClick={handleEditGroupCancel}
+                    >
+                      {t('取消')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      );
+    };
   },
 });

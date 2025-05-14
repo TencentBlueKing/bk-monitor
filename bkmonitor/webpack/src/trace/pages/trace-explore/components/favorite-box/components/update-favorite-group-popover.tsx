@@ -102,6 +102,25 @@ export default defineComponent({
         offset: [0, 12],
         interactiveBorder: 30,
         hideOnClick: false,
+        appendTo: 'parent',
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'computeStyles',
+              options: {
+                adaptive: false, // 禁用自适应定位
+              },
+            },
+            {
+              name: 'flip',
+              enabled: false, // 禁用自动翻转
+            },
+          ],
+        },
+        getReferenceClientRect: () => {
+          console.log('rootRef.value.getBoundingClientRect() = ', rootRef.value.getBoundingClientRect());
+          return rootRef.value.getBoundingClientRect();
+        },
         onShown() {
           context.emit('show');
           newGroupName.value = '';

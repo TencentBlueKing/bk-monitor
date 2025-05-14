@@ -155,19 +155,20 @@ export default defineComponent({
       currentFavoriteDetail.value = row;
     };
 
-    const handleEditGroupSucccess = () => {
+    const handleDetailClose = () => {
       currentFavoriteDetail.value = undefined;
     };
 
     onMounted(() => {
       actionPopInstance = tippy(batchTriggerRef.value as SingleTarget, {
         content: batchPanelRef.value as any,
-        trigger: 'mouseenter click',
+        trigger: 'click',
         placement: 'bottom',
         theme: 'light favorite-box-favorite-manage-batch-action-panel',
         arrow: false,
         interactive: true,
         offset: [0, 4],
+        appendTo: () => document.body,
       });
 
       onBeforeUnmount(() => {
@@ -262,7 +263,7 @@ export default defineComponent({
                   cell: (h, { row }: { row: IFavoriteGroup['favorites'][number] }) => (
                     <EditFavoriteGroup
                       data={row}
-                      onSuccess={handleEditGroupSucccess}
+                      onSuccess={handleDetailClose}
                     />
                   ),
                 },
@@ -292,6 +293,10 @@ export default defineComponent({
         {currentFavoriteDetail.value && (
           <div class='layout-right'>
             <FavoriteDetail data={currentFavoriteDetail.value} />
+            <i
+              class='icon-monitor icon-mc-close detail-close-btn'
+              onClick={handleDetailClose}
+            />
           </div>
         )}
       </div>

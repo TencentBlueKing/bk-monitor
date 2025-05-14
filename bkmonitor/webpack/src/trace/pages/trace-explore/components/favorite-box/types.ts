@@ -93,9 +93,15 @@ export interface ITraceFavoriteConfig {
   };
 }
 
-export type IFavorite = 'event' | 'metric' | 'trace';
+type FavoriteConfigMap = {
+  event: IEventFavoriteConfig;
+  metric: IMetricFavoriteConfig;
+  trace: ITraceFavoriteConfig;
+};
 
-export interface IFavoriteGroup<T extends IFavorite = 'trace'> {
+export type IFavorite = keyof FavoriteConfigMap;
+
+export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
   editable: string;
   id: number;
   name: string;
@@ -106,10 +112,6 @@ export interface IFavoriteGroup<T extends IFavorite = 'trace'> {
     group_id: number;
     update_time: string;
     update_user: string;
-    config: T extends 'event'
-      ? IEventFavoriteConfig
-      : T extends 'metric'
-        ? IMetricFavoriteConfig
-        : ITraceFavoriteConfig;
+    config: T extends IFavorite ? FavoriteConfigMap[T] : unknown;
   }[];
 }

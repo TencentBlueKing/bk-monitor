@@ -1,18 +1,22 @@
 .favorite-box-group-manage-favorite-table {
   display: flex;
   height: 100%;
+
   .layout-left {
     flex: 1;
-    overflow: hidden;
     padding: 12px;
+    overflow: hidden;
+
     .action-box {
       display: flex;
       margin-bottom: 12px;
     }
+
     .searach-input {
-      margin-left: auto;
       width: 468px;
+      margin-left: auto;
     }
+
     tr {
       &.is-active {
         td {
@@ -22,10 +26,25 @@
       }
     }
   }
+
   .layout-right {
-    background: #f5f7fa;
-    width: 540px;
+    position: relative;
     flex: 0 0 540px;
+    width: 540px;
+    background: #f5f7fa;
+
+    .detail-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 32px;
+      cursor: pointer;
+    }
   }
 }
 
@@ -36,12 +55,14 @@
   .tippy-content {
     padding: 0;
   }
+
   .action-item {
     display: flex;
+    align-items: center;
     height: 32px;
     padding: 0 12px;
-    align-items: center;
     cursor: pointer;
+
     &:hover {
       background: #f5f7fa;
     }

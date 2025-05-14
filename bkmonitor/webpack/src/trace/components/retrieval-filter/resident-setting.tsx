@@ -43,7 +43,7 @@ import {
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
 } from './typing';
-import { defaultWhereItem, DURATION_KEYS, INPUT_TAG_KEYS } from './utils';
+import { defaultWhereItem, DURATION_KEYS, EXISTS_KEYS, INPUT_TAG_KEYS } from './utils';
 
 import './resident-setting.scss';
 
@@ -194,7 +194,11 @@ export default defineComponent({
     function handleChange() {
       emit(
         'change',
-        localValue.value.filter(item => item?.value?.key && item?.value?.value?.length).map(item => item.value)
+        localValue.value
+          .filter(item => {
+            return EXISTS_KEYS.includes(item.value.method) ? item?.value?.key : item?.value?.value?.length;
+          })
+          .map(item => item.value)
       );
     }
     function getFieldInfo(item: IFilterField): IFieldItem {

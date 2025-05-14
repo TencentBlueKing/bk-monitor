@@ -191,7 +191,7 @@ export default defineComponent({
               value={gradeOptionForm.value.type}
               ext-popover-cls='bklog-popover-stop'
               searchable
-              disabled={gradeOptionForm.value.disabled || true}
+              disabled={gradeOptionForm.value.disabled}
               on-change={handleTypeChange}
             >
               {gradeCategory.value.map(option => (

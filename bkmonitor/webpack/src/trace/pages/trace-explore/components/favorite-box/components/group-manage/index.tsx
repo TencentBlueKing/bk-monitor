@@ -59,7 +59,13 @@ export default defineComponent({
       <div>
         <Teleport to='body'>
           <div class='bk-monitor-favorite-box-manage'>
-            <div class='manage-title'>{t('收藏管理')}</div>
+            <div class='manage-title'>
+              <i
+                class='icon-monitor icon-back-left close-btn'
+                onClick={handleClose}
+              />
+              {t('收藏管理')}
+            </div>
             <div class='layout-container'>
               <div class='layout-group-list'>
                 <RenderGroupList onChange={handleGroupChange} />
@@ -67,12 +73,6 @@ export default defineComponent({
               <div class='layout-favorite-table'>
                 <RenderFavoriteTable groupId={currentGroupId.value} />
               </div>
-            </div>
-            <div
-              class='close-btn'
-              onClick={handleClose}
-            >
-              <i class='icon-monitor icon-mc-close' />
             </div>
           </div>
         </Teleport>

@@ -22,7 +22,7 @@
     "@vue-flow/minimap": "^1.5.3",
     "@vueuse/core": "^13.1.0",
     "apm": "workspace:*",
-    "bkui-vue": "2.0.2-beta.4",
+    "bkui-vue": "2.0.2-beta.15",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",
@@ -58,10 +58,7 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.5.0"
   },
-  "keywords": [
-    "monitor",
-    "trace"
-  ],
+  "keywords": ["monitor", "trace"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {
