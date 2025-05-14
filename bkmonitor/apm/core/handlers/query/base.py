@@ -31,7 +31,7 @@ from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.data_source import dict_to_q
-from bkmonitor.utils.thread_backend import ThreadPool, run_threads, InheritParentThread
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
@@ -134,9 +134,6 @@ class BaseQuery:
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
 
-    # 字段候选值最多获取500个
-    OPTION_VALUES_MAX_SIZE = 500
-
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
@@ -205,10 +202,23 @@ class BaseQuery:
             return queryset.scope(self.bk_biz_id)
         return queryset
 
-    def _query_option_values(
-        self, q: QueryConfigBuilder, fields: list[str], start_time: int | None = None, end_time: int | None = None
+    def query_option_values(
+        self,
+        datasource_type: str,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
     ) -> dict[str, list[str]]:
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(self.OPTION_VALUES_MAX_SIZE)
+        q: QueryConfigBuilder = (
+            self._get_q(datasource_type)
+            .filter(self._build_filters(filters))
+            .query_string(query_string)
+            .order_by("-_value")
+        )
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？
         # 在性能差距不大的情况下，尽可能构造通用查询，便于后续屏蔽存储差异
@@ -216,10 +226,7 @@ class BaseQuery:
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
-
-        # UnifyQuery tag_values 目前还不支持 limit，此处进行截断，避免返回量大导致前端组件卡死的问题
-        # 后续会支持 limit，并且请求速度会进一步加快，可以考虑放开一个更大的 limit
-        return {field: values[: self.OPTION_VALUES_MAX_SIZE] for field, values in option_values.items()}
+        return option_values
 
     @classmethod
     def _collect_option_values(
@@ -390,7 +397,12 @@ class BaseQuery:
         except Exception as e:
             logger.warning("failed to query field %s topk, error: %s", field, e)
             raise ValueError(_(f"字段 {field} topk值查询出错"))
-        return sorted(field_topk_values, key=lambda topk_item: topk_item["_result_"], reverse=True)
+        # 去除0值和兜底排序
+        return sorted(
+            [topk_item for topk_item in field_topk_values if topk_item["_result_"] > 0],
+            key=lambda item: item["_result_"],
+            reverse=True,
+        )
 
     def _query_total(self, start_time, end_time, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
@@ -431,37 +443,6 @@ class BaseQuery:
             .group_by(field)
         )
         return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
-
-    def query_fields_option_values(
-        self,
-        datasource_type: str,
-        start_time: int,
-        end_time: int,
-        fields: list[str],
-        limit: int,
-        filters: list[types.Filter],
-        query_string: str,
-    ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = (
-            self._get_q(datasource_type).filter(self._build_filters(filters)).query_string(query_string)
-        )
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
-        option_values: dict[str, list[str]] = {}
-        run_threads(
-            [
-                InheritParentThread(
-                    target=self._collect_option_values,
-                    args=(
-                        q,
-                        queryset,
-                        field,
-                        option_values,
-                    ),
-                )
-                for field in fields
-            ]
-        )
-        return {field: values for field, values in option_values.items()}
 
 
 class FakeQuery:

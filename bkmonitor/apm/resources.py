@@ -71,7 +71,6 @@ from apm.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
-    NewQueryOptionValuesSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
@@ -1023,6 +1022,9 @@ class QueryOptionValuesSerializer(serializers.Serializer):
         default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
         choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
     )
+    filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])
+    query_string = serializers.CharField(label="查询字符串", allow_blank=True)
+    limit = serializers.IntegerField(label="数量限制", required=False, default=500)
 
 
 class QueryTraceOptionValues(Resource):
@@ -1031,12 +1033,31 @@ class QueryTraceOptionValues(Resource):
     RequestSerializer = QueryOptionValuesSerializer
 
     def perform_request(self, validated_data):
+        if validated_data["datasource_type"] == ApmDataSourceConfigBase.TRACE_DATASOURCE:
+            filters = validated_data["filters"]
+            filters.append(
+                {
+                    "key": "biz_id",
+                    "value": validated_data["bk_biz_id"],
+                    "operator": FilterOperator.EQUAL,
+                }
+            )
+            filters.append(
+                {
+                    "key": "app_name",
+                    "value": validated_data["app_name"],
+                    "operator": FilterOperator.EQUAL,
+                }
+            )
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
             QueryMode.TRACE,
             validated_data["datasource_type"],
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1052,6 +1073,9 @@ class QuerySpanOptionValues(Resource):
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1942,7 +1966,6 @@ class QueryFieldsTopkResource(Resource):
                         "proportions": round(100 * (field_topk["count"] / total), 2) if total > 0 else 0,
                     }
                     for field_topk in field_topk_map.get(field, [])
-                    if field_topk["count"] > 0
                 ],
             }
             for field in fields
@@ -2205,39 +2228,3 @@ class QueryFieldStatisticsGraphResource(Resource):
             **interval_query_params,
         )
         bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
-
-
-class NewQuerySpanOptionValuesResource(Resource):
-    """新版获取Span候选值"""
-
-    RequestSerializer = NewQueryOptionValuesSerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_fields_option_values(
-            QueryMode.SPAN,
-            validated_data["datasource_type"],
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["fields"],
-            validated_data["limit"],
-            validated_data["filters"],
-            validated_data["query_string"],
-        )
-
-
-class NewQueryTraceOptionValuesResource(Resource):
-    """新版获取Trace候选值"""
-
-    RequestSerializer = NewQueryOptionValuesSerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_fields_option_values(
-            QueryMode.TRACE,
-            validated_data["datasource_type"],
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["fields"],
-            validated_data["limit"],
-            validated_data["filters"],
-            validated_data["query_string"],
-        )

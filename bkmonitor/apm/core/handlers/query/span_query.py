@@ -55,12 +55,6 @@ class SpanQuery(BaseQuery):
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.SPAN_ID, offset, limit)
         return page_data["data"], page_data["total"]
 
-    def query_option_values(
-        self, datasource_type: str, start_time: int | None, end_time: int | None, fields: list[str]
-    ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = self._get_q(datasource_type)
-        return self._query_option_values(q, fields, start_time, end_time)
-
     def query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
         q: QueryConfigBuilder = (
             self.q.time_field(OtlpKey.START_TIME)

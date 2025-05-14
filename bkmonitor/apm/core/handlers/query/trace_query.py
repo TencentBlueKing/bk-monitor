@@ -107,12 +107,6 @@ class TraceQuery(BaseQuery):
         )
         return self.time_range_queryset().add_query(q).first()
 
-    def query_option_values(
-        self, datasource_type: str, start_time: int | None, end_time: int | None, fields: list[str]
-    ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
-        return self._query_option_values(q, fields, start_time, end_time)
-
     @classmethod
     def _translate_field(cls, field: str) -> str:
         for prefix, translated_prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
