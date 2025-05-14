@@ -30,7 +30,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import { EMode } from '../../../../../../components/retrieval-filter/typing';
 import useFavoriteType from '../../hooks/use-favorite-type';
 
-import type { IFavoriteGroup, ITraceFavoriteConfig } from '../../types';
+import type { IFavoriteGroup } from '../../types';
 
 import './render-favorite-query.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -139,7 +139,8 @@ export default defineComponent({
       if (favoriteType.value !== 'trace') {
         return null;
       }
-      const queryParams = (props.data?.config?.queryParams || {}) as ITraceFavoriteConfig['queryParams'];
+      const queryParams = (props.data?.config?.queryParams ||
+        {}) as IFavoriteGroup<'trace'>['favorites'][number]['config']['queryParams'];
       const filterMode = props.data?.config?.componentData?.filterMode || EMode.ui;
       if (filterMode === EMode.queryString || queryParams?.query) {
         return <span>{queryParams.query}</span>;

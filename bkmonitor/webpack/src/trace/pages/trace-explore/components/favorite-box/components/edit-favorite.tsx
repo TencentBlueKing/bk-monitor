@@ -182,7 +182,7 @@ export default defineComponent({
           ),
         }}
         is-show={props.isShow}
-        title={t('编辑收藏')}
+        title={t(props.isCreate ? '新增收藏' : '编辑收藏')}
         onClosed={handleClose}
       >
         <Form
