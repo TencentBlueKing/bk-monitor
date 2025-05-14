@@ -96,9 +96,9 @@ class KafkaQueueV2:
             logger.error("topic %s load metadata failed", topic)
             raise Exception(f"topic {topic} load metadata failed")
 
-    def reset_offset(self, lastest=True):
+    def reset_offset(self, latest=True):
         consumer = self.get_consumer()
-        if lastest:
+        if latest:
             consumer.seek_to_end(*consumer._subscription.assigned_partitions())
         else:
             consumer.seek_to_beginning(*consumer._subscription.assigned_partitions())
