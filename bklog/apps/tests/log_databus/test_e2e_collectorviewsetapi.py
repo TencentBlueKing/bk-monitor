@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -177,6 +176,7 @@ COLLECTORS_LIST = {
                 "yaml_config_enabled": False,
                 "yaml_config": "",
                 "tags": [],
+                "max_rate": -1,
             }
         ],
     },
@@ -240,7 +240,7 @@ class TestCollectorViewSetAPI(TestCase):
 
         content = json.loads(response.content)
 
-        logger.info(" {func_name}:{content}".format(func_name=sys._getframe().f_code.co_name, content=content))
+        logger.info(f" {sys._getframe().f_code.co_name}:{content}")
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, COLLECTORS_LIST)
@@ -256,7 +256,7 @@ class TestCollectorViewSetAPI(TestCase):
 
         content = json.loads(response.content)
 
-        logger.info(" {func_name}:{content}".format(func_name=sys._getframe().f_code.co_name, content=content))
+        logger.info(f" {sys._getframe().f_code.co_name}:{content}")
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
 
